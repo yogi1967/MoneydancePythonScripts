@@ -1,4 +1,4 @@
-# extract_reminders_to_csv.py (version 1)
+# extract_reminders_to_csv.py (version 2)
 
 ###############################################################################
 # MIT License
@@ -25,7 +25,8 @@
 ###############################################################################
 
 # Harvested from allangdavies adgetreminderstocsv.py as base
-# Upgraded by Stuart Beesley 2020-06-13 tested on MacOS - MD2019.4 - StuWareSoftSystems....
+# Upgraded by Stuart Beesley 2020-06-17 tested on MacOS - MD2019.4 - StuWareSoftSystems....
+#  v2 recognise when reminder has expired
 
 #   Extracts all Moneydance reminders to a csv file compatible with Excel
 # 
@@ -46,12 +47,12 @@
 from com.infinitekind.moneydance.model import *
 
 import sys
-reload(sys)
+#reload(sys)                    # Was being used with setdefaultencoding below... But seems to work without
 import os
 import datetime
 from javax.swing import JButton, JFrame, JScrollPane, JTextArea, BoxLayout, BorderFactory
 
-sys.setdefaultencoding('utf8')
+#sys.setdefaultencoding('utf8') # Was being used with reload(sys) above... But seems to work without
 
 # function to output the amount (held as integer in cents) to 2 dec place amount field
 def formatasnumberforExcel(amountInt):
@@ -62,7 +63,10 @@ def formatasnumberforExcel(amountInt):
 
 # Moneydance dates  are int yyyymmddd - convert to locale date string for CSV format
 def dateoutput(dateinput,theformat):
-	if 		dateinput == "": dateoutput="" 	
+	if 		dateinput == "EXPIRED": dateoutput=dateinput
+	elif 		dateinput == "": dateoutput="" 	
+	elif		dateinput == 0: dateoutput=""
+	elif		dateinput == "0": dateoutput=""
 	else:
 			dateasdate=datetime.datetime.strptime(str(dateinput),"%Y%m%d") # Convert to Date field
 			dateoutput=dateasdate.strftime(theformat)
@@ -191,6 +195,8 @@ def main():
 	    else:		remdate=str(rem.getNextOccurance( rem.getLastDateInt() ))	# Stop at enddate
 
 	    if lastdate <1: lastdate=''
+
+	    if remdate =='0': remdate="EXPIRED"
 
 	    lastack = rem.getDateAcknowledgedInt()
 	    if lastack == 0 or lastack == 19700101: lastack=''
