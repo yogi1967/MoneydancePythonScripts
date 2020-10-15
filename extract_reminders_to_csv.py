@@ -1,4 +1,4 @@
-# extract_reminders_to_csv.py (version 2)
+# extract_reminders_to_csv.py (version 3)
 
 ###############################################################################
 # MIT License
@@ -24,40 +24,46 @@
 # SOFTWARE.
 ###############################################################################
 
-# Harvested from allangdavies adgetreminderstocsv.py as base
-# Upgraded by Stuart Beesley 2020-06-17 tested on MacOS - MD2019.4 - StuWareSoftSystems....
-#  v2 recognise when reminder has expired
+# Thanks to allangdavies adgetreminderstocsv.py
+# Stuart Beesley 2020-06-18 tested on MacOS - MD2019.4 - StuWareSoftSystems....
+# v3 upgraded script to ask for extract filename and extract date formats in pop up windows; also fix amounts less than 1
 
-#   Extracts all Moneydance reminders to a csv file compatible with Excel
-# 
-# Use in MoneyDance Menu Window->Show Moneybot Console
+# Extracts all Moneydance reminders to a csv file compatible with Excel
 
-# Before you run this script you must
-# 
-# 1. Change the 'myfolder' variable below to the output folder for the output CSV file
-# 2. Set the date format output you require: 1=dd/mm/yyyy, 2=mm/dd/yyyy, 3=yyyy/mm/dd
-#
-# To run the script start the Python Interface Extension in the Extensions Menu,
-# click *Read from File* button and locate script and click the *Open* button.
-# The script will read and extract the reminders to the folder location
-# you set in the *myfolder* variable in the script.
+# Use in MoneyDance Menu Window->Show Moneybot Console >> Open Script >> RUN
+# This script will pop up windows and ask for file extract name/location and date formats
+
+# I haven't tested on Windows, may or may not need tweaking if you set the file/pathnames
 
 # This script accesses Moneydance reminders and write the details to a csv file
 
 from com.infinitekind.moneydance.model import *
 
 import sys
-#reload(sys)                    # Was being used with setdefaultencoding below... But seems to work without
-import os
-import datetime
-from javax.swing import JButton, JFrame, JScrollPane, JTextArea, BoxLayout, BorderFactory
+reload(sys)                         # Dirty hack to eliminate UTF-8 coding errors
+sys.setdefaultencoding('utf8')      # Dirty hack to eliminate UTF-8 coding errors
 
-#sys.setdefaultencoding('utf8') # Was being used with reload(sys) above... But seems to work without
+import os
+import os.path
+import datetime
+import java.io.File
+import javax.swing.filechooser.FileNameExtensionFilter
+from javax.swing import JButton, JFrame, JScrollPane, JTextArea, BoxLayout, BorderFactory, JOptionPane, JPanel, JRadioButton, ButtonGroup, JButton, JLabel, JFileChooser
 
 # function to output the amount (held as integer in cents) to 2 dec place amount field
 def formatasnumberforExcel(amountInt):
-    wholeportion=str(amountInt)[0:-2]
-    placesportion=str(amountInt)[-2:]
+
+    amount = amountInt                      # Temporarily convert to a positive and then ensure always three digits
+    if amountInt < 0:   amount *= -1
+    str_amount = str(amount)
+    if len(str_amount)<3: str_amount = ("0"+str_amount) # PAD with zeros to ensure whole number exists
+    if len(str_amount)<3: str_amount = ("0"+str_amount)
+        
+    wholeportion    = str_amount[0:-2]
+    placesportion   = str_amount[-2:]
+    
+    if amountInt < 0: wholeportion = '-'+wholeportion       # Put the negative back
+    
     outputfield=wholeportion+'.'+placesportion
     return outputfield
 
@@ -74,46 +80,82 @@ def dateoutput(dateinput,theformat):
 	#print "Input: ",dateinput,"  Format: ",theformat,' Output: ',dateoutput
 	return dateoutput
 
-
-
 # ========= MAIN PROGRAM =============
-def main():
-	print "StuWareSoftSystems..."
-	print "Export reminders to csv file"
 
-	# vvvvvvvvvvvvvv SET THIS BELOW vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-	myfolder="/Users/stu/Documents/MoneyDance/Extracts/"	######### CHANGE THIS TO YOUR FOLDER LOCATION
-	#  for example myfolder="/Users/Fred/Desktop/" for Mac
-	#              myfolder="c:/Users/Fred/Desktop/ for Windows
+def Main():
 
-	csvfilename=myfolder+"mdreminders.csv"
+    print "StuWareSoftSystems..."
+    print "Export reminders to csv file"
 
-	# vvvvvvvvvvvvvv SET THIS BELOW vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-	userdateformat=3												######### CHANGE THIS TO 1 or 2 or 3 - as per instruction above
+    scriptpath = moneydance_data.getRootFolder().getParent()        # Path to Folder holding MD Datafile
+    
+    filename = JFileChooser(scriptpath)
+    
+    filename.setSelectedFile(java.io.File(scriptpath+os.path.sep+'extract_reminders.csv'))
 
-	if	userdateformat==1:	userdateformat="%d/%m/%Y"
-	elif	userdateformat==2: 	userdateformat="%m/%d/%Y"
-	elif	userdateformat==3: 	userdateformat="%Y/%m/%d"
-	else:
+    extfilter = javax.swing.filechooser.FileNameExtensionFilter("CSV file (CSV,TXT)", ["csv","TXT"])
+
+    filename.setMultiSelectionEnabled(False)
+    filename.setFileFilter(extfilter)
+    filename.setDialogTitle("Select/Choose/Create CSV file for Reminders extract")
+
+    returnvalue = filename.showDialog(None,"Extract")
+ 
+    if returnvalue==JFileChooser.CANCEL_OPTION:
+        print "User chose to cancel Extract... Exiting...."
+        print "Goodbye..."
+        return(1)
+            
+    if filename.selectedFile==None:
+        print "User chose no filename... Exiting...."
+        print "Goodbye..."
+        return(1)
+    
+    csvfilename = str(filename.selectedFile)
+    print 'Reading Reminders and extracting to file: ', csvfilename
+    print 'NOTE: Should drop non utf8 characters...'
+
+    if os.path.exists(csvfilename) and os.path.isfile(csvfilename):
+        # Uh-oh file exists - overwrite?
+        print "File already exists... Confirm..."
+        if (JOptionPane.showConfirmDialog(None, "File '"+os.path.basename(csvfilename)+"' exists... Press YES to overwrite and proceed, NO to Abort?","WARNING",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE)==JOptionPane.YES_OPTION):
+            print "User agreed to overwrite file..."
+        else:
+            print "User does not want to overwrite file... Aborting..."
+            return(1)
+    
+    userdateformat = (JOptionPane.showInputDialog(None,
+                                             "Type 1 or 2 or 3\n1=dd/mm/yyyy\n2=mm/dd/yyyy\n3=yyyy/mm/dd (default)\n4=yyyymmdd",
+                                             "CHOOSE OUTPUT DATEFORMAT?",JOptionPane.OK_CANCEL_OPTION,None,None,'3'))
+    
+    if not userdateformat in ["1","2","3","4"]:
+        print "User did not choose dateformat... Exiting...."
+        print "Goodbye..."
+        return(1)
+    else: userdateformat = int(userdateformat)
+    
+    print "User's Date Choice: ", ["","dd/mm/yy","mm/dd/yy","yy/mm/dd","yyyymmdd"][userdateformat]
+
+    if	    userdateformat==1:	userdateformat="%d/%m/%Y"
+    elif	userdateformat==2: 	userdateformat="%m/%d/%Y"
+    elif	userdateformat==3: 	userdateformat="%Y/%m/%d"
+    elif	userdateformat==4: 	userdateformat="%Y%m%d"
+    else:
 		#PROBLEM /  default
 		userdateformat="%Y%m%d"
 
-	print 'Reading Reminders and extracting to file: ', csvfilename
-	print 'NOTE: Will drop non utf8 characters...'
+    root=moneydance.getCurrentAccountBook()
 
-	root=moneydance.getCurrentAccountBook()
-
-	rems = root.getReminders().getAllReminders()
-	print 'Success: read ',rems.size(),'reminders'
-	print
-
-	csvheaderline="NextDue,Number#,ReminderType,Frequency,AutoCommitDays,LastAcknowledged,FirstDate,EndDate,ReminderDecription,NetAmount,TxfrType,Account,MainDescription,Split#,SplitAmount,Category,Description,Memo\n"
+    rems = root.getReminders().getAllReminders()
+    print 'Success: read ',rems.size(),'reminders'
+    print
+    csvheaderline="NextDue,Number#,ReminderType,Frequency,AutoCommitDays,LastAcknowledged,FirstDate,EndDate,ReminderDecription,NetAmount,TxfrType,Account,MainDescription,Split#,SplitAmount,Category,Description,Memo\n"
 
 	# Read each reminder and create a csv line for each in the csvlines array
-	csvlines=[]		# Set up an ampty array
-	csvlines.append(csvheaderline)
+    csvlines=[]		# Set up an ampty array
+    csvlines.append(csvheaderline)
 	
-	for index in range(0,int(rems.size())):
+    for index in range(0,int(rems.size())):
 
 	    rem=rems[index]									# Get the reminder
 
@@ -142,12 +184,12 @@ def main():
 	    if len( rem.getRepeatWeeklyDays())>0 and rem.getRepeatWeeklyDays()[0] > 0:
         		for freq in range(0,len(rem.getRepeatWeeklyDays())):
 					if len(remfreq)>0: remfreq += " & "
-					if weekly  == Reminder.WEEKLY_EVERY:					remfreq += 'WEEKLY_EVERY'
+					if weekly  == Reminder.WEEKLY_EVERY:			    remfreq += 'WEEKLY_EVERY'
 					if weekly  == Reminder.WEEKLY_EVERY_FIFTH:			remfreq += 'WEEKLY_EVERY_FIFTH'
 					if weekly  == Reminder.WEEKLY_EVERY_FIRST:			remfreq += 'WEEKLY_EVERY_FIRST'
-					if weekly  == Reminder.WEEKLY_EVERY_FOURTH:		remfreq += 'WEEKLY_EVERY_FOURTH'
+					if weekly  == Reminder.WEEKLY_EVERY_FOURTH:		    remfreq += 'WEEKLY_EVERY_FOURTH'
 					if weekly  == Reminder.WEEKLY_EVERY_LAST:			remfreq += 'WEEKLY_EVERY_LAST'
-					if weekly  == Reminder.WEEKLY_EVERY_SECOND:		remfreq += 'WEEKLY_EVERY_SECOND'
+					if weekly  == Reminder.WEEKLY_EVERY_SECOND:		    remfreq += 'WEEKLY_EVERY_SECOND'
 					if weekly  == Reminder.WEEKLY_EVERY_THIRD:			remfreq += 'WEEKLY_EVERY_THIRD'
 
 					if rem.getRepeatWeeklyDays()[freq] == 1: remfreq+='(on Sunday)'
@@ -163,11 +205,11 @@ def main():
 	    if len(rem.getRepeatMonthly())>0 and rem.getRepeatMonthly()[0] > 0 :
         		for freq in range(0,len(rem.getRepeatMonthly())):
 					if len(remfreq)>0: remfreq += " & "
-					if monthly  == Reminder.MONTHLY_EVERY:				remfreq += 'MONTHLY_EVERY' 
-					if monthly  == Reminder.MONTHLY_EVERY_FOURTH:	remfreq += 'MONTHLY_EVERY_FOURTH'
-					if monthly  == Reminder.MONTHLY_EVERY_OTHER: 	remfreq += 'MONTHLY_EVERY_OTHER'
-					if monthly  == Reminder.MONTHLY_EVERY_SIXTH: 		remfreq += 'MONTHLY_EVERY_SIXTH' 
-					if monthly  == Reminder.MONTHLY_EVERY_THIRD: 		remfreq += 'MONTHLY_EVERY_THIRD' 
+					if monthly  == Reminder.MONTHLY_EVERY: 				 remfreq += 'MONTHLY_EVERY' 
+					if monthly  == Reminder.MONTHLY_EVERY_FOURTH:	     remfreq += 'MONTHLY_EVERY_FOURTH'
+					if monthly  == Reminder.MONTHLY_EVERY_OTHER: 	     remfreq += 'MONTHLY_EVERY_OTHER'
+					if monthly  == Reminder.MONTHLY_EVERY_SIXTH: 		 remfreq += 'MONTHLY_EVERY_SIXTH' 
+					if monthly  == Reminder.MONTHLY_EVERY_THIRD: 		 remfreq += 'MONTHLY_EVERY_THIRD' 
 
 					theday = rem.getRepeatMonthly()[freq]
 					if theday == Reminder.LAST_DAY_OF_MONTH:
@@ -268,17 +310,17 @@ def main():
 				)
 				csvlines.append(csvline)
 
-	index+=1
+    index+=1
 
-	# Write the csvlines to a file
-	f=open(csvfilename,"w")
-	for csvline in csvlines: f.write(csvline)
-	print 'CSV file '+csvfilename+' created'
-	print 'Done'
-	f.close()
+    # Write the csvlines to a file
+    f=open(csvfilename,"w")
+    for csvline in csvlines: f.write(csvline)
+    print 'CSV file '+csvfilename+' created'
+    print 'Done'
+    f.close()
 
 
-	return( csvlines )
+    return( 0 )
 # END OF FUNCTION
 
-main()
+Main()
