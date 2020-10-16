@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# StockGlance2020 v3b - September 2020 - Stuart Beesley
+# StockGlance2020 v3c - September 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -53,7 +53,9 @@
 # ----- I've added extra columns with raw number that don't get displayed. I planned to use for custom sort, but I found a workaround stripping non numerics out of text... (so not used) 
 # ----- Found that JFileChooser with file extension filters hangs on Macs, so use FileDialog on Mac to also get Mac(ish) GUI LaF
 # ----- Version 3 - fixed bug so that .moneydance extension test only checks end of filename (not middle)
+# ----- Version 3c fiddled with the Accounts filter; added extra total (securities + cash balance) where whole account selected
 # ------------------------
+
 
 import sys
 reload(sys)                         # Dirty hack to eliminate UTF-8 coding errors
@@ -661,7 +663,7 @@ if checkVersions():
 
                                     if debug: print "Values found (local, base): ",balance, balanceBase
                                     self.totalBalance += round(balance,0)               # The totals are displayed without decimals, so round the totals too...
-                                    self.totalBalanceBase += round(balanceBase,0)       # The totals are displayed without decimals, so round the totals too...
+                                    self.totalBalanceBase += balanceBase                # The totals are displayed without decimals, so round the totals too...
 
                                     if lIncludeCashBalances:
                                         cash=0.0
@@ -691,7 +693,7 @@ if checkVersions():
                                     entry.add(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, False)  )   # c3
                                     entry.add(self.currXrate.getIDString())                                                  # c4
                                     entry.add(self.myNumberFormatter(balance, False, self.currXrate, baseCurrency, True) )   # c5
-                                    entry.add(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency, True)) # c6
+                                    entry.add(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency, False))# c6
                                     entry.add(self.AccountsTable.get(curr))                                                  # c7
                                     entry.add(curr.getDoubleValue(qty))                                                      # c8 _Shrs = c2 (raw number)
                                     entry.add(price)                                                                         # c9 _Price = c3 (raw number)
@@ -716,7 +718,7 @@ if checkVersions():
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
 
                 entry = Vector(len(self.names)) 
-                entry.add("Totals:")
+                entry.add("Total: Securities")
                 entry.add(None)
                 entry.add(None)
                 entry.add(None)
@@ -799,6 +801,38 @@ if checkVersions():
                     entry.add(0)
                     entry.add(0)
                     rawFooterTable.add(entry)
+                    
+                    if lAllSecurity and lAllCurrency:
+                        entry = Vector(len(self.names))
+                        entry.add("==========")
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add("==========")
+                        entry.add(None)
+                        entry.add(0)
+                        entry.add(0)
+                        entry.add(0)
+                        entry.add(0)
+                        rawFooterTable.add(entry)
+                        entry = Vector(len(self.names))
+                        entry.add("TOTAL Securities+Cash Bal:")
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase ) , True, baseCurrency, baseCurrency, True))
+                        entry.add("Only valid where whole accounts selected!")
+                        entry.add(0)
+                        entry.add(0)
+                        entry.add(0)
+                        entry.add(0)
+                        rawFooterTable.add(entry)
+                  
+                #endif                    
 
                 return DefaultTableModel(rawFooterTable,self.columnNames)
 
@@ -846,6 +880,15 @@ if checkVersions():
                     myFilter = AcctFilter.ACTIVE_ACCOUNTS_FILTER
                 else:
                     myFilter = AcctFilter.ALL_ACCOUNTS_FILTER
+                    
+                    
+                # FYI - This is the MD actual logic for AcctFilter.ACTIVE_ACCOUNTS_FILTER
+                #public boolean matches(Account acct) {
+                #      if(acct.getAccountOrParentIsInactive()) return false;
+                #      if(acct.getHideOnHomePage() && acct.getBalance()==0) return false;
+                #      return true;
+                #    }                    
+                    
 
                 totals = HashMap() #  HashMap<CurrencyType, Long> 
                 accounts = HashMap()
@@ -1435,7 +1478,6 @@ else:
     # Otherwise version error - ending
     pass
 
-    
     
 
 
