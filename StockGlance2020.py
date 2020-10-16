@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# StockGlance2020 v3d - September 2020 - Stuart Beesley
+# StockGlance2020 v4 - September 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -56,6 +56,7 @@
 # ----- Version 3c fiddled with the Accounts filter; added extra total (securities + cash balance) where whole account selected
 # ----- Version 3d eliminated rounding on the totals in base currency (user request); don't display base currency in local currency where same; make all filters uppercase
 # ----- V3d Fix small bug on check for whether all securities were same currency (didn't really affect much); also tried to deal better with LOCALE decimal point and comma....
+# ----- V4 - Enhanced to use CSV File writer and write raw numbers into the CSV file - let CSV writer handle the special character handling.......; altered pricing rounding
 # ------------------------
 
 import sys
@@ -110,12 +111,16 @@ import java.io.File
 
 import inspect
 
+import csv
+
 global debug # Set to True if you want verbose messages, else set to False....
 
 global StockGlanceInstance  # holds the instance of StockGlance2020()
 global baseCurrency, sdf, frame_, rawDataTable, rawFooterTable, headingNames
-global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency, lAllSecurity, filteForSecurity, lStripASCII
+global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency, lAllSecurity, filteForSecurity, lStripASCII, csvDelimiter
 global csvfilename
+
+global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
 
 global decimalCharSep, groupingCharSep
 
@@ -131,11 +136,17 @@ lAllAccounts=True
 filterForAccounts="ALL"
 lIncludeCashBalances=False
 lStripASCII=True
+csvDelimiter=","
 debug = False
 lUseMacFileChooser=True # This will be ignored if you don't choose option to export to  a file
 
 headingNames=""
 lIamAMac=False
+
+print "StuWareSoftSystems..."
+print "StockGlance2020.py......."
+if debug: print "DEBUG IS ON.."
+
 
 def MDDiag():
     global debug
@@ -143,7 +154,7 @@ def MDDiag():
 
 MDDiag()
 
-
+if debug: print "System file encoding is:", sys.getfilesystemencoding() # Not used, but interesting. Perhaps useful when switching between Windows/Macs and writing files... 
 
 def checkVersions():
     global debug
@@ -211,17 +222,14 @@ if checkVersions():
     
     decimalCharSep  = getDecimalPoint(lGetPoint=True)
     groupingCharSep = getDecimalPoint(lGetGrouping=True)
-    if debug: print "Decimal point:",decimalCharSep,"Grouping Seperator",groupingCharSep
+    if decimalCharSep <> "." and csvDelimiter == ",": csvDelimiter=";" # Override for EU countries or where decimal point is actually a comma...        
+    if debug: print "Decimal point:",decimalCharSep,"Grouping Seperator",groupingCharSep,"CSV Delimiter set to:",csvDelimiter
     
     # Stores  the data table for export
     rawDataTable=None
     rawrawFooterTable=None
 
     sdf = SimpleDateFormat("dd/MM/yyyy")  
-
-    print "StuWareSoftSystems..."
-    print "StockGlance2020.py......."
-    if debug: print "DEBUG IS ON.."
 
     # This allows me to filter inputs to Y/N and convert to uppercase - single digit responses..... (took hours to work out, but now I have it!)
     class JTextFieldLimitYN(PlainDocument):
@@ -237,7 +245,7 @@ if checkVersions():
         def insertString(self, myOffset, myString, myAttr):
             if (myString == None): return
             if self.toUpper: myString=myString.upper()
-            if (self.what=="YN" and (myString == "Y" or myString == "N")) or (self.what=="CURR"):
+            if (self.what=="YN" and (myString in "YN")) or (self.what=="DELIM" and (myString in ";|,")) or (self.what=="CURR"):
                 if ((self.getLength() + len(myString)) <= self.limit):
                     super(JTextFieldLimitYN,self).insertString(myOffset, myString, myAttr)
     #endclass         
@@ -284,14 +292,18 @@ if checkVersions():
     if     lIncludeCashBalances: user_selectCashBalances.setText("Y")
     else:               user_selectCashBalances.setText("N")
 
-    label8 = JLabel("Strip currency symbols from CSV export? (Y/N)")
+    label8 = JLabel("Strip non ASCII characters from CSV export? (Y/N)")
     user_selectStripASCII=JTextField(12)
     user_selectStripASCII.setDocument(JTextFieldLimitYN(1,True,"YN"))
     if     lStripASCII: user_selectStripASCII.setText("Y")
     else:               user_selectStripASCII.setText("N")
 
+    label9 = JLabel("Change CSV Export Delimiter from default to: ';|,'")
+    user_selectDELIMITER=JTextField(2)
+    user_selectDELIMITER.setDocument(JTextFieldLimitYN(1,True,"DELIM"))
+    user_selectDELIMITER.setText(csvDelimiter)
     
-    label9 = JLabel("Turn DEBUG Verbose messages on? (Y/N)")
+    label10 = JLabel("Turn DEBUG Verbose messages on? (Y/N)")
     user_selectDEBUG=JTextField(2)
     user_selectDEBUG.setDocument(JTextFieldLimitYN(1,True,"YN"))
     if      debug:  user_selectDEBUG.setText("Y")
@@ -299,13 +311,13 @@ if checkVersions():
 
 
     if lIamAMac:    
-        label10 = JLabel("Use Mac-like GUI for export filename selection? (Y/N)")
+        label11 = JLabel("Use Mac-like GUI for export filename selection? (Y/N)")
         user_selectMacFileChooser=JTextField(2)
         user_selectMacFileChooser.setDocument(JTextFieldLimitYN(1,True,"YN"))
         if      lUseMacFileChooser:  user_selectMacFileChooser.setText("Y")
         else:                        user_selectMacFileChooser.setText("N")
         
-    userFilters =JPanel(GridLayout(10, 2))
+    userFilters =JPanel(GridLayout(11, 2))
     userFilters.add(label1)
     userFilters.add(user_hideHiddenSecurities)
     userFilters.add(label2)
@@ -323,9 +335,11 @@ if checkVersions():
     userFilters.add(label8)
     userFilters.add(user_selectStripASCII)
     userFilters.add(label9)
+    userFilters.add(user_selectDELIMITER)
+    userFilters.add(label10)
     userFilters.add(user_selectDEBUG)
     if lIamAMac:
-        userFilters.add(label10)
+        userFilters.add(label11)
         userFilters.add(user_selectMacFileChooser)
 
     lExit=False
@@ -348,7 +362,7 @@ if checkVersions():
     if not lExit:
 
         if debug:
-            print "Parameters Captured", "Sec: ",user_hideHiddenSecurities.getText(), "InActAct:", user_hideInactiveAccounts.getText(), "HidAct:", user_hideHiddenAccounts.getText(), "Curr:", user_selectCurrency.getText(), "Ticker:",user_selectTicker.getText(), "Filter Accts:",user_selectAccounts.getText(),"Include Cash Balances:",user_selectCashBalances.getText(), "Strip ASCII:", user_selectStripASCII.getText(), "Verbose Debug Messages: ", user_selectDEBUG.getText()
+            print "Parameters Captured", "Sec: ",user_hideHiddenSecurities.getText(), "InActAct:", user_hideInactiveAccounts.getText(), "HidAct:", user_hideHiddenAccounts.getText(), "Curr:", user_selectCurrency.getText(), "Ticker:",user_selectTicker.getText(), "Filter Accts:",user_selectAccounts.getText(),"Include Cash Balances:",user_selectCashBalances.getText(), "Strip ASCII:", user_selectStripASCII.getText(), "Verbose Debug Messages: ", user_selectDEBUG.getText(), "CSV File Delimiter:",user_selectDELIMITER.getText()
             if lIamAMac:print "Use Mac-like Filename GUI:", user_selectMacFileChooser.getText()
         #endif  
         
@@ -382,6 +396,14 @@ if checkVersions():
 
         if user_selectStripASCII.getText() == "Y":      lStripASCII=True
         else:                                           lStripASCII=False
+
+        csvDelimiter = user_selectDELIMITER.getText()
+        if csvDelimiter=="" or (not (csvDelimiter in ";|,")):
+            print "Invalid Delimiter:",csvDelimiter,"selected. Overriding with:','"
+            csvDelimiter=","
+        if decimalCharSep == csvDelimiter:
+            print "WARNING: The CSV file delimiter:",csvDelimiter,"cannot be the same as your decimal point character:",decimalCharSep," - Proceeding without file export!!"
+            lDisplayOnly=True
 
         if user_selectDEBUG.getText() == "Y":   debug=True
         else:
@@ -440,9 +462,10 @@ if checkVersions():
                     print "I am a Mac, but User asked to use older non-Mac GUI JFileChooser.."
              
             if lStripASCII:
-                print "Will strip non-ASCII characters - e.g. Currency symbols from output file..."
+                print "Will strip non-ASCII characters - e.g. Currency symbols from output file..."," Using Delimiter:",csvDelimiter
             else:
-                print "Non-ASCII characters will not be stripped from file: "
+                print "Non-ASCII characters will not be stripped from file: "," Using Delimiter:",csvDelimiter
+                
 
             def myDir():
                 homeDir = System.getProperty("user.home")
@@ -576,6 +599,7 @@ if checkVersions():
         class StockGlance2020():   # MAIN program....
             global debug, hideHiddenSecurities, hideInactiveAccounts
             global rawDataTable, rawFooterTable, headingNames
+            global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
 
             if debug: print "In ", inspect.currentframe().f_code.co_name, "()"    
 
@@ -654,7 +678,8 @@ if checkVersions():
                         # NOTE: (1.0 / .getRelativeRate() ) gives you the 'Current Price' from the History Screen
                         # NOTE: .getPrice(None) gives you the Current Price relative to the current Base to Security Currency.. So Base>Currency rate * .getRate(None) also gives Current Price
 
-                        price = 1.0/curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate()) 
+                        roundPrice = curr.getDecimalPlaces() 
+                        price = round(1.0/curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate()), roundPrice)
 
                         qty = self.QtyOfSharesTable.get(curr)
                         if qty == None: qty = 0
@@ -694,8 +719,8 @@ if checkVersions():
                                     balanceBase = (0.0 if (qty == None) else (curr.getDoubleValue(qty) * price/exchangeRate) ) # Value in Base Currency
 
                                     if debug: print "Values found (local, base): ",balance, balanceBase
-                                    self.totalBalance += round(balance,0)               # The totals are displayed without decimals, so round the totals too...
-                                    self.totalBalanceBase += balanceBase                # The totals are displayed without decimals, so round the totals too...
+                                    self.totalBalance += round(balance,2)                        # You can round here if you like....
+                                    self.totalBalanceBase += round(balanceBase,2)                # You can round here if you like....
 
                                     if lIncludeCashBalances:
                                         cash=0.0
@@ -714,27 +739,25 @@ if checkVersions():
                                                 continue
                                                 # Keep searching as a Security may be used in many accounts...
 
-
-
-                                    if debug:
-                                        print "myNumberFormatter - Original Price: ", price, " :: ", self.myNumberFormatter(price, False, self.currXrate, baseCurrency, False)
                                             
                                     entry.add(curr.getTickerSymbol())                                                           # c0
                                     entry.add(curr.getName())                                                                   # c1
-                                    entry.add(curr.formatSemiFancy(qty,decimalCharSep))                                                    # c2
-                                    entry.add(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, False)  )      # c3
+                                    entry.add(curr.formatSemiFancy(qty,decimalCharSep))                                         # c2
+                                    entry.add(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, roundPrice)  ) # c3
                                     entry.add(self.currXrate.getIDString())                                                     # c4
+                                    x=None
                                     if securityIsBase:
-                                        entry.add("")                                                                           # c5 - don't bother displaying if base curr
+                                        entry.add(None)                                                                         # c5 - don't bother displaying if base curr
                                     else:
                                         self.lRemoveCurrColumn=False
-                                        entry.add(self.myNumberFormatter(balance, False, self.currXrate, baseCurrency, True) )  # c5
-                                    entry.add(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency, False))   # c6
+                                        entry.add(self.myNumberFormatter(balance, False, self.currXrate, baseCurrency, 2) )     # c5
+                                        x=round(balance,2)
+                                    entry.add(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency, 2))       # c6
                                     entry.add(self.AccountsTable.get(curr))                                                     # c7
-                                    entry.add(curr.getDoubleValue(qty))                                                         # c8 _Shrs = c2 (raw number)
-                                    entry.add(price)                                                                            # c9 _Price = c3 (raw number)
-                                    entry.add(balance)                                                                          # c10 _CValue = c5 (raw number)
-                                    entry.add(balanceBase)                                                                      # c11 _BValue = c6 (raw number)
+                                    entry.add(curr.getDoubleValue(qty))                                                         # c8  _Shrs = c2 (raw number)
+                                    entry.add(price)                                                                            # c9  _Price = c3 (raw number)
+                                    entry.add(x)                                                                                # c10 _CValue = c5 (raw number)
+                                    entry.add(round(balanceBase,2))                                                             # c11 _BValue = c6 (raw number)
                                     rawDataTable.add(entry)
                                 else:
                                     if debug: print "Skipping non Filtered Security/Ticker:", curr, curr.getTickerSymbol()
@@ -753,47 +776,50 @@ if checkVersions():
                 global debug, baseCurrency, rawFooterTable, lIncludeCashBalances
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
                 if debug: print "Generating the footer table data...."
-                    
+
+                blankEntry = Vector(len(self.names))
+                blankEntry.add("==========")
+                blankEntry.add(None)
+                blankEntry.add(None)
+                blankEntry.add(None)
+                blankEntry.add(None)
+                blankEntry.add(None)
+                blankEntry.add("==========")
+                blankEntry.add(None)
+                blankEntry.add(None)
+                blankEntry.add(None)
+                blankEntry.add(None)
+                blankEntry.add(None)
+                                              
                 entry = Vector(len(self.names)) 
                 entry.add("Total: Securities")
                 entry.add(None)
                 entry.add(None)
                 entry.add(None)
                 entry.add(None)
-                x=0
+                x=None
                 if self.allOneCurrency and (self.currXrate<>baseCurrency):
                     if debug: print "getFooterModel: sameCurrency=",self.currXrate 
                     if self.currXrate==None:
                         entry.add(None)
                     else:
                         x=self.totalBalance
-                        entry.add(self.myNumberFormatter(self.totalBalance, False, self.currXrate, baseCurrency, True))
+                        entry.add(self.myNumberFormatter(self.totalBalance, False, self.currXrate, baseCurrency, 2))
                 else:
                     if debug: print "getFooterModel: was not allOneCurrency.."
                     entry.add(None)
-                entry.add(self.myNumberFormatter(self.totalBalanceBase, True, baseCurrency, baseCurrency, False))
+                entry.add(self.myNumberFormatter(self.totalBalanceBase, True, baseCurrency, baseCurrency, 2))
                 entry.add("<<"+baseCurrency.getIDString())
-                entry.add(0)
-                entry.add(0)
+                entry.add(None)
+                entry.add(None)
                 entry.add(x)
                 entry.add(self.totalBalanceBase)
                 rawFooterTable.clear()
                 rawFooterTable.add(entry)
+                                              
                 if lIncludeCashBalances :
-                    entry = Vector(len(self.names))
-                    entry.add("---------")
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add("---------")
-                    entry.add(None)
-                    entry.add(0)
-                    entry.add(0)
-                    entry.add(0)
-                    entry.add(0)
-                    rawFooterTable.add(entry)
+                    
+                    rawFooterTable.add(blankEntry)
 
                     for i in range(0,len(self.CashBalanceTableData)):
                         if self.CashBalanceTableData[i][1] <> 0:
@@ -804,27 +830,15 @@ if checkVersions():
                             entry.add(None)
                             entry.add(None)
                             entry.add(None)
-                            entry.add(self.myNumberFormatter(self.CashBalanceTableData[i][1], True, baseCurrency, baseCurrency, False))
+                            entry.add(self.myNumberFormatter(self.CashBalanceTableData[i][1], True, baseCurrency, baseCurrency, 2))
                             entry.add(str(self.CashBalanceTableData[i][0]))
-                            entry.add(0)
-                            entry.add(0)
-                            entry.add(0)
-                            entry.add(0)
+                            entry.add(None)
+                            entry.add(None)
+                            entry.add(None)
+                            entry.add(self.CashBalanceTableData[i][1])
                             rawFooterTable.add(entry)
-                    entry = Vector(len(self.names))
-                    entry.add("==========")
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add("==========")
-                    entry.add(None)
-                    entry.add(0)
-                    entry.add(0)
-                    entry.add(0)
-                    entry.add(0)
-                    rawFooterTable.add(entry)
+                                              
+                    rawFooterTable.add(blankEntry)
                     entry = Vector(len(self.names))
                     entry.add("Cash Bal TOTAL:")
                     entry.add(None)
@@ -832,29 +846,16 @@ if checkVersions():
                     entry.add(None)
                     entry.add(None)
                     entry.add(None)
-                    entry.add(self.myNumberFormatter(self.totalCashBalanceBase, True, baseCurrency, baseCurrency, False))
+                    entry.add(self.myNumberFormatter(self.totalCashBalanceBase, True, baseCurrency, baseCurrency, 2))
                     entry.add("Across all Accounts involved in this table")
-                    entry.add(0)
-                    entry.add(0)
-                    entry.add(0)
-                    entry.add(0)
+                    entry.add(None)
+                    entry.add(None)
+                    entry.add(None)
+                    entry.add(self.totalCashBalanceBase)
                     rawFooterTable.add(entry)
                     
                     if lAllSecurity: # I don't add them up if selecting one security - probably makes the overal total wrong if multi securities in an account etc...
-                        entry = Vector(len(self.names))
-                        entry.add("==========")
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add("==========")
-                        entry.add(None)
-                        entry.add(0)
-                        entry.add(0)
-                        entry.add(0)
-                        entry.add(0)
-                        rawFooterTable.add(entry)
+                        rawFooterTable.add(blankEntry)
                         entry = Vector(len(self.names))
                         entry.add("TOTAL Securities+Cash Bal:")
                         entry.add(None)
@@ -862,12 +863,12 @@ if checkVersions():
                         entry.add(None)
                         entry.add(None)
                         entry.add(None)
-                        entry.add(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase ) , True, baseCurrency, baseCurrency, False))
+                        entry.add(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase ) , True, baseCurrency, baseCurrency, 2))
                         entry.add("Only valid where whole accounts selected!")
-                        entry.add(0)
-                        entry.add(0)
-                        entry.add(0)
-                        entry.add(0)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add(None)
+                        entry.add((self.totalBalanceBase + self.totalCashBalanceBase ))
                         rawFooterTable.add(entry)
                   
                 #endif                    
@@ -882,29 +883,33 @@ if checkVersions():
                 decimalSeparator = decimalCharSep
                 noDecimalFormatter = NumberFormat.getNumberInstance()
                 noDecimalFormatter.setMinimumFractionDigits(0)
-                noDecimalFormatter.setMaximumFractionDigits(0)
+                noDecimalFormatter.setMaximumFractionDigits(noDecimals)
+
+                if noDecimals==2: noDecimalFormatter.setMinimumFractionDigits(2)
 
                 if theNumber == None or Double.isNaN(float(theNumber)): return("")
 
                 if Math.abs(float(theNumber)) < 0.01: theNumber = 0L
 
                 if useBase:
-                    if noDecimals:
+                    if noDecimals==0:
                         # MD format functions can't print comma-separated values without a decimal point so
                         # we have to do it ourselves
                         theNumber = baseCurr.getPrefix() + " " + noDecimalFormatter.format(float(theNumber)) + baseCurr.getSuffix()
                     else:
 
-                        theNumber = baseCurr.formatFancy(baseCurr.getLongValue(float(theNumber)), decimalSeparator)
+                        theNumber = baseCurr.getPrefix() + " " + noDecimalFormatter.format(float(theNumber)) + baseCurr.getSuffix()
+                        #theNumber = baseCurr.formatFancy(baseCurr.getLongValue(float(theNumber)), decimalSeparator)
                 else:
 
-                    if noDecimals:
+                    if noDecimals==0:
                         # MD format functions can't print comma-separated values without a decimal point so
                         # we have to do it ourselves
                         theNumber = exchangeCurr.getPrefix() + " " + noDecimalFormatter.format(float(theNumber)) + exchangeCurr.getSuffix()
                     else:
 
-                        theNumber = exchangeCurr.formatFancy(exchangeCurr.getLongValue(float(theNumber)), decimalSeparator)
+                        theNumber = exchangeCurr.getPrefix() + " " + noDecimalFormatter.format(float(theNumber)) + exchangeCurr.getSuffix()
+                        #theNumber = exchangeCurr.formatFancy(exchangeCurr.getLongValue(float(theNumber)), decimalSeparator)
 
                 return(theNumber) 
 
@@ -955,7 +960,7 @@ if checkVersions():
                                         # WARNING Cash balances are by Account and not by Security!
                                         cashTotal = curr.getDoubleValue((acct.getParentAccount().getCurrentBalance()))/curr.getRate(None) # Will be the same Cash balance per account for all Securities..
                                         if debug: print "Cash balance for account:", cashTotal 
-                                        cashTotals.put(acct.getParentAccount(), cashTotal)
+                                        cashTotals.put(acct.getParentAccount(), round(cashTotal,2) )
 
 
                             elif hideHiddenAccounts and acct.getHideOnHomePage():
@@ -1033,17 +1038,19 @@ if checkVersions():
                     #enddef 
 
                 def fixTheRowSorter(self):    # by default everthing gets coverted to strings. We need to fix this and code for my string number formats
+                    global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
+
                     sorter = TableRowSorter()           
                     self.setRowSorter(sorter)                               
                     sorter.setModel(self.getModel())                          
                     for i in range (0 , self.getColumnCount() ) :  
-                        if i==StockGlanceInstance._SHRS_FORMATTED:
+                        if i==_SHRS_FORMATTED:
                             sorter.setComparator(i,self.myTextNumberComparator("N"))    
-                        elif i==StockGlanceInstance._PRICE_FORMATTED:
+                        elif i==_PRICE_FORMATTED:
                             sorter.setComparator(i,self.myTextNumberComparator("N"))    
-                        elif i==StockGlanceInstance._CVALUE_FORMATTED:
+                        elif i==_CVALUE_FORMATTED:
                             sorter.setComparator(i,self.myTextNumberComparator("N"))    
-                        elif i==StockGlanceInstance._BVALUE_FORMATTED:
+                        elif i==_BVALUE_FORMATTED:
                             sorter.setComparator(i,self.myTextNumberComparator("N"))    
                         else:
                             sorter.setComparator(i,self.myTextNumberComparator("T"))    
@@ -1127,6 +1134,9 @@ if checkVersions():
 
             def createAndShowGUI(self):
                 global debug, frame_, rawDataTable, rawFooterTable, lDisplayOnly
+                
+                global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
+
 
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
 
@@ -1171,7 +1181,7 @@ if checkVersions():
                 c0=120 
                 c1=300
                 c2=120
-                c3=80
+                c3=100
                 c4=80
                 c5=120
                 c6=120
@@ -1203,10 +1213,10 @@ if checkVersions():
                 if debug: print "Hiding unused Currency Column..."
                 # I'm hiding it rather than removing it so not to mess with sorting etc...
                 if self.lRemoveCurrColumn:
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setPreferredWidth(0)
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setMinWidth(0)
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setMaxWidth(0)
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setPreferredWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setMinWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setMaxWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setWidth(0)
 
                 self.footerTable.setColumnSelectionAllowed(False)
                 self.footerTable.setRowSelectionAllowed(False)
@@ -1233,10 +1243,10 @@ if checkVersions():
 
                 # I'm hiding it rather than removing it so not to mess with sorting etc...
                 if self.lRemoveCurrColumn:
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setPreferredWidth(0)
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setMinWidth(0)
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setMaxWidth(0)
-                    tcm.getColumn(StockGlanceInstance._CVALUE_FORMATTED).setWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setPreferredWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setMinWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setMaxWidth(0)
+                    tcm.getColumn(_CVALUE_FORMATTED).setWidth(0)
 
                 self.footerTableHeader = self.footerTable.getTableHeader()
                 self.footerTableHeader.setEnabled(False) # may have worked, but doesn't...
@@ -1415,7 +1425,7 @@ if checkVersions():
         
         StockGlanceInstance = StockGlance2020()
         StockGlance2020.createAndShowGUI(StockGlanceInstance)
-
+        
         # A bit of a fudge, but hey it works.....!
         i=0
         while frame_.isVisible():
@@ -1431,83 +1441,73 @@ if checkVersions():
         if not lDisplayOnly: 
 
 
-            def ExportDataToFile():
+            def ExportDataToFile():                
+                global debug, frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter
                 
-                global debug, frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, decimalCharSep, groupingCharSep
+                global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
 
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
-
-                sep=","
-                if decimalCharSep==",": sep=";"
-                    
-                dataline=None
-                datalines=[]
-
+                
+                # NOTE - You can add sep=; to begining of file to tell Excel what delimiter you are using
                 rawDataTable=sorted(rawDataTable,key=getKey)
+                
                 rawDataTable.insert(0,headingNames) # Insert Column Headings at top of list. A bit rough and ready, not great coding, but a short list...! 
+
+                if csvDelimiter <> ",": rawDataTable.insert(0,["sep=","" ]) # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+
+                    
                 for i in range(0,len(rawFooterTable)):
                     rawDataTable.append(rawFooterTable[i])
 
-                for i in range(0,len(rawDataTable)):
-                    if debug: print [i], rawDataTable[i]
-                    #         f1 f2 f3 f4 f5 f6 f7 f8   
-                    if sep==",":
-                        dataline='%s,%s,%s,%s,%s,%s,%s,%s\n' %(
-                            fixFormatsStr(rawDataTable[i][0],False),
-                            fixFormatsStr(rawDataTable[i][1],False),
-                            fixFormatsStr(rawDataTable[i][2],True),
-                            fixFormatsStr(rawDataTable[i][3],True),
-                            fixFormatsStr(rawDataTable[i][4],False),
-                            fixFormatsStr(rawDataTable[i][5],True),
-                            fixFormatsStr(rawDataTable[i][6],True),
-                            fixFormatsStr(rawDataTable[i][7],False)
-                        )
-
-                    else:
-                        dataline='%s;%s;%s;%s;%s;%s;%s;%s\n' %(
-                            fixFormatsStr(rawDataTable[i][0],False),
-                            fixFormatsStr(rawDataTable[i][1],False),
-                            fixFormatsStr(rawDataTable[i][2],True),
-                            fixFormatsStr(rawDataTable[i][3],True),
-                            fixFormatsStr(rawDataTable[i][4],False),
-                            fixFormatsStr(rawDataTable[i][5],True),
-                            fixFormatsStr(rawDataTable[i][6],True),
-                            fixFormatsStr(rawDataTable[i][7],False)
-                        )
-                    #endif
-                    datalines.append(dataline)
-
                 # Write the csvlines to a file
                 if debug: print "Opening file and writing ",len(rawDataTable),"records"
-                f=open(csvfilename,"w")
-                for output in datalines: f.write(output)
-                f.close()
+
+                with open(csvfilename,"wb") as csvfile:   # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0 
+                    writer = csv.writer(csvfile, dialect='excel',quoting=csv.QUOTE_MINIMAL,delimiter=csvDelimiter)
+                    nStart=0
+                    if str(rawDataTable[nStart][0]).startswith("sep="):
+                        nStart=1
+                        writer.writerow(rawDataTable[0])                        # This tells Excel to use a different delimiter (and should get ignored)
+                    for i in range(nStart,len(rawDataTable)):
+                        if i==nStart:
+                            # Field heading row
+                            writer.writerow(rawDataTable[i][:_SHRS_RAW])        # Print the header, but not the extra _field headings
+                            continue
+                        
+                        # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
+                        
+                        # Write the table, but swap in the raw numbers (rather than formatted number strings)
+                        writer.writerow([
+                            fixFormatsStr(rawDataTable[i][0],           False),
+                            fixFormatsStr(rawDataTable[i][1],           False),
+                            fixFormatsStr(rawDataTable[i][_SHRS_RAW],   True),
+                            fixFormatsStr(rawDataTable[i][_PRICE_RAW],  True),
+                            fixFormatsStr(rawDataTable[i][4],           False),
+                            fixFormatsStr(rawDataTable[i][_CVALUE_RAW], True),
+                            fixFormatsStr(rawDataTable[i][_BVALUE_RAW], True),
+                            fixFormatsStr(rawDataTable[i][7],           False),
+                            ""])
+                        
                 print 'CSV file '+csvfilename+' created, records written, and file closed..'
             #enddef
 
-            def getKey(item):
-                return item[0]
+            def getKey(item): return item[0]
 
             def fixFormatsStr(theString,lNumber):
-                global lStripASCII, groupingCharSep, decimalCharSep
+                global lStripASCII
 
                 if lNumber==None: lNumber=False
                 if theString==None: theString=""
+                
+                if lNumber: return str(theString)
 
                 theString=theString.strip()                                 # remove leading and trailing spaces
                 
-                if lNumber:
-                    theString=theString.replace(groupingCharSep,"")         # remove number grouping characters - e.g. commas (breaks excel numbers and delimiters)
+                theString=theString.replace("\n","*")         	            #remove newlines within fields to keep csv format happy
+                theString=theString.replace("\t","*")         	            #remove tabs within fields to keep csv format happy
 
-                if decimalCharSep==".":                                     # I.e. if we use a decimal point "." then strip commas, else assume that commas are dealt with by system OK
-                    theString=theString.replace(","," ")                    # remove commas to keep csv format happy
-                elif decimalCharSep==",":
-                    theString=theString.replace(";"," ")                    # remove semi-colon as we will use this as a delimiter
-                theString=theString.replace("\n","*").strip()  	            #remove newlines to keep csv format happy
-                if lNumber:
-                    theString=theString.replace(" ","")        	            # remove spaces to keep csv number formats happy
                 if lStripASCII:
-                    all_ASCII = ''.join(char for char in theString if ord(char) < 128) # Eliminate non ASCII Chars too....
+                    all_ASCII = ''.join(char for char in theString if ord(char) < 128) # Eliminate non ASCII printable Chars too....
                 else:
                     all_ASCII = theString
                 return( all_ASCII )
@@ -1537,6 +1537,5 @@ else:
     # Otherwise version error - ending
     pass
 
-    
 
     
