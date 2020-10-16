@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# StockGlance2020 v2 - September 2020 - Stuart Beesley
+# StockGlance2020 v3 - September 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -48,12 +48,11 @@
 #  ---- Added Parameter/filter screen/options and export to file....
 #  ---- The file will write a utf8 encoded file - so we strip out currency signs - else Excel treats them wrongly. You can specify to leave them included...
 #  ---- NOTE: price output display rounds to 2 decimal places, but the totals are correctly calculated 
-# ----- USAGE: Just execute and a popup will ask you to set parameters. You can just leave all as default if you wish. 
-# ----- Change the defaults in the rows just below this statement...
-# ----- WARNING: Cash Balances are per account, not per security/currency... 
-# ----- ...So the cash balaces will always be for the whole account(s) included, not just  filtered securities etc...
+# ----- USAGE: Just execute and a popup will ask you to set parameters. You can just leave all as default if you wish. Change the defaults in the rows just below this statement...
+# ----- WARNING: Cash Balances are per account, not per security/currency. So the cash balaces will always be for the whole account(s) included, not just  filtered securities etc...
 # ----- I've added extra columns with raw number that don't get displayed. I planned to use for custom sort, but I found a workaround stripping non numerics out of text... (so not used) 
 # ----- Found that JFileChooser with file extension filters hangs on Macs, so use FileDialog on Mac to also get Mac(ish) GUI LaF
+# ----- Version 3 - fixed bug so that .moneydance extension test only checks end of filename (not middle)
 # ------------------------
 
 import sys
@@ -132,6 +131,12 @@ lUseMacFileChooser=True # This will be ignored if you don't choose option to exp
 
 headingNames=""
 lIamAMac=False
+
+def MDDiag():
+    global debug
+    if debug: print "MoneyDance Build:",moneydance.getVersion(), "Build:", moneydance.getBuild()
+
+MDDiag()
 
 def checkVersions():
     global debug
@@ -436,17 +441,24 @@ if checkVersions():
                     filename.setVisible(True)
 
                     csvfilename = filename.getFile()
+            
                     if (csvfilename == None) or csvfilename == "":
                         lDisplayOnly=True
                         csvfilename=None
                         print "User chose to cancel or no file selected >>  So no Extract will be performed... "
-                    elif ".moneydance" in str(csvfilename):
+                    elif str(csvfilename).endswith(".moneydance"):
+                        print "User selected file:", csvfilename
+                        print "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed..."
                         lDisplayOnly = True
                         csvfilename = None
-                        print "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed..."
+                    elif ".moneydance" in filename.getDirectory():
+                        print "User selected file:", filename.getDirectory(),csvfilename
+                        print "Sorry - FileDialog() User chose to save file in .moneydance location. NOT Good practice so I will not allow it!... So no Extract will be performed..."
+                        lDisplayOnly = True
+                        csvfilename = None
                     else:
                         csvfilename=str(java.io.File(filename.getDirectory()+os.path.sep+filename.getFile()))   # NOTE: FileDialog checks for file overwrite and seeks confirmation....
-
+                    
                     if not lDisplayOnly:
                         if os.path.exists(csvfilename) and os.path.isfile(csvfilename):print "WARNING: file exists,but assuming user said OK to overwrite.."
                 else:
@@ -478,10 +490,21 @@ if checkVersions():
                         lDisplayOnly=True
                         csvfilename = None
                         print "User chose no filename... So no Extract will be performed..."
-                    elif ".moneydance" in str(filename.selectedFile):
+                    elif str(filename.selectedFile).endswith(".moneydance"):
                         lDisplayOnly=True
                         csvfilename = None
+                        print "User selected file:", filename.selectedFile
                         print "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed..."
+                    elif str(filename.selectedFile).endswith(".moneydance"):
+                        lDisplayOnly=True
+                        csvfilename = None
+                        print "User selected file:", str(filename.selectedFile)
+                        print "Sorry - JFileChooser() User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed..."
+                    elif ".moneydance" in str(filename.selectedFile):
+                        lDisplayOnly = True
+                        csvfilename = None
+                        print "User selected file:", str(filename.selectedFile)
+                        print "Sorry - User chose to save file in .moneydance location. NOT Good practice so I will not allow it!... So no Extract will be performed..."
                     else:
                         csvfilename = str(filename.selectedFile)
 
@@ -517,8 +540,6 @@ if checkVersions():
         if csvfilename == None:
             lDisplayOnly=True
             print "No Export will be performed"
-        else:
-            print "Will Export to file: ", csvfilename
 
         class StockGlance2020():   # MAIN program....
             global debug, hideHiddenSecurities, hideInactiveAccounts
@@ -1024,7 +1045,7 @@ if checkVersions():
                     return
 
             def createAndShowGUI(self):
-                global debug, frame_, rawDataTable, rawFooterTable
+                global debug, frame_, rawDataTable, rawFooterTable, lDisplayOnly
 
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
 
@@ -1033,7 +1054,10 @@ if checkVersions():
 
                 screenSize = Toolkit.getDefaultToolkit().getScreenSize()
 
-                frame_ = JFrame("Stock Glance 2020 - StuWareSoftSystems...")
+                if lDisplayOnly:
+                    frame_ = JFrame("Stock Glance 2020 - StuWareSoftSystems...")
+                else:
+                    frame_ = JFrame("Stock Glance 2020 - StuWareSoftSystems... (CLOSE WINDOW TO EXPORT TO FILE)")
 
                 #frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE) 
                 frame_.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE) # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
@@ -1292,6 +1316,7 @@ if checkVersions():
             #enddef
         #endclass
             
+        if not lDisplayOnly: print "!!!FILE WILL BE GENERATED AFTER YOU CLOSE THE TABLE VIEW WINDOW!!!"
         
         StockGlanceInstance = StockGlance2020()
         StockGlance2020.createAndShowGUI(StockGlanceInstance)
@@ -1410,4 +1435,5 @@ else:
     # Otherwise version error - ending
     pass
 
+    
     
