@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# StockGlance2020 v4 - September 2020 - Stuart Beesley
+# StockGlance2020 v4b - October 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -35,29 +35,39 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#  Modified by waynelloydsmith to run as standalone Python script StockGlance75.py and to show which accounts the stocks are held.
+#  Modified by waynelloydsmith to run as standalone Python/Jython script StockGlance75.py and to show in which accounts the stocks are held.
 #  https://github.com/waynelloydsmith/Moneydance-Scripts/blob/master/StockGlance75.py
 
-#  Further extensively modified by Stuart Beesley - StuWareSoftSystems - September 2020 to create StockGlance2020.py with these features:
+#  Extensively modified/enhanced by Stuart Beesley - StuWareSoftSystems - September 2020 to create StockGlance2020.py with these features:
 #  ---- This script basically shows all stocks/funds summarised into single stocks/funds per row. I.E. consolidates data accross all Accounts
 #  ---- Some of the code looks somewhat different to how I would write native Python, but it is as it is as it was converted from pure Java by waynelloydsmith
 #  ---- Shows QTY of shares
-#  ---- Removed all non-functional Java / Python code and general tidy up
+#  ---- Removed all non-functional Java / Python code and general tidy up.
+#  ---- Also fixed / replaced the JY/Java code to make JTable and the Scrollpanes funtion properly
 #  ---- Addressed bug hiding some securitys when not all prices found (by date) - by eliminating % as not needed anyway.
 #  ---- Price is taken from Current Price now, and NOT from price history. If you would like price history, let me know!
 #  ---- Added Parameter/filter screen/options and export to file....
 #  ---- The file will write a utf8 encoded file - so we strip out currency signs - else Excel treats them wrongly. You can specify to leave them included...
-#  ---- NOTE: price output display rounds to 2 decimal places, but the totals are correctly calculated 
-# ----- USAGE: Just execute and a popup will ask you to set parameters. You can just leave all as default if you wish. Change the defaults in the rows just below this statement...
-# ----- WARNING: Cash Balances are per account, not per security/currency. So the cash balaces will always be for the whole account(s) included, not just  filtered securities etc...
-# ----- I've added extra columns with raw number that don't get displayed. I planned to use for custom sort, but I found a workaround stripping non numerics out of text... (so not used) 
+# ----- We strip out all non ASCII characters below code 128 and also number seperators. Delimiter will flip to a semi-colon if your decimal point is a comma!
+# ----- USAGE: Just execute and a popup will ask you to set parameters. You can just leave all as default if you wish. 
+# -----        Change the defaults in the rows just below this statement...
+# ----- WARNING: Cash Balances are per account, not per security/currency. 
+# -----          So the cash balaces will always be for the whole account(s) included, not just  filtered securities etc...
+# ----- Added extra columns with raw number that don't get displayed. Planned to use for custom sort, 
+# -----       but found a workaround stripping non numerics out of text... (so not used) 
 # ----- Found that JFileChooser with file extension filters hangs on Macs, so use FileDialog on Mac to also get Mac(ish) GUI LaF
 # ----- Version 3 - fixed bug so that .moneydance extension test only checks end of filename (not middle)
 # ----- Version 3c fiddled with the Accounts filter; added extra total (securities + cash balance) where whole account selected
-# ----- Version 3d eliminated rounding on the totals in base currency (user request); don't display base currency in local currency where same; make all filters uppercase
-# ----- V3d Fix small bug on check for whether all securities were same currency (didn't really affect much); also tried to deal better with LOCALE decimal point and comma....
-# ----- V4 - Enhanced to use CSV File writer and write raw numbers into the CSV file - let CSV writer handle the special character handling.......; altered pricing rounding
-# ------------------------
+# ----- Version 3d eliminated rounding on the totals in base currency (user request)
+# -----            don't display base currency in local currency where same; make all filters uppercase
+# ----- V3d Fix small bug on check for whether all securities were same currency (didn't really affect much); 
+# -----     also tried to deal better with LOCALE decimal point and comma....
+# ----- V4 - Enhanced to use CSV File writer and write raw numbers into the CSV file - let CSV writer handle the special character handling.......; 
+# -----      altered pricing rounding
+# ----- V4b - tweaked to use Jython syntext (rather than Java)...syntax; Added "copyright to file extract"; 
+# -----       added version number - all cosmetic only; replaced AcctFilter()
+# ----- V4b - enhanced filters to include Currency Name, and Security Name in searches....
+
 
 import sys
 reload(sys)                         # Dirty hack to eliminate UTF-8 coding errors
@@ -69,33 +79,28 @@ import datetime
 from com.infinitekind.moneydance.model import *
 from com.infinitekind.moneydance.model.Account import AccountType
 from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType
-from com.infinitekind.moneydance.model.CurrencyUtil import convertToBasePrice, getRawRate, convertValue
-from com.infinitekind.moneydance.model.txtimport.TabularTextImportSpec import getDecimalPoint
 
-from com.infinitekind.util import DateUtil, StringUtils
-from com.moneydance.util.StringUtils import formatRate, formatShortRate
-from com.moneydance.apps.md.view.gui import MoneydanceLAF
-
+from com.infinitekind.util import DateUtil
 
 from java.awt import *
 from java.awt import BorderLayout, Color, Dimension, GridLayout, Toolkit, Component, FileDialog
 
-from java.awt.event import MouseAdapter, WindowAdapter, AdjustmentListener
+from java.awt.event import WindowAdapter, AdjustmentListener
 
 from java.text import *
 from java.text import NumberFormat, SimpleDateFormat, DecimalFormat
 
 from java.util import *
-from java.util import Arrays, Calendar, Comparator, Date, HashMap, Vector
+from java.util import Arrays, Calendar, Comparator, Date
 from java.util.List import *
 
-from javax.swing import JScrollPane, WindowConstants, BorderFactory, BoxLayout, JFrame, JLabel, JPanel, JTable, JComponent, KeyStroke, AbstractAction, JSeparator, SwingConstants
-from javax.swing import JButton, JTextArea, JOptionPane, JRadioButton, ButtonGroup, JButton, JFileChooser, JTextField
-from javax.swing import Icon, RowSorter,UIManager, SortOrder, SwingUtilities
+from javax.swing import JScrollPane, WindowConstants, JFrame, JLabel, JPanel, JTable, JComponent, KeyStroke, AbstractAction, SwingConstants
+from javax.swing import JOptionPane, JFileChooser, JTextField
+from javax.swing import Icon, RowSorter, UIManager, SortOrder
 
 from javax.swing.RowSorter import SortKey 
 from javax.swing.border import CompoundBorder, EmptyBorder, MatteBorder
-from javax.swing.table import AbstractTableModel, DefaultTableCellRenderer, DefaultTableModel, TableModel, TableRowSorter
+from javax.swing.table import DefaultTableCellRenderer, DefaultTableModel, TableModel, TableRowSorter
 from javax.swing.text import PlainDocument
 from javax.swing.event import TableColumnModelListener
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -118,7 +123,7 @@ global debug # Set to True if you want verbose messages, else set to False....
 global StockGlanceInstance  # holds the instance of StockGlance2020()
 global baseCurrency, sdf, frame_, rawDataTable, rawFooterTable, headingNames
 global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency, lAllSecurity, filteForSecurity, lStripASCII, csvDelimiter
-global csvfilename
+global csvfilename, version
 
 global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
 
@@ -143,8 +148,10 @@ lUseMacFileChooser=True # This will be ignored if you don't choose option to exp
 headingNames=""
 lIamAMac=False
 
+version="4b"
+
 print "StuWareSoftSystems..."
-print "StockGlance2020.py......."
+print "StockGlance2020.py.......", "Version:",version
 if debug: print "DEBUG IS ON.."
 
 
@@ -168,13 +175,13 @@ def checkVersions():
     if debug: print "Platform:",plat_p,plat_j,python_maj,".",python_min
     if debug: print sys.version
         
-    if plat_p <> "Jython":
+    if plat_p != "Jython":
         lError=True
         print "Error: Script requires Jython"
-    if plat_j <> "Java":
+    if plat_j != "Java":
         lError=True
         print "Error: Script requires Java  base"
-    if (python_maj <> 2 or  python_min <> 7):
+    if (python_maj != 2 or  python_min != 7):
         lError=True
         print "\n\nError: Script was  designed on version 2.7. By all means bypass this test and see what happens....."
     
@@ -182,16 +189,16 @@ def checkVersions():
         print "\n@@@ TERMINATING PROGRAM @@@\n"
         #raise
         
-    return (not lError)
+    return not lError
 #enddef
     
 if checkVersions():
 
     def amIaMac():
         myPlat = System.getProperty("os.name")
-        if myPlat == None: Return(False)
+        if myPlat is None: return False
         if debug: print "Platform:", myPlat
-        return(myPlat == "Mac OS X")
+        return myPlat == "Mac OS X"
     #enddef
     
     lIamAMac=amIaMac()
@@ -202,7 +209,7 @@ if checkVersions():
 
     def getDecimalPoint(lGetPoint=False,lGetGrouping=False):    
         global debug
-        decimalFormat  = DecimalFormat.getInstance();
+        decimalFormat  = DecimalFormat.getInstance()
         decimalSymbols = decimalFormat.getDecimalFormatSymbols()
 
         if not lGetGrouping: lGetPoint=True
@@ -222,7 +229,7 @@ if checkVersions():
     
     decimalCharSep  = getDecimalPoint(lGetPoint=True)
     groupingCharSep = getDecimalPoint(lGetGrouping=True)
-    if decimalCharSep <> "." and csvDelimiter == ",": csvDelimiter=";" # Override for EU countries or where decimal point is actually a comma...        
+    if decimalCharSep != "." and csvDelimiter == ",": csvDelimiter=";" # Override for EU countries or where decimal point is actually a comma...        
     if debug: print "Decimal point:",decimalCharSep,"Grouping Seperator",groupingCharSep,"CSV Delimiter set to:",csvDelimiter
     
     # Stores  the data table for export
@@ -243,7 +250,7 @@ if checkVersions():
             self.what=what
 
         def insertString(self, myOffset, myString, myAttr):
-            if (myString == None): return
+            if (myString is None): return
             if self.toUpper: myString=myString.upper()
             if (self.what=="YN" and (myString in "YN")) or (self.what=="DELIM" and (myString in ";|,")) or (self.what=="CURR"):
                 if ((self.getLength() + len(myString)) <= self.limit):
@@ -268,19 +275,19 @@ if checkVersions():
     if     hideHiddenAccounts: user_hideHiddenAccounts.setText("Y")
     else:                      user_hideHiddenAccounts.setText("N")
 
-    label4 = JLabel("Filter one Currency or ALL:")
+    label4 = JLabel("Filter for Currency containing text '...' or ALL:")
     user_selectCurrency=JTextField(5)
     user_selectCurrency.setDocument(JTextFieldLimitYN(5,True,"CURR"))
     if lAllCurrency: user_selectCurrency.setText("ALL")
     else:            user_selectCurrency.setText(filterForCurrency)
 
-    label5 = JLabel("Filter one Security/Ticker or ALL:")
+    label5 = JLabel("Filter for Security/Ticker containing text '...' or ALL:")
     user_selectTicker=JTextField(12)
     user_selectTicker.setDocument(JTextFieldLimitYN(12,True,"CURR"))
     if lAllSecurity: user_selectTicker.setText("ALL")
     else:            user_selectTicker.setText(filterForSecurity)
 
-    label6 = JLabel("Filter for Accounts Containing text '...' (or ALL):")
+    label6 = JLabel("Filter for Accounts containing text '...' (or ALL):")
     user_selectAccounts=JTextField(12)
     user_selectAccounts.setDocument(JTextFieldLimitYN(20,True,"CURR"))
     if lAllAccounts: user_selectAccounts.setText("ALL")
@@ -432,12 +439,12 @@ if checkVersions():
         if lAllCurrency:
             print "Selecting ALL Currencies..."
         else:
-            print "Filtering for Currency: ", filterForCurrency
+            print "Filtering for Currency containing: ", filterForCurrency
 
         if lAllSecurity:
             print "Selecting ALL Securities..."
         else:
-            print "Filtering for Security/Ticker: ", filterForSecurity
+            print "Filtering for Security/Ticker containing: ", filterForSecurity
 
         if lAllAccounts:
             print "Selecting ALL Accounts..."
@@ -470,7 +477,7 @@ if checkVersions():
             def myDir():
                 homeDir = System.getProperty("user.home")
                 if debug: print "Home Directory:", homeDir
-                if homeDir == None: Return("")
+                if homeDir is None: return ""
                 return homeDir
 
             def grabTheFile():
@@ -478,7 +485,7 @@ if checkVersions():
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
 
                 scriptpath = moneydance_data.getRootFolder().getParent()        # Path to Folder holding MD Datafile
-                if scriptpath == None:  scriptpath=myDir()
+                if scriptpath is None:  scriptpath=myDir()
                 if debug: print "Scriptpath:", scriptpath
 
                     
@@ -492,12 +499,12 @@ if checkVersions():
                     filename.setMultipleMode(False)
                     filename.setMode(FileDialog.SAVE)
                     filename.setFile('extract_stock_balances.csv')
-                    if (scriptpath <> None and scriptpath <> ""): filename.setDirectory(scriptpath)
+                    if (scriptpath is not None and scriptpath != ""): filename.setDirectory(scriptpath)
                     filename.setVisible(True)
 
                     csvfilename = filename.getFile()
             
-                    if (csvfilename == None) or csvfilename == "":
+                    if (csvfilename is None) or csvfilename == "":
                         lDisplayOnly=True
                         csvfilename=None
                         print "User chose to cancel or no file selected >>  So no Extract will be performed... "
@@ -583,7 +590,7 @@ if checkVersions():
                 if "filename"               in vars() or "filename"             in globals():   del filename
                 if "extfilter"              in vars() or "extfilter"            in globals():   del extfilter
 
-                return()
+                return
             #enddef
     
 
@@ -592,7 +599,7 @@ if checkVersions():
             pass
         #endif
                 
-        if csvfilename == None:
+        if csvfilename is None:
             lDisplayOnly=True
             print "No Export will be performed"
 
@@ -619,19 +626,18 @@ if checkVersions():
             QtyOfSharesTable = None
             AccountsTable = None
             CashBalancesTable = None
-            CashBalanceTableData = Vector()
+            CashBalanceTableData = []
 
             lightLightGray = Color(0xDCDCDC)    
 
-            rawFooterTable = Vector() # one row of footer data
-            rawDataTable = Vector() # the data retrieved from moneydance
+            rawFooterTable = [] # one row of footer data
+            rawDataTable = [] # the data retrieved from moneydance
 
             #  Per column metadata - fields 8 - 11 not actually used but contain the raw numbers from fields 2,3,5,6
             # Fields       0          1         2                   3               4        5              6              7          8       9       10        11
-            names =       ["Symbol", "Stock",  "Shares/Units",      "Price",        "Curr",  "Curr Value",  "Base Value",  "Accounts","_Shrs","_Price","_CValue","_BValue"]
+            columnNames = ["Symbol", "Stock",  "Shares/Units",      "Price",        "Curr",  "Curr Value",  "Base Value",  "Accounts","_Shrs","_Price","_CValue","_BValue"]
             columnTypes = ["Text",   "Text",   "TextNumber",        "TextNumber",   "TextC", "TextNumber",  "TextNumber",  "Text",    "N",    "N",      "N",     "N"]
-            columnNames = Vector(Arrays.asList(names))
-            headingNames=names
+            headingNames=columnNames
             _SHRS_FORMATTED = 2
             _SHRS_RAW = 8
             _PRICE_FORMATTED = 3
@@ -654,11 +660,11 @@ if checkVersions():
                 allCurrencies = ct.getAllCurrencies()
                 if debug: print "getAllCurrencies(): ", allCurrencies
 
-                rawDataTable = Vector()
+                rawDataTable = []
                 today = Calendar.getInstance()
                 if debug: print "Running today: ",sdf.format(today.getTime())
 
-                self.sumInfoBySecurity(book)                    # Creates HashMaps QtyOfSharesTable, AccountsTable, CashTable : <CurrencyType, Long>  contains no account info
+                self.sumInfoBySecurity(book)                    # Creates Dict(hashmap) QtyOfSharesTable, AccountsTable, CashTable : <CurrencyType, Long>  contains no account info
 
                 if debug:
                     print "Result of sumInfoBySecurity(book): ", self.QtyOfSharesTable
@@ -682,23 +688,25 @@ if checkVersions():
                         price = round(1.0/curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate()), roundPrice)
 
                         qty = self.QtyOfSharesTable.get(curr)
-                        if qty == None: qty = 0
+                        if qty is None: qty = 0
 
-                        if lAllCurrency or str(curr.getRelativeCurrency().getIDString()).upper() == str(filterForCurrency).upper(): 
-                            if qty > 0: 
+                        if lAllCurrency  \
+                                or (filterForCurrency.upper().strip() in curr.getRelativeCurrency().getIDString().upper().strip() ) \
+                                or (filterForCurrency.upper().strip() in curr.getRelativeCurrency().getName().upper().strip()):
+                            if qty > 0:
 
-                                if lAllSecurity or str(curr.getTickerSymbol()).upper() == str(filterForSecurity).upper():
+                                if lAllSecurity \
+                                        or (filterForSecurity.upper().strip() in curr.getTickerSymbol().upper().strip())\
+                                        or (filterForSecurity.upper().strip() in curr.getName().upper().strip()):
+
                                     if debug: print "Found Security..: ",curr, curr.getTickerSymbol()," Curr: ",curr.getRelativeCurrency().getIDString()," Price: ",price, " Qty: ",curr.formatSemiFancy(qty,decimalCharSep)
-                                    if not lAllSecurity: print curr.getTickerSymbol() , filterForSecurity
-                                    entry = Vector(len(self.names))
-                                    balance = (0.0 if (qty == None) else curr.getDoubleValue(qty) * price)  # Value in Currency
-
-
+                                        
+                                    balance = (0.0 if (qty is None) else curr.getDoubleValue(qty) * price)  # Value in Currency
                                     exchangeRate=1.0
                                     securityIsBase = True
                                     ct = curr.getTable()
                                     relativeToName = curr.getParameter(CurrencyType.TAG_RELATIVE_TO_CURR)
-                                    if relativeToName != None:
+                                    if relativeToName is not None:
                                         self.currXrate = ct.getCurrencyByIDString(relativeToName)
                                         if self.currXrate.getIDString() == baseCurrency.getIDString():
                                             if debug: print "Found conversion rate - but it's already the base rate..: ", relativeToName
@@ -713,10 +721,10 @@ if checkVersions():
 
                                     # Check to see if all Security Currencies are the same...?
                                     if self.allOneCurrency:
-                                        if self.sameCurrency == None:               self.sameCurrency = self.currXrate
-                                        if self.sameCurrency <> self.currXrate:     self.allOneCurrency = False
+                                        if self.sameCurrency is None:               self.sameCurrency = self.currXrate
+                                        if self.sameCurrency != self.currXrate:     self.allOneCurrency = False
 
-                                    balanceBase = (0.0 if (qty == None) else (curr.getDoubleValue(qty) * price/exchangeRate) ) # Value in Base Currency
+                                    balanceBase = (0.0 if (qty is None) else (curr.getDoubleValue(qty) * price/exchangeRate) ) # Value in Base Currency
 
                                     if debug: print "Values found (local, base): ",balance, balanceBase
                                     self.totalBalance += round(balance,2)                        # You can round here if you like....
@@ -725,40 +733,37 @@ if checkVersions():
                                     if lIncludeCashBalances:
                                         cash=0.0
                                         # Search to see if Account exists/has been used already for Cash Balance - Only use once!
-                                        for keys in self.CashBalancesTable.keySet():
+                                        for keys in self.CashBalancesTable.keys():
                                             data = self.CashBalancesTable.get(keys)
                                             if (str(keys)+' :') in str(self.AccountsTable.get(curr)):
                                                 if debug: print "CashBal Search - Found:", keys, "in", str(self.AccountsTable.get(curr)), "Cash Bal:",data
                                                 cash=data
-                                                self.CashBalancesTable.put(keys,0.0) # Now delete it so it cannot be used again!
+                                                self.CashBalancesTable[keys]=0.0 # Now delete it so it cannot be used again!
                                                 self.totalCashBalanceBase = self.totalCashBalanceBase + cash
-                                                rowDataEntry=Vector(2)
-                                                rowDataEntry.add(keys)
-                                                rowDataEntry.add(cash)
-                                                self.CashBalanceTableData.add(rowDataEntry)
+                                                self.CashBalanceTableData.append([keys,cash])
                                                 continue
                                                 # Keep searching as a Security may be used in many accounts...
 
-                                            
-                                    entry.add(curr.getTickerSymbol())                                                           # c0
-                                    entry.add(curr.getName())                                                                   # c1
-                                    entry.add(curr.formatSemiFancy(qty,decimalCharSep))                                         # c2
-                                    entry.add(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, roundPrice)  ) # c3
-                                    entry.add(self.currXrate.getIDString())                                                     # c4
+                                    entry = []                                            
+                                    entry.append(curr.getTickerSymbol())                                                           # c0
+                                    entry.append(curr.getName())                                                                   # c1
+                                    entry.append(curr.formatSemiFancy(qty,decimalCharSep))                                         # c2
+                                    entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, roundPrice)  ) # c3
+                                    entry.append(self.currXrate.getIDString())                                                     # c4
                                     x=None
                                     if securityIsBase:
-                                        entry.add(None)                                                                         # c5 - don't bother displaying if base curr
+                                        entry.append(None)                                                                         # c5 - don't bother displaying if base curr
                                     else:
                                         self.lRemoveCurrColumn=False
-                                        entry.add(self.myNumberFormatter(balance, False, self.currXrate, baseCurrency, 2) )     # c5
+                                        entry.append(self.myNumberFormatter(balance, False, self.currXrate, baseCurrency, 2) )     # c5
                                         x=round(balance,2)
-                                    entry.add(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency, 2))       # c6
-                                    entry.add(self.AccountsTable.get(curr))                                                     # c7
-                                    entry.add(curr.getDoubleValue(qty))                                                         # c8  _Shrs = c2 (raw number)
-                                    entry.add(price)                                                                            # c9  _Price = c3 (raw number)
-                                    entry.add(x)                                                                                # c10 _CValue = c5 (raw number)
-                                    entry.add(round(balanceBase,2))                                                             # c11 _BValue = c6 (raw number)
-                                    rawDataTable.add(entry)
+                                    entry.append(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency, 2))       # c6
+                                    entry.append(self.AccountsTable.get(curr))                                                     # c7
+                                    entry.append(curr.getDoubleValue(qty))                                                         # c8  _Shrs = c2 (raw number)
+                                    entry.append(price)                                                                            # c9  _Price = c3 (raw number)
+                                    entry.append(x)                                                                                # c10 _CValue = c5 (raw number)
+                                    entry.append(round(balanceBase,2))                                                             # c11 _BValue = c6 (raw number)
+                                    rawDataTable.append(entry)
                                 else:
                                     if debug: print "Skipping non Filtered Security/Ticker:", curr, curr.getTickerSymbol()
                             else:
@@ -777,99 +782,99 @@ if checkVersions():
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
                 if debug: print "Generating the footer table data...."
 
-                blankEntry = Vector(len(self.names))
-                blankEntry.add("==========")
-                blankEntry.add(None)
-                blankEntry.add(None)
-                blankEntry.add(None)
-                blankEntry.add(None)
-                blankEntry.add(None)
-                blankEntry.add("==========")
-                blankEntry.add(None)
-                blankEntry.add(None)
-                blankEntry.add(None)
-                blankEntry.add(None)
-                blankEntry.add(None)
+                blankEntry = []
+                blankEntry.append("==========")
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append("==========")
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(None)
                                               
-                entry = Vector(len(self.names)) 
-                entry.add("Total: Securities")
-                entry.add(None)
-                entry.add(None)
-                entry.add(None)
-                entry.add(None)
+                entry = [] 
+                entry.append("Total: Securities")
+                entry.append(None)
+                entry.append(None)
+                entry.append(None)
+                entry.append(None)
                 x=None
-                if self.allOneCurrency and (self.currXrate<>baseCurrency):
+                if self.allOneCurrency and (self.currXrate!=baseCurrency):
                     if debug: print "getFooterModel: sameCurrency=",self.currXrate 
                     if self.currXrate==None:
-                        entry.add(None)
+                        entry.append(None)
                     else:
                         x=self.totalBalance
-                        entry.add(self.myNumberFormatter(self.totalBalance, False, self.currXrate, baseCurrency, 2))
+                        entry.append(self.myNumberFormatter(self.totalBalance, False, self.currXrate, baseCurrency, 2))
                 else:
                     if debug: print "getFooterModel: was not allOneCurrency.."
-                    entry.add(None)
-                entry.add(self.myNumberFormatter(self.totalBalanceBase, True, baseCurrency, baseCurrency, 2))
-                entry.add("<<"+baseCurrency.getIDString())
-                entry.add(None)
-                entry.add(None)
-                entry.add(x)
-                entry.add(self.totalBalanceBase)
-                rawFooterTable.clear()
-                rawFooterTable.add(entry)
+                    entry.append(None)
+                entry.append(self.myNumberFormatter(self.totalBalanceBase, True, baseCurrency, baseCurrency, 2))
+                entry.append("<<"+baseCurrency.getIDString())
+                entry.append(None)
+                entry.append(None)
+                entry.append(x)
+                entry.append(self.totalBalanceBase)
+                rawFooterTable=[]
+                rawFooterTable.append(entry)
                                               
                 if lIncludeCashBalances :
                     
-                    rawFooterTable.add(blankEntry)
+                    rawFooterTable.append(blankEntry)
 
                     for i in range(0,len(self.CashBalanceTableData)):
-                        if self.CashBalanceTableData[i][1] <> 0:
-                            entry = Vector(len(self.names))
-                            entry.add("Cash Bal/Acct:")
-                            entry.add(None)
-                            entry.add(None)
-                            entry.add(None)
-                            entry.add(None)
-                            entry.add(None)
-                            entry.add(self.myNumberFormatter(self.CashBalanceTableData[i][1], True, baseCurrency, baseCurrency, 2))
-                            entry.add(str(self.CashBalanceTableData[i][0]))
-                            entry.add(None)
-                            entry.add(None)
-                            entry.add(None)
-                            entry.add(self.CashBalanceTableData[i][1])
-                            rawFooterTable.add(entry)
+                        if self.CashBalanceTableData[i][1] != 0:
+                            entry = []
+                            entry.append("Cash Bal/Acct:")
+                            entry.append(None)
+                            entry.append(None)
+                            entry.append(None)
+                            entry.append(None)
+                            entry.append(None)
+                            entry.append(self.myNumberFormatter(self.CashBalanceTableData[i][1], True, baseCurrency, baseCurrency, 2))
+                            entry.append(str(self.CashBalanceTableData[i][0]))
+                            entry.append(None)
+                            entry.append(None)
+                            entry.append(None)
+                            entry.append(self.CashBalanceTableData[i][1])
+                            rawFooterTable.append(entry)
                                               
-                    rawFooterTable.add(blankEntry)
-                    entry = Vector(len(self.names))
-                    entry.add("Cash Bal TOTAL:")
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(self.myNumberFormatter(self.totalCashBalanceBase, True, baseCurrency, baseCurrency, 2))
-                    entry.add("Across all Accounts involved in this table")
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(None)
-                    entry.add(self.totalCashBalanceBase)
-                    rawFooterTable.add(entry)
+                    rawFooterTable.append(blankEntry)
+                    entry = []
+                    entry.append("Cash Bal TOTAL:")
+                    entry.append(None)
+                    entry.append(None)
+                    entry.append(None)
+                    entry.append(None)
+                    entry.append(None)
+                    entry.append(self.myNumberFormatter(self.totalCashBalanceBase, True, baseCurrency, baseCurrency, 2))
+                    entry.append("Across all Accounts involved in this table")
+                    entry.append(None)
+                    entry.append(None)
+                    entry.append(None)
+                    entry.append(self.totalCashBalanceBase)
+                    rawFooterTable.append(entry)
                     
                     if lAllSecurity: # I don't add them up if selecting one security - probably makes the overal total wrong if multi securities in an account etc...
-                        rawFooterTable.add(blankEntry)
-                        entry = Vector(len(self.names))
-                        entry.add("TOTAL Securities+Cash Bal:")
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase ) , True, baseCurrency, baseCurrency, 2))
-                        entry.add("Only valid where whole accounts selected!")
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add(None)
-                        entry.add((self.totalBalanceBase + self.totalCashBalanceBase ))
-                        rawFooterTable.add(entry)
+                        rawFooterTable.append(blankEntry)
+                        entry = []
+                        entry.append("TOTAL Securities+Cash Bal:")
+                        entry.append(None)
+                        entry.append(None)
+                        entry.append(None)
+                        entry.append(None)
+                        entry.append(None)
+                        entry.append(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase ) , True, baseCurrency, baseCurrency, 2))
+                        entry.append("Only valid where whole accounts selected!")
+                        entry.append(None)
+                        entry.append(None)
+                        entry.append(None)
+                        entry.append((self.totalBalanceBase + self.totalCashBalanceBase ))
+                        rawFooterTable.append(entry)
                   
                 #endif                    
 
@@ -887,7 +892,7 @@ if checkVersions():
 
                 if noDecimals==2: noDecimalFormatter.setMinimumFractionDigits(2)
 
-                if theNumber == None or Double.isNaN(float(theNumber)): return("")
+                if theNumber is None or Double.isNaN(float(theNumber)): return ""
 
                 if Math.abs(float(theNumber)) < 0.01: theNumber = 0L
 
@@ -911,60 +916,164 @@ if checkVersions():
                         theNumber = exchangeCurr.getPrefix() + " " + noDecimalFormatter.format(float(theNumber)) + exchangeCurr.getSuffix()
                         #theNumber = exchangeCurr.formatFancy(exchangeCurr.getLongValue(float(theNumber)), decimalSeparator)
 
-                return(theNumber) 
+                return theNumber
 
+            
+            class myAcctFilter(AcctFilter):
+
+                def __init__(self,selectAccountType="ALL",
+                             hideInactiveAccounts=True,
+                             lAllAccounts=True,
+                             filterForAccounts="ALL",
+                             hideHiddenAccounts=True,
+                             hideHiddenSecurities=True,
+                             lAllCurrency=True,
+                             filterForCurrency="ALL",
+                             lAllSecurity=True,
+                             filterForSecurity="ALL",
+                             findUUID=None):
+                    super(AcctFilter, self).__init__()
+
+                    if      selectAccountType == "ALL":                     pass
+                    elif    selectAccountType == "CAT":                     pass
+                    elif    selectAccountType == "NONCAT":                  pass        
+                    elif    selectAccountType == AccountType.ROOT:          pass
+                    elif    selectAccountType == AccountType.BANK:          pass
+                    elif    selectAccountType == AccountType.CREDIT_CARD:   pass
+                    elif    selectAccountType == AccountType.INVESTMENT:    pass
+                    elif    selectAccountType == AccountType.SECURITY:      pass
+                    elif    selectAccountType == AccountType.ASSET:         pass
+                    elif    selectAccountType == AccountType.LIABILITY:     pass
+                    elif    selectAccountType == AccountType.LOAN:          pass
+                    elif    selectAccountType == AccountType.EXPENSE:       pass
+                    elif    selectAccountType == AccountType.INCOME:        pass
+                    else:   selectAccountType = "ALL"
+
+                    self.selectAccountType       = selectAccountType
+                    self.hideInactiveAccounts    = hideInactiveAccounts
+                    self.lAllAccounts            = lAllAccounts
+                    self.filterForAccounts       = filterForAccounts
+                    self.hideHiddenAccounts      = hideHiddenAccounts
+                    self.hideHiddenSecurities    = hideHiddenSecurities
+                    self.lAllCurrency            = lAllCurrency
+                    self.filterForCurrency       = filterForCurrency
+                    self.lAllSecurity            = lAllSecurity
+                    self.filterForSecurity       = filterForSecurity
+                    self.findUUID                = findUUID
+
+                    self.baseCurrency = moneydance.getCurrentAccountBook().getCurrencies().getBaseType()
+
+                def matches(self, acct):
+
+                    if self.findUUID is not None: # If UUID supplied, override all other parameters...
+                        if acct.getUUID() == self.findUUID: return True
+                        else: return False
+                    #endif
+
+                    if self.selectAccountType == "ALL" or  acct.getAccountType() == self.selectAccountType: pass
+                    elif self.selectAccountType == "CAT" and (acct.getAccountType() == AccountType.EXPENSE or acct.getAccountType() == AccountType.INCOME): pass
+                    elif self.selectAccountType == "NONCAT" and not (acct.getAccountType() == AccountType.EXPENSE or acct.getAccountType() == AccountType.INCOME): pass
+                    else: return False
+
+                    if self.hideInactiveAccounts:
+                        # This logic replicates Moneydance AcctFilter.ACTIVE_ACCOUNTS_FILTER
+                        if (acct.getAccountOrParentIsInactive()) : return False    
+                        if (acct.getHideOnHomePage() and acct.getBalance()==0): return False
+
+                    if acct.getAccountType() == AccountType.SECURITY:
+                        theAcct = acct.getParentAccount() # Security Accounts are sub-accounts of Investment Accounts - so take the Parent
+                    else:
+                        theAcct = acct
+                    #endif
+
+                    if self.lAllAccounts or (self.filterForAccounts.upper().strip() in theAcct.getFullAccountName().upper().strip()): pass
+                    else: return False
+
+                    if ((not self.hideHiddenAccounts) or (self.hideHiddenAccounts and not theAcct.getHideOnHomePage())):  pass
+                    else: return False
+
+                    curr = acct.getCurrencyType() 
+                    currID = curr.getIDString()
+                    currName = curr.getName()
+
+                    if acct.getAccountType() == AccountType.SECURITY: # on Security Accounts, get the Currency from the Security master - else from the account)
+                        if self.lAllSecurity:
+                            pass
+                        elif (self.filterForSecurity.upper().strip() in curr.getTickerSymbol().upper().strip()):
+                            pass
+                        elif (self.filterForSecurity.upper().strip() in curr.getName().upper().strip()):
+                            pass
+                        else: return False
+
+                        if ((self.hideHiddenSecurities and not curr.getHideInUI() ) or (not self.hideHiddenSecurities) ):
+                            pass
+                        else:
+                            return False
+
+                        
+                        currID = curr.getRelativeCurrency().getIDString()
+                        currName = curr.getRelativeCurrency().getName()
+
+                    else:
+                        pass 
+                    #endif
+
+                    # All accounts and security records can have currencies
+                    if self.lAllCurrency:
+                        pass
+                    elif (self.filterForCurrency.upper().strip() in currID.upper().strip()):
+                        pass
+                    elif (self.filterForCurrency.upper().strip() in currName.upper().strip()):
+                        pass
+
+                    else: return False
+
+                    # Phew! We made it....
+                    return True
+                #enddef
+            #endclass    
 
             def sumInfoBySecurity(self, book):
                 global debug, hideInactiveAccounts, hideHiddenAccounts, lAllAccounts, filterForAccounts, lIncludeCashBalances
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"     
 
-                # FYI - Inactive accounts are always hidden from Home Screen
-                if hideInactiveAccounts:
-                    myFilter = AcctFilter.ACTIVE_ACCOUNTS_FILTER
-                else:
-                    myFilter = AcctFilter.ALL_ACCOUNTS_FILTER
-                    
-                    
-                # FYI - This is the MD actual logic for AcctFilter.ACTIVE_ACCOUNTS_FILTER
-                #public boolean matches(Account acct) {
-                #      if(acct.getAccountOrParentIsInactive()) return false;
-                #      if(acct.getHideOnHomePage() && acct.getBalance()==0) return false;
-                #      return true;
-                #    }                    
-                    
+                totals = {} # Dictonary <CurrencyType, Long> 
+                accounts = {}
+                cashTotals = {} #  Dictionary<CurrencyType, Long> 
+                for acct in AccountUtil.allMatchesForSearch(book, self.myAcctFilter(                    AccountType.SECURITY,
+                                                                                                        hideInactiveAccounts,
+                                                                                                        lAllAccounts,
+                                                                                                        filterForAccounts,
+                                                                                                        hideHiddenAccounts,
+                                                                                                        hideHiddenSecurities,
+                                                                                                        lAllCurrency,
+                                                                                                        filterForCurrency,
+                                                                                                        lAllSecurity,
+                                                                                                        filterForSecurity,
+                                                                                                        None)):
+                    curr = acct.getCurrencyType()                                      
+                    account = accounts.get(curr)# this returns None if curr doesn't exist yet
+                    total = totals.get(curr) # this returns None if security/curr doesn't exist yet
+                    if acct.getCurrentBalance() != 0: # we only want Securities with holdings
+                        if debug: print "Processing Acct:",acct.getParentAccount(), "Share/Fund Qty Balances for Security: ", curr, curr.formatSemiFancy(acct.getCurrentBalance(),decimalCharSep)," Shares/Units"
 
-                totals = HashMap() #  HashMap<CurrencyType, Long> 
-                accounts = HashMap()
-                cashTotals = HashMap() #  HashMap<CurrencyType, Long> 
-                for acct in AccountUtil.allMatchesForSearch(book, myFilter ): # i.e. return all active accounts....
-                    if (acct.getAccountType() == AccountType.SECURITY):
-                        if lAllAccounts or (filterForAccounts.upper() in str(acct.getParentAccount()).upper()):     
-                            if ((not hideHiddenAccounts) or (hideHiddenAccounts and not acct.getParentAccount().getHideOnHomePage())):
-                                curr = acct.getCurrencyType()                                      
-                                account = accounts.get(curr)# this returns None if curr doesn't exist yet
-                                total = totals.get(curr) # this returns None if security/curr doesn't exist yet
-                                if acct.getCurrentBalance() != 0: # we only want Securities with holdings
-                                    if debug: print "Processing Acct:",acct.getParentAccount(), "Share/Fund Qty Balances for Security: ", curr, curr.formatSemiFancy(acct.getCurrentBalance(),decimalCharSep)," Shares/Units"
+                        total = (0L if (total is None) else total) + acct.getCurrentBalance()            
+                        totals[curr]= total
 
-                                    total = (0L if (total == None) else total) + acct.getCurrentBalance()            
-                                    totals.put(curr, total)
+                        if account is None: account = str(acct.getParentAccount())+' : '           # Important - keep the trailing ' :'
+                        else:               account = account + str(acct.getParentAccount())+' : ' # concatinate two strings here
+                        accounts[curr]=account
 
-                                    if account == None: account = str(acct.getParentAccount())+' : '           # Important - keep the trailing ' :'
-                                    else:               account = account + str(acct.getParentAccount())+' : ' # concatinate two strings here
-                                    accounts.put(curr,account)
+                        if lIncludeCashBalances:
+                            # Now get the Currency  for the Security Parent Account - to get Cash  Balance
+                            curr = acct.getParentAccount().getCurrencyType()
 
-                                    if lIncludeCashBalances:
-                                        # Now get the Currency  for the Security Parent Account - to get Cash  Balance
-                                        curr = acct.getParentAccount().getCurrencyType()
+                            # WARNING Cash balances are by Account and not by Security!
+                            cashTotal = curr.getDoubleValue((acct.getParentAccount().getCurrentBalance()))/curr.getRate(None) # Will be the same Cash balance per account for all Securities..
+                            if debug: print "Cash balance for account:", cashTotal 
+                            cashTotals[acct.getParentAccount()]= round(cashTotal,2) 
+                #endfor
 
-                                        # WARNING Cash balances are by Account and not by Security!
-                                        cashTotal = curr.getDoubleValue((acct.getParentAccount().getCurrentBalance()))/curr.getRate(None) # Will be the same Cash balance per account for all Securities..
-                                        if debug: print "Cash balance for account:", cashTotal 
-                                        cashTotals.put(acct.getParentAccount(), round(cashTotal,2) )
-
-
-                            elif hideHiddenAccounts and acct.getHideOnHomePage():
-                                if debug: print "Skipping hidden Account: ", acct.getParentAccount(), acct.getCurrencyType()
 
                 self.QtyOfSharesTable=totals     
                 self.AccountsTable=accounts
@@ -1034,7 +1143,7 @@ if checkVersions():
                         elif str1 == str2:
                             return 0
                         else:
-                            return(-1)
+                            return -1
                     #enddef 
 
                 def fixTheRowSorter(self):    # by default everthing gets coverted to strings. We need to fix this and code for my string number formats
@@ -1114,7 +1223,7 @@ if checkVersions():
                     #if(scrollBar == self.v2): target = self.v1
                     if(scrollBar == self.h2): target = self.h1
 
-                    if target<>None: target.setValue(value)
+                    if target is not None: target.setValue(value)
                 #enddef
             #endclass
 
@@ -1133,7 +1242,7 @@ if checkVersions():
                     return
 
             def createAndShowGUI(self):
-                global debug, frame_, rawDataTable, rawFooterTable, lDisplayOnly
+                global debug, frame_, rawDataTable, rawFooterTable, lDisplayOnly, version
                 
                 global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
 
@@ -1146,9 +1255,9 @@ if checkVersions():
                 screenSize = Toolkit.getDefaultToolkit().getScreenSize()
 
                 if lDisplayOnly:
-                    frame_ = JFrame("Stock Glance 2020 - StuWareSoftSystems...")
+                    frame_ = JFrame("Stock Glance 2020 - StuWareSoftSystems("+version+")...")
                 else:
-                    frame_ = JFrame("Stock Glance 2020 - StuWareSoftSystems... (CLOSE WINDOW TO EXPORT TO FILE)")
+                    frame_ = JFrame("Stock Glance 2020 - StuWareSoftSystems("+version+")... (CLOSE WINDOW TO EXPORT TO FILE)")
 
                 #frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE) 
                 frame_.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE) # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
@@ -1345,7 +1454,7 @@ if checkVersions():
             #enddef
 
             #/**
-            #* Returns the default table header cell renderer.
+            #* returns the default table header cell renderer.
             #* <P>
             #* If the column is sorted, the approapriate icon is retrieved from the
             #* current Look and Feel, and a border appropriate to a table header cell
@@ -1366,7 +1475,7 @@ if checkVersions():
             def getTableCellRendererComponent(self, table, value, isSelected, hasFocus, row, column):
                 super(DefaultTableHeaderCellRenderer,self).getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
                 tableHeader = table.getTableHeader()
-                #if (tableHeader != None): self.setForeground(tableHeader.getForeground())
+                #if (tableHeader is not None): self.setForeground(tableHeader.getForeground())
                 align=firstRowTableCellRenderer = table.getCellRenderer(0, column).getHorizontalAlignment()    
                 self.setHorizontalAlignment(align)  
                 if align == JLabel.RIGHT:
@@ -1397,7 +1506,7 @@ if checkVersions():
             #*/
             def _getIcon(self, table,column):
                 sortKey = self.getSortKey(table, column)
-                if (sortKey != None and table.convertColumnIndexToView(sortKey.getColumn()) == column):
+                if (sortKey is not None and table.convertColumnIndexToView(sortKey.getColumn()) == column):
                     x=(sortKey.getSortOrder())
                     if x == SortOrder.ASCENDING:      return UIManager.getIcon("Table.ascendingSortIcon")
                     elif x == SortOrder.DESCENDING:   return UIManager.getIcon("Table.descendingSortIcon")
@@ -1406,7 +1515,7 @@ if checkVersions():
             #enddef
 
             #/**
-            #* Returns the current sort key, or null if the column is unsorted.
+            #* returns the current sort key, or null if the column is unsorted.
             #*
             #* @param table the table
             #* @param column the column index
@@ -1414,7 +1523,7 @@ if checkVersions():
             #*/
             def getSortKey(self, table, column):
                 rowSorter = table.getRowSorter()
-                if (rowSorter == None): return None
+                if (rowSorter is None): return None
                 sortedColumns = rowSorter.getSortKeys()
                 if (sortedColumns.size() > 0): return sortedColumns.get(0)
                 return None
@@ -1442,7 +1551,7 @@ if checkVersions():
 
 
             def ExportDataToFile():                
-                global debug, frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter
+                global debug, frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version
                 
                 global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
 
@@ -1452,29 +1561,24 @@ if checkVersions():
                 rawDataTable=sorted(rawDataTable,key=getKey)
                 
                 rawDataTable.insert(0,headingNames) # Insert Column Headings at top of list. A bit rough and ready, not great coding, but a short list...! 
-
-                if csvDelimiter <> ",": rawDataTable.insert(0,["sep=","" ]) # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
-
                     
                 for i in range(0,len(rawFooterTable)):
                     rawDataTable.append(rawFooterTable[i])
+                
 
                 # Write the csvlines to a file
                 if debug: print "Opening file and writing ",len(rawDataTable),"records"
 
+                # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
                 with open(csvfilename,"wb") as csvfile:   # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0 
                     writer = csv.writer(csvfile, dialect='excel',quoting=csv.QUOTE_MINIMAL,delimiter=csvDelimiter)
-                    nStart=0
-                    if str(rawDataTable[nStart][0]).startswith("sep="):
-                        nStart=1
-                        writer.writerow(rawDataTable[0])                        # This tells Excel to use a different delimiter (and should get ignored)
-                    for i in range(nStart,len(rawDataTable)):
-                        if i==nStart:
-                            # Field heading row
-                            writer.writerow(rawDataTable[i][:_SHRS_RAW])        # Print the header, but not the extra _field headings
-                            continue
-                        
-                        # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
+
+                    if csvDelimiter != ",":
+                        writer.writerow(["sep=","" ])                   # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+
+                    writer.writerow(rawDataTable[0][:_SHRS_RAW])        # Print the header, but not the extra _field headings
+
+                    for i in range(1,len(rawDataTable)):
                         
                         # Write the table, but swap in the raw numbers (rather than formatted number strings)
                         writer.writerow([
@@ -1487,7 +1591,10 @@ if checkVersions():
                             fixFormatsStr(rawDataTable[i][_BVALUE_RAW], True),
                             fixFormatsStr(rawDataTable[i][7],           False),
                             ""])
-                        
+
+                    today = Calendar.getInstance()
+                    writer.writerow([""])
+                    writer.writerow(["StuWareSoftSystems - StockGlance2020("+version+")  MoneyDance Python Script - Date of Extract: "+str(sdf.format(today.getTime()))])
                 print 'CSV file '+csvfilename+' created, records written, and file closed..'
             #enddef
 
@@ -1510,7 +1617,7 @@ if checkVersions():
                     all_ASCII = ''.join(char for char in theString if ord(char) < 128) # Eliminate non ASCII printable Chars too....
                 else:
                     all_ASCII = theString
-                return( all_ASCII )
+                return all_ASCII
 
             #enddef
             
@@ -1536,6 +1643,4 @@ if checkVersions():
 else:
     # Otherwise version error - ending
     pass
-
-
-    
+ 
