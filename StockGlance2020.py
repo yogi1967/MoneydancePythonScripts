@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# StockGlance2020 v3 - September 2020 - Stuart Beesley
+# StockGlance2020 v3b - September 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -1436,4 +1436,7 @@ else:
     pass
 
     
+    
+
+
     
