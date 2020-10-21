@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# StockGlance2020 v4b - October 2020 - Stuart Beesley
+# StockGlance2020 v4c - October 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -33,36 +33,38 @@
 #  https://github.com/waynelloydsmith/Moneydance-Scripts/blob/master/StockGlance75.py
 
 #  Extensively modified/enhanced by Stuart Beesley - StuWareSoftSystems - September 2020 to create StockGlance2020.py with these features:
-#  ---- This script basically shows all stocks/funds summarised into single stocks/funds per row. I.E. consolidates data accross all Accounts
-#  ---- Some of the code looks somewhat different to how I would write native Python, but it is as it is as it was converted from pure Java by waynelloydsmith
-#  ---- Shows QTY of shares
-#  ---- Removed all non-functional Java / Python code and general tidy up.
-#  ---- Also fixed / replaced the JY/Java code to make JTable and the Scrollpanes funtion properly
-#  ---- Addressed bug hiding some securitys when not all prices found (by date) - by eliminating % as not needed anyway.
-#  ---- Price is taken from Current Price now, and NOT from price history. If you would like price history, let me know!
-#  ---- Added Parameter/filter screen/options and export to file....
-#  ---- The file will write a utf8 encoded file - so we strip out currency signs - else Excel treats them wrongly. You can specify to leave them included...
-# ----- We strip out all non ASCII characters below code 128 and also number seperators. Delimiter will flip to a semi-colon if your decimal point is a comma!
-# ----- USAGE: Just execute and a popup will ask you to set parameters. You can just leave all as default if you wish. 
-# -----        Change the defaults in the rows just below this statement...
-# ----- WARNING: Cash Balances are per account, not per security/currency. 
-# -----          So the cash balaces will always be for the whole account(s) included, not just  filtered securities etc...
-# ----- Added extra columns with raw number that don't get displayed. Planned to use for custom sort, 
-# -----       but found a workaround stripping non numerics out of text... (so not used) 
-# ----- Found that JFileChooser with file extension filters hangs on Macs, so use FileDialog on Mac to also get Mac(ish) GUI LaF
-# ----- Version 3 - fixed bug so that .moneydance extension test only checks end of filename (not middle)
-# ----- Version 3c fiddled with the Accounts filter; added extra total (securities + cash balance) where whole account selected
-# ----- Version 3d eliminated rounding on the totals in base currency (user request)
-# -----            don't display base currency in local currency where same; make all filters uppercase
-# ----- V3d Fix small bug on check for whether all securities were same currency (didn't really affect much); 
-# -----     also tried to deal better with LOCALE decimal point and comma....
-# ----- V4 - Enhanced to use CSV File writer and write raw numbers into the CSV file - let CSV writer handle the special character handling.......; 
-# -----      altered pricing rounding
-# ----- V4b - tweaked to use Jython syntax (rather than Java)...syntax; Added "copyright to file extract";
-# -----       added version number - all cosmetic only; replaced AcctFilter()
-# ----- V4b - enhanced filters to include Currency Name, and Security Name in searches....
-# ----- V4b - added option to split / securities within account (rather than total across the accounts)... Messy display, but requested
-# ----- todo - add costbasis
+#  - This script basically shows all stocks/funds summarised into single stocks/funds per row. I.E. consolidates data accross all Accounts
+#  - Some of the code looks somewhat different to how I would write native Python, but it is as it is as it was converted from pure Java by waynelloydsmith
+#  - Shows QTY of shares
+#  - Removed all non-functional Java / Python code and general tidy up.
+#  - Also fixed / replaced the JY/Java code to make JTable and the Scrollpanes funtion properly
+#  - Addressed bug hiding some securitys when not all prices found (by date) - by eliminating % as not needed anyway.
+#  - Price is taken from Current Price now, and NOT from price history. If you would like price history, let me know!
+#  - Added Parameter/filter screen/options and export to file....
+#  - The file will write a utf8 encoded file - so we strip out currency signs - else Excel treats them wrongly. You can specify to leave them included...
+# -- We strip out all non ASCII characters below code 128 and also number seperators. Delimiter will flip to a semi-colon if your decimal point is a comma!
+# -- USAGE: Just execute and a popup will ask you to set parameters. You can just leave all as default if you wish.
+# --        Change the defaults in the rows just below this statement...
+# -- WARNING: Cash Balances are per account, not per security/currency.
+# --          So the cash balaces will always be for the whole account(s) included, not just  filtered securities etc...
+# -- Added extra columns with raw number that don't get displayed. Planned to use for custom sort,
+# --       but found a workaround stripping non numerics out of text... (so not used)
+# -- Found that JFileChooser with file extension filters hangs on Macs, so use FileDialog on Mac to also get Mac(ish) GUI LaF
+# -- Version 3 - fixed bug so that .moneydance extension test only checks end of filename (not middle)
+# -- Version 3c fiddled with the Accounts filter; added extra total (securities + cash balance) where whole account selected
+# -- Version 3d eliminated rounding on the totals in base currency (user request)
+# --            don't display base currency in local currency where same; make all filters uppercase
+# -- V3d Fix small bug on check for whether all securities were same currency (didn't really affect much);
+# --     also tried to deal better with LOCALE decimal point and comma....
+# -- V4 - Enhanced to use CSV File writer and write raw numbers into the CSV file - let CSV writer handle the special character handling.......;
+# --      altered pricing rounding
+# -- V4b - tweaked to use Jython syntax (rather than Java)...syntax; Added "copyright to file extract";
+# --       added version number - all cosmetic only; replaced AcctFilter()
+# -- V4b - enhanced filters to include Currency Name, and Security Name in searches....
+# -- V4b - added option to split / securities within account (rather than total across the accounts)... Messy display, but requested
+# -- V4c - now saving parameters to file (within MD) so that they persist.
+# -- todo - add costbasis, exclude totals for pivot CSV stuff
+
 
 import sys
 
@@ -74,7 +76,7 @@ import datetime
 
 from com.infinitekind.moneydance.model import *
 from com.infinitekind.moneydance.model.Account import AccountType
-from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType
+from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType, LocalStorage
 
 from com.infinitekind.util import DateUtil
 
@@ -110,24 +112,30 @@ import time
 import os
 import os.path
 import java.io.File
+from java.io import FileNotFoundException
+from org.python.core.util import FileUtil
 
 import inspect
 
 import csv
 
+import pickle
+
+#StuWareSoftSystems common Globals
 global debug  # Set to True if you want verbose messages, else set to False....
-
-global StockGlanceInstance  # holds the instance of StockGlance2020()
-global baseCurrency, sdf, frame_, rawDataTable, rawFooterTable, headingNames
-global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency, lAllSecurity, filteForSecurity, lStripASCII, csvDelimiter
-global lSplitSecuritiesByAccount, acctSeperator
+global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency, lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter
+global lUseMacFileChooser, lIamAMac
 global csvfilename, version
-
-global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
-
 global decimalCharSep, groupingCharSep
 
-# Set programatic defaults/parameters for filters HERE.... You  can override in the pop-up screen
+#This program Globals
+global baseCurrency, sdf, frame_, rawDataTable, rawFooterTable, headingNames
+global StockGlanceInstance  # holds the instance of StockGlance2020()
+global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
+global lSplitSecuritiesByAccount, acctSeperator
+
+# Set programmatic defaults/parameters for filters HERE.... Saved Parameters will override these now
+# NOTE: You  can override in the pop-up screen
 hideHiddenSecurities = True
 hideInactiveAccounts = True
 hideHiddenAccounts = True
@@ -143,13 +151,12 @@ lStripASCII = True
 csvDelimiter = ","
 debug = False
 lUseMacFileChooser = True  # This will be ignored if you don't choose option to export to  a file
+lIamAMac = False
+version = "4c"
+
 
 headingNames = ""
-lIamAMac = False
-
 acctSeperator = ' : '
-
-version = "4b"
 
 print "StuWareSoftSystems..."
 print "StockGlance2020.py.......", "Version:", version
@@ -195,20 +202,80 @@ def checkVersions():
 # enddef
 
 if checkVersions():
+
+    def getParameters():
+        global debug  # Set to True if you want verbose messages, else set to False....
+        global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency
+        global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter
+        global lSplitSecuritiesByAccount
+        global lUseMacFileChooser
+
+        if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
+
+        dict_filename = os.path.join("..", "StuWareSoftSystems.dict")
+        if debug: print "Now checking for parameter file:", dict_filename
+
+        myParameters = None
+        local_storage = moneydance.getCurrentAccountBook().getLocalStorage()
+        if local_storage.exists(dict_filename):
+            if debug: print "Parameter file", dict_filename,"exists.."
+            # Open the file
+            try:
+                istr = local_storage.openFileForReading(dict_filename)
+                load_file = FileUtil.wrap(istr)
+                myParameters = pickle.load(load_file)
+            except FileNotFoundException as e:
+                print "Error: failed to find parameter file..."
+                myParameters = None
+            except EOFError as e:
+                print "Error: reached EOF on parameter file...."
+                myParameters = None
+
+            if myParameters is None:
+                if debug: print "Parameters did not load, will keep defaults.."
+                return
+            else:
+                if debug: print "Parameters successfully loaded from file..."
+        else:
+            if debug: print "Parameter file does not exist.. Will use defaults.."
+            return
+
+        if myParameters.get("hideHiddenSecurities")         is not None: hideHiddenSecurities =         myParameters.get("hideHiddenSecurities")
+        if myParameters.get("hideInactiveAccounts")         is not None: hideInactiveAccounts =         myParameters.get("hideInactiveAccounts")
+        if myParameters.get("hideHiddenAccounts")           is not None: hideHiddenAccounts =           myParameters.get("hideHiddenAccounts")
+        if myParameters.get("lAllCurrency")                 is not None: lAllCurrency =                 myParameters.get("lAllCurrency")
+        if myParameters.get("filterForCurrency")            is not None: filterForCurrency =            myParameters.get("filterForCurrency")
+        if myParameters.get("lAllSecurity")                 is not None: lAllSecurity =                 myParameters.get("lAllSecurity")
+        if myParameters.get("filterForSecurity")            is not None: filterForSecurity =            myParameters.get("filterForSecurity")
+        if myParameters.get("lAllAccounts")                 is not None: lAllAccounts =                 myParameters.get("lAllAccounts")
+        if myParameters.get("filterForAccounts")            is not None: filterForAccounts =            myParameters.get("filterForAccounts")
+        if myParameters.get("lIncludeCashBalances")         is not None: lIncludeCashBalances =         myParameters.get("lIncludeCashBalances")
+        if myParameters.get("lSplitSecuritiesByAccount")    is not None: lSplitSecuritiesByAccount =    myParameters.get("lSplitSecuritiesByAccount")
+        if myParameters.get("lStripASCII")                  is not None: lStripASCII =                  myParameters.get("lStripASCII")
+        if myParameters.get("csvDelimiter")                 is not None: csvDelimiter =                 myParameters.get("csvDelimiter")
+        if myParameters.get("debug")                        is not None: debug =                        myParameters.get("debug")
+        if myParameters.get("lUseMacFileChooser")           is not None: lUseMacFileChooser =           myParameters.get("lUseMacFileChooser")
+
+        if debug:
+            print "myParameters read from file contains...:"
+            for key in myParameters.keys():
+                print "...variable:",key,myParameters[key]
+
+    if debug: print "Parameter file loaded and parameters set into memory....."
+    #ENDDEF
+    getParameters()
+
     def amIaMac():
         myPlat = System.getProperty("os.name")
         if myPlat is None: return False
         if debug: print "Platform:", myPlat
         return myPlat == "Mac OS X"
-
-
     # enddef
 
     lIamAMac = amIaMac()
     if not lIamAMac: lUseMacFileChooser = False
 
     csvfilename = None
-
 
     def getDecimalPoint(lGetPoint=False, lGetGrouping=False):
         global debug
@@ -230,7 +297,6 @@ if checkVersions():
 
         return "error"
 
-
     decimalCharSep = getDecimalPoint(lGetPoint=True)
     groupingCharSep = getDecimalPoint(lGetGrouping=True)
     if decimalCharSep != "." and csvDelimiter == ",": csvDelimiter = ";"  # Override for EU countries or where decimal point is actually a comma...
@@ -241,7 +307,6 @@ if checkVersions():
     rawrawFooterTable = None
 
     sdf = SimpleDateFormat("dd/MM/yyyy")
-
 
     # This allows me to filter inputs to Y/N and convert to uppercase - single digit responses..... (took hours to work out, but now I have it!)
     class JTextFieldLimitYN(PlainDocument):
@@ -400,17 +465,24 @@ if checkVersions():
         if user_hideHiddenAccounts.getText() == "Y":  hideHiddenAccounts = True
         else:                                           hideHiddenAccounts = False
 
-        if user_selectCurrency.getText() == "ALL":      lAllCurrency = True
+
+        if user_selectCurrency.getText() == "ALL" or user_selectCurrency.getText().strip() == "":
+            lAllCurrency = True
+            filterForCurrency = "ALL"
         else:
             lAllCurrency = False
             filterForCurrency = user_selectCurrency.getText()
 
-        if user_selectTicker.getText() == "ALL":        lAllSecurity = True
+        if user_selectTicker.getText() == "ALL" or user_selectTicker.getText().strip() == "":
+            lAllSecurity = True
+            filterForSecurity = "ALL"
         else:
             lAllSecurity = False
             filterForSecurity = user_selectTicker.getText()
 
-        if user_selectAccounts.getText() == "ALL":      lAllAccounts = True
+        if user_selectAccounts.getText() == "ALL" or user_selectAccounts.getText().strip() == "":
+            lAllAccounts = True
+            filterForAccounts = "ALL"
         else:
             lAllAccounts = False
             filterForAccounts = user_selectAccounts.getText()
@@ -489,15 +561,14 @@ if checkVersions():
 
             if lIamAMac:
                 if lUseMacFileChooser:
-                    print "I am a Mac. FileDialog Mac-like filename GUI choosen"
+                    if debug: print "I am a Mac. FileDialog Mac-like filename GUI choosen"
                 else:
-                    print "I am a Mac, but User asked to use older non-Mac GUI JFileChooser.."
+                    print "I am a Mac, but you requested to use older non-Mac GUI JFileChooser.."
 
             if lStripASCII:
                 print "Will strip non-ASCII characters - e.g. Currency symbols from output file...", " Using Delimiter:", csvDelimiter
             else:
                 print "Non-ASCII characters will not be stripped from file: ", " Using Delimiter:", csvDelimiter
-
 
             def myDir():
                 homeDir = System.getProperty("user.home")
@@ -1761,7 +1832,6 @@ if checkVersions():
 
                 # NOTE - You can add sep=; to beginning of file to tell Excel what delimiter you are using
                 if not lSplitSecuritiesByAccount:
-                    print "should be sorting"
                     rawDataTable = sorted(rawDataTable, key=lambda x: (str(x[1]).upper()) )
 
                 rawDataTable.insert(0,headingNames)  # Insert Column Headings at top of list. A bit rough and ready, not great coding, but a short list...!
@@ -1830,6 +1900,59 @@ if checkVersions():
             # enddef
 
             ExportDataToFile()
+
+        def saveParameters():
+            global debug  # Set to True if you want verbose messages, else set to False....
+            global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency
+            global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter
+            global lSplitSecuritiesByAccount
+            global lUseMacFileChooser
+
+            if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
+
+
+            myParameters = {}
+
+            myParameters["hideHiddenSecurities"]      = hideHiddenSecurities
+            myParameters["hideInactiveAccounts"]      = hideInactiveAccounts
+            myParameters["hideHiddenAccounts"]        = hideHiddenAccounts
+            myParameters["lAllCurrency"]              = lAllCurrency
+            myParameters["filterForCurrency"]         = filterForCurrency
+            myParameters["lAllSecurity"]              = lAllSecurity
+            myParameters["filterForSecurity"]         = filterForSecurity
+            myParameters["lAllAccounts"]              = lAllAccounts
+            myParameters["filterForAccounts"]         = filterForAccounts
+            myParameters["lIncludeCashBalances"]      = lIncludeCashBalances
+            myParameters["lSplitSecuritiesByAccount"] = lSplitSecuritiesByAccount
+            myParameters["lStripASCII"]               = lStripASCII
+            myParameters["csvDelimiter"]              = csvDelimiter
+            myParameters["debug"]                     = debug
+            myParameters["lUseMacFileChooser"]        = lUseMacFileChooser
+
+            if debug:
+                print "myParameters contains...:"
+                for key in myParameters.keys():
+                    print "...variable:",key,myParameters[key]
+
+            dict_filename = os.path.join("..", "StuWareSoftSystems.dict")
+            if debug: print "Will try to save parameter file:", dict_filename
+
+            local_storage = moneydance.getCurrentAccountBook().getLocalStorage()
+            ostr = local_storage.openFileForWriting(dict_filename)
+
+            try:
+                save_file = FileUtil.wrap(ostr)
+                pickle.dump(myParameters, save_file)
+                save_file.close()
+            except:
+                print "Error - failed to create/write parameter file.. Ignoring and continuing....."
+                return
+
+            if debug: print "Parameter file written and parameters saved to disk....."
+
+    #ENDDEF
+
+        saveParameters()
 
     else:
         pass
