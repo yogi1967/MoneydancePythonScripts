@@ -1,7 +1,7 @@
 # coding=utf-8
 #!/usr/bin/env python
 
-# StockGlance2020 v4c - October 2020 - Stuart Beesley
+# StockGlance2020 v4d - October 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -154,7 +154,7 @@ csvDelimiter = ","
 debug = False
 lUseMacFileChooser = True  # This will be ignored if you don't choose option to export to  a file
 lIamAMac = False
-version = "4c"
+version = "4d"
 
 
 headingNames = ""
