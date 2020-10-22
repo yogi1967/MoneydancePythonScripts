@@ -1,3 +1,4 @@
+# coding=utf-8
 #!/usr/bin/env python
 
 # StockGlance2020 v4c - October 2020 - Stuart Beesley
@@ -63,6 +64,7 @@
 # -- V4b - enhanced filters to include Currency Name, and Security Name in searches....
 # -- V4b - added option to split / securities within account (rather than total across the accounts)... Messy display, but requested
 # -- V4c - now saving parameters to file (within MD) so that they persist.
+# -- V4d - added script encoding utf-8
 # -- todo - add costbasis, exclude totals for pivot CSV stuff
 
 
