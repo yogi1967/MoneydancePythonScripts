@@ -1,7 +1,6 @@
-# coding=utf-8
 #!/usr/bin/env python
 
-# StockGlance2020 v4d - October 2020 - Stuart Beesley
+# StockGlance2020 v4e - October 2020 - Stuart Beesley
 #
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -64,9 +63,11 @@
 # -- V4b - enhanced filters to include Currency Name, and Security Name in searches....
 # -- V4b - added option to split / securities within account (rather than total across the accounts)... Messy display, but requested
 # -- V4c - now saving parameters to file (within MD) so that they persist.
-# -- V4d - added script encoding utf-8
-# -- todo - add costbasis, exclude totals for pivot CSV stuff
+# -- V4d - added script encoding utf-8 (removed again in v4e)
+# -- V4e - Added MD Costbasis and the Unrealised Gain (calculated); also now save export path to disk
+# -- V4e - Added trap for file write errors; added parameter to allow user to exclude totals from csv file; cleaned up row highlighting and cell neg colours
 
+# -- todo - scriptpath and filterfor copy to other scripts, copy file error trap, parameter save, check global vars etc
 
 import sys
 
@@ -78,7 +79,7 @@ import datetime
 
 from com.infinitekind.moneydance.model import *
 from com.infinitekind.moneydance.model.Account import AccountType
-from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType, LocalStorage
+from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType, LocalStorage, InvestUtil
 
 from com.infinitekind.util import DateUtil
 
@@ -127,14 +128,15 @@ import pickle
 global debug  # Set to True if you want verbose messages, else set to False....
 global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency, lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter
 global lUseMacFileChooser, lIamAMac
-global csvfilename, version
+global csvfilename, version, scriptpath, lDisplayOnly
 global decimalCharSep, groupingCharSep
 
-#This program Globals
+#This program's Globals
 global baseCurrency, sdf, frame_, rawDataTable, rawFooterTable, headingNames
 global StockGlanceInstance  # holds the instance of StockGlance2020()
 global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
-global lSplitSecuritiesByAccount, acctSeperator
+global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _SORT, _EXCLUDECSV
+global lSplitSecuritiesByAccount, acctSeperator, lExcludeTotalsFromCSV
 
 # Set programmatic defaults/parameters for filters HERE.... Saved Parameters will override these now
 # NOTE: You  can override in the pop-up screen
@@ -149,16 +151,18 @@ lAllAccounts = True
 filterForAccounts = "ALL"
 lIncludeCashBalances = False
 lSplitSecuritiesByAccount = False
+lExcludeTotalsFromCSV = False
 lStripASCII = True
 csvDelimiter = ","
 debug = False
 lUseMacFileChooser = True  # This will be ignored if you don't choose option to export to  a file
 lIamAMac = False
-version = "4d"
+version = "4e"
 
 
 headingNames = ""
 acctSeperator = ' : '
+scriptpath = ""
 
 print "StuWareSoftSystems..."
 print "StockGlance2020.py.......", "Version:", version
@@ -208,8 +212,8 @@ if checkVersions():
     def getParameters():
         global debug  # Set to True if you want verbose messages, else set to False....
         global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency
-        global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter
-        global lSplitSecuritiesByAccount
+        global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter, scriptpath
+        global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV
         global lUseMacFileChooser
 
         if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
@@ -242,6 +246,7 @@ if checkVersions():
             if debug: print "Parameter file does not exist.. Will use defaults.."
             return
 
+        if myParameters.get("__StockGlance2020")            is not None: __StockGlance2020 =            myParameters.get("__StockGlance2020")
         if myParameters.get("hideHiddenSecurities")         is not None: hideHiddenSecurities =         myParameters.get("hideHiddenSecurities")
         if myParameters.get("hideInactiveAccounts")         is not None: hideInactiveAccounts =         myParameters.get("hideInactiveAccounts")
         if myParameters.get("hideHiddenAccounts")           is not None: hideHiddenAccounts =           myParameters.get("hideHiddenAccounts")
@@ -253,10 +258,17 @@ if checkVersions():
         if myParameters.get("filterForAccounts")            is not None: filterForAccounts =            myParameters.get("filterForAccounts")
         if myParameters.get("lIncludeCashBalances")         is not None: lIncludeCashBalances =         myParameters.get("lIncludeCashBalances")
         if myParameters.get("lSplitSecuritiesByAccount")    is not None: lSplitSecuritiesByAccount =    myParameters.get("lSplitSecuritiesByAccount")
+        if myParameters.get("lExcludeTotalsFromCSV")        is not None: lExcludeTotalsFromCSV =        myParameters.get("lExcludeTotalsFromCSV")
         if myParameters.get("lStripASCII")                  is not None: lStripASCII =                  myParameters.get("lStripASCII")
         if myParameters.get("csvDelimiter")                 is not None: csvDelimiter =                 myParameters.get("csvDelimiter")
         if myParameters.get("debug")                        is not None: debug =                        myParameters.get("debug")
         if myParameters.get("lUseMacFileChooser")           is not None: lUseMacFileChooser =           myParameters.get("lUseMacFileChooser")
+
+        if myParameters.get("scriptpath") is not None:
+            scriptpath = myParameters.get("scriptpath")
+            if not os.path.isdir(scriptpath):
+                print "Warning: loaded parameter scriptpath does not appear to be a valid directory:", scriptpath, "will ignore"
+                scriptpath=""
 
         if debug:
             print "myParameters read from file contains...:"
@@ -381,6 +393,12 @@ if checkVersions():
     if lSplitSecuritiesByAccount:   user_splitSecurities.setText("Y")
     else:                           user_splitSecurities.setText("N")
 
+    label7c = JLabel("Exclude Totals from CSV extract (helps pivots)? (Y/N):")
+    user_excludeTotalsFromCSV = JTextField(2)
+    user_excludeTotalsFromCSV.setDocument(JTextFieldLimitYN(1, True, "YN"))
+    if lExcludeTotalsFromCSV:       user_excludeTotalsFromCSV.setText("Y")
+    else:                           user_excludeTotalsFromCSV.setText("N")
+
     label8 = JLabel("Strip non ASCII characters from CSV export? (Y/N)")
     user_selectStripASCII = JTextField(12)
     user_selectStripASCII.setDocument(JTextFieldLimitYN(1, True, "YN"))
@@ -405,7 +423,7 @@ if checkVersions():
         if lUseMacFileChooser:  user_selectMacFileChooser.setText("Y")
         else:                        user_selectMacFileChooser.setText("N")
 
-    userFilters = JPanel(GridLayout(12, 2))
+    userFilters = JPanel(GridLayout(13, 2))
     userFilters.add(label1)
     userFilters.add(user_hideHiddenSecurities)
     userFilters.add(label2)
@@ -422,6 +440,8 @@ if checkVersions():
     userFilters.add(user_selectCashBalances)
     userFilters.add(label7b)
     userFilters.add(user_splitSecurities)
+    userFilters.add(label7c)
+    userFilters.add(user_excludeTotalsFromCSV)
     userFilters.add(label8)
     userFilters.add(user_selectStripASCII)
     userFilters.add(label9)
@@ -437,14 +457,14 @@ if checkVersions():
 
     options = ["Abort", "Display & CSV Export", "Display Only"]
     userAction = (
-        JOptionPane.showOptionDialog(None, userFilters, "Set Script Parameters....", JOptionPane.OK_CANCEL_OPTION,
+        JOptionPane.showOptionDialog(None, userFilters, "("+version+") Set Script Parameters....", JOptionPane.OK_CANCEL_OPTION,
                                      JOptionPane.QUESTION_MESSAGE, None, options, options[2]))
     if userAction == 1:  # Display & Export
         if debug: print "Display and export choosen"
         lDisplayOnly = False
     elif userAction == 2:  # Display Only
         lDisplayOnly = True
-        if debug: print "Display only with no export choosen"
+        if debug: print "Display only with no export chosen"
     else:
         # Abort
         print "User Cancelled Parameter selection.. Will abort.."
@@ -453,7 +473,18 @@ if checkVersions():
 
     if not lExit:
         if debug:
-            print "Parameters Captured", "Sec: ", user_hideHiddenSecurities.getText(), "InActAct:", user_hideInactiveAccounts.getText(), "HidAct:", user_hideHiddenAccounts.getText(), "Curr:", user_selectCurrency.getText(), "Ticker:", user_selectTicker.getText(), "Filter Accts:", user_selectAccounts.getText(), "Include Cash Balances:", user_selectCashBalances.getText(), "Strip ASCII:", user_selectStripASCII.getText(), "Verbose Debug Messages: ", user_selectDEBUG.getText(), "CSV File Delimiter:", user_selectDELIMITER.getText()
+            print "Parameters Captured", "Sec: ", user_hideHiddenSecurities.getText(), \
+                "InActAct:", user_hideInactiveAccounts.getText(), \
+                "HidAct:", user_hideHiddenAccounts.getText(), \
+                "Curr:", user_selectCurrency.getText(), \
+                "Ticker:", user_selectTicker.getText(), \
+                "Filter Accts:", user_selectAccounts.getText(), \
+                "Include Cash Balances:", user_selectCashBalances.getText(), \
+                "Split Securities:", user_splitSecurities.getText(), \
+                "Exclude Totals from CSV:", user_excludeTotalsFromCSV.getText(), \
+                "Strip ASCII:", user_selectStripASCII.getText(), \
+                "Verbose Debug Messages: ", user_selectDEBUG.getText(), \
+                "CSV File Delimiter:", user_selectDELIMITER.getText()
             if lIamAMac: print "Use Mac-like Filename GUI:", user_selectMacFileChooser.getText()
         # endif
 
@@ -464,9 +495,8 @@ if checkVersions():
         else:                                           hideHiddenSecurities = False
         if user_hideInactiveAccounts.getText() == "Y":  hideInactiveAccounts = True
         else:                                           hideInactiveAccounts = False
-        if user_hideHiddenAccounts.getText() == "Y":  hideHiddenAccounts = True
+        if user_hideHiddenAccounts.getText() == "Y":    hideHiddenAccounts = True
         else:                                           hideHiddenAccounts = False
-
 
         if user_selectCurrency.getText() == "ALL" or user_selectCurrency.getText().strip() == "":
             lAllCurrency = True
@@ -492,9 +522,11 @@ if checkVersions():
         if user_selectCashBalances.getText() == "Y":    lIncludeCashBalances = True
         else:                                           lIncludeCashBalances = False
 
-        if user_splitSecurities.getText() == "Y":   lSplitSecuritiesByAccount = True
-        else:                                       lSplitSecuritiesByAccount = False
+        if user_splitSecurities.getText() == "Y":       lSplitSecuritiesByAccount = True
+        else:                                           lSplitSecuritiesByAccount = False
 
+        if user_excludeTotalsFromCSV.getText() == "Y":  lExcludeTotalsFromCSV = True
+        else:                                           lExcludeTotalsFromCSV = False
 
         if user_selectStripASCII.getText() == "Y":      lStripASCII = True
         else:                                           lStripASCII = False
@@ -553,8 +585,6 @@ if checkVersions():
 
         if lSplitSecuritiesByAccount:
             print "Splitting Securities by account - WARNING, this will disable sorting...."
-        else:
-            print "Summarising by Security - default.. Sorting enabled....."
 
         # Now get the export filename
         csvfilename = None
@@ -572,6 +602,9 @@ if checkVersions():
             else:
                 print "Non-ASCII characters will not be stripped from file: ", " Using Delimiter:", csvDelimiter
 
+            if lExcludeTotalsFromCSV:
+                print "Will exclude Totals from CSV to assist Pivot tables"
+
             def myDir():
                 homeDir = System.getProperty("user.home")
                 if debug: print "Home Directory:", homeDir
@@ -580,10 +613,11 @@ if checkVersions():
 
 
             def grabTheFile():
-                global debug, lDisplayOnly, csvfilename, lIamAMac, lUseMacFileChooser
+                global debug, lDisplayOnly, csvfilename, lIamAMac, lUseMacFileChooser, scriptpath
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
 
-                scriptpath = moneydance_data.getRootFolder().getParent()  # Path to Folder holding MD Datafile
+                if scriptpath == "" or scriptpath is None: # No parameter saved / loaded from disk
+                    scriptpath = moneydance_data.getRootFolder().getParent()  # Path to Folder holding MD Datafile
                 if scriptpath is None:  scriptpath = myDir()
                 if debug: print "Scriptpath:", scriptpath
 
@@ -620,6 +654,7 @@ if checkVersions():
                     else:
                         csvfilename = str(java.io.File(
                             filename.getDirectory() + os.path.sep + filename.getFile()))  # NOTE: FileDialog checks for file overwrite and seeks confirmation....
+                        scriptpath = str(filename.getDirectory())
 
                     if not lDisplayOnly:
                         if os.path.exists(csvfilename) and os.path.isfile(
@@ -630,13 +665,13 @@ if checkVersions():
                             print "Mac platform detected, but user specified to run JFileChooser()  to get filename...."
                         else:
                             print "Non Mac platform detected: Therefore I will run JFileChooser()  to get filename...."
-
                     filename = JFileChooser(scriptpath)
 
                     filename.setSelectedFile(java.io.File(scriptpath + os.path.sep + 'extract_stock_balances.csv'))
                     extfilter = javax.swing.filechooser.FileNameExtensionFilter("CSV file (CSV,TXT)", ["csv", "TXT"])
 
                     filename.setMultiSelectionEnabled(False)
+
                     if not lIamAMac:
                         # this locks up Macs
                         filename.setFileFilter(extfilter)
@@ -653,11 +688,6 @@ if checkVersions():
                         lDisplayOnly = True
                         csvfilename = None
                         print "User chose no filename... So no Extract will be performed..."
-                    elif str(filename.selectedFile).endswith(".moneydance"):
-                        lDisplayOnly = True
-                        csvfilename = None
-                        print "User selected file:", filename.selectedFile
-                        print "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed..."
                     elif str(filename.selectedFile).endswith(".moneydance"):
                         lDisplayOnly = True
                         csvfilename = None
@@ -689,7 +719,9 @@ if checkVersions():
 
                 # endif
 
-                if not lDisplayOnly: print 'Will display Stock balances and then extract to file: ', csvfilename, "(NOTE: Should drop non utf8 characters...)"
+                if not lDisplayOnly:
+                    print 'Will display Stock balances and then extract to file: ', csvfilename, "(NOTE: Should drop non utf8 characters...)"
+                    scriptpath = os.path.dirname(csvfilename)
 
                 if "filename" in vars() or "filename" in globals():   del filename
                 if "extfilter" in vars() or "extfilter" in globals():   del extfilter
@@ -713,6 +745,7 @@ if checkVersions():
             global debug, hideHiddenSecurities, hideInactiveAccounts, lSplitSecuritiesByAccount, acctSeperator
             global rawDataTable, rawFooterTable, headingNames
             global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW, _SORT
+            global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _EXCLUDECSV
 
             if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
 
@@ -723,6 +756,8 @@ if checkVersions():
             totalBalance = None  # total of all Stock.Securities in all Accounts inb local currency
             totalBalanceBase = None
             totalCashBalanceBase = None
+            totalCostBasisBase = None
+            totalGainBase = None
 
             sameCurrency = None
             allOneCurrency = True
@@ -732,6 +767,7 @@ if checkVersions():
             QtyOfSharesTable = None
             AccountsTable = None
             CashBalancesTable = None
+            CostBasisTotals = None
             CashBalanceTableData = []
 
             lightLightGray = Color(0xDCDCDC)
@@ -739,21 +775,26 @@ if checkVersions():
             rawFooterTable = []  # one row of footer data
             rawDataTable = []  # the data retrieved from moneydance
 
-            #  Per column metadata - fields 8 - 12 not actually used but contain the raw numbers from fields 2,3,5,6 + sortfield
-            columnNames = ["Symbol", "Stock", "Shares/Units", "Price", "Curr", "Curr Value", "Base Value", "Accounts",
-                           "_Shrs", "_Price", "_CValue", "_BValue", "_SORT"]
-            columnTypes = ["Text", "Text", "TextNumber", "TextNumber", "TextC", "TextNumber", "TextNumber", "Text", "N",
-                           "N", "N", "N","N"]
+            #  Per column metadata - fields 10 - 16 not actually used but contain the raw numbers from fields 2,3,5,6 + sortfield
+            columnNames = ["Symbol", "Stock", "Shares/Units", "Price", "Curr", "Curr Value", "Base Value", "Cost Basis","UnRlsd Gain", "Accounts",
+                           "_Shrs", "_Price", "_CValue", "_BValue", "_CBValue","_Gain","_SORT", "_Exclude"]
+            columnTypes = ["Text", "Text", "TextNumber", "TextNumber", "TextC", "TextNumber", "TextNumber", "TextNumber","TextNumber","Text", "N",
+                           "N", "N", "N", "N", "N","N","TEXT"]
             headingNames = columnNames
             _SHRS_FORMATTED = 2
-            _SHRS_RAW = 8
+            _SHRS_RAW = 10
             _PRICE_FORMATTED = 3
-            _PRICE_RAW = 9
+            _PRICE_RAW = 11
             _CVALUE_FORMATTED = 5
-            _CVALUE_RAW = 10
+            _CVALUE_RAW = 12
             _BVALUE_FORMATTED = 6
-            _BVALUE_RAW = 11
-            _SORT = 12
+            _BVALUE_RAW = 13
+            _CBVALUE_FORMATTED = 7
+            _CBVALUE_RAW = 14
+            _GAIN_FORMATTED = 8
+            _GAIN_RAW = 15
+            _SORT = 16
+            _EXCLUDECSV = 17
 
             def getTableModel(self, book):
                 global debug, baseCurrency, rawDataTable, lAllCurrency, filterForCurrency, lAllSecurity, filterForSecurity
@@ -778,14 +819,17 @@ if checkVersions():
                     print "Result of sumInfoBySecurity(book) self.QtyOfSharesTable: \t", self.QtyOfSharesTable
                     print "Result of sumInfoBySecurity(book) self.AccountsTable: \t", self.AccountsTable
                     print "Result of sumInfoBySecurity(book) self.CashBalancesTable: \t", self.CashBalancesTable
+                    print "Result of sumInfoBySecurity(book) self.CostBasisTotals: \t", self.CostBasisTotals
 
                 self.totalBalance = 0.0
                 self.totalBalanceBase = 0.0
                 self.totalCashBalanceBase = 0.0
+                self.totalCostBasisBase = 0.0
+                self.totalGainBase = 0.0
 
                 self.lRemoveCurrColumn = True
 
-                if debug: print "Now processing all securitys (currencies) and building my own table of results to build GUI...."
+                if debug: print "Now processing all securities (currencies) and building my own table of results to build GUI...."
                 for curr in allCurrencies:
                     if ((hideHiddenSecurities and not curr.getHideInUI()) or (
                     not hideHiddenSecurities)) and curr.getCurrencyType() == CurrencyType.Type.SECURITY:
@@ -811,6 +855,8 @@ if checkVersions():
                                         or (filterForSecurity.upper().strip() in curr.getName().upper().strip()):
                                     if debug: print "Found Security..: ", curr, curr.getTickerSymbol(), " Curr: ", curr.getRelativeCurrency().getIDString(), " Price: ", price, " Qty: ", curr.formatSemiFancy(
                                         qty, decimalCharSep)
+
+                                    securityCostBasis = self.CostBasisTotals.get(curr)
 
                                     # This new loop in version v4b does the account split within Securities (a bit of a retrofit hack)
                                     split_acct_array =  self.AccountsTable.get(curr)
@@ -850,11 +896,17 @@ if checkVersions():
                                         balanceBase = (0.0 if (qty is None) else (curr.getDoubleValue(qty) * price / exchangeRate))  # Value in Base Currency
                                         balanceBaseSplit = (0.0 if (qtySplit is None) else (curr.getDoubleValue(qtySplit) * price / exchangeRate))  # Value in Base Currency
 
+                                        costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis)/ exchangeRate,2))
+                                        gainBase = round(balanceBase, 2) - costBasisBase
+
+                                        costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]) / exchangeRate,2)
+                                        gainBaseSplit = round(balanceBaseSplit, 2) - costBasisBaseSplit
+
                                         if debug:
                                             if iSplitAcctArray == 0:
-                                                print "Values found (local, base): ", balance, balanceBase
+                                                print "Values found (local, base, cb, gain): ", balance, balanceBase, costBasisBase, gainBase
                                             if lSplitSecuritiesByAccount:
-                                                print "Split Values found (qty, local, base): ", qtySplit, balanceSplit, balanceBaseSplit
+                                                print "Split Values found (qty, local, base, cb, gain): ", qtySplit, balanceSplit, balanceBaseSplit, costBasisBaseSplit, gainBaseSplit
 
                                         if not lSplitSecuritiesByAccount:
                                             break
@@ -874,12 +926,17 @@ if checkVersions():
                                             entry.append(self.myNumberFormatter(balanceSplit, False, self.currXrate, baseCurrency,2))  # c5
                                             x = round(balanceSplit, 2)
                                         entry.append(self.myNumberFormatter(balanceBaseSplit, True, self.currXrate, baseCurrency,2))  # c6
+                                        entry.append(self.myNumberFormatter(costBasisBaseSplit, True, self.currXrate, baseCurrency,2)) # Cost Basis
+                                        entry.append(self.myNumberFormatter(gainBaseSplit, True, self.currXrate, baseCurrency,2)) # Gain
                                         entry.append(split_acct_array[iSplitAcctArray][0].replace(acctSeperator,"",1))  # c7
-                                        entry.append(curr.getDoubleValue(qtySplit))  # c8  _Shrs = c2 (raw number)
-                                        entry.append(price)  # c9  _Price = c3 (raw number)
-                                        entry.append(x)  # c10 _CValue = c5 (raw number)
-                                        entry.append(round(balanceBaseSplit, 2))  # c11 _BValue = c6 (raw number)
-                                        entry.append(str(curr.getName()).upper()+"000"+split_acct_array[iSplitAcctArray][0].upper().replace(acctSeperator,"",1))  # c12 _SORT
+                                        entry.append(curr.getDoubleValue(qtySplit))  # _Shrs
+                                        entry.append(price)  # _Price
+                                        entry.append(x)  # _CValue
+                                        entry.append(round(balanceBaseSplit, 2))  # _BValue
+                                        entry.append(costBasisBaseSplit) # _Cost Basis
+                                        entry.append(gainBaseSplit) # _Gain
+                                        entry.append(str(curr.getName()).upper()+"000"+split_acct_array[iSplitAcctArray][0].upper().replace(acctSeperator,"",1))  # _SORT
+                                        entry.append(False) # Never exclude
                                         rawDataTable.append(entry)
                                     #NEXT
 
@@ -893,12 +950,17 @@ if checkVersions():
                                         blankEntry.append(None)
                                         blankEntry.append(None)
                                         blankEntry.append("----------")
+                                        blankEntry.append("----------")
+                                        blankEntry.append("----------")
                                         blankEntry.append(None)
                                         blankEntry.append("----------")
                                         blankEntry.append(None)
                                         blankEntry.append(None)
+                                        blankEntry.append("----------")
+                                        blankEntry.append("----------")
                                         blankEntry.append("----------")
                                         blankEntry.append(str(curr.getName()).upper()+"555")
+                                        blankEntry.append(lExcludeTotalsFromCSV)
                                         rawDataTable.append(blankEntry)
 
                                     entry = []
@@ -920,17 +982,21 @@ if checkVersions():
                                         x = round(balance, 2)
 
                                     entry.append(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency,2))  # c6
-
+                                    entry.append(self.myNumberFormatter(costBasisBase, True, self.currXrate, baseCurrency,2))  # Cost Basis
+                                    entry.append(self.myNumberFormatter(gainBase, True, self.currXrate, baseCurrency,2))  # Gain
                                     buildAcctString=""
                                     for iIterateAccts in range(0,len(split_acct_array)):
                                         buildAcctString+=split_acct_array[iIterateAccts][0]
                                     buildAcctString=buildAcctString[:-len(acctSeperator)]
                                     entry.append(buildAcctString)  # c7
-                                    entry.append(curr.getDoubleValue(qty))  # c8  _Shrs = c2 (raw number)
-                                    entry.append(price)  # c9  _Price = c3 (raw number)
-                                    entry.append(x)  # c10 _CValue = c5 (raw number)
-                                    entry.append(round(balanceBase, 2))  # c11 _BValue = c6 (raw number)
-                                    entry.append(str(curr.getName()).upper()+"888")  # c12 _SORT
+                                    entry.append(curr.getDoubleValue(qty))  # _Shrs = (raw number)
+                                    entry.append(price)  # _Price = (raw number)
+                                    entry.append(x)  # _CValue =  (raw number)
+                                    entry.append(round(balanceBase, 2))  # _BValue =  (raw number)
+                                    entry.append(costBasisBase)  # _Cost Basis
+                                    entry.append(gainBase)  # _Gain
+                                    entry.append(str(curr.getName()).upper()+"888")  # _SORT
+                                    entry.append( (False if (not lSplitSecuritiesByAccount) else lExcludeTotalsFromCSV) )
                                     rawDataTable.append(entry)
 
                                     if lSplitSecuritiesByAccount:
@@ -942,16 +1008,24 @@ if checkVersions():
                                         blankEntry.append(None)
                                         blankEntry.append(None)
                                         blankEntry.append("          ")
+                                        blankEntry.append("          ")
+                                        blankEntry.append("          ")
+                                        blankEntry.append(None)
+                                        blankEntry.append(None)
                                         blankEntry.append(None)
                                         blankEntry.append(None)
                                         blankEntry.append(None)
                                         blankEntry.append(None)
                                         blankEntry.append(None)
                                         blankEntry.append(str(curr.getName()).upper()+"999")
+                                        blankEntry.append(lExcludeTotalsFromCSV)
                                         rawDataTable.append(blankEntry)
 
                                     self.totalBalance += round(balance, 2)  # You can round here if you like....
                                     self.totalBalanceBase += round(balanceBase, 2)  # You can round here if you like....
+
+                                    self.totalCostBasisBase += costBasisBase
+                                    self.totalGainBase += gainBase
 
                                     if lIncludeCashBalances:
                                         cash = 0.0
@@ -1007,12 +1081,18 @@ if checkVersions():
                 blankEntry.append(None)
                 blankEntry.append(None)
                 blankEntry.append("==========")
+                blankEntry.append("==========")
+                blankEntry.append("==========")
                 blankEntry.append(None)
                 blankEntry.append(None)
                 blankEntry.append(None)
                 blankEntry.append(None)
                 blankEntry.append(None)
                 blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(None)
+                blankEntry.append(lExcludeTotalsFromCSV)
+
 
                 entry = []
                 entry.append("Total: Securities")
@@ -1032,12 +1112,18 @@ if checkVersions():
                     if debug: print "getFooterModel: was not allOneCurrency.."
                     entry.append(None)
                 entry.append(self.myNumberFormatter(self.totalBalanceBase, True, baseCurrency, baseCurrency, 2))
+                entry.append(self.myNumberFormatter(self.totalCostBasisBase, True, baseCurrency, baseCurrency, 2)) # Cost Basis
+                entry.append(self.myNumberFormatter(self.totalGainBase, True, baseCurrency, baseCurrency, 2)) # Gain
                 entry.append("<<" + baseCurrency.getIDString())
                 entry.append(None)
                 entry.append(None)
                 entry.append(x)
                 entry.append(self.totalBalanceBase)
+                entry.append(self.totalCostBasisBase) # _Cost Basis
+                entry.append(self.totalGainBase) # _Gain
                 entry.append(None)
+                entry.append(lExcludeTotalsFromCSV)
+
                 rawFooterTable = []
                 rawFooterTable.append(entry)
 
@@ -1055,12 +1141,17 @@ if checkVersions():
                             entry.append(None)
                             entry.append(self.myNumberFormatter(self.CashBalanceTableData[i][1], True, baseCurrency,
                                                                 baseCurrency, 2))
+                            entry.append(None)
+                            entry.append(None)
                             entry.append(str(self.CashBalanceTableData[i][0]))
-                            entry.append(None)
-                            entry.append(None)
+                            entry.append(None) # Cost Basis
+                            entry.append(None) # Gain
                             entry.append(None)
                             entry.append(self.CashBalanceTableData[i][1])
+                            entry.append(None) # _Cost Basis
+                            entry.append(None) # _Gain
                             entry.append(None)
+                            entry.append(False) # Always include
                             rawFooterTable.append(entry)
 
                     rawFooterTable.append(blankEntry)
@@ -1072,12 +1163,17 @@ if checkVersions():
                     entry.append(None)
                     entry.append(None)
                     entry.append(self.myNumberFormatter(self.totalCashBalanceBase, True, baseCurrency, baseCurrency, 2))
+                    entry.append(None)
+                    entry.append(None)
                     entry.append("Across all Accounts involved in this table")
                     entry.append(None)
                     entry.append(None)
                     entry.append(None)
                     entry.append(self.totalCashBalanceBase)
                     entry.append(None)
+                    entry.append(None)
+                    entry.append(None)
+                    entry.append(lExcludeTotalsFromCSV)
                     rawFooterTable.append(entry)
 
                     if True or lAllSecurity:  # I don't add them up if selecting one security - probably makes the overal total wrong if multi securities in an account etc...
@@ -1091,12 +1187,17 @@ if checkVersions():
                         entry.append(None)
                         entry.append(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase), True,
                                                             baseCurrency, baseCurrency, 2))
+                        entry.append(self.myNumberFormatter(self.totalCostBasisBase, True, baseCurrency, baseCurrency, 2)) # Cost Basis
+                        entry.append(self.myNumberFormatter(self.totalGainBase, True, baseCurrency, baseCurrency, 2)) # Gain
                         entry.append("Only valid where whole accounts selected!")
                         entry.append(None)
                         entry.append(None)
                         entry.append(None)
                         entry.append((self.totalBalanceBase + self.totalCashBalanceBase))
+                        entry.append(self.totalCostBasisBase) # _Cost Basis
+                        entry.append(self.totalGainBase) # _Gain
                         entry.append(None)
+                        entry.append(lExcludeTotalsFromCSV)
                         rawFooterTable.append(entry)
 
                 # endif
@@ -1267,6 +1368,7 @@ if checkVersions():
                 totals = {}  # Dictionary <CurrencyType, Long>
                 accounts = {}
                 cashTotals = {}  # Dictionary<CurrencyType, Long>
+                cbbasistotals = {}
                 for acct in AccountUtil.allMatchesForSearch(book, self.myAcctFilter(AccountType.SECURITY,
                                                                                     hideInactiveAccounts,
                                                                                     lAllAccounts,
@@ -1281,6 +1383,7 @@ if checkVersions():
                     curr = acct.getCurrencyType()
                     account = accounts.get(curr)  # this returns None if curr doesn't exist yet
                     total = totals.get(curr)  # this returns None if security/curr doesn't exist yet
+                    costbasis = cbbasistotals.get(curr)
                     if acct.getCurrentBalance() != 0:  # we only want Securities with holdings
                         if debug: print "Processing Acct:", acct.getParentAccount(), "Share/Fund Qty Balances for Security: ", curr, curr.formatSemiFancy(
                             acct.getCurrentBalance(), decimalCharSep), " Shares/Units"
@@ -1288,27 +1391,31 @@ if checkVersions():
                         total = (0L if (total is None) else total) + acct.getCurrentBalance()
                         totals[curr] = total
 
+                        getTheCostBasis = InvestUtil.getCostBasis(acct)
+                        costbasis = (0L if (costbasis is None) else costbasis) + getTheCostBasis
+                        cbbasistotals[curr] = costbasis
+
                         if lSplitSecuritiesByAccount: #Build a mini table if split, else 1 row table...
                             if account is None:
-                                accounts[curr] = [[str(acct.getParentAccount())+acctSeperator, acct.getCurrentBalance()]]
+                                accounts[curr] = [[str(acct.getParentAccount())+acctSeperator, acct.getCurrentBalance(), getTheCostBasis]]
                             else:
-                                account.append([str(acct.getParentAccount())+acctSeperator, acct.getCurrentBalance()])
+                                account.append([str(acct.getParentAccount())+acctSeperator, acct.getCurrentBalance(), getTheCostBasis])
                                 accounts[curr] = account
                         else:
                             if account is None:
                                 account = str(acct.getParentAccount()) + acctSeperator   # Important - keep the trailing ' :'
                             else:
                                 account = account[0][0] + str(acct.getParentAccount()) + acctSeperator  # concatenate two strings here
-                            accounts[curr] = [[account, acct.getCurrentBalance()]]
+                            accounts[curr] = [[account, acct.getCurrentBalance(), getTheCostBasis]]
 
                         if lIncludeCashBalances:
+
                             # Now get the Currency  for the Security Parent Account - to get Cash  Balance
                             curr = acct.getParentAccount().getCurrencyType()
 
                             # WARNING Cash balances are by Account and not by Security!
                             cashTotal = curr.getDoubleValue(
-                                    (acct.getParentAccount().getCurrentBalance())) / curr.getRate(
-                                None)  # Will be the same Cash balance per account for all Securities..
+                                    (acct.getParentAccount().getCurrentBalance())) / curr.getRate(None)  # Will be the same Cash balance per account for all Securities..
                             if debug: print "Cash balance for account:", cashTotal
                             cashTotals[acct.getParentAccount()] = round(cashTotal, 2)
                             # endfor
@@ -1316,14 +1423,18 @@ if checkVersions():
                 self.QtyOfSharesTable = totals
                 self.AccountsTable = accounts
                 self.CashBalancesTable = cashTotals
+                self.CostBasisTotals = cbbasistotals
+
                 return
 
             class myJTable(JTable):  # (JTable)
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
+                lInTheFooter = False
 
-                def __init__(self, tableModel, lSortTheTable):
+                def __init__(self, tableModel, lSortTheTable, lInTheFooter):
                     global debug
                     super(JTable, self).__init__(tableModel)
+                    self.lInTheFooter = lInTheFooter
                     if lSortTheTable: self.fixTheRowSorter()
 
                 def isCellEditable(self, row, column):
@@ -1337,7 +1448,7 @@ if checkVersions():
                         renderer = DefaultTableCellRenderer()
                         renderer.setHorizontalAlignment(JLabel.LEFT)
                     elif StockGlanceInstance.columnTypes[column] == "TextNumber":
-                        renderer = DefaultTableCellRenderer()
+                        renderer = StockGlanceInstance.myGainsRenderer()
                         renderer.setHorizontalAlignment(JLabel.RIGHT)
                     elif StockGlanceInstance.columnTypes[column] == "TextC":
                         renderer = DefaultTableCellRenderer()
@@ -1393,6 +1504,7 @@ if checkVersions():
                 def fixTheRowSorter(
                         self):  # by default everthing gets coverted to strings. We need to fix this and code for my string number formats
                     global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW, _SORT
+                    global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _EXCLUDECSV
 
                     sorter = TableRowSorter()
                     self.setRowSorter(sorter)
@@ -1406,6 +1518,10 @@ if checkVersions():
                             sorter.setComparator(i, self.myTextNumberComparator("N"))
                         elif i == _BVALUE_FORMATTED:
                             sorter.setComparator(i, self.myTextNumberComparator("N"))
+                        elif i == _CBVALUE_FORMATTED:
+                            sorter.setComparator(i, self.myTextNumberComparator("N"))
+                        elif i == _GAIN_FORMATTED:
+                            sorter.setComparator(i, self.myTextNumberComparator("N"))
                         elif i == _SORT:
                             sorter.setComparator(i, self.myTextNumberComparator("N"))
                         else:
@@ -1413,12 +1529,48 @@ if checkVersions():
                     self.getRowSorter().toggleSortOrder(1)
 
                 def prepareRenderer(self, renderer, row, column):  # make Banded rows
-                    global StockGlanceInstance
+                    global StockGlanceInstance, lSplitSecuritiesByAccount
+
                     component = super(StockGlanceInstance.myJTable, self).prepareRenderer(renderer, row, column)
                     if not self.isRowSelected(row):
-                        component.setBackground(
-                            self.getBackground() if row % 2 == 0 else StockGlanceInstance.lightLightGray)
+                        if (self.lInTheFooter):
+                            component.setBackground(StockGlanceInstance.lightLightGray if row % 2 == 0 else self.getBackground())
+                        elif (not lSplitSecuritiesByAccount):
+                            component.setBackground(self.getBackground() if row % 2 == 0 else StockGlanceInstance.lightLightGray)
+                        elif str(self.getValueAt(row, 0)).lower()[:5] == "total":
+                            component.setBackground(StockGlanceInstance.lightLightGray)
+
                     return component
+
+            # This copies the standard class and just changes the colour to RED if iit detects a negative - leaves field intact
+            class myGainsRenderer(DefaultTableCellRenderer):
+
+                def __init__(self):
+                    super(DefaultTableCellRenderer, self).__init__()
+
+                def setValue(self, value):
+                    global decimalCharSep
+                    validString = "-0123456789" + decimalCharSep
+
+                    self.setText(value)
+
+                    if (value is None
+                        or value.strip() == ""
+                        or "==" in value
+                        or "--" in value):
+                        return
+
+                    # strip non numerics from string so can convert back to float - yes, a bit of a reverse hack
+                    conv_string1 = ""
+                    for char in value:
+                        if char in validString:
+                            conv_string1 = conv_string1 + char
+                    str1 = float(conv_string1)
+
+                    if float(str1) < 0.0:
+                        self.setForeground(Color.RED)
+                    else:
+                        self.setForeground(Color.DARK_GRAY)
 
             # Syncronises column widths of both JTables
             class ColumnChangeListener(TableColumnModelListener):
@@ -1498,6 +1650,7 @@ if checkVersions():
                 global debug, frame_, rawDataTable, rawFooterTable, lDisplayOnly, version, lSplitSecuritiesByAccount
 
                 global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW, _SORT
+                global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _EXCLUDECSV
 
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
 
@@ -1528,18 +1681,16 @@ if checkVersions():
                 self.tableModel = self.getTableModel(self.book)  # Generates/populates the table data
 
                 if lSplitSecuritiesByAccount:
-                    self.table = self.myJTable(self.tableModel, False)  # Creates JTable() with special sorting too
+                    self.table = self.myJTable(self.tableModel, False, False)  # Creates JTable() with special sorting too
                 else:
-                    self.table = self.myJTable(self.tableModel, True)  # Creates JTable() with special sorting too
+                    self.table = self.myJTable(self.tableModel, True, False)  # Creates JTable() with special sorting too
 
                 self.tableHeader = self.table.getTableHeader()
-                self.tableHeader.setReorderingAllowed(
-                    False)  # no more drag and drop columns, it didn't work (on the footer)
+                self.tableHeader.setReorderingAllowed(False)  # no more drag and drop columns, it didn't work (on the footer)
                 self.table.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
 
                 self.footerModel = self.getFooterModel()  # Generate/populate the footer table data
-                self.footerTable = self.myJTable(self.footerModel,
-                                                 False)  # Creates JTable() for footer - with disabled sorting too
+                self.footerTable = self.myJTable(self.footerModel,False, True)  # Creates JTable() for footer - with disabled sorting too
 
                 # Column listeners to resize columns on both tables to keep them in sync
                 cListener1 = self.ColumnChangeListener(self.table, self.footerTable)
@@ -1555,13 +1706,18 @@ if checkVersions():
                 c4 = 80
                 c5 = 120
                 c6 = 120
-                c7 = 350
-                c8 = 0
-                c9 = 0
+                c7 = 120
+                c8 = 120
+                c9 = 350
                 c10 = 0
-                c11 = 0
+                c11= 0
                 c12 = 0
-                cTotal = c0 + c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + c9 + c10 + c11 + c11 + c12
+                c13 = 0
+                c14 = 0
+                c15 = 0
+                c16 = 0
+                c17 = 0
+                cTotal = c0 + c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + c9 + c10 + c11 + c11 + c12 + c13 + c14 + c15 + c16 + c17
 
                 tcm.getColumn(0).setPreferredWidth(c0)
                 tcm.getColumn(1).setPreferredWidth(c1)
@@ -1571,6 +1727,8 @@ if checkVersions():
                 tcm.getColumn(5).setPreferredWidth(c5)
                 tcm.getColumn(6).setPreferredWidth(c6)
                 tcm.getColumn(7).setPreferredWidth(c7)
+                tcm.getColumn(8).setPreferredWidth(c8)
+                tcm.getColumn(9).setPreferredWidth(c9)
 
                 # I'm hiding these columns for ease of data retrieval. The better option would be to remove the columns
                 for i in reversed(range(_SHRS_RAW, tcm.getColumnCount())):
@@ -1589,7 +1747,7 @@ if checkVersions():
                     tcm.getColumn(_CVALUE_FORMATTED).setWidth(0)
 
                 self.footerTable.setColumnSelectionAllowed(False)
-                self.footerTable.setRowSelectionAllowed(False)
+                self.footerTable.setRowSelectionAllowed(True)
                 self.footerTable.setFocusable(False)
 
                 tcm = self.footerTable.getColumnModel()
@@ -1602,6 +1760,8 @@ if checkVersions():
                 tcm.getColumn(5).setPreferredWidth(c5)
                 tcm.getColumn(6).setPreferredWidth(c6)
                 tcm.getColumn(7).setPreferredWidth(c7)
+                tcm.getColumn(8).setPreferredWidth(c8)
+                tcm.getColumn(9).setPreferredWidth(c9)
 
                 # I'm hiding these columns for ease of data retrieval. The better option would be to remove the columns
                 for i in reversed(range(_SHRS_RAW, tcm.getColumnCount())):
@@ -1622,8 +1782,7 @@ if checkVersions():
                 self.footerTableHeader.setEnabled(False)  # may have worked, but doesn't...
                 self.footerTableHeader.setPreferredSize(Dimension(0, 0))  # this worked no more footer Table header
 
-                self.scrollPane = JScrollPane(self.table, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
-                                              JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                self.scrollPane = JScrollPane(self.table, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
                 self.scrollPane.getHorizontalScrollBar().setPreferredSize(Dimension(0, 0))
                 self.scrollPane.setBorder(CompoundBorder(MatteBorder(0, 0, 1, 0, Color.gray), EmptyBorder(0, 0, 0, 0)))
                 rowCount = self.table.getRowCount()
@@ -1687,10 +1846,10 @@ if checkVersions():
                 self.footerScrollPane.setPreferredSize(Dimension(width, fcalcScrollPaneHeightRequired))
                 frame_.add(self.footerScrollPane, BorderLayout.SOUTH)
 
-                if debug: print "Total frame height required: ", calcScrollPaneHeightRequired, " + ", fcalcScrollPaneHeightRequired, "+ Intercells: ", finsets.top, finsets.bottom, " = ", (
-                                                                                                                                                                                                       calcScrollPaneHeightRequired + fcalcScrollPaneHeightRequired) + (
-                                                                                                                                                                                                       finsets.top * 2) + (
-                                                                                                                                                                                                       finsets.bottom * 2)
+                if debug: print "Total frame height required: ", calcScrollPaneHeightRequired, " + ", \
+                    fcalcScrollPaneHeightRequired, "+ Intercells: ", finsets.top, finsets.bottom, " = ", \
+                    (calcScrollPaneHeightRequired + fcalcScrollPaneHeightRequired) + \
+                    (finsets.top * 2) + (finsets.bottom * 2)
 
                 # Seems to be working well without setting the frame sizes + pack()
                 # frame_.setPreferredSize(Dimension(width, max(150,calcScrollPaneHeightRequired+fcalcScrollPaneHeightRequired+(finsets.top*2)+(finsets.bottom*2))))
@@ -1826,9 +1985,10 @@ if checkVersions():
         if not lDisplayOnly:
             def ExportDataToFile():
                 global debug, frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version
-                global lSplitSecuritiesByAccount
+                global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV
 
                 global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW, _SORT
+                global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _EXCLUDECSV
 
                 if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
 
@@ -1844,37 +2004,47 @@ if checkVersions():
                 # Write the csvlines to a file
                 if debug: print "Opening file and writing ", len(rawDataTable), "records"
 
-                # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
-                with open(csvfilename,
-                          "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
-                    writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=csvDelimiter)
+                try:
+                    # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
+                    with open(csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
+                        writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=csvDelimiter)
 
-                    if csvDelimiter != ",":
-                        writer.writerow(["sep=",
-                                         ""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+                        if csvDelimiter != ",":
+                            writer.writerow(["sep=",""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
 
-                    writer.writerow(rawDataTable[0][:_SHRS_RAW])  # Print the header, but not the extra _field headings
+                        writer.writerow(rawDataTable[0][:_SHRS_RAW])  # Print the header, but not the extra _field headings
 
-                    for i in range(1, len(rawDataTable)):
-                        # Write the table, but swap in the raw numbers (rather than formatted number strings)
-                        writer.writerow([
-                                fixFormatsStr(rawDataTable[i][0], False),
-                                fixFormatsStr(rawDataTable[i][1], False),
-                                fixFormatsStr(rawDataTable[i][_SHRS_RAW], True),
-                                fixFormatsStr(rawDataTable[i][_PRICE_RAW], True),
-                                fixFormatsStr(rawDataTable[i][4], False),
-                                fixFormatsStr(rawDataTable[i][_CVALUE_RAW], True),
-                                fixFormatsStr(rawDataTable[i][_BVALUE_RAW], True),
-                                fixFormatsStr(rawDataTable[i][7], False),
-                                ""])
+                        for i in range(1, len(rawDataTable)):
+                            if not rawDataTable[i][_EXCLUDECSV]:
+                                # Write the table, but swap in the raw numbers (rather than formatted number strings)
+                                writer.writerow([
+                                        fixFormatsStr(rawDataTable[i][0], False),
+                                        fixFormatsStr(rawDataTable[i][1], False),
+                                        fixFormatsStr(rawDataTable[i][_SHRS_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_PRICE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][4], False),
+                                        fixFormatsStr(rawDataTable[i][_CVALUE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_BVALUE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_CBVALUE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_GAIN_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][9], False),
+                                        ""])
+                            #ENDIF
+                        #NEXT
+                        today = Calendar.getInstance()
+                        writer.writerow([""])
+                        writer.writerow(["StuWareSoftSystems - StockGlance2020("
+                                         + version
+                                         + ")  MoneyDance Python Script - Date of Extract: "
+                                         + str(sdf.format(today.getTime()))])
+                    print 'CSV file ' + csvfilename + ' created, records written, and file closed..'
 
-                    today = Calendar.getInstance()
-                    writer.writerow([""])
-                    writer.writerow([
-                                            "StuWareSoftSystems - StockGlance2020(" + version + ")  MoneyDance Python Script - Date of Extract: " + str(
-                                                sdf.format(today.getTime()))])
-                print 'CSV file ' + csvfilename + ' created, records written, and file closed..'
-
+                except IOError, e:
+                    print "Oh no - File IO Error!"
+                    print e
+                    print sys.exc_type
+                    print "Path:", csvfilename
+                    print "No file written - sorry! (was file open, permissions etc?)"
 
             # enddef
 
@@ -1906,15 +2076,15 @@ if checkVersions():
         def saveParameters():
             global debug  # Set to True if you want verbose messages, else set to False....
             global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency
-            global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter
-            global lSplitSecuritiesByAccount
-            global lUseMacFileChooser
+            global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter, scriptpath
+            global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV
+            global lUseMacFileChooser, lDisplayOnly, version
 
             if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
 
-
             myParameters = {}
 
+            myParameters["__StockGlance2020"]         = version
             myParameters["hideHiddenSecurities"]      = hideHiddenSecurities
             myParameters["hideInactiveAccounts"]      = hideInactiveAccounts
             myParameters["hideHiddenAccounts"]        = hideHiddenAccounts
@@ -1926,10 +2096,14 @@ if checkVersions():
             myParameters["filterForAccounts"]         = filterForAccounts
             myParameters["lIncludeCashBalances"]      = lIncludeCashBalances
             myParameters["lSplitSecuritiesByAccount"] = lSplitSecuritiesByAccount
+            myParameters["lExcludeTotalsFromCSV"]     = lExcludeTotalsFromCSV
             myParameters["lStripASCII"]               = lStripASCII
             myParameters["csvDelimiter"]              = csvDelimiter
             myParameters["debug"]                     = debug
             myParameters["lUseMacFileChooser"]        = lUseMacFileChooser
+
+            if not lDisplayOnly and scriptpath != "" and os.path.isdir(scriptpath):
+                myParameters["scriptpath"] = scriptpath
 
             if debug:
                 print "myParameters contains...:"
