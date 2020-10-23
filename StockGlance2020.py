@@ -66,6 +66,7 @@
 # -- V4d - added script encoding utf-8 (removed again in v4e)
 # -- V4e - Added MD Costbasis and the Unrealised Gain (calculated); also now save export path to disk
 # -- V4e - Added trap for file write errors; added parameter to allow user to exclude totals from csv file; cleaned up row highlighting and cell neg colours
+# -- V4f - Added file permissions check
 
 # -- todo - scriptpath and filterfor copy to other scripts, copy file error trap, parameter save, check global vars etc
 
@@ -315,6 +316,27 @@ if checkVersions():
     groupingCharSep = getDecimalPoint(lGetGrouping=True)
     if decimalCharSep != "." and csvDelimiter == ",": csvDelimiter = ";"  # Override for EU countries or where decimal point is actually a comma...
     if debug: print "Decimal point:", decimalCharSep, "Grouping Seperator", groupingCharSep, "CSV Delimiter set to:", csvDelimiter
+
+    def check_file_writable(fnm):
+        if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
+        if debug: print "Checking path:",fnm
+
+        if os.path.exists(fnm):
+            if debug: print "path exists.."
+            # path exists
+            if os.path.isfile(fnm): # is it a file or a dir?
+                if debug: print "path is a file.."
+                # also works when file is a link and the target is writable
+                return os.access(fnm, os.W_OK)
+            else:
+                if debug: print "path is not a file.."
+                return False # path is a dir, so cannot write as a file
+        # target does not exist, check perms on parent dir
+        if debug: print "path does not exist..."
+        pdir = os.path.dirname(fnm)
+        if not pdir: pdir = '.'
+        # target is creatable if parent dir is writable
+        return os.access(pdir, os.W_OK)
 
     # Stores  the data table for export
     rawDataTable = None
@@ -720,8 +742,14 @@ if checkVersions():
                 # endif
 
                 if not lDisplayOnly:
-                    print 'Will display Stock balances and then extract to file: ', csvfilename, "(NOTE: Should drop non utf8 characters...)"
-                    scriptpath = os.path.dirname(csvfilename)
+                    if check_file_writable(csvfilename):
+                        print 'Will display Stock balances and then extract to file: ', csvfilename, "(NOTE: Should drop non utf8 characters...)"
+                        scriptpath = os.path.dirname(csvfilename)
+                    else:
+                        print "Sorry - I just checked and you do not have permissions to create this file:",csvfilename
+                        print "I will proceed without the extract...!"
+                        csvfilename=""
+                        lDisplayOnly = True
 
                 if "filename" in vars() or "filename" in globals():   del filename
                 if "extfilter" in vars() or "extfilter" in globals():   del extfilter
