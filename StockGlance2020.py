@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-# StockGlance2020 v4e - October 2020 - Stuart Beesley
-#
+# StockGlance2020 v4f - October 2020 - Stuart Beesley
+
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
 #   Copyright (c) 2020, Stuart Beesley StuWareSoftSystems
@@ -66,7 +66,7 @@
 # -- V4d - added script encoding utf-8 (removed again in v4e)
 # -- V4e - Added MD Costbasis and the Unrealised Gain (calculated); also now save export path to disk
 # -- V4e - Added trap for file write errors; added parameter to allow user to exclude totals from csv file; cleaned up row highlighting and cell neg colours
-# -- V4f - Added file permissions check
+# -- V4f - Added file permissions check; added code to display file to stdout if file error. Allows user to copy / paste into Excel...
 
 # -- todo - scriptpath and filterfor copy to other scripts, copy file error trap, parameter save, check global vars etc
 
@@ -130,14 +130,16 @@ global debug  # Set to True if you want verbose messages, else set to False....
 global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency, lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter
 global lUseMacFileChooser, lIamAMac
 global csvfilename, version, scriptpath, lDisplayOnly
-global decimalCharSep, groupingCharSep
+global decimalCharSep, groupingCharSep, myParameters
 
-#This program's Globals
+# This program's Globals
 global baseCurrency, sdf, frame_, rawDataTable, rawFooterTable, headingNames
 global StockGlanceInstance  # holds the instance of StockGlance2020()
 global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
 global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _SORT, _EXCLUDECSV
 global lSplitSecuritiesByAccount, acctSeperator, lExcludeTotalsFromCSV
+
+version = "4f"
 
 # Set programmatic defaults/parameters for filters HERE.... Saved Parameters will override these now
 # NOTE: You  can override in the pop-up screen
@@ -155,11 +157,10 @@ lSplitSecuritiesByAccount = False
 lExcludeTotalsFromCSV = False
 lStripASCII = True
 csvDelimiter = ","
-debug = False
+debug = True
 lUseMacFileChooser = True  # This will be ignored if you don't choose option to export to  a file
 lIamAMac = False
-version = "4e"
-
+myParameters = {}
 
 headingNames = ""
 acctSeperator = ' : '
@@ -215,14 +216,13 @@ if checkVersions():
         global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency
         global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter, scriptpath
         global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV
-        global lUseMacFileChooser
+        global lUseMacFileChooser, myParameters
 
         if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
 
         dict_filename = os.path.join("..", "StuWareSoftSystems.dict")
         if debug: print "Now checking for parameter file:", dict_filename
 
-        myParameters = None
         local_storage = moneydance.getCurrentAccountBook().getLocalStorage()
         if local_storage.exists(dict_filename):
             if debug: print "Parameter file", dict_filename,"exists.."
@@ -247,6 +247,11 @@ if checkVersions():
             if debug: print "Parameter file does not exist.. Will use defaults.."
             return
 
+        if debug:
+            print "myParameters read from file contains...:"
+            for key in sorted(myParameters.keys()):
+                print "...variable:",key,myParameters[key]
+
         if myParameters.get("__StockGlance2020")            is not None: __StockGlance2020 =            myParameters.get("__StockGlance2020")
         if myParameters.get("hideHiddenSecurities")         is not None: hideHiddenSecurities =         myParameters.get("hideHiddenSecurities")
         if myParameters.get("hideInactiveAccounts")         is not None: hideInactiveAccounts =         myParameters.get("hideInactiveAccounts")
@@ -270,11 +275,6 @@ if checkVersions():
             if not os.path.isdir(scriptpath):
                 print "Warning: loaded parameter scriptpath does not appear to be a valid directory:", scriptpath, "will ignore"
                 scriptpath=""
-
-        if debug:
-            print "myParameters read from file contains...:"
-            for key in myParameters.keys():
-                print "...variable:",key,myParameters[key]
 
     if debug: print "Parameter file loaded and parameters set into memory....."
     #ENDDEF
@@ -747,9 +747,9 @@ if checkVersions():
                         scriptpath = os.path.dirname(csvfilename)
                     else:
                         print "Sorry - I just checked and you do not have permissions to create this file:",csvfilename
-                        print "I will proceed without the extract...!"
-                        csvfilename=""
-                        lDisplayOnly = True
+                        print "I will display the file to screen so you can copy/paste into Excel...!"
+                        # csvfilename=""
+                        # lDisplayOnly = True
 
                 if "filename" in vars() or "filename" in globals():   del filename
                 if "extfilter" in vars() or "extfilter" in globals():   del extfilter
@@ -2032,6 +2032,8 @@ if checkVersions():
                 # Write the csvlines to a file
                 if debug: print "Opening file and writing ", len(rawDataTable), "records"
 
+                lFileError = False
+
                 try:
                     # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
                     with open(csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
@@ -2072,8 +2074,49 @@ if checkVersions():
                     print e
                     print sys.exc_type
                     print "Path:", csvfilename
-                    print "No file written - sorry! (was file open, permissions etc?)"
+                    print "!!! ERROR - No file written - sorry! (was file open, permissions etc?)".upper()
+                    lFileError=True
 
+                if lFileError:
+                    print "As file write failed, writing to console.....:\n\nUse Select/Copy and then paste into Excel. Select column and then Use Text to Columns..\n\n"
+                    try:
+                        # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
+                        writer = csv.writer(sys.stdout, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=csvDelimiter)
+
+                        if csvDelimiter != ",":
+                            writer.writerow(["sep=",""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+
+                        writer.writerow(rawDataTable[0][:_SHRS_RAW])  # Print the header, but not the extra _field headings
+
+                        for i in range(1, len(rawDataTable)):
+                            if not rawDataTable[i][_EXCLUDECSV]:
+                                # Write the table, but swap in the raw numbers (rather than formatted number strings)
+                                writer.writerow([
+                                        fixFormatsStr(rawDataTable[i][0], False),
+                                        fixFormatsStr(rawDataTable[i][1], False),
+                                        fixFormatsStr(rawDataTable[i][_SHRS_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_PRICE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][4], False),
+                                        fixFormatsStr(rawDataTable[i][_CVALUE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_BVALUE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_CBVALUE_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][_GAIN_RAW], True),
+                                        fixFormatsStr(rawDataTable[i][9], False),
+                                        ""])
+                            #ENDIF
+                        #NEXT
+                        today = Calendar.getInstance()
+                        writer.writerow([""])
+                        writer.writerow(["StuWareSoftSystems - StockGlance2020("
+                                         + version
+                                         + ")  MoneyDance Python Script - Date of Extract: "
+                                         + str(sdf.format(today.getTime()))])
+                        print "\n\n\n"
+                        print 'STDOUT: records displayed on console..'
+
+                    except:
+                        print "Oh no - Another error on stdout! (giving up)....."
+                        lFileError=True
             # enddef
 
             def fixFormatsStr(theString, lNumber):
@@ -2106,12 +2149,16 @@ if checkVersions():
             global hideHiddenSecurities, hideInactiveAccounts, hideHiddenAccounts, lAllCurrency, filterForCurrency
             global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lIncludeCashBalances, lStripASCII, csvDelimiter, scriptpath
             global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV
-            global lUseMacFileChooser, lDisplayOnly, version
+            global lUseMacFileChooser, lDisplayOnly, version, myParameters
 
             if debug: print "In ", inspect.currentframe().f_code.co_name, "()"
 
-            myParameters = {}
+            # NOTE: Parameters were loaded earlier on... Preserve existing, and update any used ones...
+            # (i.e. other StuWareSoftSystems programs might be sharing the same file)
 
+            if myParameters is None: myParameters = {}
+
+            myParameters["__Author"]                  = "Stuart Beesley - (c) StuWareSoftSystems"
             myParameters["__StockGlance2020"]         = version
             myParameters["hideHiddenSecurities"]      = hideHiddenSecurities
             myParameters["hideInactiveAccounts"]      = hideInactiveAccounts
@@ -2135,7 +2182,7 @@ if checkVersions():
 
             if debug:
                 print "myParameters contains...:"
-                for key in myParameters.keys():
+                for key in sorted(myParameters.keys()):
                     print "...variable:",key,myParameters[key]
 
             dict_filename = os.path.join("..", "StuWareSoftSystems.dict")
