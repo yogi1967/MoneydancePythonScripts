@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# StockGlance2020 v4g - October 2020 - Stuart Beesley
+# StockGlance2020 v4h - October 2020 - Stuart Beesley
 
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -71,6 +71,7 @@
 # -- V4f - Added file permissions check; added code to display file to stdout if file error. Allows user to copy / paste into Excel...
 # -- V4g - Added % to gain calculation (user request); changed default extract location (search for User Home) to avoid internal MD locations
 # -- V4g - re-added UTF8 coding; tinkered with display formatting (bold rows); enabled scrolling on footer table (totals) (user request); allow footer to gain focus and CRTL-C (copy)
+# -- V4h - format CSV Gain% field as a %string; fixed Gain% on the final total row...
 # -- todo - scriptpath and filterfor copy to other scripts, copy file error trap, parameter save, check global vars etc
 
 import sys
@@ -144,7 +145,7 @@ global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATT
 global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _SORT, _EXCLUDECSV, _GAINPCT
 global lSplitSecuritiesByAccount, acctSeperator, lExcludeTotalsFromCSV
 
-version = "4g"
+version = "4h"
 
 # Set programmatic defaults/parameters for filters HERE.... Saved Parameters will override these now
 # NOTE: You  can override in the pop-up screen
@@ -1277,7 +1278,7 @@ if checkVersions():
                                                             baseCurrency, baseCurrency, 2))
                         entry.append(self.myNumberFormatter(self.totalCostBasisBase, True, baseCurrency, baseCurrency, 2)) # Cost Basis
                         entry.append(self.myNumberFormatter(self.totalGainBase, True, baseCurrency, baseCurrency, 2)) # Gain
-                        entry.append(round(self.totalGainBase/self.totalGainBase,3))
+                        entry.append(round(self.totalGainBase/self.totalCostBasisBase,3))
                         entry.append("Only valid where whole accounts selected!")
                         entry.append(None)
                         entry.append(None)
@@ -2152,7 +2153,7 @@ if checkVersions():
                                         fixFormatsStr(rawDataTable[i][_BVALUE_RAW], True),
                                         fixFormatsStr(rawDataTable[i][_CBVALUE_RAW], True),
                                         fixFormatsStr(rawDataTable[i][_GAIN_RAW], True),
-                                        fixFormatsStr(rawDataTable[i][_GAINPCT], True),
+                                        fixFormatsStr(rawDataTable[i][_GAINPCT], True, "%"),
                                         fixFormatsStr(rawDataTable[i][10], False),
                                         ""])
                             #ENDIF
@@ -2198,7 +2199,7 @@ if checkVersions():
                                         fixFormatsStr(rawDataTable[i][_BVALUE_RAW], True),
                                         fixFormatsStr(rawDataTable[i][_CBVALUE_RAW], True),
                                         fixFormatsStr(rawDataTable[i][_GAIN_RAW], True),
-                                        fixFormatsStr(rawDataTable[i][_GAINPCT], True),
+                                        fixFormatsStr(rawDataTable[i][_GAINPCT], True, "%"),
                                         fixFormatsStr(rawDataTable[i][10], False),
                                         ""])
                             #ENDIF
@@ -2217,11 +2218,15 @@ if checkVersions():
                         lFileError=True
             # enddef
 
-            def fixFormatsStr(theString, lNumber):
+            def fixFormatsStr(theString, lNumber, sFormat=""):
                 global lStripASCII
 
                 if lNumber == None: lNumber = False
                 if theString == None: theString = ""
+
+                if sFormat == "%" and theString != "":
+                    theString = "{:.1%}".format(theString)
+                    return theString
 
                 if lNumber: return str(theString)
 
