@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# StockGlance2020 v4h - October 2020 - Stuart Beesley
+# StockGlance2020 v5 - October 2020 - Stuart Beesley
 
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -72,7 +72,7 @@
 # -- V4g - Added % to gain calculation (user request); changed default extract location (search for User Home) to avoid internal MD locations
 # -- V4g - re-added UTF8 coding; tinkered with display formatting (bold rows); enabled scrolling on footer table (totals) (user request); allow footer to gain focus and CRTL-C (copy)
 # -- V4h - format CSV Gain% field as a %string; fixed Gain% on the final total row...
-# -- todo - scriptpath and filterfor copy to other scripts, copy file error trap, parameter save, check global vars etc
+# -- V5 -  Released version (from v4h)
 
 import sys
 
@@ -145,7 +145,7 @@ global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATT
 global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _SORT, _EXCLUDECSV, _GAINPCT
 global lSplitSecuritiesByAccount, acctSeperator, lExcludeTotalsFromCSV
 
-version = "4h"
+version = "5"
 
 # Set programmatic defaults/parameters for filters HERE.... Saved Parameters will override these now
 # NOTE: You  can override in the pop-up screen
