@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_investment_transactions_csv.py - v1 - November 2020 - Stuart Beesley
+# extract_investment_transactions_csv.py - v1b - November 2020 - Stuart Beesley
 ###############################################################################
 # MIT License
 #
@@ -33,10 +33,12 @@
 # Stuart Beesley Created 2020-11-01 tested on MacOS - MD2021 onwards - StuWareSoftSystems....
 # v0.1 beta - Initial release; v0.2 beta - fixes; v0.3 beta - added options for opening balances and splits
 # v0.4 beta - changed to getBalance() to include future dated txns; also tweaked to use MD decimal point
-# V1 - Public release
+# v1 - Public release
+# v1a - Fix small data issue on Memo fields with Opening Balances; also added Bal to Amount field (user request).
+# v1b - Small tweak to input parameter field (cosmetic only)
+# v1b - Add BOM mark to CSV file so Excel opens CSV with double-click (and changed open() to 'w' from 'wb'). Strip ASCII when requested.
 
 import sys
-
 reload(sys)  # Dirty hack to eliminate UTF-8 coding errors
 sys.setdefaultencoding('utf8')  # Dirty hack to eliminate UTF-8 coding errors
 
@@ -59,11 +61,12 @@ from javax.swing import JOptionPane, JTextField, JPanel, JLabel
 
 from javax.swing.text import PlainDocument
 
-
 from java.lang import System
 
 from java.io import FileNotFoundException, FilenameFilter
 from org.python.core.util import FileUtil
+
+import codecs
 
 import os
 import os.path
@@ -92,7 +95,7 @@ global baseCurrency, sdf, lIncludeOpeningBalances, lAdjustForSplits, userdatefor
 
 global transactionTable, dataKeys
 
-version = "1"
+version = "1b"
 
 # Set programmatic defaults/parameters for filters HERE.... Saved Parameters will override these now
 # NOTE: You  can override in the pop-up screen
@@ -109,7 +112,7 @@ lIncludeOpeningBalances = True
 lAdjustForSplits = True
 userdateformat = "%Y/%m/%d"
 
-lStripASCII = True
+lStripASCII = False
 csvDelimiter = ","
 debug = False
 _resetParameters = False  # set this to True to prevent loading parameters from disk and use the defaults above...
@@ -456,7 +459,7 @@ if checkVersions():
     else: user_dateformat.setText("3")
 
     label10 = JLabel("Strip non ASCII characters from CSV export? (Y/N)")
-    user_selectStripASCII = JTextField(12)
+    user_selectStripASCII = JTextField(2)
     user_selectStripASCII.setDocument(JTextFieldLimitYN(1, True, "YN"))
     if lStripASCII: user_selectStripASCII.setText("Y")
     else:               user_selectStripASCII.setText("N")
@@ -973,6 +976,7 @@ if checkVersions():
                             row[dataKeys["_ACTION"][_COLUMN]] = "OpenBal"
                             row[dataKeys["_TT"][_COLUMN]] = "MANUAL"
                             row[dataKeys["_DATE"][_COLUMN]] = txnAcct.getCreationDateInt()
+                            row[dataKeys["_AMOUNT"][_COLUMN]] = openBal
                             row[dataKeys["_CASHIMPACT"][_COLUMN]] = openBal
                             row[dataKeys["_ACCTCASHBAL"][_COLUMN]] = acctCurr.getDoubleValue(txnAcct.getBalance())
 
@@ -1229,7 +1233,7 @@ if checkVersions():
                     headings.append(i[1][_HEADING])
                 print
 
-                if debug: print "Nor pre-processing the file to convert integer dates to 'formatted' dates...."
+                if debug: print "Nor pre-processing the file to convert integer dates and strip non-ASCII if requested...."
                 for row in transactionTable:
                     dateasdate = datetime.datetime.strptime(str(row[dataKeys["_DATE"][_COLUMN]]),"%Y%m%d")  # Convert to Date field
                     dateoutput = dateasdate.strftime(userdateformat)
@@ -1240,8 +1244,8 @@ if checkVersions():
                         dateoutput = dateasdate.strftime(userdateformat)
                         row[dataKeys["_TAXDATE"][_COLUMN]] = dateoutput
 
-                    row[dataKeys["_DESC"][_COLUMN]] = stripBadChars(row[dataKeys["_DESC"][_COLUMN]])
-                    row[dataKeys["_MEMO"][_COLUMN]] = stripBadChars(row[dataKeys["_MEMO"][_COLUMN]])
+                    for col in range(0, len(row)):
+                        row[col] = fixFormatsStr(row[col])
 
                 # NOTE - You can add sep=; to begining of file to tell Excel what delimiter you are using
 
@@ -1253,13 +1257,15 @@ if checkVersions():
 
                 try:
                     # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
-                    with open(csvfilename,
-                              "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
+                    # with open(csvfilename,"wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
+                    with open(csvfilename,"w") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
+
+                        csvfile.write(codecs.BOM_UTF8) # This 'helps' Excel open file with double-click as UTF-8
+
                         writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=csvDelimiter)
 
                         if csvDelimiter != ",":
-                            writer.writerow(["sep=",
-                                             ""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+                            writer.writerow(["sep=", ""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
 
                         writer.writerow(headings)  # Print the header, but not the extra _field headings
 
@@ -1285,23 +1291,39 @@ if checkVersions():
 
             # enddef
 
-            def stripBadChars(theString):
+            def fixFormatsStr(theString, lNumber=False, sFormat=""):
                 global lStripASCII
 
-                if lStripASCII:
-                    theString = theString.replace("\n", "*")  # remove newlines within fields to keep csv format happy
-                    theString = theString.replace("\t", "*")  # remove tabs within fields to keep csv format happy
-                    theString = theString.replace(";", "*")  # remove tabs within fields to keep csv format happy
-                    theString = theString.replace(",", "*")  # remove tabs within fields to keep csv format happy
-                    theString = theString.replace("|", "*")  # remove tabs within fields to keep csv format happy
+                if isinstance(theString, bool): return theString
+                if isinstance(theString, tuple): return theString
+                if isinstance(theString, dict): return theString
+                if isinstance(theString, list): return theString
 
+                if isinstance(theString, int) or isinstance(theString, float) or isinstance(theString, long):
+                    lNumber = True
+
+                if lNumber is None: lNumber = False
+                if theString is None: theString = ""
+
+                if sFormat == "%" and theString != "":
+                    theString = "{:.1%}".format(theString)
+                    return theString
+
+                if lNumber: return str(theString)
+
+                theString = theString.strip()  # remove leading and trailing spaces
+
+                theString = theString.replace("\n", "*")  # remove newlines within fields to keep csv format happy
+                theString = theString.replace("\t", "*")  # remove tabs within fields to keep csv format happy
+                theString = theString.replace(";", "*")  # remove tabs within fields to keep csv format happy
+                theString = theString.replace(",", "*")  # remove tabs within fields to keep csv format happy
+                theString = theString.replace("|", "*")  # remove tabs within fields to keep csv format happy
+
+                if lStripASCII:
                     all_ASCII = ''.join(char for char in theString if ord(char) < 128)  # Eliminate non ASCII printable Chars too....
                 else:
                     all_ASCII = theString
-
                 return all_ASCII
-
-            # enddef
 
             ExportDataToFile()
 
