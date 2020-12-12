@@ -1,9 +1,42 @@
-## Welcome to my site for Moneydance Python Extensions and Scripts
+## Welcome to my site for Moneydance Extensions and Scripts written in Python
 
-The author has several useful Moneydance Extensions / Moneybot Python scripts available...:
+_NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE!_
+
+Moneydance allows you to run Python scripts and access its functions via it's API.
+This allows you to perform all sorts of things based on your own financial data.
+
+Python is actual Jython 2.7 and accesses the Moneydance Java codebase.
+
+My scripts and extensions are identical. The extensions are simply a packaged script version.
+
+Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
+- Extensions have a file extension of *.mxt
+- Scripts have a file extension of *.py
+
+**To run Extensions:**
+1) Install the Extension. Load Moneydance, Menu>Extensions>add from file>choose <extension_name>.mxt file
+2) Accept the warning that the extension is unsigned / missing (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
+3) Once its installed, restart Moneydance.
+4) From now on, just click Menu>Extensions and the name of the Extension
+
+**To run Scripts:**
+1) Load Moneydance. Menu>Window>Show Moneybot Console
+2) Open Script>choose <scriptname>.py file
+3) Click RUN (and not run snippet)
+4) That's it.... Repeat these steps each time.
+
+### Extension only format (contains only *.mxt file)
+**Toolbox**
+View Moneydance settings, diagnostics, fix issues, change settings and much more...
+
+### Extension and Scripts formats (*.mxt and *.py format)
 
 Extension (.mxt) format only:
-Extension Only: Toolbox                 View Moneydance settings, diagnostics, fix issues, change settings and much more
+**Toolbox**
+
+
+
+
 
 Extension (.mxt) and Script (.py) Versions available:
 - StockGlance2020: View summary of Securities/Stocks on screen, total by Security, export to csv 
