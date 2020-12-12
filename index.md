@@ -1,8 +1,32 @@
-## Welcome to GitHub Pages
+## Welcome to my site for Moneydance Python Extensions and Scripts
 
-You can use the [editor on GitHub](https://github.com/yogi1967/MoneyDancePythonScripts/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+The author has several useful Moneydance Extensions / Moneybot Python scripts available...:
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+Extension (.mxt) format only:
+Extension Only: Toolbox                 View Moneydance settings, diagnostics, fix issues, change settings and much more
+
+Extension (.mxt) and Script (.py) Versions available:
+- StockGlance2020: View summary of Securities/Stocks on screen, total by Security, export to csv 
+- extract_reminders_to_csv: View reminders on screen, edit if required, extract all to csv
+- extract_currency_history_csv: Extract currency history to csv
+- extract_investment_transactions_csv: Extract investment transactions to csv
+- extract_account_registers_csv: Extract Account Register(s) to csv along with any attachments
+
+[https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_scripts.zip]
+
+<a href="../master/StuWareSoftSystems_current_scripts.zip" download="download">DOWNLOAD All Current Scripts
+  
+<a href="https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_scripts.zip" download="download">DOWNLOAD All Current Scriptsxx
+
+Visit: https://github.com/yogi1967/MoneyDancePythonScripts (Author's site)
+Download: https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_scripts.zip
+Download: https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_extensions.zip
+
+Visit: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts (Hosted by Moneydance)
+
+
+
+
 
 ### Markdown
 
