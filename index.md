@@ -29,8 +29,6 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 3) Click RUN (and not run snippet)
 4) That's it.... Repeat these steps each time.
 
-https://github.com/yogi1967/MoneyDancePythonScripts/raw/master/Toolbox.zip
-
 ### Extension only format (contains only *.mxt file)
 - <a href="https://github.com/yogi1967/MoneyDancePythonScripts/raw/master/Toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY
