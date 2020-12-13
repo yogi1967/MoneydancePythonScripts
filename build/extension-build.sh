@@ -110,7 +110,7 @@ fi
 cp "./source/$FILE-script_info.dict" ./source/script_info.dict
 cp "./source/$FILE-meta_info.dict" com/moneydance/modules/features/"$FILE"/meta_info.dict
 
-zip -j ./source/"$FILE".mxt "./source/$FILE".py
+zip -j -z ./source/"$FILE".mxt "./source/$FILE".py <<< "StuWareSoftSystems: $FILE Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
 
 if test -f "./source/$FILE"-README.txt; then
   zip -j ./source/"$FILE".mxt ./source/"$FILE"-README.txt
@@ -181,12 +181,12 @@ if test -f ./"$FILE.zip"; then
     rm ./"$FILE.zip"
 fi
 
-zip -j ./"$FILE.zip" "./source/install-readme.txt"
-zip -j ./"$FILE.zip" "./source/$FILE.mxt"
+zip -j -z ./"$FILE.zip" "./source/install-readme.txt" <<< "StuWareSoftSystems: $FILE for Moneydance (by Stuart Beesley). Please see install-readme.txt"
+zip -j -c ./"$FILE.zip" "./source/$FILE.mxt" <<< "StuWareSoftSystems: $FILE Extension for Moneydance."
 
 
 if  [ "$1" != "Toolbox" ] ; then
-  zip -j ./"$FILE.zip" "./source/$FILE.py"
+  zip -j -c ./"$FILE.zip" "./source/$FILE.py" <<< "StuWareSoftSystems: $FILE Script for Moneydance."
 else
   echo "Not including $FILE.py for Toolbox package...."
 fi

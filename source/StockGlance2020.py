@@ -2353,7 +2353,7 @@ if not lExit:
             if _column_widths_SG2020 is not None and isinstance(_column_widths_SG2020,(list)) and len(_column_widths_SG2020) == len(myDefaultWidths):
                 if sum(_column_widths_SG2020[_SHRS_RAW:])<1:
                     for width in _column_widths_SG2020:
-                        if width >= 0 and width <= 500:                                                             # noqa
+                        if width >= 0 and width <= 1000:                                                             # noqa
                             validCount += 1
 
             if validCount == len(myDefaultWidths): lInvalidate=False
@@ -2364,7 +2364,7 @@ if not lExit:
                 myPrint("DB","Resetting to: %s" %myDefaultWidths)
                 _column_widths_SG2020 = myDefaultWidths
             else:
-                myPrint("D","Valid column widths loaded - Setting to: %s" %_column_widths_SG2020)
+                myPrint("DB","Valid column widths loaded - Setting to: %s" %_column_widths_SG2020)
                 myDefaultWidths = _column_widths_SG2020
 
             for _i in range(0, _SHRS_RAW): tcm.getColumn(_i).setPreferredWidth(myDefaultWidths[_i])

@@ -314,12 +314,12 @@ def getDecimalPoint(lGetPoint=False, lGetGrouping=False):
 
 	if lGetPoint:
 		_decimalCharSep = decimalSymbols.getDecimalSeparator()
-		myPrint("D","Decimal Point Character:", _decimalCharSep)
+		myPrint("DB","Decimal Point Character:", _decimalCharSep)
 		return _decimalCharSep
 
 	if lGetGrouping:
 		_groupingCharSep = decimalSymbols.getGroupingSeparator()
-		myPrint("D","Grouping Separator Character:", _groupingCharSep)
+		myPrint("DB","Grouping Separator Character:", _groupingCharSep)
 		return _groupingCharSep
 
 	return "error"
@@ -916,14 +916,14 @@ userAction = (JOptionPane.showOptionDialog( None,
 											options[2])
 											)
 if userAction == 1:  # Display & Export
-	myPrint("D", "Display and export chosen")
+	myPrint("DB", "Display and export chosen")
 	lDisplayOnly = False
 elif userAction == 2:  # Display Only
 	lDisplayOnly = True
-	myPrint("D", "Display only with no export chosen")
+	myPrint("DB", "Display only with no export chosen")
 else:
 	# Abort
-	myPrint("D", "User Cancelled Parameter selection.. Will abort..")
+	myPrint("DB", "User Cancelled Parameter selection.. Will abort..")
 	myPopupInformationBox(None, "User Cancelled Parameter selection.. Will abort..", "PARAMETERS")
 	lDisplayOnly = False
 	lExit = True
@@ -1042,7 +1042,7 @@ if not lExit:
 
 			if not lDisplayOnly:
 				if os.path.exists(csvfilename) and os.path.isfile(csvfilename):
-					myPrint("D", "WARNING: file exists,but assuming user said OK to overwrite..")
+					myPrint("DB", "WARNING: file exists,but assuming user said OK to overwrite..")
 
 			if not lDisplayOnly:
 				if check_file_writable(csvfilename):
@@ -1768,7 +1768,7 @@ if not lExit:
 		if _column_widths_ERTC is not None and isinstance(_column_widths_ERTC,(list)) and len(_column_widths_ERTC) == len(myDefaultWidths):
 			# if sum(_column_widths_ERTC)<1:
 			for width in _column_widths_ERTC:
-				if width >= 0 and width <= 500:																	# noqa
+				if width >= 0 and width <= 1000:																	# noqa
 					validCount += 1
 
 		if validCount == len(myDefaultWidths): lInvalidate=False
@@ -1779,7 +1779,7 @@ if not lExit:
 			myPrint("DB","Resetting to: %s" %myDefaultWidths)
 			_column_widths_ERTC = myDefaultWidths
 		else:
-			myPrint("D","Valid column widths loaded - Setting to: %s" %_column_widths_ERTC)
+			myPrint("DB","Valid column widths loaded - Setting to: %s" %_column_widths_ERTC)
 			myDefaultWidths = _column_widths_ERTC
 
 

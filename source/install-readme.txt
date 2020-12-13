@@ -31,6 +31,6 @@ Toolbox: View Moneydance settings, diagnostics, fix issues, change settings and 
 StockGlance2020: View summary of Securities/Stocks on screen, total by Security, export to csv
 extract_reminders_csv: View reminders on screen, edit if required, extract all to csv
 extract_currency_history_csv: Extract currency history to csv
-extract_investment_transactions_csv: Extract investment transactions to csv
 extract_account_registers_csv: Extract Account Register(s) to csv along with any attachments
+extract_investment_transactions_csv: Extract investment transactions to csv
 
