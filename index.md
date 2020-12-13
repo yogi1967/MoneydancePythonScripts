@@ -26,36 +26,18 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 4) That's it.... Repeat these steps each time.
 
 ### Extension only format (contains only *.mxt file)
-**Toolbox**
-View Moneydance settings, diagnostics, fix issues, change settings and much more...
+- <a href="../master/Toolbox.zip" download="download">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 
 ### Extension and Scripts formats (*.mxt and *.py format)
+-  <a href="../master/StockGlance2020.zip" download="download">**StockGlance2020**: View summary of Securities/Stocks on screen, total by Security, export to csv 
+-  <a href="../master/extract_reminders_csv.zip" download="download">**extract_reminders_csv**: View reminders on screen, edit if required, extract all to csv
+-  <a href="../master/extract_currency_history_csv.zip" download="download">**extract_currency_history_csv**: Extract currency history to csv
+-  <a href="../master/extract_account_registers_csv.zip" download="download">**extract_account_registers_csv**: Extract Account Register(s) to csv along with any attachments
+-  <a href="../master/extract_investment_transactions_csv.zip" download="download">**extract_investment_transactions_csv**: Extract investment transactions to csv
 
-Extension (.mxt) format only:
-**Toolbox**
+Author's site: https://yogi1967.github.io/MoneyDancePythonScripts/
 
-
-
-
-
-Extension (.mxt) and Script (.py) Versions available:
-- StockGlance2020: View summary of Securities/Stocks on screen, total by Security, export to csv 
-- extract_reminders_to_csv: View reminders on screen, edit if required, extract all to csv
-- extract_currency_history_csv: Extract currency history to csv
-- extract_investment_transactions_csv: Extract investment transactions to csv
-- extract_account_registers_csv: Extract Account Register(s) to csv along with any attachments
-
-[https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_scripts.zip]
-
-<a href="../master/StuWareSoftSystems_current_scripts.zip" download="download">DOWNLOAD All Current Scripts
-  
-<a href="https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_scripts.zip" download="download">DOWNLOAD All Current Scriptsxx
-
-Visit: https://github.com/yogi1967/MoneyDancePythonScripts (Author's site)
-Download: https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_scripts.zip
-Download: https://github.com/yogi1967/MoneyDancePythonScripts/blob/master/StuWareSoftSystems_current_extensions.zip
-
-Visit: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts (Hosted by Moneydance)
+Moneydance site: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts
 
 
 
