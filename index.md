@@ -30,15 +30,15 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 4) That's it.... Repeat these steps each time.
 
 ### Extension only format (contains only *.mxt file)
-- <a href="../master/Toolbox.zip" download="download">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
+- <a href="../../raw/master/Toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY
 
 ### Extension and Scripts formats (*.mxt and *.py format)
--  <a href="../master/StockGlance2020.zip" download="download">**StockGlance2020**: View summary of Securities/Stocks on screen, total by Security, export to csv 
--  <a href="../master/extract_reminders_csv.zip" download="download">**extract_reminders_csv**: View reminders on screen, edit if required, extract all to csv
--  <a href="../master/extract_currency_history_csv.zip" download="download">**extract_currency_history_csv**: Extract currency history to csv
--  <a href="../master/extract_account_registers_csv.zip" download="download">**extract_account_registers_csv**: Extract Account Register(s) to csv along with any attachments
--  <a href="../master/extract_investment_transactions_csv.zip" download="download">**extract_investment_transactions_csv**: Extract investment transactions to csv
+-  <a href="../../raw/master/StockGlance2020.zip">**StockGlance2020**: View summary of Securities/Stocks on screen, total by Security, export to csv 
+-  <a href="../../raw/master/extract_reminders_csv.zip">**extract_reminders_csv**: View reminders on screen, edit if required, extract all to csv
+-  <a href="../../raw/master/extract_currency_history_csv.zip">**extract_currency_history_csv**: Extract currency history to csv
+-  <a href="../../raw/master/extract_account_registers_csv.zip">**extract_account_registers_csv**: Extract Account Register(s) to csv along with any attachments
+-  <a href="../../raw/master/extract_investment_transactions_csv.zip">**extract_investment_transactions_csv**: Extract investment transactions to csv
 
 Author's site: https://yogi1967.github.io/MoneyDancePythonScripts/
 
