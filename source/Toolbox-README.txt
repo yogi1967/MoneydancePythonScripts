@@ -3,7 +3,7 @@ Credit: Derek Kent(23) for his extensive texting
 
 NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE!
 
-Minimum Moneydance version: 2020
+Minimum Moneydance version for use as an Extension: 2021 (build: 2012) - (Minimum version 2020 if run as a script)
 
 This is a Python(Jython 2.7) script that runs inside of Moneydance via the Moneybox Python Interpreter
 As such it has full access to Moneydance's internals.
@@ -80,7 +80,7 @@ ALT-M - Advanced Mode
     - FIX - Delete Custom Theme file
     - FIX - Fix relative currencies
     - FIX - Inactivate all Categories with Zero Balance
-    - FIX - Forget OFX Banking Link
+    - FIX - Forget OFX Banking Link (so that it asks you which account when importing ofx files)
     - FIX - Delete OFX Banking Service
     - FIX - Correct the Name of Root to match Dataset
     - FIX - Make me a Primary Dataset (convert from secondary dataset to enable Sync))

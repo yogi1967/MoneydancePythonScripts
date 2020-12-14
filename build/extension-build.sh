@@ -16,13 +16,13 @@ if ! test -f "./build/extension-build.sh"; then
     exit 1
 fi
 
-if  [ "$1" != "Toolbox" ] && [ "$1" != "StockGlance2020" ] && [ "$1" != "extract_reminders_csv" ] && [ "$1" != "extract_investment_transactions_csv" ] && [ "$1" != "extract_currency_history_csv" ] ; then
-  echo
-  echo "@@ Incorrect Python script name @@"
-  echo "must be: Toolbox, StockGlance2020, extract_reminders_csv, extract_investment_transactions_csv, extract_currency_history_csv"
-  exit 1
+if [ "$1" != "Toolbox" ] && [ "$1" != "StockGlance2020" ] && [ "$1" != "extract_reminders_csv" ] && [ "$1" != "extract_investment_transactions_csv" ] && [ "$1" != "extract_currency_history_csv" ] ; then
+    echo
+    echo "@@ Incorrect Python script name @@"
+    echo "must be: Toolbox, StockGlance2020, extract_reminders_csv, extract_investment_transactions_csv, extract_currency_history_csv"
+    exit 1
 else
-  FILE=$1
+    FILE=$1
 fi
 
 if  [ "$2" != "test" ] && [ "$2" != "final" ] ; then
@@ -163,10 +163,10 @@ if test -f ./source/"$FILE.mxt"; then
     ls -l ./source/"$FILE".mxt
     unzip -l ./source/"$FILE".mxt
     echo ===================
-    echo FILE ./source/"$FILE".mxt has been built using $2 mode...
+    echo FILE ./source/"$FILE".mxt has been built using "$2" mode...
 else
     echo @@@@@@@@@@@@@@@@@
-    echo PROBLEM CREATING ./source/"$FILE".mxt - $2 mode...
+    echo PROBLEM CREATING ./source/"$FILE".mxt - "$2" mode...
     exit 4
 fi
 
@@ -190,6 +190,13 @@ if  [ "$1" != "Toolbox" ] ; then
 else
   echo "Not including $FILE.py for Toolbox package...."
 fi
+
+if test -f "./source/$FILE"-README.txt; then
+  zip -j ./"$FILE".zip ./source/"$FILE"-README.txt
+else
+  echo "No help file to ZIP - skipping....."
+fi
+
 
 if test -f ./"$FILE.zip"; then
     ls -l ./"$FILE".zip

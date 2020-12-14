@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# Toolbox.py build: 0.998xzb beta - November 2020 - Stuart Beesley StuWareSoftSystems
+# Toolbox.py build: 999 PREVIEW - November-December 2020 - Stuart Beesley StuWareSoftSystems
 # NOTE: I am just a fellow Moneydance User >> I HAVE NO AFFILIATION WITH MONEYDANCE
 # NOTE: I have run all these fixes / updates on my own live personal dataset
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
@@ -62,7 +62,8 @@
 # Version 0.998x beta - Tweaked view memorised reports to hide the long list of accounts
 # Version 0.998xyza beta - Allows edit of Pickle file
 # Version 0.998xyzb beta - Allows edit of Pickle file
-# Build: xxx
+# Version 0.998xyzc beta - Allows edit of Pickle file
+# Build: 999 PREVIEW RELEASE
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
@@ -129,7 +130,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "0.998xzb beta"                                                                                      # noqa
+version_build = "999 PREVIEW"                                                                                      # noqa
 myScriptName = "Toolbox.py(Extension)"                                                                              # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -1977,23 +1978,23 @@ def get_OFX_bindings():
 
     accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(0))
     for acct in accounts:
-        if acct.getParameter(str(acct) + " - ofx_import_acct_num", None):
-            OFX.append(pad(str(acct) + " - ofx_import_acct_num:",100) + acct.getParameter("ofx_import_acct_num", None))
+        if acct.getParameter("ofx_import_acct_num", None):
+            OFX.append(pad(str(acct) + " - ofx_import_acct_num (remembered):",75) + acct.getParameter("ofx_import_acct_num", None))
 
         if acct.getBooleanParameter("ofx_import_remember_acct_num", False):
-            OFX.append(pad(str(acct) + " - ofx_import_remember_acct_num:",100) + str(acct.getBooleanParameter("ofx_import_remember_acct_num", False)))
+            OFX.append(pad(str(acct) + " - ofx_import_remember_acct_num (remembered):",75) + str(acct.getBooleanParameter("ofx_import_remember_acct_num", False)))
 
         if acct.getOFXAccountKey():
-            OFX.append(pad(str(acct) + " acct.getOFXAccountKey():",100) + str(acct.getOFXAccountKey()))
+            OFX.append(pad(str(acct) + " acct.getOFXAccountKey():",75) + str(acct.getOFXAccountKey()))
 
         if acct.getOFXAccountNumber():
-            OFX.append(pad(str(acct) + " acct.getOFXAccountNumber():",100) + str(acct.getOFXAccountNumber()))
+            OFX.append(pad(str(acct) + " acct.getOFXAccountNumber():",75) + str(acct.getOFXAccountNumber()))
 
         if acct.getOFXAccountType():
-            OFX.append(pad(str(acct) + " acct.getOFXAccountType():",100) + str(acct.getOFXAccountType()))
+            OFX.append(pad(str(acct) + " acct.getOFXAccountType():",75) + str(acct.getOFXAccountType()))
 
         if acct.getOFXBankID():
-            OFX.append(pad(str(acct) + " acct.getOFXBankID():",100) + str(acct.getOFXBankID()))
+            OFX.append(pad(str(acct) + " acct.getOFXBankID():",75) + str(acct.getOFXBankID()))
 
     # getBankingFI()
     # getBillPayFI()
@@ -2091,7 +2092,7 @@ ALT-M - Advanced Mode
     - FIX - Delete Custom Theme file
     - FIX - Fix relative currencies
     - FIX - Inactivate all Categories with Zero Balance
-    - FIX - Forget OFX Banking Link
+    - FIX - Forget OFX Banking Link (so that it asks you which account when importing ofx files)
     - FIX - Delete OFX Banking Service
     - FIX - Correct the Name of Root to match Dataset
     - FIX - Make me a Primary Dataset (convert from secondary dataset to enable Sync))
@@ -2168,6 +2169,18 @@ class MyAcctFilter(AcctFilter):
                     or acct.getAccountType() == Account.AccountType.CREDIT_CARD
                     or acct.getAccountType() == Account.AccountType.INVESTMENT):
                 return False
+
+        if self.selectType == 10:
+            # noinspection PyUnresolvedReferences
+            if not (acct.getAccountType() == Account.AccountType.BANK
+                    or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                    or acct.getAccountType() == Account.AccountType.INVESTMENT):
+                return False
+
+            if acct.getParameter("ofx_import_acct_num", None) is not None \
+                    or acct.getParameter("ofx_import_remember_acct_num", None) is not None:
+                return True
+            return False
 
         if self.selectType == 1:
             # noinspection PyUnresolvedReferences
@@ -6156,12 +6169,12 @@ The limit is set deliberately low to enable it to work with computers having ver
 
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-            accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(0))
+            accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(10))
 
-            selectedAccount = JOptionPane.showInputDialog(Toolbox_frame_, "Select an account",
-                                                          "Select the account whose online banking link you'd like to reset",
-                                                          JOptionPane.INFORMATION_MESSAGE,
-                                                          moneydance_ui.getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+            selectedAccount = JOptionPane.showInputDialog(Toolbox_frame_, "Select an account (only these have remembered links)",
+                                                          "FORGET OFX banking link",
+                                                          JOptionPane.WARNING_MESSAGE,
+                                                          None,
                                                           accounts.toArray(),
                                                           None)
             if not selectedAccount:
@@ -6171,10 +6184,10 @@ The limit is set deliberately low to enable it to work with computers having ver
 
             if not myPopupAskQuestion(Toolbox_frame_,
                                   "RESET BANKING LINK",
-                                  "Are you sure you want to forget banking link for Acct: %s" %selectedAccount,
+                                  "Are you sure you want to forget OFX banking link for Acct: %s" %selectedAccount,
                                   JOptionPane.YES_NO_OPTION,
                                   JOptionPane.ERROR_MESSAGE):
-                self.statusLabel.setText(("User did not say yes to forget banking link - no changes made").ljust(800, " "))
+                self.statusLabel.setText(("User did not say yes to forget OFX banking link - no changes made").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 return
 
@@ -6190,16 +6203,17 @@ The limit is set deliberately low to enable it to work with computers having ver
                                             JOptionPane.ERROR_MESSAGE)
 
             if not disclaimer == 'IAGREE':
-                self.statusLabel.setText(("RESET BANKING LINK - User declined Disclaimer... No fixes applied").ljust(800, " "))
+                self.statusLabel.setText(("FORGET OFX BANKING LINK - User declined Disclaimer... No fixes applied").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 return
 
             selectedAccount.removeParameter("ofx_import_acct_num")                                          # noqa
+            selectedAccount.removeParameter("ofx_import_remember_acct_num")                                 # noqa
             selectedAccount.syncItem()                                                                      # noqa
 
-            self.statusLabel.setText(("Banking link successfully forgotten!").ljust(800, " "))
+            self.statusLabel.setText(("OFX Banking link successfully forgotten!").ljust(800, " "))
             self.statusLabel.setForeground(Color.RED)
-            myPrint("B", "User selected to forget banking link for account: " + str(selectedAccount))
+            myPrint("B", "User selected to forget OFX banking link for account: " + str(selectedAccount))
 
             play_the_money_sound()
 
@@ -6889,7 +6903,7 @@ The limit is set deliberately low to enable it to work with computers having ver
         displayPanel.add(viewOFX_button)
 
         forgetOFX_button = JButton("<html><center>Forget OFX<BR>Banking Link</center></html>")
-        forgetOFX_button.setToolTipText("This will tell Moneydance to forget the Online Banking link attributed to an Account. This means Moneydance will then ask you for passwords again.. THIS CHANGES DATA!")
+        forgetOFX_button.setToolTipText("This will tell Moneydance to forget the OFX Banking link attributed to an Account. This means Moneydance will then ask you to recreate the link on the next import.. THIS CHANGES DATA!")
         forgetOFX_button.setForeground(Color.RED)
         forgetOFX_button.addActionListener(self.ForgetOFXButtonAction(displayString, statusLabel))
         forgetOFX_button.setVisible(False)
