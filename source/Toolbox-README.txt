@@ -1,5 +1,7 @@
-Author: Stuart Beesley - StuWareSoftSystems (written November 2020 - a lockdown project)
+Author: Stuart Beesley - StuWareSoftSystems (written November/December 2020 - a lockdown project)
 Credit: Derek Kent(23) for his extensive texting
+
+Get more Scripts/Extensions from: https://yogi1967.github.io/MoneyDancePythonScripts/
 
 NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE!
 
@@ -74,14 +76,14 @@ ALT-B - Basic Mode
     - DIAGnostics - List decimal places (currency and security). Shows you hidden settings etc.
     - DIAGnostics - Diagnose relative currencies. If errors, then go to FIX below
     - DIAGnostics - View Categories with zero balance. You can also inactivate these below.
-    - VIEW - OFX Bindings
+    - VIEW - OFX Related Data
 
 ALT-M - Advanced Mode
     - FIX - Delete Custom Theme file
     - FIX - Fix relative currencies
     - FIX - Inactivate all Categories with Zero Balance
-    - FIX - Forget OFX Banking Link (so that it asks you which account when importing ofx files)
-    - FIX - Delete OFX Banking Service
+    - FIX - Forget OFX Banking Import Link (so that it asks you which account when importing ofx files)
+    - FIX - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank)
     - FIX - Correct the Name of Root to match Dataset
     - FIX - Make me a Primary Dataset (convert from secondary dataset to enable Sync))
     - FIX - Delete One-Sided Txns

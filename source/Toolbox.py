@@ -51,25 +51,12 @@
 # SOFTWARE.
 ###############################################################################
 
-# Version 0.998v beta - Changed __file__ to catch error - ready for extension packaging...; version changed to version_build
-# Version 0.998v beta - Change to have you done a backup messages.... (based on feedback)
-# Version 0.998w beta - Change to Reset Windows list popup selection order.... (based on feedback)
-# Version 0.998w beta - Added orphan extension version to display
-# Version 0.998x beta - Changed all updates to ask user whether to to stop, proceed, proceed with backup first
-# Version 0.998xx beta - Frig to get running as extension - remove assignment when fixed
-# Version 0.998xy beta - Updated with MD2020.2012 fonts
-# Version 0.998xyz beta - Re-written all prints for headless support
-# Version 0.998x beta - Tweaked view memorised reports to hide the long list of accounts
-# Version 0.998xyza beta - Allows edit of Pickle file
-# Version 0.998xyzb beta - Allows edit of Pickle file
-# Version 0.998xyzc beta - Allows edit of Pickle file
 # Build: 999 PREVIEW RELEASE
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
 # Also: These objects: moneydance_ui, moneydance_data, moneydance are set as ignore Unresolved References (as they exist at run time)
 # Further options at: https://www.jetbrains.com/help/pycharm/disabling-and-enabling-inspections.html#comments-ref
-
 
 # COMMON IMPORTS #######################################################################################################
 import sys
@@ -189,7 +176,7 @@ scriptExit = """
 Thank you for using %s! The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
-Extension Only: Toolbox                 View Moneydance settings, diagnostics, fix issues, change settings and much more
+Toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
 
 Extension (.mxt) and Script (.py) Versions available:
 StockGlance2020                         View summary of Securities/Stocks on screen, total by Security, export to csv 
@@ -216,7 +203,9 @@ def myPrint(where, *args):
     if where == "P" or where == "B" or where[0] == "D":
         if not i_am_an_extension_so_run_headless: print(printString)
 
-    if where == "J" or where == "B" or where == "DB": System.err.write(myScriptName + ": " + printString + "\n")
+    if where == "J" or where == "B" or where == "DB":
+        dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
+        System.err.write(myScriptName + ":" + dt + ": " + printString + "\n")
 
     return
 
@@ -1958,7 +1947,7 @@ def decode_encrypted_files():
     OStream.close()
     return
 
-def get_OFX_bindings():
+def get_ofx_related_data():
     OFX = []
 
     OFX.append("I NEED SOMEONE WITH ONLINE BANKING TO VOLUNTEER TO TEST - SO I CAN DISPLAY MORE USEFUL DATA!!!?\n\n ")
@@ -2012,8 +2001,10 @@ def display_help():
 
     help_data = \
         """
-Author: Stuart Beesley - StuWareSoftSystems (written November 2020 - a lockdown project)
+Author: Stuart Beesley - StuWareSoftSystems (written November/December 2020 - a lockdown project)
 Credit: Derek Kent(23) for his extensive texting
+
+Get more Scripts/Extensions from: https://yogi1967.github.io/MoneyDancePythonScripts/
 
 NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE!
 
@@ -2086,14 +2077,14 @@ ALT-B - Basic Mode
     - DIAGnostics - List decimal places (currency and security). Shows you hidden settings etc.
     - DIAGnostics - Diagnose relative currencies. If errors, then go to FIX below
     - DIAGnostics - View Categories with zero balance. You can also inactivate these below.
-    - VIEW - OFX Bindings
+    - VIEW - OFX Related Data
 
 ALT-M - Advanced Mode
     - FIX - Delete Custom Theme file
     - FIX - Fix relative currencies
     - FIX - Inactivate all Categories with Zero Balance
-    - FIX - Forget OFX Banking Link (so that it asks you which account when importing ofx files)
-    - FIX - Delete OFX Banking Service
+    - FIX - Forget OFX Banking Import Link (so that it asks you which account when importing ofx files)
+    - FIX - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank)
     - FIX - Correct the Name of Root to match Dataset
     - FIX - Make me a Primary Dataset (convert from secondary dataset to enable Sync))
     - FIX - Delete One-Sided Txns
@@ -3170,7 +3161,7 @@ def diagnose_currencies(statusLabel, lFix=False):
             fixRCurrencyCheck = 1
             myPrint("J", "All good, currencies look clean! Congratulations!")
             output += "\nAll good, currencies look clean! Congratulations!\n"
-            statusLabel.setText(("All good, decimal places look clean! Congratulations!").ljust(800, " "))
+            statusLabel.setText(("All good, currencies look clean! Congratulations!").ljust(800, " "))
             statusLabel.setForeground(DARK_GREEN)
 
     output += "\n<END>"
@@ -3306,7 +3297,7 @@ def about_this_script():
 
     aboutPanel=JPanel()
     aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
-    aboutPanel.setPreferredSize(Dimension(1070, 450))
+    aboutPanel.setPreferredSize(Dimension(1070, 400))
 
     label1 = JLabel(pad("Author: Stuart Beesley",800))
     label1.setForeground(Color.BLUE)
@@ -5507,8 +5498,8 @@ class DiagnosticDisplay():
             if x == "get_list_memorised_reports()":
                 x = get_list_memorised_reports()
 
-            if x == "get_OFX_bindings()":
-                x = get_OFX_bindings()
+            if x == "get_ofx_related_data()":
+                x = get_ofx_related_data()
 
             if x == "get_register_txn_sort_orders()":
                 x = get_register_txn_sort_orders()
@@ -6184,26 +6175,26 @@ The limit is set deliberately low to enable it to work with computers having ver
 
             if not myPopupAskQuestion(Toolbox_frame_,
                                   "RESET BANKING LINK",
-                                  "Are you sure you want to forget OFX banking link for Acct: %s" %selectedAccount,
+                                  "Are you sure you want to forget OFX banking Import link for Acct: %s" %selectedAccount,
                                   JOptionPane.YES_NO_OPTION,
                                   JOptionPane.ERROR_MESSAGE):
-                self.statusLabel.setText(("User did not say yes to forget OFX banking link - no changes made").ljust(800, " "))
+                self.statusLabel.setText(("User did not say yes to forget OFX banking Import link - no changes made").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 return
 
-            if not myPopupAskBackup(Toolbox_frame_, "Would you like to perform a backup before you FORGET BANKING LINK?"):
+            if not myPopupAskBackup(Toolbox_frame_, "Would you like to perform a backup before you FORGET OFX BANKING IMPORT LINK?"):
                 self.statusLabel.setText(("RESET BANKING LINK - User chose to exit without the fix/update...").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 return
 
             disclaimer = myPopupAskForInput(Toolbox_frame_,"RESET BANKING LINK",
-                                            "DISCLAIMER:", "Are you really sure you want to FORGET BANKING LINK? Type 'IAGREE' to continue..",
+                                            "DISCLAIMER:", "Are you really sure you want to FORGET BANKING OFX IMPORT LINK? Type 'IAGREE' to continue..",
                                             "NO",
                                             False,
                                             JOptionPane.ERROR_MESSAGE)
 
             if not disclaimer == 'IAGREE':
-                self.statusLabel.setText(("FORGET OFX BANKING LINK - User declined Disclaimer... No fixes applied").ljust(800, " "))
+                self.statusLabel.setText(("FORGET OFX BANKING IMPORT LINK - User declined Disclaimer... No fixes applied").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 return
 
@@ -6211,9 +6202,9 @@ The limit is set deliberately low to enable it to work with computers having ver
             selectedAccount.removeParameter("ofx_import_remember_acct_num")                                 # noqa
             selectedAccount.syncItem()                                                                      # noqa
 
-            self.statusLabel.setText(("OFX Banking link successfully forgotten!").ljust(800, " "))
+            self.statusLabel.setText(("OFX Banking Import link successfully forgotten!").ljust(800, " "))
             self.statusLabel.setForeground(Color.RED)
-            myPrint("B", "User selected to forget OFX banking link for account: " + str(selectedAccount))
+            myPrint("B", "User selected to forget OFX banking Import link for account: " + str(selectedAccount))
 
             play_the_money_sound()
 
@@ -6897,20 +6888,20 @@ The limit is set deliberately low to enable it to work with computers having ver
         inactivateZeroBalCats_button.setVisible(False)
         displayPanel.add(inactivateZeroBalCats_button)
 
-        viewOFX_button = JButton("<html><center>View OFX Bank<BR>Bindings</center></html>")
-        viewOFX_button.setToolTipText("This will allow you to view any Online Banking setup information linked to each Account")
-        viewOFX_button.addActionListener(self.ViewFileButtonAction(statusLabel, "get_OFX_bindings()", "Display OFX Bindings", lFile=False))
+        viewOFX_button = JButton("<html><center>View OFX Bank<BR>Related Data</center></html>")
+        viewOFX_button.setToolTipText("This will allow you to view any Online Banking related setup information linked to each Account")
+        viewOFX_button.addActionListener(self.ViewFileButtonAction(statusLabel, "get_ofx_related_data()", "Display OFX Bank Related Data", lFile=False))
         displayPanel.add(viewOFX_button)
 
-        forgetOFX_button = JButton("<html><center>Forget OFX<BR>Banking Link</center></html>")
-        forgetOFX_button.setToolTipText("This will tell Moneydance to forget the OFX Banking link attributed to an Account. This means Moneydance will then ask you to recreate the link on the next import.. THIS CHANGES DATA!")
+        forgetOFX_button = JButton("<html><center>Forget OFX Bank<BR>Import Link</center></html>")
+        forgetOFX_button.setToolTipText("This will tell Moneydance to forget the OFX Banking Import link attributed to an Account. This means Moneydance will then ask you to recreate the link on the next import.. THIS CHANGES DATA!")
         forgetOFX_button.setForeground(Color.RED)
         forgetOFX_button.addActionListener(self.ForgetOFXButtonAction(displayString, statusLabel))
         forgetOFX_button.setVisible(False)
         displayPanel.add(forgetOFX_button)
 
-        deleteOFX_service_button = JButton("<html><center>Delete OFX<BR>banking service</center></html>")
-        deleteOFX_service_button.setToolTipText("This will allow you to delete an Online Banking profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA!")
+        deleteOFX_service_button = JButton("<html><center>Delete OFX Bank<BR>Logon Profile/Svc</center></html>")
+        deleteOFX_service_button.setToolTipText("This will allow you to delete an Online Banking logon / service profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA!")
         deleteOFX_service_button.setForeground(Color.RED)
         deleteOFX_service_button.addActionListener(self.DeleteOFXServiceButtonAction(displayString, statusLabel))
         deleteOFX_service_button.setVisible(False)

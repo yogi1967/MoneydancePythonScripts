@@ -42,8 +42,8 @@
 
 # Build: 1000 - IntelliJ code cleanup; made Extension ready; Extract file without waiting; refresh bits with common code - no functional changes
 # Build: 1000 - no functional changes; Added code fix for extension runtime to set moneydance variables (if not set)
-# Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code
-# Build: 1000 - column widths now save; optional parameter whether to write BOM to export file
+# Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code; renamed script dropping _to_
+# Build: 1000 - column widths now save; optional parameter whether to write BOM to export file; added datetime to console log
 
 # Displays Moneydance reminders and allows extract to a csv file (compatible with Excel)
 
@@ -162,7 +162,7 @@ scriptExit = """
 Thank you for using %s! The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
-Extension Only: Toolbox                 View Moneydance settings, diagnostics, fix issues, change settings and much more
+Toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
 
 Extension (.mxt) and Script (.py) Versions available:
 StockGlance2020                         View summary of Securities/Stocks on screen, total by Security, export to csv 
@@ -189,7 +189,9 @@ def myPrint(where, *args):
 	if where == "P" or where == "B" or where[0] == "D":
 		if not i_am_an_extension_so_run_headless: print(printString)
 
-	if where == "J" or where == "B" or where == "DB": System.err.write(myScriptName + ": " + printString + "\n")
+	if where == "J" or where == "B" or where == "DB":
+		dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
+		System.err.write(myScriptName + ":" + dt + ": " + printString + "\n")
 
 	return
 
