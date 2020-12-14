@@ -39,6 +39,6 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 -  <a href="https://github.com/yogi1967/MoneyDancePythonScripts/raw/master/extract_currency_history_csv.zip">**extract_currency_history_csv**: Extract currency history to csv
 -  <a href="https://github.com/yogi1967/MoneyDancePythonScripts/raw/master/extract_investment_transactions_csv.zip">**extract_investment_transactions_csv**: Extract investment transactions to csv
 
-Author's site: https://yogi1967.github.io/MoneyDancePythonScripts/
+Author's site: <a href="https://yogi1967.github.io/MoneyDancePythonScripts/">https://yogi1967.github.io/MoneyDancePythonScripts/
 
-Moneydance's site for code: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts
+Moneydance's site for code: <a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/">https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/
