@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# StockGlance2020 build:1001 - October 2020 - Stuart Beesley
+# StockGlance2020 build:1002 - October 2020 - Stuart Beesley
 
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -80,11 +80,13 @@
 # -- V5c - Code cleanup only - cosmetic only; Added parameter to allow User to select no rounding of price (useful if their settings on the security are set wrongly); switched to use MD's decimal setting
 # -- v5d - Small tweak to parameter field (cosmetic only); Added a File BOM marker to help Excel open UTF-8 files (and changed open() to 'w' instead of 'wb')
 # -- v5e - Cosmetic change to display; catch pickle.load() error (when restored dataset); Reverting to open() 'wb' - fix Excel CR/LF double line on Windows issue
-# -- Build: 1000 - Slight change to myParameters; changed __file__ usage; code cleanup for IntelliJ; version_build change; changed versioning; changed export filename; Eliminated wait for script close..
-# -- Build: 1000 - no functional changes; Added code fix for extension runtime to set moneydance variables (if not set);
-# -- Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code.....
-# -- Build: 1000 - Column widths now save....; optional parameter whether to write BOM to export file; added date/time to console log
-# -- Build: 1001 - Cosmetic change to console to state when not splitting accounts; Added About menu (cosmetic)
+# Build: 1000 - Slight change to myParameters; changed __file__ usage; code cleanup for IntelliJ; version_build change; changed versioning; changed export filename; Eliminated wait for script close..
+# Build: 1000 - no functional changes; Added code fix for extension runtime to set moneydance variables (if not set);
+# Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code.....
+# Build: 1000 - Column widths now save....; optional parameter whether to write BOM to export file; added date/time to console log
+# Build: 1001 - Cosmetic change to console to state when not splitting accounts; Added About menu (cosmetic)
+# Build: 1002 - Cosmetic change to put main window in centre of screen; bug fix for text double-decimal point corrupting display in MyGainsRenderer()
+# Build: 1002 Enhanced MyPrint to catch unicode utf-8 encode/decode errors
 
 # COMMON IMPORTS #######################################################################################################
 import sys
@@ -145,7 +147,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1001"                                                                                              # noqa
+version_build = "1002"                                                                                              # noqa
 myScriptName = "StockGlance2020.py(Extension)"                                                                      # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -247,12 +249,22 @@ def myPrint(where, *args):
     printString = printString.strip()
 
     if where == "P" or where == "B" or where[0] == "D":
-        if not i_am_an_extension_so_run_headless: print(printString)
+        if not i_am_an_extension_so_run_headless:
+            try:
+                print(printString)
+            except:
+                print("Error writing to screen...")
+                dump_sys_error_to_md_console_and_errorlog()
 
     if where == "J" or where == "B" or where == "DB":
         dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
-        System.err.write(myScriptName + ":" + dt + ": " + printString + "\n")
-
+        try:
+            System.err.write(myScriptName + ":" + dt + ": ")
+            System.err.write(printString)
+            System.err.write("\n")
+        except:
+            System.err.write(myScriptName + ":" + dt + ": "+"Error writing to console")
+            dump_sys_error_to_md_console_and_errorlog()
     return
 
 def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):
@@ -2131,6 +2143,7 @@ if not lExit:
             def getCellRenderer(self, row, column):                                                             # noqa
                 global StockGlanceInstance
                 renderer = None
+
                 if StockGlanceInstance.columnTypes[column] == "Text":
                     renderer = DefaultTableCellRenderer()
                     renderer.setHorizontalAlignment(JLabel.LEFT)
@@ -2271,14 +2284,17 @@ if not lExit:
                 for char in value:
                     if char in validString:
                         conv_string1 = conv_string1 + char
-                str1 = float(conv_string1)
-
-                if float(str1) < 0.0:
-                    self.setForeground(Color.RED)
-                else:
+                try:
+                    str1 = float(conv_string1)
+                    if float(str1) < 0.0:
+                        self.setForeground(Color.RED)
+                    else:
+                        self.setForeground(Color.DARK_GRAY)
+                except:
+                    # No real harm done; so move on.... (was failing on 'Fr. 305.2' - double point in text)
                     self.setForeground(Color.DARK_GRAY)
 
-        # This copies the standard class and just changes the colour to RED if it detects a negative - and formats as %
+    # This copies the standard class and just changes the colour to RED if it detects a negative - and formats as %
         # noinspection PyArgumentList
         class MyPercentRenderer(DefaultTableCellRenderer):
 
@@ -2595,6 +2611,7 @@ if not lExit:
                 System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                                 # noqa
 
             StockGlance2020_frame_.pack()
+            StockGlance2020_frame_.setLocationRelativeTo(None)
             StockGlance2020_frame_.setVisible(True)
 
             if True or Platform.isOSX():

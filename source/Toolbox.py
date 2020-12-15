@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# Toolbox.py build: 1000 - November-December 2020 - Stuart Beesley StuWareSoftSystems
+# Toolbox.py build: 1001 - November-December 2020 - Stuart Beesley StuWareSoftSystems
 # NOTE: I am just a fellow Moneydance User >> I HAVE NO AFFILIATION WITH MONEYDANCE
 # NOTE: I have run all these fixes / updates on my own live personal dataset
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
@@ -55,6 +55,7 @@
 # Build: 999a Added some instructions on how to properly edit Moneydance.vmoptions file; added to help file(s)
 # Build: 999a Now finds the application directory for MacOS too....
 # Build: 1000 INITIAL PUBLIC RELEASE
+# Build: 1001 Enhanced MyPrint to catch unicode utf-8 encode/decode errors
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
@@ -120,7 +121,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1000"                                                                                      # noqa
+version_build = "1001"                                                                                      # noqa
 myScriptName = "Toolbox.py(Extension)"                                                                              # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -204,12 +205,22 @@ def myPrint(where, *args):
     printString = printString.strip()
 
     if where == "P" or where == "B" or where[0] == "D":
-        if not i_am_an_extension_so_run_headless: print(printString)
+        if not i_am_an_extension_so_run_headless:
+            try:
+                print(printString)
+            except:
+                print("Error writing to screen...")
+                dump_sys_error_to_md_console_and_errorlog()
 
     if where == "J" or where == "B" or where == "DB":
         dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
-        System.err.write(myScriptName + ":" + dt + ": " + printString + "\n")
-
+        try:
+            System.err.write(myScriptName + ":" + dt + ": ")
+            System.err.write(printString)
+            System.err.write("\n")
+        except:
+            System.err.write(myScriptName + ":" + dt + ": "+"Error writing to console")
+            dump_sys_error_to_md_console_and_errorlog()
     return
 
 def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_currency_history_csv build 1000 - November 2020 - Stuart Beesley StuWareSoftSystems
+# extract_currency_history_csv build 1001 - November 2020 - Stuart Beesley StuWareSoftSystems
 # Extracts your Currency rate history to CSV file (as MD doesn't do this)
 # This script does not change any data!
 # Thanks to DerekKent23 for his testing....
@@ -42,6 +42,7 @@
 # Build: 1000 - no functional changes; Added code fix for extension runtime to set moneydance variables (if not set)
 # Build: 1000 - all print functions changed to work headless; added some popup warnings...; streamlined common code
 # Build: 1000 - optional parameter whether to write BOM to export file; added date/time to console log
+# Build: 1001 - Enhanced MyPrint to catch unicode utf-8 encode/decode errors
 
 # COMMON IMPORTS #######################################################################################################
 import sys
@@ -102,7 +103,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1000"                                                                                              # noqa
+version_build = "1001"                                                                                              # noqa
 myScriptName = "extract_currency_history_csv.py(Extension)"                                                         # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -180,12 +181,22 @@ def myPrint(where, *args):
     printString = printString.strip()
 
     if where == "P" or where == "B" or where[0] == "D":
-        if not i_am_an_extension_so_run_headless: print(printString)
+        if not i_am_an_extension_so_run_headless:
+            try:
+                print(printString)
+            except:
+                print("Error writing to screen...")
+                dump_sys_error_to_md_console_and_errorlog()
 
     if where == "J" or where == "B" or where == "DB":
         dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
-        System.err.write(myScriptName + ":" + dt + ": " + printString + "\n")
-
+        try:
+            System.err.write(myScriptName + ":" + dt + ": ")
+            System.err.write(printString)
+            System.err.write("\n")
+        except:
+            System.err.write(myScriptName + ":" + dt + ": "+"Error writing to console")
+            dump_sys_error_to_md_console_and_errorlog()
     return
 
 def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):
@@ -909,6 +920,7 @@ lDisplayOnly = False
 options = ["Abort", "CSV Export"]
 
 while True:
+
     userAction = (JOptionPane.showOptionDialog(None, userFilters, "%s(build: %s) Set Script Parameters...."%(myScriptName,version_build),
                                          JOptionPane.OK_CANCEL_OPTION,
                                          JOptionPane.QUESTION_MESSAGE,

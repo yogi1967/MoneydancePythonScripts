@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_reminders_csv.py (build: 1001)
+# extract_reminders_csv.py (build: 1002)
 
 ###############################################################################
 # MIT License
@@ -45,6 +45,8 @@
 # Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code; renamed script dropping _to_
 # Build: 1000 - column widths now save; optional parameter whether to write BOM to export file; added datetime to console log
 # Build: 1001 - Added About menu (cosmetic only)
+# Build: 1002 - Cosmetic change to put main window in centre of screen
+# Build: 1002 Enhanced MyPrint to catch unicode utf-8 encode/decode errors
 
 # Displays Moneydance reminders and allows extract to a csv file (compatible with Excel)
 
@@ -107,7 +109,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1001"           																					# noqa
+version_build = "1002"           																					# noqa
 myScriptName = "extract_reminders_csv.py(Extension)"																# noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -188,12 +190,22 @@ def myPrint(where, *args):
 	printString = printString.strip()
 
 	if where == "P" or where == "B" or where[0] == "D":
-		if not i_am_an_extension_so_run_headless: print(printString)
+		if not i_am_an_extension_so_run_headless:
+			try:
+				print(printString)
+			except:
+				print("Error writing to screen...")
+				dump_sys_error_to_md_console_and_errorlog()
 
 	if where == "J" or where == "B" or where == "DB":
 		dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
-		System.err.write(myScriptName + ":" + dt + ": " + printString + "\n")
-
+		try:
+			System.err.write(myScriptName + ":" + dt + ": ")
+			System.err.write(printString)
+			System.err.write("\n")
+		except:
+			System.err.write(myScriptName + ":" + dt + ": "+"Error writing to console")
+			dump_sys_error_to_md_console_and_errorlog()
 	return
 
 def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):
@@ -2009,6 +2021,7 @@ if not lExit:
 			tableview_panel.add(scrollpane)																		# noqa
 			extract_reminders_csv_frame_.add(tableview_panel)
 			extract_reminders_csv_frame_.pack()
+			extract_reminders_csv_frame_.setLocationRelativeTo(None)
 
 			if True or Platform.isOSX():
 				# extract_reminders_csv_frame_.setAlwaysOnTop(True)
