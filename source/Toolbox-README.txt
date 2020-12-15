@@ -66,7 +66,8 @@ ALT-B - Basic Mode
     - View Console.log
     - Copy Console.log file to wherever you want
     - View your Java .vmoptions file (only appears if it exists)
-    - Open MD Folder(Preferences, Themes, Console log, Dataset root, Extensions folder, Auto-backup folder, last backup folder)
+    - Open MD Folder
+      (Preferences, Themes, Console log, Dataset, Extensions, Auto-backup folder, last backup folder[, Install Dir])
     - Find my Dataset (Search for *.moneydance & *.moneydancearchive Datasets)
     - View memorised reports (parameters and default settings)
     - View Register Txn Sort Orders

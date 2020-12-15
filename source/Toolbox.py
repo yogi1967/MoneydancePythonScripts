@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# Toolbox.py build: 999 PREVIEW - November-December 2020 - Stuart Beesley StuWareSoftSystems
+# Toolbox.py build: 999a PREVIEW - November-December 2020 - Stuart Beesley StuWareSoftSystems
 # NOTE: I am just a fellow Moneydance User >> I HAVE NO AFFILIATION WITH MONEYDANCE
 # NOTE: I have run all these fixes / updates on my own live personal dataset
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
@@ -52,6 +52,8 @@
 ###############################################################################
 
 # Build: 999 PREVIEW RELEASE
+# Build: 999a Added some instructions on how to properly edit Moneydance.vmoptions file; added to help file(s)
+# Build: 999a Now finds the application directory for MacOS too....
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
@@ -117,7 +119,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "999 PREVIEW"                                                                                      # noqa
+version_build = "999a PREVIEW"                                                                                      # noqa
 myScriptName = "Toolbox.py(Extension)"                                                                              # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -1025,6 +1027,12 @@ def buildDiagText(lGrabPasswords=False):
         textArray.append("Current Dataset: " + str(y))
 
     textArray.append("Full location of this Dataset: %s" %(moneydance_data.getRootFolder()))
+
+    x = find_the_program_install_dir()
+    if x:
+        textArray.append("Application Install Directory: %s" %(x))
+    else:
+        textArray.append("UNABLE TO DETERMINE Application's Install Directory?!")
 
     textArray.append("\nRUNTIME ENVIRONMENT")
 
@@ -2067,7 +2075,8 @@ ALT-B - Basic Mode
     - View Console.log
     - Copy Console.log file to wherever you want
     - View your Java .vmoptions file (only appears if it exists)
-    - Open MD Folder(Preferences, Themes, Console log, Dataset root, Extensions folder, Auto-backup folder, last backup folder)
+    - Open MD Folder
+      (Preferences, Themes, Console log, Dataset, Extensions, Auto-backup folder, last backup folder[, Install Dir])
     - Find my Dataset (Search for *.moneydance & *.moneydancearchive Datasets)
     - View memorised reports (parameters and default settings)
     - View Register Txn Sort Orders
@@ -2856,6 +2865,26 @@ Toolbox.py:                             1000
         myPopupInformationBox(jif, "You have %s older StuWareSoftSystems scripts - please upgrade them!" % iCountOldScripts, "STUWARESOFTSYSTEMS' SCRIPTS", JOptionPane.WARNING_MESSAGE)
 
     return
+
+def find_the_program_install_dir():
+
+    theDir = ""
+
+    if Platform.isOSX():
+        # Derive from these - not great, but OK: java.home, java.library.path, sun.boot.library.path
+
+        test = System.getProperty("java.home").strip()
+        _i = test.lower().find(".app/")                                                                             # noqa
+        if _i > 0:
+            theDir = test[:_i+4]
+    else:
+        theDir = System.getProperty("install4j.exeDir").strip()
+
+    if not os.path.exists(theDir):
+        theDir = ""
+
+    return theDir
+
 
 def get_orphaned_extension():
 
@@ -5566,21 +5595,35 @@ class DiagnosticDisplay():
 
             if x.lower().endswith(".vmoptions"):
                 displayFile += """
-\n
 -------------------------------------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------------
-<FROM SUPPORT>\n
-You can allow for more memory by editing the** Moneydance.vmoptions** file and set it to increase the amount of memory that Moneydance is allowed to use.
-To achieve this you can try the following.\n
-\n
-Navigate to the Moneydance.vmoptions file, located in the folder where Moneydance is installed, so most likely:\n
-Windows - c:\Program Files\Moneydance\Moneydance.vmoptions\n
-or\n
-Linux - /opt/Moneydance/Moneydance.vmoption\n
-If you open that file with Notepad or any other text editor, you'll see some instructions for how to change it.\n
-The basic recommendation is to changing the -Xmx1024m setting to -Xmx2048m which doubles the amount of memory that Moneydance is allowed to use. You can give it more if you wish, E.g.: you make it -Xmx3000m, for optimal results.\n
-\n
-The limit is set deliberately low to enable it to work with computers having very small amounts of RAM.\n\n
+<INSTRUCTIONS>
+You can allow for more memory by editing the 'Moneydance.vmoptions' file and set it to increase the amount of memory that Moneydance is allowed to use.
+To achieve this you can try the following.
+
+Navigate to the Moneydance.vmoptions file, located in the folder where Moneydance is installed, so most likely:
+
+Windows - c:\Program Files\Moneydance\Moneydance.vmoptions
+or
+Linux - /opt/Moneydance/Moneydance.vmoptions
+
+If you open that file with Notepad or any other text editor, you'll see some instructions for how to change it.
+Close Moneydance first!
+The basic recommendation is to changing the -Xmx1024m setting to -Xmx2048m which doubles the amount of memory that Moneydance is allowed to use.
+You can give it more if you wish, E.g.: you make it -Xmx3000m, for optimal results.
+
+In Windows - due to permissions, you might need to do this:
+    In the 'Type here to Search' box on the Windows 10 Toolbar, type CMD (do not press enter)
+    When Command Prompt appears, click Run as Administrator
+    Click yes/agree to allow this app to make changes to this device / grant administrator permissions
+    cd "\Program Files\Moneydance"      (and enter)
+    notepad Moneydance.vmoptions        (and enter)
+    edit the file and change the -Xmx1024 setting
+    ctrl-s to save and then exit Notepad
+    exit
+    restart Moneydance
+    
+The limit is set deliberately low to enable it to work with computers having very small amounts of RAM.
 -------------------------------------------------------------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------------------------------------------------------------
                 """ # noqa
@@ -6096,9 +6139,8 @@ The limit is set deliberately low to enable it to work with computers having ver
 
             helper = moneydance.getPlatformHelper()
 
-            grabProgramDir = str(System.getProperty("install4j.exeDir"))    # todo - On Linux try /opt/Moneydance/ - Find Mac Location....
+            grabProgramDir = find_the_program_install_dir()
             if not os.path.exists((grabProgramDir)): grabProgramDir = None
-
 
             locations = [
                     "Show Preferences (config.dict) Folder",
@@ -6816,7 +6858,7 @@ The limit is set deliberately low to enable it to work with computers having ver
         copyConsoleLogFile_button.addActionListener(self.CopyConsoleLogFileButtonAction(statusLabel, moneydance.getLogFile()))
         displayPanel.add(copyConsoleLogFile_button)
 
-        grabProgramDir = System.getProperty("install4j.exeDir")     # todo - On Linux try /opt/Moneydance/
+        grabProgramDir = find_the_program_install_dir()
         # noinspection PyTypeChecker
         if grabProgramDir and os.path.exists(os.path.join(grabProgramDir,"Moneydance.vmoptions")):
             viewJavaVMFileFile_button = JButton("<html><center>View Java VM<BR>Options File</center></html>")

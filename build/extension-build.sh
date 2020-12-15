@@ -143,6 +143,8 @@ java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextja
 if ! test -f "s-$FILE.mxt"; then
     echo "ERROR - Signed MXT does not exist?"
     exit 3
+else
+    zip -z "s-$FILE.mxt" <<< "StuWareSoftSystems: $FILE Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
 fi
 
 #read -p "Press any key to resume ..."
