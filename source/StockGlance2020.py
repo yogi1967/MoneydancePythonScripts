@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# StockGlance2020 build:1000 - October 2020 - Stuart Beesley
+# StockGlance2020 build:1001 - October 2020 - Stuart Beesley
 
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -80,11 +80,11 @@
 # -- V5c - Code cleanup only - cosmetic only; Added parameter to allow User to select no rounding of price (useful if their settings on the security are set wrongly); switched to use MD's decimal setting
 # -- v5d - Small tweak to parameter field (cosmetic only); Added a File BOM marker to help Excel open UTF-8 files (and changed open() to 'w' instead of 'wb')
 # -- v5e - Cosmetic change to display; catch pickle.load() error (when restored dataset); Reverting to open() 'wb' - fix Excel CR/LF double line on Windows issue
-
 # -- Build: 1000 - Slight change to myParameters; changed __file__ usage; code cleanup for IntelliJ; version_build change; changed versioning; changed export filename; Eliminated wait for script close..
 # -- Build: 1000 - no functional changes; Added code fix for extension runtime to set moneydance variables (if not set);
 # -- Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code.....
 # -- Build: 1000 - Column widths now save....; optional parameter whether to write BOM to export file; added date/time to console log
+# -- Build: 1001 - Cosmetic change to console to state when not splitting accounts; Added about menu (cosmetic)
 
 # COMMON IMPORTS #######################################################################################################
 import sys
@@ -145,7 +145,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1000"                                                                                              # noqa
+version_build = "1001"                                                                                              # noqa
 myScriptName = "StockGlance2020.py(Extension)"                                                                      # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -902,6 +902,88 @@ myPrint("DB", "DEBUG IS ON..")
 # END ALL CODE COPY HERE ###############################################################################################
 
 
+class CloseAboutAction(AbstractAction):
+    # noinspection PyMethodMayBeStatic
+    # noinspection PyUnusedLocal
+
+    def __init__(self, theFrame):
+        self.theFrame = theFrame
+
+    def actionPerformed(self, event):
+        global debug
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
+
+        self.theFrame.dispose()
+
+def about_this_script():
+    global debug, scriptExit
+
+    myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+    # noinspection PyUnresolvedReferences
+    about_d = JDialog(StockGlance2020_frame_, "About", Dialog.ModalityType.MODELESS)
+
+    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+
+    about_d.getRootPane().getActionMap().put("close-window", CloseAboutAction(about_d))
+
+    about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
+
+    if (not Platform.isMac()):
+        # moneydance_ui.getImages()
+        about_d.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+
+    aboutPanel=JPanel()
+    aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
+    aboutPanel.setPreferredSize(Dimension(1070, 400))
+
+    _label1 = JLabel(pad("Author: Stuart Beesley", 800))
+    _label1.setForeground(Color.BLUE)
+    aboutPanel.add(_label1)
+
+    _label2 = JLabel(pad("StuWareSoftSystems (2020)", 800))
+    _label2.setForeground(Color.BLUE)
+    aboutPanel.add(_label2)
+
+    displayString=scriptExit
+    displayJText = JTextArea(displayString)
+    displayJText.setFont( getMonoFont() )
+    displayJText.setEditable(False)
+    # displayJText.setCaretPosition(0)
+    displayJText.setLineWrap(False)
+    displayJText.setWrapStyleWord(False)
+    displayJText.setMargin(Insets(8, 8, 8, 8))
+    # displayJText.setBackground((mdGUI.getColors()).defaultBackground)
+    # displayJText.setForeground((mdGUI.getColors()).defaultTextForeground)
+
+    aboutPanel.add(displayJText)
+
+    about_d.add(aboutPanel)
+
+    about_d.pack()
+    about_d.setLocationRelativeTo(None)
+    about_d.setVisible(True)
+    return
+
+class DoTheMenu(AbstractAction):
+
+    def __init__(self, menu, callingClass=None):
+        self.menu = menu
+        self.callingClass = callingClass
+
+    def actionPerformed(self, event):																				# noqa
+        global StockGlance2020_frame_, debug
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+        if event.getActionCommand() == "About":
+            about_this_script()
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
 def terminate_script():
     global debug, StockGlance2020_frame_, i_am_an_extension_so_run_headless, scriptExit, csvfilename, lDisplayOnly, lGlobalErrorDetected
 
@@ -1061,13 +1143,13 @@ lDisplayOnly = False
 
 options = ["Abort", "Display & CSV Export", "Display Only"]
 userAction = (JOptionPane.showOptionDialog(None,
-                                     userFilters,
-                                     "%s(build: %s) Set Script Parameters...." %(myScriptName,version_build),
-                                     JOptionPane.OK_CANCEL_OPTION,
-                                     JOptionPane.QUESTION_MESSAGE,
-                                     moneydance_ui.getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-                                     options,
-                                     options[2]))
+                                           userFilters,
+                                           "%s(build: %s) Set Script Parameters...." %(myScriptName,version_build),
+                                           JOptionPane.OK_CANCEL_OPTION,
+                                           JOptionPane.QUESTION_MESSAGE,
+                                           moneydance_ui.getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                           options,
+                                           options[2]))
 if userAction == 1:  # Display & Export
     myPrint("DB", "Display and export chosen")
     lDisplayOnly = False
@@ -1084,19 +1166,19 @@ else:
 if not lExit:
     if debug:
         myPrint("DB", "Parameters Captured", "Sec: ", user_hideHiddenSecurities.getText(),
-            "InActAct:", user_hideInactiveAccounts.getText(),
-            "HidAct:", user_hideHiddenAccounts.getText(),
-            "Curr:", user_selectCurrency.getText(),
-            "Ticker:", user_selectTicker.getText(),
-            "Filter Accts:", user_selectAccounts.getText(),
-            "Include Cash Balances:", user_selectCashBalances.getText(),
-            "Split Securities:", user_splitSecurities.getText(),
-            "Exclude Totals from CSV:", user_excludeTotalsFromCSV.getText(),
-            "Round Calc Price:", user_roundPrice.getText(),
-            "Strip ASCII:", user_selectStripASCII.getText(),
-            "Write BOM to file:", user_selectBOM.getText(),
-            "Verbose Debug Messages: ", user_selectDEBUG.getText(),
-            "CSV File Delimiter:", user_selectDELIMITER.getText())
+                "InActAct:", user_hideInactiveAccounts.getText(),
+                "HidAct:", user_hideHiddenAccounts.getText(),
+                "Curr:", user_selectCurrency.getText(),
+                "Ticker:", user_selectTicker.getText(),
+                "Filter Accts:", user_selectAccounts.getText(),
+                "Include Cash Balances:", user_selectCashBalances.getText(),
+                "Split Securities:", user_splitSecurities.getText(),
+                "Exclude Totals from CSV:", user_excludeTotalsFromCSV.getText(),
+                "Round Calc Price:", user_roundPrice.getText(),
+                "Strip ASCII:", user_selectStripASCII.getText(),
+                "Write BOM to file:", user_selectBOM.getText(),
+                "Verbose Debug Messages: ", user_selectDEBUG.getText(),
+                "CSV File Delimiter:", user_selectDELIMITER.getText())
     # endif
 
     hideHiddenSecurities = False
@@ -1200,7 +1282,8 @@ if not lExit:
 
     if lSplitSecuritiesByAccount:
         myPrint("B", "Splitting Securities by account - WARNING, this will disable sorting....")
-
+    else:
+        myPrint("B", "No Splitting Securities by account will be performed....")
 
     # Now get the export filename
     csvfilename = None
@@ -1505,16 +1588,16 @@ if not lExit:
                                                                             baseCurrency, 2))  # Local Curr Value
                                         x = round(balanceSplit, 2)
                                     entry.append(self.myNumberFormatter(balanceBaseSplit, True, self.currXrate,
-                                                                   baseCurrency,
-                                                                   2))  # Value Base Currency
+                                                                        baseCurrency,
+                                                                        2))  # Value Base Currency
                                     entry.append(self.myNumberFormatter(costBasisBaseSplit, True, self.currXrate,
                                                                         baseCurrency, 2))  # Cost Basis
                                     entry.append(self.myNumberFormatter(gainBaseSplit, True, self.currXrate,
-                                                                   baseCurrency,
-                                                                   2))  # Gain
+                                                                        baseCurrency,
+                                                                        2))  # Gain
                                     entry.append(round(gainBaseSplit / costBasisBaseSplit, 3))
                                     entry.append(split_acct_array[iSplitAcctArray][0].replace(acctSeparator, "",
-                                                                                         1))  # Acct
+                                                                                              1))  # Acct
                                     entry.append(curr.getDoubleValue(qtySplit))  # _Shrs
                                     entry.append(price)  # _Price
                                     entry.append(x)  # _CValue
@@ -1982,7 +2065,7 @@ if not lExit:
                 costbasis = cbbasistotals.get(curr)
                 if acct.getCurrentBalance() != 0:  # we only want Securities with holdings
                     if debug and not i_am_an_extension_so_run_headless: print("Processing Acct:", acct.getParentAccount(), "Share/Fund Qty Balances for Security: ", curr, curr.formatSemiFancy(
-                            acct.getCurrentBalance(), decimalCharSep), " Shares/Units")
+                        acct.getCurrentBalance(), decimalCharSep), " Shares/Units")
 
                     total = (0L if (total is None) else total) + acct.getCurrentBalance()
                     totals[curr] = total
@@ -1996,8 +2079,8 @@ if not lExit:
                     if lSplitSecuritiesByAccount:  # Build a mini table if split, else 1 row table...
                         if account is None:
                             accounts[curr] = [
-                                    [str(acct.getParentAccount()) + acctSeparator, acct.getCurrentBalance(),
-                                     getTheCostBasis]]
+                                [str(acct.getParentAccount()) + acctSeparator, acct.getCurrentBalance(),
+                                 getTheCostBasis]]
                         else:
                             account.append([str(acct.getParentAccount()) + acctSeparator, acct.getCurrentBalance(),
                                             getTheCostBasis])
@@ -2005,10 +2088,10 @@ if not lExit:
                     else:
                         if account is None:
                             account = str(
-                                    acct.getParentAccount()) + acctSeparator  # Important - keep the trailing ' :'
+                                acct.getParentAccount()) + acctSeparator  # Important - keep the trailing ' :'
                         else:
                             account = account[0][0] + str(
-                                    acct.getParentAccount()) + acctSeparator  # concatenate two strings here
+                                acct.getParentAccount()) + acctSeparator  # concatenate two strings here
                         accounts[curr] = [[account, acct.getCurrentBalance(), getTheCostBasis]]
 
                     if lIncludeCashBalances:
@@ -2017,8 +2100,8 @@ if not lExit:
 
                         # WARNING Cash balances are by Account and not by Security!
                         cashTotal = curr.getDoubleValue(
-                                (acct.getParentAccount().getCurrentBalance())) / curr.getRate(
-                                None)  # Will be the same Cash balance per account for all Securities..
+                            (acct.getParentAccount().getCurrentBalance())) / curr.getRate(
+                            None)  # Will be the same Cash balance per account for all Securities..
                         myPrint("D","Cash balance for account:", cashTotal)
                         cashTotals[acct.getParentAccount()] = round(cashTotal, 2)
                         # endfor
@@ -2158,7 +2241,7 @@ if not lExit:
                             component.setFont(component.getFont().deriveFont(Font.BOLD))
                     elif (not lSplitSecuritiesByAccount):
                         component.setBackground(
-                                self.getBackground() if row % 2 == 0 else StockGlanceInstance.lightLightGray)
+                            self.getBackground() if row % 2 == 0 else StockGlanceInstance.lightLightGray)
                     elif str(self.getValueAt(row, 0)).lower()[:5] == "total":
                         component.setBackground(StockGlanceInstance.lightLightGray)
 
@@ -2433,7 +2516,7 @@ if not lExit:
             width = min(cTotal + 20, screenSize.width)  # width of all elements
 
             calcScrollPaneHeightRequired = (min(screenSize.height - 300, max(60, ((rowCount * rowHeight)
-                    + ((rowCount) * (interCellSpacing)) + headerHeight + insets.top + insets.bottom + scrollHeight.height))))
+                                                                                  + ((rowCount) * (interCellSpacing)) + headerHeight + insets.top + insets.bottom + scrollHeight.height))))
 
             if debug:
                 myPrint("D", "ScreenSize: ", screenSize)
@@ -2484,13 +2567,32 @@ if not lExit:
             StockGlance2020_frame_.add(self.footerScrollPane, BorderLayout.SOUTH)
 
             myPrint("D","Total frame height required: ", calcScrollPaneHeightRequired, " + ",
-                fcalcScrollPaneHeightRequired, "+ Intercells: ", finsets.top, finsets.bottom, " = ",
-                (calcScrollPaneHeightRequired + fcalcScrollPaneHeightRequired) +
-                (finsets.top * 2) + (finsets.bottom * 2))
+                    fcalcScrollPaneHeightRequired, "+ Intercells: ", finsets.top, finsets.bottom, " = ",
+                    (calcScrollPaneHeightRequired + fcalcScrollPaneHeightRequired) +
+                    (finsets.top * 2) + (finsets.bottom * 2))
 
             # Seems to be working well without setting the frame sizes + pack()
             # StockGlance2020_frame_.setPreferredSize(Dimension(width, max(150,calcScrollPaneHeightRequired+fcalcScrollPaneHeightRequired+(finsets.top*2)+(finsets.bottom*2))))
             # StockGlance2020_frame_.setSize(width,calcScrollPaneHeightRequired+fcalcScrollPaneHeightRequired)   # for some reason this seems irrelevant?
+
+            if Platform.isOSX():
+                save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
+                System.setProperty("apple.laf.useScreenMenuBar", "false")
+
+            mb = JMenuBar()
+            menuH = JMenu("<html><B>ABOUT</b></html>")
+
+            menuItemA = JMenuItem("About")
+            menuItemA.setToolTipText("About...")
+            menuItemA.addActionListener(DoTheMenu(menuH))
+            menuItemA.setEnabled(True)
+            menuH.add(menuItemA)
+            mb.add(menuH)
+
+            StockGlance2020_frame_.setJMenuBar(mb)
+
+            if Platform.isOSX():
+                System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                                 # noqa
 
             StockGlance2020_frame_.pack()
             StockGlance2020_frame_.setVisible(True)
@@ -2522,7 +2624,7 @@ if not lExit:
             # super(DefaultTableHeaderCellRenderer, self).__init__()
             self.setHorizontalAlignment(JLabel.CENTER)  # This one changes the text alignment
             self.setHorizontalTextPosition(
-                    JLabel.RIGHT)  # This positions the  text to the  left/right of  the sort icon
+                JLabel.RIGHT)  # This positions the  text to the  left/right of  the sort icon
             self.setVerticalAlignment(JLabel.BOTTOM)
             self.setOpaque(True)  # if this is false then it hides the background colour
 
@@ -2655,18 +2757,18 @@ if not lExit:
                             if not rawDataTable[_i][_EXCLUDECSV]:
                                 # Write the table, but swap in the raw numbers (rather than formatted number strings)
                                 writer.writerow([
-                                        fixFormatsStr(rawDataTable[_i][0], False),
-                                        fixFormatsStr(rawDataTable[_i][1], False),
-                                        fixFormatsStr(rawDataTable[_i][_SHRS_RAW], True),
-                                        fixFormatsStr(rawDataTable[_i][_PRICE_RAW], True),
-                                        fixFormatsStr(rawDataTable[_i][4], False),
-                                        fixFormatsStr(rawDataTable[_i][_CVALUE_RAW], True),
-                                        fixFormatsStr(rawDataTable[_i][_BVALUE_RAW], True),
-                                        fixFormatsStr(rawDataTable[_i][_CBVALUE_RAW], True),
-                                        fixFormatsStr(rawDataTable[_i][_GAIN_RAW], True),
-                                        fixFormatsStr(rawDataTable[_i][_GAINPCT], True, "%"),
-                                        fixFormatsStr(rawDataTable[_i][10], False),
-                                        ""])
+                                    fixFormatsStr(rawDataTable[_i][0], False),
+                                    fixFormatsStr(rawDataTable[_i][1], False),
+                                    fixFormatsStr(rawDataTable[_i][_SHRS_RAW], True),
+                                    fixFormatsStr(rawDataTable[_i][_PRICE_RAW], True),
+                                    fixFormatsStr(rawDataTable[_i][4], False),
+                                    fixFormatsStr(rawDataTable[_i][_CVALUE_RAW], True),
+                                    fixFormatsStr(rawDataTable[_i][_BVALUE_RAW], True),
+                                    fixFormatsStr(rawDataTable[_i][_CBVALUE_RAW], True),
+                                    fixFormatsStr(rawDataTable[_i][_GAIN_RAW], True),
+                                    fixFormatsStr(rawDataTable[_i][_GAINPCT], True, "%"),
+                                    fixFormatsStr(rawDataTable[_i][10], False),
+                                    ""])
                             # ENDIF
                         # NEXT
                         today = Calendar.getInstance()
