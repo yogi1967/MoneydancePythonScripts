@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_reminders_csv.py (build: 1000)
+# extract_reminders_csv.py (build: 1001)
 
 ###############################################################################
 # MIT License
@@ -44,6 +44,7 @@
 # Build: 1000 - no functional changes; Added code fix for extension runtime to set moneydance variables (if not set)
 # Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code; renamed script dropping _to_
 # Build: 1000 - column widths now save; optional parameter whether to write BOM to export file; added datetime to console log
+# Build: 1001 - Added About menu (cosmetic only)
 
 # Displays Moneydance reminders and allows extract to a csv file (compatible with Excel)
 
@@ -106,7 +107,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1000"           																					# noqa
+version_build = "1001"           																					# noqa
 myScriptName = "extract_reminders_csv.py(Extension)"																# noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -817,6 +818,88 @@ def dump_StuWareSoftSystems_parameters_from_memory():
 get_StuWareSoftSystems_parameters_from_file()
 myPrint("DB", "DEBUG IS ON..")
 # END ALL CODE COPY HERE ###############################################################################################
+
+class CloseAboutAction(AbstractAction):
+	# noinspection PyMethodMayBeStatic
+	# noinspection PyUnusedLocal
+
+	def __init__(self, theFrame):
+		self.theFrame = theFrame
+
+	def actionPerformed(self, event):
+		global debug
+		myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
+
+		self.theFrame.dispose()
+
+def about_this_script():
+	global debug, scriptExit
+
+	myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+	# noinspection PyUnresolvedReferences
+	about_d = JDialog(extract_reminders_csv_frame_, "About", Dialog.ModalityType.MODELESS)
+
+	shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+	about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+	about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+
+	about_d.getRootPane().getActionMap().put("close-window", CloseAboutAction(about_d))
+
+	about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
+
+	if (not Platform.isMac()):
+		# moneydance_ui.getImages()
+		about_d.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+
+	aboutPanel=JPanel()
+	aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
+	aboutPanel.setPreferredSize(Dimension(1070, 400))
+
+	_label1 = JLabel(pad("Author: Stuart Beesley", 800))
+	_label1.setForeground(Color.BLUE)
+	aboutPanel.add(_label1)
+
+	_label2 = JLabel(pad("StuWareSoftSystems (2020)", 800))
+	_label2.setForeground(Color.BLUE)
+	aboutPanel.add(_label2)
+
+	displayString=scriptExit
+	displayJText = JTextArea(displayString)
+	displayJText.setFont( getMonoFont() )
+	displayJText.setEditable(False)
+	# displayJText.setCaretPosition(0)
+	displayJText.setLineWrap(False)
+	displayJText.setWrapStyleWord(False)
+	displayJText.setMargin(Insets(8, 8, 8, 8))
+	# displayJText.setBackground((mdGUI.getColors()).defaultBackground)
+	# displayJText.setForeground((mdGUI.getColors()).defaultTextForeground)
+
+	aboutPanel.add(displayJText)
+
+	about_d.add(aboutPanel)
+
+	about_d.pack()
+	about_d.setLocationRelativeTo(None)
+	about_d.setVisible(True)
+	return
+
+class DoTheMenu(AbstractAction):
+
+	def __init__(self, menu, callingClass=None):
+		self.menu = menu
+		self.callingClass = callingClass
+
+	def actionPerformed(self, event):																				# noqa
+		global extract_reminders_csv_frame_, debug
+
+		myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+		if event.getActionCommand() == "About":
+			about_this_script()
+
+		myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+		return
 
 
 def terminate_script():
@@ -1863,6 +1946,26 @@ if not lExit:
 			extract_reminders_csv_frame_.add(button_panel)
 
 			tableview_panel = JPanel()
+
+			if Platform.isOSX():
+				save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
+				System.setProperty("apple.laf.useScreenMenuBar", "false")
+
+			mb = JMenuBar()
+			menuH = JMenu("<html><B>ABOUT</b></html>")
+
+			menuItemA = JMenuItem("About")
+			menuItemA.setToolTipText("About...")
+			menuItemA.addActionListener(DoTheMenu(menuH))
+			menuItemA.setEnabled(True)
+			menuH.add(menuItemA)
+			mb.add(menuH)
+
+			extract_reminders_csv_frame_.setJMenuBar(mb)
+
+			if Platform.isOSX():
+				System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                                 # noqa
+
 		# button_panel.setBackground(Color.LIGHT_GRAY)
 
 		if ind == 1:    scrollpane.getViewport().remove(table)  # On repeat, just remove/refresh the table & rebuild the viewport

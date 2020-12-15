@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# StockGlance2020 build:1000 - October 2020 - Stuart Beesley
+# StockGlance2020 build:1001 - October 2020 - Stuart Beesley
 
 #   Original code StockGlance.java MoneyDance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -80,11 +80,11 @@
 # -- V5c - Code cleanup only - cosmetic only; Added parameter to allow User to select no rounding of price (useful if their settings on the security are set wrongly); switched to use MD's decimal setting
 # -- v5d - Small tweak to parameter field (cosmetic only); Added a File BOM marker to help Excel open UTF-8 files (and changed open() to 'w' instead of 'wb')
 # -- v5e - Cosmetic change to display; catch pickle.load() error (when restored dataset); Reverting to open() 'wb' - fix Excel CR/LF double line on Windows issue
-
 # -- Build: 1000 - Slight change to myParameters; changed __file__ usage; code cleanup for IntelliJ; version_build change; changed versioning; changed export filename; Eliminated wait for script close..
 # -- Build: 1000 - no functional changes; Added code fix for extension runtime to set moneydance variables (if not set);
 # -- Build: 1000 - all print functions changed to work headless; added some popup warnings...; stream-lined common code.....
 # -- Build: 1000 - Column widths now save....; optional parameter whether to write BOM to export file; added date/time to console log
+# -- Build: 1001 - Cosmetic change to console to state when not splitting accounts; Added About menu (cosmetic)
 
 # COMMON IMPORTS #######################################################################################################
 import sys
@@ -145,7 +145,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1000"                                                                                              # noqa
+version_build = "1001"                                                                                              # noqa
 myScriptName = "StockGlance2020.py(Extension)"                                                                      # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -902,6 +902,88 @@ myPrint("DB", "DEBUG IS ON..")
 # END ALL CODE COPY HERE ###############################################################################################
 
 
+class CloseAboutAction(AbstractAction):
+    # noinspection PyMethodMayBeStatic
+    # noinspection PyUnusedLocal
+
+    def __init__(self, theFrame):
+        self.theFrame = theFrame
+
+    def actionPerformed(self, event):
+        global debug
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
+
+        self.theFrame.dispose()
+
+def about_this_script():
+    global debug, scriptExit
+
+    myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+    # noinspection PyUnresolvedReferences
+    about_d = JDialog(StockGlance2020_frame_, "About", Dialog.ModalityType.MODELESS)
+
+    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+
+    about_d.getRootPane().getActionMap().put("close-window", CloseAboutAction(about_d))
+
+    about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
+
+    if (not Platform.isMac()):
+        # moneydance_ui.getImages()
+        about_d.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+
+    aboutPanel=JPanel()
+    aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
+    aboutPanel.setPreferredSize(Dimension(1070, 400))
+
+    _label1 = JLabel(pad("Author: Stuart Beesley", 800))
+    _label1.setForeground(Color.BLUE)
+    aboutPanel.add(_label1)
+
+    _label2 = JLabel(pad("StuWareSoftSystems (2020)", 800))
+    _label2.setForeground(Color.BLUE)
+    aboutPanel.add(_label2)
+
+    displayString=scriptExit
+    displayJText = JTextArea(displayString)
+    displayJText.setFont( getMonoFont() )
+    displayJText.setEditable(False)
+    # displayJText.setCaretPosition(0)
+    displayJText.setLineWrap(False)
+    displayJText.setWrapStyleWord(False)
+    displayJText.setMargin(Insets(8, 8, 8, 8))
+    # displayJText.setBackground((mdGUI.getColors()).defaultBackground)
+    # displayJText.setForeground((mdGUI.getColors()).defaultTextForeground)
+
+    aboutPanel.add(displayJText)
+
+    about_d.add(aboutPanel)
+
+    about_d.pack()
+    about_d.setLocationRelativeTo(None)
+    about_d.setVisible(True)
+    return
+
+class DoTheMenu(AbstractAction):
+
+    def __init__(self, menu, callingClass=None):
+        self.menu = menu
+        self.callingClass = callingClass
+
+    def actionPerformed(self, event):																				# noqa
+        global StockGlance2020_frame_, debug
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+        if event.getActionCommand() == "About":
+            about_this_script()
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
 def terminate_script():
     global debug, StockGlance2020_frame_, i_am_an_extension_so_run_headless, scriptExit, csvfilename, lDisplayOnly, lGlobalErrorDetected
 
@@ -1200,7 +1282,8 @@ if not lExit:
 
     if lSplitSecuritiesByAccount:
         myPrint("B", "Splitting Securities by account - WARNING, this will disable sorting....")
-
+    else:
+        myPrint("B", "No Splitting Securities by account will be performed....")
 
     # Now get the export filename
     csvfilename = None
@@ -2491,6 +2574,25 @@ if not lExit:
             # Seems to be working well without setting the frame sizes + pack()
             # StockGlance2020_frame_.setPreferredSize(Dimension(width, max(150,calcScrollPaneHeightRequired+fcalcScrollPaneHeightRequired+(finsets.top*2)+(finsets.bottom*2))))
             # StockGlance2020_frame_.setSize(width,calcScrollPaneHeightRequired+fcalcScrollPaneHeightRequired)   # for some reason this seems irrelevant?
+
+            if Platform.isOSX():
+                save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
+                System.setProperty("apple.laf.useScreenMenuBar", "false")
+
+            mb = JMenuBar()
+            menuH = JMenu("<html><B>ABOUT</b></html>")
+
+            menuItemA = JMenuItem("About")
+            menuItemA.setToolTipText("About...")
+            menuItemA.addActionListener(DoTheMenu(menuH))
+            menuItemA.setEnabled(True)
+            menuH.add(menuItemA)
+            mb.add(menuH)
+
+            StockGlance2020_frame_.setJMenuBar(mb)
+
+            if Platform.isOSX():
+                System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                                 # noqa
 
             StockGlance2020_frame_.pack()
             StockGlance2020_frame_.setVisible(True)
