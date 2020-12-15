@@ -3328,13 +3328,13 @@ def about_this_script():
     aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
     aboutPanel.setPreferredSize(Dimension(1070, 400))
 
-    label1 = JLabel(pad("Author: Stuart Beesley",800))
-    label1.setForeground(Color.BLUE)
-    aboutPanel.add(label1)
+    _label1 = JLabel(pad("Author: Stuart Beesley", 800))
+    _label1.setForeground(Color.BLUE)
+    aboutPanel.add(_label1)
 
-    label2 = JLabel(pad("StuWareSoftSystems (2020)",800))
-    label2.setForeground(Color.BLUE)
-    aboutPanel.add(label2)
+    _label2 = JLabel(pad("StuWareSoftSystems (2020)", 800))
+    _label2.setForeground(Color.BLUE)
+    aboutPanel.add(_label2)
 
     displayString=scriptExit
     displayJText = JTextArea(displayString)

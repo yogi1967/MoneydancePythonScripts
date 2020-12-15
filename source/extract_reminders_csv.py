@@ -884,6 +884,7 @@ def about_this_script():
 	about_d.setVisible(True)
 	return
 
+
 class DoTheMenu(AbstractAction):
 
 	def __init__(self, menu, callingClass=None):
