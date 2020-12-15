@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# Toolbox.py build: 999a PREVIEW - November-December 2020 - Stuart Beesley StuWareSoftSystems
+# Toolbox.py build: 1000 - November-December 2020 - Stuart Beesley StuWareSoftSystems
 # NOTE: I am just a fellow Moneydance User >> I HAVE NO AFFILIATION WITH MONEYDANCE
 # NOTE: I have run all these fixes / updates on my own live personal dataset
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
@@ -54,6 +54,7 @@
 # Build: 999 PREVIEW RELEASE
 # Build: 999a Added some instructions on how to properly edit Moneydance.vmoptions file; added to help file(s)
 # Build: 999a Now finds the application directory for MacOS too....
+# Build: 1000 INITIAL PUBLIC RELEASE
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
@@ -119,7 +120,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "999a PREVIEW"                                                                                      # noqa
+version_build = "1000"                                                                                      # noqa
 myScriptName = "Toolbox.py(Extension)"                                                                              # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
