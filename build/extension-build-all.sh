@@ -50,3 +50,9 @@ if [ $? -ne 0 ]; then
     read -p "Press any key to resume next build..."
 fi
 
+
+./build/extension-build.sh extract_account_registers_csv $1
+if [ $? -ne 0 ]; then
+    echo *** BUILD Failed??
+    read -p "Press any key to resume next build..."
+fi
