@@ -1,6 +1,6 @@
-# Money Dance Python Scripts
+# Moneydance Python Scripts
 
-Visit: https://yogi1967.github.io/MoneyDancePythonScripts/ for downloads...
+Visit: https://yogi1967.github.io/MoneydancePythonScripts/ for downloads...
 
 My collection of Python(Jython 2.7) scripts and extensions for Moneydance (MoneyBot console)
 
@@ -10,13 +10,13 @@ The <module_name>.zip files in this directory contain both the Extension version
 Unzip this file, and then install the Extension, or run the Script, as required - see below:
 
 To use extension (*.mxt):
-- Run MoneyDance
+- Run Moneydance
 - Menu>Extensions>Manage Extensions>add from file>Select the mxt>Open/Install.
 - Then exit and restart Moneydance 
 - To run, Menu>Extensions> and choose the Extension to run
 
 To use script (*.py):
-- Run MoneyDance
+- Run Moneydance
 - Window>Show Moneybot Console
 - Open Script>Choose the script
 - RUN
