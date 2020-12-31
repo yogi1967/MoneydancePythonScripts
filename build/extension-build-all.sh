@@ -20,7 +20,7 @@ if  [ "$1" != "test" ] && [ "$1" != "final" ] ; then
   exit 1
 fi
 
-./build/extension-build.sh Toolbox $1
+./build/extension-build.sh toolbox $1
 if [ $? -ne 0 ]; then
     echo *** BUILD Failed??
     read -p "Press any key to resume next build..."

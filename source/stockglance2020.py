@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# StockGlance2020 build:1007 - October 2020 - Stuart Beesley
+# stockglance2020.py build:1007 - October 2020 - Stuart Beesley
 
 #   Original code StockGlance.java Moneydance Extension Copyright James Larus - https://github.com/jameslarus/stockglance
 #
@@ -93,7 +93,7 @@
 # Build: 1005 - Moved parameter save earlier...; added parameters to writer csv output
 # Build: 1006 - Removed TxnSortOrder from common code
 # Build: 1006 - Fix for Jython 2.7.1 where csv.writer expects a 1-byte string delimiter, not unicode....
-# Build: 1007 - Renamed moedule to stockglance2020 (lowercase) ready for signing..... (Sean request)
+# Build: 1007 - Renamed module to stockglance2020 (lowercase) ready for signing..... (Sean request)
 
 # COMMON IMPORTS #######################################################################################################
 import sys
@@ -243,7 +243,7 @@ extract_currency_history_csv            Extract currency history to csv
 extract_investment_transactions_csv     Extract investment transactions to csv
 extract_account_registers_csv           Extract Account Register(s) to csv along with any attachments
 
-Visit: https://yogi1967.github.io/MoneyDancePythonScripts/ (Author's site)
+Visit: https://yogi1967.github.io/MoneydancePythonScripts/ (Author's site)
 ----------------------------------------------------------------------------------------------------------------------
 """ %myScriptName
 
