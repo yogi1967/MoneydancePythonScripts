@@ -27,8 +27,8 @@ To run Scripts:
 4) That's it.... Repeat these steps each time.
 
 Other Extensions/Scripts available:
-Toolbox: View Moneydance settings, diagnostics, fix issues, change settings and much more...
-StockGlance2020: View summary of Securities/Stocks on screen, total by Security, export to csv
+toolbox: View Moneydance settings, diagnostics, fix issues, change settings and much more...
+stockglance2020: View summary of Securities/Stocks on screen, total by Security, export to csv
 extract_reminders_csv: View reminders on screen, edit if required, extract all to csv
 extract_currency_history_csv: Extract currency history to csv
 extract_account_registers_csv: Extract Account Register(s) to csv along with any attachments

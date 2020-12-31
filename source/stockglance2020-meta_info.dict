@@ -1,8 +1,8 @@
 {
-  "id" = "StockGlance2020"
+  "id" = "stockglance2020"
   "extension_type" = "python"
   "vendor" = "Stuart Beesley - StuWareSoftSystems"
-  "module_build" = "1006"
+  "module_build" = "1007"
   "minbuild" = "2012"
   "vendor_url" = "https://yogi1967.github.io/MoneyDancePythonScripts/"
   "vendor.url" = "https://yogi1967.github.io/MoneyDancePythonScripts/"

@@ -2,7 +2,7 @@
   "actions" = (
     {
       "type" = "menu"
-      "script_file" = "StockGlance2020.py"
+      "script_file" = "stockglance2020.py"
       "name" = "StockGlance2020"
     }
   

@@ -3232,7 +3232,7 @@ def check_for_old_StuWareSoftSystems_scripts(statusLabel):
     if lPickle_version_warning or lVersionWarning:
         displayData+="""
 \nCURRENT SCRIPT VERSIONS ARE:
-StockGlance2020.py:                     1000
+stockglance2020.py:                     1000
 extract_currency_history_csv.py:        1000
 extract_reminders_csv.py:               1000
 extract_investment_transactions_csv.py: 1000
