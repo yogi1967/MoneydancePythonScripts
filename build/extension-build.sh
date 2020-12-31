@@ -112,8 +112,8 @@ cp "./source/$FILE-meta_info.dict" com/moneydance/modules/features/"$FILE"/meta_
 
 zip -j -z ./source/"$FILE".mxt "./source/$FILE".py <<< "StuWareSoftSystems: $FILE Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
 
-if test -f "./source/$FILE"-README.txt; then
-  zip -j ./source/"$FILE".mxt ./source/"$FILE"-README.txt
+if test -f "./source/$FILE"-readme.txt; then
+  zip -j ./source/"$FILE".mxt ./source/"$FILE"-readme.txt
 else
   echo "No help file to ZIP - skipping....."
 fi
