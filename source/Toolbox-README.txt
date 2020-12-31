@@ -1,7 +1,7 @@
 Author: Stuart Beesley - StuWareSoftSystems (written November/December 2020 - a lockdown project)
 Credit: Derek Kent(23) for his extensive texting
 
-Get more Scripts/Extensions from: https://yogi1967.github.io/MoneyDancePythonScripts/
+Get more Scripts/Extensions from: https://yogi1967.github.io/MoneydancePythonScripts/
 
 NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE!
 

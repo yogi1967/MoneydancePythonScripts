@@ -1,5 +1,5 @@
 Author: Stuart Beesley - StuWareSoftSystems 2020
-Visit: https://yogi1967.github.io/MoneyDancePythonScripts/ for more downloads and information
+Visit: https://yogi1967.github.io/MoneydancePythonScripts/ for more downloads and information
 
 THESE ARE EXTENSIONS / SCRIPTS FOR MONEYDANCE WRITTEN IN PYTHON (JYTHON 2.7)
 The scripts and extensions are identical. The extensions are simply a packaged script version.
