@@ -23,6 +23,7 @@ To enable the User to self-diagnose problems, or access key diagnostics to enabl
 - Advanced Mode - Allows user to run fixes - THIS CHANGES DATA
 - Geek Mode - Allows user to view technical information/settings in various places (this is readonly)
 - Hacker Mode - Allows the user to manually add/change/delete config.dict and LocalStorage() keys/values - ONLY USE IF YOU KNOW WHAT YOU ARE DOING
+                Also allows you to toggle Moneydance internal settings like DEBUG
 
 - The Toolbox offers the option to Backup first  - ALWAYS BACKUP (But this is your choice!)
 - The Toolbox will *ALWAYS* make a copy of config.dict, custom theme file, LocalStorage() ./safe/settings before any changes
@@ -78,6 +79,7 @@ ALT-B - Basic Mode
     - DIAGnostics - Diagnose relative currencies. If errors, then go to FIX below
     - DIAGnostics - View Categories with zero balance. You can also inactivate these below.
     - VIEW - OFX Related Data
+    - Find my Sync Encryption password(s) in iOS Backup(s)
 
 ALT-M - Advanced Mode
     - FIX - Make me a Primary Dataset (convert from secondary dataset to enable Sync))
@@ -118,6 +120,9 @@ ALT-G - GEEK OUT MODE
 Menu - HACKER MODE
     >> VERY TECHNICAL - DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING
     >> Allows User to Add/Change/Delete a key/value in config.dict or LocalStorage() (./safe/settings)
+    >> Toggle internal Moneydance DEBUG ON/OFF (use with care)
+    >> Toggle internal Moneydance OFX DEBUG CONSOLE WINDOW ON/OFF (use with care)
+    >> Change the internal Next Check Number look-back threshold (in days) from the default of 180 (temporary change only)
 
 CMD-P - View parameters file (StuWareSoftSystems). Also allows user to Delete all, and/or change/delete single saved parameters
 
