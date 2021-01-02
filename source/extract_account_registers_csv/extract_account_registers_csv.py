@@ -2607,9 +2607,9 @@ if not lExit:
                     try:
                         if theCommand:
                             os.chdir(scriptpath)
-                            x=subprocess.check_output( theCommand, shell=lShell)
+                            xx=subprocess.check_output( theCommand, shell=lShell)
                             myPrint("B","Created zip using command: %s (output follows)" %theCommand)
-                            myPrint("B",x)
+                            myPrint("B",xx)
                             xtra_msg="\n(and I also zipped the file - review console / log for any messages)"
                     except:
                         myPrint("B","Sorry, failed to create zip")
