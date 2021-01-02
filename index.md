@@ -13,7 +13,7 @@ Python is actual Jython 2.7 and accesses the Moneydance Java codebase.
 
 My scripts and extensions are identical. The extension version(s) are simply a 'packaged' script version.
 
-InfiniteKind (the creators of Moneydance) have now signed all my Extensions. NOTE: The signed versions may be a few builds behind my latest versions. If you require a signed version, download from here: https://infinitekind.com/app/md/extensions/ . If you want the latest version (and happy to accept 'signing warnings') then download from the links below:
+InfiniteKind (the creators of Moneydance) have now signed all my Extensions. NOTE: The signed versions may be a few builds behind my latest versions. If you require a signed version, download from here: <a href="https://infinitekind.com/app/md/extensions/">. If you want the latest version (and happy to accept 'signing warnings') then download from the links below:
 
 Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
 - Extensions have a file extension of *.mxt
@@ -51,6 +51,6 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 - <a href="https://infinitekind.com/app/md/extensions/extract_investment_transactions_csv.mxt">extract_investment_transactions_csv (signed)
 
 
-Author's code site: <a href="https://yogi1967.github.io/MoneydancePythonScripts/">https://yogi1967.github.io/MoneydancePythonScripts/
+Author's code site: <a href="https://github.com/yogi1967/MoneydancePythonScripts">https://github.com/yogi1967/MoneydancePythonScripts
 
 Moneydance's site for code: <a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/">https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/
