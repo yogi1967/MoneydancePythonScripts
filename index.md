@@ -11,11 +11,9 @@ This allows you to perform all sorts of 'wonderful' things based on your own fin
 
 Python is actual Jython 2.7 and accesses the Moneydance Java codebase.
 
-My scripts and extensions are identical. The extension version(s) are simply a 'packaged' script version.
-
+My scripts and extensions are identical. The extension version(s) are simply a 'packaged' script version. 
 InfiniteKind (the creators of Moneydance) have now signed all my Extensions. NOTE: The signed versions may be a few builds behind my latest versions.
-- <a href="https://infinitekind.com/app/md/extensions/">InfiniteKind Extensions: If you require a signed version, download from this link
-- If you want the very latest version (and happy to accept 'signing warnings') then readon and download from the links below:
+If you require a signed version, then download links are at the bottom of this page...
 
 Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
 - Extensions have a file extension of *.mxt
