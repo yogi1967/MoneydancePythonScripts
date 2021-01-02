@@ -2,7 +2,7 @@
 
 _Author: Stuart Beesley - StuWareSoftSystems_
 
-_NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE! (but I do use all my scripts on my own live dataset...)
+_NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE! (but I do use all my scripts on my own live dataset...)_
 
 **DISCLAIMER**: ALWAYS BACKUP YOUR DATA BEFORE MAKING ANY CHANGES - The author cannot accept any responsibility from the use of these scripts
 
