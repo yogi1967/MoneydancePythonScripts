@@ -51,6 +51,5 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 - <a href="https://infinitekind.com/app/md/extensions/extract_investment_transactions_csv.mxt">extract_investment_transactions_csv (signed)
 
 ### Source Code sites
-Author's code site: <a href="https://github.com/yogi1967/MoneydancePythonScripts">https://github.com/yogi1967/MoneydancePythonScripts
-
-Moneydance's site for code: <a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/">https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/
+<a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
+<a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/">**Moneydance's site for code**: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/
