@@ -15,6 +15,10 @@ My scripts and extensions are identical. The extension version(s) are simply a '
 InfiniteKind (the creators of Moneydance) have now signed all my Extensions. NOTE: The signed versions may be a few builds behind my latest versions.
 If you require a signed version, then download links are at the bottom of this page...
 
+The Extensions will only run on Moneydance version 2021 build 2012 onwards... The scripts don't have this requirement.
+NOTE: You may need to download the MD preview version from: https://infinitekind.com/preview
+(If you have installed the extension, but nothing happens, then check your MD version)
+  
 Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
 - Extensions have a file extension of *.mxt
 - Scripts have a file extension of *.py
