@@ -105,6 +105,9 @@ extract_currency_history_csv            Extract currency history to csv
 extract_investment_transactions_csv     Extract investment transactions to csv
 extract_account_registers_csv           Extract Account Register(s) to csv along with any attachments
 
+A collection of useful ad-hoc scripts (zip file):
+useful_scripts                          Just unzip and select the script you want for the task at hand...
+
 Visit: https://yogi1967.github.io/MoneydancePythonScripts/ (Author's site)
 ----------------------------------------------------------------------------------------------------------------------
 """ %myScriptName
@@ -1150,26 +1153,30 @@ def find_other_datasets():
     del internalDir, dirList
 
     parentofDataset = moneydance_data.getRootFolder().getParent()
-    dirList =  os.listdir(parentofDataset)
-    for fileName in dirList:
-        fullPath = os.path.join(parentofDataset,fileName)
-        if fileName.endswith(md_extn):
-            saveFiles[fullPath] = True
-        elif fileName.endswith(md_archive):
-            saveArchiveFiles[fullPath] = True
-    del parentofDataset, dirList
+    if os.path.exists(parentofDataset):
+        dirList =  os.listdir(parentofDataset)
+        for fileName in dirList:
+            fullPath = os.path.join(parentofDataset,fileName)
+            if fileName.endswith(md_extn):
+                saveFiles[fullPath] = True
+            elif fileName.endswith(md_archive):
+                saveArchiveFiles[fullPath] = True
+        del dirList
+    del parentofDataset
 
     externalFiles = AccountBookUtil.getExternalAccountBooks()
     for wrapper in externalFiles:
         saveFiles[wrapper.getBook().getRootFolder().getCanonicalPath()] = True
         externalDir = wrapper.getBook().getRootFolder().getParent()
-        dirList =  os.listdir(externalDir)
-        for fileName in dirList:
-            fullPath = os.path.join(externalDir,fileName)
-            if fileName.endswith(md_extn):
-                saveFiles[fullPath] = True
-            elif fileName.endswith(md_archive):
-                saveArchiveFiles[fullPath] = True
+        if os.path.exists(externalDir):
+            dirList =  os.listdir(externalDir)
+            for fileName in dirList:
+                fullPath = os.path.join(externalDir,fileName)
+                if fileName.endswith(md_extn):
+                    saveFiles[fullPath] = True
+                elif fileName.endswith(md_archive):
+                    saveArchiveFiles[fullPath] = True
+            del dirList
     del externalFiles
 
     backupLocation = moneydance_ui.getPreferences().getSetting("backup.location",FileUtils.getDefaultBackupDir().getAbsolutePath())
@@ -1246,7 +1253,7 @@ def find_other_datasets():
         pass
 
     dropboxPath = tell_me_if_dropbox_folder_exists()
-    if dropboxPath is not None and dropboxPath != saveSyncFolder:
+    if dropboxPath and dropboxPath is not None and dropboxPath != saveSyncFolder:
 
         output+=("\nDROPBOX FOLDERS FOUND:\n"
                  "-----------------------\n")

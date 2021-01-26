@@ -5,6 +5,7 @@ Visit: https://yogi1967.github.io/MoneydancePythonScripts/ for downloads...
 My collection of Python(Jython 2.7) scripts and extensions for Moneydance (MoneyBot console)
 
 NOTE: My script (*.py) and extension (*.mxt) programs are exactly the same. Just the method to run changes.....
+If you downloaded a zip file (extension *.zip) then unzip first in a directory of your choice to get at the file(s)
 
 Extensions will only run on Moneydance version 2021 build 2012 onwards... The scripts don't have this requirement
 NOTE: You may need to download the MD preview version from: https://infinitekind.com/preview
@@ -28,4 +29,4 @@ To use script (*.py):
 Good luck - contact me with any issues.....
 
 _Stuart Beesley_
-**StuWareSoftSystems** 2020
+**StuWareSoftSystems** 2020-2021

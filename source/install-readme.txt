@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems 2020
+Author: Stuart Beesley - StuWareSoftSystems 2020-2021
 Visit: https://yogi1967.github.io/MoneydancePythonScripts/ for more downloads and information
 
 THESE ARE EXTENSIONS / SCRIPTS FOR MONEYDANCE WRITTEN IN PYTHON (JYTHON 2.7)
