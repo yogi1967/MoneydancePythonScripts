@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# calculate_Moneydance_objs_and_datasetsize.py build: 1 - Jan 2021 - Stuart Beesley StuWareSoftSystems
+# calculate_moneydance_objs_and_datasetsize.py build: 1 - Jan 2021 - Stuart Beesley StuWareSoftSystems
 
 # COMMON IMPORTS #######################################################################################################
 import sys
@@ -65,7 +65,7 @@ global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlob
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
 version_build = "1"                                                                                                 # noqa
-myScriptName = "calculate_Moneydance_objs_and_datasetsize.py.py(Extension)"                                         # noqa
+myScriptName = "calculate_moneydance_objs_and_datasetsize.py.py(Extension)"                                         # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
 _resetParameters = False                                                                                            # noqa
