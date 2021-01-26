@@ -54,6 +54,10 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 - <a href="https://infinitekind.com/app/md/extensions/extract_account_registers_csv.mxt">extract_account_registers_csv (signed)
 - <a href="https://infinitekind.com/app/md/extensions/extract_investment_transactions_csv.mxt">extract_investment_transactions_csv (signed)
 
+### Other useful ad-hoc scripts (*.py format only)
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/useful_scripts.zip">**Useful Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
+  - calculate_moneydance_objs_and_datasetsize.py: Analyse your Moneydance dataset, report on objects, internal file size(s), and list other known datasets...
+  
 ### Source Code sites
 <a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
 <BR><BR>
