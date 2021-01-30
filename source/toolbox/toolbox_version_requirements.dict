@@ -1,5 +1,6 @@
 {
     "last_updated" = "20210129"
+    "disable_all" = "n"
     "versions" = (
                     {
                     "version" = "1020"
