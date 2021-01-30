@@ -1,9 +1,9 @@
 {
     "last_updated" = "20210129"
     "disable_all" = "n"
-    "versions" = (
+    "builds" = (
                     {
-                    "version" = "1020"
+                    "build" = "1020"
                     "OFX_SETUP_MATCH_MD_BUILD" = "3034"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
@@ -17,7 +17,7 @@
                     }
   
                     {
-                    "version" = "1019"
+                    "build" = "1019"
                     "OFX_SETUP_MATCH_MD_BUILD" = "3034"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
