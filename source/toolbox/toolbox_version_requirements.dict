@@ -19,7 +19,7 @@
                     {
                     "build" = "1022"
                     "OFX_SETUP_MATCH_MD_BUILD" = "3035"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2021.2"
+                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.2"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3035"
                     "MD_OFX_BANK_SETTINGS_DIR" = "xhttps://infinitekind.com/app/md/fis/"
@@ -39,7 +39,7 @@
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
                     "MD_EXTENSIONS_DIRECTORY_FILE" = "https://infinitekind.com/app/md/extensions.dct"
                     "TOOLBOX_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
-                    "disable" = "x"
+                    "disable" = "n"
                     }
 
     )
