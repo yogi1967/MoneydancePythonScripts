@@ -31,7 +31,7 @@
                     }
 
                     {
-                    "build" = "1019"
+                    "build" = "1017"
                     "OFX_SETUP_MATCH_MD_BUILD" = "3034"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
