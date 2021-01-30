@@ -13,7 +13,7 @@
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
                     "MD_EXTENSIONS_DIRECTORY_FILE" = "https://infinitekind.com/app/md/extensions.dct"
                     "TOOLBOX_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
-                    "DISABLE" = "n"
+                    "disable" = "n"
                     }
   
                     {
@@ -27,7 +27,7 @@
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
                     "MD_EXTENSIONS_DIRECTORY_FILE" = "https://infinitekind.com/app/md/extensions.dct"
                     "TOOLBOX_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
-                    "DISABLE" = "y"
+                    "disable" = "y"
                     }
 
     )
