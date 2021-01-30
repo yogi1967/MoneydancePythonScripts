@@ -55,6 +55,13 @@ else
       echo "ERROR - $FILE/meta_info.dict does not exist!"
       exit 1
   fi
+
+  if  [ "$1" = "toolbox" ] ; then
+    if ! test -f ./source/"$FILE"/toolbox_version_requirements.dict; then
+        echo "ERROR - $FILE/toolbox_version_requirements.dict does not exist!"
+        exit 1
+    fi
+  fi
 fi
 
 if ! test -f "./moneydance-devkit-5.1 2/src/priv_key"; then

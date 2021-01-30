@@ -43,3 +43,8 @@ if [ $? -ne 0 ]; then
     read -p "Press any key to resume next build..."
 fi
 
+./build/extension-push.sh useful_scripts
+if [ $? -ne 0 ]; then
+    echo "*** PUSH of useful_scripts Failed??"
+    read -p "Press any key to resume next build..."
+fi
