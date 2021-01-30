@@ -57,6 +57,8 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 ### Other useful ad-hoc scripts (*.py format only)
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/useful_scripts.zip">**Useful Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
   - calculate_moneydance_objs_and_datasetsize.py: Analyse your Moneydance dataset, report on objects, internal file size(s), and list other known datasets...
+  - extract_all_attachments.py: extract all your attachments out of Moneydance to a folder of your choice
+  - orphan_attachments.py: scans your attachments and detects if any are orphaned (and other related errors)
   
 ### Source Code sites
 <a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
