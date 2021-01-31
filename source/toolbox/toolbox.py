@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox.py build: 1020 - November 2020 thru January 2021 - Stuart Beesley StuWareSoftSystems (~500 programming hours)
+# toolbox.py build: 1021 - November 2020 thru January 2021 - Stuart Beesley StuWareSoftSystems (~500 programming hours)
 # NOTE: I am just a fellow Moneydance User >> I HAVE NO AFFILIATION WITH MONEYDANCE
 # NOTE: I have run all these fixes / updates on my own live personal dataset
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
@@ -122,7 +122,12 @@
 # Build: 1020 - save parameters everytime the menu option changes (in case program is killed or MD exits)
 # Build: 1020 - script now checks for version information online and updates it's own defaults....
 # Build: 1020 - Added button / script fix_non-hierarchical_security_account_txns.py
+# Build: 1020 - script now dials home to check for updated version information etc.... (any error/not found, it just ignores and carries on)
 # Build: 1020 - RELEASE 2.0: New Diag and Fix buttons (incl. Thin Price History and more); New OFX Bank Management Menu; many updates to Hacker mode
+# Build: 1021 - Tweak to delete int/ext files workflow; changed open file to JFileChooser() when I don't want remembered directories (Java 'feature')
+# Build: 1021 - Tweak to find my dataset, don't report .moneydance folder as a dataset in the counts.. fixed display of archives found count..
+# Build: 1021 - Applied same cosmetic tweaks to Find iOS Dataset too....
+# Build: 1021 - Added please wait message when extracting attachments....
 
 # todo - Known  issue  on Linux: Any drag to  resize main window, causes width to maximise. No issue on Mac or Windows..
 
@@ -192,7 +197,7 @@ global MYPYTHON_DOWNLOAD_URL
 # END COMMON GLOBALS ###################################################################################################
 
 # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-version_build = "1020"                                                                                              # noqa
+version_build = "1021"                                                                                              # noqa
 myScriptName = "toolbox.py(Extension)"                                                                              # noqa
 debug = False                                                                                                       # noqa
 myParameters = {}                                                                                                   # noqa
@@ -6728,29 +6733,32 @@ def hackerRemoveInternalFilesSettings(statusLabel):
         filesToRemove.append(internal_filepath)
 
     if len(filesToRemove)<1:
-        statusLabel.setText(("HACK: DELETE internal / Default Dataset(s) from DISK - You have no files DELETE - no changes made...." ).ljust(800, " "))
+        statusLabel.setText(("HACK: DELETE internal / Default Dataset(s) from DISK - You have no files to DELETE - no changes made...." ).ljust(800, " "))
         statusLabel.setForeground(Color.RED)
-        myPopupInformationBox(Toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(Toolbox_frame_,"You have no 'Internal' / default files to DELETE - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
         return
 
     iFilesOnDiskRemoved = 0
 
     while True:
-        saveOK = UIManager.get("OptionPane.okButtonText")
-        saveCancel = UIManager.get("OptionPane.cancelButtonText")
-        UIManager.put("OptionPane.okButtonText", "DELETE DATASET FROM DISK")
-        UIManager.put("OptionPane.cancelButtonText", "EXIT")
 
-        selectedFile = JOptionPane.showInputDialog(Toolbox_frame_,
-                                                   "Select the default/internal location Dataset to DELETE from disk",
-                                                   "HACKER - DELETE FROM DISK",
-                                                   JOptionPane.ERROR_MESSAGE,
-                                                   None,
-                                                   filesToRemove,
-                                                   None)
+        selectedFile = None
+        if len(filesToRemove) > 0:
+            saveOK = UIManager.get("OptionPane.okButtonText")
+            saveCancel = UIManager.get("OptionPane.cancelButtonText")
+            UIManager.put("OptionPane.okButtonText", "DELETE DATASET FROM DISK")
+            UIManager.put("OptionPane.cancelButtonText", "EXIT")
 
-        UIManager.put("OptionPane.okButtonText", saveOK)
-        UIManager.put("OptionPane.cancelButtonText", saveCancel)
+            selectedFile = JOptionPane.showInputDialog(Toolbox_frame_,
+                                                       "Select the default/internal location Dataset to DELETE from disk",
+                                                       "HACKER - DELETE FROM DISK",
+                                                       JOptionPane.ERROR_MESSAGE,
+                                                       None,
+                                                       filesToRemove,
+                                                       None)
+
+            UIManager.put("OptionPane.okButtonText", saveOK)
+            UIManager.put("OptionPane.cancelButtonText", saveCancel)
 
         if not selectedFile:
             if iFilesOnDiskRemoved<1:
@@ -6829,7 +6837,7 @@ def hackerRemoveExternalFilesSettings(statusLabel):
     if externalFilesVector is None or len(filesToRemove)<1:
         statusLabel.setText(("HACK: Remove files from 'External' (non-default) filelist in File/Open - You have no %s files in config.dict to edit - no changes made...." %(theKey)).ljust(800, " "))
         statusLabel.setForeground(Color.RED)
-        myPopupInformationBox(Toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(Toolbox_frame_,"You have no 'External' file references in config.dict to remove - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
         return
 
     iReferencesRemoved = 0
@@ -6837,21 +6845,23 @@ def hackerRemoveExternalFilesSettings(statusLabel):
 
     while True:
 
-        saveOK = UIManager.get("OptionPane.okButtonText")
-        saveCancel = UIManager.get("OptionPane.cancelButtonText")
-        UIManager.put("OptionPane.okButtonText", "REMOVE FILE REFERENCE FROM File/Open")
-        UIManager.put("OptionPane.cancelButtonText", "EXIT")
+        selectedFile = None
+        if len(filesToRemove) > 0:
+            saveOK = UIManager.get("OptionPane.okButtonText")
+            saveCancel = UIManager.get("OptionPane.cancelButtonText")
+            UIManager.put("OptionPane.okButtonText", "REMOVE FILE REFERENCE FROM File/Open")
+            UIManager.put("OptionPane.cancelButtonText", "EXIT")
 
-        selectedFile = JOptionPane.showInputDialog(Toolbox_frame_,
-                                                   "Select the 'External' (non-default) file reference to remove",
-                                                   "HACKER",
-                                                   JOptionPane.WARNING_MESSAGE,
-                                                   None,
-                                                   filesToRemove,
-                                                   None)
+            selectedFile = JOptionPane.showInputDialog(Toolbox_frame_,
+                                                       "Select the 'External' (non-default) file reference to remove",
+                                                       "HACKER",
+                                                       JOptionPane.WARNING_MESSAGE,
+                                                       None,
+                                                       filesToRemove,
+                                                       None)
 
-        UIManager.put("OptionPane.okButtonText", saveOK)
-        UIManager.put("OptionPane.cancelButtonText", saveCancel)
+            UIManager.put("OptionPane.okButtonText", saveOK)
+            UIManager.put("OptionPane.cancelButtonText", saveCancel)
 
         if not selectedFile:
             if (iReferencesRemoved+iFilesOnDiskRemoved)<1:
@@ -8006,31 +8016,37 @@ class DiagnosticDisplay():
             LS = moneydance.getCurrentAccountBook().getLocalStorage()
             attachmentFullPath = os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe")
 
-            if lIamAMac:
+            if Platform.isOSX():
                 System.setProperty("com.apple.macos.use-file-dialog-packages", "false")  # Allow access to packages as directories
                 System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
-            fileDialog = FileDialog(Toolbox_frame_, "Select file to extract and copy to TMP directory")
-            fileDialog.setMultipleMode(False)
-            fileDialog.setMode(FileDialog.LOAD)
-            fileDialog.setDirectory(attachmentFullPath)
-            fileDialog.setVisible(True)
+            # Dumped FileDialog as it remembers the last directory - useless for this - we want this directory....!
+            # fileDialog = FileDialog(Toolbox_frame_, "Select file to extract and copy to TMP directory")
+            # fileDialog.setMultipleMode(False)
+            # fileDialog.setMode(FileDialog.LOAD)
+            # fileDialog.setDirectory(attachmentFullPath)
+            # fileDialog.setVisible(True)
 
-            if lIamAMac:
+            # UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+            encryptedFilename = JFileChooser(attachmentFullPath)
+            encryptedFilename.setMultiSelectionEnabled(False)
+            encryptedFilename.setFileSelectionMode(JFileChooser.FILES_ONLY)
+            encryptedFilename.setDialogTitle("Select Moneydance internal file to extract and copy to TMP directory")
+            # encryptedFilename.setPreferredSize(Dimension(800,800))
+            returnvalue = encryptedFilename.showDialog(Toolbox_frame_,"Extract")
+
+            if Platform.isOSX():
                 System.setProperty("com.apple.macos.use-file-dialog-packages","true")  # In theory prevents access to app file structure (but doesnt seem to work)
                 System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
-            selectedFile = fileDialog.getFile()
-            if (selectedFile is None) or selectedFile == "":
-                self.statusLabel.setText(("No file selected  to decrypt/copy..!").ljust(800, " "))
+            if (returnvalue != JFileChooser.APPROVE_OPTION
+                    or encryptedFilename.getSelectedFile() is None
+                    or encryptedFilename.getSelectedFile().getName() == ""):
+                self.statusLabel.setText(("No file selected to extract/decrypt/copy..!").ljust(800, " "))
                 self.statusLabel.setForeground(Color.BLUE)
-                fileDialog.dispose()
-                del fileDialog
                 return
-            else:
-                selectedFile = os.path.join(fileDialog.getDirectory(), fileDialog.getFile())
-                fileDialog.dispose()
-                del fileDialog
+
+            selectedFile = encryptedFilename.getSelectedFile().getCanonicalPath()   # type: str
 
             if not os.path.exists(selectedFile) or not os.path.isfile(selectedFile):
                 self.statusLabel.setText(("Sorry, file selected to extract either does not exist or is not a file").ljust(800, " "))
@@ -10982,7 +10998,7 @@ In Linux - due to permissions, you will need to do this:
 
                     fileChooser.setDialogTitle("Select location to Extract Attachments to... (CANCEL=ABORT)")
                     fileChooser.setPreferredSize(Dimension(700, 700))
-                    returnValue = fileChooser.showDialog(None, "EXTRACT ATTACHMENTS")
+                    returnValue = fileChooser.showDialog(Toolbox_frame_, "EXTRACT ATTACHMENTS")
 
                     if returnValue == JFileChooser.CANCEL_OPTION:
                         myPrint("P", "No start point was selected - aborting..")
@@ -11021,6 +11037,14 @@ In Linux - due to permissions, you will need to do this:
                 File(exportFolder).mkdirs()
 
                 myPrint("B", "Will export all attachments to %s"%(exportFolder))
+
+                pleaseWait = MyPopUpDialogBox(Toolbox_frame_,
+                                              "Please wait: extracting attachments..",
+                                              theTitle="EXTRACT ATTACHMENTS",
+                                              theWidth=100,
+                                              lModal=False,
+                                              OKButtonText="WAIT")
+                pleaseWait.go()
 
                 for txn in txnSet.iterableTxns():
                     for attachKey in txn.getAttachmentKeys():
@@ -11066,6 +11090,8 @@ In Linux - due to permissions, you will need to do this:
                     log.close()
                 except:
                     pass
+
+                pleaseWait.kill()
 
                 if iSkip <1:
                     myPopupInformationBox(Toolbox_frame_,"I have extracted %s attachments for you.." %(iCountAttachments))
@@ -11432,7 +11458,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if response == 0:
                             self.statusLabel.setText(("User Aborted iOS Backup(s) search...").ljust(800, " "))
                             self.statusLabel.setForeground(Color.RED)
-                            return result
+                            return result, iFound
 
                         elif response == 1:
                             lContinueToEnd = True
@@ -11441,6 +11467,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     for name in files:
                         if fnmatch.fnmatch(name, pattern):
+                            iFound+=1
                             result.append(os.path.join(root, name))
                     for name in dirs:
                         if fnmatch.fnmatch(name, pattern):
@@ -11450,16 +11477,21 @@ Now you will have a text readable version of the file you can open in a text edi
                         if fnmatch.fnmatch(name, pattern):
                             iFound+=1
                             result.append(os.path.join(root, name))
-                return result
 
+                return result, iFound
+
+            iFound = 0
             fileList=[]
+
             for theDir in pathList:
                 myPrint("P","Searching from Directory: %s" %theDir)
-                fileList += findIOSBackup(theIKReference, theDir)
+
+                holdFileList, holdFound = findIOSBackup(theIKReference, theDir)
+                fileList += holdFileList
+                iFound += holdFound
 
             diag.kill()
 
-            iFound = len(fileList)
             print
             myPrint("B","Completed search for iOS Backup(s): %s found (called: %s)" %(iFound, theIKReference))
 
@@ -11999,7 +12031,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if response == 0:
                             self.statusLabel.setText(("User Aborted Dataset search...").ljust(800, " "))
                             self.statusLabel.setForeground(Color.RED)
-                            return result
+                            return result, iFound
 
                         elif response == 1:
                             lContinueToEnd = True
@@ -12009,29 +12041,31 @@ Now you will have a text readable version of the file you can open in a text edi
                     if lBackup:
                         for name in files:
                             if fnmatch.fnmatch(name, pattern):
+                                iFound+=1
                                 result.append("File >> Sz: %sMB Mod: %s Name: %s "
                                               %(rpad(round(os.path.getsize(os.path.join(root, name))/(1000.0*1000.0),1),6),
                                                 pad(datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime('%Y-%m-%d %H:%M:%S'),11),
                                                 os.path.join(root, name)))
                     for name in dirs:
                         if fnmatch.fnmatch(name, pattern):
-                            iFound+=1
+                            if name != ".moneydance":
+                                iFound+=1
                             result.append("Dir >> Modified: %s %s"
                                           %(pad(datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime('%Y-%m-%d %H:%M:%S'),11),
                                           os.path.join(root, name)))
                     for name in root:
                         if fnmatch.fnmatch(name, pattern):
-                            iFound+=1
+                            if name != ".moneydance":
+                                iFound+=1
                             result.append("Root >> Modified: %s %s"
                                           %(pad(datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime('%Y-%m-%d %H:%M:%S'),11),
                                           os.path.join(root, name)))
-                return result
+                return result, iFound
 
-            fileList = findDataset(theExtension, theDir)
+            fileList, iFound = findDataset(theExtension, theDir)
 
             diag.kill()
 
-            iFound = len(fileList)
             print
             myPrint("B","Completed search for %s datafiles: %s found" %(theExtension,iFound))
 
