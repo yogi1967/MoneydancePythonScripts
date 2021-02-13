@@ -37,22 +37,19 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 
 ### Extension only format (contains only *.mxt file)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
-NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY
+NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
 
 ### Extension and Scripts formats (*.mxt and *.py format)
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/stockglance2020.zip">**StockGlance2020**: Display summary of Securities/Stocks, total by Security, extract to csv 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_reminders_csv.zip">**extract_reminders_csv**: View reminders on screen, edit if required, extract to csv
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_currency_history_csv.zip">**extract_currency_history_csv**: Extract currency history to csv
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_account_registers_csv.zip">**extract_account_registers_csv**: Extract account transaction registers to csv (including Attachments too)
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_investment_transactions_csv.zip">**extract_investment_transactions_csv**: Extract investment transactions to csv
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**extract_data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
+- stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
+- extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
+- extract_currency_history_csv          Extract currency history to csv
+- extract_investment_transactions_csv   Extract investment transactions to csv
+- extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
 - <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed)
-- <a href="https://infinitekind.com/app/md/extensions/stockglance2020.mxt">StockGlance2020 (signed)
-- <a href="https://infinitekind.com/app/md/extensions/extract_reminders_csv.mxt">extract_reminders_csv (signed)
-- <a href="https://infinitekind.com/app/md/extensions/extract_currency_history_csv.mxt">extract_currency_history_csv (signed)
-- <a href="https://infinitekind.com/app/md/extensions/extract_account_registers_csv.mxt">extract_account_registers_csv (signed)
-- <a href="https://infinitekind.com/app/md/extensions/extract_investment_transactions_csv.mxt">extract_investment_transactions_csv (signed)
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed)
 
 ### Other useful ad-hoc scripts (*.py format only)
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
