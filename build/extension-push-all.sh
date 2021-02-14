@@ -13,38 +13,20 @@ if [ $? -ne 0 ]; then
     read -p "Press any key to resume next build..."
 fi
 
-./build/extension-push.sh stockglance2020
+./build/extension-push.sh extract_data
 if [ $? -ne 0 ]; then
-    echo "*** PUSH of stockglance2020 Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh extract_reminders_csv
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of extract_reminders_csv Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh extract_investment_transactions_csv
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of extract_investment_transactions_csv Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh extract_currency_history_csv
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of extract_currency_history_csv Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh extract_account_registers_csv
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of extract_account_registers_csv Failed??"
+    echo "*** PUSH of extract_data Failed??"
     read -p "Press any key to resume next build..."
 fi
 
 ./build/extension-push.sh useful_scripts
 if [ $? -ne 0 ]; then
     echo "*** PUSH of useful_scripts Failed??"
+    read -p "Press any key to resume next build..."
+fi
+
+./build/extension-push.sh list_future_reminders
+if [ $? -ne 0 ]; then
+    echo "*** PUSH of list_future_reminders Failed??"
     read -p "Press any key to resume next build..."
 fi

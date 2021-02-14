@@ -12,7 +12,7 @@ if [ "$1" = "" ] ; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
   echo "Usage ./build/extension-build.sh module_name"
-  echo "Module name must be one of: toolbox, stockglance2020, extract_reminders_csv, extract_investment_transactions_csv, extract_currency_history_csv, extract_account_registers_csv, execute_file_import, useful_scripts"
+  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts"
   exit 1
 fi
 
@@ -21,10 +21,10 @@ if ! test -f "./build/extension-build.sh"; then
     exit 1
 fi
 
-if [ "$1" != "toolbox" ] && [ "$1" != "stockglance2020" ] && [ "$1" != "extract_reminders_csv" ] && [ "$1" != "extract_investment_transactions_csv" ] && [ "$1" != "extract_currency_history_csv" ] && [ "$1" != "extract_account_registers_csv" ] && [ "$1" != "execute_file_import" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "test" ]; then
+if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "execute_file_import" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ]; then
     echo
     echo "@@ Incorrect Python script name @@"
-    echo "must be: toolbox, stockglance2020, extract_reminders_csv, extract_investment_transactions_csv, extract_currency_history_csv, extract_account_registers_csv, execute_file_import, useful_scripts"
+    echo "must be: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts"
     exit 1
 else
     FILE=$1
