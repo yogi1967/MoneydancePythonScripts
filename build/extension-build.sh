@@ -195,7 +195,8 @@ zip -j -z ./"$FILE".zip ./source/install-readme.txt <<< "StuWareSoftSystems: $FI
 
 if  [ "$1" = "useful_scripts" ]; then
 
-    zip -j -c ./"$FILE".zip ./source/"$FILE/"*.py <<< "StuWareSoftSystems: A collection of $FILE for Moneydance."
+    zip -j -c ./"$FILE".zip ./source/"$FILE/"*.py  <<< "StuWareSoftSystems: A collection of $FILE for Moneydance."
+    zip -j    ./"$FILE".zip ./source/"$FILE/"*.pdf
 
 else
 
