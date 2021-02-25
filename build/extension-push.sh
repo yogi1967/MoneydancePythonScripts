@@ -71,6 +71,8 @@ cp ./source/"$MODULE"/* "$PUSHDIR/$MODULE"/.
 cp "./source/install-readme.txt" "$PUSHDIR/$MODULE"/.
 
 if  [ "$1" = "useful_scripts" ] ; then
+    rm "$PUSHDIR/$MODULE"/*.docx
+
     echo "Skipping mxt removal for non-extension"
 else
     rm "$PUSHDIR/$MODULE"/*.mxt
