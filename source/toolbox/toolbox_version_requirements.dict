@@ -1,15 +1,15 @@
 {
-    "last_updated" = "20210225"
+    "last_updated" = "20210303"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1027"
                     "disable" = "n"
-                    "info_about_build" = "includes new CMD-F text/find features"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "news" = "includes new CMD-F text/find features"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
                     "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -19,59 +19,59 @@
                     {
                     "build" = "1026"
                     "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     }
                     {
                     "build" = "1025"
                     "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     }
                     {
                     "build" = "1024"
                     "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     }
                     {
                     "build" = "1023"
                     "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     }
                     {
                     "build" = "1022"
                     "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     }
                     {
                     "build" = "1021"
                     "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     }
                     {
                     "build" = "1020"
                     "disable" = "n"
-                    "version" = "2.0 Major Release (including OFX menu)"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3034"
+                    "news" = "2.0 Major Release (including OFX menu)"
+                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3034"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
                     }
 
     )
