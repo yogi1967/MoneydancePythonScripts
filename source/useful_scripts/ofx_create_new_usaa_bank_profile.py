@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# build 6
+# build 7
 
 # ofx_create_new_usaa_bank_profile.py - Author - Stuart Beesley - StuWareSoftSystems 2021
 
@@ -18,7 +18,8 @@
 
 # CREDITS:  hleofxquotes for his technical input and dtd for his extensive testing
 
-# build 4 - Initial preview release.....
+# build 1 - Initial preview release.....
+# build 7 - Updated to use popup error alerts
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -189,7 +190,7 @@ else:
     # END COMMON GLOBALS ###################################################################################################
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "6"                                                                                              # noqa
+    version_build = "7"                                                                                              # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
@@ -1287,11 +1288,14 @@ Visit: %s (Author's site)
             return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
 
     if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "BACKUP", "CREATE A NEW USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_,"PLEASE USE FILE>EXPORT BACKUP then come back!!", theMessageType=JOptionPane.ERROR_MESSAGE)
-        raise Exception("Please backup first - no changes made")
+        alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
+        myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
 
     if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        raise Exception("Disclaimer rejected - no changes made")
+        alert = "Disclaimer rejected - no changes made"
+        myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
 
     ask = MyPopUpDialogBox(ofx_create_new_usaa_bank_profile_frame_, "This script will replace any 'broken' USAA bank profile(s) it finds and create a brand new one for you:",
                            "Get the latest useful_scripts.zip package from: https://yogi1967.github.io/MoneydancePythonScripts/ \n"
@@ -1310,16 +1314,20 @@ Visit: %s (Author's site)
                            "IF NOT, STOP AND GATHER ALL INFORMATION",
                            250,"KNOWLEDGE",
                            lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
-    if not ask.go(): raise Exception("Knowledge rejected - no changes made")
+    if not ask.go():
+        alert = "Knowledge rejected - no changes made"
+        myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
 
     lCachePasswords = (isUserEncryptionPassphraseSet() and moneydance_ui.getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
     if not lCachePasswords:
         if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_,"STORE PASSWORDS","Your system is not set up to save/store passwords. Do you want to continue?",theMessageType=JOptionPane.ERROR_MESSAGE):
-            raise Exception("Please set up Master password and select store passwords first - then try again")
+            alert = "Please set up Master password and select store passwords first - then try again - no changes made"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         myPrint("B", "Proceeding even though system is not set up for passwords")
 
     serviceList = moneydance_data.getOnlineInfo().getAllServices()  # type: [OnlineService]
-
 
     deleteServices = []
     for svc in serviceList:
@@ -1333,7 +1341,9 @@ Visit: %s (Author's site)
         myPrint("B", "No old USAA services found...")
     else:
         if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DELETE OLD SERVICES", "OK TO DELETE %s OLD USAA SERVICES?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
-            raise Exception("ERROR - User declined to delete %s old USAA service profiles" %(len(deleteServices)))
+            alert = "ERROR - User declined to delete %s old USAA service profiles - no changes made" %(len(deleteServices))
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         else:
             accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(0))
             for s in deleteServices:
@@ -1377,7 +1387,10 @@ Visit: %s (Author's site)
         myPrint("B", "no bank account selected")
     else:
         selectedBankAccount = selectedBankAccount.obj       # noqa
-        if selectedBankAccount.getAccountType() != Account.AccountType.BANK: raise Exception("ERROR BANK ACCOUNT INVALID TYPE SELECTED")    # noqa
+        if selectedBankAccount.getAccountType() != Account.AccountType.BANK:                                            # noqa
+            alert = "ERROR BANK ACCOUNT INVALID TYPE SELECTED - no changes made"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         myPrint("B", "selected bank account %s" %selectedBankAccount)
 
     accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(1))
@@ -1406,10 +1419,16 @@ Visit: %s (Author's site)
         myPrint("B", "no CC account selected")
     else:
         selectedCCAccount = selectedCCAccount.obj            # noqa
-        if selectedCCAccount.getAccountType() != Account.AccountType.CREDIT_CARD: raise Exception("ERROR CC ACCOUNT INVALID TYPE SELECTED") # noqa
+        if selectedCCAccount.getAccountType() != Account.AccountType.CREDIT_CARD:                                       # noqa
+            alert = "ERROR CC ACCOUNT INVALID TYPE SELECTED - no changes made"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         myPrint("B", "selected CC account %s" %selectedCCAccount)
 
-    if not selectedBankAccount and not selectedCCAccount: raise Exception("ERROR - You must select Bank and or CC account(s)")
+    if not selectedBankAccount and not selectedCCAccount:
+        alert = "ERROR - You must select Bank and or CC account(s) - no changes made"
+        myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
 
     dummy = "12345678-1111-1111-1111-123456789012"
 
@@ -1417,7 +1436,10 @@ Visit: %s (Author's site)
     while True:
         uuid = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
         myPrint("B", "UUID entered: %s" %uuid)
-        if uuid is None: raise Exception("ERROR - No uuid entered! Aborting without changes")
+        if uuid is None:
+            alert = "ERROR - No uuid entered! Aborting without changes"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         defaultEntry = uuid
         if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
                 (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
@@ -1430,7 +1452,10 @@ Visit: %s (Author's site)
     while True:
         userID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UserID", "UserID", "Type/Paste your UserID (min length 8) very carefully", defaultEntry)
         myPrint("B", "userID entered: %s" %userID)
-        if userID is None: raise Exception("ERROR - no userID supplied! Aborting without changes")
+        if userID is None:
+            alert = "ERROR - no userID supplied! Aborting without changes"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         defaultEntry = userID
         if userID is None or userID == "" or uuid == "UserID" or len(userID)<8:
             myPrint("B", "\n ** ERROR - no valid userID supplied - try again ** \n")
@@ -1442,7 +1467,10 @@ Visit: %s (Author's site)
     while True:
         password = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "password", "password", "Type/Paste your Password (min length 6) very carefully", defaultEntry)
         myPrint("B", "password entered: %s" %password)
-        if password is None: raise Exception("ERROR - no password supplied! Aborting without changes")
+        if password is None:
+            alert = "ERROR - no password supplied! Aborting without changes"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         defaultEntry = password
         if password is None or password == "" or password == "*****" or len(password) < 6:
             myPrint("B", "\n ** ERROR - no password supplied - try again ** \n")
@@ -1456,7 +1484,10 @@ Visit: %s (Author's site)
     if selectedBankAccount:
         bankAccount = selectedBankAccount.getBankAccountNumber()        # noqa
         bankID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "BankAccount", "BankAccount", "Type/Paste your Bank Account Number - very carefully", bankAccount)
-        if bankID is None or bankID == "": raise Exception("ERROR - no bankID supplied")
+        if bankID is None or bankID == "":
+            alert = "ERROR - no bankID supplied - Aborting without changes"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         myPrint("B", "existing bank account:   %s" %bankAccount)
         myPrint("B", "bankID entered:          %s" %bankID)
 
@@ -1464,7 +1495,10 @@ Visit: %s (Author's site)
         if route == "" or len(route) != 9:
             route = "314074269"
         routID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '314074269')- very carefully", route)
-        if routID is None or routID == "" or len(routID) != 9: raise Exception("ERROR - no Routing supplied")
+        if routID is None or routID == "" or len(routID) != 9:
+            alert = "ERROR - invalid Routing supplied - Aborting without changes"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
         myPrint("B", "existing routing number: %s" %route)
         myPrint("B", "routID entered:          %s" %routID)
 
@@ -1476,7 +1510,10 @@ Visit: %s (Author's site)
             ccID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 16) very carefully", ccAccount)
             myPrint("B", "existing CC number:      %s" %ccAccount)
             myPrint("B", "ccID entered:            %s" %ccID)
-            if ccID is None: raise Exception("ERROR - no valid ccID supplied - aborting - no changes made!")
+            if ccID is None:
+                alert = "ERROR - no valid ccID supplied - aborting - no changes made!"
+                myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                raise Exception(alert)
             if ccID is None or ccID == "" or len(ccID)!=16:
                 myPrint("B", "\n ** ERROR - no valid ccID supplied! Please try again ** \n")
                 continue
@@ -1484,10 +1521,14 @@ Visit: %s (Author's site)
 
         if ccID == ccAccount:
             if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
-                raise Exception("ERROR - User aborted on keeping the CC the same - no changes made")
+                alert = "ERROR - User aborted on keeping the CC the same - no changes made"
+                myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                raise Exception(alert)
         else:
             if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
-                raise Exception("ERROR - User aborted on CC change - no changes made")
+                alert = "ERROR - User aborted on CC change - no changes made"
+                myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                raise Exception(alert)
 
     del ccAccount, route, bankAccount
 
@@ -1719,7 +1760,10 @@ Visit: %s (Author's site)
             myPrint("B", " - Found/Saved Bill Pay Acct: %s" %acct)
             listAccountMDProxies.append([MDAccountProxy(acct, True),svcBPay,True])
 
-    if len(listAccountMDProxies) != check: raise Exception("LOGIC ERROR: listAccountMDProxies != %s" %check)
+    if len(listAccountMDProxies) != check:
+        alert = "LOGIC ERROR: listAccountMDProxies != %s - Some changes have been made - review log....." %check
+        myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
 
     myPrint("B", "\n>>REALMs configured:")
     realmsToCheck = service.getRealms()         # noqa
