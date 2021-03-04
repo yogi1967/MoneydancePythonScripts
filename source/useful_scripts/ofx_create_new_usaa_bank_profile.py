@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# build 7
+# build 8
 
 # ofx_create_new_usaa_bank_profile.py - Author - Stuart Beesley - StuWareSoftSystems 2021
 
@@ -190,7 +190,7 @@ else:
     # END COMMON GLOBALS ###################################################################################################
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "7"                                                                                              # noqa
+    version_build = "8"                                                                                              # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
@@ -1388,7 +1388,7 @@ Visit: %s (Author's site)
     else:
         selectedBankAccount = selectedBankAccount.obj       # noqa
         if selectedBankAccount.getAccountType() != Account.AccountType.BANK:                                            # noqa
-            alert = "ERROR BANK ACCOUNT INVALID TYPE SELECTED - no changes made"
+            alert = "ERROR BANK ACCOUNT INVALID TYPE SELECTED"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "selected bank account %s" %selectedBankAccount)
@@ -1420,13 +1420,13 @@ Visit: %s (Author's site)
     else:
         selectedCCAccount = selectedCCAccount.obj            # noqa
         if selectedCCAccount.getAccountType() != Account.AccountType.CREDIT_CARD:                                       # noqa
-            alert = "ERROR CC ACCOUNT INVALID TYPE SELECTED - no changes made"
+            alert = "ERROR CC ACCOUNT INVALID TYPE SELECTED"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "selected CC account %s" %selectedCCAccount)
 
     if not selectedBankAccount and not selectedCCAccount:
-        alert = "ERROR - You must select Bank and or CC account(s) - no changes made"
+        alert = "ERROR - You must select Bank and or CC account(s)"
         myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
@@ -1437,7 +1437,7 @@ Visit: %s (Author's site)
         uuid = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
         myPrint("B", "UUID entered: %s" %uuid)
         if uuid is None:
-            alert = "ERROR - No uuid entered! Aborting without changes"
+            alert = "ERROR - No uuid entered! Aborting"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = uuid
@@ -1453,7 +1453,7 @@ Visit: %s (Author's site)
         userID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UserID", "UserID", "Type/Paste your UserID (min length 8) very carefully", defaultEntry)
         myPrint("B", "userID entered: %s" %userID)
         if userID is None:
-            alert = "ERROR - no userID supplied! Aborting without changes"
+            alert = "ERROR - no userID supplied! Aborting"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = userID
@@ -1468,7 +1468,7 @@ Visit: %s (Author's site)
         password = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "password", "password", "Type/Paste your Password (min length 6) very carefully", defaultEntry)
         myPrint("B", "password entered: %s" %password)
         if password is None:
-            alert = "ERROR - no password supplied! Aborting without changes"
+            alert = "ERROR - no password supplied! Aborting"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = password
@@ -1485,7 +1485,7 @@ Visit: %s (Author's site)
         bankAccount = selectedBankAccount.getBankAccountNumber()        # noqa
         bankID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "BankAccount", "BankAccount", "Type/Paste your Bank Account Number - very carefully", bankAccount)
         if bankID is None or bankID == "":
-            alert = "ERROR - no bankID supplied - Aborting without changes"
+            alert = "ERROR - no bankID supplied - Aborting"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "existing bank account:   %s" %bankAccount)
@@ -1496,7 +1496,7 @@ Visit: %s (Author's site)
             route = "314074269"
         routID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '314074269')- very carefully", route)
         if routID is None or routID == "" or len(routID) != 9:
-            alert = "ERROR - invalid Routing supplied - Aborting without changes"
+            alert = "ERROR - invalid Routing supplied - Aborting"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "existing routing number: %s" %route)
@@ -1511,7 +1511,7 @@ Visit: %s (Author's site)
             myPrint("B", "existing CC number:      %s" %ccAccount)
             myPrint("B", "ccID entered:            %s" %ccID)
             if ccID is None:
-                alert = "ERROR - no valid ccID supplied - aborting - no changes made!"
+                alert = "ERROR - no valid ccID supplied - aborting"
                 myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
                 raise Exception(alert)
             if ccID is None or ccID == "" or len(ccID)!=16:
@@ -1521,12 +1521,12 @@ Visit: %s (Author's site)
 
         if ccID == ccAccount:
             if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
-                alert = "ERROR - User aborted on keeping the CC the same - no changes made"
+                alert = "ERROR - User aborted on keeping the CC the same"
                 myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
                 raise Exception(alert)
         else:
             if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
-                alert = "ERROR - User aborted on CC change - no changes made"
+                alert = "ERROR - User aborted on CC change"
                 myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
                 raise Exception(alert)
 
