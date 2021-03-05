@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# build 8
-
-# ofx_create_new_usaa_bank_profile.py - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_profile.py (build 9) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_fix_existing_create_new_usaa_bank_profile.pdf
@@ -19,7 +17,8 @@
 # CREDITS:  hleofxquotes for his technical input and dtd for his extensive testing
 
 # build 1 - Initial preview release.....
-# build 7 - Updated to use popup error alerts
+# build 8 - Updated to use popup error alerts
+# build 9 - Added popup to advise that service has been deleted; fix when deleting old linkages
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -190,7 +189,7 @@ else:
     # END COMMON GLOBALS ###################################################################################################
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "8"                                                                                              # noqa
+    version_build = "9"                                                                                              # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
@@ -1249,7 +1248,6 @@ Visit: %s (Author's site)
         return str(acctNum)
 
     class MyAcctFilter(AcctFilter):
-        selectType = 0
 
         def __init__(self, selectType=0):
             self.selectType = selectType
@@ -1264,6 +1262,13 @@ Visit: %s (Author's site)
                 # noinspection PyUnresolvedReferences
                 if not (acct.getAccountType() == Account.AccountType.CREDIT_CARD):
                     return False
+
+            if self.selectType == 2:
+                # noinspection PyUnresolvedReferences
+                if not (acct.getAccountType() == Account.AccountType.BANK or acct.getAccountType() == Account.AccountType.CREDIT_CARD):
+                    return False
+                else:
+                    return True
 
             if (acct.getAccountOrParentIsInactive()): return False
             if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
@@ -1340,15 +1345,17 @@ Visit: %s (Author's site)
     if len(deleteServices) < 1:
         myPrint("B", "No old USAA services found...")
     else:
-        if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DELETE OLD SERVICES", "OK TO DELETE %s OLD USAA SERVICES?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
+        if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DELETE OLD SERVICES", "OK TO DELETE %s OLD USAA SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
             alert = "ERROR - User declined to delete %s old USAA service profiles - no changes made" %(len(deleteServices))
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         else:
-            accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(0))
+            accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(2))
             for s in deleteServices:
+                iCount = 0
                 for a in accounts:
                     if a.getBankingFI() == s or a.getBillPayFI() == s:
+                        iCount+=1
                         myPrint("B", "clearing service link flag from account %s (%s)" %(a,s))
                         a.setBankingFI(None)
                         a.setBillPayFI(None)
@@ -1356,6 +1363,7 @@ Visit: %s (Author's site)
                 myPrint("B", "clearing authentication cache and deleting %s" %s)
                 s.clearAuthenticationCache()
                 s.deleteItem()
+                myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
             del accounts
 
     del serviceList, deleteServices

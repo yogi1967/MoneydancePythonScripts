@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_fix_existing_usaa_bank_profile.py - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_fix_existing_usaa_bank_profile.py (build 15) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_fix_existing_create_new_usaa_bank_profile.pdf
@@ -17,6 +17,7 @@
 
 # build 1  - Initial preview release.....
 # build 14 - Added popup error messages
+# build 15 - Tweaked pop up messages
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -187,7 +188,7 @@ else:
     # END COMMON GLOBALS ###################################################################################################
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "14"                                                                                              # noqa
+    version_build = "15"                                                                                              # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
@@ -1368,7 +1369,7 @@ Visit: %s (Author's site)
             usaaServiceList.append(svc)
 
     if len(usaaServiceList) < 1:
-        alert = "ERROR - No existing USAA services found...! No changes made"
+        alert = "ERROR - No existing USAA services found...! No changes made (use ofx_create_new_usaa_bank_profile.py)"
         myPopupInformationBox(ofx_fix_existing_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
@@ -1400,7 +1401,7 @@ Visit: %s (Author's site)
 
     if len(service.getAvailableAccounts())<1:                                                                           # noqa
         myPrint("B", "\n"*5)
-        alert = "Sorry, no physical Bank Accounts linked to this banking profile found?!... Stopping here - no changes made..."
+        alert = "Sorry, no physical Bank Accounts linked to this banking profile found?!... Stopping here - no changes made... (use ofx_create_new_usaa_bank_profile.py)"
         myPopupInformationBox(ofx_fix_existing_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
@@ -1408,7 +1409,7 @@ Visit: %s (Author's site)
     olAccounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(service))
     if len(olAccounts)<1:
         myPrint("B", "\n"*5)
-        alert = "Sorry, no MD Accounts linked to this banking profile were found - aborting - no changes made?!"
+        alert = "Sorry, no MD Accounts linked to this banking profile were found - aborting - no changes made?! (use ofx_create_new_usaa_bank_profile.py)"
         myPopupInformationBox(ofx_fix_existing_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
@@ -1441,7 +1442,7 @@ Visit: %s (Author's site)
             saveCC_Acct = acct
             myPrint("B", "found CC account - current number: %s" %ccAccountNumber)
         else:
-            alert = "Error - found account type %s that I was not expecting %s - no changes made" %(acct.getAccountType(),acct)
+            alert = "Error - found account type %s that I was not expecting %s - no changes made (use ofx_create_new_usaa_bank_profile.py)" %(acct.getAccountType(),acct)
             myPopupInformationBox(ofx_fix_existing_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
 
@@ -1464,7 +1465,7 @@ Visit: %s (Author's site)
 
     if len(listAccountMDProxies)<1 or len(listAccountMDProxies) != len(olAccounts):
         myPrint("B", "\n"*5)
-        alert = "CRITICAL ERROR: ?? Accounts linked to this banking profile found (must be a logic problem) - aborting - no changes made?!"
+        alert = "CRITICAL ERROR: ?? Accounts linked to this banking profile found (must be a logic problem) - aborting - no changes made?! (use ofx_create_new_usaa_bank_profile.py)"
         myPopupInformationBox(ofx_fix_existing_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
