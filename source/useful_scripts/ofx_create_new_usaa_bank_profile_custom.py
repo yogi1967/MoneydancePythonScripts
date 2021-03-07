@@ -1384,6 +1384,10 @@ Visit: %s (Author's site)
             myPrint("B", "Found USAA service - to delete: %s" %(svc))
             deleteServices.append(svc)
 
+    root = moneydance.getRootAccount()
+    rootKeys = list(root.getParameterKeys())
+    lRootNeedsSync = False
+
     if len(deleteServices) < 1:
         myPrint("B", "No USAA services / profile found to delete...")
     else:
@@ -1407,26 +1411,23 @@ Visit: %s (Author's site)
 
                 # Clean up root here - as with custom profiles the UUID sets stored instead of the TIK ID which can be identified later....
                 if s.getTIKServiceID() != OLD_TIK_FI_ID:  # Thus we presume it's our own custom profile
-                    root = moneydance.getRootAccount()
-                    rootKeys = list(root.getParameterKeys())
-                    lRootNeedsSync = False
                     for i in range(0,len(rootKeys)):
                         rk = rootKeys[i]
                         if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
-                            myPrint("B", "Deleting old authKey associated with this profile %s: %s" %(rk,root.getParameter(rk)))
+                            myPrint("B", "Deleting old authKey associated with this profile (from Root) %s: %s" %(rk,root.getParameter(rk)))
                             root.setParameter(rk, None)
                             lRootNeedsSync = True
                         i+=1
-                    if lRootNeedsSync:
-                        root.syncItem()
-                    del lRootNeedsSync
 
                 myPrint("B", "Deleting profile %s" %s)
                 s.deleteItem()
                 myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
             del accounts
 
-    del serviceList, deleteServices
+    if lRootNeedsSync:
+        root.syncItem()
+
+    del serviceList, deleteServices, lRootNeedsSync, rootKeys
 
 
     ####################################################################################################################
