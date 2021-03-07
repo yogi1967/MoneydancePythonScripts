@@ -1347,7 +1347,17 @@ Visit: %s (Author's site)
     if theResult > 0:
         lMultiAccountSetup = True
         myPrint("B","Will setup multi-accounts too.... ")
-        if myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_,"OVERRIDE ROOT UUID","Do you also wish to override Root's (global) default UUID with the one you specify?",theMessageType=JOptionPane.QUESTION_MESSAGE):
+
+        options = ["NO (Skip this)","YES - SET GLOBAL DEFAULT ROOT UUID"]
+        theResult = JOptionPane.showOptionDialog(ofx_create_new_usaa_bank_profile_frame_,
+                                                 "Do you also wish to override Root's (global) default UUID with the one you specify?",
+                                                 "OVERRIDE ROOT DEFAULT UUID",
+                                                 JOptionPane.YES_NO_OPTION,
+                                                 JOptionPane.QUESTION_MESSAGE,
+                                                 None,
+                                                 options,
+                                                 options[0])
+        if theResult > 0:
             lOverrideRootUUID = True
             myPrint("B","Will also override Root UUID too.... ")
         else:
