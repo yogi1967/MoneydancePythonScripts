@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_fix_existing_usaa_bank_profile.py (build 15) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_fix_existing_usaa_bank_profile.py (build 16) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_fix_existing_create_new_usaa_bank_profile.pdf
@@ -188,7 +188,7 @@ else:
     # END COMMON GLOBALS ###################################################################################################
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "15"                                                                                              # noqa
+    version_build = "16"                                                                                              # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
@@ -1510,7 +1510,7 @@ Visit: %s (Author's site)
             myPopupInformationBox(ofx_fix_existing_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = userID
-        if userID is None or userID == "" or uuid == "UserID" or len(userID)<8:
+        if userID is None or userID == "" or userID == "UserID" or len(userID)<8:
             myPrint("B", "\n ** ERROR - no valid userID supplied - try again ** \n")
             continue
         break
