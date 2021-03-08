@@ -35,11 +35,11 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 3) Click RUN (and not run snippet)
 4) That's it.... Repeat these steps each time.
 
-### Extension only format (contains only *.mxt file)
+### Extension only format (contains only *.mxt file) - Very latest (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
 
-### Extension and Scripts formats (*.mxt and *.py format)
+### Extension and Scripts formats (*.mxt and *.py format) - Very latest (unsigned) builds
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**extract_data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
 - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
 - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
@@ -50,11 +50,11 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**list_future_reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed)
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed)
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">list_future_reminders (signed)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1028 8th March 2021)
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed) (build: 1005 8th March 2021)
+- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">list_future_reminders (signed) (build: 1004 8th March 2021)
 
-### Other useful ad-hoc scripts (*.py format only)
+### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
   - calculate_moneydance_objs_and_datasetsize.py: Analyse your Moneydance dataset, report on objects, internal file size(s), and list other known datasets...
   - extract_all_attachments.py: extract all your attachments out of Moneydance to a folder of your choice
@@ -63,7 +63,7 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
   - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
   - ofx_create_new_usaa_bank_custom_profile.py: script to create a new custom bank logon / service profile to connect to USAA Bank within Moneydance
 
-### Source Code sites
+### Source Code sites - you can freely read / review all my code
 <a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
 <BR><BR>
 <a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/">**Moneydance's site for code**: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/
