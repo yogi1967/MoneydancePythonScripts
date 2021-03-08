@@ -50,9 +50,9 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**list_future_reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1028 8th March 2021)
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed) (build: 1005 8th March 2021)
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">list_future_reminders (signed) (build: 1004 8th March 2021)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1028 - 8th March 2021)
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed) (build: 1005 - 8th March 2021)
+- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">list_future_reminders (signed) (build: 1004 - 8th March 2021)
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
