@@ -211,6 +211,8 @@ else:
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
     # COMMON CODE ##########################################################################################################
+    # COMMON CODE ##########################################################################################################
+    # COMMON CODE ##########################################################################################################
     i_am_an_extension_so_run_headless = False                                                                           # noqa
     try:
         myScriptName = os.path.basename(__file__)
@@ -981,7 +983,7 @@ Visit: %s (Author's site)
             pass
 
         if homeDir is None or homeDir == "":
-            homeDir = moneydance_data.getRootFolder().getParent()  # Better than nothing!
+            homeDir = moneydance.getCurrentAccountBook().getRootFolder().getParent()  # Better than nothing!
 
         myPrint("DB", "Home Directory selected...:", homeDir)
         if homeDir is None: return ""
@@ -1027,7 +1029,7 @@ Visit: %s (Author's site)
 
         return str( theDelimiter )
 
-    def get_StuWareSoftSystems_parameters_from_file():
+    def get_StuWareSoftSystems_parameters_from_file(myFile="StuWareSoftSystems.dict"):
         global debug, myParameters, lPickle_version_warning, version_build, _resetParameters                            # noqa
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -1037,11 +1039,10 @@ Visit: %s (Author's site)
             myParameters = {}
             return
 
-        myFile = "StuWareSoftSystems.dict"
         old_dict_filename = os.path.join("..", myFile)
 
         # Pickle was originally encrypted, no need, migrating to unencrypted
-        migratedFilename = os.path.join(moneydance_data.getRootFolder().getAbsolutePath(),myFile)
+        migratedFilename = os.path.join(moneydance.getCurrentAccountBook().getRootFolder().getAbsolutePath(),myFile)
 
         myPrint("DB", "Now checking for parameter file:", migratedFilename)
 
@@ -1112,7 +1113,7 @@ Visit: %s (Author's site)
 
         return
 
-    def save_StuWareSoftSystems_parameters_to_file():
+    def save_StuWareSoftSystems_parameters_to_file(myFile="StuWareSoftSystems.dict"):
         global debug, myParameters, lPickle_version_warning, version_build
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -1125,9 +1126,8 @@ Visit: %s (Author's site)
 
         dump_StuWareSoftSystems_parameters_from_memory()
 
-        myFile = "StuWareSoftSystems.dict"
         # Pickle was originally encrypted, no need, migrating to unencrypted
-        migratedFilename = os.path.join(moneydance_data.getRootFolder().getAbsolutePath(),myFile)
+        migratedFilename = os.path.join(moneydance.getCurrentAccountBook().getRootFolder().getAbsolutePath(),myFile)
 
         myPrint("DB","Will try to save parameter file:", migratedFilename)
 
