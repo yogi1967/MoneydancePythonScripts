@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 1) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 2) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -21,6 +21,7 @@
 
 # build 1 - Initial preview release..... Based upon ofx_create_new_usaa_bank_profile.py (now deprecated)
 # build 1 - Released: 8th March 2021
+# build 2 - Put objects into editing mode by calling .setEditingMode() whilst editing until .syncItem() called
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -191,7 +192,7 @@ else:
     # END COMMON GLOBALS ###################################################################################################
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "1"                                                                                              # noqa
+    version_build = "2"                                                                                              # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
@@ -1407,6 +1408,7 @@ Visit: %s (Author's site)
                     if a.getBankingFI() == s or a.getBillPayFI() == s:
                         iCount+=1
                         myPrint("B", "clearing service link flag from account %s (%s)" %(a,s))
+                        a.setEditingMode()
                         a.setBankingFI(None)
                         a.setBillPayFI(None)
                         a.syncItem()
@@ -1419,6 +1421,11 @@ Visit: %s (Author's site)
                         rk = rootKeys[i]
                         if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
                             myPrint("B", "Deleting old authKey associated with this profile (from Root) %s: %s" %(rk,root.getParameter(rk)))
+
+                            if not lRootNeedsSync:
+                                myPrint("B",".. triggering .setEditingMode() on root...")
+                                root.setEditingMode()
+
                             root.setParameter(rk, None)
                             lRootNeedsSync = True
                         i+=1
@@ -1828,6 +1835,7 @@ Visit: %s (Author's site)
     if selectedBankAccount:
         myPrint("B", "Setting up account %s for OFX" %(selectedBankAccount))
         myPrint("B", ">> saving OFX bank account number: %s and OFX route: %s" %(bankID, routID))
+        selectedBankAccount.setEditingMode()                            # noqa
         selectedBankAccount.setBankAccountNumber(bankID)                # noqa
         selectedBankAccount.setOFXBankID(routID)                        # noqa
 
@@ -1849,15 +1857,15 @@ Visit: %s (Author's site)
 
     if selectedCCAccount:
         myPrint("B", "Setting up CC Account %s for OFX" %(selectedCCAccount))
-
         myPrint("B", ">> saving OFX CC account number %s" %(ccID))
-        selectedCCAccount.setBankAccountNumber(str(ccID).zfill(16))         # noqa
+        selectedCCAccount.setEditingMode()                              # noqa
+        selectedCCAccount.setBankAccountNumber(str(ccID).zfill(16))     # noqa
 
         # myPrint("B", ">> setting OFX Type to 'CREDITCARD'")
-        # selectedBankAccount.setOFXAccountType("CREDITCARD")               # noqa
+        # selectedBankAccount.setOFXAccountType("CREDITCARD")           # noqa
 
         myPrint("B", ">> setting OFX Message type to '5'")
-        selectedCCAccount.setOFXAccountMsgType(5)                     # noqa
+        selectedCCAccount.setOFXAccountMsgType(5)                       # noqa
 
         myPrint("B", ">> Settings up the CC Acct %s link to new profile %s" %(selectedCCAccount, newService))
         selectedCCAccount.setBankingFI(newService)                      # noqa
@@ -1870,6 +1878,9 @@ Visit: %s (Author's site)
 
     myPrint("B", "Updating root with userID and uuid")
     root = moneydance.getRootAccount()
+
+    myPrint("B","... calling .setEditingMode() on root...")
+    root.setEditingMode()
 
     if lOverrideRootUUID:
         myPrint("B","Overriding Root's default UUID. Was: %s >> changing to >> %s" %(root.getParameter(authKeyPrefix, ""),uuid))
