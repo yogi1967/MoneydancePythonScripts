@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# orphan_attachments.py - build: 9 - January 2021 - Stuart Beesley
+# orphan_attachments.py - build: 10 - January 2021 - Stuart Beesley
 ###############################################################################
 # MIT License
 #
@@ -31,13 +31,17 @@
 # Build: 2 Fix windows \s for /s
 # Build: 3 Display enhancements
 # Build: 6 Changes to common code
+# Build: 10 Small internal tweak
 
 # Detect another instance of this code running in same namespace - i.e. a Moneydance Extension
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
+# SET THESE LINES
 myModuleID = u"orphan_transactions"
+version_build = "10"
+debug = False
 global orphan_transactions_frame_
 
 global moneydance, moneydance_data, moneydance_ui
@@ -195,17 +199,14 @@ else:
     # END COMMON IMPORTS ###################################################################################################
 
     # COMMON GLOBALS #######################################################################################################
-    global debug  # Set to True if you want verbose messages, else set to False....
-    global myParameters, myScriptName, version_build, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
+    global myParameters, myScriptName, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
     global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
 
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "9"                                                                                                 # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
-    debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
     _resetParameters = False                                                                                            # noqa
     lPickle_version_warning = False                                                                                     # noqa

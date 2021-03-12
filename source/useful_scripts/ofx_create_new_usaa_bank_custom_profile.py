@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 2) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 3) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -22,12 +22,16 @@
 # build 1 - Initial preview release..... Based upon ofx_create_new_usaa_bank_profile.py (now deprecated)
 # build 1 - Released: 8th March 2021
 # build 2 - Put objects into editing mode by calling .setEditingMode() whilst editing until .syncItem() called
+# build 3 - Small internal tweak; allow 15 digit Amex numbers too
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
+# SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
+version_build = "3"
+debug = False
 global ofx_create_new_usaa_bank_profile_frame_
 
 global moneydance, moneydance_data, moneydance_ui
@@ -185,16 +189,13 @@ else:
     # END COMMON IMPORTS ###################################################################################################
 
     # COMMON GLOBALS #######################################################################################################
-    global debug  # Set to True if you want verbose messages, else set to False....
-    global myParameters, myScriptName, version_build, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
+    global myParameters, myScriptName, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
     global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "2"                                                                                              # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
-    debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
     _resetParameters = False                                                                                            # noqa
     lPickle_version_warning = False                                                                                     # noqa
@@ -1635,8 +1636,8 @@ Visit: %s (Author's site)
                 alert = "ERROR - no valid ccID supplied - aborting"
                 myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
                 raise Exception(alert)
-            if ccID is None or ccID == "" or len(ccID)!=16:
-                myPrint("B", "\n ** ERROR - no valid ccID supplied! Please try again ** \n")
+            if ccID is None or ccID == "" or len(ccID) < 15 or len(ccID) > 16:
+                myPrint("B", "\n ** ERROR - no valid ccID supplied! Please try again (Number should be 15 or 16 digits) ** \n")
                 continue
             break
 
@@ -1811,8 +1812,11 @@ Visit: %s (Author's site)
 
     if selectedCCAccount:
         sNum = str(num)
-        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(ccID).zfill(16))
-        manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "Signature Visa")
+        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(ccID))
+        if len(ccID) == 15:
+            manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature AMEX")
+        else:
+            manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature Visa")
         manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
         manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
         manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
@@ -1859,7 +1863,7 @@ Visit: %s (Author's site)
         myPrint("B", "Setting up CC Account %s for OFX" %(selectedCCAccount))
         myPrint("B", ">> saving OFX CC account number %s" %(ccID))
         selectedCCAccount.setEditingMode()                              # noqa
-        selectedCCAccount.setBankAccountNumber(str(ccID).zfill(16))     # noqa
+        selectedCCAccount.setBankAccountNumber(str(ccID))               # noqa
 
         # myPrint("B", ">> setting OFX Type to 'CREDITCARD'")
         # selectedBankAccount.setOFXAccountType("CREDITCARD")           # noqa

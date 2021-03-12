@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_all_attachments.py build: 6 - Jan 2021 - Stuart Beesley StuWareSoftSystems
+# extract_all_attachments.py build: 7 - Jan 2021 - Stuart Beesley StuWareSoftSystems
 
 # Detect another instance of this code running in same namespace - i.e. a Moneydance Extension
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
+# SET THESE LINES
 myModuleID = u"extract_all_attachments"
+version_build = "7"
+debug = False
 global extract_all_attachments_frame_
+
 global moneydance, moneydance_data, moneydance_ui
 global moneydance_extension_loader
 
@@ -165,17 +169,14 @@ else:
     # END COMMON IMPORTS ###################################################################################################
 
     # COMMON GLOBALS #######################################################################################################
-    global debug  # Set to True if you want verbose messages, else set to False....
-    global myParameters, myScriptName, version_build, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
+    global myParameters, myScriptName, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
     global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
 
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    version_build = "6"                                                                                                 # noqa
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
-    debug = False                                                                                                       # noqa
     myParameters = {}                                                                                                   # noqa
     _resetParameters = False                                                                                            # noqa
     lPickle_version_warning = False                                                                                     # noqa

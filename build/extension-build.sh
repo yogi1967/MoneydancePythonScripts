@@ -12,7 +12,7 @@ if [ "$1" = "" ] ; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
   echo "Usage ./build/extension-build.sh module_name"
-  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts"
+  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts, net_account_balances_to_zero"
   exit 1
 fi
 
@@ -21,10 +21,10 @@ if ! test -f "./build/extension-build.sh"; then
     exit 1
 fi
 
-if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "execute_file_import" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ]; then
+if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "execute_file_import" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "net_account_balances_to_zero" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ]; then
     echo
     echo "@@ Incorrect Python script name @@"
-    echo "must be: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts"
+    echo "must be: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts, net_account_balances_to_zero"
     exit 1
 else
     FILE=$1
