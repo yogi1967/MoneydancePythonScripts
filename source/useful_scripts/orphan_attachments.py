@@ -44,12 +44,15 @@ version_build = "10"
 debug = False
 global orphan_transactions_frame_
 
+# COPY >> START
 global moneydance, moneydance_data, moneydance_ui
 global moneydance_extension_loader
 
 from java.lang import System
 from javax.swing import JFrame
 from java.awt.event import WindowEvent
+from java.lang import Runnable
+from javax.swing import SwingUtilities
 
 class MyJFrame(JFrame):
 
@@ -60,6 +63,35 @@ class MyJFrame(JFrame):
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
         self.HomePageViewObj = None
+
+class GenericWindowClosingRunnable(Runnable):
+
+    def __init__(self, theFrame):
+        self.theFrame = theFrame
+
+    def run(self):                                                                                                      # noqa
+        self.theFrame.setVisible(False)
+        self.theFrame.dispatchEvent(WindowEvent(self.theFrame, WindowEvent.WINDOW_CLOSING))
+
+class GenericDisposeRunnable(Runnable):
+    def __init__(self, theFrame):
+        self.theFrame = theFrame
+
+    def run(self):                                                                                                      # noqa
+        self.theFrame.dispose()
+
+class GenericVisibleRunnable(Runnable):
+    def __init__(self, theFrame, lVisible=True, lToFront=False):
+        self.theFrame = theFrame
+        self.lVisible = lVisible
+        self.lToFront = lToFront
+
+    def run(self):                                                                                                      # noqa
+        self.theFrame.setVisible(self.lVisible)
+        if self.lVisible and self.lToFront:
+            if self.theFrame.getExtendedState() == JFrame.ICONIFIED:
+                self.theFrame.setExtendedState(JFrame.NORMAL)
+            self.theFrame.toFront()
 
 def getMyJFrame( moduleName ):
     try:
@@ -81,9 +113,9 @@ def getMyJFrame( moduleName ):
 frameToResurrect = None
 try:
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(orphan_transactions_frame_, MyJFrame)
-            and orphan_transactions_frame_.isActiveInMoneydance):
-        frameToResurrect = orphan_transactions_frame_
+            and isinstance(orphan_transactions_frame_, MyJFrame)        # EDIT THIS
+            and orphan_transactions_frame_.isActiveInMoneydance):       # EDIT THIS
+        frameToResurrect = orphan_transactions_frame_                   # EDIT THIS
     else:
         getFr = getMyJFrame( myModuleID )
         if getFr is not None:
@@ -101,9 +133,8 @@ try:
             System.err.write("%s: Detected that runtime extension %s is already running..... Assuming a re-installation... Taking appropriate action...\n" %(myModuleID, myModuleID))
             frameToResurrect.isActiveInMoneydance = False
             try:
-                frameToResurrect.setVisible(False)
-                frameToResurrect.dispatchEvent(WindowEvent(frameToResurrect, WindowEvent.WINDOW_CLOSING))
-                System.err.write("%s: Pushed a windowClosing event to existing extension... Hopefully it will close to allow re-installation...\n" %(myModuleID))
+                SwingUtilities.invokeLater(GenericWindowClosingRunnable(frameToResurrect))
+                System.err.write("%s: Pushed a windowClosing event - via SwingUtilities.invokeLater() - to existing extension... Hopefully it will close to allow re-installation...\n" %(myModuleID))
             except:
                 System.err.write("%s: ERROR pushing a windowClosing event to existing extension!\n" %(myModuleID))
 
@@ -123,12 +154,9 @@ if float(moneydance.getBuild()) < 1904:     # Check for builds less than 1904 / 
 
 elif frameToResurrect:
     try:
-        frameToResurrect.setVisible(True)
-        if frameToResurrect.getExtendedState() == JFrame.ICONIFIED:
-            frameToResurrect.setExtendedState(JFrame.NORMAL)
-        frameToResurrect.toFront()
+        SwingUtilities.invokeLater(GenericVisibleRunnable(frameToResurrect, True, True))
     except:
-        print("%s: Failed to resurrect main Frame.. This duplicate Script/extension is now terminating....." %(myModuleID))
+        print("%s: Failed to resurrect main Frame - via SwingUtilities.invokeLater() - This duplicate Script/extension is now terminating....." %(myModuleID))
         System.err.write("%s: Failed to resurrect main Frame.. This duplicate Script/extension is now terminating.....\n" %(myModuleID))
         raise Exception("SORRY - YOU CAN ONLY HAVE ONE INSTANCE OF %s RUNNING AT ONCE" %(myModuleID.upper()))
 
@@ -159,6 +187,8 @@ else:
     import datetime
 
     from org.python.core.util import FileUtil
+
+    from java.lang import Thread
 
     from com.moneydance.util import Platform
     from com.moneydance.awt import JTextPanel, GridC, JDateField
@@ -191,7 +221,7 @@ else:
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
                          AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
                          JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
-                         WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog)): pass
+                         WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread)): pass
     if codecs.BOM_UTF8 is not None: pass
     if csv.QUOTE_ALL is not None: pass
     if datetime.MINYEAR is not None: pass
@@ -203,6 +233,7 @@ else:
     global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
+    # COPY >> END
 
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
@@ -222,8 +253,7 @@ else:
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
-    # COMMON CODE ##########################################################################################################
-    # COMMON CODE ##########################################################################################################
+    # COPY >> START
     # COMMON CODE ##########################################################################################################
     i_am_an_extension_so_run_headless = False                                                                           # noqa
     try:
@@ -379,7 +409,7 @@ Visit: %s (Author's site)
         return theFont
 
     def getTheSetting(what):
-        x = moneydance.getPreferences().getSetting(what, None)      # noqa
+        x = moneydance.getPreferences().getSetting(what, None)                                                          # noqa
         if not x or x == u"": return None
         return what + u": %s" %(x)
 
@@ -537,7 +567,7 @@ Visit: %s (Author's site)
         else:
             field = JTextField(defaultText)
 
-        x = 0       # noqa
+        x = 0                                                                                                           # noqa
         if theFieldLabel:
             p.add(JLabel(theFieldLabel), GridC.getc(x, 0).east())
             x+=1
@@ -590,10 +620,10 @@ Visit: %s (Author's site)
                 self.lResult[0] = False
 
                 if self.theFakeFrame is not None:
-                    self.theDialog.dispose()
-                    self.theFakeFrame.dispose()
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
                 else:
-                    self.theDialog.dispose()
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -613,10 +643,10 @@ Visit: %s (Author's site)
                 self.lResult[0] = True
 
                 if self.theFakeFrame is not None:
-                    self.theDialog.dispose()
-                    self.theFakeFrame.dispose()
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
                 else:
-                    self.theDialog.dispose()
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -636,10 +666,10 @@ Visit: %s (Author's site)
                 self.lResult[0] = False
 
                 if self.theFakeFrame is not None:
-                    self.theDialog.dispose()
-                    self.theFakeFrame.dispose()
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
                 else:
-                    self.theDialog.dispose()
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -651,10 +681,10 @@ Visit: %s (Author's site)
 
             self._popup_d.setVisible(False)
             if self.fakeJFrame is not None:
-                self._popup_d.dispose()
-                self.fakeJFrame.dispose()
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
             else:
-                self._popup_d.dispose()
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
@@ -782,7 +812,8 @@ Visit: %s (Author's site)
             self._popup_d.add(_popupPanel)
             self._popup_d.pack()
             self._popup_d.setLocationRelativeTo(None)
-            self._popup_d.setVisible(True)
+            # SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, True))
+            self._popup_d.setVisible(True)  # Keeping this modal....
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -1192,11 +1223,10 @@ Visit: %s (Author's site)
         for fr in frames:
             if fr.getName().lower().startswith(moduleName):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
-                # if fr.isActiveInMoneydance:
                 try:
                     fr.isActiveInMoneydance = False
-                    fr.setVisible(False)
-                    fr.dispose()    # This should call windowClosed() which should remove MD listeners.....
+                    SwingUtilities.invokeLater(GenericVisibleRunnable(fr, False, False))
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(fr))  # This should call windowClosed() which should remove MD listeners.....
                     myPrint("DB","disposed of old frame: %s" %(fr.getName()))
                 except:
                     myPrint("B","Failed to dispose old frame: %s" %(fr.getName()))
@@ -1212,6 +1242,7 @@ Visit: %s (Author's site)
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
+    # COPY >> END
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
@@ -1255,7 +1286,7 @@ Visit: %s (Author's site)
 
                 myPrint("DB", "QuickJFrame() Frame shutting down....")
 
-                self.theFrame.dispose()
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFrame))
                 return
 
         def show_the_frame(self):
@@ -1270,7 +1301,8 @@ Visit: %s (Author's site)
 
             JFrame.setDefaultLookAndFeelDecorated(True)
 
-            jInternalFrame = JFrame(self.title)
+            jInternalFrame = MyJFrame(self.title)
+            jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
             if not Platform.isOSX():
                 jInternalFrame.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
@@ -1314,7 +1346,7 @@ Visit: %s (Author's site)
 
             jInternalFrame.pack()
             jInternalFrame.setLocationRelativeTo(None)
-            jInternalFrame.setVisible(True)
+            SwingUtilities.invokeLater(GenericVisibleRunnable(jInternalFrame, True))
 
             if "errlog.txt" in self.title:
                 theJText.setCaretPosition(theJText.getDocument().getLength())

@@ -14,6 +14,13 @@ NOTE: You may need to download the MD preview version from: https://infinitekind
 The <module_name>.zip files in this directory contain both the Extension version (and the Script version if available).
 Unzip this file, and then install the Extension, or run the Script, as required - see below:
 
+_NOTE: On a Mac you might see one or two popup System Warning messages saying something like:
+“jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified.
+macOS cannot verify that this app is free from malware.
+These are irrelevant and harmless messages. Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. 
+The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created.
+The Moneydance developer (IK) is aware of this and is trying to build a fix. It happens with all Python scripts._
+
 To use extension (*.mxt):
 - Run Moneydance
 - Menu>Extensions>Manage Extensions>add from file>Select the mxt>Open/Install.

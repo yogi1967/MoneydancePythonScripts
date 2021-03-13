@@ -6,15 +6,20 @@
 # Shell script: launch-moneydance.sh
 # Make sure you 'chmod +x launch-moneydance.sh' to make script executable
 
-# The purpose of this shell script is to launch Moneydance from the Terminal command line, simulating the same Sandbox
+# The purpose of this shell script is to launch Moneydance from the Terminal command line, simulating the same
 # 'experience' that you get when running Moneydance from the normal install icon (and the same folder locations).
-# If you want no sandbox then delete / change the line -DSandboxEnabled=true
+# A real MacOs sandbox environment is not possible as you have to build an app installer for that, and this would
+# defeat the point of using a script. However, this script sets up your environment to replicate everything, including
+# folder paths. The real benefits of using this script are:
+#   1. Ability to run without sandbox restrictions (access to all folders, not Gatekeeper messages with Python)
+#   2. Ability to launch MD with parameters - e.g. -d for debug mode
+#   3. Ability to swap in your own java libraries (assuming you are a developer)
 
 # This has been setup for a Mac, and would need to be changed for Windows/Linux - especially the folder locations...
 
 # Usage:
 # Execute using './launch-moneydance.sh' you can add parameters that will be passed to Moneydance
-# Parameter: '-d'                 is passed by default and turns on MD DEBUG mode
+# Parameter: '-d'                 is passed by default by this script and turns on MD DEBUG mode
 # Parameter: '-v'                 prints the current version
 # Parameter: pythonscriptname.py  adds script to a list of scripts to execute (but this seems to then be ignored)
 # Parameter: importfilename       executes file import
@@ -61,17 +66,17 @@ java=java
 javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
-# set to "" for standard app install name
-#md_version=""
+# set to "" for standard app install name (I add the version and build to the app name when installing)
+md_version=""
 #md_version=" 2021 (3034)"
-md_version=" 2021 (3039)"
+#md_version=" 2021 (3039)"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
 md_icon="/Applications/Moneydance${md_version}.app/Contents/Resources/desktop_icon.icns"
 
 
-# Set to "" for no sandbox
+# Set to "" for no sandbox (however, with enabled=true is not really a sandbox)
 #use_sandbox=""
 use_sandbox="-DSandboxEnabled=true"
 
