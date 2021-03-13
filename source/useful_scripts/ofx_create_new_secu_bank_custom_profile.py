@@ -1,48 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# orphan_attachments.py - build: 10 - January 2021 - Stuart Beesley
-###############################################################################
-# MIT License
-#
-# Copyright (c) 2020 Stuart Beesley - StuWareSoftSystems
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-###############################################################################
-# Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
-# Stuart Beesley Created 2020-12-24 tested on MacOS - MD2021 (3034) onwards - StuWareSoftSystems....
-# Build: 1 beta - Initial release
-# Build: 2 Fix windows \s for /s
-# Build: 3 Display enhancements
-# Build: 6 Changes to common code
-# Build: 10 Small internal tweak
+# ofx_create_new_secu_bank_custom_profile.py (build 1) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
-# Detect another instance of this code running in same namespace - i.e. a Moneydance Extension
+# READ THIS FIRST:
+# https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
+
+# This script builds a new NCSECU Bank Custom Profile from scratch to work with the new connection information
+# It will DELETE your existing NCSECU profile(s) first!
+# It will populate your UserID, Password, and allow you to change/update the Bank and Credit Card Number
+# This will create a non MD profile to avoid any refresh issues....
+# Based on the original 'magic' contained within ofx_create_new_usaa_bank_custom_profile.py
+
+# DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Export Backup will achieve this)
+#               You use this at your own risk. I take no responsibility for its usage..!
+#               This should be considered a temporary fix only until Moneydance is fixed
+
+# CREDITS:  hleofxquotes for his technical input and dtd for his extensive testing
+
+# build 1 - Initial preview release.....
+# build 1 - Released: 13th March 2021 (thanks to @margopowell for volunteering her data to set this script up)
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
 # SET THESE LINES
-myModuleID = u"orphan_transactions"
-version_build = "10"
+myModuleID = u"ofx_create_new_secu_bank_custom_profile"
+version_build = "1"
 debug = False
-global orphan_transactions_frame_
+global ofx_create_new_secu_bank_custom_profile_frame_
 
 global moneydance, moneydance_data, moneydance_ui
 global moneydance_extension_loader
@@ -81,9 +68,9 @@ def getMyJFrame( moduleName ):
 frameToResurrect = None
 try:
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(orphan_transactions_frame_, MyJFrame)
-            and orphan_transactions_frame_.isActiveInMoneydance):
-        frameToResurrect = orphan_transactions_frame_
+            and isinstance(ofx_create_new_secu_bank_custom_profile_frame_, MyJFrame)
+            and ofx_create_new_secu_bank_custom_profile_frame_.isActiveInMoneydance):
+        frameToResurrect = ofx_create_new_secu_bank_custom_profile_frame_
     else:
         getFr = getMyJFrame( myModuleID )
         if getFr is not None:
@@ -204,7 +191,6 @@ else:
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
 
-
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     myParameters = {}                                                                                                   # noqa
@@ -216,8 +202,12 @@ else:
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
-    from java.awt import Desktop
-    # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
+    from com.infinitekind.moneydance.model import OnlineService
+    from com.moneydance.apps.md.view.gui import MDAccountProxy
+    from com.infinitekind.tiksync import SyncRecord
+    from com.infinitekind.util import StreamTable
+    from java.util import UUID
+    from com.infinitekind.util import StringUtils
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
@@ -379,7 +369,7 @@ Visit: %s (Author's site)
         return theFont
 
     def getTheSetting(what):
-        x = moneydance.getPreferences().getSetting(what, None)      # noqa
+        x = moneydance.getPreferences().getSetting(what, None)
         if not x or x == u"": return None
         return what + u": %s" %(x)
 
@@ -537,7 +527,7 @@ Visit: %s (Author's site)
         else:
             field = JTextField(defaultText)
 
-        x = 0       # noqa
+        x = 0
         if theFieldLabel:
             p.add(JLabel(theFieldLabel), GridC.getc(x, 0).east())
             x+=1
@@ -1237,431 +1227,837 @@ Visit: %s (Author's site)
     debug = False                                                                                                       # noqa
     myPrint("DB", "DEBUG IS ON..")
 
-    class QuickJFrame():
+    ofx_create_new_secu_bank_custom_profile_frame_ = MyJFrame(u"%s" % (myModuleID))
+    ofx_create_new_secu_bank_custom_profile_frame_.setName(u"%s_fake" %(myModuleID))
 
-        def __init__(self, title, output, lAlertLevel=0):
-            self.title = title
-            self.output = output
-            self.lAlertLevel = lAlertLevel
+    moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
 
-        class CloseAction(AbstractAction):
+    def createNewClientUID():
+        uid = UUID.randomUUID().toString()
+        uid = StringUtils.replaceAll(uid, "-", "").trim()
+        if (uid.length() > 32):
+            uid = uid.substring(0, 32)
+        return uid
 
-            def __init__(self, theFrame):
-                self.theFrame = theFrame
+    def isUserEncryptionPassphraseSet():
 
-            def actionPerformed(self, event):
-                global debug
-                myPrint("D","in CloseAction(), Event: ", event)
+        try:
+            keyFile = File(moneydance_data.getRootFolder(), "key")
 
-                myPrint("DB", "QuickJFrame() Frame shutting down....")
+            keyInfo = SyncRecord()
+            fin = FileInputStream(keyFile)
+            keyInfo.readSet(fin)
+            fin.close()
+            return keyInfo.getBoolean("userpass", False)
+        except:
+            pass
+        return False
 
-                self.theFrame.dispose()
-                return
+    def my_getAccountKey(acct):      # noqa
+        acctNum = acct.getAccountNum()
+        if (acctNum <= 0):
+            return acct.getUUID()
+        return str(acctNum)
 
-        def show_the_frame(self):
-            global debug
+    class MyAcctFilter(AcctFilter):
 
-            screenSize = Toolkit.getDefaultToolkit().getScreenSize()
-            # frame_width = screenSize.width - 20
-            # frame_height = screenSize.height - 20
+        def __init__(self, selectType=0):
+            self.selectType = selectType
 
-            frame_width = min(screenSize.width-20, max(1024,int(round(moneydance_ui.firstMainFrame.getSize().width *.9,0))))
-            frame_height = min(screenSize.height-20, max(768, int(round(moneydance_ui.firstMainFrame.getSize().height *.9,0))))
+        def matches(self, acct):         # noqa
+            if self.selectType == 0:
+                # noinspection PyUnresolvedReferences
+                if not (acct.getAccountType() == Account.AccountType.BANK):
+                    return False
 
-            JFrame.setDefaultLookAndFeelDecorated(True)
+            if self.selectType == 1:
+                # noinspection PyUnresolvedReferences
+                if not (acct.getAccountType() == Account.AccountType.CREDIT_CARD):
+                    return False
 
-            jInternalFrame = JFrame(self.title)
+            if self.selectType == 2:
+                # noinspection PyUnresolvedReferences
+                if not (acct.getAccountType() == Account.AccountType.BANK or acct.getAccountType() == Account.AccountType.CREDIT_CARD):
+                    return False
+                else:
+                    return True
 
-            if not Platform.isOSX():
-                jInternalFrame.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+            if (acct.getAccountOrParentIsInactive()): return False
+            if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
 
-            jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
-            jInternalFrame.setResizable(True)
+            return True
 
-            shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
-            jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
-            jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
-
-            jInternalFrame.getRootPane().getActionMap().put("close-window", self.CloseAction(jInternalFrame))
-
-            theJText = JTextArea(self.output)
-            theJText.setEditable(False)
-            theJText.setLineWrap(True)
-            theJText.setWrapStyleWord(True)
-            # theJText.setFont(Font("monospaced", Font.PLAIN, 15))
-            theJText.setFont( getMonoFont() )
-
-            internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-
-            if self.lAlertLevel>=2:
-                internalScrollPane.setBackground(Color.RED)
-                theJText.setBackground(Color.RED)
-                theJText.setForeground(Color.BLACK)
-            elif self.lAlertLevel>=1:
-                internalScrollPane.setBackground(Color.YELLOW)
-                theJText.setBackground(Color.YELLOW)
-                theJText.setForeground(Color.BLACK)
-
-            jInternalFrame.setMinimumSize(Dimension(frame_width, 0))
-            jInternalFrame.setMaximumSize(Dimension(frame_width, frame_height))
-
-            # if Platform.isWindows():
-            #     if theJText.getLineCount() > 30:
-            #         jInternalFrame.setPreferredSize(Dimension(frame_width - 50, frame_height - 100))
-            #
-
-            jInternalFrame.add(internalScrollPane)
-
-            jInternalFrame.pack()
-            jInternalFrame.setLocationRelativeTo(None)
-            jInternalFrame.setVisible(True)
-
-            if "errlog.txt" in self.title:
-                theJText.setCaretPosition(theJText.getDocument().getLength())
-
-            try:
-                pass
-            except:
-
-                myPrint("J","Error copying contents to Clipboard")
-                dump_sys_error_to_md_console_and_errorlog()
-
-            return (jInternalFrame)
-
-    scanningMsg = MyPopUpDialogBox(None,"Please wait: searching Database and filesystem for attachments..",theTitle="ATTACHMENT(S) SEARCH", theWidth=100, lModal=False,OKButtonText="WAIT")
-    scanningMsg.go()
-
-    myPrint("P", "Scanning database for attachment data..")
-    book = moneydance_data
-
-    attachmentList={}
-    attachmentLocations={}
-
-    iObjectsScanned=0
-    iTxnsScanned=0
-
-    iTxnsWithAttachments = 0
-    iAttachmentsFound = 0
-    iAttachmentsNotInLS = 0
-    iDuplicateKeys = 0
-    attachmentsNotInLS=[]
-
-    diagDisplay="ANALYSIS OF ATTACHMENTS\n\n"
-
-    attachmentFullPath = os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe", moneydance.getCurrentAccountBook().getAttachmentsFolder())
-
-    LS = moneydance.getCurrentAccountBook().getLocalStorage()
-
-    txnSet = book.getTransactionSet()
-    for _mdItem in txnSet.iterableTxns():
-        iObjectsScanned+=1
-
-        iTxnsScanned+=1
-
-        if not (_mdItem.hasAttachments() or len(_mdItem.getAttachmentKeys())>0):
-            continue
-
-        iTxnsWithAttachments+=1
-        x="Found Record with %s Attachment(s): %s" %(len(_mdItem.getAttachmentKeys()),_mdItem)
-        myPrint("D",x)
-        if debug: diagDisplay+=(x+"\n")
-
-        if attachmentList.get(_mdItem.getUUID()):
-            iDuplicateKeys += 1
-            x="@@ Error %s already exists in my attachment list...!?" %_mdItem.getUUID()
-            myPrint("DB", x)
-            if debug: diagDisplay+=(x+"\n")
-
-        attachmentList[_mdItem.getUUID()] = [
-                                            _mdItem.getUUID(),
-                                            _mdItem.getAccount().getAccountName(),
-                                            _mdItem.getAccount().getAccountType(),
-                                            _mdItem.getDateInt(),
-                                            _mdItem.getValue(),
-                                            _mdItem.getAttachmentKeys()
-                                            ]
-        x="Attachment keys: %s" %_mdItem.getAttachmentKeys()
-        myPrint("D",x)
-        if debug: diagDisplay+=(x+"\n")
-
-        for _key in _mdItem.getAttachmentKeys():
-            iAttachmentsFound+=1
-            if attachmentLocations.get(_mdItem.getAttachmentTag(_key)):
-                iDuplicateKeys += 1
-                x="@@ Error %s already exists in my attachment location list...!?" %_mdItem.getUUID()
-                myPrint("B", )
-                if debug: diagDisplay+=(x+"\n")
-
-            attachmentLocations[_mdItem.getAttachmentTag(_key)] = [
-                                                                    _mdItem.getAttachmentTag(_key),
-                                                                    _key,
-                                                                    _mdItem.getUUID(),
-                                                                    LS.exists(_mdItem.getAttachmentTag(_key))
-                                                                    ]
-            if not LS.exists(_mdItem.getAttachmentTag(_key)):
-                iAttachmentsNotInLS+=1
-                attachmentsNotInLS.append([
-                                            _mdItem.getUUID(),
-                                            _mdItem.getAccount().getAccountName(),
-                                            _mdItem.getAccount().getAccountType(),
-                                            _mdItem.getDateInt(),
-                                            _mdItem.getValue(),
-                                            _mdItem.getAttachmentKeys()
-                                            ])
-
-                x="@@ Error - Attachment for Txn DOES NOT EXIST! - Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
-                myPrint("B",x)
-                diagDisplay+=(x+"\n")
+    class StoreAccountList():
+        def __init__(self, obj):
+            if isinstance(obj,Account):
+                self.obj = obj                          # type: Account
             else:
-                x="Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
-                myPrint("D", x)
-                if debug: diagDisplay+=(x+"\n")
+                self.obj = None
+
+        def __str__(self):
+            if self.obj is None:
+                return "Invalid Acct Obj or None"
+            return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
+
+        def __repr__(self):
+            if self.obj is None:
+                return "Invalid Acct Obj or None"
+            return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
+
+    if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "BACKUP", "CREATE A NEW (CUSTOM) NCSECU PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
+        alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
+        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+    if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
+        alert = "Disclaimer rejected - no changes made"
+        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+    ask = MyPopUpDialogBox(ofx_create_new_secu_bank_custom_profile_frame_, "This script will delete your existing NCSECU bank profile(s) and CREATE A BRAND NEW CUSTOM NCSECU PROFILE:",
+                           "Get the latest useful_scripts.zip package from: https://yogi1967.github.io/MoneydancePythonScripts/ \n"
+                           "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
+                           "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
+                           "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
+                           "This script will ask you for many numbers. You must know them:\n"
+                           "- Do you know your Bank supplied UserID (min length 7)?\n"
+                           "- Do you know your Pin/Password (min length 4)?\n"
+                           "- Do you know your Bank Account Number and routing Number (9-digits - usually '253177049')?\n"
+                           "- Do you know your Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
+                           "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
+                           "IF NOT, STOP AND GATHER ALL INFORMATION",
+                           250,"KNOWLEDGE",
+                           lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+    if not ask.go():
+        alert = "Knowledge rejected - no changes made"
+        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+    lCachePasswords = (isUserEncryptionPassphraseSet() and moneydance_ui.getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
+    if not lCachePasswords:
+        if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_,"STORE PASSWORDS","Your system is not set up to save/store passwords. Do you want to continue?",theMessageType=JOptionPane.ERROR_MESSAGE):
+            alert = "Please set up Master password and select store passwords first - then try again - no changes made"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        myPrint("B", "Proceeding even though system is not set up for passwords")
 
 
-    # Now scan the file system for attachments
-    myPrint("P", "Now scanning attachment directory(s) and files...:")
+    lOverrideRootUUID = False
+    lMultiAccountSetup = False
 
-    attachmentsRawListFound = []
+    # options = ["NO (Skip this)","YES - PRIME SECOND ACCOUNT"]
+    # theResult = JOptionPane.showOptionDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+    #                                       "Do you have multiple DIFFERENT credentials where you wish to 'prime' the default UUID into (Root's) profile?",
+    #                                       "MULTI-ACCOUNTS",
+    #                                        JOptionPane.YES_NO_OPTION,
+    #                                        JOptionPane.QUESTION_MESSAGE,
+    #                                        None,
+    #                                        options,
+    #                                        options[0])
+    # if theResult > 0:
+    #     lMultiAccountSetup = True
+    #     myPrint("B","Will setup multi-accounts too.... ")
+    #
+    #     # options = ["NO (Skip this)","YES - SET GLOBAL DEFAULT ROOT UUID"]
+    #     # theResult = JOptionPane.showOptionDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+    #     #                                          "Do you also wish to override Root's (global) default UUID with the one you specify?",
+    #     #                                          "OVERRIDE ROOT DEFAULT UUID",
+    #     #                                          JOptionPane.YES_NO_OPTION,
+    #     #                                          JOptionPane.QUESTION_MESSAGE,
+    #     #                                          None,
+    #     #                                          options,
+    #     #                                          options[0])
+    #     # if theResult > 0:
+    #     #     lOverrideRootUUID = True
+    #     #     myPrint("B","Will also override Root UUID too.... ")
+    #     # else:
+    #     #     myPrint("B","User declined NOT to prime the global Root Default UUID...")
+    # else:
+    #     myPrint("B","User selected NOT to prime for multiple-accounts...")
+    #
 
-    typesFound={}
+    serviceList = moneydance_data.getOnlineInfo().getAllServices()  # type: [OnlineService]
 
-    for root, dirs, files in os.walk(attachmentFullPath):
+    SECU_FI_ID = "1001"
+    SECU_FI_ORG = "SECU"
+    SECU_PROFILE_NAME = "NCSECU Custom Profile (ofx_create_new_secu_bank_profile_custom.py)"
+    OLD_TIK_FI_ID = "md:1262"
+    SECU_BOOTSTRAP = "https://onlineaccess.ncsecu.org/secuofx/secu.ofx"
+    SECU_ACCT_LENGTH = 7
 
-        for name in files:
-            theFile = os.path.join(root,name)[len(attachmentFullPath)-len(moneydance.getCurrentAccountBook().getAttachmentsFolder()):]
-            byteSize = os.path.getsize(os.path.join(root,name))
-            modified = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime('%Y-%m-%d %H:%M:%S')
-            attachmentsRawListFound.append([theFile, byteSize, modified])
-            theExtension = os.path.splitext(theFile)[1].lower()
+    authKeyPrefix = "ofx.client_uid"
 
-            iCountExtensions = 0
-            iBytes = 0
-            if typesFound.get(theExtension):
-                iCountExtensions = typesFound.get(theExtension)[1]
-                iBytes = typesFound.get(theExtension)[2]
-            typesFound[theExtension] = [theExtension, iCountExtensions+1, iBytes+byteSize ]
+    SECU_ACCOUNT_TYPES = ["CHECKING", "SAVINGS", "MONEYMRKT"]
 
-            x="Found Attachment File: %s" %theFile
-            myPrint("D", x)
-            if debug: diagDisplay+=(x+"\n")
+    ####################################################################################################################
+    deleteServices = []
+    for svc in serviceList:
+        if (svc.getTIKServiceID() == OLD_TIK_FI_ID
+                or svc.getServiceId() == ":%s:%s" %(SECU_FI_ORG, SECU_FI_ID)
+                or "SECU" in svc.getFIOrg()
+                or "SECU" in svc.getFIName()):
+            myPrint("B", "Found NCSECU service - to delete: %s" %(svc))
+            deleteServices.append(svc)
 
-    # Now match file system to the list from the database
-    iOrphans=0
-    iOrphanBytes=0
+    root = moneydance.getRootAccount()
+    rootKeys = list(root.getParameterKeys())
+    lRootNeedsSync = False
 
-    orphanList=[]
-
-    for fileDetails in attachmentsRawListFound:
-        deriveTheKey = fileDetails[0]
-        deriveTheBytes = fileDetails[1]
-        deriveTheModified = fileDetails[2]
-        if attachmentLocations.get(deriveTheKey.replace(os.path.sep,"/")):
-            x="Attachment file system link found in Moneydance database"
-            myPrint("D", x)
-            if debug: diagDisplay+=(x+"\n")
-        else:
-            x="Error: Attachment filesystem link missing in Moneydance database: %s" %deriveTheKey
-            myPrint("DB", x)
-            if debug: diagDisplay+=(x+"\n")
-            iOrphans+=1
-            iOrphanBytes+=deriveTheBytes
-            orphanList.append([deriveTheKey,deriveTheBytes, deriveTheModified])
-
-    msgStr=""
-
-    myPrint("P","\n"*5)
-
-    x="----------------------------------"
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-
-    x = "Objects scanned: %s" %iObjectsScanned
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-
-    x="Transactions scanned: %s" %iTxnsScanned
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Transactions with attachments: %s" %iTxnsWithAttachments
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Total Attachments referenced in Moneydance database (a txn may have multi-attachments): %s" %iAttachmentsFound
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Attachments missing from Local Storage: %s" %iAttachmentsNotInLS
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Total Attachments found in file system: %s (difference %s)" %(len(attachmentsRawListFound),len(attachmentsRawListFound)-iAttachmentsFound)
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-
-
-    myPrint("P","\n"*1)
-
-    x="Attachment extensions found: %s" %len(typesFound)
-    myPrint("B", x)
-    diagDisplay+=("\n"+x+"\n")
-
-    iTotalBytes = 0
-    sortedExtensions = sorted(typesFound.values(), key=lambda _x: (_x[2]), reverse=True)
-
-    for x in sortedExtensions:
-        iTotalBytes+=x[2]
-
-        x="Extension: %s Number: %s Size: %sMB" %(pad(x[0],6),rpad(x[1],12),rpad(round(x[2]/(1024.0 * 1024.0),2),12))
-        myPrint("B", x)
-        diagDisplay+=(x+"\n")
-
-    x="Attachments on disk are taking: %sMB" %(round(iTotalBytes/(1024.0 * 1024.0),2))
-    myPrint("B", x)
-    diagDisplay+=(x+"\n")
-    msgStr+=(x+"\n")
-    x="----------------------------------"
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n\n")
-
-    lErrors=False
-    if iAttachmentsNotInLS:
-        x = "@@ ERROR: You have %s missing attachment(s) referenced on Moneydance Txns!" %(iAttachmentsNotInLS)
-        msgStr+=x+"\n"
-        diagDisplay+=(x+"\n\n")
-        myPrint("P","")
-        myPrint("B",x)
-        lErrors=True
-
-        attachmentsNotInLS=sorted(attachmentsNotInLS, key=lambda _x: (_x[3]), reverse=False)
-        for theOrphanRecord in attachmentsNotInLS:
-            x="Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
-                                                                                                                theOrphanRecord[2],
-                                                                                                                theOrphanRecord[3],
-                                                                                                                theOrphanRecord[4],
-                                                                                                                theOrphanRecord[5])
-            myPrint("B", x)
-            diagDisplay+=(x+"\n")
-        diagDisplay+="\n"
-
-    if iOrphans:
-        x = "@@ ERROR: %s Orphan attachment(s) found, taking up %sMBs" %(iOrphans,round(iOrphanBytes/(1024.0 * 1024.0),2))
-        msgStr+=x+"\n"
-        diagDisplay+=(x+"\n\n")
-        myPrint("P","")
-        myPrint("B",x)
-        x="Base Attachment Directory is: %s" %os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe","")
-        myPrint("P",x)
-        diagDisplay+=(x+"\n")
-        lErrors=True
-        orphanList=sorted(orphanList, key=lambda _x: (_x[2]), reverse=False)
-        for theOrphanRecord in orphanList:
-
-            x="Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" %(rpad(round(theOrphanRecord[1]/(1024.0),1),6),
-                                                                                        pad(theOrphanRecord[2],19),
-                                                                                        theOrphanRecord[0])
-            diagDisplay+=(x+"\n")
-            myPrint("B", x)
-
-    if not lErrors:
-        x= "Congratulations! - No orphan attachments detected!".upper()
-        myPrint("B",x)
-        diagDisplay+=(x+"\n")
-
-
-    if iAttachmentsFound:
-        diagDisplay+="\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
-        diagDisplay+="=======================================\n"
-        x="\nBase Attachment Directory is: %s" %os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe","")
-        diagDisplay+=(x+"\n-----------\n")
-
-        for validLocation in attachmentLocations:
-            locationRecord = attachmentLocations[validLocation]
-            record = attachmentList[locationRecord[2]]
-            diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
-                         %(pad(repr(record[2]),12),
-                           pad(str(record[1]),20),
-                           record[3],
-                           rpad(record[4]/100.0,10),
-                           validLocation)
-
-    diagDisplay+='\n<END>'
-    jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay).show_the_frame()
-
-    if iOrphans:
-        msg = MyPopUpDialogBox(jif,
-                               "You have %s Orphan attachment(s) found, taking up %sMBs" %(iOrphans,round(iOrphanBytes/(1024.0 * 1024.0),2)),
-                               msgStr+"CLICK TO VIEW ORPHANS, or CANCEL TO EXIT",
-                               200,"ORPHANED ATTACHMENTS",
-                               lCancelButton=True,
-                               OKButtonText="CLICK TO VIEW",
-                               lAlertLevel=1)
-    elif iAttachmentsNotInLS:
-        msg = MyPopUpDialogBox(jif,
-                               "You have %s missing attachment(s) referenced on Moneydance Txns!" %(iAttachmentsNotInLS),
-                               msgStr,
-                               200,"MISSING ATTACHMENTS",
-                               lCancelButton=False,
-                               OKButtonText="OK",
-                               lAlertLevel=1)
-
-    if lErrors:
-        moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems: %s - ERRORS DETECTED!" %(myScriptName),0)
+    if len(deleteServices) < 1:
+        myPrint("B", "No NCSECU services / profile found to delete...")
     else:
-        moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems "+x,0)
-        msg = MyPopUpDialogBox(jif,
-                               x,
-                               msgStr,
-                               200,"ATTACHMENTS STATUS",
-                               lCancelButton=False,
-                               OKButtonText="OK",
-                               lAlertLevel=0)
+        if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "DELETE OLD SERVICES", "OK TO DELETE %s OLD NCSECU SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
+            alert = "ERROR - User declined to delete %s old NCSECU service profiles - no changes made" %(len(deleteServices))
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        else:
+            accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(2))
+            for s in deleteServices:
+                iCount = 0
+                for a in accounts:
+                    if a.getBankingFI() == s or a.getBillPayFI() == s:
+                        iCount+=1
+                        myPrint("B", "clearing service link flag from account %s (%s)" %(a,s))
+                        a.setEditingMode()
+                        a.setBankingFI(None)
+                        a.setBillPayFI(None)
+                        a.syncItem()
 
-    myPrint("P","\n"*2)
+                myPrint("B", "Clearing authentication cache from %s" %s)
+                s.clearAuthenticationCache()
+
+                # # Clean up root here - as with custom profiles the UUID sets stored instead of the TIK ID which can be identified later....
+                # if s.getTIKServiceID() != OLD_TIK_FI_ID:  # Thus we presume it's our own custom profile
+                #     for i in range(0,len(rootKeys)):
+                #         rk = rootKeys[i]
+                #         if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
+                #             myPrint("B", "Deleting old authKey associated with this profile (from Root) %s: %s" %(rk,root.getParameter(rk)))
+                #
+                #             if not lRootNeedsSync:
+                #                 myPrint("B",".. triggering .setEditingMode() on root...")
+                #                 root.setEditingMode()
+                #
+                #             root.setParameter(rk, None)
+                #             lRootNeedsSync = True
+                #         i+=1
+                #
+                myPrint("B", "Deleting profile %s" %s)
+                s.deleteItem()
+                myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
+            del accounts
+
+    if lRootNeedsSync:
+        root.syncItem()
+
+    del serviceList, deleteServices, lRootNeedsSync, rootKeys
 
 
-    myPrint("B", "StuWareSoftSystems - ", myScriptName, " script ending......")
+    ####################################################################################################################
+    invalidBankingLinks = []
+    invalidBillPayLinks = []
+    myPrint("B","Searching for Account banking / Bill Pay links with no profile (just a general cleanup routine)....")
+    accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(2))
+    for a in accounts:
+        if a.getBankingFI() is None and a.getParameter("olbfi", "") != "":
+            invalidBankingLinks.append(a)
+            myPrint("B","... Found account %s with a banking link (to %s), but no service profile exists (thus dead)..." %(a,a.getParameter("olbfi", "")))
+
+        if a.getBillPayFI() is None and a.getParameter("bpfi", "") != "":
+            invalidBillPayLinks.append(a)
+            myPrint("B","... Found account %s with a BillPay link (to %s), but no service profile exists (thus dead)..." %(a,a.getParameter("bpfi", "")))
+
+    if len(invalidBankingLinks) or len(invalidBillPayLinks):
+        if myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_,
+                              "ACCOUNT TO DEAD SERVICE PROFILE LINKS",
+                              "ALERT: I found %s Banking and %s BillPay links to 'dead' / missing Service / Connection profiles - Shall I remove these links?"
+                              %(len(invalidBankingLinks),len(invalidBillPayLinks)),
+                              theMessageType=JOptionPane.INFORMATION_MESSAGE):
+            for a in invalidBankingLinks:
+                a.setBankingFI(None)
+                a.syncItem()
+                myPrint("B","...removed the dead link Banking link on account %s" %(a))
+            for a in invalidBillPayLinks:
+                a.setBillPayFI(None)
+                a.syncItem()
+                myPrint("B","...removed the dead link BillPay link on account %s" %(a))
+
+    del invalidBankingLinks, invalidBillPayLinks, accounts
+    ####################################################################################################################
+
+    # BANK ACCOUNT
+    selectedBankAccount = selectedCCAccount = None
+
+    accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(0))
+    accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+    bankAccounts = []
+    for acct in accounts:
+        bankAccounts.append(StoreAccountList(acct))
+
+    if len(bankAccounts):
+        saveOK = UIManager.get("OptionPane.okButtonText")
+        saveCancel = UIManager.get("OptionPane.cancelButtonText")
+        UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
+        UIManager.put("OptionPane.cancelButtonText", "NO BANK ACCOUNT")
+
+        selectedBankAccount = JOptionPane.showInputDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+                                                          "Select the Bank account to link",
+                                                          "Select Bank account",
+                                                          JOptionPane.WARNING_MESSAGE,
+                                                          None,
+                                                          bankAccounts,
+                                                          None)     # type: StoreAccountList
+        UIManager.put("OptionPane.okButtonText", saveOK)
+        UIManager.put("OptionPane.cancelButtonText", saveCancel)
+    else:
+        selectedBankAccount = None
+
+    if not selectedBankAccount:
+        myPrint("B", "no bank account selected")
+        accountTypeOFX = None
+    else:
+        selectedBankAccount = selectedBankAccount.obj                                                                   # noqa
+        if selectedBankAccount.getAccountType() != Account.AccountType.BANK:                                            # noqa
+            alert = "ERROR BANK ACCOUNT INVALID TYPE SELECTED"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        myPrint("B", "selected bank account %s" %selectedBankAccount)
+
+
+        defaultAccountType = selectedBankAccount.getOFXAccountType()                                                   # noqa
+        if defaultAccountType is None or defaultAccountType == "" or defaultAccountType not in SECU_ACCOUNT_TYPES:
+            myPrint("DB","Account: %s account type is currently %s - defaulting to %s"
+                    % (selectedBankAccount, defaultAccountType, SECU_ACCOUNT_TYPES[0]))
+            defaultAccountType = SECU_ACCOUNT_TYPES[0]
+
+        accountTypeOFX = JOptionPane.showInputDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+                                                     "Carefully select the type for this account: %s" % (selectedBankAccount),
+                                                     "ACCOUNT TYPE",
+                                                     JOptionPane.INFORMATION_MESSAGE,
+                                                     moneydance_ui.getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                     SECU_ACCOUNT_TYPES,
+                                                     defaultAccountType)
+
+        if not accountTypeOFX:
+            alert = "ERROR - NO ACCOUNT TYPE SELECTED"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        del defaultAccountType
+        myPrint("B", "Account %s - selected type: %s" %(selectedBankAccount,accountTypeOFX))
+
+
+    # CREDIT CARD
+    accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(1))
+    accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+    ccAccounts = []
+    for acct in accounts:
+        ccAccounts.append(StoreAccountList(acct))
+
+    if len(ccAccounts):
+        saveOK = UIManager.get("OptionPane.okButtonText")
+        saveCancel = UIManager.get("OptionPane.cancelButtonText")
+        UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
+        UIManager.put("OptionPane.cancelButtonText", "NO CC ACCOUNT")
+
+        selectedCCAccount = JOptionPane.showInputDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+                                                        "Select the CC account to link",
+                                                        "Select CC account",
+                                                        JOptionPane.WARNING_MESSAGE,
+                                                        None,
+                                                        ccAccounts,
+                                                        None)     # type: StoreAccountList
+
+        UIManager.put("OptionPane.okButtonText", saveOK)
+        UIManager.put("OptionPane.cancelButtonText", saveCancel)
+    else:
+        selectedCCAccount = None
+
+    if not selectedCCAccount:
+        myPrint("B", "no CC account selected")
+    else:
+        selectedCCAccount = selectedCCAccount.obj            # noqa
+        if selectedCCAccount.getAccountType() != Account.AccountType.CREDIT_CARD:                                       # noqa
+            alert = "ERROR CC ACCOUNT INVALID TYPE SELECTED"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        myPrint("B", "selected CC account %s" %selectedCCAccount)
+
+    if not selectedBankAccount and not selectedCCAccount:
+        alert = "ERROR - You must select Bank and or CC account(s)"
+        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+    ####################################################################################################################
+
+    # dummy = "12345678-1111-1111-1111-123456789012"
+    #
+    # defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+    # while True:
+    #     uuid = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+    #     myPrint("B", "UUID entered: %s" %uuid)
+    #     if uuid is None:
+    #         alert = "ERROR - No uuid entered! Aborting"
+    #         myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #         raise Exception(alert)
+    #     defaultEntry = uuid
+    #     if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+    #             (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
+    #         myPrint("B", "\n ** ERROR - no valid uuid supplied - try again ** \n")
+    #         continue
+    #     break
+    # del defaultEntry
+    #
+
+    defaultEntry = "UserID"
+    while True:
+        userID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UserID", "UserID", "Type/Paste your UserID (min length 7) very carefully", defaultEntry)
+        myPrint("B", "userID entered: %s" %userID)
+        if userID is None:
+            alert = "ERROR - no userID supplied! Aborting"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        defaultEntry = userID
+        if userID is None or userID == "" or userID == "UserID" or len(userID)<7:
+            myPrint("B", "\n ** ERROR - no valid userID supplied - try again ** \n")
+            continue
+        break
+    del defaultEntry
+
+    defaultEntry = "***"
+    while True:
+        password = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "Pin/Password", "Pin/Password", "Type/Paste your Pin/Password (min length 4) very carefully", defaultEntry)
+        myPrint("B", "Pin/Password entered: %s" %password)
+        if password is None:
+            alert = "ERROR - no Pin/Password supplied! Aborting"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        defaultEntry = password
+        if password is None or password == "" or password == "***" or len(password) < 4:
+            myPrint("B", "\n ** ERROR - no Pin/Password supplied - try again ** \n")
+            continue
+        break
+    del defaultEntry
+
+    bankID = routID = None
+    route = bankAccount = None
+
+    if selectedBankAccount:
+        bankAccount = selectedBankAccount.getBankAccountNumber()        # noqa
+        bankID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "BankAccount", "BankAccount", "Type/Paste your Bank Account Number - very carefully", bankAccount)
+        if bankID is None or bankID == "":
+            alert = "ERROR - no bankID supplied - Aborting"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        myPrint("B", "existing bank account:   %s" %bankAccount)
+        myPrint("B", "bankID entered:          %s" %bankID)
+
+        route = selectedBankAccount.getOFXBankID()                      # noqa
+        if route == "" or len(route) != 9:
+            route = "253177049"
+        routID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '253177049')- very carefully", route)
+        if routID is None or routID == "" or len(routID) != 9:
+            alert = "ERROR - invalid Routing supplied - Aborting"
+            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        myPrint("B", "existing routing number: %s" %route)
+        myPrint("B", "routID entered:          %s" %routID)
+
+    ccID = ccAccount = None
+
+    if selectedCCAccount:
+        while True:
+            ccAccount = selectedCCAccount.getBankAccountNumber()        # noqa
+            ccID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 15/16) very carefully", ccAccount)
+            myPrint("B", "existing CC number:      %s" %ccAccount)
+            myPrint("B", "ccID entered:            %s" %ccID)
+            if ccID is None:
+                alert = "ERROR - no valid ccID supplied - aborting"
+                myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                raise Exception(alert)
+            if ccID is None or ccID == "" or len(ccID) < 15 or len(ccID) > 16:
+                myPrint("B", "\n ** ERROR - no valid ccID supplied! Please try again ** \n")
+                continue
+            break
+
+        # if ccID == ccAccount:
+        #     if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
+        #         alert = "ERROR - User aborted on keeping the CC the same"
+        #         myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        #         raise Exception(alert)
+        # else:
+        #     if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
+        #         alert = "ERROR - User aborted on CC change"
+        #         myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        #         raise Exception(alert)
+
+    del ccAccount, route, bankAccount
+
+    ####################################################################################################################
+
+    # if lMultiAccountSetup:
+    #     defaultEntry = uuid
+    #     while True:
+    #         uuid2 = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
+    #         myPrint("B", "UUID2 entered: %s" %uuid2)
+    #         if uuid2 is None:
+    #             alert = "ERROR - No uuid2 entered! Aborting"
+    #             myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             raise Exception(alert)
+    #         defaultEntry = uuid2
+    #         if (uuid2 is None or uuid2 == "" or len(uuid2) != 36 or uuid2 == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+    #                 (str(uuid2)[8]+str(uuid2)[13]+str(uuid2)[18]+str(uuid2)[23]) != "----"):
+    #             myPrint("B", "\n ** ERROR - no valid uuid2 supplied - try again ** \n")
+    #             continue
+    #         break
+    #     del defaultEntry
+    #
+    #     defaultEntry = "UserID2"
+    #     while True:
+    #         userID2 = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
+    #         myPrint("B", "userID2 entered: %s" %userID2)
+    #         if userID2 is None:
+    #             alert = "ERROR - no userID2 supplied! Aborting"
+    #             myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             raise Exception(alert)
+    #         defaultEntry = userID2
+    #         if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
+    #             myPrint("B", "\n ** ERROR - no valid userID2 supplied - try again ** \n")
+    #             continue
+    #         break
+    #     del defaultEntry
+
+    ####################################################################################################################
+
+    myPrint("B", "creating new service profile")
+    book = moneydance.getCurrentAccountBook()
+    manualFIInfo = StreamTable()     # type: StreamTable
+
+    manualFIInfo.put("obj_type",                                 "olsvc")
+
+    manualFIInfo.put("access_type",                              "OFX")
+    manualFIInfo.put("app_id",                                   "QWIN")
+    manualFIInfo.put("app_ver",                                  "2700")
+    manualFIInfo.put("bank_closing_avail",                       "0")
+    manualFIInfo.put("bank_email_can_notify",                    "0")
+    manualFIInfo.put("bank_email_enabled",                       "1")
+
+    manualFIInfo.put("bank_xfr_can_mod_models",                  "0")
+    manualFIInfo.put("bank_xfr_can_mod_xfrs",                    "0")
+    manualFIInfo.put("bank_xfr_can_sched_recurring",             "0")
+    manualFIInfo.put("bank_xfr_can_sched_xfrs",                  "0")
+    manualFIInfo.put("bank_xfr_days_withdrawn",                  "0")
+    manualFIInfo.put("bank_xfr_default_days_to_pay",             "0")
+    manualFIInfo.put("bank_xfr_model_window",                    "0")
+    manualFIInfo.put("bank_xfr_needs_tan",                       "0")
+    manualFIInfo.put("bank_xfr_proc_end_time",                   "230000[0:GMT]")
+    manualFIInfo.put("bank_xfr_supports_dt_avail",               "0")
+
+    manualFIInfo.put("bootstrap_url",                            SECU_BOOTSTRAP)
+    manualFIInfo.put("cc_closing_avail",                         "0")
+    manualFIInfo.put("date_avail_accts",                         "20171128005611.653[0:GMT]")
+
+    manualFIInfo.put("email_mail_supported",                     "1")
+    manualFIInfo.put("email_supports_get_mime",                  "0")
+
+    manualFIInfo.put("fi_addr1",                                 "900 Wade Avenue")
+    manualFIInfo.put("fi_addr2",                                 "")
+    manualFIInfo.put("fi_addr3",                                 "")
+    manualFIInfo.put("fi_city",                                  "Raleigh")
+    manualFIInfo.put("fi_country",                               "USA")
+    manualFIInfo.put("fi_cust_svc_phone",                        "8887328562")
+    manualFIInfo.put("fi_email",                                 "service@ncsecu.org")
+
+    manualFIInfo.put("fi_id",                                    SECU_FI_ID)
+    manualFIInfo.put("fi_name",                                  SECU_PROFILE_NAME)
+    manualFIInfo.put("fi_org",                                   SECU_FI_ORG)
+    manualFIInfo.put("fi_state",                                 "NC")
+
+    manualFIInfo.put("fi_tech_svc_phone",                        "")
+    manualFIInfo.put("fi_url",                                   "http://www.ncsecu.org")
+    manualFIInfo.put("fi_url_is_redirect",                       "1")
+    manualFIInfo.put("fi_zip",                                   "27603")
+
+    manualFIInfo.put("invst_dflt_broker_id",                     "")
+
+    manualFIInfo.put("language_banking",                         "ENG")
+    manualFIInfo.put("language_creditcard",                      "ENG")
+    manualFIInfo.put("language_default",                         "ENG")
+    manualFIInfo.put("language_email",                           "ENG")
+    manualFIInfo.put("language_fiprofile",                       "ENG")
+    manualFIInfo.put("language_signup",                          "ENG")
+    manualFIInfo.put("last_fi_refresh",                          "1612473805809")
+
+    manualFIInfo.put("no_fi_refresh",                            "y")
+
+    manualFIInfo.put("ofx_version",                              "102")
+    manualFIInfo.put("ofxurl_banking",                           SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_creditcard",                        SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_default",                           SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_email",                             SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_signup",                            SECU_BOOTSTRAP)
+
+    manualFIInfo.put("realm_banking",                            "Realm1")
+    manualFIInfo.put("realm_creditcard",                         "Realm1")
+    manualFIInfo.put("realm_default",                            "Realm1")
+    manualFIInfo.put("realm_email",                              "Realm1")
+    manualFIInfo.put("realm_fiprofile",                          "Realm1")
+    manualFIInfo.put("realm_signup",                             "Realm1")
+
+    manualFIInfo.put("rspnsfileerrors_banking",                  "1")
+    manualFIInfo.put("rspnsfileerrors_creditcard",               "1")
+    manualFIInfo.put("rspnsfileerrors_default",                  "1")
+    manualFIInfo.put("rspnsfileerrors_email",                    "1")
+    manualFIInfo.put("rspnsfileerrors_fiprofile",                "1")
+    manualFIInfo.put("rspnsfileerrors_signup",                   "1")
+    manualFIInfo.put("securetransport_banking",                  "1")
+    manualFIInfo.put("securetransport_creditcard",               "1")
+    manualFIInfo.put("securetransport_default",                  "1")
+    manualFIInfo.put("securetransport_email",                    "1")
+    manualFIInfo.put("securetransport_fiprofile",                "1")
+    manualFIInfo.put("securetransport_signup",                   "1")
+    manualFIInfo.put("security_banking",                         "NONE")
+    manualFIInfo.put("security_creditcard",                      "NONE")
+    manualFIInfo.put("security_default",                         "NONE")
+    manualFIInfo.put("security_email",                           "NONE")
+    manualFIInfo.put("security_fiprofile",                       "NONE")
+    manualFIInfo.put("security_signup",                          "NONE")
+
+    manualFIInfo.put("signup_accts_avail",                       "1")
+    manualFIInfo.put("signup_can_activate_acct",                 "0")
+    manualFIInfo.put("signup_can_chg_user_info",                 "0")
+    manualFIInfo.put("signup_can_preauth",                       "0")
+    manualFIInfo.put("signup_client_acct_num_req",               "0")
+    manualFIInfo.put("signup_via_client",                        "1")
+    manualFIInfo.put("signup_via_other",                         "0")
+    manualFIInfo.put("signup_via_other_msg",                     "")
+    manualFIInfo.put("signup_via_web",                           "0")
+
+    manualFIInfo.put("so_can_change_pin_Realm1",                 "1")
+    manualFIInfo.put("so_client_uid_req_Realm1",                 "0")   # THIS ONE IS THE CLIENT UUID!
+
+    manualFIInfo.put("so_maxpasslen_Realm1",                     "32")
+    manualFIInfo.put("so_minpasslen_Realm1",                     "6")
+    manualFIInfo.put("so_must_chg_pin_first_Realm1",             "0")
+    manualFIInfo.put("so_passchartype_Realm1",                   "ALPHAANDNUMERIC")
+    manualFIInfo.put("so_passwd_case_sensitive_Realm1",          "1")
+    manualFIInfo.put("so_passwd_spaces_Realm1",                  "0")
+    manualFIInfo.put("so_passwd_special_chars_Realm1",           "1")
+    manualFIInfo.put("so_passwd_type_Realm1",                    "FIXED")
+    manualFIInfo.put("so_user_id_Realm1",                        userID)
+    if selectedBankAccount:
+        manualFIInfo.put("so_user_id_Realm1::%s" %(my_getAccountKey(selectedBankAccount)), userID)
+    if selectedCCAccount:
+        manualFIInfo.put("so_user_id_Realm1::%s" %(my_getAccountKey(selectedCCAccount)),   userID)
+    manualFIInfo.put("syncmode_banking",                         "LITE")
+    manualFIInfo.put("syncmode_creditcard",                      "FULL")
+    manualFIInfo.put("syncmode_default",                         "FULL")
+    manualFIInfo.put("syncmode_email",                           "FULL")
+    manualFIInfo.put("syncmode_fiprofile",                       "FULL")
+    manualFIInfo.put("syncmode_signup",                          "FULL")
+    # manualFIInfo.put("tik_fi_id",                                OLD_TIK_FI_ID)
+
+    manualFIInfo.put("user-agent",                               "InetClntApp/3.0")  # This is the magic!
+
+    # manualFIInfo.put("use_ofx_certs",                            "y") # The original SECU profile had this - so not using...
+    # manualFIInfo.put("uses_fi_tag",                              "y") # The original SECU profile had this - so not using...
+
+    manualFIInfo.put("version_banking",                          "1")
+    manualFIInfo.put("version_creditcard",                       "1")
+    manualFIInfo.put("version_default",                          "1")
+    manualFIInfo.put("version_email",                            "1")
+    manualFIInfo.put("version_fiprofile",                        "1")
+    manualFIInfo.put("version_signup",                           "1")
+
+    # manualFIInfo.put("id",                                       "57554f9e-5728-4609-879a-f3dec0d213b8")
+    # manualFIInfo.put("last_txn_id",                              "0-cce586a8_dcd941e0-63")
+
+    num = 0
+    if selectedBankAccount:
+        sNum = str(num)
+        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(bankID).zfill(SECU_ACCT_LENGTH))
+        manualFIInfo.put("available_accts.%s.account_type" %(sNum),           accountTypeOFX)
+        manualFIInfo.put("available_accts.%s.branch_id" %(sNum),              "")
+        manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "")
+        manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
+        manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "1")
+        manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "1")
+        manualFIInfo.put("available_accts.%s.is_active" %(sNum),              "1")
+        manualFIInfo.put("available_accts.%s.is_avail" %(sNum),               "0")
+        manualFIInfo.put("available_accts.%s.is_bank_acct" %(sNum),           "1")
+        manualFIInfo.put("available_accts.%s.is_pending" %(sNum),             "0")
+        manualFIInfo.put("available_accts.%s.msg_type" %(sNum),               "4")
+        manualFIInfo.put("available_accts.%s.phone" %(sNum),                  "")
+        manualFIInfo.put("available_accts.%s.routing_num" %(sNum),            routID)
+        num += 1
+
+    if selectedCCAccount:
+        sNum = str(num)
+        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(ccID))
+        manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "")
+        manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
+        manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
+        manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
+        manualFIInfo.put("available_accts.%s.is_active" %(sNum),              "1")
+        manualFIInfo.put("available_accts.%s.is_avail" %(sNum),               "0")
+        manualFIInfo.put("available_accts.%s.is_cc_acct" %(sNum),             "1")
+        manualFIInfo.put("available_accts.%s.is_pending" %(sNum),             "0")
+        manualFIInfo.put("available_accts.%s.msg_type" %(sNum),               "5")
+        manualFIInfo.put("available_accts.%s.phone" %(sNum),                  "")
+
+    del sNum
+
+    newService = OnlineService(book, manualFIInfo)
+    newService.syncItem()
+
+    ####################################################################################################################
+
+    service = newService
+
+    if selectedBankAccount:
+        myPrint("B", "Setting up account %s for OFX" %(selectedBankAccount))
+        myPrint("B", ">> saving OFX bank account number: %s and OFX route: %s" %(bankID, routID))
+        selectedBankAccount.setEditingMode()                            # noqa
+        selectedBankAccount.setBankAccountNumber(bankID)                # noqa
+        selectedBankAccount.setOFXBankID(routID)                        # noqa
+
+        myPrint("B", ">> setting OFX Message type to '4'")
+        selectedBankAccount.setOFXAccountMsgType(4)                     # noqa
+
+        myPrint("B", ">> setting OFX Account Number to: %s" %(str(bankID).zfill(SECU_ACCT_LENGTH)))
+        selectedBankAccount.setOFXAccountNumber(str(bankID).zfill(SECU_ACCT_LENGTH))  # noqa
+
+        myPrint("B", ">> setting OFX Type to '%s'" %(accountTypeOFX))
+        selectedBankAccount.setOFXAccountType(accountTypeOFX)           # noqa
+
+        myPrint("B", ">> Setting up the Banking Acct %s link to new bank service / profile %s" %(selectedBankAccount, newService))
+        selectedBankAccount.setBankingFI(newService)                    # noqa
+
+        selectedBankAccount.syncItem()                                  # noqa
+        selectedBankAccount.getDownloadedTxns()                         # noqa
+        myPrint("B","")
+
+    if selectedCCAccount:
+        myPrint("B", "Setting up CC Account %s for OFX" %(selectedCCAccount))
+        myPrint("B", ">> saving OFX CC account number %s" %(ccID))
+        selectedCCAccount.setEditingMode()                              # noqa
+        selectedCCAccount.setBankAccountNumber(str(ccID))               # noqa
+
+        # myPrint("B", ">> setting OFX Type to 'CREDITCARD'")
+        # selectedBankAccount.setOFXAccountType("CREDITCARD")           # noqa
+
+        myPrint("B", ">> setting OFX Message type to '5'")
+        selectedCCAccount.setOFXAccountMsgType(5)                       # noqa
+
+        myPrint("B", ">> Settings up the CC Acct %s link to new profile %s" %(selectedCCAccount, newService))
+        selectedCCAccount.setBankingFI(newService)                      # noqa
+
+        selectedCCAccount.syncItem()                                    # noqa
+        selectedCCAccount.getDownloadedTxns()                           # noqa
+        print
+
+    ####################################################################################################################
+
+    # myPrint("B", "Updating root with userID and default global uuid")
+    # root = moneydance.getRootAccount()
+    #
+    # myPrint("B","... calling .setEditingMode() on root...")
+    # root.setEditingMode()
+    #
+    # uuid = root.getParameter(authKeyPrefix, createNewClientUID())
+    # # if lOverrideRootUUID:
+    # #     myPrint("B","Overriding Root's default UUID. Was: %s >> changing to >> %s" %(root.getParameter(authKeyPrefix, ""),uuid))
+    # #     root.setParameter(authKeyPrefix, uuid)
+    # #     # root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + "null",   uuid)         # noqa
+    # #
+    # rootKeys = list(root.getParameterKeys())
+    # for i in range(0,len(rootKeys)):
+    #     rk = rootKeys[i]
+    #     if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk or OLD_TIK_FI_ID in rk):
+    #         myPrint("B", "Deleting old authKey %s: %s" %(rk,root.getParameter(rk)))
+    #         root.setParameter(rk, None)
+    #     i+=1
+    #
+    # root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)
+    # root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)
+    # myPrint("B", "Root UserID and uuid updated...")
+
+    # if lMultiAccountSetup:
+    #     root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID2,   uuid2)
+    #     myPrint("B", "Root UserID TWO and uuid TWO primed - ready for Online Banking Setup...")
+    #
+    # root.syncItem()
+    ####################################################################################################################
+
+    myPrint("B", "accessing authentication keys")
+
+    _ACCOUNT = 0
+    _SERVICE = 1
+    _ISBILLPAY = 2
+
+    check = 0
+    whichAccounts = []
+    if selectedBankAccount:
+        check += 1
+        whichAccounts.append(selectedBankAccount)
+    if selectedCCAccount:
+        check += 1
+        whichAccounts.append(selectedCCAccount)
+
+    listAccountMDProxies=[]
+    for acctObj in whichAccounts:
+        acct = acctObj                                 # type: Account
+        svcBank = acct.getBankingFI()                  # noqa
+        svcBPay = acct.getBillPayFI()                  # noqa
+        if svcBank is not None:
+            myPrint("B", " - Found/Saved Banking Acct: %s" %acct)
+            listAccountMDProxies.append([MDAccountProxy(acct, False),svcBank,False])
+        if svcBPay is not None:
+            myPrint("B", " - Found/Saved Bill Pay Acct: %s" %acct)
+            listAccountMDProxies.append([MDAccountProxy(acct, True),svcBPay,True])
+
+    if len(listAccountMDProxies) != check:
+        alert = "LOGIC ERROR: listAccountMDProxies != %s - Some changes have been made - review log....." %check
+        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+    myPrint("B", "\n>>REALMs configured:")
+    realmsToCheck = service.getRealms()         # noqa
+
+    # if "DEFAULT" not in realmsToCheck:
+    #     realmsToCheck.insert(0,"DEFAULT")       # noqa
+
+    for realm in realmsToCheck:
+        myPrint("B", "Realm: %s current User ID: %s" %(realm, service.getUserId(realm, None)))        # noqa
+
+        for olacct in listAccountMDProxies:
+
+            authKey = "ofx:" + realm
+            authObj = service.getCachedAuthentication(authKey)                              # noqa
+            myPrint("B", "Realm: %s Cached Authentication: %s" %(realm, authObj))
+
+            newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(userID,password)
+
+            # myPrint("B", "** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
+            # service.cacheAuthentication(authKey, newAuthObj)        # noqa
+
+            authKey = "ofx:" + (realm + "::" + olacct[_ACCOUNT].getAccountKey())
+            authObj = service.getCachedAuthentication(authKey)        # noqa
+            myPrint("B", "Realm: %s Account Key: %s Cached Authentication: %s" %(realm, olacct[_ACCOUNT].getAccountKey(),authObj))
+            myPrint("B", "** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
+            service.cacheAuthentication(authKey, newAuthObj)        # noqa
+
+            myPrint("B", "Realm: %s now UserID: %s" %(realm, userID))
+
+    ####################################################################################################################
+
+    myPrint("B", "SUCCESS. Please RESTART Moneydance.")
+
+    myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)
+
+    if not ofx_create_new_secu_bank_custom_profile_frame_.isActiveInMoneydance:
+        destroyOldFrames(myModuleID)
+
+    myPrint("B", "StuWareSoftSystems - %s script ending......" %myScriptName)
+
+    moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
 
     if not i_am_an_extension_so_run_headless: print(scriptExit)
-
-    scanningMsg.kill()
-
-    if iOrphans:
-        if msg.go():        # noqa
-            while True:
-                selectedOrphan = JOptionPane.showInputDialog(jif,
-                                                             "Select an Orphan to View",
-                                                             "VIEW ORPHAN (Escape or Cancel to exit)",
-                                                             JOptionPane.WARNING_MESSAGE,
-                                                             None,
-                                                             orphanList,
-                                                             None)
-                if not selectedOrphan:
-                    break
-
-                try:
-                    tmpDir = File(moneydance_data.getRootFolder(), "tmp")
-                    tmpDir.mkdirs()
-                    attachFileName = (File(tmpDir, selectedOrphan[0])).getName()            # noqa
-                    tmpFile = File.createTempFile(str(System.currentTimeMillis() % 10000L), attachFileName, tmpDir)
-                    tmpFile.deleteOnExit()
-                    fout = FileOutputStream(tmpFile)
-                    LS.readFile(selectedOrphan[0], fout)                                    # noqa
-                    fout.close()
-                    Desktop.getDesktop().open(tmpFile)
-
-                except:
-                    myPrint("B","Sorry, could not open attachment file....: %s" %selectedOrphan[0])     # noqa
-
-    else:
-        msg.go()        # noqa
-
-    del attachmentList
-    del attachmentLocations
-    del typesFound
-    del attachmentsRawListFound
-    del attachmentsNotInLS

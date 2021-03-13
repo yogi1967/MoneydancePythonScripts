@@ -206,7 +206,8 @@ else:
 
     scriptExit = """
 ----------------------------------------------------------------------------------------------------------------------
-Thank you for using %s! The author has other useful Extensions / Moneybot Python scripts available...:
+Thank you for using %s!
+The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
 toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
@@ -302,37 +303,37 @@ Visit: %s (Author's site)
     myPrint("B", myScriptName, ": Python Script Initialising.......", "Build:", version_build)
 
     def is_moneydance_loaded_properly():
-        global debug
+        global debug, moneydance, moneydance_ui, moneydance_data
 
         if debug or moneydance is None or moneydance_data is None or moneydance_ui is None:
             for theClass in ["moneydance",  moneydance], ["moneydance_ui",moneydance_ui], ["moneydance_data",moneydance]:
-                myPrint("B","Moneydance Objects now....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
-            myPrint("P","")
+                myPrint("DB","Moneydance Objects now....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
+            myPrint("D","")
 
         if moneydance is not None and moneydance_data is not None and moneydance_ui is not None:                        # noqa
-            if debug: myPrint("B","Success - Moneydance variables are already set....")
+            myPrint("DB","Success - Moneydance variables are already set....")
             return
 
-        myPrint("B","ERROR - Moneydance variables are NOT set properly....!")
+        myPrint("DB","ERROR - Moneydance variables are NOT set properly....!")
 
         # to cope with being run as Extension.... temporary
         if moneydance is not None and (moneydance_data is None or moneydance_ui is None):                                # noqa
-            myPrint("B", "@@@ Moneydance variables not set (run as extension?) - attempting to manually set @@@")
+            myPrint("DB", "@@@ Moneydance variables not set (run as extension?) - attempting to manually set @@@")
 
             try:
-                exec "global moneydance_ui;" + "moneydance_ui=moneydance.getUI();"
+                moneydance_ui=moneydance.getUI()
             except:
-                myPrint("B","Failed to set moneydance_ui... This is a critical failure... (perhaps a run-time extension and too early - will continue)!")
+                myPrint("DB","Failed to set moneydance_ui... This is a critical failure... (perhaps a run-time extension and too early - will continue)!")
                 # raise
 
             try:
-                exec "global moneydance_data;" + "moneydance_data=moneydance.getCurrentAccount().getBook();"
+                moneydance_data=moneydance.getCurrentAccount().getBook()
             except:
-                myPrint("B","Failed to set moneydance_data... I expect I am executing at MD runtime to self-install as a FeatureModule extension.. no matter...")
+                myPrint("DB","Failed to set moneydance_data... I expect I am executing at MD runtime to self-install as a FeatureModule extension.. no matter...")
 
         for theClass in ["moneydance",moneydance], ["moneydance_ui",moneydance_ui], ["moneydance_data",moneydance]:
-            myPrint("B","Moneydance Objects after manual setting....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
-        myPrint("P","")
+            myPrint("DB","Moneydance Objects after manual setting....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
+        myPrint("D","")
 
         return
 

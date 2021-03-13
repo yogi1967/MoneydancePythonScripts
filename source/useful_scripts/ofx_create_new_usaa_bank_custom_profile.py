@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 3) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 4) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -17,12 +17,14 @@
 #               You use this at your own risk. I take no responsibility for its usage..!
 #               This should be considered a temporary fix only until Moneydance is fixed
 
-# CREDITS:  hleofxquotes for his technical input and dtd for his extensive testing
+# CREDITS:  @hleofxquotes for his technical input
+#           @dtd for his extensive testing and the documentation
 
 # build 1 - Initial preview release..... Based upon ofx_create_new_usaa_bank_profile.py (now deprecated)
 # build 1 - Released: 8th March 2021
 # build 2 - Put objects into editing mode by calling .setEditingMode() whilst editing until .syncItem() called
 # build 3 - Small internal tweak; allow 15 digit Amex numbers too
+# build 4 - Allow selection of Account Type
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -30,7 +32,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "3"
+version_build = "4"
 debug = False
 global ofx_create_new_usaa_bank_profile_frame_
 
@@ -223,7 +225,8 @@ else:
 
     scriptExit = """
 ----------------------------------------------------------------------------------------------------------------------
-Thank you for using %s! The author has other useful Extensions / Moneybot Python scripts available...:
+Thank you for using %s!
+The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
 toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
@@ -319,37 +322,37 @@ Visit: %s (Author's site)
     myPrint("B", myScriptName, ": Python Script Initialising.......", "Build:", version_build)
 
     def is_moneydance_loaded_properly():
-        global debug
+        global debug, moneydance, moneydance_ui, moneydance_data
 
         if debug or moneydance is None or moneydance_data is None or moneydance_ui is None:
             for theClass in ["moneydance",  moneydance], ["moneydance_ui",moneydance_ui], ["moneydance_data",moneydance]:
-                myPrint("B","Moneydance Objects now....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
-            myPrint("P","")
+                myPrint("DB","Moneydance Objects now....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
+            myPrint("D","")
 
         if moneydance is not None and moneydance_data is not None and moneydance_ui is not None:                        # noqa
-            if debug: myPrint("B","Success - Moneydance variables are already set....")
+            myPrint("DB","Success - Moneydance variables are already set....")
             return
 
-        myPrint("B","ERROR - Moneydance variables are NOT set properly....!")
+        myPrint("DB","ERROR - Moneydance variables are NOT set properly....!")
 
         # to cope with being run as Extension.... temporary
         if moneydance is not None and (moneydance_data is None or moneydance_ui is None):                                # noqa
-            myPrint("B", "@@@ Moneydance variables not set (run as extension?) - attempting to manually set @@@")
+            myPrint("DB", "@@@ Moneydance variables not set (run as extension?) - attempting to manually set @@@")
 
             try:
-                exec "global moneydance_ui;" + "moneydance_ui=moneydance.getUI();"
+                moneydance_ui=moneydance.getUI()
             except:
-                myPrint("B","Failed to set moneydance_ui... This is a critical failure... (perhaps a run-time extension and too early - will continue)!")
+                myPrint("DB","Failed to set moneydance_ui... This is a critical failure... (perhaps a run-time extension and too early - will continue)!")
                 # raise
 
             try:
-                exec "global moneydance_data;" + "moneydance_data=moneydance.getCurrentAccount().getBook();"
+                moneydance_data=moneydance.getCurrentAccount().getBook()
             except:
-                myPrint("B","Failed to set moneydance_data... I expect I am executing at MD runtime to self-install as a FeatureModule extension.. no matter...")
+                myPrint("DB","Failed to set moneydance_data... I expect I am executing at MD runtime to self-install as a FeatureModule extension.. no matter...")
 
         for theClass in ["moneydance",moneydance], ["moneydance_ui",moneydance_ui], ["moneydance_data",moneydance]:
-            myPrint("B","Moneydance Objects after manual setting....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
-        myPrint("P","")
+            myPrint("DB","Moneydance Objects after manual setting....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
+        myPrint("D","")
 
         return
 
@@ -1380,6 +1383,8 @@ Visit: %s (Author's site)
 
     authKeyPrefix = "ofx.client_uid"
 
+    SECU_ACCOUNT_TYPES = ["CHECKING", "SAVINGS", "MONEYMRKT"]
+
     ####################################################################################################################
     deleteServices = []
     for svc in serviceList:
@@ -1502,14 +1507,39 @@ Visit: %s (Author's site)
 
     if not selectedBankAccount:
         myPrint("B", "no bank account selected")
+        accountTypeOFX = None
     else:
-        selectedBankAccount = selectedBankAccount.obj       # noqa
+        selectedBankAccount = selectedBankAccount.obj                                                                   # noqa
         if selectedBankAccount.getAccountType() != Account.AccountType.BANK:                                            # noqa
             alert = "ERROR BANK ACCOUNT INVALID TYPE SELECTED"
             myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "selected bank account %s" %selectedBankAccount)
 
+
+        defaultAccountType = selectedBankAccount.getOFXAccountType()                                                   # noqa
+        if defaultAccountType is None or defaultAccountType == "" or defaultAccountType not in SECU_ACCOUNT_TYPES:
+            myPrint("DB","Account: %s account type is currently %s - defaulting to %s"
+                    % (selectedBankAccount, defaultAccountType, SECU_ACCOUNT_TYPES[0]))
+            defaultAccountType = SECU_ACCOUNT_TYPES[0]
+
+        accountTypeOFX = JOptionPane.showInputDialog(ofx_create_new_usaa_bank_profile_frame_,
+                                                     "Carefully select the type for this account: %s" % (selectedBankAccount),
+                                                     "ACCOUNT TYPE",
+                                                     JOptionPane.INFORMATION_MESSAGE,
+                                                     moneydance_ui.getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                     SECU_ACCOUNT_TYPES,
+                                                     defaultAccountType)
+
+        if not accountTypeOFX:
+            alert = "ERROR - NO ACCOUNT TYPE SELECTED"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        del defaultAccountType
+        myPrint("B", "Account %s - selected type: %s" %(selectedBankAccount,accountTypeOFX))
+
+
+    # CREDIT CARD
     accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(1))
     accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
     ccAccounts = []
@@ -1795,7 +1825,7 @@ Visit: %s (Author's site)
     if selectedBankAccount:
         sNum = str(num)
         manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(bankID).zfill(10))
-        manualFIInfo.put("available_accts.%s.account_type" %(sNum),           "CHECKING")
+        manualFIInfo.put("available_accts.%s.account_type" %(sNum),           accountTypeOFX)
         manualFIInfo.put("available_accts.%s.branch_id" %(sNum),              "")
         manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "USAA CLASSIC CHECKING")
         manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
@@ -1849,8 +1879,8 @@ Visit: %s (Author's site)
         myPrint("B", ">> setting OFX Account Number to: %s" %(str(bankID).zfill(10)))
         selectedBankAccount.setOFXAccountNumber(str(bankID).zfill(10))  # noqa
 
-        myPrint("B", ">> setting OFX Type to 'CHECKING'")
-        selectedBankAccount.setOFXAccountType("CHECKING")               # noqa
+        myPrint("B", ">> setting OFX Type to '%s'" %(accountTypeOFX))
+        selectedBankAccount.setOFXAccountType(accountTypeOFX)           # noqa
 
         myPrint("B", ">> Setting up the Banking Acct %s link to new bank service / profile %s" %(selectedBankAccount, newService))
         selectedBankAccount.setBankingFI(newService)                    # noqa
