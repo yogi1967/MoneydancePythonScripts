@@ -61,7 +61,9 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
   - orphan_attachments.py: scans your attachments and detects if any are orphaned (and other related errors)
   - demo_account_currency_rates.py: demo script for beginner coders with some simple Moneydance API calls etc
   - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
-  - ofx_create_new_usaa_bank_custom_profile.py: script to create a new custom bank logon / service profile to connect to USAA Bank within Moneydance
+  - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance
+  - ofx_create_new_secu_bank_custom_profile.py: script that create a new custom NCSECU bank logon profile so that it can connect within Moneydance
+
 
 ### Source Code sites - you can freely read / review all my code
 <a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
