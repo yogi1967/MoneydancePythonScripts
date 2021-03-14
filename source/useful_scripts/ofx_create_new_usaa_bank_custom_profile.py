@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 4) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 5) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -25,6 +25,7 @@
 # build 2 - Put objects into editing mode by calling .setEditingMode() whilst editing until .syncItem() called
 # build 3 - Small internal tweak; allow 15 digit Amex numbers too
 # build 4 - Allow selection of Account Type
+# build 5 - Cosmetic tweaks - no change to core functionality; change "so_passwd_type_USAASignon" back to "FIXED"
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -32,7 +33,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "4"
+version_build = "5"
 debug = False
 global ofx_create_new_usaa_bank_profile_frame_
 
@@ -611,11 +612,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = False
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -634,11 +636,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = True
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -657,11 +660,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = False
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -671,12 +675,13 @@ Visit: %s (Author's site)
             global debug
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
+            # Note - listeners are already on the EDT
             self._popup_d.setVisible(False)
             if self.fakeJFrame is not None:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
+                self._popup_d.dispose()
+                self.fakeJFrame.dispose()
             else:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                self._popup_d.dispose()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
@@ -804,8 +809,9 @@ Visit: %s (Author's site)
             self._popup_d.add(_popupPanel)
             self._popup_d.pack()
             self._popup_d.setLocationRelativeTo(None)
-            # SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, True))
-            self._popup_d.setVisible(True)  # Keeping this modal....
+            # self._popup_d.setVisible(True)  # Keeping this modal....
+
+            SwingUtilities.invokeAndWait(GenericVisibleRunnable(self._popup_d, True))
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -1830,7 +1836,7 @@ Visit: %s (Author's site)
     manualFIInfo.put("so_passwd_case_sensitive_USAASignon",      "0")
     manualFIInfo.put("so_passwd_spaces_USAASignon",              "0")
     manualFIInfo.put("so_passwd_special_chars_USAASignon",       "0")
-    manualFIInfo.put("so_passwd_type_USAASignon",                userID)
+    manualFIInfo.put("so_passwd_type_USAASignon",                "FIXED")
     manualFIInfo.put("so_user_id_USAASignon",                    userID)
     if selectedBankAccount:
         manualFIInfo.put("so_user_id_USAASignon::%s" %(my_getAccountKey(selectedBankAccount)), userID)

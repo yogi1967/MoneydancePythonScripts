@@ -619,11 +619,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = False
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -642,11 +643,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = True
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -665,11 +667,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = False
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -679,12 +682,13 @@ Visit: %s (Author's site)
             global debug
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
+            # Note - listeners are already on the EDT
             self._popup_d.setVisible(False)
             if self.fakeJFrame is not None:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
+                self._popup_d.dispose()
+                self.fakeJFrame.dispose()
             else:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                self._popup_d.dispose()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
@@ -812,8 +816,9 @@ Visit: %s (Author's site)
             self._popup_d.add(_popupPanel)
             self._popup_d.pack()
             self._popup_d.setLocationRelativeTo(None)
-            # SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, True))
-            self._popup_d.setVisible(True)  # Keeping this modal....
+            # self._popup_d.setVisible(True)  # Keeping this modal....
+
+            SwingUtilities.invokeAndWait(GenericVisibleRunnable(self._popup_d, True))
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 

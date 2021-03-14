@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_secu_bank_custom_profile.py (build 2) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_secu_bank_custom_profile.py (build 3) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
-# https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
+# https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_secu_bank_custom_profile.pdf
 
 # This script builds a new NCSECU Bank Custom Profile from scratch to work with the new connection information
 # It will DELETE your existing NCSECU profile(s) first!
@@ -21,6 +21,7 @@
 # build 1 - Initial preview release.....
 # build 1 - Released: 13th March 2021 (thanks to @margopowell for volunteering her data to set this script up)
 # build 2 - Internal tweaks - nothing to do with the core functionality
+# build 3 - Cosmetic tweaks - nothing to do with the core functionality
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -28,7 +29,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_secu_bank_custom_profile"
-version_build = "2"
+version_build = "3"
 debug = False
 global ofx_create_new_secu_bank_custom_profile_frame_
 
@@ -610,11 +611,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = False
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -633,11 +635,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = True
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -656,11 +659,12 @@ Visit: %s (Author's site)
 
                 self.lResult[0] = False
 
+                # Note - listeners are already on the EDT
                 if self.theFakeFrame is not None:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFakeFrame))
+                    self.theDialog.dispose()
+                    self.theFakeFrame.dispose()
                 else:
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.theDialog))
+                    self.theDialog.dispose()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -670,12 +674,13 @@ Visit: %s (Author's site)
             global debug
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
+            # Note - listeners are already on the EDT
             self._popup_d.setVisible(False)
             if self.fakeJFrame is not None:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
+                self._popup_d.dispose()
+                self.fakeJFrame.dispose()
             else:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                self._popup_d.dispose()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
@@ -803,8 +808,9 @@ Visit: %s (Author's site)
             self._popup_d.add(_popupPanel)
             self._popup_d.pack()
             self._popup_d.setLocationRelativeTo(None)
-            # SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, True))
-            self._popup_d.setVisible(True)  # Keeping this modal....
+            # self._popup_d.setVisible(True)  # Keeping this modal....
+
+            SwingUtilities.invokeAndWait(GenericVisibleRunnable(self._popup_d, True))
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -1348,8 +1354,8 @@ Visit: %s (Author's site)
 
     ask = MyPopUpDialogBox(ofx_create_new_secu_bank_custom_profile_frame_, "This script will delete your existing NCSECU bank profile(s) and CREATE A BRAND NEW CUSTOM NCSECU PROFILE:",
                            "Get the latest useful_scripts.zip package from: https://yogi1967.github.io/MoneydancePythonScripts/ \n"
-                           "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
-                           "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
+                           "Read the latest walk through guide: ofx_create_new_secu_bank_custom_profile.pdf\n"
+                           "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_secu_bank_custom_profile.pdf\n\n"
                            "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
                            "This script will ask you for many numbers. You must know them:\n"
                            "- Do you know your Bank supplied UserID (min length 7)?\n"
