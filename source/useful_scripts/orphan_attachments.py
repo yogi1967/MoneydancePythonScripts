@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# orphan_attachments.py - build: 10 - January 2021 - Stuart Beesley
+# orphan_attachments.py - build: 11 - January 2021 - Stuart Beesley
 ###############################################################################
 # MIT License
 #
@@ -27,11 +27,12 @@
 ###############################################################################
 # Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
 # Stuart Beesley Created 2020-12-24 tested on MacOS - MD2021 (3034) onwards - StuWareSoftSystems....
-# Build: 1 beta - Initial release
-# Build: 2 Fix windows \s for /s
-# Build: 3 Display enhancements
-# Build: 6 Changes to common code
-# Build: 10 Small internal tweak
+# Build: 1 - beta - Initial release
+# Build: 2 - Fix windows \s for /s
+# Build: 3 - Display enhancements
+# Build: 6 - Changes to common code
+# Build: 10 - Small internal tweak
+# build: 11 - Internal common code tweaks - nothing to do with the core functionality
 
 # Detect another instance of this code running in same namespace - i.e. a Moneydance Extension
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -40,7 +41,7 @@
 
 # SET THESE LINES
 myModuleID = u"orphan_transactions"
-version_build = "10"
+version_build = "11"
 debug = False
 global orphan_transactions_frame_
 
@@ -205,6 +206,9 @@ else:
     from javax.swing.text import PlainDocument
     from javax.swing.border import EmptyBorder
 
+    from java.awt.datatransfer import StringSelection
+    from javax.swing.text import DefaultHighlighter
+
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
@@ -254,6 +258,8 @@ else:
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
     # COPY >> START
+    # COMMON CODE ##########################################################################################################
+    # COMMON CODE ##########################################################################################################
     # COMMON CODE ##########################################################################################################
     i_am_an_extension_so_run_headless = False                                                                           # noqa
     try:
@@ -409,7 +415,7 @@ Visit: %s (Author's site)
         return theFont
 
     def getTheSetting(what):
-        x = moneydance.getPreferences().getSetting(what, None)                                                          # noqa
+        x = moneydance.getPreferences().getSetting(what, None)
         if not x or x == u"": return None
         return what + u": %s" %(x)
 
@@ -567,7 +573,7 @@ Visit: %s (Author's site)
         else:
             field = JTextField(defaultText)
 
-        x = 0                                                                                                           # noqa
+        x = 0
         if theFieldLabel:
             p.add(JLabel(theFieldLabel), GridC.getc(x, 0).east())
             x+=1
@@ -613,7 +619,8 @@ Visit: %s (Author's site)
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
                 global debug
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                 myPrint("DB", "JDialog Frame shutting down....")
 
@@ -639,7 +646,8 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 global debug
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                 self.lResult[0] = True
 
@@ -663,7 +671,8 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 global debug
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                 self.lResult[0] = False
 
@@ -680,145 +689,155 @@ Visit: %s (Author's site)
         def kill(self):
 
             global debug
-            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            # Note - listeners are already on the EDT
-            self._popup_d.setVisible(False)
+            SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, False))
             if self.fakeJFrame is not None:
-                self._popup_d.dispose()
-                self.fakeJFrame.dispose()
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
             else:
-                self._popup_d.dispose()
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
 
         def result(self):
-
             global debug
             return self.lResult[0]
 
         def go(self):
             global debug
 
-            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            # Create a fake JFrame so we can set the Icons...
-            if self.theParent is None:
-                self.fakeJFrame = MyJFrame()
-                self.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
-                self.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
-                self.fakeJFrame.setUndecorated(True)
-                self.fakeJFrame.setVisible( False )
-                if not Platform.isOSX():
-                    self.fakeJFrame.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
+            class MyPopUpDialogBoxRunnable(Runnable):
+                def __init__(self, callingClass):
+                    self.callingClass = callingClass
 
-            if self.lModal:
-                # noinspection PyUnresolvedReferences
-                self._popup_d = JDialog(self.theParent, self.theTitle, Dialog.ModalityType.APPLICATION_MODAL)
-            else:
-                # noinspection PyUnresolvedReferences
-                self._popup_d = JDialog(self.theParent, self.theTitle, Dialog.ModalityType.MODELESS)
+                def run(self):                                                                                                      # noqa
 
-            self._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+                    myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+                    # Create a fake JFrame so we can set the Icons...
+                    if self.callingClass.theParent is None:
+                        self.callingClass.fakeJFrame = MyJFrame()
+                        self.callingClass.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
+                        self.callingClass.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+                        self.callingClass.fakeJFrame.setUndecorated(True)
+                        self.callingClass.fakeJFrame.setVisible( False )
+                        if not Platform.isOSX():
+                            self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
 
-            # Add standard CMD-W keystrokes etc to close window
-            self._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
-            self._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
-            self._popup_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-            self._popup_d.getRootPane().getActionMap().put("close-window", self.CancelButtonAction(self._popup_d, self.fakeJFrame,self.lResult))
-            self._popup_d.addWindowListener(self.WindowListener(self._popup_d, self.fakeJFrame,self.lResult))
-
-            if (not Platform.isMac()):
-                # moneydance_ui.getImages()
-                self._popup_d.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
-
-            displayJText = JTextArea(self.theMessage)
-            displayJText.setFont( getMonoFont() )
-            displayJText.setEditable(False)
-            displayJText.setLineWrap(False)
-            displayJText.setWrapStyleWord(False)
-
-            _popupPanel=JPanel()
-
-            # maxHeight = 500
-            _popupPanel.setLayout(GridLayout(0,1))
-            _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
-            # _popupPanel.setMinimumSize(Dimension(self.theWidth, 0))
-            # _popupPanel.setMaximumSize(Dimension(self.theWidth, maxHeight))
-
-            if self.theStatus:
-                _label1 = JLabel(pad(self.theStatus,self.theWidth-20))
-                _label1.setForeground(Color.BLUE)
-                _popupPanel.add(_label1)
-
-            myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-            if displayJText.getLineCount()>5:
-                # myScrollPane.setMinimumSize(Dimension(self.theWidth-20, 10))
-                # myScrollPane.setMaximumSize(Dimension(self.theWidth-20, maxHeight-100))
-                myScrollPane.setWheelScrollingEnabled(True)
-                _popupPanel.add(myScrollPane)
-            else:
-                _popupPanel.add(displayJText)
-
-            buttonPanel = JPanel()
-            if self.lModal or self.lCancelButton:
-                buttonPanel.setLayout(FlowLayout(FlowLayout.CENTER))
-
-                if self.lCancelButton:
-                    cancel_button = JButton("CANCEL")
-                    cancel_button.setPreferredSize(Dimension(100,40))
-                    cancel_button.setBackground(Color.LIGHT_GRAY)
-                    cancel_button.setBorderPainted(False)
-                    cancel_button.setOpaque(True)
-                    cancel_button.addActionListener( self.CancelButtonAction(self._popup_d, self.fakeJFrame,self.lResult) )
-                    buttonPanel.add(cancel_button)
-
-                if self.lModal:
-                    ok_button = JButton(self.OKButtonText)
-                    if len(self.OKButtonText) <= 2:
-                        ok_button.setPreferredSize(Dimension(100,40))
+                    if self.callingClass.lModal:
+                        # noinspection PyUnresolvedReferences
+                        self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.APPLICATION_MODAL)
                     else:
-                        ok_button.setPreferredSize(Dimension(200,40))
+                        # noinspection PyUnresolvedReferences
+                        self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.MODELESS)
 
-                    ok_button.setBackground(Color.LIGHT_GRAY)
-                    ok_button.setBorderPainted(False)
-                    ok_button.setOpaque(True)
-                    ok_button.addActionListener( self.OKButtonAction(self._popup_d, self.fakeJFrame, self.lResult) )
-                    buttonPanel.add(ok_button)
+                    self.callingClass._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
 
-                _popupPanel.add(buttonPanel)
+                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
 
-            if self.lAlertLevel>=2:
-                # internalScrollPane.setBackground(Color.RED)
-                # theJText.setBackground(Color.RED)
-                # theJText.setForeground(Color.BLACK)
-                displayJText.setBackground(Color.RED)
-                displayJText.setForeground(Color.BLACK)
-                _popupPanel.setBackground(Color.RED)
-                _popupPanel.setForeground(Color.BLACK)
-                buttonPanel.setBackground(Color.RED)
-                myScrollPane.setBackground(Color.RED)
+                    # Add standard CMD-W keystrokes etc to close window
+                    self.callingClass._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+                    self.callingClass._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                    self.callingClass._popup_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+                    self.callingClass._popup_d.getRootPane().getActionMap().put("close-window", self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult))
+                    self.callingClass._popup_d.addWindowListener(self.callingClass.WindowListener(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult))
 
-            elif self.lAlertLevel>=1:
-                # internalScrollPane.setBackground(Color.YELLOW)
-                # theJText.setBackground(Color.YELLOW)
-                # theJText.setForeground(Color.BLACK)
-                displayJText.setBackground(Color.YELLOW)
-                displayJText.setForeground(Color.BLACK)
-                _popupPanel.setBackground(Color.YELLOW)
-                _popupPanel.setForeground(Color.BLACK)
-                buttonPanel.setBackground(Color.YELLOW)
-                myScrollPane.setBackground(Color.RED)
+                    if (not Platform.isMac()):
+                        # moneydance_ui.getImages()
+                        self.callingClass._popup_d.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
 
-            self._popup_d.add(_popupPanel)
-            self._popup_d.pack()
-            self._popup_d.setLocationRelativeTo(None)
-            # self._popup_d.setVisible(True)  # Keeping this modal....
+                    displayJText = JTextArea(self.callingClass.theMessage)
+                    displayJText.setFont( getMonoFont() )
+                    displayJText.setEditable(False)
+                    displayJText.setLineWrap(False)
+                    displayJText.setWrapStyleWord(False)
 
-            SwingUtilities.invokeAndWait(GenericVisibleRunnable(self._popup_d, True))
+                    _popupPanel=JPanel()
+
+                    # maxHeight = 500
+                    _popupPanel.setLayout(GridLayout(0,1))
+                    _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
+
+                    if self.callingClass.theStatus:
+                        _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
+                        _label1.setForeground(Color.BLUE)
+                        _popupPanel.add(_label1)
+
+                    myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    if displayJText.getLineCount()>5:
+                        myScrollPane.setWheelScrollingEnabled(True)
+                        _popupPanel.add(myScrollPane)
+                    else:
+                        _popupPanel.add(displayJText)
+
+                    buttonPanel = JPanel()
+                    if self.callingClass.lModal or self.callingClass.lCancelButton:
+                        buttonPanel.setLayout(FlowLayout(FlowLayout.CENTER))
+
+                        if self.callingClass.lCancelButton:
+                            cancel_button = JButton("CANCEL")
+                            cancel_button.setPreferredSize(Dimension(100,40))
+                            cancel_button.setBackground(Color.LIGHT_GRAY)
+                            cancel_button.setBorderPainted(False)
+                            cancel_button.setOpaque(True)
+                            cancel_button.addActionListener( self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
+                            buttonPanel.add(cancel_button)
+
+                        if self.callingClass.lModal:
+                            ok_button = JButton(self.callingClass.OKButtonText)
+                            if len(self.callingClass.OKButtonText) <= 2:
+                                ok_button.setPreferredSize(Dimension(100,40))
+                            else:
+                                ok_button.setPreferredSize(Dimension(200,40))
+
+                            ok_button.setBackground(Color.LIGHT_GRAY)
+                            ok_button.setBorderPainted(False)
+                            ok_button.setOpaque(True)
+                            ok_button.addActionListener( self.callingClass.OKButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame, self.callingClass.lResult) )
+                            buttonPanel.add(ok_button)
+
+                        _popupPanel.add(buttonPanel)
+
+                    if self.callingClass.lAlertLevel>=2:
+                        # internalScrollPane.setBackground(Color.RED)
+                        # theJText.setBackground(Color.RED)
+                        # theJText.setForeground(Color.BLACK)
+                        displayJText.setBackground(Color.RED)
+                        displayJText.setForeground(Color.BLACK)
+                        _popupPanel.setBackground(Color.RED)
+                        _popupPanel.setForeground(Color.BLACK)
+                        buttonPanel.setBackground(Color.RED)
+                        myScrollPane.setBackground(Color.RED)
+
+                    elif self.callingClass.lAlertLevel>=1:
+                        # internalScrollPane.setBackground(Color.YELLOW)
+                        # theJText.setBackground(Color.YELLOW)
+                        # theJText.setForeground(Color.BLACK)
+                        displayJText.setBackground(Color.YELLOW)
+                        displayJText.setForeground(Color.BLACK)
+                        _popupPanel.setBackground(Color.YELLOW)
+                        _popupPanel.setForeground(Color.BLACK)
+                        buttonPanel.setBackground(Color.YELLOW)
+                        myScrollPane.setBackground(Color.RED)
+
+                    self.callingClass._popup_d.add(_popupPanel)
+                    self.callingClass._popup_d.pack()
+                    self.callingClass._popup_d.setLocationRelativeTo(None)
+                    self.callingClass._popup_d.setVisible(True)  # Keeping this modal....
+
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB",".. Not running within the EDT so calling via MyPopUpDialogBoxRunnable()...")
+                SwingUtilities.invokeAndWait(MyPopUpDialogBoxRunnable(self))
+            else:
+                myPrint("DB",".. Already within the EDT so calling naked...")
+                MyPopUpDialogBoxRunnable(self).run()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -1244,6 +1263,289 @@ Visit: %s (Author's site)
             text = "Error in classPrinter(): %s: %s" %(className, theObject)
         return text
 
+    class SearchAction(AbstractAction):
+
+        def __init__(self, theFrame, searchJText):
+            self.theFrame = theFrame
+            self.searchJText = searchJText
+            self.lastSearch = ""
+            self.lastPosn = -1
+            self.previousEndPosn = -1
+            self.lastDirection = 0
+
+        def actionPerformed(self, event):
+            myPrint("D","in SearchAction(), Event: ", event)
+
+            p = JPanel(FlowLayout())
+            lbl = JLabel("Enter the search text:")
+            tf = JTextField(self.lastSearch,20)
+            p.add(lbl)
+            p.add(tf)
+
+            options = [ "Next", "Previous", "Cancel" ]
+
+            defaultDirection = options[self.lastDirection]
+
+            response = JOptionPane.showOptionDialog(self.theFrame,
+                                                    p,
+                                                    "Search for text",
+                                                    JOptionPane.OK_CANCEL_OPTION,
+                                                    JOptionPane.QUESTION_MESSAGE,
+                                                    None,
+                                                    options,
+                                                    defaultDirection)
+
+            lSwitch = False
+            if (response == 0 or response == 1):
+                if response != self.lastDirection: lSwitch = True
+                self.lastDirection = response
+                searchWhat = tf.getText()
+            else:
+                searchWhat = None
+
+            del p, lbl, tf, options
+
+            if not searchWhat or searchWhat == "": return
+
+            theText = self.searchJText.getText().lower()
+            highlighter = self.searchJText.getHighlighter()
+            highlighter.removeAllHighlights()
+
+            startPos = 0
+
+            if response == 0:
+                direction = "[forwards]"
+                if searchWhat == self.lastSearch:
+                    startPos = self.lastPosn
+                    if lSwitch: startPos=startPos+len(searchWhat)+1
+                self.lastSearch = searchWhat
+
+                # if startPos+len(searchWhat) >= len(theText):
+                #     startPos = 0
+                #
+                pos = theText.find(searchWhat.lower(),startPos)     # noqa
+                myPrint("DB", "Search %s Pos: %s, searchWhat: '%s', startPos: %s, endPos: %s" %(direction, pos, searchWhat,startPos, -1))
+
+            else:
+                direction = "[backwards]"
+                endPos = len(theText)-1
+
+                if searchWhat == self.lastSearch:
+                    if self.previousEndPosn < 0: self.previousEndPosn = len(theText)-1
+                    endPos = max(0,self.previousEndPosn)
+                    if lSwitch: endPos = max(0,self.lastPosn-1)
+
+                self.lastSearch = searchWhat
+
+                pos = theText.rfind(searchWhat.lower(),startPos,endPos)     # noqa
+                myPrint("DB", "Search %s Pos: %s, searchWhat: '%s', startPos: %s, endPos: %s" %(direction, pos, searchWhat,startPos,endPos))
+
+            if pos >= 0:
+                self.searchJText.setCaretPosition(pos)
+                try:
+                    highlighter.addHighlight(pos,min(pos+len(searchWhat),len(theText)),DefaultHighlighter.DefaultPainter)
+                except: pass
+                if response == 0:
+                    self.lastPosn = pos+len(searchWhat)
+                    self.previousEndPosn = len(theText)-1
+                else:
+                    self.lastPosn = pos-len(searchWhat)
+                    self.previousEndPosn = pos-1
+            else:
+                self.lastPosn = 0
+                self.previousEndPosn = len(theText)-1
+                myPopupInformationBox(self.theFrame,"Searching %s text not found" %direction)
+
+            return
+
+    class QuickJFrame():
+
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False):
+            self.title = title
+            self.output = output
+            self.lAlertLevel = lAlertLevel
+            self.returnFrame = None
+            self.copyToClipboard = copyToClipboard
+
+        class CloseAction(AbstractAction):
+
+            def __init__(self, theFrame):
+                self.theFrame = theFrame
+
+            def actionPerformed(self, event):
+                global debug
+                myPrint("D","in CloseAction(), Event: ", event)
+                myPrint("DB", "QuickJFrame() Frame shutting down....")
+
+                # Already within the EDT
+                self.theFrame.dispose()
+                return
+
+        def show_the_frame(self):
+            global debug
+
+            class MyQuickJFrameRunnable(Runnable):
+
+                def __init__(self, callingClass):
+                    self.callingClass = callingClass
+
+                def run(self):                                                                                                      # noqa
+                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+
+                    frame_width = min(screenSize.width-20, max(1024,int(round(moneydance_ui.firstMainFrame.getSize().width *.9,0))))
+                    frame_height = min(screenSize.height-20, max(768, int(round(moneydance_ui.firstMainFrame.getSize().height *.9,0))))
+
+                    JFrame.setDefaultLookAndFeelDecorated(True)
+
+                    jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)" %(moneydance_ui.ACCELERATOR_MASK_STR))
+                    jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
+
+                    if not Platform.isOSX():
+                        jInternalFrame.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+
+                    jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+                    jInternalFrame.setResizable(True)
+
+                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W,  shortcut), "close-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F,  shortcut), "search-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+                    theJText = JTextArea(self.callingClass.output)
+                    theJText.setEditable(False)
+                    theJText.setLineWrap(True)
+                    theJText.setWrapStyleWord(True)
+                    theJText.setFont( getMonoFont() )
+
+                    jInternalFrame.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAction(jInternalFrame))
+                    jInternalFrame.getRootPane().getActionMap().put("search-window", SearchAction(jInternalFrame,theJText))
+
+                    internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+
+                    if self.callingClass.lAlertLevel>=2:
+                        internalScrollPane.setBackground(Color.RED)
+                        theJText.setBackground(Color.RED)
+                        theJText.setForeground(Color.BLACK)
+                    elif self.callingClass.lAlertLevel>=1:
+                        internalScrollPane.setBackground(Color.YELLOW)
+                        theJText.setBackground(Color.YELLOW)
+                        theJText.setForeground(Color.BLACK)
+
+                    jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
+
+                    jInternalFrame.add(internalScrollPane)
+
+                    jInternalFrame.pack()
+                    jInternalFrame.setLocationRelativeTo(None)
+                    jInternalFrame.setVisible(True)
+
+                    if "errlog.txt" in self.callingClass.title:
+                        theJText.setCaretPosition(theJText.getDocument().getLength())
+
+                    try:
+                        if self.callingClass.copyToClipboard:
+                            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(self.callingClass.output), None)
+                    except:
+                        myPrint("J","Error copying contents to Clipboard")
+                        dump_sys_error_to_md_console_and_errorlog()
+
+                    self.callingClass.returnFrame = jInternalFrame
+
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB",".. Not running within the EDT so calling via MyQuickJFrameRunnable()...")
+                SwingUtilities.invokeAndWait(MyQuickJFrameRunnable(self))
+            else:
+                myPrint("DB",".. Already within the EDT so calling naked...")
+                MyQuickJFrameRunnable(self).run()
+
+            return (self.returnFrame)
+
+    class AboutThisScript():
+
+        class CloseAboutAction(AbstractAction):
+
+            def __init__(self, theFrame):
+                self.theFrame = theFrame
+
+            def actionPerformed(self, event):
+                global debug
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
+
+                # Listener is already on the Swing EDT...
+                self.theFrame.dispose()
+
+        def __init__(self, theFrame):
+            global debug, scriptExit
+            self.theFrame = theFrame
+
+        def go(self):
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+
+            class MyAboutRunnable(Runnable):
+                def __init__(self, callingClass):
+                    self.callingClass = callingClass
+
+                def run(self):                                                                                                      # noqa
+
+                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+                    myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+                    # noinspection PyUnresolvedReferences
+                    about_d = JDialog(self.callingClass.theFrame, "About", Dialog.ModalityType.MODELESS)
+
+                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                    about_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+                    about_d.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAboutAction(about_d))
+
+                    about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
+
+                    if (not Platform.isMac()):
+                        # moneydance_ui.getImages()
+                        about_d.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+
+                    aboutPanel=JPanel()
+                    aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
+                    aboutPanel.setPreferredSize(Dimension(1120, 500))
+
+                    _label1 = JLabel(pad("Author: Stuart Beesley", 800))
+                    _label1.setForeground(Color.BLUE)
+                    aboutPanel.add(_label1)
+
+                    _label2 = JLabel(pad("StuWareSoftSystems (2020-2021)", 800))
+                    _label2.setForeground(Color.BLUE)
+                    aboutPanel.add(_label2)
+
+                    displayString=scriptExit
+                    displayJText = JTextArea(displayString)
+                    displayJText.setFont( getMonoFont() )
+                    displayJText.setEditable(False)
+                    displayJText.setLineWrap(False)
+                    displayJText.setWrapStyleWord(False)
+                    displayJText.setMargin(Insets(8, 8, 8, 8))
+                    # displayJText.setBackground((mdGUI.getColors()).defaultBackground)
+                    # displayJText.setForeground((mdGUI.getColors()).defaultTextForeground)
+
+                    aboutPanel.add(displayJText)
+
+                    about_d.add(aboutPanel)
+
+                    about_d.pack()
+                    about_d.setLocationRelativeTo(None)
+                    about_d.setVisible(True)
+
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB",".. Not running within the EDT so calling via MyAboutRunnable()...")
+                SwingUtilities.invokeAndWait(MyAboutRunnable(self))
+            else:
+                myPrint("DB",".. Already within the EDT so calling naked...")
+                MyAboutRunnable(self).run()
+
+            myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -1266,104 +1568,11 @@ Visit: %s (Author's site)
     # clear up any old left-overs....
     destroyOldFrames(myModuleID)
 
-    # END ALL CODE COPY HERE ###############################################################################################
-    # END ALL CODE COPY HERE ###############################################################################################
-    # END ALL CODE COPY HERE ###############################################################################################
-
-    debug = False                                                                                                       # noqa
     myPrint("DB", "DEBUG IS ON..")
 
-    class QuickJFrame():
-
-        def __init__(self, title, output, lAlertLevel=0):
-            self.title = title
-            self.output = output
-            self.lAlertLevel = lAlertLevel
-
-        class CloseAction(AbstractAction):
-
-            def __init__(self, theFrame):
-                self.theFrame = theFrame
-
-            def actionPerformed(self, event):
-                global debug
-                myPrint("D","in CloseAction(), Event: ", event)
-
-                myPrint("DB", "QuickJFrame() Frame shutting down....")
-
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFrame))
-                return
-
-        def show_the_frame(self):
-            global debug
-
-            screenSize = Toolkit.getDefaultToolkit().getScreenSize()
-            # frame_width = screenSize.width - 20
-            # frame_height = screenSize.height - 20
-
-            frame_width = min(screenSize.width-20, max(1024,int(round(moneydance_ui.firstMainFrame.getSize().width *.9,0))))
-            frame_height = min(screenSize.height-20, max(768, int(round(moneydance_ui.firstMainFrame.getSize().height *.9,0))))
-
-            JFrame.setDefaultLookAndFeelDecorated(True)
-
-            jInternalFrame = MyJFrame(self.title)
-            jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
-
-            if not Platform.isOSX():
-                jInternalFrame.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
-
-            jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
-            jInternalFrame.setResizable(True)
-
-            shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
-            jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
-            jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
-
-            jInternalFrame.getRootPane().getActionMap().put("close-window", self.CloseAction(jInternalFrame))
-
-            theJText = JTextArea(self.output)
-            theJText.setEditable(False)
-            theJText.setLineWrap(True)
-            theJText.setWrapStyleWord(True)
-            # theJText.setFont(Font("monospaced", Font.PLAIN, 15))
-            theJText.setFont( getMonoFont() )
-
-            internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-
-            if self.lAlertLevel>=2:
-                internalScrollPane.setBackground(Color.RED)
-                theJText.setBackground(Color.RED)
-                theJText.setForeground(Color.BLACK)
-            elif self.lAlertLevel>=1:
-                internalScrollPane.setBackground(Color.YELLOW)
-                theJText.setBackground(Color.YELLOW)
-                theJText.setForeground(Color.BLACK)
-
-            jInternalFrame.setMinimumSize(Dimension(frame_width, 0))
-            jInternalFrame.setMaximumSize(Dimension(frame_width, frame_height))
-
-            # if Platform.isWindows():
-            #     if theJText.getLineCount() > 30:
-            #         jInternalFrame.setPreferredSize(Dimension(frame_width - 50, frame_height - 100))
-            #
-
-            jInternalFrame.add(internalScrollPane)
-
-            jInternalFrame.pack()
-            jInternalFrame.setLocationRelativeTo(None)
-            SwingUtilities.invokeLater(GenericVisibleRunnable(jInternalFrame, True))
-
-            if "errlog.txt" in self.title:
-                theJText.setCaretPosition(theJText.getDocument().getLength())
-
-            try:
-                pass
-            except:
-
-                myPrint("J","Error copying contents to Clipboard")
-                dump_sys_error_to_md_console_and_errorlog()
-
-            return (jInternalFrame)
+    # END ALL CODE COPY HERE ###############################################################################################
+    # END ALL CODE COPY HERE ###############################################################################################
+    # END ALL CODE COPY HERE ###############################################################################################
 
     scanningMsg = MyPopUpDialogBox(None,"Please wait: searching Database and filesystem for attachments..",theTitle="ATTACHMENT(S) SEARCH", theWidth=100, lModal=False,OKButtonText="WAIT")
     scanningMsg.go()
@@ -1399,15 +1608,15 @@ Visit: %s (Author's site)
             continue
 
         iTxnsWithAttachments+=1
-        x="Found Record with %s Attachment(s): %s" %(len(_mdItem.getAttachmentKeys()),_mdItem)
-        myPrint("D",x)
-        if debug: diagDisplay+=(x+"\n")
+        miniMsg= "Found Record with %s Attachment(s): %s" % (len(_mdItem.getAttachmentKeys()), _mdItem)
+        myPrint("D", miniMsg)
+        if debug: diagDisplay+=(miniMsg + "\n")
 
         if attachmentList.get(_mdItem.getUUID()):
             iDuplicateKeys += 1
-            x="@@ Error %s already exists in my attachment list...!?" %_mdItem.getUUID()
-            myPrint("DB", x)
-            if debug: diagDisplay+=(x+"\n")
+            miniMsg= "@@ Error %s already exists in my attachment list...!?" % _mdItem.getUUID()
+            myPrint("DB", miniMsg)
+            if debug: diagDisplay+=(miniMsg + "\n")
 
         attachmentList[_mdItem.getUUID()] = [
                                             _mdItem.getUUID(),
@@ -1417,17 +1626,17 @@ Visit: %s (Author's site)
                                             _mdItem.getValue(),
                                             _mdItem.getAttachmentKeys()
                                             ]
-        x="Attachment keys: %s" %_mdItem.getAttachmentKeys()
-        myPrint("D",x)
-        if debug: diagDisplay+=(x+"\n")
+        miniMsg= "Attachment keys: %s" % _mdItem.getAttachmentKeys()
+        myPrint("D", miniMsg)
+        if debug: diagDisplay+=(miniMsg + "\n")
 
         for _key in _mdItem.getAttachmentKeys():
             iAttachmentsFound+=1
             if attachmentLocations.get(_mdItem.getAttachmentTag(_key)):
                 iDuplicateKeys += 1
-                x="@@ Error %s already exists in my attachment location list...!?" %_mdItem.getUUID()
+                miniMsg= "@@ Error %s already exists in my attachment location list...!?" % _mdItem.getUUID()
                 myPrint("B", )
-                if debug: diagDisplay+=(x+"\n")
+                if debug: diagDisplay+=(miniMsg + "\n")
 
             attachmentLocations[_mdItem.getAttachmentTag(_key)] = [
                                                                     _mdItem.getAttachmentTag(_key),
@@ -1446,13 +1655,13 @@ Visit: %s (Author's site)
                                             _mdItem.getAttachmentKeys()
                                             ])
 
-                x="@@ Error - Attachment for Txn DOES NOT EXIST! - Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
-                myPrint("B",x)
-                diagDisplay+=(x+"\n")
+                miniMsg= "@@ Error - Attachment for Txn DOES NOT EXIST! - Attachment tag: %s" % _mdItem.getAttachmentTag(_key)
+                myPrint("B", miniMsg)
+                diagDisplay+=(miniMsg + "\n")
             else:
-                x="Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
-                myPrint("D", x)
-                if debug: diagDisplay+=(x+"\n")
+                miniMsg= "Attachment tag: %s" % _mdItem.getAttachmentTag(_key)
+                myPrint("D", miniMsg)
+                if debug: diagDisplay+=(miniMsg + "\n")
 
 
     # Now scan the file system for attachments
@@ -1478,9 +1687,9 @@ Visit: %s (Author's site)
                 iBytes = typesFound.get(theExtension)[2]
             typesFound[theExtension] = [theExtension, iCountExtensions+1, iBytes+byteSize ]
 
-            x="Found Attachment File: %s" %theFile
-            myPrint("D", x)
-            if debug: diagDisplay+=(x+"\n")
+            miniMsg= "Found Attachment File: %s" % theFile
+            myPrint("D", miniMsg)
+            if debug: diagDisplay+=(miniMsg + "\n")
 
     # Now match file system to the list from the database
     iOrphans=0
@@ -1493,13 +1702,13 @@ Visit: %s (Author's site)
         deriveTheBytes = fileDetails[1]
         deriveTheModified = fileDetails[2]
         if attachmentLocations.get(deriveTheKey.replace(os.path.sep,"/")):
-            x="Attachment file system link found in Moneydance database"
-            myPrint("D", x)
-            if debug: diagDisplay+=(x+"\n")
+            miniMsg= "Attachment file system link found in Moneydance database"
+            myPrint("D", miniMsg)
+            if debug: diagDisplay+=(miniMsg + "\n")
         else:
-            x="Error: Attachment filesystem link missing in Moneydance database: %s" %deriveTheKey
-            myPrint("DB", x)
-            if debug: diagDisplay+=(x+"\n")
+            miniMsg= "Error: Attachment filesystem link missing in Moneydance database: %s" % deriveTheKey
+            myPrint("DB", miniMsg)
+            if debug: diagDisplay+=(miniMsg + "\n")
             iOrphans+=1
             iOrphanBytes+=deriveTheBytes
             orphanList.append([deriveTheKey,deriveTheBytes, deriveTheModified])
@@ -1508,113 +1717,113 @@ Visit: %s (Author's site)
 
     myPrint("P","\n"*5)
 
-    x="----------------------------------"
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
+    miniMsg= "----------------------------------"
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n")
 
-    x = "Objects scanned: %s" %iObjectsScanned
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
+    miniMsg = "Objects scanned: %s" % iObjectsScanned
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n")
 
-    x="Transactions scanned: %s" %iTxnsScanned
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Transactions with attachments: %s" %iTxnsWithAttachments
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Total Attachments referenced in Moneydance database (a txn may have multi-attachments): %s" %iAttachmentsFound
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Attachments missing from Local Storage: %s" %iAttachmentsNotInLS
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
-    x="Total Attachments found in file system: %s (difference %s)" %(len(attachmentsRawListFound),len(attachmentsRawListFound)-iAttachmentsFound)
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n")
+    miniMsg= "Transactions scanned: %s" % iTxnsScanned
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n")
+    miniMsg= "Transactions with attachments: %s" % iTxnsWithAttachments
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n")
+    miniMsg= "Total Attachments referenced in Moneydance database (a txn may have multi-attachments): %s" % iAttachmentsFound
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n")
+    miniMsg= "Attachments missing from Local Storage: %s" % iAttachmentsNotInLS
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n")
+    miniMsg= "Total Attachments found in file system: %s (difference %s)" % (len(attachmentsRawListFound), len(attachmentsRawListFound) - iAttachmentsFound)
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n")
 
 
     myPrint("P","\n"*1)
 
-    x="Attachment extensions found: %s" %len(typesFound)
-    myPrint("B", x)
-    diagDisplay+=("\n"+x+"\n")
+    miniMsg= "Attachment extensions found: %s" % len(typesFound)
+    myPrint("B", miniMsg)
+    diagDisplay+=("\n" + miniMsg + "\n")
 
     iTotalBytes = 0
     sortedExtensions = sorted(typesFound.values(), key=lambda _x: (_x[2]), reverse=True)
 
-    for x in sortedExtensions:
-        iTotalBytes+=x[2]
+    for miniMsg in sortedExtensions:
+        iTotalBytes+=miniMsg[2]
 
-        x="Extension: %s Number: %s Size: %sMB" %(pad(x[0],6),rpad(x[1],12),rpad(round(x[2]/(1024.0 * 1024.0),2),12))
-        myPrint("B", x)
-        diagDisplay+=(x+"\n")
+        miniMsg= "Extension: %s Number: %s Size: %sMB" % (pad(miniMsg[0], 6), rpad(miniMsg[1], 12), rpad(round(miniMsg[2] / (1024.0 * 1024.0), 2), 12))
+        myPrint("B", miniMsg)
+        diagDisplay+=(miniMsg + "\n")
 
-    x="Attachments on disk are taking: %sMB" %(round(iTotalBytes/(1024.0 * 1024.0),2))
-    myPrint("B", x)
-    diagDisplay+=(x+"\n")
-    msgStr+=(x+"\n")
-    x="----------------------------------"
-    myPrint("B", x)
-    msgStr+=(x+"\n")
-    diagDisplay+=(x+"\n\n")
+    miniMsg= "Attachments on disk are taking: %sMB" % (round(iTotalBytes / (1024.0 * 1024.0), 2))
+    myPrint("B", miniMsg)
+    diagDisplay+=(miniMsg + "\n")
+    msgStr+=(miniMsg + "\n")
+    miniMsg= "----------------------------------"
+    myPrint("B", miniMsg)
+    msgStr+=(miniMsg + "\n")
+    diagDisplay+=(miniMsg + "\n\n")
 
     lErrors=False
     if iAttachmentsNotInLS:
-        x = "@@ ERROR: You have %s missing attachment(s) referenced on Moneydance Txns!" %(iAttachmentsNotInLS)
-        msgStr+=x+"\n"
-        diagDisplay+=(x+"\n\n")
+        miniMsg = "@@ ERROR: You have %s missing attachment(s) referenced on Moneydance Txns!" % (iAttachmentsNotInLS)
+        msgStr+= miniMsg + "\n"
+        diagDisplay+=(miniMsg + "\n\n")
         myPrint("P","")
-        myPrint("B",x)
+        myPrint("B", miniMsg)
         lErrors=True
 
         attachmentsNotInLS=sorted(attachmentsNotInLS, key=lambda _x: (_x[3]), reverse=False)
         for theOrphanRecord in attachmentsNotInLS:
-            x="Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
-                                                                                                                theOrphanRecord[2],
-                                                                                                                theOrphanRecord[3],
-                                                                                                                theOrphanRecord[4],
-                                                                                                                theOrphanRecord[5])
-            myPrint("B", x)
-            diagDisplay+=(x+"\n")
+            miniMsg= "Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" % (theOrphanRecord[1],
+                                                                                                                         theOrphanRecord[2],
+                                                                                                                         theOrphanRecord[3],
+                                                                                                                         theOrphanRecord[4],
+                                                                                                                         theOrphanRecord[5])
+            myPrint("B", miniMsg)
+            diagDisplay+=(miniMsg + "\n")
         diagDisplay+="\n"
 
     if iOrphans:
-        x = "@@ ERROR: %s Orphan attachment(s) found, taking up %sMBs" %(iOrphans,round(iOrphanBytes/(1024.0 * 1024.0),2))
-        msgStr+=x+"\n"
-        diagDisplay+=(x+"\n\n")
+        miniMsg = "@@ ERROR: %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans, round(iOrphanBytes / (1024.0 * 1024.0), 2))
+        msgStr+= miniMsg + "\n"
+        diagDisplay+=(miniMsg + "\n\n")
         myPrint("P","")
-        myPrint("B",x)
-        x="Base Attachment Directory is: %s" %os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe","")
-        myPrint("P",x)
-        diagDisplay+=(x+"\n")
+        myPrint("B", miniMsg)
+        miniMsg= "Base Attachment Directory is: %s" % os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe", "")
+        myPrint("P", miniMsg)
+        diagDisplay+=(miniMsg + "\n")
         lErrors=True
         orphanList=sorted(orphanList, key=lambda _x: (_x[2]), reverse=False)
         for theOrphanRecord in orphanList:
 
-            x="Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" %(rpad(round(theOrphanRecord[1]/(1024.0),1),6),
-                                                                                        pad(theOrphanRecord[2],19),
-                                                                                        theOrphanRecord[0])
-            diagDisplay+=(x+"\n")
-            myPrint("B", x)
+            miniMsg= "Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" % (rpad(round(theOrphanRecord[1] / (1024.0), 1), 6),
+                                                                                         pad(theOrphanRecord[2],19),
+                                                                                         theOrphanRecord[0])
+            diagDisplay+=(miniMsg + "\n")
+            myPrint("B", miniMsg)
 
     if not lErrors:
-        x= "Congratulations! - No orphan attachments detected!".upper()
-        myPrint("B",x)
-        diagDisplay+=(x+"\n")
+        miniMsg= "Congratulations! - No orphan attachments detected!".upper()
+        myPrint("B", miniMsg)
+        diagDisplay+=(miniMsg + "\n")
 
 
     if iAttachmentsFound:
         diagDisplay+="\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
         diagDisplay+="=======================================\n"
-        x="\nBase Attachment Directory is: %s" %os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe","")
-        diagDisplay+=(x+"\n-----------\n")
+        miniMsg= "\nBase Attachment Directory is: %s" % os.path.join(moneydance_data.getRootFolder().getCanonicalPath(), "safe", "")
+        diagDisplay+=(miniMsg + "\n-----------\n")
 
         for validLocation in attachmentLocations:
             locationRecord = attachmentLocations[validLocation]
@@ -1649,9 +1858,9 @@ Visit: %s (Author's site)
     if lErrors:
         moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems: %s - ERRORS DETECTED!" %(myScriptName),0)
     else:
-        moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems "+x,0)
+        moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems " + miniMsg, 0)
         msg = MyPopUpDialogBox(jif,
-                               x,
+                               miniMsg,
                                msgStr,
                                200,"ATTACHMENTS STATUS",
                                lCancelButton=False,
@@ -1659,7 +1868,6 @@ Visit: %s (Author's site)
                                lAlertLevel=0)
 
     myPrint("P","\n"*2)
-
 
     myPrint("B", "StuWareSoftSystems - ", myScriptName, " script ending......")
 

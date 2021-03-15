@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_secu_bank_custom_profile.py (build 3) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_secu_bank_custom_profile.py (build 4) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_secu_bank_custom_profile.pdf
@@ -22,6 +22,8 @@
 # build 1 - Released: 13th March 2021 (thanks to @margopowell for volunteering her data to set this script up)
 # build 2 - Internal tweaks - nothing to do with the core functionality
 # build 3 - Cosmetic tweaks - nothing to do with the core functionality
+# build 4 - Internal common code tweaks - nothing to do with the core functionality
+# build 4 - URLEncoder.encode() the UserID and Password in the stored cached string
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -29,7 +31,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_secu_bank_custom_profile"
-version_build = "3"
+version_build = "4"
 debug = False
 global ofx_create_new_secu_bank_custom_profile_frame_
 
@@ -194,6 +196,9 @@ else:
     from javax.swing.text import PlainDocument
     from javax.swing.border import EmptyBorder
 
+    from java.awt.datatransfer import StringSelection
+    from javax.swing.text import DefaultHighlighter
+
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
@@ -241,11 +246,14 @@ else:
     from com.infinitekind.util import StreamTable
     from java.util import UUID
     from com.infinitekind.util import StringUtils
+    from java.net import URLEncoder
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
     # COPY >> START
+    # COMMON CODE ##########################################################################################################
+    # COMMON CODE ##########################################################################################################
     # COMMON CODE ##########################################################################################################
     i_am_an_extension_so_run_headless = False                                                                           # noqa
     try:
@@ -605,7 +613,8 @@ Visit: %s (Author's site)
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
                 global debug
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                 myPrint("DB", "JDialog Frame shutting down....")
 
@@ -631,7 +640,8 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 global debug
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                 self.lResult[0] = True
 
@@ -655,7 +665,8 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 global debug
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                 self.lResult[0] = False
 
@@ -672,145 +683,155 @@ Visit: %s (Author's site)
         def kill(self):
 
             global debug
-            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            # Note - listeners are already on the EDT
-            self._popup_d.setVisible(False)
+            SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, False))
             if self.fakeJFrame is not None:
-                self._popup_d.dispose()
-                self.fakeJFrame.dispose()
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
             else:
-                self._popup_d.dispose()
+                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
 
         def result(self):
-
             global debug
             return self.lResult[0]
 
         def go(self):
             global debug
 
-            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            # Create a fake JFrame so we can set the Icons...
-            if self.theParent is None:
-                self.fakeJFrame = MyJFrame()
-                self.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
-                self.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
-                self.fakeJFrame.setUndecorated(True)
-                self.fakeJFrame.setVisible( False )
-                if not Platform.isOSX():
-                    self.fakeJFrame.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
+            class MyPopUpDialogBoxRunnable(Runnable):
+                def __init__(self, callingClass):
+                    self.callingClass = callingClass
 
-            if self.lModal:
-                # noinspection PyUnresolvedReferences
-                self._popup_d = JDialog(self.theParent, self.theTitle, Dialog.ModalityType.APPLICATION_MODAL)
-            else:
-                # noinspection PyUnresolvedReferences
-                self._popup_d = JDialog(self.theParent, self.theTitle, Dialog.ModalityType.MODELESS)
+                def run(self):                                                                                                      # noqa
 
-            self._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+                    myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+                    # Create a fake JFrame so we can set the Icons...
+                    if self.callingClass.theParent is None:
+                        self.callingClass.fakeJFrame = MyJFrame()
+                        self.callingClass.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
+                        self.callingClass.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+                        self.callingClass.fakeJFrame.setUndecorated(True)
+                        self.callingClass.fakeJFrame.setVisible( False )
+                        if not Platform.isOSX():
+                            self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
 
-            # Add standard CMD-W keystrokes etc to close window
-            self._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
-            self._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
-            self._popup_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-            self._popup_d.getRootPane().getActionMap().put("close-window", self.CancelButtonAction(self._popup_d, self.fakeJFrame,self.lResult))
-            self._popup_d.addWindowListener(self.WindowListener(self._popup_d, self.fakeJFrame,self.lResult))
-
-            if (not Platform.isMac()):
-                # moneydance_ui.getImages()
-                self._popup_d.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
-
-            displayJText = JTextArea(self.theMessage)
-            displayJText.setFont( getMonoFont() )
-            displayJText.setEditable(False)
-            displayJText.setLineWrap(False)
-            displayJText.setWrapStyleWord(False)
-
-            _popupPanel=JPanel()
-
-            # maxHeight = 500
-            _popupPanel.setLayout(GridLayout(0,1))
-            _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
-            # _popupPanel.setMinimumSize(Dimension(self.theWidth, 0))
-            # _popupPanel.setMaximumSize(Dimension(self.theWidth, maxHeight))
-
-            if self.theStatus:
-                _label1 = JLabel(pad(self.theStatus,self.theWidth-20))
-                _label1.setForeground(Color.BLUE)
-                _popupPanel.add(_label1)
-
-            myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-            if displayJText.getLineCount()>5:
-                # myScrollPane.setMinimumSize(Dimension(self.theWidth-20, 10))
-                # myScrollPane.setMaximumSize(Dimension(self.theWidth-20, maxHeight-100))
-                myScrollPane.setWheelScrollingEnabled(True)
-                _popupPanel.add(myScrollPane)
-            else:
-                _popupPanel.add(displayJText)
-
-            buttonPanel = JPanel()
-            if self.lModal or self.lCancelButton:
-                buttonPanel.setLayout(FlowLayout(FlowLayout.CENTER))
-
-                if self.lCancelButton:
-                    cancel_button = JButton("CANCEL")
-                    cancel_button.setPreferredSize(Dimension(100,40))
-                    cancel_button.setBackground(Color.LIGHT_GRAY)
-                    cancel_button.setBorderPainted(False)
-                    cancel_button.setOpaque(True)
-                    cancel_button.addActionListener( self.CancelButtonAction(self._popup_d, self.fakeJFrame,self.lResult) )
-                    buttonPanel.add(cancel_button)
-
-                if self.lModal:
-                    ok_button = JButton(self.OKButtonText)
-                    if len(self.OKButtonText) <= 2:
-                        ok_button.setPreferredSize(Dimension(100,40))
+                    if self.callingClass.lModal:
+                        # noinspection PyUnresolvedReferences
+                        self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.APPLICATION_MODAL)
                     else:
-                        ok_button.setPreferredSize(Dimension(200,40))
+                        # noinspection PyUnresolvedReferences
+                        self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.MODELESS)
 
-                    ok_button.setBackground(Color.LIGHT_GRAY)
-                    ok_button.setBorderPainted(False)
-                    ok_button.setOpaque(True)
-                    ok_button.addActionListener( self.OKButtonAction(self._popup_d, self.fakeJFrame, self.lResult) )
-                    buttonPanel.add(ok_button)
+                    self.callingClass._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
 
-                _popupPanel.add(buttonPanel)
+                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
 
-            if self.lAlertLevel>=2:
-                # internalScrollPane.setBackground(Color.RED)
-                # theJText.setBackground(Color.RED)
-                # theJText.setForeground(Color.BLACK)
-                displayJText.setBackground(Color.RED)
-                displayJText.setForeground(Color.BLACK)
-                _popupPanel.setBackground(Color.RED)
-                _popupPanel.setForeground(Color.BLACK)
-                buttonPanel.setBackground(Color.RED)
-                myScrollPane.setBackground(Color.RED)
+                    # Add standard CMD-W keystrokes etc to close window
+                    self.callingClass._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+                    self.callingClass._popup_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                    self.callingClass._popup_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+                    self.callingClass._popup_d.getRootPane().getActionMap().put("close-window", self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult))
+                    self.callingClass._popup_d.addWindowListener(self.callingClass.WindowListener(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult))
 
-            elif self.lAlertLevel>=1:
-                # internalScrollPane.setBackground(Color.YELLOW)
-                # theJText.setBackground(Color.YELLOW)
-                # theJText.setForeground(Color.BLACK)
-                displayJText.setBackground(Color.YELLOW)
-                displayJText.setForeground(Color.BLACK)
-                _popupPanel.setBackground(Color.YELLOW)
-                _popupPanel.setForeground(Color.BLACK)
-                buttonPanel.setBackground(Color.YELLOW)
-                myScrollPane.setBackground(Color.RED)
+                    if (not Platform.isMac()):
+                        # moneydance_ui.getImages()
+                        self.callingClass._popup_d.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
 
-            self._popup_d.add(_popupPanel)
-            self._popup_d.pack()
-            self._popup_d.setLocationRelativeTo(None)
-            # self._popup_d.setVisible(True)  # Keeping this modal....
+                    displayJText = JTextArea(self.callingClass.theMessage)
+                    displayJText.setFont( getMonoFont() )
+                    displayJText.setEditable(False)
+                    displayJText.setLineWrap(False)
+                    displayJText.setWrapStyleWord(False)
 
-            SwingUtilities.invokeAndWait(GenericVisibleRunnable(self._popup_d, True))
+                    _popupPanel=JPanel()
+
+                    # maxHeight = 500
+                    _popupPanel.setLayout(GridLayout(0,1))
+                    _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
+
+                    if self.callingClass.theStatus:
+                        _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
+                        _label1.setForeground(Color.BLUE)
+                        _popupPanel.add(_label1)
+
+                    myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    if displayJText.getLineCount()>5:
+                        myScrollPane.setWheelScrollingEnabled(True)
+                        _popupPanel.add(myScrollPane)
+                    else:
+                        _popupPanel.add(displayJText)
+
+                    buttonPanel = JPanel()
+                    if self.callingClass.lModal or self.callingClass.lCancelButton:
+                        buttonPanel.setLayout(FlowLayout(FlowLayout.CENTER))
+
+                        if self.callingClass.lCancelButton:
+                            cancel_button = JButton("CANCEL")
+                            cancel_button.setPreferredSize(Dimension(100,40))
+                            cancel_button.setBackground(Color.LIGHT_GRAY)
+                            cancel_button.setBorderPainted(False)
+                            cancel_button.setOpaque(True)
+                            cancel_button.addActionListener( self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
+                            buttonPanel.add(cancel_button)
+
+                        if self.callingClass.lModal:
+                            ok_button = JButton(self.callingClass.OKButtonText)
+                            if len(self.callingClass.OKButtonText) <= 2:
+                                ok_button.setPreferredSize(Dimension(100,40))
+                            else:
+                                ok_button.setPreferredSize(Dimension(200,40))
+
+                            ok_button.setBackground(Color.LIGHT_GRAY)
+                            ok_button.setBorderPainted(False)
+                            ok_button.setOpaque(True)
+                            ok_button.addActionListener( self.callingClass.OKButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame, self.callingClass.lResult) )
+                            buttonPanel.add(ok_button)
+
+                        _popupPanel.add(buttonPanel)
+
+                    if self.callingClass.lAlertLevel>=2:
+                        # internalScrollPane.setBackground(Color.RED)
+                        # theJText.setBackground(Color.RED)
+                        # theJText.setForeground(Color.BLACK)
+                        displayJText.setBackground(Color.RED)
+                        displayJText.setForeground(Color.BLACK)
+                        _popupPanel.setBackground(Color.RED)
+                        _popupPanel.setForeground(Color.BLACK)
+                        buttonPanel.setBackground(Color.RED)
+                        myScrollPane.setBackground(Color.RED)
+
+                    elif self.callingClass.lAlertLevel>=1:
+                        # internalScrollPane.setBackground(Color.YELLOW)
+                        # theJText.setBackground(Color.YELLOW)
+                        # theJText.setForeground(Color.BLACK)
+                        displayJText.setBackground(Color.YELLOW)
+                        displayJText.setForeground(Color.BLACK)
+                        _popupPanel.setBackground(Color.YELLOW)
+                        _popupPanel.setForeground(Color.BLACK)
+                        buttonPanel.setBackground(Color.YELLOW)
+                        myScrollPane.setBackground(Color.RED)
+
+                    self.callingClass._popup_d.add(_popupPanel)
+                    self.callingClass._popup_d.pack()
+                    self.callingClass._popup_d.setLocationRelativeTo(None)
+                    self.callingClass._popup_d.setVisible(True)  # Keeping this modal....
+
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB",".. Not running within the EDT so calling via MyPopUpDialogBoxRunnable()...")
+                SwingUtilities.invokeAndWait(MyPopUpDialogBoxRunnable(self))
+            else:
+                myPrint("DB",".. Already within the EDT so calling naked...")
+                MyPopUpDialogBoxRunnable(self).run()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -1236,6 +1257,289 @@ Visit: %s (Author's site)
             text = "Error in classPrinter(): %s: %s" %(className, theObject)
         return text
 
+    class SearchAction(AbstractAction):
+
+        def __init__(self, theFrame, searchJText):
+            self.theFrame = theFrame
+            self.searchJText = searchJText
+            self.lastSearch = ""
+            self.lastPosn = -1
+            self.previousEndPosn = -1
+            self.lastDirection = 0
+
+        def actionPerformed(self, event):
+            myPrint("D","in SearchAction(), Event: ", event)
+
+            p = JPanel(FlowLayout())
+            lbl = JLabel("Enter the search text:")
+            tf = JTextField(self.lastSearch,20)
+            p.add(lbl)
+            p.add(tf)
+
+            options = [ "Next", "Previous", "Cancel" ]
+
+            defaultDirection = options[self.lastDirection]
+
+            response = JOptionPane.showOptionDialog(self.theFrame,
+                                                    p,
+                                                    "Search for text",
+                                                    JOptionPane.OK_CANCEL_OPTION,
+                                                    JOptionPane.QUESTION_MESSAGE,
+                                                    None,
+                                                    options,
+                                                    defaultDirection)
+
+            lSwitch = False
+            if (response == 0 or response == 1):
+                if response != self.lastDirection: lSwitch = True
+                self.lastDirection = response
+                searchWhat = tf.getText()
+            else:
+                searchWhat = None
+
+            del p, lbl, tf, options
+
+            if not searchWhat or searchWhat == "": return
+
+            theText = self.searchJText.getText().lower()
+            highlighter = self.searchJText.getHighlighter()
+            highlighter.removeAllHighlights()
+
+            startPos = 0
+
+            if response == 0:
+                direction = "[forwards]"
+                if searchWhat == self.lastSearch:
+                    startPos = self.lastPosn
+                    if lSwitch: startPos=startPos+len(searchWhat)+1
+                self.lastSearch = searchWhat
+
+                # if startPos+len(searchWhat) >= len(theText):
+                #     startPos = 0
+                #
+                pos = theText.find(searchWhat.lower(),startPos)     # noqa
+                myPrint("DB", "Search %s Pos: %s, searchWhat: '%s', startPos: %s, endPos: %s" %(direction, pos, searchWhat,startPos, -1))
+
+            else:
+                direction = "[backwards]"
+                endPos = len(theText)-1
+
+                if searchWhat == self.lastSearch:
+                    if self.previousEndPosn < 0: self.previousEndPosn = len(theText)-1
+                    endPos = max(0,self.previousEndPosn)
+                    if lSwitch: endPos = max(0,self.lastPosn-1)
+
+                self.lastSearch = searchWhat
+
+                pos = theText.rfind(searchWhat.lower(),startPos,endPos)     # noqa
+                myPrint("DB", "Search %s Pos: %s, searchWhat: '%s', startPos: %s, endPos: %s" %(direction, pos, searchWhat,startPos,endPos))
+
+            if pos >= 0:
+                self.searchJText.setCaretPosition(pos)
+                try:
+                    highlighter.addHighlight(pos,min(pos+len(searchWhat),len(theText)),DefaultHighlighter.DefaultPainter)
+                except: pass
+                if response == 0:
+                    self.lastPosn = pos+len(searchWhat)
+                    self.previousEndPosn = len(theText)-1
+                else:
+                    self.lastPosn = pos-len(searchWhat)
+                    self.previousEndPosn = pos-1
+            else:
+                self.lastPosn = 0
+                self.previousEndPosn = len(theText)-1
+                myPopupInformationBox(self.theFrame,"Searching %s text not found" %direction)
+
+            return
+
+    class QuickJFrame():
+
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False):
+            self.title = title
+            self.output = output
+            self.lAlertLevel = lAlertLevel
+            self.returnFrame = None
+            self.copyToClipboard = copyToClipboard
+
+        class CloseAction(AbstractAction):
+
+            def __init__(self, theFrame):
+                self.theFrame = theFrame
+
+            def actionPerformed(self, event):
+                global debug
+                myPrint("D","in CloseAction(), Event: ", event)
+                myPrint("DB", "QuickJFrame() Frame shutting down....")
+
+                # Already within the EDT
+                self.theFrame.dispose()
+                return
+
+        def show_the_frame(self):
+            global debug
+
+            class MyQuickJFrameRunnable(Runnable):
+
+                def __init__(self, callingClass):
+                    self.callingClass = callingClass
+
+                def run(self):                                                                                                      # noqa
+                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+
+                    frame_width = min(screenSize.width-20, max(1024,int(round(moneydance_ui.firstMainFrame.getSize().width *.9,0))))
+                    frame_height = min(screenSize.height-20, max(768, int(round(moneydance_ui.firstMainFrame.getSize().height *.9,0))))
+
+                    JFrame.setDefaultLookAndFeelDecorated(True)
+
+                    jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)" %(moneydance_ui.ACCELERATOR_MASK_STR))
+                    jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
+
+                    if not Platform.isOSX():
+                        jInternalFrame.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+
+                    jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+                    jInternalFrame.setResizable(True)
+
+                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W,  shortcut), "close-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F,  shortcut), "search-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+                    theJText = JTextArea(self.callingClass.output)
+                    theJText.setEditable(False)
+                    theJText.setLineWrap(True)
+                    theJText.setWrapStyleWord(True)
+                    theJText.setFont( getMonoFont() )
+
+                    jInternalFrame.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAction(jInternalFrame))
+                    jInternalFrame.getRootPane().getActionMap().put("search-window", SearchAction(jInternalFrame,theJText))
+
+                    internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+
+                    if self.callingClass.lAlertLevel>=2:
+                        internalScrollPane.setBackground(Color.RED)
+                        theJText.setBackground(Color.RED)
+                        theJText.setForeground(Color.BLACK)
+                    elif self.callingClass.lAlertLevel>=1:
+                        internalScrollPane.setBackground(Color.YELLOW)
+                        theJText.setBackground(Color.YELLOW)
+                        theJText.setForeground(Color.BLACK)
+
+                    jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
+
+                    jInternalFrame.add(internalScrollPane)
+
+                    jInternalFrame.pack()
+                    jInternalFrame.setLocationRelativeTo(None)
+                    jInternalFrame.setVisible(True)
+
+                    if "errlog.txt" in self.callingClass.title:
+                        theJText.setCaretPosition(theJText.getDocument().getLength())
+
+                    try:
+                        if self.callingClass.copyToClipboard:
+                            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(self.callingClass.output), None)
+                    except:
+                        myPrint("J","Error copying contents to Clipboard")
+                        dump_sys_error_to_md_console_and_errorlog()
+
+                    self.callingClass.returnFrame = jInternalFrame
+
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB",".. Not running within the EDT so calling via MyQuickJFrameRunnable()...")
+                SwingUtilities.invokeAndWait(MyQuickJFrameRunnable(self))
+            else:
+                myPrint("DB",".. Already within the EDT so calling naked...")
+                MyQuickJFrameRunnable(self).run()
+
+            return (self.returnFrame)
+
+    class AboutThisScript():
+
+        class CloseAboutAction(AbstractAction):
+
+            def __init__(self, theFrame):
+                self.theFrame = theFrame
+
+            def actionPerformed(self, event):
+                global debug
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
+
+                # Listener is already on the Swing EDT...
+                self.theFrame.dispose()
+
+        def __init__(self, theFrame):
+            global debug, scriptExit
+            self.theFrame = theFrame
+
+        def go(self):
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+
+            class MyAboutRunnable(Runnable):
+                def __init__(self, callingClass):
+                    self.callingClass = callingClass
+
+                def run(self):                                                                                                      # noqa
+
+                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+                    myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+                    # noinspection PyUnresolvedReferences
+                    about_d = JDialog(self.callingClass.theFrame, "About", Dialog.ModalityType.MODELESS)
+
+                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                    about_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+                    about_d.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAboutAction(about_d))
+
+                    about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
+
+                    if (not Platform.isMac()):
+                        # moneydance_ui.getImages()
+                        about_d.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+
+                    aboutPanel=JPanel()
+                    aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
+                    aboutPanel.setPreferredSize(Dimension(1120, 500))
+
+                    _label1 = JLabel(pad("Author: Stuart Beesley", 800))
+                    _label1.setForeground(Color.BLUE)
+                    aboutPanel.add(_label1)
+
+                    _label2 = JLabel(pad("StuWareSoftSystems (2020-2021)", 800))
+                    _label2.setForeground(Color.BLUE)
+                    aboutPanel.add(_label2)
+
+                    displayString=scriptExit
+                    displayJText = JTextArea(displayString)
+                    displayJText.setFont( getMonoFont() )
+                    displayJText.setEditable(False)
+                    displayJText.setLineWrap(False)
+                    displayJText.setWrapStyleWord(False)
+                    displayJText.setMargin(Insets(8, 8, 8, 8))
+                    # displayJText.setBackground((mdGUI.getColors()).defaultBackground)
+                    # displayJText.setForeground((mdGUI.getColors()).defaultTextForeground)
+
+                    aboutPanel.add(displayJText)
+
+                    about_d.add(aboutPanel)
+
+                    about_d.pack()
+                    about_d.setLocationRelativeTo(None)
+                    about_d.setVisible(True)
+
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB",".. Not running within the EDT so calling via MyAboutRunnable()...")
+                SwingUtilities.invokeAndWait(MyAboutRunnable(self))
+            else:
+                myPrint("DB",".. Already within the EDT so calling naked...")
+                MyAboutRunnable(self).run()
+
+            myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -1258,15 +1562,11 @@ Visit: %s (Author's site)
     # clear up any old left-overs....
     destroyOldFrames(myModuleID)
 
-    # END ALL CODE COPY HERE ###############################################################################################
-    # END ALL CODE COPY HERE ###############################################################################################
-    # END ALL CODE COPY HERE ###############################################################################################
-
-    debug = False                                                                                                       # noqa
     myPrint("DB", "DEBUG IS ON..")
 
-    ofx_create_new_secu_bank_custom_profile_frame_ = MyJFrame(u"%s" % (myModuleID))
-    ofx_create_new_secu_bank_custom_profile_frame_.setName(u"%s_fake" %(myModuleID))
+    # END ALL CODE COPY HERE ###############################################################################################
+    # END ALL CODE COPY HERE ###############################################################################################
+    # END ALL CODE COPY HERE ###############################################################################################
 
     moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
 
@@ -1342,17 +1642,17 @@ Visit: %s (Author's site)
                 return "Invalid Acct Obj or None"
             return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
 
-    if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "BACKUP", "CREATE A NEW (CUSTOM) NCSECU PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
+    if not myPopupAskQuestion(None, "BACKUP", "CREATE A NEW (CUSTOM) NCSECU PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
         alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
-        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
-    if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
+    if not myPopupAskQuestion(None, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
         alert = "Disclaimer rejected - no changes made"
-        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
-    ask = MyPopUpDialogBox(ofx_create_new_secu_bank_custom_profile_frame_, "This script will delete your existing NCSECU bank profile(s) and CREATE A BRAND NEW CUSTOM NCSECU PROFILE:",
+    ask = MyPopUpDialogBox(None, "This script will delete your existing NCSECU bank profile(s) and CREATE A BRAND NEW CUSTOM NCSECU PROFILE:",
                            "Get the latest useful_scripts.zip package from: https://yogi1967.github.io/MoneydancePythonScripts/ \n"
                            "Read the latest walk through guide: ofx_create_new_secu_bank_custom_profile.pdf\n"
                            "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_secu_bank_custom_profile.pdf\n\n"
@@ -1368,14 +1668,14 @@ Visit: %s (Author's site)
                            lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
     if not ask.go():
         alert = "Knowledge rejected - no changes made"
-        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
     lCachePasswords = (isUserEncryptionPassphraseSet() and moneydance_ui.getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
     if not lCachePasswords:
-        if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_,"STORE PASSWORDS","Your system is not set up to save/store passwords. Do you want to continue?",theMessageType=JOptionPane.ERROR_MESSAGE):
+        if not myPopupAskQuestion(None,"STORE PASSWORDS","Your system is not set up to save/store passwords. Do you want to continue?",theMessageType=JOptionPane.ERROR_MESSAGE):
             alert = "Please set up Master password and select store passwords first - then try again - no changes made"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "Proceeding even though system is not set up for passwords")
 
@@ -1384,7 +1684,7 @@ Visit: %s (Author's site)
     lMultiAccountSetup = False
 
     # options = ["NO (Skip this)","YES - PRIME SECOND ACCOUNT"]
-    # theResult = JOptionPane.showOptionDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+    # theResult = JOptionPane.showOptionDialog(None,
     #                                       "Do you have multiple DIFFERENT credentials where you wish to 'prime' the default UUID into (Root's) profile?",
     #                                       "MULTI-ACCOUNTS",
     #                                        JOptionPane.YES_NO_OPTION,
@@ -1397,7 +1697,7 @@ Visit: %s (Author's site)
     #     myPrint("B","Will setup multi-accounts too.... ")
     #
     #     # options = ["NO (Skip this)","YES - SET GLOBAL DEFAULT ROOT UUID"]
-    #     # theResult = JOptionPane.showOptionDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+    #     # theResult = JOptionPane.showOptionDialog(None,
     #     #                                          "Do you also wish to override Root's (global) default UUID with the one you specify?",
     #     #                                          "OVERRIDE ROOT DEFAULT UUID",
     #     #                                          JOptionPane.YES_NO_OPTION,
@@ -1444,9 +1744,9 @@ Visit: %s (Author's site)
     if len(deleteServices) < 1:
         myPrint("B", "No NCSECU services / profile found to delete...")
     else:
-        if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "DELETE OLD SERVICES", "OK TO DELETE %s OLD NCSECU SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
+        if not myPopupAskQuestion(None, "DELETE OLD SERVICES", "OK TO DELETE %s OLD NCSECU SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
             alert = "ERROR - User declined to delete %s old NCSECU service profiles - no changes made" %(len(deleteServices))
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         else:
             accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(2))
@@ -1481,7 +1781,7 @@ Visit: %s (Author's site)
                 #
                 myPrint("B", "Deleting profile %s" %s)
                 s.deleteItem()
-                myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
+                myPopupInformationBox(None,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
             del accounts
 
     if lRootNeedsSync:
@@ -1505,7 +1805,7 @@ Visit: %s (Author's site)
             myPrint("B","... Found account %s with a BillPay link (to %s), but no service profile exists (thus dead)..." %(a,a.getParameter("bpfi", "")))
 
     if len(invalidBankingLinks) or len(invalidBillPayLinks):
-        if myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_,
+        if myPopupAskQuestion(None,
                               "ACCOUNT TO DEAD SERVICE PROFILE LINKS",
                               "ALERT: I found %s Banking and %s BillPay links to 'dead' / missing Service / Connection profiles - Shall I remove these links?"
                               %(len(invalidBankingLinks),len(invalidBillPayLinks)),
@@ -1537,7 +1837,7 @@ Visit: %s (Author's site)
         UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
         UIManager.put("OptionPane.cancelButtonText", "NO BANK ACCOUNT")
 
-        selectedBankAccount = JOptionPane.showInputDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+        selectedBankAccount = JOptionPane.showInputDialog(None,
                                                           "Select the Bank account to link",
                                                           "Select Bank account",
                                                           JOptionPane.WARNING_MESSAGE,
@@ -1556,7 +1856,7 @@ Visit: %s (Author's site)
         selectedBankAccount = selectedBankAccount.obj                                                                   # noqa
         if selectedBankAccount.getAccountType() != Account.AccountType.BANK:                                            # noqa
             alert = "ERROR BANK ACCOUNT INVALID TYPE SELECTED"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "selected bank account %s" %selectedBankAccount)
 
@@ -1567,7 +1867,7 @@ Visit: %s (Author's site)
                     % (selectedBankAccount, defaultAccountType, SECU_ACCOUNT_TYPES[0]))
             defaultAccountType = SECU_ACCOUNT_TYPES[0]
 
-        accountTypeOFX = JOptionPane.showInputDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+        accountTypeOFX = JOptionPane.showInputDialog(None,
                                                      "Carefully select the type for this account: %s" % (selectedBankAccount),
                                                      "ACCOUNT TYPE",
                                                      JOptionPane.INFORMATION_MESSAGE,
@@ -1577,7 +1877,7 @@ Visit: %s (Author's site)
 
         if not accountTypeOFX:
             alert = "ERROR - NO ACCOUNT TYPE SELECTED"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         del defaultAccountType
         myPrint("B", "Account %s - selected type: %s" %(selectedBankAccount,accountTypeOFX))
@@ -1596,7 +1896,7 @@ Visit: %s (Author's site)
         UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
         UIManager.put("OptionPane.cancelButtonText", "NO CC ACCOUNT")
 
-        selectedCCAccount = JOptionPane.showInputDialog(ofx_create_new_secu_bank_custom_profile_frame_,
+        selectedCCAccount = JOptionPane.showInputDialog(None,
                                                         "Select the CC account to link",
                                                         "Select CC account",
                                                         JOptionPane.WARNING_MESSAGE,
@@ -1615,13 +1915,13 @@ Visit: %s (Author's site)
         selectedCCAccount = selectedCCAccount.obj            # noqa
         if selectedCCAccount.getAccountType() != Account.AccountType.CREDIT_CARD:                                       # noqa
             alert = "ERROR CC ACCOUNT INVALID TYPE SELECTED"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "selected CC account %s" %selectedCCAccount)
 
     if not selectedBankAccount and not selectedCCAccount:
         alert = "ERROR - You must select Bank and or CC account(s)"
-        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
     ####################################################################################################################
@@ -1630,11 +1930,11 @@ Visit: %s (Author's site)
     #
     # defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
     # while True:
-    #     uuid = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+    #     uuid = myPopupAskForInput(None, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
     #     myPrint("B", "UUID entered: %s" %uuid)
     #     if uuid is None:
     #         alert = "ERROR - No uuid entered! Aborting"
-    #         myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
     #         raise Exception(alert)
     #     defaultEntry = uuid
     #     if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
@@ -1647,11 +1947,11 @@ Visit: %s (Author's site)
 
     defaultEntry = "UserID"
     while True:
-        userID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UserID", "UserID", "Type/Paste your UserID (min length 7) very carefully", defaultEntry)
+        userID = myPopupAskForInput(None, "UserID", "UserID", "Type/Paste your UserID (min length 7) very carefully", defaultEntry)
         myPrint("B", "userID entered: %s" %userID)
         if userID is None:
             alert = "ERROR - no userID supplied! Aborting"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = userID
         if userID is None or userID == "" or userID == "UserID" or len(userID)<7:
@@ -1662,11 +1962,11 @@ Visit: %s (Author's site)
 
     defaultEntry = "***"
     while True:
-        password = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "Pin/Password", "Pin/Password", "Type/Paste your Pin/Password (min length 4) very carefully", defaultEntry)
+        password = myPopupAskForInput(None, "Pin/Password", "Pin/Password", "Type/Paste your Pin/Password (min length 4) very carefully", defaultEntry)
         myPrint("B", "Pin/Password entered: %s" %password)
         if password is None:
             alert = "ERROR - no Pin/Password supplied! Aborting"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = password
         if password is None or password == "" or password == "***" or len(password) < 4:
@@ -1680,10 +1980,10 @@ Visit: %s (Author's site)
 
     if selectedBankAccount:
         bankAccount = selectedBankAccount.getBankAccountNumber()        # noqa
-        bankID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "BankAccount", "BankAccount", "Type/Paste your Bank Account Number - very carefully", bankAccount)
+        bankID = myPopupAskForInput(None, "BankAccount", "BankAccount", "Type/Paste your Bank Account Number - very carefully", bankAccount)
         if bankID is None or bankID == "":
             alert = "ERROR - no bankID supplied - Aborting"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "existing bank account:   %s" %bankAccount)
         myPrint("B", "bankID entered:          %s" %bankID)
@@ -1691,10 +1991,10 @@ Visit: %s (Author's site)
         route = selectedBankAccount.getOFXBankID()                      # noqa
         if route == "" or len(route) != 9:
             route = "253177049"
-        routID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '253177049')- very carefully", route)
+        routID = myPopupAskForInput(None, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '253177049')- very carefully", route)
         if routID is None or routID == "" or len(routID) != 9:
             alert = "ERROR - invalid Routing supplied - Aborting"
-            myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         myPrint("B", "existing routing number: %s" %route)
         myPrint("B", "routID entered:          %s" %routID)
@@ -1704,12 +2004,12 @@ Visit: %s (Author's site)
     if selectedCCAccount:
         while True:
             ccAccount = selectedCCAccount.getBankAccountNumber()        # noqa
-            ccID = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 15/16) very carefully", ccAccount)
+            ccID = myPopupAskForInput(None, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 15/16) very carefully", ccAccount)
             myPrint("B", "existing CC number:      %s" %ccAccount)
             myPrint("B", "ccID entered:            %s" %ccID)
             if ccID is None:
                 alert = "ERROR - no valid ccID supplied - aborting"
-                myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
                 raise Exception(alert)
             if ccID is None or ccID == "" or len(ccID) < 15 or len(ccID) > 16:
                 myPrint("B", "\n ** ERROR - no valid ccID supplied! Please try again ** \n")
@@ -1717,14 +2017,14 @@ Visit: %s (Author's site)
             break
 
         # if ccID == ccAccount:
-        #     if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
+        #     if not myPopupAskQuestion(None, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
         #         alert = "ERROR - User aborted on keeping the CC the same"
-        #         myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        #         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         #         raise Exception(alert)
         # else:
-        #     if not myPopupAskQuestion(ofx_create_new_secu_bank_custom_profile_frame_, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
+        #     if not myPopupAskQuestion(None, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
         #         alert = "ERROR - User aborted on CC change"
-        #         myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        #         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         #         raise Exception(alert)
 
     del ccAccount, route, bankAccount
@@ -1734,11 +2034,11 @@ Visit: %s (Author's site)
     # if lMultiAccountSetup:
     #     defaultEntry = uuid
     #     while True:
-    #         uuid2 = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
+    #         uuid2 = myPopupAskForInput(None, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
     #         myPrint("B", "UUID2 entered: %s" %uuid2)
     #         if uuid2 is None:
     #             alert = "ERROR - No uuid2 entered! Aborting"
-    #             myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
     #             raise Exception(alert)
     #         defaultEntry = uuid2
     #         if (uuid2 is None or uuid2 == "" or len(uuid2) != 36 or uuid2 == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
@@ -1750,11 +2050,11 @@ Visit: %s (Author's site)
     #
     #     defaultEntry = "UserID2"
     #     while True:
-    #         userID2 = myPopupAskForInput(ofx_create_new_secu_bank_custom_profile_frame_, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
+    #         userID2 = myPopupAskForInput(None, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
     #         myPrint("B", "userID2 entered: %s" %userID2)
     #         if userID2 is None:
     #             alert = "ERROR - no userID2 supplied! Aborting"
-    #             myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
     #             raise Exception(alert)
     #         defaultEntry = userID2
     #         if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
@@ -2054,7 +2354,7 @@ Visit: %s (Author's site)
 
     if len(listAccountMDProxies) != check:
         alert = "LOGIC ERROR: listAccountMDProxies != %s - Some changes have been made - review log....." %check
-        myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
     myPrint("B", "\n>>REALMs configured:")
@@ -2072,7 +2372,7 @@ Visit: %s (Author's site)
             authObj = service.getCachedAuthentication(authKey)                              # noqa
             myPrint("B", "Realm: %s Cached Authentication: %s" %(realm, authObj))
 
-            newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(userID,password)
+            newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userID),URLEncoder.encode(password))
 
             # myPrint("B", "** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
             # service.cacheAuthentication(authKey, newAuthObj)        # noqa
@@ -2089,10 +2389,7 @@ Visit: %s (Author's site)
 
     myPrint("B", "SUCCESS. Please RESTART Moneydance.")
 
-    myPopupInformationBox(ofx_create_new_secu_bank_custom_profile_frame_, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)
-
-    if not ofx_create_new_secu_bank_custom_profile_frame_.isActiveInMoneydance:
-        destroyOldFrames(myModuleID)
+    myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)
 
     myPrint("B", "StuWareSoftSystems - %s script ending......" %myScriptName)
 
