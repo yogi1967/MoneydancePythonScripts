@@ -83,6 +83,7 @@ use_sandbox="-DSandboxEnabled=true"
 # NOTE: I set '-Dinstall4j.exeDir=x' to help my Toolbox extension - this is not needed
 
 # Redirect output to the Moneydance console window...
+mkdir -v -p "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance"
 console_file="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/errlog.txt"
 ${java} --version
 
