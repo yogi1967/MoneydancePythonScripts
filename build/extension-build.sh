@@ -12,7 +12,7 @@ if [ "$1" = "" ] ; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
   echo "Usage ./build/extension-build.sh module_name"
-  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts, net_account_balances_to_zero"
+  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero"
   exit 1
 fi
 
@@ -21,10 +21,10 @@ if ! test -f "./build/extension-build.sh"; then
     exit 1
 fi
 
-if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "execute_file_import" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "net_account_balances_to_zero" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ]; then
+if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "net_account_balances_to_zero" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ]; then
     echo
     echo "@@ Incorrect Python script name @@"
-    echo "must be: toolbox, extract_data, list_future_reminders, execute_file_import, useful_scripts, net_account_balances_to_zero"
+    echo "must be: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero"
     exit 1
 else
     FILE=$1
@@ -129,6 +129,12 @@ else
       echo "No readme.txt file to ZIP - skipping....."
     fi
 
+    if test -f ./source/"$FILE"/"$FILE"_readme.txt; then
+      zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/"$FILE"_readme.txt
+    else
+      echo "No ${FILE}_readme.txt file to ZIP - skipping....."
+    fi
+
     zip -j ./source/"$FILE/$FILE".mxt ./source/install-readme.txt
 
     zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/script_info.dict
@@ -214,6 +220,13 @@ if test -f ./source/"$FILE"/readme.txt; then
   zip -j ./"$FILE".zip ./source/"$FILE"/readme.txt
 else
   echo "No help file to ZIP - skipping....."
+fi
+
+
+if test -f ./source/"$FILE"/"$FILE"_readme.txt; then
+  zip -j ./"$FILE".zip ./source/"$FILE"/"$FILE"_readme.txt
+else
+  echo "No ${FILE}_help file to ZIP - skipping....."
 fi
 
 

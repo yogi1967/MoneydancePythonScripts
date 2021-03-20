@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 6) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 7) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -20,6 +20,31 @@
 # CREDITS:  @hleofxquotes for his technical input
 #           @dtd for his extensive testing and the documentation
 
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2020 Stuart Beesley - StuWareSoftSystems
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
+
 # build 1 - Initial preview release..... Based upon ofx_create_new_usaa_bank_profile.py (now deprecated)
 # build 1 - Released: 8th March 2021
 # build 2 - Put objects into editing mode by calling .setEditingMode() whilst editing until .syncItem() called
@@ -28,6 +53,7 @@
 # build 5 - Cosmetic tweaks - no change to core functionality; change "so_passwd_type_USAASignon" back to "FIXED"
 # build 6 - Internal common code tweaks - nothing to do with the core functionality
 # build 6 - URLEncoder.encode() the UserID and Password in the stored cached string
+# build 7 - Build 3051 of Moneydance... fix references to moneydance_* variables;
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -35,19 +61,25 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "6"
-debug = False
+version_build = "7"
+if u"debug" in globals():
+    global debug
+else:
+    debug = False
 global ofx_create_new_usaa_bank_profile_frame_
 
 # COPY >> START
-global moneydance, moneydance_data, moneydance_ui
-global moneydance_extension_loader
+global moneydance, moneydance_extension_loader
+MD_REF = moneydance     # Make my own copy of reference as MD removes it once main thread ends.. Don't use/hold on to _ui / _data variables
+if MD_REF is None: raise Exception("CRITICAL ERROR - moneydance object/variable is None?")
+if u"moneydance_extension_loader" in globals():
+    MD_EXTENSION_LOADER = moneydance_extension_loader
+else:
+    MD_EXTENSION_LOADER = None
 
-from java.lang import System
-from javax.swing import JFrame
+from java.lang import System, Runnable
+from javax.swing import JFrame, SwingUtilities, SwingWorker
 from java.awt.event import WindowEvent
-from java.lang import Runnable
-from javax.swing import SwingUtilities
 
 class MyJFrame(JFrame):
 
@@ -141,9 +173,9 @@ try:
 except:
     System.err.write("%s: Critical error checking frameToResurrect(2); caught and ignoring...!\n" %(myModuleID))
 
-if float(moneydance.getBuild()) < 1904:     # Check for builds less than 1904 / version < 2019.4
+if float(MD_REF.getBuild()) < 1904:     # Check for builds less than 1904 / version < 2019.4
     try:
-        moneydance.getUI().showInfoMessage("SORRY YOUR VERSION IS TOO OLD FOR THIS SCRIPT/EXTENSION")
+        MD_REF.getUI().showInfoMessage("SORRY YOUR VERSION IS TOO OLD FOR THIS SCRIPT/EXTENSION")
     except:
         raise Exception("SORRY YOUR MONEYDANCE VERSION IS TOO OLD FOR THIS SCRIPT/EXTENSION")
 
@@ -213,13 +245,14 @@ else:
     from java.lang import Double, Math, Character
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
+    from java.nio.charset import Charset
     if isinstance(None, (JDateField,CurrencyUtil,Reminder,ParentTxn,SplitTxn,TxnSearch, JComboBox, JCheckBox,
                          JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
                          AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
                          JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
-                         WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread)): pass
+                         WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread, SwingWorker)): pass
     if codecs.BOM_UTF8 is not None: pass
     if csv.QUOTE_ALL is not None: pass
     if datetime.MINYEAR is not None: pass
@@ -287,6 +320,52 @@ useful_scripts:                         Just unzip and select the script you wan
 Visit: %s (Author's site)
 ----------------------------------------------------------------------------------------------------------------------
 """ %(myScriptName, MYPYTHON_DOWNLOAD_URL)
+
+    def cleanup_references():
+        global MD_REF, MD_EXTENSION_LOADER
+        myPrint("DB","About to delete reference to MD_REF and MD_EXTENSION_LOADER....!")
+        del MD_REF, MD_EXTENSION_LOADER
+
+    def load_text_from_stream_file(theStream):
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        cs = Charset.forName("UTF-8")
+
+        istream = theStream
+
+        if not istream:
+            myPrint("B","... Error - the input stream is None")
+            return "<NONE>"
+
+        fileContents = ""
+        istr = bufr = None
+        try:
+            istr = InputStreamReader(istream, cs)
+            bufr = BufferedReader(istr)
+            while True:
+                line = bufr.readLine()
+                if line is not None:
+                    line += "\n"
+                    fileContents+=line
+                    continue
+                break
+            fileContents+="\n<END>"
+        except:
+            myPrint("B", "ERROR reading from input stream... ")
+            dump_sys_error_to_md_console_and_errorlog()
+
+        try: bufr.close()
+        except: pass
+
+        try: istr.close()
+        except: pass
+
+        try: istream.close()
+        except: pass
+
+        myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+        return fileContents
 
     # P=Display on Python Console, J=Display on MD (Java) Console Error Log, B=Both, D=If Debug Only print, DB=print both
     def myPrint(where, *args):
@@ -361,48 +440,11 @@ Visit: %s (Author's site)
 
     myPrint("B", myScriptName, ": Python Script Initialising.......", "Build:", version_build)
 
-    def is_moneydance_loaded_properly():
-        global debug, moneydance, moneydance_ui, moneydance_data
-
-        if debug or moneydance is None or moneydance_data is None or moneydance_ui is None:
-            for theClass in ["moneydance",  moneydance], ["moneydance_ui",moneydance_ui], ["moneydance_data",moneydance]:
-                myPrint("DB","Moneydance Objects now....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
-            myPrint("D","")
-
-        if moneydance is not None and moneydance_data is not None and moneydance_ui is not None:                        # noqa
-            myPrint("DB","Success - Moneydance variables are already set....")
-            return
-
-        myPrint("DB","ERROR - Moneydance variables are NOT set properly....!")
-
-        # to cope with being run as Extension.... temporary
-        if moneydance is not None and (moneydance_data is None or moneydance_ui is None):                                # noqa
-            myPrint("DB", "@@@ Moneydance variables not set (run as extension?) - attempting to manually set @@@")
-
-            try:
-                moneydance_ui=moneydance.getUI()
-            except:
-                myPrint("DB","Failed to set moneydance_ui... This is a critical failure... (perhaps a run-time extension and too early - will continue)!")
-                # raise
-
-            try:
-                moneydance_data=moneydance.getCurrentAccount().getBook()
-            except:
-                myPrint("DB","Failed to set moneydance_data... I expect I am executing at MD runtime to self-install as a FeatureModule extension.. no matter...")
-
-        for theClass in ["moneydance",moneydance], ["moneydance_ui",moneydance_ui], ["moneydance_data",moneydance]:
-            myPrint("DB","Moneydance Objects after manual setting....: Class: %s %s@{:x}".format(System.identityHashCode(theClass[1])) %(pad(theClass[0],20), theClass[1].__class__))
-        myPrint("D","")
-
-        return
-
-    is_moneydance_loaded_properly()
-
     def getMonoFont():
         global debug
 
         try:
-            theFont = moneydance.getUI().getFonts().code
+            theFont = MD_REF.getUI().getFonts().code
             # if debug: myPrint("B","Success setting Font set to Moneydance code: %s" %theFont)
         except:
             theFont = Font("monospaced", Font.PLAIN, 15)
@@ -411,7 +453,7 @@ Visit: %s (Author's site)
         return theFont
 
     def getTheSetting(what):
-        x = moneydance.getPreferences().getSetting(what, None)
+        x = MD_REF.getPreferences().getSetting(what, None)
         if not x or x == u"": return None
         return what + u": %s" %(x)
 
@@ -476,12 +518,12 @@ Visit: %s (Author's site)
     # JOptionPane.DEFAULT_OPTION, JOptionPane.YES_NO_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.OK_CANCEL_OPTION
     # JOptionPane.ERROR_MESSAGE, JOptionPane.INFORMATION_MESSAGE, JOptionPane.WARNING_MESSAGE, JOptionPane.QUESTION_MESSAGE, JOptionPane.PLAIN_MESSAGE
 
-    # Copies Moneydance_ui.showInfoMessage
+    # Copies MD_REF.getUI().showInfoMessage
     def myPopupInformationBox(theParent=None, theMessage="What no message?!", theTitle="Info", theMessageType=JOptionPane.INFORMATION_MESSAGE):
 
         if theParent is None:
             if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=moneydance.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
                 JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType, icon_to_use)
                 return
         JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType)
@@ -515,7 +557,7 @@ Visit: %s (Author's site)
 
         if response == 2:
             myPrint("B", "User requested to perform Export Backup before update/fix - calling moneydance export backup routine...")
-            moneydance.getUI().saveToBackup(None)
+            MD_REF.getUI().saveToBackup(None)
             return True
 
         elif response == 1:
@@ -524,7 +566,7 @@ Visit: %s (Author's site)
 
         return False
 
-    # Copied Moneydance_ui.askQuestion
+    # Copied MD_REF.getUI().askQuestion
     def myPopupAskQuestion(theParent=None,
                            theTitle="Question",
                            theQuestion="What?",
@@ -534,7 +576,7 @@ Visit: %s (Author's site)
         icon_to_use = None
         if theParent is None:
             if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=moneydance.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
 
         # question = wrapLines(theQuestion)
         question = theQuestion
@@ -559,7 +601,7 @@ Visit: %s (Author's site)
         icon_to_use = None
         if theParent is None:
             if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=moneydance.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
 
         p = JPanel(GridBagLayout())
         defaultText = None
@@ -688,12 +730,20 @@ Visit: %s (Author's site)
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, False))
-            if self.fakeJFrame is not None:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
+            if not SwingUtilities.isEventDispatchThread():
+                SwingUtilities.invokeLater(GenericVisibleRunnable(self._popup_d, False))
+                if self.fakeJFrame is not None:
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self.fakeJFrame))
+                else:
+                    SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
             else:
-                SwingUtilities.invokeLater(GenericDisposeRunnable(self._popup_d))
+                self._popup_d.setVisible(False)
+                if self.fakeJFrame is not None:
+                    self._popup_d.dispose()
+                    self.fakeJFrame.dispose()
+                else:
+                    self._popup_d.dispose()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
@@ -725,7 +775,7 @@ Visit: %s (Author's site)
                         self.callingClass.fakeJFrame.setUndecorated(True)
                         self.callingClass.fakeJFrame.setVisible( False )
                         if not Platform.isOSX():
-                            self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
+                            self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     if self.callingClass.lModal:
                         # noinspection PyUnresolvedReferences
@@ -746,8 +796,8 @@ Visit: %s (Author's site)
                     self.callingClass._popup_d.addWindowListener(self.callingClass.WindowListener(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult))
 
                     if (not Platform.isMac()):
-                        # moneydance_ui.getImages()
-                        self.callingClass._popup_d.setIconImage(MDImages.getImage(moneydance.getSourceInformation().getIconResource()))
+                        # MD_REF.getUI().getImages()
+                        self.callingClass._popup_d.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     displayJText = JTextArea(self.callingClass.theMessage)
                     displayJText.setFont( getMonoFont() )
@@ -843,7 +893,7 @@ Visit: %s (Author's site)
 
         # Seems to cause a crash on Virtual Machine with no Audio - so just in case....
         try:
-            moneydance.getUI().getSounds().playSound("cash_register.wav")
+            MD_REF.getUI().getSounds().playSound("cash_register.wav")
         except:
             pass
 
@@ -890,13 +940,13 @@ Visit: %s (Author's site)
             return False
 
     try:
-        moneydanceIcon = MDImages.getImage(moneydance.getSourceInformation().getIconResource())
+        moneydanceIcon = MDImages.getImage(MD_REF.getSourceInformation().getIconResource())
     except:
         moneydanceIcon = None
 
     def MDDiag():
         global debug
-        myPrint("D", "Moneydance Build:", moneydance.getVersion(), "Build:", moneydance.getBuild())
+        myPrint("D", "Moneydance Build:", MD_REF.getVersion(), "Build:", MD_REF.getBuild())
 
 
     MDDiag()
@@ -937,7 +987,7 @@ Visit: %s (Author's site)
 
     def setDefaultFonts():
 
-        myFont = moneydance.getUI().getFonts().defaultText
+        myFont = MD_REF.getUI().getFonts().defaultText
 
         if myFont.getSize()>18:
             try:
@@ -1002,7 +1052,7 @@ Visit: %s (Author's site)
 
         return
 
-    if moneydance_ui is not None:
+    if MD_REF.getUI() is not None:
         setDefaultFonts()
 
     def who_am_i():
@@ -1047,7 +1097,7 @@ Visit: %s (Author's site)
             pass
 
         if homeDir is None or homeDir == "":
-            homeDir = moneydance.getCurrentAccountBook().getRootFolder().getParent()  # Better than nothing!
+            homeDir = MD_REF.getCurrentAccountBook().getRootFolder().getParent()  # Better than nothing!
 
         myPrint("DB", "Home Directory selected...:", homeDir)
         if homeDir is None: return ""
@@ -1106,7 +1156,7 @@ Visit: %s (Author's site)
         old_dict_filename = os.path.join("..", myFile)
 
         # Pickle was originally encrypted, no need, migrating to unencrypted
-        migratedFilename = os.path.join(moneydance.getCurrentAccountBook().getRootFolder().getAbsolutePath(),myFile)
+        migratedFilename = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),myFile)
 
         myPrint("DB", "Now checking for parameter file:", migratedFilename)
 
@@ -1134,7 +1184,7 @@ Visit: %s (Author's site)
 
                 # OK, so perhaps from older version - encrypted, try to read
                 try:
-                    local_storage = moneydance.getCurrentAccountBook().getLocalStorage()
+                    local_storage = MD_REF.getCurrentAccountBook().getLocalStorage()
                     istr = local_storage.openFileForReading(old_dict_filename)
                     load_file = FileUtil.wrap(istr)
                     # noinspection PyTypeChecker
@@ -1191,7 +1241,7 @@ Visit: %s (Author's site)
         dump_StuWareSoftSystems_parameters_from_memory()
 
         # Pickle was originally encrypted, no need, migrating to unencrypted
-        migratedFilename = os.path.join(moneydance.getCurrentAccountBook().getRootFolder().getAbsolutePath(),myFile)
+        migratedFilename = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),myFile)
 
         myPrint("DB","Will try to save parameter file:", migratedFilename)
 
@@ -1239,14 +1289,20 @@ Visit: %s (Author's site)
         return _datetime
 
     def destroyOldFrames(moduleName):
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+        myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
             if fr.getName().lower().startswith(moduleName):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False
-                    SwingUtilities.invokeLater(GenericVisibleRunnable(fr, False, False))
-                    SwingUtilities.invokeLater(GenericDisposeRunnable(fr))  # This should call windowClosed() which should remove MD listeners.....
+                    if not SwingUtilities.isEventDispatchThread():
+                        SwingUtilities.invokeLater(GenericVisibleRunnable(fr, False, False))
+                        SwingUtilities.invokeLater(GenericDisposeRunnable(fr))  # This should call windowClosed() which should remove MD listeners.....
+                    else:
+                        fr.setVisible(False)
+                        fr.dispose()            # This should call windowClosed() which should remove MD listeners.....
                     myPrint("DB","disposed of old frame: %s" %(fr.getName()))
                 except:
                     myPrint("B","Failed to dispose old frame: %s" %(fr.getName()))
@@ -1278,9 +1334,9 @@ Visit: %s (Author's site)
             p.add(lbl)
             p.add(tf)
 
-            options = [ "Next", "Previous", "Cancel" ]
+            _search_options = [ "Next", "Previous", "Cancel" ]
 
-            defaultDirection = options[self.lastDirection]
+            defaultDirection = _search_options[self.lastDirection]
 
             response = JOptionPane.showOptionDialog(self.theFrame,
                                                     p,
@@ -1288,7 +1344,7 @@ Visit: %s (Author's site)
                                                     JOptionPane.OK_CANCEL_OPTION,
                                                     JOptionPane.QUESTION_MESSAGE,
                                                     None,
-                                                    options,
+                                                    _search_options,
                                                     defaultDirection)
 
             lSwitch = False
@@ -1299,7 +1355,7 @@ Visit: %s (Author's site)
             else:
                 searchWhat = None
 
-            del p, lbl, tf, options
+            del p, lbl, tf, _search_options
 
             if not searchWhat or searchWhat == "": return
 
@@ -1388,16 +1444,16 @@ Visit: %s (Author's site)
                 def run(self):                                                                                                      # noqa
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()
 
-                    frame_width = min(screenSize.width-20, max(1024,int(round(moneydance_ui.firstMainFrame.getSize().width *.9,0))))
-                    frame_height = min(screenSize.height-20, max(768, int(round(moneydance_ui.firstMainFrame.getSize().height *.9,0))))
+                    frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.9,0))))
+                    frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.9,0))))
 
                     JFrame.setDefaultLookAndFeelDecorated(True)
 
-                    jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)" %(moneydance_ui.ACCELERATOR_MASK_STR))
+                    jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)" %(MD_REF.getUI().ACCELERATOR_MASK_STR))
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
                     if not Platform.isOSX():
-                        jInternalFrame.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+                        jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
 
                     jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
                     jInternalFrame.setResizable(True)
@@ -1500,8 +1556,8 @@ Visit: %s (Author's site)
                     about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
 
                     if (not Platform.isMac()):
-                        # moneydance_ui.getImages()
-                        about_d.setIconImage(MDImages.getImage(moneydance_ui.getMain().getSourceInformation().getIconResource()))
+                        # MD_REF.getUI().getImages()
+                        about_d.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
 
                     aboutPanel=JPanel()
                     aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
@@ -1566,16 +1622,37 @@ Visit: %s (Author's site)
 
     myPrint("DB", "DEBUG IS ON..")
 
+    if SwingUtilities.isEventDispatchThread():
+        myPrint("DB", "FYI - This script/extension is currently running within the Swing Event Dispatch Thread (EDT)")
+    else:
+        myPrint("DB", "FYI - This script/extension is NOT currently running within the Swing Event Dispatch Thread (EDT)")
+
+    def cleanup_actions(theFrame=None):
+        myPrint("DB", "In", inspect.currentframe().f_code.co_name, "()")
+        myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+        if theFrame is not None and not theFrame.isActiveInMoneydance:
+            destroyOldFrames(myModuleID)
+
+        try:
+            MD_REF.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
+        except:
+            pass  # If this fails, then MD is probably shutting down.......
+
+        if not i_am_an_extension_so_run_headless: print(scriptExit)
+
+        cleanup_references()
+
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
-    moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
+    MD_REF.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
 
     def isUserEncryptionPassphraseSet():
 
         try:
-            keyFile = File(moneydance_data.getRootFolder(), "key")
+            keyFile = File(MD_REF.getCurrentAccount().getBook().getRootFolder(), "key")
 
             keyInfo = SyncRecord()
             fin = FileInputStream(keyFile)
@@ -1670,7 +1747,7 @@ Visit: %s (Author's site)
         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
-    lCachePasswords = (isUserEncryptionPassphraseSet() and moneydance_ui.getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
+    lCachePasswords = (isUserEncryptionPassphraseSet() and MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
     if not lCachePasswords:
         if not myPopupAskQuestion(None,"STORE PASSWORDS","Your system is not set up to save/store passwords. Do you want to continue?",theMessageType=JOptionPane.ERROR_MESSAGE):
             alert = "Please set up Master password and select store passwords first - then try again - no changes made"
@@ -1712,7 +1789,7 @@ Visit: %s (Author's site)
     else:
         myPrint("B","User selected NOT to prime for multiple-accounts...")
 
-    serviceList = moneydance_data.getOnlineInfo().getAllServices()  # type: [OnlineService]
+    serviceList = MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices()  # type: [OnlineService]
 
     USAA_FI_ID = "67811"
     USAA_FI_ORG = "USAA Federal Savings Bank"
@@ -1733,7 +1810,7 @@ Visit: %s (Author's site)
             myPrint("B", "Found USAA service - to delete: %s" %(svc))
             deleteServices.append(svc)
 
-    root = moneydance.getRootAccount()
+    root = MD_REF.getRootAccount()
     rootKeys = list(root.getParameterKeys())
     lRootNeedsSync = False
 
@@ -1745,7 +1822,7 @@ Visit: %s (Author's site)
             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         else:
-            accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(2))
+            accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
             for s in deleteServices:
                 iCount = 0
                 for a in accounts:
@@ -1789,7 +1866,7 @@ Visit: %s (Author's site)
     invalidBankingLinks = []
     invalidBillPayLinks = []
     myPrint("B","Searching for Account banking / Bill Pay links with no profile (just a general cleanup routine)....")
-    accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(2))
+    accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
     for a in accounts:
         if a.getBankingFI() is None and a.getParameter("olbfi", "") != "":
             invalidBankingLinks.append(a)
@@ -1819,7 +1896,7 @@ Visit: %s (Author's site)
 
     selectedBankAccount = selectedCCAccount = None
 
-    accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(0))
+    accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(0))
     accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
     bankAccounts = []
     for acct in accounts:
@@ -1865,7 +1942,7 @@ Visit: %s (Author's site)
                                                      "Carefully select the type for this account: %s" % (selectedBankAccount),
                                                      "ACCOUNT TYPE",
                                                      JOptionPane.INFORMATION_MESSAGE,
-                                                     moneydance_ui.getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                     MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                      SECU_ACCOUNT_TYPES,
                                                      defaultAccountType)
 
@@ -1878,7 +1955,7 @@ Visit: %s (Author's site)
 
 
     # CREDIT CARD
-    accounts = AccountUtil.allMatchesForSearch(moneydance_data, MyAcctFilter(1))
+    accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(1))
     accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
     ccAccounts = []
     for acct in accounts:
@@ -2059,7 +2136,7 @@ Visit: %s (Author's site)
     ####################################################################################################################
 
     myPrint("B", "creating new service profile")
-    book = moneydance.getCurrentAccountBook()
+    book = MD_REF.getCurrentAccountBook()
     manualFIInfo = StreamTable()     # type: StreamTable
     manualFIInfo.put("obj_type",                                 "olsvc")
     manualFIInfo.put("access_type",                              "OFX")
@@ -2249,7 +2326,7 @@ Visit: %s (Author's site)
     ####################################################################################################################
 
     myPrint("B", "Updating root with userID and uuid")
-    root = moneydance.getRootAccount()
+    root = MD_REF.getRootAccount()
 
     myPrint("B","... calling .setEditingMode() on root...")
     root.setEditingMode()
@@ -2343,8 +2420,4 @@ Visit: %s (Author's site)
 
     myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)
 
-    myPrint("B", "StuWareSoftSystems - %s script ending......" %myScriptName)
-
-    moneydance_ui.firstMainFrame.setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
-
-    if not i_am_an_extension_so_run_headless: print(scriptExit)
+    cleanup_actions()
