@@ -35,7 +35,7 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 3) Click RUN (and not run snippet)
 4) That's it.... Repeat these steps each time.
 
-_NOTE: On a Mac you might see one or two popup System Warning messages saying something like: “jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified. macOS cannot verify that this app is free from malware. **These are irrelevant and harmless messages** Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created. The Moneydance developer (IK) is aware of this and is trying to build a fix. It happens with all Python scripts._
+_NOTE: On a Mac, in Moneydance versions older than build 3051, you might see one or two popup System Warning messages saying something like: “jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified. macOS cannot verify that this app is free from malware. **These are irrelevant and harmless messages** Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created. The Moneydance developer (IK) is aware of this and is trying to build a fix. It happens with all Python scripts._
 
 ### Extension only format (contains only *.mxt file) - Very latest (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
@@ -64,7 +64,6 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
   - demo_account_currency_rates.py: demo script for beginner coders with some simple Moneydance API calls etc
   - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
   - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance
-  - ofx_create_new_secu_bank_custom_profile.py: script that create a new custom NCSECU bank logon profile so that it can connect within Moneydance
 
 
 ### Source Code sites - you can freely read / review all my code
