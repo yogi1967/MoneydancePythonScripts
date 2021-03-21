@@ -51,6 +51,13 @@ else
       exit 1
   fi
 
+  if  [ "$1" != "net_account_balances_to_zero" ] ; then
+      if ! test -f ./source/"$FILE"/"${FILE}"_init.py; then
+          echo "ERROR - $FILE/${FILE}_init.py does not exist!"
+          exit 1
+      fi
+  fi
+
   if ! test -f ./source/"$FILE"/meta_info.dict; then
       echo "ERROR - $FILE/meta_info.dict does not exist!"
       exit 1
@@ -122,6 +129,12 @@ else
     cp ./source/"$FILE"/meta_info.dict com/moneydance/modules/features/"$FILE"/meta_info.dict
 
     zip -j -z ./source/"$FILE/$FILE".mxt ./source/"$FILE/$FILE".py <<< "StuWareSoftSystems: $FILE Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
+
+    if test -f ./source/"$FILE"/"${FILE}"_init.py; then
+      zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/"${FILE}"_init.py
+    else
+      echo "No ${FILE}_init.py to ZIP - skipping....."
+    fi
 
     if test -f ./source/"$FILE"/readme.txt; then
       zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/readme.txt
