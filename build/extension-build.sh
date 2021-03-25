@@ -8,253 +8,327 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-if [ "$1" = "" ] ; then
+if [ "$1" = "" ]; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
   echo "Usage ./build/extension-build.sh module_name"
-  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero"
+  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero, extension_tester"
   exit 1
 fi
 
 if ! test -f "./build/extension-build.sh"; then
-    echo "@@ PLEASE RUN FROM THE PROJECT's ROOT directory! @@"
-    exit 1
+  echo "@@ PLEASE RUN FROM THE PROJECT's ROOT directory! @@"
+  exit 1
 fi
 
-if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "net_account_balances_to_zero" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ]; then
-    echo
-    echo "@@ Incorrect Python script name @@"
-    echo "must be: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero"
-    exit 1
+if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "net_account_balances_to_zero" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ] && [ "$1" != "extension_tester" ]; then
+  echo
+  echo "@@ Incorrect Python script name @@"
+  echo "must be: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero, extension_tester"
+  exit 1
 else
-    FILE=$1
+  EXTN_NAME=$1
+fi
+
+sMXT="s-${EXTN_NAME}.mxt"
+ZIP="./${EXTN_NAME}.zip"
+EXTN_DIR="./source/${EXTN_NAME}"
+MXT="${EXTN_DIR}/${EXTN_NAME}.mxt"
+FM_DIR="com/moneydance/modules/features/${EXTN_NAME}"
+ZIP_COMMENT="StuWareSoftSystems: ${EXTN_NAME} Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
+ZIP_COMMENT2="StuWareSoftSystems: A collection of ${EXTN_NAME} for Moneydance."
+
+if [ "${EXTN_NAME}" = "extension_tester" ]; then
+  ZIP_COMMENT="Infinite Kind: ${EXTN_NAME} - Sample / demo Python Extension utilising script_info.dict actions for Moneydance - Please see readme.txt (documented by Stuart Beesley)"
 fi
 
 # Relies on "ant genkeys" and various jar files from within the Moneydance devkit
 
-if  [ "$1" = "useful_scripts" ] ; then
+if [ "${EXTN_NAME}" = "useful_scripts" ]; then
 
-  if ! test -d ./source/"$FILE"; then
-      echo "ERROR - directory $FILE/ does not exist!"
-      exit 1
+  if ! test -d "${EXTN_DIR}"; then
+    echo "ERROR - directory ${EXTN_NAME}/ does not exist!"
+    exit 1
   fi
 
 else
 
-  if ! test -f ./source/"$FILE/$FILE".py; then
-      echo "ERROR - $FILE/$FILE.py does not exist!"
+  if ! test -f "${EXTN_DIR}/${EXTN_NAME}.py"; then
+    echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}.py does not exist!"
+    exit 1
+  fi
+
+  if ! test -f "${EXTN_DIR}/script_info.dict"; then
+    echo "ERROR - ${EXTN_NAME}/script_info.dict does not exist!"
+    exit 1
+  fi
+
+  if ! test -f "${EXTN_DIR}/meta_info.dict"; then
+    echo "ERROR - ${EXTN_NAME}/meta_info.dict does not exist!"
+    exit 1
+  fi
+
+  if [ "${EXTN_NAME}" = "toolbox" ]; then
+    if ! test -f "${EXTN_DIR}/toolbox_version_requirements.dict"; then
+      echo "ERROR - ${EXTN_NAME}/toolbox_version_requirements.dict does not exist!"
       exit 1
-  fi
-
-  if ! test -f ./source/"$FILE"/script_info.dict; then
-      echo "ERROR - $FILE/script_info.dict does not exist!"
-      exit 1
-  fi
-
-  if  [ "$1" != "net_account_balances_to_zero" ] ; then
-      if ! test -f ./source/"$FILE"/"${FILE}"_init.py; then
-          echo "ERROR - $FILE/${FILE}_init.py does not exist!"
-          exit 1
-      fi
-  fi
-
-  if ! test -f ./source/"$FILE"/meta_info.dict; then
-      echo "ERROR - $FILE/meta_info.dict does not exist!"
-      exit 1
-  fi
-
-  if  [ "$1" = "toolbox" ] ; then
-    if ! test -f ./source/"$FILE"/toolbox_version_requirements.dict; then
-        echo "ERROR - $FILE/toolbox_version_requirements.dict does not exist!"
-        exit 1
     fi
   fi
 fi
 
 if ! test -f "./moneydance-devkit-5.1 2/src/priv_key"; then
-    echo "ERROR - Your private key from ant genkeys does not exist!"
-    exit 1
+  echo "ERROR - Your private key from ant genkeys does not exist!"
+  exit 1
 fi
 
 if ! test -f "./moneydance-devkit-5.1 2/lib/extadmin.jar"; then
-    echo "ERROR - extadmin.jar does not exist!"
-    exit 1
+  echo "ERROR - extadmin.jar does not exist!"
+  exit 1
 fi
 
 if ! test -f "./moneydance-devkit-5.1 2/lib/moneydance-dev.jar"; then
-    echo "ERROR - moneydance-dev.jar does not exist!"
-    exit 1
+  echo "ERROR - moneydance-dev.jar does not exist!"
+  exit 1
 fi
 
 if ! test -f "./build/extension_keyfile."; then
-    echo "@@@ ERROR - my key file (./build/extension_keyfile) does not exist!"
-    exit 2
+  echo "@@@ ERROR - my key file (./build/extension_keyfile) does not exist!"
+  exit 2
 fi
 
 if ! test -f "./source/install-readme.txt"; then
-    echo "@@@ ERROR - ./source/install-readme.txt does not exist!"
-    exit 2
+  echo "@@@ ERROR - ./source/install-readme.txt does not exist!"
+  exit 2
 fi
 
-if test -f ./source/"$FILE/$FILE".mxt; then
-    rm ./source/"$FILE/$FILE".mxt
-fi
+rm -f "${MXT}"
 
-if  [ "$1" = "useful_scripts" ]; then
+if [ "${EXTN_NAME}" = "useful_scripts" ]; then
 
-    echo "Skipping extension build for $FILE"
+  echo "Skipping extension build for ${EXTN_NAME}"
 
 else
 
-    if ! test -d "com"; then
-        mkdir com
-    fi
-
-    if ! test -d "com/moneydance"; then
-        mkdir com/moneydance
-    fi
-
-    if ! test -d "com/moneydance/modules"; then
-        mkdir com/moneydance/modules
-    fi
-
-    if ! test -d "com/moneydance/modules/features"; then
-        mkdir com/moneydance/modules/features/
-    fi
-
-    if ! test -d com/moneydance/modules/features/"$FILE"; then
-        mkdir com/moneydance/modules/features/"$FILE"
-    fi
-
-    cp ./source/"$FILE"/meta_info.dict com/moneydance/modules/features/"$FILE"/meta_info.dict
-
-    zip -j -z ./source/"$FILE/$FILE".mxt ./source/"$FILE/$FILE".py <<< "StuWareSoftSystems: $FILE Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
-
-    if test -f ./source/"$FILE"/"${FILE}"_init.py; then
-      zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/"${FILE}"_init.py
-    else
-      echo "No ${FILE}_init.py to ZIP - skipping....."
-    fi
-
-    if test -f ./source/"$FILE"/readme.txt; then
-      zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/readme.txt
-    else
-      echo "No readme.txt file to ZIP - skipping....."
-    fi
-
-    if test -f ./source/"$FILE"/"$FILE"_readme.txt; then
-      zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/"$FILE"_readme.txt
-    else
-      echo "No ${FILE}_readme.txt file to ZIP - skipping....."
-    fi
-
-    zip -j ./source/"$FILE/$FILE".mxt ./source/install-readme.txt
-
-    zip -j ./source/"$FILE/$FILE".mxt ./source/"$FILE"/script_info.dict
-    zip -m ./source/"$FILE/$FILE".mxt com/moneydance/modules/features/"$FILE"/meta_info.dict
-
-    cp "./moneydance-devkit-5.1 2/lib/extadmin.jar" .
-    cp "./moneydance-devkit-5.1 2/lib/moneydance-dev.jar" .
-
-    cp "./moneydance-devkit-5.1 2/src/priv_key" .
-    cp "./moneydance-devkit-5.1 2/src/pub_key" .
-
-    if test -f ./source/"$FILE/s-$FILE".mxt; then
-        rm ./source/"$FILE/s-$FILE".mxt
-    fi
-
-    if test -f ./s-"$FILE".mxt; then
-        rm ./s-"$FILE".mxt
-    fi
-
-    #read -p "Press any key to resume ..."
-
-    java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "$FILE" ./source/"$FILE/$FILE".mxt < ./build/extension_keyfile.
-    if ! test -f s-"$FILE".mxt; then
-        echo "ERROR - Signed MXT does not exist?"
-        exit 3
-    else
-        zip -z s-"$FILE".mxt <<< "StuWareSoftSystems: $FILE Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
-    fi
-
-    #read -p "Press any key to resume ..."
-
-    rm priv_key
-    rm pub_key
-    rm extadmin.jar
-    rm moneydance-dev.jar
-
-    ls -l ./source/"$FILE/$FILE".mxt
-    ls -l s-"$FILE".mxt
-
-    rm ./source/"$FILE/$FILE".mxt
-    mv s-"$FILE".mxt ./source/"$FILE/$FILE".mxt
-
-
-    if test -f ./source/"$FILE/$FILE".mxt; then
-        ls -l ./source/"$FILE/$FILE".mxt
-        unzip -l ./source/"$FILE/$FILE".mxt
-        echo ===================
-        echo FILE ./source/"$FILE/$FILE".mxt has been built...
-    else
-        echo @@@@@@@@@@@@@@@@@
-        echo "PROBLEM CREATING ./source/$FILE/$FILE.mxt ..."
-        exit 4
-    fi
-
-fi
-
-echo @ Building final ZIP file for publication...
-if test -f ./"$FILE".zip; then
-    echo "Removing old ./$FILE.zip"
-    rm ./"$FILE".zip
-fi
-
-zip -j -z ./"$FILE".zip ./source/install-readme.txt <<< "StuWareSoftSystems: $FILE for Moneydance (by Stuart Beesley). Please see install-readme.txt"
-
-if  [ "$1" = "useful_scripts" ]; then
-
-    zip -j -c ./"$FILE".zip ./source/"$FILE/"*.py  <<< "StuWareSoftSystems: A collection of $FILE for Moneydance."
-    zip -j    ./"$FILE".zip ./source/"$FILE/"*.pdf
-
-else
-
-    zip -j -c ./"$FILE".zip ./source/"$FILE/$FILE".mxt <<< "StuWareSoftSystems: $FILE Extension for Moneydance."
-
-    if  [ "$1" != "toolbox" ] ; then
-        zip -j -c ./"$FILE".zip ./source/"$FILE/$FILE".py <<< "StuWareSoftSystems: $FILE Script for Moneydance."
-    else
-        echo "Not including $FILE.py for toolbox package...."
-    fi
-
-fi
-
-if test -f ./source/"$FILE"/readme.txt; then
-  zip -j ./"$FILE".zip ./source/"$FILE"/readme.txt
-else
-  echo "No help file to ZIP - skipping....."
-fi
-
-
-if test -f ./source/"$FILE"/"$FILE"_readme.txt; then
-  zip -j ./"$FILE".zip ./source/"$FILE"/"$FILE"_readme.txt
-else
-  echo "No ${FILE}_help file to ZIP - skipping....."
-fi
-
-
-if test -f ./"$FILE".zip; then
-    ls -l ./"$FILE".zip
-    unzip -l ./"$FILE".zip
-    echo ===================
-    echo "DISTRIBUTION FILE ./$FILE.zip has been built..."
-else
-    echo @@@@@@@@@@@@@@@@@
-    echo "PROBLEM CREATING FINAL DISTRIBUTION ./$FILE.zip !"
+  echo "Checking / creating ${FM_DIR} if needed..."
+  mkdir -v -p "${FM_DIR}"
+  if [ $? -ne 0 ]; then
+    echo "*** MKDIR Failed??"
     exit 5
+  fi
+
+  echo "Copy meta_info.dict..."
+  cp "${EXTN_DIR}/meta_info.dict" "${FM_DIR}/meta_info.dict"
+  if [ $? -ne 0 ]; then
+    echo "*** cp meta_info.dict Failed??"
+    exit 6
+  fi
+
+  echo "Zipping *.py into new mxt..."
+  zip -j -z "${MXT}" "${EXTN_DIR}"/*.py <<<"${ZIP_COMMENT}"
+  if [ $? -ne 0 ]; then
+    echo zip -j -z "${MXT}" "${EXTN_DIR}/*.py"
+    echo "*** zip *.py Failed??"
+    exit 7
+  fi
+
+  echo "Zipping *.txt into mxt..."
+  if test -f "${EXTN_DIR}"/*.txt; then
+    zip -j "${MXT}" "${EXTN_DIR}"/*.txt
+    if [ $? -ne 0 ]; then
+      echo "*** zip *.txt Failed??"
+      exit 8
+    fi
+  else
+    echo "No *.txt file(s) to ZIP - skipping....."
+  fi
+
+  if [ "${EXTN_NAME}" != "extension_tester" ]; then
+    echo "Zipping install-readme.txt into mxt..."
+    zip -j "${MXT}" "./source/install-readme.txt"
+    if [ $? -ne 0 ]; then
+      echo "*** zip install-readme.txt Failed??"
+      exit 9
+    fi
+  fi
+
+  echo "Zipping script_info.dict into mxt..."
+  zip -j "${MXT}" "./source/${EXTN_NAME}/script_info.dict"
+  if [ $? -ne 0 ]; then
+    echo "*** zip script_info.dict Failed??"
+    exit 10
+  fi
+
+  echo "Zipping meta_info.dict into mxt..."
+  zip -m "${MXT}" "${FM_DIR}/meta_info.dict"
+  if [ $? -ne 0 ]; then
+    echo "*** zip meta_info.dict Failed??"
+    exit 11
+  fi
+
+  echo "copying extadmin.jar..."
+  cp "./moneydance-devkit-5.1 2/lib/extadmin.jar" .
+  if [ $? -ne 0 ]; then
+    echo "*** cp extadmin.jar Failed??"
+    exit 12
+  fi
+
+  echo "copying moneydance-dev.jar..."
+  cp "./moneydance-devkit-5.1 2/lib/moneydance-dev.jar" .
+  if [ $? -ne 0 ]; then
+    echo "*** cp moneydance-dev.jar Failed??"
+    exit 13
+  fi
+
+  echo "copying priv_key..."
+  cp "./moneydance-devkit-5.1 2/src/priv_key" .
+  if [ $? -ne 0 ]; then
+    echo "*** cp priv_key Failed??"
+    exit 14
+  fi
+
+  echo "copying pub_key..."
+  cp "./moneydance-devkit-5.1 2/src/pub_key" .
+  if [ $? -ne 0 ]; then
+    echo "*** cp pub_key Failed??"
+    exit 15
+  fi
+
+  echo "Removing old signed mxts if they existed..."
+  rm -f "${EXTN_DIR}/${sMXT}"
+  rm -f "./${sMXT}"
+
+  echo "Executing java mxt  signing routines..."
+  java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}" <./build/extension_keyfile.
+  if [ $? -ne 0 ]; then
+    echo java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}"
+    echo "*** Java self-signing of mxt package Failed??"
+    exit 16
+  fi
+
+  if ! test -f "${sMXT}"; then
+    echo "ERROR - self-signed ${sMXT} does not exist after java signing?"
+    exit 17
+  else
+    echo "Adding comments to signed mxt..."
+    zip -z "${sMXT}" <<<"${ZIP_COMMENT}"
+    if [ $? -ne 0 ]; then
+      echo "*** zip add comments to self-signed ${sMXT} Failed??"
+      exit 18
+    fi
+  fi
+
+  echo "Removing priv_key, pub_key, extadmin.jar, moneydance-dev.jar"
+  rm priv_key
+  rm pub_key
+  rm extadmin.jar
+  rm moneydance-dev.jar
+
+  echo "Listing mxt contents..."
+  ls -l "${MXT}"
+
+  echo "Listing signed mxt contents..."
+  ls -l "${sMXT}"
+
+  echo "Removing non-signed mxt..."
+  rm "${MXT}"
+
+  echo "Moving signed mxt to source directory..."
+  mv "${sMXT}" "${MXT}"
+  if [ $? -ne 0 ]; then
+    echo "*** mv of self-signed ${sMXT} to ${MXT} Failed??"
+    exit 19
+  fi
+
+  if test -f "${MXT}"; then
+    echo "Listing signed mxt contents..."
+    ls -l "${MXT}"
+    unzip -l "${MXT}"
+    echo ===================
+    echo "FILE ${MXT} has been built..."
+  else
+    echo "@@@@@@@@@@@@@@@@@"
+    echo "PROBLEM CREATING ${MXT} ..."
+    exit 20
+  fi
+
 fi
 
+echo "@ Building final ZIP file for publication..."
 
+echo "Removing old zip file (if it exists)..."
+rm -f "${ZIP}"
 
+ZIP_THIS="./source/install-readme.txt"
+if [ "${EXTN_NAME}" = "extension_tester" ]; then
+    ZIP_THIS="${EXTN_DIR}/readme.txt"
+fi
 
+echo "Creating zip file with ${ZIP_THIS}..."
+zip -j -z "${ZIP}" "${ZIP_THIS}" <<<"${ZIP_COMMENT}"
+if [ $? -ne 0 ]; then
+  echo "*** final zip of package to ${ZIP} Failed??"
+  exit 21
+fi
 
+if [ "${EXTN_NAME}" = "useful_scripts" ]; then
+
+  echo "Adding *.py to zip file..."
+  zip -j -c "${ZIP}" "${EXTN_DIR}"/*.py <<<"${ZIP_COMMENT2}"
+  if [ $? -ne 0 ]; then
+    echo "*** final zip of ${EXTN_NAME} package *.py Failed??"
+    exit 22
+  fi
+
+  echo "Adding *.pdf to zip file..."
+  zip -j "${ZIP}" "${EXTN_DIR}"/*.pdf
+  if [ $? -ne 0 ]; then
+    echo "*** final zip of ${EXTN_NAME} package *.pdf Failed??"
+    exit 23
+  fi
+
+else
+
+  echo "Adding signed mxt file into zip file..."
+  zip -j -c "${ZIP}" "${MXT}" <<<"${ZIP_COMMENT}"
+  if [ $? -ne 0 ]; then
+    echo "*** final zip of mxt into zip package Failed??"
+    exit 24
+  fi
+
+  if [ "${EXTN_NAME}" != "toolbox" ]; then
+    echo "adding *.py file(s) into zip file..."
+    zip -j -c "${ZIP}" "${EXTN_DIR}"/*.py <<<"${ZIP_COMMENT}"
+    if [ $? -ne 0 ]; then
+      echo "*** final zip of *.py script(s) into zip package Failed??"
+      exit 25
+    fi
+  else
+    echo "Not including ${EXTN_NAME}.py for toolbox package.... as per IK request"
+  fi
+
+fi
+
+if [ "${EXTN_NAME}" != "extension_tester" ]; then
+  if test -f "${EXTN_DIR}"/*.txt; then
+    echo "Adding *.txt files into zip file..."
+    zip -j "${ZIP}" "${EXTN_DIR}"/*.txt
+    if [ $? -ne 0 ]; then
+      echo "*** final zip of *.txt file(s) into zip package Failed??"
+      exit 26
+    fi
+  else
+    echo "No help *.txt file(s) to ZIP - skipping....."
+  fi
+fi
+
+if test -f "${ZIP}"; then
+  echo "Listing zip file contents..."
+  ls -l "${ZIP}"
+  unzip -l "${ZIP}"
+  echo ===================
+  echo "DISTRIBUTION FILE ${ZIP} has been built..."
+else
+  echo "@@@@@@@@@@@@@@@@@"
+  echo "PROBLEM CREATING FINAL DISTRIBUTION ${ZIP} !"
+  exit 27
+fi
