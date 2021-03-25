@@ -15,7 +15,7 @@ My scripts and extensions are identical. The extension version(s) are simply a '
 InfiniteKind (the creators of Moneydance) have now signed all my Extensions. NOTE: The signed versions may be a few builds behind my latest versions.
 If you require a signed version, then download links are at the bottom of this page...
 
-The Extensions will only run on Moneydance version 2021 build 2012 onwards... The scripts don't have this requirement.
+The Extensions will only run properly on Moneydance version 2021.1 build 3056 onwards... The scripts don't have this requirement.
 NOTE: You may need to download the MD [preview version](https://infinitekind.com/preview)
 (If you have installed the extension, but nothing happens, then check your MD version)
   
