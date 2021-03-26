@@ -31,8 +31,8 @@ if [ $? -ne 0 ]; then
     read -p "Press any key to resume next build..."
 fi
 
-#./build/extension-push.sh "extension_tester"
-#if [ $? -ne 0 ]; then
-#    echo "*** PUSH of extension_tester Failed??"
-#    read -p "Press any key to resume next build..."
-#fi
+./build/extension-push.sh "extension_tester"
+if [ $? -ne 0 ]; then
+    echo "*** PUSH of extension_tester Failed??"
+    read -p "Press any key to resume next build..."
+fi
