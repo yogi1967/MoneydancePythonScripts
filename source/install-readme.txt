@@ -51,6 +51,8 @@ extract_data:                           Extract various data to screen and/or cs
 
 list_future_reminders:                  View future reminders on screen. Allows you to set the days to look forward
 
+extension_tester:                       Demo extension/scripts for coders wanting to build Moneydance Python extensions
+
 useful_scripts: A zip collection of ad-hoc scripts for specific tasks. Just unzip and select the script you want. Includes:
 - calculate_moneydance_objs_and_datasetsize.py: Analyse your dataset, object counts, file sizes, and find other known datasets
 - extract_all_attachments.py: extract all your attachments out of Moneydance to a folder of your choice
