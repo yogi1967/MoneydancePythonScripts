@@ -51,6 +51,8 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**list_future_reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
+
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
 - <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1028 - 8th March 2021)
 - <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed) (build: 1005 - 8th March 2021)
