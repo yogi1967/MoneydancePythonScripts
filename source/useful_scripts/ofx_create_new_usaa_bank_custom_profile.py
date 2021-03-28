@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 8) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 9) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -23,7 +23,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2020 Stuart Beesley - StuWareSoftSystems
+# Copyright (c) 2021 Stuart Beesley - StuWareSoftSystems
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -55,6 +55,7 @@
 # build 6 - URLEncoder.encode() the UserID and Password in the stored cached string
 # build 7 - Build 3051 of Moneydance... fix references to moneydance_* variables;
 # build 8 - Build 3056 of Moneydance...
+# build 9 - Change "date_avail_accts" to 2021-01-01
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -62,7 +63,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "8"
+version_build = "9"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 
 if u"debug" in globals():
@@ -2147,7 +2148,7 @@ Visit: %s (Author's site)
     manualFIInfo.put("bank_email_enabled",                       "0")
     manualFIInfo.put("bootstrap_url",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
     manualFIInfo.put("cc_closing_avail",                         "1")
-    manualFIInfo.put("date_avail_accts",                         "20200204120000")
+    manualFIInfo.put("date_avail_accts",                         "20210101120000")
     manualFIInfo.put("fi_addr1",                                 "10750 McDermott Freeway")
     manualFIInfo.put("fi_addr2",                                 "")
     manualFIInfo.put("fi_addr3",                                 "")
