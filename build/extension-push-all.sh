@@ -1,5 +1,7 @@
 #!/bin/sh
 
+MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances_to_zero" "extension_tester")
+
 clear
 
 if ! test -f "./build/extension-build.sh"; then
@@ -7,32 +9,10 @@ if ! test -f "./build/extension-build.sh"; then
     exit 1
 fi
 
-./build/extension-push.sh "toolbox"
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of toolbox Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh "extract_data"
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of extract_data Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh "useful_scripts"
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of useful_scripts Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh "list_future_reminders"
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of list_future_reminders Failed??"
-    read -p "Press any key to resume next build..."
-fi
-
-./build/extension-push.sh "extension_tester"
-if [ $? -ne 0 ]; then
-    echo "*** PUSH of extension_tester Failed??"
-    read -p "Press any key to resume next build..."
-fi
+for THE_MODULE in "${MODULE_LIST[@]}"; do
+    ./build/extension-push.sh "${THE_MODULE}"
+    if [ $? -ne 0 ]; then
+      echo "*** PUSH of ${THE_MODULE} Failed??"
+      read -p "Press any key to resume next build..."
+    fi
+done

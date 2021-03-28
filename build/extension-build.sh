@@ -8,11 +8,16 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances_to_zero" "extension_tester")
+RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances_to_zero")
+NOT_REALLY_EXTENSION_LIST=("useful_scripts")
+PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester")
+
 if [ "$1" = "" ]; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
   echo "Usage ./build/extension-build.sh module_name"
-  echo "Module name must be one of: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero, extension_tester"
+  echo "Module name must be one of:" "${EXTN_LIST[@]}"
   exit 1
 fi
 
@@ -21,14 +26,42 @@ if ! test -f "./build/extension-build.sh"; then
   exit 1
 fi
 
-if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "net_account_balances_to_zero" ] && [ "$1" != "test" ] && [ "$1" != "list_future_reminders" ] && [ "$1" != "extension_tester" ]; then
+EXTN_NAME="ERROR"
+for EXTN_CHECK in "${EXTN_LIST[@]}"; do
+  if [ "${EXTN_CHECK}" = "${1}" ]; then
+    EXTN_NAME=$1
+  fi
+done
+
+if [ "${EXTN_NAME}" = "ERROR" ]; then
   echo
   echo "@@ Incorrect Python script name @@"
-  echo "must be: toolbox, extract_data, list_future_reminders, useful_scripts, net_account_balances_to_zero, extension_tester"
+  echo "Module name must be one of:" "${EXTN_LIST[@]}"
   exit 1
-else
-  EXTN_NAME=$1
 fi
+
+RESTRICT_SCRIPT="NO"
+for RESTRICT_CHECK in "${RESTRICT_SCRIPT_LIST[@]}"; do
+  if [ "${RESTRICT_CHECK}" = "${EXTN_NAME}" ]; then
+    RESTRICT_SCRIPT="YES"
+  fi
+done
+
+REALLY_EXTENSION="YES"
+for NOT_EXTENSION_CHECK in "${NOT_REALLY_EXTENSION_LIST[@]}"; do
+  if [ "${NOT_EXTENSION_CHECK}" = "${EXTN_NAME}" ]; then
+    REALLY_EXTENSION="NO"
+  fi
+done
+
+PUBLISH_ALL_FILES="NO"
+for PUBLISH_ALL_CHECK in "${PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST[@]}"; do
+  if [ "${PUBLISH_ALL_CHECK}" = "${EXTN_NAME}" ]; then
+    PUBLISH_ALL_FILES="YES"
+  fi
+done
+
+echo "Module build for ${EXTN_NAME} running.... Restrict Script Publication=${RESTRICT_SCRIPT}... (Really an Extension=${REALLY_EXTENSION})... Publish all files=${PUBLISH_ALL_FILES}"
 
 sMXT="s-${EXTN_NAME}.mxt"
 ZIP="./${EXTN_NAME}.zip"
@@ -44,7 +77,7 @@ fi
 
 # Relies on "ant genkeys" and various jar files from within the Moneydance devkit
 
-if [ "${EXTN_NAME}" = "useful_scripts" ]; then
+if [ "${REALLY_EXTENSION}" = "NO" ]; then
 
   if ! test -d "${EXTN_DIR}"; then
     echo "ERROR - directory ${EXTN_NAME}/ does not exist!"
@@ -103,7 +136,7 @@ fi
 
 rm -f "${MXT}"
 
-if [ "${EXTN_NAME}" = "useful_scripts" ]; then
+if [ "${REALLY_EXTENSION}" = "NO" ]; then
 
   echo "Skipping extension build for ${EXTN_NAME}"
 
@@ -260,7 +293,7 @@ rm -f "${ZIP}"
 
 ZIP_THIS="./source/install-readme.txt"
 if [ "${EXTN_NAME}" = "extension_tester" ]; then
-    ZIP_THIS="${EXTN_DIR}/readme.txt"
+  ZIP_THIS="${EXTN_DIR}/readme.txt"
 fi
 
 echo "Creating zip file with ${ZIP_THIS}..."
@@ -270,7 +303,7 @@ if [ $? -ne 0 ]; then
   exit 21
 fi
 
-if [ "${EXTN_NAME}" = "useful_scripts" ]; then
+if [ "${REALLY_EXTENSION}" = "NO" ]; then
 
   echo "Adding *.py to zip file..."
   zip -j -c "${ZIP}" "${EXTN_DIR}"/*.py <<<"${ZIP_COMMENT2}"
@@ -295,15 +328,26 @@ else
     exit 24
   fi
 
-  if [ "${EXTN_NAME}" != "toolbox" ]; then
+  if [ "${RESTRICT_SCRIPT}" != "YES" ]; then
     echo "adding *.py file(s) into zip file..."
-    zip -j -c "${ZIP}" "${EXTN_DIR}"/*.py <<<"${ZIP_COMMENT}"
+    zip -j "${ZIP}" "${EXTN_DIR}"/*.py
     if [ $? -ne 0 ]; then
       echo "*** final zip of *.py script(s) into zip package Failed??"
       exit 25
     fi
   else
-    echo "Not including ${EXTN_NAME}.py for toolbox package.... as per IK request"
+    echo "@@ Not including *.py file(s) for ${EXTN_NAME} package...."
+  fi
+
+  if [ "${PUBLISH_ALL_FILES}" = "YES" ]; then
+    echo "adding *.dict file(s) too into zip file..."
+    zip -j "${ZIP}" "${EXTN_DIR}"/*.dict
+    if [ $? -ne 0 ]; then
+      echo "*** final zip of *.py script(s) into zip package Failed??"
+      exit 25
+    fi
+  else
+    echo "@@ Not including *.dict file(s) for ${EXTN_NAME} package...."
   fi
 
 fi
