@@ -43,7 +43,7 @@ _NOTE: On a Mac, in Moneydance versions older than build 3051, you might see one
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
 
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances_to_zero.zip">**Net Account Balances to Zero**: Puts a small 'widget' on the Home Page. Displays the total of selected account balances.
-- NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView widget
+NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView widget
 
 
 ### Extension and Scripts formats (*.mxt and *.py format) - Very latest (unsigned) builds
