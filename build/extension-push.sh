@@ -1,5 +1,8 @@
 #!/bin/sh
 
+MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances_to_zero" "extension_tester")
+NOT_REALLY_EXTENSION_LIST=("useful_scripts")
+
 PUSHDIR="../MoneydanceOpen/python_scripts"
 
 echo
@@ -19,18 +22,32 @@ if [ "$1" = "" ]; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
   echo "Usage ./build/extension-push.sh module_name"
-  echo "Module name must be one of: toolbox, extract_data, useful_scripts, list_future_reminders"
+  echo "Module name must be one of:" "${MODULE_LIST[@]}"
   exit 1
 fi
 
-if [ "$1" != "toolbox" ] && [ "$1" != "extract_data" ] && [ "$1" != "useful_scripts" ] && [ "$1" != "list_future_reminders" ] && [ "$1" != "extension_tester" ]; then
+MODULE="ERROR"
+for MODULE_CHECK in "${MODULE_LIST[@]}"; do
+  if [ "${MODULE_CHECK}" = "${1}" ]; then
+    MODULE=$1
+  fi
+done
+
+if [ "${MODULE}" = "ERROR" ]; then
   echo
-  echo "@@ Incorrect Python / extension script name @@"
-  echo "must be: toolbox, extract_data, useful_scripts, list_future_reminders, extension_tester"
+  echo "@@ Incorrect Python Module Build name @@"
+  echo "Module name must be one of:" "${MODULE_LIST[@]}"
   exit 1
 fi
 
-MODULE=$1
+REALLY_EXTENSION="YES"
+for NOT_EXTENSION_CHECK in "${NOT_REALLY_EXTENSION_LIST[@]}"; do
+  if [ "${NOT_EXTENSION_CHECK}" = "${EXTN_NAME}" ]; then
+    REALLY_EXTENSION="NO"
+  fi
+done
+
+echo "Module build for ${MODULE} running.... (Really an Extension=${REALLY_EXTENSION})"
 
 if ! test -d "${PUSHDIR}"; then
   echo "@@ ${PUSHDIR} directory missing? @@"
@@ -47,7 +64,7 @@ if ! test -f "./${MODULE}.zip"; then
   exit 2
 fi
 
-if [ "${MODULE}" = "useful_scripts" ]; then
+if [ "${REALLY_EXTENSION}" = "NO" ]; then
 
   echo "Skipping checks for non-extension"
 

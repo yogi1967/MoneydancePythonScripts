@@ -18,12 +18,12 @@ _NOTE: On a Mac, in Moneydance versions older than build 3051,  you might see on
 saying something like: “jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified.
 macOS cannot verify that this app is free from malware.
 These are irrelevant and harmless messages. Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. 
-The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created.
-The Moneydance developer (IK) is aware of this and is trying to build a fix. It happens with all Python scripts._
+The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created._
 
 To use extension (*.mxt):
 - Run Moneydance
-- Menu>Extensions>Manage Extensions>add from file>Select the mxt>Open/Install.
+- Drag and drop the .mxt file onto the Moneydance left side bar
+- .. or Menu>Extensions>Manage Extensions>add from file>Select the mxt>Open/Install.
 - Then exit and restart Moneydance 
 - To run, Menu>Extensions> and choose the Extension to run
 

@@ -40,8 +40,5 @@ git status
 cd "$SOURCEDIR" || exit
 echo "Now in directory..:"
 pwd
-# shellcheck disable=SC2162
-read -p "Press any key to resume next..."
 
-
-#echo @@@ module: $MODULE pushed over to $PUSHDIR
+echo "@@@ GIT-READY COMPLETED - Ready for push...."
