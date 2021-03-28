@@ -23,11 +23,12 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 - Extensions have a file extension of *.mxt
 - Scripts have a file extension of *.py
 
-**To run Extensions:**
-1) Install the Extension. Load Moneydance, Menu>Extensions>add from file>choose <extension_name>.mxt file
-2) Accept the warning that the extension is unsigned / missing (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
-3) Once its installed, restart Moneydance.
-4) From now on, just click Menu>Extensions and the name of the Extension
+**To install/run Extensions:**
+1) Start Moneydance
+2) Drag and drop the .mxt file onto the Moneydance left side bar; OR Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install
+3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
+4) Once its installed, restart Moneydance.
+5) From now on, just click Menu>Extensions and the name of the Extension
 
 **To run Scripts:**
 1) Load Moneydance. Menu>Window>Show Moneybot Console
@@ -35,11 +36,15 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 3) Click RUN (and not run snippet)
 4) That's it.... Repeat these steps each time.
 
-_NOTE: On a Mac, in Moneydance versions older than build 3051, you might see one or two popup System Warning messages saying something like: “jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified. macOS cannot verify that this app is free from malware. **These are irrelevant and harmless messages** Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created. The Moneydance developer (IK) is aware of this and is trying to build a fix. It happens with all Python scripts._
+_NOTE: On a Mac, in Moneydance versions older than build 3051, you might see one or two popup System Warning messages saying something like: “jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified. macOS cannot verify that this app is free from malware. **These are irrelevant and harmless messages** Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created. It happens with all Python scripts._
 
 ### Extension only format (contains only *.mxt file) - Very latest (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
+
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances_to_zero.zip">**Net Account Balances to Zero**: Puts a small 'widget' on the Home Page. Displays the total of selected account balances.
+- NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView widget
+
 
 ### Extension and Scripts formats (*.mxt and *.py format) - Very latest (unsigned) builds
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**extract_data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
