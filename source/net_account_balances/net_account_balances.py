@@ -2098,6 +2098,12 @@ Visit: %s (Author's site)
                     self.callingClass.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:close" %(self.callingClass.myModuleID,self.callingClass.myModuleID))
 
                 # ######################################################################################################
+                if event.getActionCommand().lower().startswith("uninstall"):
+
+                    myPrint("DB", "User has clicked uninstall - sending 'uninstall' request via .showURL().......")
+                    self.callingClass.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:uninstall" %(self.callingClass.myModuleID,self.callingClass.myModuleID))
+
+                # ######################################################################################################
                 # Save parameters now...
                 if (event.getActionCommand().lower().startswith("save")
                         or event.getActionCommand().lower().startswith("debug")):
@@ -2181,22 +2187,40 @@ Visit: %s (Author's site)
             if fm is None:
                 myPrint("DB","Failed to retrieve myself - exiting")
                 return False
-
             myPrint("DB","Retrieved myself: %s" %(fm))
 
             try:
                 p = self.moneydanceContext.getClass().getDeclaredMethod("unloadModule", [FeatureModule])
                 p.setAccessible(True)
-                p.invoke(moneydance,[fm])
+                p.invoke(self.moneydanceContext,[fm])
                 p.setAccessible(False)
-
             except:
                 myPrint("DB","Error unloading my own extension object..?")
                 dump_sys_error_to_md_console_and_errorlog()
                 return False
 
-            myPrint("DB",".. Success! Unloaded / deactivated myself..! ;->")
+            myPrint("B","@@ Success! Unloaded / deactivated myself..! ;->")
+            return True
 
+        def removeMyself(self):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            fm, pyObject = self.getMyself()
+
+            if fm is None:
+                myPrint("DB","Failed to retrieve myself - exiting")
+                return False
+            myPrint("DB","Retrieved myself: %s" %(fm))
+
+            try:
+                myPrint("DB","... about to ask MD to uninstall myself....")
+                self.moneydanceContext.uninstallModule(fm)
+            except:
+                myPrint("DB","Error uninstalling my own extension object..?")
+                dump_sys_error_to_md_console_and_errorlog()
+                return False
+
+            myPrint("B","@@ Success! Removed / uninstalled myself..! ;->")
             return True
 
         def build_main_frame(self):
@@ -2337,6 +2361,12 @@ Visit: %s (Author's site)
                     menuItemDeactivate.setSelected(True)
                     menuO.add(menuItemDeactivate)
 
+                    menuItemUninstall = JMenuItem("Uninstall Extension")
+                    menuItemUninstall.addActionListener(saveMyActionListener)
+                    menuItemUninstall.setToolTipText("Uninstalls and removes this extension (and also the HomePage 'widget'). This is permanent until you reinstall...")
+                    menuItemUninstall.setSelected(True)
+                    menuO.add(menuItemUninstall)
+
                     mb.add(menuO)
 
                     menuA = JMenu("About")
@@ -2446,7 +2476,29 @@ Visit: %s (Author's site)
 
             return True
 
-        # noinspection PyMethodMayBeStatic
+
+        class UnloadUninstallSwingWorker(SwingWorker):
+            def __init__(self, callingClass, unload=False, uninstall=False):
+                self.callingClass = callingClass
+                self.unload = unload
+                self.uninstall = uninstall
+
+            # noinspection PyMethodMayBeStatic
+            def doInBackground(self):
+                myPrint("DB", "In UnloadUninstallSwingWorker()", inspect.currentframe().f_code.co_name, "()")
+
+                if self.unload:
+                    myPrint("DB","... calling .unloadMyself()")
+                    self.callingClass.unloadMyself()
+                elif self.uninstall:
+                    myPrint("DB","... calling .removeMyself()")
+                    self.callingClass.removeMyself()
+
+            # noinspection PyMethodMayBeStatic
+            def done(self):
+                myPrint("DB", "In UnloadUninstallSwingWorker()", inspect.currentframe().f_code.co_name, "()")
+                myPrint("DB","++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
         def handle_event(self, appEvent, lPassedFromInvoke=False):
 
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -2487,28 +2539,25 @@ Visit: %s (Author's site)
                     myPrint("DB", "self.isUIavailable: %s" %(self.isUIavailable))
                     myPrint("DB", "self.theFrame.isActiveInMoneydance: %s" %(self.theFrame.isActiveInMoneydance))       # noqa
 
-            elif (appEvent == "%s:customevent:close" %self.myModuleID):
+            elif (appEvent == "%s:customevent:close" %(self.myModuleID)):
                 if debug:
-                    myPrint("DB","@@ Custom event %s triggered.... Will call .unloadMyself() to deactivate...." %(appEvent))
+                    myPrint("DB","@@ Custom event %s triggered.... Will call .unloadMyself() to deactivate (via SwingWorker)...." %(appEvent))
                 else:
                     myPrint("B","@@ %s triggered - So I will deactivate myself...." %(appEvent))
-                try:
-                    self.unloadMyself()
-                    myPrint("DB","Back from calling .unloadMyself() to deactivate... ;-> ** I'm getting out quick! **")
-                except:
-                    dump_sys_error_to_md_console_and_errorlog()
-                    myPrint("B","@@ ERROR calling .unloadMyself() to deactivate :-< ** I'm getting out quick! **")
 
-                # if debug:
-                #     myPrint("DB","Custom event %s triggered.... Will call GenericWindowClosingRunnable (via the Swing EDT) to push a WINDOW_CLOSING Event to %s to close itself (while I exit back to MD quickly) ...." %(appEvent, self.myModuleID))
-                # else:
-                #     myPrint("B","Custom event %s triggered - So I am closing %s now...." %(appEvent, self.myModuleID))
-                # try:
-                #     SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.theFrame))
-                #     myPrint("DB","Back from calling GenericWindowClosingRunnable to push a WINDOW_CLOSING Event via the EDT to %s.... ;-> ** I'm getting out quick! **" %(self.myModuleID))
-                # except:
-                #     dump_sys_error_to_md_console_and_errorlog()
-                #     myPrint("B","@@ ERROR calling GenericWindowClosingRunnable to push  a WINDOW_CLOSING Event via the EDT to %s.... :-< ** I'm getting out quick! **" %(self.myModuleID))
+                sw = self.UnloadUninstallSwingWorker(self,unload=True)
+                sw.execute()
+                myPrint("DB","Back from calling .unloadMyself() via SwingWorker to deactivate... ;-> ** I'm getting out quick! **")
+
+            elif (appEvent == "%s:customevent:uninstall" %(self.myModuleID)):
+                if debug:
+                    myPrint("DB","@@ Custom event %s triggered.... Will call .removeMyself() to uninstall (via SwingWorker)...." %(appEvent))
+                else:
+                    myPrint("B","@@ %s triggered - So I will uninstall/remove myself...." %(appEvent))
+
+                sw = self.UnloadUninstallSwingWorker(self,uninstall=True)
+                sw.execute()
+                myPrint("DB","Back from calling .removeMyself() via SwingWorker to deactivate... ;-> ** I'm getting out quick! **")
 
             else:
                 myPrint("DB","@@ Ignoring handle_event: %s (from .invoke() = %s) @@" %(appEvent,lPassedFromInvoke))
