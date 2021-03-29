@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 3 - March 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 4 - March 2021 - Stuart Beesley - StuWareSoftSystems
 
 ###############################################################################
 # This extension creates a Moneydance Home Page View >> a little widget on the Home / Summary Screen dashboard
@@ -47,6 +47,7 @@
 # Build: 2 - Screensize tweaks; ability to set widget display name; alter startup behaviour
 # Build: 2 - Renamed to net_account_balances (removed _to_zero); common code/startup
 # Build: 3 - properly convert fx accounts back to base currency; allow all account types in selection..
+# Build: 4 - Tweak to security currency conversion to base...
 
 # Detect another instance of this code running in same namespace - i.e. a Moneydance Extension
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -55,7 +56,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "3"
+version_build = "4"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 
 if u"debug" in globals():
@@ -2783,6 +2784,7 @@ Visit: %s (Author's site)
                         for securityAcct in acct.getSubAccounts():  # There's only one level of security sub accounts
                             securityCurr = securityAcct.getCurrencyType()
                             relCurr = securityCurr.getCurrencyParameter(None, None, "relative_to_currid", acctCurr)
+                            myPrint("DB",".. Security curr: %s Relative curr: %s Account curr: %s Base Curr: %s" %(securityCurr, relCurr, acctCurr, baseCurr))
 
                             if self.callingClass.extensionClass.savedBalanceType == 0:
                                 bal = securityAcct.getBalance()
@@ -2798,8 +2800,12 @@ Visit: %s (Author's site)
                                 myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType))
 
                             if bal != 0:
-                                securityValue = CurrencyUtil.convertValue(bal, securityCurr, relCurr)
-                                myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), relCurr.formatSemiFancy(securityValue, dec)))
+                                # securityValue = CurrencyUtil.convertValue(bal, securityCurr, relCurr)
+                                # myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), relCurr.formatSemiFancy(securityValue, dec)))
+
+                                securityValue = CurrencyUtil.convertValue(bal, securityCurr, baseCurr)
+                                myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(securityValue, dec)))
+
                                 totalBalance += securityValue
 
                 del accountsToShow
