@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 4 - March 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1000 - March 2021 - Stuart Beesley - StuWareSoftSystems
 
 ###############################################################################
 # This extension creates a Moneydance Home Page View >> a little widget on the Home / Summary Screen dashboard
@@ -48,6 +48,8 @@
 # Build: 2 - Renamed to net_account_balances (removed _to_zero); common code/startup
 # Build: 3 - properly convert fx accounts back to base currency; allow all account types in selection..
 # Build: 4 - Tweak to security currency conversion to base...
+# Build: 5 - Enhance JList colors and handling of clicks (so as not to unselect all on new click); add clear selection button
+# Build: 1000 - Formal release
 
 # Detect another instance of this code running in same namespace - i.e. a Moneydance Extension
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -56,7 +58,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "4"
+version_build = "1000"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 
 if u"debug" in globals():
@@ -282,6 +284,7 @@ else:
     from javax.swing import BorderFactory
     from com.moneydance.awt import JLinkListener, JLinkLabel
     from com.moneydance.apps.md.view.gui.theme import Theme
+    from javax.swing import DefaultListSelectionModel
     # from com.moneydance.apps.md.controller import URLUtil
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
@@ -310,6 +313,7 @@ The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
 toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
+net_account_balances:                   Homepage / summary screen widget. Display the total of selected Account Balances
 
 Extension (.mxt) and Script (.py) Versions available:
 extract_data                            Extract various data to screen and/or csv.. Consolidation of:
@@ -1821,7 +1825,7 @@ Visit: %s (Author's site)
                 myPrint("DB","meta_info.dict 'desc' = %s" %(self.moneydanceExtensionObject.getDescription()))
                 myPrint("DB","script path: %s" %(self.moneydanceExtensionObject.getSourceFile()))
 
-            self.moneydanceContext.registerFeature(extension_object, "%s:customevent:showConfig" %(self.myModuleID), None, self.getName())
+            self.moneydanceContext.registerFeature(extension_object, "%s:customevent:showConfig" %(self.myModuleID), None, self.getName().replace("_"," ").title())
             myPrint("DB","@@ Registered self as an Extension onto the Extension Menu @@")
 
             self.saveMyHomePageView = MyHomePageView(self)
@@ -2087,6 +2091,11 @@ Visit: %s (Author's site)
                     SwingUtilities.invokeLater(MyRefreshRunnable(self.callingClass))
 
                 # ######################################################################################################
+                if event.getActionCommand().lower().startswith("clear"):
+                    myPrint("DB","...clearing selection...")
+                    self.callingClass.jlst.clearSelection()
+
+                # ######################################################################################################
                 if event.getActionCommand().lower().startswith("cancel"):
                     myPrint("DB","...ignoring changes and reverting to previous account list")
                     self.callingClass.configPanelOpen = False
@@ -2258,7 +2267,7 @@ Visit: %s (Author's site)
 
                     # Called from getMoneydanceUI() so assume the Moneydance GUI is loaded...
                     JFrame.setDefaultLookAndFeelDecorated(True)
-                    net_account_balances_frame_ = MyJFrame(u"%s (%s) Home Page View widget - settings" % (self.callingClass.myModuleID.capitalize(), version_build))
+                    net_account_balances_frame_ = MyJFrame(u"%s (b:%s) Home Page View widget - settings" % (self.callingClass.myModuleID.capitalize(), version_build))
                     self.callingClass.theFrame = net_account_balances_frame_
                     self.callingClass.theFrame.setName(u"%s_main" %(self.callingClass.myModuleID))
 
@@ -2272,10 +2281,28 @@ Visit: %s (Author's site)
                     gridbag = GridBagLayout()
                     pnl = JPanel(gridbag)
 
+
+                    class MyDefaultListSelectionModel(DefaultListSelectionModel):  # build_main_frame() only runs once, so this is fine to do here...
+                        # Change the selector - so not to deselect items when selecting others...
+                        def __init__(self):
+                            super(DefaultListSelectionModel, self).__init__()                                           # noqa
+
+                        def setSelectionInterval(self, start, end):
+                            if (start != end):
+                                super(MyDefaultListSelectionModel, self).setSelectionInterval(start, end)               # noqa
+                            elif self.isSelectedIndex(start):
+                                self.removeSelectionInterval(start, end)
+                            else:
+                                self.addSelectionInterval(start, end)
+
+
                     self.callingClass.jlst = JList([])
+                    self.callingClass.jlst.setBackground((self.callingClass.moneydanceContext.getUI().getColors()).listBackground)
                     self.callingClass.jlst.setCellRenderer( self.callingClass.MyJListRenderer() )
                     self.callingClass.jlst.setFixedCellHeight(self.callingClass.jlst.getFixedCellHeight()+30)
                     self.callingClass.jlst.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+                    self.callingClass.jlst.setSelectionModel(MyDefaultListSelectionModel())
+
                     scrollpane = JScrollPane(self.callingClass.jlst, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()
@@ -2296,28 +2323,33 @@ Visit: %s (Author's site)
                         lbl = JLabel("Select multiple accounts - use CTRL-Click, or click first, Shift-Click last...")
 
                     lbl.setForeground(Color.BLUE)
-                    pnl.add(lbl, GridC.getc(0, 0).west().colspan(3).leftInset(10).topInset(10).bottomInset(10))
+                    pnl.add(lbl, GridC.getc(0, 0).west().colspan(4).leftInset(10).topInset(10).bottomInset(10))
 
                     self.callingClass.widgetNameField = JTextField(self.callingClass.savedWidgetName)
-                    pnl.add(self.callingClass.widgetNameField, GridC.getc(0, 1).west().colspan(3).leftInset(10).topInset(10).bottomInset(10).rightInset(10).fillboth())
+                    pnl.add(self.callingClass.widgetNameField, GridC.getc(0, 1).west().colspan(4).leftInset(10).topInset(10).bottomInset(10).rightInset(10).fillboth())
 
                     balanceTypes = ["Balance", "Current Balance", "Cleared Balance"]
                     self.callingClass.balanceType_option = JComboBox(balanceTypes)
                     self.callingClass.balanceType_option.setToolTipText("Select the balance type to total: Balance (i.e. the final balance), Current Balance (as of today), Cleared Balance")
                     self.callingClass.balanceType_option.setSelectedItem(balanceTypes[self.callingClass.savedBalanceType])
-                    pnl.add(self.callingClass.balanceType_option, GridC.getc(0, 2).west().leftInset(20))
+                    pnl.add(self.callingClass.balanceType_option, GridC.getc(0, 2).west().leftInset(10).topInset(2))
+
+                    clearList_button = JButton("Clear Selection")
+                    clearList_button.setToolTipText("Clears the current selection(s)...")
+                    clearList_button.addActionListener(saveMyActionListener)
+                    pnl.add(clearList_button, GridC.getc(1, 2).leftInset(13))
 
                     saveAccountList_button = JButton("Save Changes")
                     saveAccountList_button.setToolTipText("Saves the selected account list")
                     saveAccountList_button.addActionListener(saveMyActionListener)
-                    pnl.add(saveAccountList_button, GridC.getc(1, 2).west())
+                    pnl.add(saveAccountList_button, GridC.getc(2, 2).leftInset(13))
 
                     cancelChanges_button = JButton("Cancel Changes")
                     cancelChanges_button.setToolTipText("Cancels your changes and reverts to the saved account list")
                     cancelChanges_button.addActionListener(saveMyActionListener)
-                    pnl.add(cancelChanges_button, GridC.getc(2, 2).west().leftInset(20))
+                    pnl.add(cancelChanges_button, GridC.getc(3, 2).east().rightInset(8))
 
-                    pnl.add(scrollpane,GridC.getc(0, 3).wx(1.0).west().colspan(3).leftInset(8).rightInset(8).topInset(8).bottomInset(8).fillboth())
+                    pnl.add(scrollpane,GridC.getc(0, 3).wx(1.0).west().colspan(4).leftInset(8).rightInset(8).topInset(8).bottomInset(8).fillboth())
                     self.callingClass.theFrame.add(pnl)
 
                     self.callingClass.theFrame.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE)
