@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester")
+MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "auto_backup")
 
 clear
 
