@@ -75,6 +75,10 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
   - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance
 
 
+### My Python Extension and coding tips:
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester/readme.txt">**Extension tips**: A readme.txt file that contains my tips on creating Python extensions and some coding tips....
+
+
 ### Source Code sites - you can freely read / review all my code
 <a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
 <BR><BR>
