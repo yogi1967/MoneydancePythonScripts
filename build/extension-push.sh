@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "auto_backup")
+MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 
 PUSHDIR="../MoneydanceOpen/python_scripts"

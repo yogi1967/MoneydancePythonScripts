@@ -1,10 +1,12 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021
+# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: 7th April 2021)
 # Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
 # Make sure you 'chmod +x launch-moneydance.sh' to make script executable
+
+# THIS IS WRITTEN FOR MacOS Terminal(zsh). Adjust accordingly...!
 
 # The purpose of this shell script is to launch Moneydance from the Terminal command line, simulating the same
 # 'experience' that you get when running Moneydance from the normal install icon (and the same folder locations).
@@ -53,6 +55,13 @@ echo "##########################################################################
 echo "############################################################################################"
 echo
 
+# Prevents Moneydance JFrames appearing in tabs... causes strange problems...
+echo "current tabbing mode is set to..:"
+defaults read -g AppleWindowTabbingMode
+
+echo "changing tabbing mode to manual (=never)"
+defaults write -g AppleWindowTabbingMode -string manual
+
 my_user_path=~
 echo "My user path: ${my_user_path}"
 
@@ -68,7 +77,7 @@ modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2021 (3056)"
+md_version=" 2021 (3064)"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
@@ -122,9 +131,13 @@ ${java} \
   -Xmx2G \
   -Ddummyarg1=arg1 \
   -Ddummyarg2=arg2 \
-  Moneydance -d $* &>"$console_file" &
+  Moneydance -d $* &>"$console_file"
+#  Moneydance -d $* &>"$console_file" &
 
-#open "$console_file"
+open "$console_file"
+
+echo "changing tabbing mode to fullscreen"
+defaults write -g AppleWindowTabbingMode -string fullscreen
 
 exit 0
 
