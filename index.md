@@ -76,7 +76,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 
 ### My Python Extension and coding tips:
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester/readme.txt">**Extension tips**: A readme.txt file that contains my tips on creating Python extensions and some coding tips....
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/extension_tester/readme.txt">**Extension tips**: A readme.txt file that contains my tips on creating Python extensions and some coding tips....
 
 
 ### Source Code sites - you can freely read / review all my code
