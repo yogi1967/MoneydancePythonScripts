@@ -77,6 +77,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 ### My Python Extension and coding tips:
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/extension_tester/readme.txt">**Extension tips**: A readme.txt file that contains my tips on creating Python extensions and some coding tips....
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.sh">**Moneydance Launch Shell Script**: A MacOs shell script that launches Moneydance replicating the standard App launch sequence.... But without Apple sandboxing restrictions... You can also therefore change much of the underlying 'environment' and java libraries...
 
 
 ### Source Code sites - you can freely read / review all my code
