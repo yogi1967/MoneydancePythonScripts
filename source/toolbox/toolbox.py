@@ -4203,6 +4203,7 @@ Visit: %s (Author's site)
                         or acct.getAccountType() == Account.AccountType.CREDIT_CARD
                         or acct.getAccountType() == Account.AccountType.LOAN
                         or acct.getAccountType() == Account.AccountType.ASSET
+                        or acct.getAccountType() == Account.AccountType.INVESTMENT
                         or acct.getAccountType() == Account.AccountType.LIABILITY):
                     return False
 
