@@ -52,6 +52,7 @@
 # Build: 1000 - Formal release
 # Build: 1001 - Enhancements to incorporate VAqua on Mac; Fix JMenuBar() appearing in wrong place after File/Open(switch datasets)
 # Build: 1001 - Change startup common code to detect 'wrong' startup conditions. Make build 3056 the minimum for my extensions (as they leverage .unload() etc)
+# Build: 1001 - Fix condition when -invoke[_and_quit] was used to prevent refresh erroring when MD actually closing...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -2931,6 +2932,11 @@ Visit: %s (Author's site)
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", "HomePageView widget: .reallyRefresh().. rebuilding the panel and contents...")
+
+                # launch -invoke[_and_quit] can cause progam to fall over as it's shutting down.. Detect None condition
+                if self.callingClass.extensionClass.moneydanceContext.getCurrentAccountBook() is None:
+                    myPrint("DB", "@@ .reallyRefresh() detected .getCurrentAccountBook() is None... Perhaps -invoke[_and_quit].. Just ignore and exit this refresh..")
+                    return
 
                 self.listPanel.removeAll()
 

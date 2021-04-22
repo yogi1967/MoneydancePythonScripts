@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1033 - November 2020 thru February 2021 - Stuart Beesley StuWareSoftSystems (~500 programming hours)
+# toolbox.py build: 1034 - November 2020 thru February 2021 - Stuart Beesley StuWareSoftSystems (~500 programming hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -185,6 +185,7 @@
 # build: 1032 - Add HomePageViews (widgets) to extension list; add getTIKServiceID() to delete_one_service popup display
 # build: 1032 - Add 'View all your OFX last download txn dates (for all accounts)'to menu
 # build: 1033 - Common code tweaks
+# build: 1034 - Disabled the 'tabbing mode' check from build 3065 onwards
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - build a class for holding txns in Geekout and Hacker modes to fix display width; also handle .syncItem() on split txns..
@@ -206,7 +207,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1033"
+version_build = "1034"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -504,7 +505,7 @@ else:
 
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.1                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3064                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3065                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -16985,8 +16986,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 displayPanel.add(createMoneydanceSyncFolder_button)
 
             lTabbingModeNeedsChanging = False
-            if Platform.isOSX() and Platform.isOSXVersionAtLeast("10.16") \
-                    and not DetectAndChangeMacTabbingMode(statusLabel, True).actionPerformed("quick check"):
+            if (Platform.isOSX() and Platform.isOSXVersionAtLeast("10.16")
+                    and int(MD_REF.getBuild()) < 3065
+                    and not DetectAndChangeMacTabbingMode(statusLabel, True).actionPerformed("quick check")):
                 lTabbingModeNeedsChanging = True
                 fixTabbingMode_button = JButton("<html><center><B>FIX: MacOS<BR>Tabbing Mode</B></center></html>")
                 fixTabbingMode_button.setToolTipText("This allows you to check/fix your MacOS Tabbing Setting")
