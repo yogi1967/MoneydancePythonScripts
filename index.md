@@ -84,10 +84,12 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 It's possible to load Moneydance components externally. This would not be supported by IK and you do so at your own risk:
 
 Method 1: Using Jython (for true Java integration) (with a launch script to set up the JVM properly) - See folder contents: 
-[https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-jython]
+
+-  <a https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-jython">**external-access-jython folder**: Folder containing Jython launch script, and Jython examples accessing Moneydance externally....
 
 Method 2: Using Python and JPype - example:
-[https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-python-jpype/open-mdheadless-jpype-with-passphrase.py]
+-  <a https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-python-jpype/open-mdheadless-jpype-with-passphrase.py">**open-mdheadless-jpype-with-passphrase.py**: Example external Python script using JPype to access Moneydance externally....
+
 
 
 ### Source Code sites - you can freely read / review all my code
