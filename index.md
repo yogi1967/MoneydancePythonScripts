@@ -79,14 +79,15 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/extension_tester/readme.txt">**Extension tips**: A readme.txt file that contains my tips on creating Python extensions and some coding tips....
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.sh">**Moneydance Launch Shell Script**: A MacOs shell script that launches Moneydance replicating the standard App launch sequence.... But without Apple sandboxing restrictions... You can also therefore change much of the underlying 'environment' and java libraries...
 
-### Experimental / advanced (use at your risk):
-It's possible to load Moneydance components externally:
 
-Method 1 (Preferred): Using Jython (with a launch script to set up the JVM properly) - See folder contents: 
-https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-jython
+### Experimental / advanced:
+It's possible to load Moneydance components externally. This would not be supported by IK and you do so at your own risk:
+
+Method 1: Using Jython (for true Java integration) (with a launch script to set up the JVM properly) - See folder contents: 
+[https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-jython]
 
 Method 2: Using Python and JPype - example:
-https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-python-jpype/open-mdheadless-jpype-with-passphrase.py
+[https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-python-jpype/open-mdheadless-jpype-with-passphrase.py]
 
 
 ### Source Code sites - you can freely read / review all my code
