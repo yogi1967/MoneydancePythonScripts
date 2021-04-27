@@ -2656,8 +2656,8 @@ Visit: %s (Author's site)
             else:
                 textArray.append(u"Printing Font: (None/Default)")
 
-            textArray.append(u"Font Size: %s" %(MD_REF.getUI().getPreferences().getSetting(u"print.font_size", u"12")))
-            textArray.append(u"Font Size: +%s" %(MD_REF.getUI().getPreferences().getIntSetting(u"gui.font_increment", 0)))
+            textArray.append(u"Print Font Size: %s" %(MD_REF.getUI().getPreferences().getSetting(u"print.font_size", u"12")))
+            textArray.append(u"Screen Font Size: +%s" %(MD_REF.getUI().getPreferences().getIntSetting(u"gui.font_increment", 0)))
 
         textArray.append(u"\n>> NETWORK")
         textArray.append(u"Automatically Download in Background: %s" %(MD_REF.getUI().getPreferences().getBoolSetting(u"net.auto_download", False)))
