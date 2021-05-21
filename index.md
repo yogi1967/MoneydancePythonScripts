@@ -15,9 +15,9 @@ My scripts and extensions are identical. The extension version(s) are simply a '
 InfiniteKind (the creators of Moneydance) have now signed all my Extensions. NOTE: The signed versions may be a few builds behind my latest versions.
 If you require a signed version, then download links are at the bottom of this page...
 
-The Extensions will only run properly on Moneydance version 2021.1 build 3056 onwards... The scripts don't have this requirement.
-NOTE: You may need to download the MD [preview version](https://infinitekind.com/preview)
-(If you have installed the extension, but nothing happens, then check your MD version)
+The Extensions will only run properly on Moneydance version 2021.1 (build 3056 onwards)...
+The minimum version to run as standalone scripts is 2019.4 (build 1904)...
+_(If you have installed the extension, but nothing happens, then check your MD version/build)_
   
 Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
 - Extensions have a file extension of *.mxt
@@ -35,8 +35,6 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 2) Open Script>choose <scriptname>.py file
 3) Click RUN (and not run snippet)
 4) That's it.... Repeat these steps each time.
-
-_NOTE: On a Mac, in Moneydance versions older than build 3051, you might see one or two popup System Warning messages saying something like: “jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified. macOS cannot verify that this app is free from malware. **These are irrelevant and harmless messages** Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created. It happens with all Python scripts._
 
 ### Extension only format (contains only *.mxt file) - Very latest (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
