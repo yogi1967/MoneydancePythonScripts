@@ -3096,7 +3096,7 @@ Visit: %s (Author's site)
 
         buildList = downloadBuilds.get("builds", None)                   # type: StreamVector
         if not buildList or buildList is None:
-            myPrint("B","Error - failed to download or decode build list - - will just proceed without safeguards")
+            myPrint("B","Error - failed to download or decode build list - will just proceed without safeguards")
             return
 
         buildTable=[]
@@ -3112,11 +3112,11 @@ Visit: %s (Author's site)
 
         except:
             dump_sys_error_to_md_console_and_errorlog()
-            myPrint("B", "ERROR decoding downloading toolbox version/build data!  - will just proceed without safeguards...")
+            myPrint("B", "ERROR decoding downloading toolbox version/build data! - will just proceed without safeguards...")
             return
 
         if len(buildTable)<1:
-            myPrint("B", "ERROR decoded downloaded toolbox version/build data is empty!  - will just proceed without safeguards...")
+            myPrint("B", "ERROR decoded downloaded toolbox version/build data is empty! - will just proceed without safeguards...")
             return
 
         buildTable = sorted(buildTable, key=lambda _x: (_x.build), reverse=True)          # type: [ToolboxBuildInfo]
@@ -3132,18 +3132,18 @@ Visit: %s (Author's site)
                 myPrint("DB","Found EXACT-HIT downloaded module build %s OVERRIDING PROGRAM's DEFAULTS....! (%s)" %(moduleBuild.build, moduleBuild.obj ))
 
                 if debug:
-                    myPrint("D","Program defaults were...:")
-                    myPrint("D"," TOOLBOX_STOP_NOW:                     %s"     %(TOOLBOX_STOP_NOW))
-                    myPrint("D"," TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MINIMUM_TESTED_MD_VERSION))
-                    myPrint("D"," TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
-                    myPrint("D"," TOOLBOX_MAXIMUM_TESTED_MD_BUILD:      %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
-                    myPrint("D"," MD_OFX_BANK_SETTINGS_DIR:             %s"     %(MD_OFX_BANK_SETTINGS_DIR))
-                    myPrint("D"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
-                    myPrint("D"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
-                    myPrint("D"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
-                    myPrint("D"," MYPYTHON_DOWNLOAD_URL:                %s"     %(MYPYTHON_DOWNLOAD_URL))
+                    myPrint("DB","Program defaults were...:")
+                    myPrint("DB"," TOOLBOX_STOP_NOW:                     %s"     %(TOOLBOX_STOP_NOW))
+                    myPrint("DB"," TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MINIMUM_TESTED_MD_VERSION))
+                    myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
+                    myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_BUILD:      %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
+                    myPrint("DB"," MD_OFX_BANK_SETTINGS_DIR:             %s"     %(MD_OFX_BANK_SETTINGS_DIR))
+                    myPrint("DB"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
+                    myPrint("DB"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
+                    myPrint("DB"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
+                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(MYPYTHON_DOWNLOAD_URL))
 
-                TOOLBOX_STOP_NOW =                      moduleBuild.disable
+                TOOLBOX_STOP_NOW = moduleBuild.disable
                 if moduleBuild.TOOLBOX_MINIMUM_TESTED_MD_VERSION > 0:
                     TOOLBOX_MINIMUM_TESTED_MD_VERSION =     moduleBuild.TOOLBOX_MINIMUM_TESTED_MD_VERSION
                 if moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_VERSION:
@@ -3162,16 +3162,16 @@ Visit: %s (Author's site)
                     MYPYTHON_DOWNLOAD_URL =                  moduleBuild.MYPYTHON_DOWNLOAD_URL
 
                 if debug:
-                    myPrint("D","Program variables are now...:")
-                    myPrint("D"," TOOLBOX_STOP_NOW:                     %s"     %(TOOLBOX_STOP_NOW))
-                    myPrint("D"," TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MINIMUM_TESTED_MD_VERSION))
-                    myPrint("D"," TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
+                    myPrint("DB","Program variables are now...:")
+                    myPrint("DB"," TOOLBOX_STOP_NOW:                     %s"     %(TOOLBOX_STOP_NOW))
+                    myPrint("DB"," TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MINIMUM_TESTED_MD_VERSION))
+                    myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
                     myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_BUILD:      %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
-                    myPrint("D"," MD_OFX_BANK_SETTINGS_DIR:             %s"     %(MD_OFX_BANK_SETTINGS_DIR))
-                    myPrint("D"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
-                    myPrint("D"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
-                    myPrint("D"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
-                    myPrint("D"," MYPYTHON_DOWNLOAD_URL:                %s"     %(MYPYTHON_DOWNLOAD_URL))
+                    myPrint("DB"," MD_OFX_BANK_SETTINGS_DIR:             %s"     %(MD_OFX_BANK_SETTINGS_DIR))
+                    myPrint("DB"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
+                    myPrint("DB"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
+                    myPrint("DB"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
+                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(MYPYTHON_DOWNLOAD_URL))
 
                 if TOOLBOX_STOP_NOW:
                     myPrint("B","Uh-oh... disable has been set by the Developer for this build.... Toolbox must close... Sorry")
