@@ -7,18 +7,12 @@ My collection of Python(Jython 2.7) scripts and extensions for Moneydance (Money
 NOTE: My script (*.py) and extension (*.mxt) programs are exactly the same. Just the method to run changes.....
 If you downloaded a zip file (extension *.zip) then unzip first in a directory of your choice to get at the file(s)
 
-Extensions will only run on Moneydance version 2021 build 3056 onwards... The scripts don't have this requirement
-NOTE: You may need to download the MD preview version from: https://infinitekind.com/preview
-(If you have installed the extension, but nothing happens, then check your Moneydance version)
+Extensions will only run on Moneydance version 2021 build 3056 onwards (ideally 3069+)...
+The standalone script versions require a minimum of 2019.4 (build 1904 onwards)...
+_(If you have installed the extension, but nothing happens, then check your Moneydance version)_
 
 The <module_name>.zip files in this directory contain both the Extension version (and the Script version if available).
 Unzip this file, and then install the Extension, or run the Script, as required - see below:
-
-_NOTE: On a Mac, in Moneydance versions older than build 3051,  you might see one or two popup System Warning messages
-saying something like: “jffinnnnnnnnnnnnnnnnnnnn.dylib” cannot be opened because the developer cannot be verified.
-macOS cannot verify that this app is free from malware.
-These are irrelevant and harmless messages. Just click any option (Cancel, Ignore, Trash, Bin), it doesn't matter. 
-The script will run un-affected. It's Mac Gatekeeper complaining about a dynamic cache file being created._
 
 To use extension (*.mxt):
 - Run Moneydance
