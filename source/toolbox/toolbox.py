@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1038 - November 2020 thru February 2021 - Stuart Beesley StuWareSoftSystems (~500 programming hours)
+# toolbox.py build: 1039 - November 2020 thru February 2021 - Stuart Beesley StuWareSoftSystems (~500 programming hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -190,6 +190,7 @@
 # build: 1036 - Added the 'Can I delete Currency' menu option
 # build: 1037 - Updated for MD2021.1 stable release build 3069
 # build: 1038 - Change to popup warning about running on a secondary node; as suggested by IK (Sean); Popup warning about improper opening of backup files...
+# build: 1039 - Built in error trap for .getSyncFolder() as it crashes if there is a Dropbox issue on the machine...
 
 # todo - check/fix alert colours since VAqua....!?
 
@@ -213,7 +214,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1038"
+version_build = "1039"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -2187,6 +2188,7 @@ Visit: %s (Author's site)
 
         saveSyncFolder=None
         try:
+            # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
 
@@ -2451,7 +2453,24 @@ Visit: %s (Author's site)
             syncMethod = noSyncOption
         else:
             syncMethod = syncMethod
-        textArray.append(u"Sync Method: %s" %(syncMethod.getSyncFolder()))
+
+        try:
+            textArray.append(u"Sync Method: %s" %(syncMethod.getSyncFolder()))
+        except:
+            textArray.append(u"Sync Method: *** YOU HAVE A PROBLEM WITH YOUR DROPBOX CONFIGURATION! ***")
+            myPrint("B",u"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            myPrint("B",u"!! WARNING - You have a Dropbox configuration issue which is crashing .getSyncFolder() !!")
+            myPrint("B",u"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            MyPopUpDialogBox(toolbox_frame_,
+                             u"WARNING - DROPBOX ERROR",
+                             u"You seem to have a Dropbox configuration issue!?\n"
+                             u"Toolbox cannot fix this for you - please review your console logs\n"
+                             u"and contact the online support forum for help....\n"
+                             u"(if you find a fix, please inform the Toolbox author)",
+                             150,
+                             u"DROPBOX ERROR",
+                             lModal=False,
+                             lAlertLevel=2).go()
 
         if not check_for_dropbox_folder():
             textArray.append(u"Sync WARNING: Dropbox sync will not work until you add the missing .moneydancesync folder - use advanced mode to fix!")
@@ -5554,7 +5573,12 @@ Download from here: %s
         syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
 
         dropboxOption = SyncFolderUtil.configurerForIDFromList("dropbox_folder", syncMethods)
-        if (not dropboxOption) or syncMethod.getSyncFolder():
+
+        try:
+            if (not dropboxOption) or syncMethod.getSyncFolder():
+                return True
+        except:
+            # If there is a problem with Dropbox, .getSyncFolder() will crash....
             return True
 
         userHomeProperty = System.getProperty("UserHome", System.getProperty("user.home", "."))
