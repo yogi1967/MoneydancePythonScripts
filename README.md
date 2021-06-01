@@ -14,6 +14,8 @@ _(If you have installed the extension, but nothing happens, then check your Mone
 The <module_name>.zip files in this directory contain both the Extension version (and the Script version if available).
 Unzip this file, and then install the Extension, or run the Script, as required - see below:
 
+**!! As of June 2021, most extensions available via the Moneydance menu >> Manage Extensions - Check there first !!**
+
 To use extension (*.mxt):
 - Run Moneydance
 - Drag and drop the .mxt file onto the Moneydance left side bar
