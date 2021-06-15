@@ -20,7 +20,7 @@ The minimum version to run as standalone scripts is 2019.4 (build 1904)...
 _(If you have installed the extension, but nothing happens, then check your MD version/build)_
 
 
-**NOTE - As of 1st June 2021 - Most extensions listed below are listed within the Moneydance Manage Extensions menu - Check there first for updates**
+**NOTE - As of June 2021 - All my extensions listed below are listed within the Moneydance Manage Extensions menu - Check there first for updates**
 
 
 Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
@@ -61,7 +61,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1038 - 31st May 2021)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1040 - 14th June 2021)
 - <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed) (build: 1011 - 31st May 2021)
 - <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">list_future_reminders (signed) (build: 1009 - 31st May 2021)
 - <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">net_account_balances (signed) (build: 1003 - 31st May 2021)
