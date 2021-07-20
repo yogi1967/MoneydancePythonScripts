@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1040 - November 2020 thru February 2021 - Stuart Beesley StuWareSoftSystems (~500 programming hours)
+# toolbox.py build: 1041 - November 2020 thru February 2021+ - Stuart Beesley StuWareSoftSystems (>500 programming hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -123,7 +123,7 @@
 # Build: 1020 - Added button to analise dataset objects, files and sizes...; enhanced debug mode (same as console); use mono font in common code MyPopUpDialogBox()
 # Build: 1020 - Massive update to OFX management, new button, menu, updated outputs with extensive data...; updates to Hacker mode
 # Build: 1020 - Allow escape in common QuickJFrames and Popup dialogs.... (triggers cancel)
-# Build: 1020 - Detect missing or invalid ROOT account based on fix_restored_accounts.py (but no fix as I don;t think it's needed any more)...
+# Build: 1020 - Detect missing or invalid ROOT account based on fix_restored_accounts.py (but no fix as I don't think it's needed any more)...
 # Build: 1020 - Extract Attachments button
 # Build: 1020 - added fix_account_parent.py script as a button
 # Build: 1020 - added show_open_tax_lots.py script as a button
@@ -192,11 +192,21 @@
 # build: 1038 - Change to popup warning about running on a secondary node; as suggested by IK (Sean); Popup warning about improper opening of backup files...
 # build: 1039 - Built in error trap for .getSyncFolder() as it crashes if there is a Dropbox issue on the machine...
 # build: 1040 - Changes requested by IK to change / remove version updates from non IK source(s) - so as to load into manage extensions list
+# build: 1041 - Feature to convert TimeStamps to readable dates; Geekout, Diagnosis and manual edit mode for Currency/Security price_date parameter...
+# build: 1041 - Detect cached downloaded bank transactions (OnlineTxnList) at startup...
+# build: 1041 - Enhanced OFX Search data and service profile lists with linkage account key data et al...
+# build: 1041 - Noticed and fixed several JFileChooser file dialogs - since the VAqua LaF upgrade (2021.1) on Macs broke it...
+# build: 1041 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
+# build: 1041 - Enhanced / tweaked Fix relative currencies function (quite a lot ;-> )
+# build: 1041 - New feature - Move/Merge Investment Txns from one account into another >> 550+ lines of code for this neat little function!
+# build: 1041 - New feature - FIX - Detect and fix Investment Security records not properly linked to Security Master records
+# build: 1041 - New feature - FIX - Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.
+# build: 1041 - New feature - FIX - Merge 'duplicate' securities (and related Investment txns) together into one master security record.
+# build: 1041 - Fixed hacker mode on SplitTxns to properly 'manage' the parent record
 
+# todo - Add print button to QuickJFrame()
 # todo - check/fix alert colours since VAqua....!?
-
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
-# todo - build a class for holding txns in Geekout and Hacker modes to fix display width; also handle .syncItem() on split txns..
 # todo - Known  issue  on Linux: Any drag to  resize main window, causes width to maximise. No issue on Mac or Windows..
 # todo - OFX: Generic and specific UUID; set/edit UserID
 
@@ -215,7 +225,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1040"
+version_build = "1041"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1411,10 +1421,15 @@ Visit: %s (Author's site)
             myPrint("DB", "Parameter file", migratedFilename, "exists..")
             # Open the file
             try:
+                # Really we should open() the file in binary mode and read/write as binary, then we wouldn't get platform differences!
                 istr = FileInputStream(migratedFilename)
                 load_file = FileUtil.wrap(istr)
-                # noinspection PyTypeChecker
-                myParameters = pickle.load(load_file)
+                if not Platform.isWindows():
+                    load_string = load_file.read().replace('\r', '')    # This allows for files migrated from windows (strip the extra CR)
+                else:
+                    load_string = load_file.read()
+
+                myParameters = pickle.loads(load_string)
                 load_file.close()
             except FileNotFoundException:
                 myPrint("B", "Error: failed to find parameter file...")
@@ -1496,8 +1511,7 @@ Visit: %s (Author's site)
 
         try:
             save_file = FileUtil.wrap(ostr)
-            # noinspection PyTypeChecker
-            pickle.dump(myParameters, save_file)
+            pickle.dump(myParameters, save_file, protocol=0)
             save_file.close()
 
             myPrint("DB","myParameters now contains...:")
@@ -1965,6 +1979,21 @@ Visit: %s (Author's site)
                     dump_sys_error_to_md_console_and_errorlog()
 
         return dictInfo
+
+    def convertStrippedIntDateFormattedText( strippedDateInt ):
+
+        prettyDate = ""
+        try:
+            c = Calendar.getInstance()
+            dateFromInt = DateUtil.convertIntDateToLong(strippedDateInt)
+            c.setTime(dateFromInt)
+            dateFormatter = SimpleDateFormat("yyyy/MM/dd")
+            prettyDate = dateFormatter.format(c.getTime())
+        except:
+            pass
+
+        return prettyDate
+
 
     class DetectAndChangeMacTabbingMode(AbstractAction):
 
@@ -3697,6 +3726,13 @@ Visit: %s (Author's site)
 
         QuickJFrame("VIEW SAVED ONLINE DATA",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
+    # replicates com.moneydance.apps.md.view.gui.MDAccountProxy.getAccountKey()
+    def my_get_account_key(acct):
+        acctNum = acct.getAccountNum()
+        if acctNum <= 0:
+            return acct.getUUID()
+        return str(acctNum)
+
     def get_ofx_related_data():
 
         from java.lang.reflect import Modifier
@@ -3735,9 +3771,9 @@ Visit: %s (Author's site)
         else:
             for olAcct in listAccountMDProxies:
                 if not olAcct[2]:
-                    OFX.append("- %s Bank Profile: %s" %(pad(olAcct[0].getAccount().getFullAccountName(),40),olAcct[1]))
+                    OFX.append("- {:40} ('Key': {:15}) OFXAccNum: {:15} Bank Profile: {}".format(olAcct[0].getAccount().getFullAccountName(), olAcct[0].getAccountKey(), olAcct[0].getOFXAccountNumber(), olAcct[1]))
                 else:
-                    OFX.append("- %s BillPay Profile: %s" %(pad(olAcct[0].getAccount().getFullAccountName(),40),olAcct[1]))
+                    OFX.append("- {:40} ('Key': {:15}) OFXAccNum: {:15} BillPay Prof: {}".format(olAcct[0].getAccount().getFullAccountName(), olAcct[0].getAccountKey(), olAcct[0].getOFXAccountNumber(), olAcct[1]))
         OFX.append("")
 
         for service in MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices():
@@ -3763,9 +3799,9 @@ Visit: %s (Author's site)
             if len(service.getAvailableAccounts())<1:
                 OFX.append("<NONE FOUND>")
             else:
-                OFX.append(pad(" -- List All accounts configured in profile:",40) + str(service.getAvailableAccounts()))
+                OFX.append(" -- List All accounts configured in profile: %s\n" %(service.getAvailableAccounts()))
                 for availAccount in service.getAvailableAccounts():
-                    OFX.append(">> ACCOUNT: %s (%s)" %(availAccount.getDescription(),availAccount.getAccountNumber()))
+                    OFX.append(">> ACCOUNT: %s (%s) ('Key': %s)" %(availAccount.getDescription(),availAccount.getAccountNumber(),availAccount.getAccountKey()))
 
                     try:
                         # Rather than listing all methods by hand, just iterate and call them all.. I have checked they are all safe...
@@ -3777,6 +3813,7 @@ Visit: %s (Author's site)
                                 result = meth.invoke(availAccount)
                                 if result is not None:
                                     OFX.append(" >> %s %s" %(pad(meth.getName(),40),result) )
+                        OFX.append("\n")
                     except:
                         pass
 
@@ -3788,9 +3825,9 @@ Visit: %s (Author's site)
             else:
                 for olacct in thisServiceMDAccountProxies:
                     if not olacct[2]:
-                        OFX.append(" >> Banking: %s" %(olacct[0].getAccount().getFullAccountName()))
+                        OFX.append(" >> Banking: %s ('Key': %s) (OfxAcctNum: %s)" %(olacct[0].getAccount().getFullAccountName(), olacct[0].getAccountKey(), olacct[0].getOFXAccountNumber()))
                     else:
-                        OFX.append(" >> BillPay: %s" %(olacct[0].getAccount().getFullAccountName()))
+                        OFX.append(" >> BillPay: %s ('Key': %s) (OfxAcctNum: %s)" %(olacct[0].getAccount().getFullAccountName(), olacct[0].getAccountKey(), olacct[0].getOFXAccountNumber()))
 
             OFX.append("")
 
@@ -3811,21 +3848,29 @@ Visit: %s (Author's site)
             realmsToCheck = service.getRealms()
             if "DEFAULT" not in realmsToCheck:
                 realmsToCheck.insert(0,"DEFAULT")
+
             for realm in realmsToCheck:
-                OFX.append("Realm: %s User ID: %s" %(realm, service.getUserId(realm, None)))
+
+                realmUserID = service.getUserId(realm, None)
+                if realmUserID is not None and realmUserID != "":
+                    OFX.append("Realm: %s User ID: %s" %(realm, service.getUserId(realm, None)))
+
                 for olacct in thisServiceMDAccountProxies:
+
+                    userID=service.getUserId(realm, olacct[0])
+                    if userID is not None and userID != "":
+                        OFX.append("Realm: %s Account's UserID: %s" %(realm, userID))
 
                     if lCachePasswords:
                         authKey = "ofx:" + realm
                         authObj = service.getCachedAuthentication(authKey)
-                        OFX.append("Realm: %s Cached Authentication: %s" %(realm, authObj))
+                        if authObj is not None and authObj != "":
+                            OFX.append("Realm: %s Cached Authentication: %s" %(realm, authObj))
 
                         authKey = "ofx:" + (realm + "::" + olacct[0].getAccountKey())
                         authObj = service.getCachedAuthentication(authKey)
-                        OFX.append("Realm: %s Account Key: %s Cached Authentication: %s" %(realm, olacct[0].getAccountKey(),authObj))
-
-                    userID=service.getUserId(realm, olacct[0])
-                    OFX.append("Realm: %s UserID: %s" %(realm, userID))
+                        if authObj is not None and authObj != "":
+                            OFX.append("Realm: %s Account Key: %s (Key: %s / AccNum: %s) Cached Authentication: %s" %(realm, olacct[0].getAccountKey(), olacct[0].getOFXAccountKey(), olacct[0].getOFXAccountNumber(), authObj))
 
                     if service.getSessionCookie(userID) is not None:
                         OFX.append("Session Cookie: %s" %(service.getSessionCookie(userID)))
@@ -4247,6 +4292,31 @@ Visit: %s (Author's site)
                         or acct.getAccountType() == Account.AccountType.LIABILITY):
                     return False
 
+            # Security sub accounts for stock holdings
+            if self.selectType == 22:
+                # noinspection PyUnresolvedReferences
+                if not (acct.getAccountType() == Account.AccountType.SECURITY):
+                    return False
+                return True
+
+            # Investment Accounts only
+            if self.selectType == 23:
+                # noinspection PyUnresolvedReferences
+                if not (acct.getAccountType() == Account.AccountType.INVESTMENT):
+                    return False
+                return True
+
+            # Security sub accounts for stock holdings where the relative currency is None - i.e. not properly linked to it's Security Master
+            if self.selectType == 24:
+                # noinspection PyUnresolvedReferences
+                if not (acct.getAccountType() == Account.AccountType.SECURITY):
+                    return False
+                acctCurr = acct.getCurrencyType()
+                if (acctCurr is None or acctCurr.getCurrencyType() != CurrencyType.Type.SECURITY                        # noqa
+                        or acct.getParameter("curr", None) is None or acct.getParameter("currid", None) is None):
+                    return True
+                return False
+
             if (acct.getAccountOrParentIsInactive()): return False
             if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
 
@@ -4369,11 +4439,10 @@ Visit: %s (Author's site)
                 System.setProperty("apple.awt.fileDialogForDirectories", "true")
 
             filename = FileDialog(toolbox_frame_, "Select location to copy Console Log file to... (CANCEL=ABORT)")
+            filename.setDirectory(get_home_dir())
             filename.setMultipleMode(False)
             filename.setMode(FileDialog.SAVE)
             filename.setFile('copy_of_errlog.txt')
-            # filename.setDirectory(self.theFile.getParent())
-            filename.setDirectory(get_home_dir())
 
             if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
                 extFilter = ExtFilenameFilter("txt")
@@ -4712,6 +4781,565 @@ Visit: %s (Author's site)
 
         output += "\n<END>"
         return output
+
+    def isGoodRate(theRate):
+
+        if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
+            return False
+
+        return True
+
+    def safeInvertRate(theRate):
+
+        if not isGoodRate(theRate):
+            return theRate
+
+        return (1.0 / theRate)
+
+
+    def checkCurrencyRawRatesOK(theCurr):
+
+        checkRate = theCurr.getParameter("rate", None)
+        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
+        checkRRate = theCurr.getParameter("rrate", None)
+        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
+
+        if checkRate is None or not isGoodRate(checkRateDouble):
+            myPrint("B", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s" %(theCurr))
+            return False
+
+        if checkRRate is None or not isGoodRate(checkRRateDouble):
+            myPrint("B", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s" %(theCurr))
+            return False
+
+        return True
+
+
+    def check_all_currency_raw_rates_ok():
+
+        currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+        for curr in currs:
+            if not checkCurrencyRawRatesOK(curr):
+                return False
+
+        return True
+
+
+    def manually_edit_price_date_field(statusLabel):
+        global lAdvancedMode
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if MD_REF.getCurrentAccount().getBook() is None: return
+        if not (lAdvancedMode): return
+
+        currencies = list_security_currency_price_date(None,autofix=False, justProvideFilter=True)
+        if currencies is None:
+            statusLabel.setText(("No Currency/Security filter option was selected..").ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            return
+
+        currs = []
+        for curr in currencies:
+            currs.append(StoreCurrencySecurity(curr))
+
+        selectedCurrSec = JOptionPane.showInputDialog(toolbox_frame_,
+                                                      "Select the Currency/Security to edit the current price hidden 'price_date' field:",
+                                                      "Edit price_date - Select CURRENCY/SECURITY",
+                                                      JOptionPane.INFORMATION_MESSAGE,
+                                                      MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                      currs,
+                                                      None)
+        if not selectedCurrSec:
+            statusLabel.setText(("No Currency/Security was selected..").ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            return
+
+        if not checkCurrencyRawRatesOK(selectedCurrSec.obj):                                                            # noqa
+            txt = "@@ ERROR: Old format Currency record detected (empty relative rate). Please manually edit the Currency/Security first to fix - No changes allowed!"
+            statusLabel.setText((txt).ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            myPrint("B",txt)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        currPriceDate = selectedCurrSec.obj.getLongParameter("price_date", 0L)                                          # noqa
+
+        if currPriceDate > 0:
+            theCurrentDatePretty = get_time_stamp_as_nice_text(currPriceDate)
+        else:
+            theCurrentDatePretty = "NOT SET"
+
+        newestSnapshotDate = 0
+        newestSnapshotPrice = 0
+        relCurr = selectedCurrSec.obj.getRelativeCurrency()                                                             # noqa
+        currentPrice = selectedCurrSec.obj.getRelativeRate()                                                            # noqa
+        currSnapshots = selectedCurrSec.obj.getSnapshots()                                                              # noqa
+        if len(currSnapshots)>0:
+            newestSnapshotDate = currSnapshots[-1].getDateInt()
+            newestSnapshotPrice = currSnapshots[-1].getRate()
+
+        if newestSnapshotDate > 0:
+            theLatestSnapshotDatePretty = "%s" %(convertStrippedIntDateFormattedText(newestSnapshotDate))
+        else:
+            theLatestSnapshotDatePretty = "NOT SET"
+
+        if isGoodRate(newestSnapshotPrice):
+            txtLatestSnapshotPrice = "%s" %(safeInvertRate(newestSnapshotPrice))
+        else:
+            txtLatestSnapshotPrice = "NOT SET"
+
+        MyPopUpDialogBox(toolbox_frame_,
+                         "FOR INFO: Currency/Security details:",
+                         "Current price hidden 'price_date' is currently: %s\n"
+                         "(which means: %s)\n"
+                         "Latest dated price history date: %s\n"
+                         "Current Price: %s\n"
+                         "Latest Dated History Price: %s"
+                         %(currPriceDate, theCurrentDatePretty, theLatestSnapshotDatePretty,safeInvertRate(currentPrice),txtLatestSnapshotPrice),
+                         theTitle="MANUALLY EDIT HIDDEN PRICE_DATE FIELD").go()
+
+        labelUpdateDate = JLabel("Select the new current price hidden 'price_date' (enter as yyyy/mm/dd):")
+        user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+        if newestSnapshotDate > 0:
+            user_selectDateStart.setDateInt(min(newestSnapshotDate,DateUtil.getStrippedDateInt()))
+        else:
+            user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
+
+        labelUpdatePrice = JLabel("Choose which current price to use (ie. existing price or latest history price")
+
+        user_selectCurrentPrice = user_selectHistoryPrice = None
+        if isGoodRate(newestSnapshotPrice):
+            user_selectCurrentPrice = JRadioButton("Keep Current Price: %s" %(safeInvertRate(currentPrice)), True)
+            user_selectHistoryPrice = JRadioButton("Switch to Latest History Price: %s" %(safeInvertRate(newestSnapshotPrice)), False)
+            bg = ButtonGroup()
+            bg.add(user_selectCurrentPrice)
+            bg.add(user_selectHistoryPrice)
+
+        datePanel = JPanel(GridLayout(0, 1))
+        datePanel.add(labelUpdateDate)
+        datePanel.add(user_selectDateStart)
+        if isGoodRate(newestSnapshotPrice):
+            datePanel.add(JLabel(""))
+            datePanel.add(JLabel("----"))
+            datePanel.add(labelUpdatePrice)
+            datePanel.add(user_selectCurrentPrice)
+            datePanel.add(user_selectHistoryPrice)
+
+        options = ["Cancel", "OK"]
+
+        userAction = JOptionPane.showOptionDialog(toolbox_frame_,
+                                                  datePanel,
+                                                  "Enter new current price hidden 'price_date' / price/rate fields:",
+                                                  JOptionPane.OK_CANCEL_OPTION,
+                                                  JOptionPane.QUESTION_MESSAGE,
+                                                  None,
+                                                  options,
+                                                  options[0])
+
+        if userAction != 1:
+            statusLabel.setText(("User cancelled entering a new current price hidden 'price_date' - exiting").ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            return
+
+        if user_selectDateStart.getDateInt() < 20150101 or user_selectDateStart.getDateInt() > DateUtil.getStrippedDateInt():
+
+            if user_selectDateStart.getDateInt() > DateUtil.getStrippedDateInt() \
+                    and myPopupAskQuestion(toolbox_frame_,"Enter Future Date?","Do you really want to enter a future current price hidden 'price_date'?"):
+                pass
+            else:
+                statusLabel.setText(("User cancelled by entering an invalid hidden price_date...").ljust(800, " "))
+                statusLabel.setForeground(Color.RED)
+                return
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, "CURRENCY/SECURITY - UPDATE 'price_date'","Update the current price hidden 'price_date' field to %s?" %(user_selectDateStart.getDateInt())):
+            return
+
+        newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
+
+        selectedCurrSec.obj.setEditingMode()                                                                            # noqa
+        selectedCurrSec.obj.setParameter("price_date", newDate)                                                         # noqa
+        if isGoodRate(newestSnapshotPrice) and user_selectHistoryPrice and user_selectHistoryPrice.isSelected():
+            selectedCurrSec.obj.setRate(Util.safeRate(newestSnapshotPrice),relCurr)                                     # noqa
+        selectedCurrSec.obj.syncItem()                                                                                  # noqa
+
+        play_the_money_sound()
+        _msg = "Edit of current price hidden 'price_date' field for curr/sec: %s successfully set to: %s (%s)" %(selectedCurrSec,newDate,user_selectDateStart.getDateInt())
+        statusLabel.setText(_msg.ljust(800, " ")); statusLabel.setForeground(Color.RED)
+        myPrint("B", _msg)
+        if isGoodRate(newestSnapshotPrice) and user_selectHistoryPrice and user_selectHistoryPrice.isSelected():
+            myPrint("B", "... current price also updated to: %s" %(safeInvertRate(newestSnapshotPrice)))
+        myPopupInformationBox(toolbox_frame_,_msg,"Edit current price hidden 'price_date' field",JOptionPane.WARNING_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+    def list_security_currency_price_date(statusLabel, autofix=False, justProvideFilter=False):
+        global toolbox_frame_, debug, DARK_GREEN
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        if justProvideFilter: autofix = False
+
+        if MD_REF.getCurrentAccount().getBook() is None: return None
+
+        listCurrs = []
+        currs_to_fix = []
+
+        lMustRunFixCurrenciesFirst = False
+
+        if not justProvideFilter:
+            myPrint("B", "Script is analysing your Currency & Security current price hidden 'price_date' fields...........")
+            myPrint("P", " -----------------------------------------------------------------------------------------------")
+
+            quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
+            if quoteLoader_or_QER_Loaded:
+
+                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+
+                ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating whilst running current price hidden 'price_date' fix?")
+
+                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+                if not ask:
+                    statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst running hidden 'price_date' fix - NO CHANGES MADE").ljust(800, " "))
+                    statusLabel.setForeground(Color.RED)
+                    return
+
+
+        options = ["All (both Currencies & Securities)",
+                   "All - Shown on Summary Screen Only",
+                   "Currencies - All",
+                   "Currencies - Shown on Summary screen Only",
+                   "Securities - All",
+                   "Securities - Shown on Summary screen Only",
+                   "Securities - With holdings Only",
+                   "All - include OK objects too"]
+
+        displayText = ["REPORT OPTIONS (list objects with error)", "Select your report filters/options"]
+        if justProvideFilter:
+            displayText = ["EDIT OPTIONS (lists objects with errors)", "Select filters/options for Edit List"]
+
+        selectedOption = JOptionPane.showInputDialog(toolbox_frame_,
+                                                       displayText[0], displayText[1],
+                                                       JOptionPane.INFORMATION_MESSAGE,
+                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       options,                                                         # noqa
+                                                       None)
+
+        if not selectedOption:
+            if justProvideFilter: return None
+            statusLabel.setText("No report option was selected - aborting..".ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            return
+
+        lAll = lSummaryScreenOnly = lCurrencyOnly = lSecurityOnly = lSecurityHoldings = lEverything = False
+        optionIndex = options.index(selectedOption)
+        if optionIndex in (0,1,7):  lAll = True
+        if optionIndex in (2,3):    lCurrencyOnly = True
+        if optionIndex in (4,5,6):  lSecurityOnly = True
+        if optionIndex in (1,3,5):  lSummaryScreenOnly = True
+        if optionIndex == 6:        lSecurityHoldings = True
+        if optionIndex == 7:        lEverything = True
+
+        iWarnings = 0
+
+        currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+        currs = sorted(currs, key=lambda x: (x.getCurrencyType(), x.getName().upper()))
+
+        if not justProvideFilter:
+            if not check_all_currency_raw_rates_ok():
+                myPrint("B","@@ Error: failed checkCurrencyRawRatesOK() check... Exiting list_security_currency_price_date() without any changes...")
+                txt = "ERROR: You have old format Currency/Security record(s). Consider running Fix relative currencies option first"
+                myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                return
+
+        if justProvideFilter and lEverything: return currs
+
+        output = "\nDiagnosing your Security / Currency's current price hidden 'price_date' fields (Normally showing errors only)\n" \
+                 " ==============================================================================================================\n\n"
+
+        def get_curr_sec_name(curr_sec):
+            if curr_sec.getName() is not None and len(curr_sec.getName().strip()) > 0:
+                return curr_sec.getName()
+            return (curr_sec.getIDString() + ":" + curr_sec.getIDString())
+
+        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+        base = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
+
+        def analyse_curr(theCurr, theType):
+            output = ""                                                                                                 # noqa
+            iWarn = 0
+            _lMustRunFixCurrenciesFirst = False
+            nowTimeMS = System.currentTimeMillis()
+            intNowTime = DateUtil.convertLongDateToInt(nowTimeMS)
+
+            for sec_curr in theCurr:
+                if sec_curr == base: continue
+                if sec_curr.getCurrencyType() != theType: continue
+                if lSummaryScreenOnly and sec_curr.getHideInUI(): continue
+
+                qtyHeld = 0
+                if sec_curr.getCurrencyType() == CurrencyType.Type.SECURITY:                                            # noqa
+                    qtyHeld = get_security_holdings(sec_curr)
+                    if lSecurityHoldings and qtyHeld == 0: continue
+
+                currPriceDate = sec_curr.getLongParameter("price_date", 0L)
+
+                newestRate = newestSnapshotDate = intLatestSnapDate = 0
+                currSnapshots = sec_curr.getSnapshots()
+                snap = None
+                if len(currSnapshots)>0:
+                    snap = currSnapshots[-1]
+                    newestRate = snap.getRate()
+                    intLatestSnapDate = newestSnapshotDate = snap.getDateInt()
+
+                if newestSnapshotDate > 0:
+                    newestSnapshotDate = DateUtil.convertIntDateToLong(newestSnapshotDate)
+
+                lSkip = False
+                if currPriceDate < 1:
+                    lSkip = True
+                else:
+                    if newestSnapshotDate > 0:
+                        if (DateUtil.convertDateToInt(newestSnapshotDate) <= DateUtil.convertLongDateToInt(nowTimeMS)
+                                and DateUtil.convertLongDateToInt(currPriceDate) <= DateUtil.convertLongDateToInt(nowTimeMS)
+                                and DateUtil.convertLongDateToInt(currPriceDate) == DateUtil.convertDateToInt(newestSnapshotDate)):
+                            lSkip = True
+                    else:
+                        if DateUtil.convertLongDateToInt(currPriceDate) <= DateUtil.convertLongDateToInt(nowTimeMS):
+                            lSkip = True
+
+                if not lEverything and lSkip: continue
+
+                if justProvideFilter:
+                    listCurrs.append(sec_curr)
+                    continue
+
+                if lEverything and not lSkip:
+                    output += "** "
+
+                output += "{}".format(get_curr_sec_name(sec_curr))
+                if sec_curr.getCurrencyType() == CurrencyType.Type.SECURITY:                                            # noqa
+                    output += " ({}:{})".format(sec_curr.getTickerSymbol(),sec_curr.getIDString())
+                    if qtyHeld != 0:
+                        output += "\tQty Held: {}".format(sec_curr.formatSemiFancy(qtyHeld, MD_decimal))
+                else:
+                    output += " ({})".format(sec_curr.getIDString())
+
+                if lSkip:
+                    if currPriceDate < 1:
+                        niceDate = "NOT SET"
+                    else:
+                        niceDate = get_time_stamp_as_nice_text(currPriceDate)
+                    output += " - OK (price_date = %s)\n\n" %(niceDate)
+                    continue
+
+                lUpdateRequired = False
+                output += "\nprice_date (%s) = %s\n" %(currPriceDate,get_time_stamp_as_nice_text(currPriceDate))
+
+                if DateUtil.convertLongDateToInt(currPriceDate) > DateUtil.convertLongDateToInt(nowTimeMS):
+                    lUpdateRequired = True
+                    output += "@@ WARNING: Your current price hidden 'price_date' field is future dated! **\n"
+
+                if DateUtil.convertLongDateToInt(currPriceDate) < DateUtil.convertDateToInt(newestSnapshotDate):
+                    output += "@@ WARNING: Your current price hidden 'price_date' field is older than latest dated price history date: %s\n" %(convertStrippedIntDateFormattedText(DateUtil.convertDateToInt(newestSnapshotDate)))
+
+                    if DateUtil.convertLongDateToInt(currPriceDate) < DateUtil.convertLongDateToInt(nowTimeMS):
+                        lUpdateRequired = True
+
+                if newestSnapshotDate > 0 and (DateUtil.convertDateToInt(newestSnapshotDate) > DateUtil.convertLongDateToInt(nowTimeMS)):
+                    output += "@@ WARNING: Your price history date(s) are future dated! **\n"
+                    output += "... latest dated price history date: %s\n" %(convertStrippedIntDateFormattedText(DateUtil.convertDateToInt(newestSnapshotDate)))
+
+                if newestSnapshotDate > 0 and (DateUtil.convertLongDateToInt(currPriceDate) > DateUtil.convertDateToInt(newestSnapshotDate)):
+                    lUpdateRequired = True
+                    output += "@@ WARNING: current price hidden 'price_date' field is newer than your latest dated price history date....\n"
+                    output += "... latest dated price history date: %s\n" %(convertStrippedIntDateFormattedText(DateUtil.convertDateToInt(newestSnapshotDate)))
+
+                if not isGoodRate(sec_curr.getRelativeRate()):
+                    output += "@@ WARNING: current price/rate is not a valid number: %s\n" %(sec_curr.getRelativeRate())
+
+                if snap and not isGoodRate(snap.getRate()):
+                    output += "@@ WARNING: Latest dated price history price/rate is not a valid number: %s\n" %(snap.getRate())
+
+                if lUpdateRequired and snap and sec_curr.getRelativeRate() != snap.getRate():
+                    output +=  "... current price/rate %s, latest dated price history price/rate %s\n" %(safeInvertRate(sec_curr.getRelativeRate()), safeInvertRate(snap.getRate()))
+
+                if lUpdateRequired:
+                    if not checkCurrencyRawRatesOK(sec_curr):
+                        output += "@@@ ERROR: Currency object has an old underlying format (empty 'rate' / 'rrate' fields); please manually edit this Currency/Security to fix (skipping....) @@@\n"
+                        _lMustRunFixCurrenciesFirst = True
+                        lUpdateRequired = False
+
+                iWarn += 1
+                output += "\n\n"
+
+                if autofix:
+                    if not lSkip and snap and lUpdateRequired and currPriceDate > 0 and intLatestSnapDate > 0:
+                        relCurr = sec_curr.getRelativeCurrency()
+                        currs_to_fix.append([sec_curr,
+                                             DateUtil.convertIntDateToLong(min(intNowTime,intLatestSnapDate)).getTime(),
+                                             Util.safeRate(newestRate),
+                                             relCurr])
+
+            return iWarn, output, _lMustRunFixCurrenciesFirst
+
+        if lAll or lSecurityOnly:
+            output += " ===================\n"
+            output += " --- SECURITIES ----\n"
+            output += " ===================\n"
+
+            # noinspection PyUnresolvedReferences
+            result = analyse_curr(currs, CurrencyType.Type.SECURITY)
+            iWarnings += result[0]
+            output += result[1]
+            if result[2]: lMustRunFixCurrenciesFirst = True
+
+        if lAll or lCurrencyOnly:
+            output += " ===================\n"
+            output += " --- CURRENCIES ----\n"
+            output += " ===================\n"
+
+            # noinspection PyUnresolvedReferences
+            result = analyse_curr(currs, CurrencyType.Type.CURRENCY)
+            iWarnings += result[0]
+            output += result[1]
+            if result[2]: lMustRunFixCurrenciesFirst = True
+
+        if justProvideFilter: return listCurrs
+
+        output += "-----------------------------------------------------------------"
+        if iWarnings:
+            output += "\nYou have %s Warning(s)..\n" % iWarnings
+            output += "These are where your current price hidden 'price_date' field is future dated, or newer/older than your latest dated price history date\n"
+            if not autofix:
+                output += "To Fix a Warning use Advanced Mode, MENU: FIX: Manually edit a currency/ security's current price hidden 'price_date' field (will also allow you to fix the current price/rate)\n" \
+                          "or consider using FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)\n"
+            myPrint("J", "price_date: You have %s Warning(s).. Refer diagnostic file...\n" % iWarnings)
+            statusLabel.setText(("price_date: You have %s Warning(s).. Refer diagnostic file..." % iWarnings).ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+        else:
+            _msg = "All good, current price hidden 'price_date' looks clean! Congratulations!"
+            output += "\n%s\n" %(_msg)
+            myPrint("J", _msg)
+            statusLabel.setText(_msg.ljust(800, " "))
+            statusLabel.setForeground(DARK_GREEN)
+
+        output += "\n\n\nReport Parameters:\n"
+        output += "All (Both Securities and Currencies): %s\n" %(lAll)
+        output += "Securities Only:                      %s\n" %(lSecurityOnly)
+        output += "Currencies Only:                      %s\n" %(lCurrencyOnly)
+        output += "Shown on Summary Screen Only Filter:  %s\n" %(lSummaryScreenOnly)
+        output += "Securities with Holdings Only Filter: %s\n" %(lSecurityHoldings)
+        output += "All including OK Objects too:         %s\n" %(lEverything)
+        output += "-----------------------------------------------------------------\n"
+
+        if not autofix: output += "\n<END>"
+
+        jif = QuickJFrame("DIAGNOSE SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+        if lMustRunFixCurrenciesFirst:
+            txt = "@@ ERROR: old format Currency record(s) detected (review output). Consider running Fix relative currencies option @@"
+            myPrint("B", txt)
+            statusLabel.setText((txt).ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        if not autofix: return
+
+        if len(currs_to_fix) < 1:
+            myPopupInformationBox(jif,"There are no warnings to fix / can be fixed - will exit without changes","AUTOFIX HIDDEN CURRENT PRICE 'PRICE_DATE' FIELD")
+            return
+
+        MyPopUpDialogBox(jif,
+                         "Proceed to autofix?",
+                         "At the next screen you will be asked whether to proceed with the change(s), to backup, and to accept the disclaimer\n"
+                         "Clicking YES will fix all the WARNINGS identified/displayed.\n"
+                         "It will also then ask you whether you wish to update any Current Prices if they are different from the Last Dated History Price.\n",
+                         theTitle="HIDDEN PRICE DATE FIELD AUTOFIX",
+                         OKButtonText="NEXT STEP").go()
+
+        if not confirm_backup_confirm_disclaimer(jif, statusLabel,"AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELDS",
+                                                 "EXECUTE AUTOFIX on %s CURRENCY/SECURITY HIDDEN 'PRICE_DATE' RECORDS?" %(len(currs_to_fix))):
+            return
+
+        lUpdatePricesToo = myPopupAskQuestion(jif,"AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELDS","Shall I update the current price(s) to match the latest price history at the same time?")
+
+        jif.dispose()
+
+        myPrint("B","AUTOFIX Currency / Security current price hidden 'price_date' fields running on %s records..." %(len(currs_to_fix)))
+        output += "\n\n\nAUTOFIX log....\n ===============\n\n"
+
+        txt = "AUTOFIX: User Response: Update current price to match latest dated history price too: %s" %(lUpdatePricesToo)
+        myPrint("B",txt)
+        output += ("\n" + txt + "\n\n")
+
+        _CURRS_FIX_CURR = 0
+        _CURRS_FIX_DATE = 1
+        _CURRS_FIX_NEWRATE = 2
+        _CURRS_FIX_RELCURR = 3
+
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+        MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
+        MD_REF.getUI().setSuspendRefresh(True)
+
+        for fix_reqd in currs_to_fix:
+            curr = fix_reqd[_CURRS_FIX_CURR]
+            newDateLong = fix_reqd[_CURRS_FIX_DATE]
+            newRate = fix_reqd[_CURRS_FIX_NEWRATE]
+            rCurr = fix_reqd[_CURRS_FIX_RELCURR]
+            oldRate = curr.getRelativeRate()
+
+            lUpdateThisPrice = lUpdatePricesToo
+            if newRate == 0 or newRate == oldRate or not isGoodRate(newRate):
+                lUpdateThisPrice = False
+
+            myPrint("B","")
+            myPrint("B", "@@ FIXING: %s (relative curr: %s)." %(curr, rCurr))
+            output += ("@@ FIXING: %s (relative curr: %s).\n" %(curr, rCurr))
+
+            myPrint("B", "...Updating current price hidden 'price_date' to %s" %(get_time_stamp_as_nice_text(newDateLong)))
+            output += ("...Updating current price hidden 'price_date' to %s\n" %(get_time_stamp_as_nice_text(newDateLong)))
+
+            if lUpdateThisPrice:
+                myPrint("B", "...Updating current rate from %s to %s" %(safeInvertRate(oldRate), safeInvertRate(newRate)))
+                output += ("...Updating current rate from %s to %s\n" %(safeInvertRate(oldRate), safeInvertRate(newRate)))
+
+            myPrint("B","")
+            output += "\n"
+
+            curr.setEditingMode()
+            curr.setParameter("price_date", newDateLong)
+            if lUpdateThisPrice:
+                curr.setRate(Util.safeRate(newRate),rCurr)
+            curr.syncItem()
+
+        MD_REF.getUI().getMain().saveCurrentAccount()
+        MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
+        MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+
+        txt = "AUTOFIX: %s records updated" %(len(currs_to_fix))
+        myPrint("B",txt)
+        output += txt
+        output += "\n<END>\n"
+
+        jif = QuickJFrame("AUTOFIX SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+        _msg = "AUTOFIX: %s records fixed" %(len(currs_to_fix))
+        statusLabel.setText(_msg.ljust(800, " "))
+        statusLabel.setForeground(DARK_GREEN)
+        play_the_money_sound()
+        myPopupInformationBox(jif,_msg,"AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD")
+
+        myPopupInformationBox(jif,"PLEASE RESTART MONEYDANCE!",
+                              "AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD",
+                              theMessageType=JOptionPane.ERROR_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+        return
 
     def read_preferences_file(lSaveFirst=False):
 
@@ -5229,6 +5857,24 @@ Please update any that you use before proceeding....
             lCurrencies=(user_fixOnlyCurrencies.isSelected() or user_fixBothCurrenciesAndSecurities.isSelected())
             lSecurities=(user_fixOnlySecurities.isSelected() or user_fixBothCurrenciesAndSecurities.isSelected())
 
+        else:
+
+            quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
+            if quoteLoader_or_QER_Loaded:
+
+                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+
+                ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating whilst diagnosing currencies/securities?")
+
+                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+                if not ask:
+                    statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst running diagnose currencies/securities - NO CHANGES MADE").ljust(800, " "))
+                    statusLabel.setForeground(Color.RED)
+                    return
+
+
         # OK - let's do it!
         fixRCurrencyCheck = None
 
@@ -5245,203 +5891,335 @@ Please update any that you use before proceeding....
             output = "DIAGNOSE RELATIVE CURRENCIES & SECURITIES\n" \
                      " ========================================\n\n"
 
-        if lFix:
-            output += "FIX MODE:\n" \
-                      " ========\n" \
-                      "Parameters Selected:\n" \
-                      "- Fix Errors: %s\n" \
-                      "- Fix Errors and Warnings: %s\n" \
-                      "- Fix Currencies: %s\n" \
-                      "- Fix Securities: %s\n" \
-                      "- VERBOSE: %s\n\n" \
-                      % (lFixErrors, lFixWarnings, lCurrencies, lSecurities, VERBOSE)
+        # Catch any error during update - this would be bad! :-<
+        try:
+            if lFix:
+                output += "FIX MODE:\n" \
+                          " ========\n" \
+                          "Parameters Selected:\n" \
+                          "- Fix Errors: %s\n" \
+                          "- Fix Errors and Warnings: %s\n" \
+                          "- Fix Currencies: %s\n" \
+                          "- Fix Securities: %s\n" \
+                          "- VERBOSE: %s\n\n" \
+                          % (lFixErrors, lFixWarnings, lCurrencies, lSecurities, VERBOSE)
 
-        if not lFix or lCurrencies:
-            output += "Analysing the Base currency setup....\n"
-            output += "Base currency: %s\n" % baseCurr
+                MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+                MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
+                MD_REF.getUI().setSuspendRefresh(True)
 
-            if baseCurr.getParameter("rrate", None) is None or baseCurr.getDoubleParameter("rrate", 0.0) != 1.0:
-                myPrint("J", "@@ERROR@@ - base currency %s has relative rate (rrate) <> 1: %s" %(baseCurr, baseCurr.getParameter("rrate", None)))
-                output += "----\n@@ ERROR @@ - base currency %s has relative rate (rrate) <> 1: %s\n----\n" %(baseCurr, baseCurr.getParameter("rrate", None))
-                lNeedFixScript = True
-                if lFix:
-                    baseCurr.setEditingMode()
-                    baseCurr.setParameter("rrate", 1.0)
-                    myPrint("J", "@@CURRENCY FIX APPLIED@@")
-                    output += "----\n@@CURRENCY FIX APPLIED@@\n----\n"
+            if not lFix or lCurrencies:
+                output += "Analysing the Base currency setup....\n"
+                output += "Base currency: %s\n" % baseCurr
 
-            if baseCurr.getParameter("rate", None) is None or baseCurr.getDoubleParameter("rate", 0.0) != 1.0:
-                myPrint("J", "@@ERROR@@ - base currency has rate <> 1: %s" %(baseCurr.getParameter("rate", None)))
-                output += "----\n@@ ERROR @@ - base currency has rate <> 1: %s\n----\n" %(baseCurr.getParameter("rate", None))
-                lNeedFixScript = True
-                if lFix:
-                    baseCurr.setEditingMode()
-                    baseCurr.setParameter("rate", 1.0)
-                    myPrint("J", "@@CURRENCY FIX APPLIED@@")
-                    output += "----\n@@CURRENCY FIX APPLIED@@\n----\n"
-
-            if lFix and lNeedFixScript:
-                baseCurr.syncItem()
-
-            if not lNeedFixScript:
-                output += ("Base currency has Rate (rate) of: %s and Relative Rate (rrate): of %s.  This is Correct...\n"
-                           % (baseCurr.getParameter("rate", None), baseCurr.getParameter("rrate", None)))
-
-            baseSnapshots = baseCurr.getSnapshots()
-            if baseSnapshots.size() > 0:
-                lNeedFixScript = True
-                myPrint("J","ERROR: base currency has %s historical prices! These need to be deleted!" % (baseSnapshots.size()))
-                output += "----\n@@ ERROR: base currency has %s historical prices! These need to be deleted!\n----\n" % (baseSnapshots.size())
-                for baseSnapshot in baseSnapshots:
+                if baseCurr.getParameter("rrate", None) is None or baseCurr.getDoubleParameter("rrate", 0.0) != 1.0:
+                    txt = "@@ERROR@@ - base currency %s has relative rate (rrate) <> 1: %s" %(baseCurr, baseCurr.getParameter("rrate", None))
+                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                    lNeedFixScript = True
                     if lFix:
-                        output += "  @@DELETING@@: %s\n" % (baseSnapshot)
-                        baseSnapshot.deleteItem()
-                    else:
-                        if VERBOSE:
-                            output += "  snapshot: %s\n" % baseSnapshot
-            else:
-                output += "\nBase currency has no historical prices. This is correct\n"
+                        baseCurr.setEditingMode()
+                        baseCurr.setParameter("rrate", 1.0)
 
-            root = MD_REF.getCurrentAccount().getBook().getRootAccount()
-            if root.getCurrencyType() != baseCurr:
-                lNeedFixScript = True
+                        txt = "@@CURRENCY FIX APPLIED@@"
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
-                myPrint("J", "Root account's currency: %s, Base currency: %s" % (root.getCurrencyType(), baseCurr))
-                output += "Root account's currency: %s, Base currency: %s\n" % (root.getCurrencyType(), baseCurr)
+                if baseCurr.getParameter("rate", None) is None or baseCurr.getDoubleParameter("rate", 0.0) != 1.0:
+                    txt = "@@ERROR@@ - base currency has rate <> 1: %s" %(baseCurr.getParameter("rate", None))
+                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                    lNeedFixScript = True
+                    if lFix:
+                        baseCurr.setEditingMode()
+                        baseCurr.setParameter("rate", 1.0)
+                        txt = "@@CURRENCY FIX APPLIED@@"
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
-                myPrint("J", "ERROR - The root account's currency is not set to base! This needs correcting!")
-                output += "----\n@@ ERROR - The root account's currency is not set to base! This needs correcting!\n----\n"
+                if lFix and lNeedFixScript:
+                    baseCurr.syncItem()
 
-                if lFix:
-                    root.setCurrencyType(baseCurr)
-                    root.syncItem()
-                    myPrint("J", "@@CURRENCY FIX APPLIED@@")
-                    output += "----\n@@CURRENCY FIX APPLIED@@\n----\n"
+                if not lNeedFixScript:
+                    output += ("Base currency has Rate (rate) of: %s and Relative Rate (rrate): of %s.  This is Correct...\n"
+                               % (baseCurr.getParameter("rate", None), baseCurr.getParameter("rrate", None)))
 
-            else:
-                output += "GOOD, the root account's currency is set to the base currency! Root: %s, Base: %s\n" % (root.getCurrencyType(), baseCurr)
+                baseSnapshots = baseCurr.getSnapshots()
+                if baseSnapshots.size() > 0:
+                    lNeedFixScript = True
+                    txt = "ERROR: base currency has %s historical prices! These need to be deleted!" %(baseSnapshots.size())
+                    myPrint("J",txt); output += "----\n%s\n----\n" %(txt)
+                    for baseSnapshot in baseSnapshots:
+                        if lFix:
+                            output += "  @@DELETING@@: %s\n" % (baseSnapshot)
+                            baseSnapshot.deleteItem()
+                        else:
+                            if VERBOSE:
+                                output += "  snapshot: %s\n" % baseSnapshot
+                else:
+                    output += "\nBase currency has no historical prices. This is correct\n"
 
-        currencies = sorted(currencies, key=lambda x: (x.getCurrencyType(), x.getName().upper()))
+                root = MD_REF.getCurrentAccount().getBook().getRootAccount()
+                if root.getCurrencyType() != baseCurr:
+                    lNeedFixScript = True
 
-        last = None
-        lWarning = False
-        output += "\nAnalysing the Currency / Security table...\n" \
-                  " ===========================================\n"
+                    txt = "Root account's currency: %s, Base currency: %s" %(root.getCurrencyType(), baseCurr)
+                    myPrint("J", txt); output += "%s\n" %(txt)
 
-        for curr in currencies:
+                    txt = "ERROR - The root account's currency is not set to base! This needs correcting!"
+                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
-            if curr.getCurrencyType() != last:
-                output += "\n\n TYPE: %s\n" \
-                          " ========================\n" %(curr.getCurrencyType())
-                last = curr.getCurrencyType()
+                    if lFix:
+                        root.setCurrencyType(baseCurr)
+                        root.syncItem()
+                        txt = "@@CURRENCY FIX APPLIED@@"
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
-            # noinspection PyUnresolvedReferences
-            if curr.getCurrencyType() == CurrencyType.Type.SECURITY:
+                else:
+                    output += "GOOD, the root account's currency is set to the base currency! Root: %s, Base: %s\n" % (root.getCurrencyType(), baseCurr)
 
-                # SECURITIES
-                if lFix and not lSecurities: continue
+            currencies = sorted(currencies, key=lambda x: (x.getCurrencyType(), x.getName().upper()))
 
-                lSyncNeeded=False
+            last = None
+            lWarning = False
+            output += "\nAnalysing the Currency / Security table...\n" \
+                      " ===========================================\n"
 
-                if VERBOSE:
-                    output += "Checking security: %s\n" % curr
+            for curr in currencies:
 
-                if curr.getParameter("relative_to_currid",None) is not None and curr.getParameter("relative_to_currid",None) == baseCurr.getParameter("currid"):
-                    myPrint("J", "@@ WARNING: %s relative_to_currid should only be None or NOT your base currency (currently %s)!" % (curr,curr.getParameter("relative_to_currid")))
-                    output += "---\n@@ WARNING: %s relative_to_currid should only be None or NOT your base currency (currently %s)!\n----\n" % (curr,curr.getParameter("relative_to_currid"))
+                if curr.getCurrencyType() != last:
+                    output += "\n\n TYPE: %s\n" \
+                              " ========================\n" %(curr.getCurrencyType())
+                    last = curr.getCurrencyType()
+
+                # noinspection PyUnresolvedReferences
+                if curr.getCurrencyType() == CurrencyType.Type.SECURITY:
+
+                    # ############
+                    # SECURITIES #
+                    # ############
+                    if lFix and not lSecurities: continue
+
+                    lSyncNeeded=False
+
+                    if VERBOSE:
+                        output += "-----------------------------------------------------------------------------------------\n" \
+                                  "Checking security: %s\n" %(curr)
+
+                    get_rel_curr_id = curr.getParameter("rel_curr_id",None)
+                    get_relative_to_currid = curr.getParameter("relative_to_currid",None)
+                    if (get_relative_to_currid is not None and get_relative_to_currid == baseCurr.getParameter("currid", None)) or (get_rel_curr_id is not None and get_rel_curr_id == baseCurr.getParameter("id", None)):
+                        txt = "@@ WARNING: %s relative_to_currid / rel_curr_id should only be None or NOT your base currency (currently %s : %s)!" %(curr,get_relative_to_currid,get_rel_curr_id)
+                        myPrint("J", txt); output += "---\n%s\n----\n" %(txt)
+                        if lFix and lFixWarnings:
+                            lSyncNeeded=True
+                            curr.setEditingMode()
+                            curr.setParameter("rel_curr_id", None)
+                            curr.setParameter("relative_to_currid", None)
+                            txt = "@@SECURITY FIX APPLIED@@"
+                            myPrint("J", txt)
+                            output += "----\n%s\n----\n" %(txt)
+                        else:
+                            lWarning = True; iWarnings += 1
+
+                    get_rate = curr.getParameter("rate", None)
+                    get_rateDbl = curr.getDoubleParameter("rate", 0.0)
+
+                    get_rrate = curr.getParameter("rrate", None)
+                    get_rrateDbl = curr.getDoubleParameter("rrate", 0.0)
+
+                    if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
+                        txt = "@@ WARNING: %s has rate (rate) of ZERO/Invalid" %(curr)
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+
+                        if lFix and lFixWarnings:
+                            lSyncNeeded = True
+                            curr.setEditingMode()
+                            curr.setParameter("rate", 1.0)
+                            curr.setParameter("rrate", 1.0)
+                            txt = "@@SECURITY FIX APPLIED - Reset both rate and rrate to 1.0 @@"
+                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                        else:
+                            lWarning = True; iWarnings  += 1
+
+                    elif get_rrate is None or get_rrateDbl == 0.0 or not isGoodRate(get_rrateDbl):
+                        if (get_relative_to_currid is None or get_relative_to_currid == baseCurr.getParameter("currid",None)):
+                            newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
+                            txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s (inverted %s)\n" %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
+                            myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
+
+                            if lFix and lFixWarnings:
+                                lSyncNeeded = True
+                                curr.setEditingMode()
+                                # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
+                                curr.setParameter("rate", newRate)
+                                curr.setParameter("rrate", newRate)
+                                curr.setRate(newRate, baseCurr)
+                                txt = "@@SECURITY FIX APPLIED@@"
+                                myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                            else:
+                                lWarning = True; iWarnings  += 1
+                        else:
+                            txt = "@@ ERROR: %s rrate not set and relative rate is not base - cannot be auto-fixed!"
+                            myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
+                            lWarning = True; iWarnings  += 1
+
+                    iCountSnapErrors = 0
+                    currSnapshots = curr.getSnapshots()
+                    for snap in currSnapshots:
+                        if not isGoodRate(snap.getRate()):
+                            iCountSnapErrors += 1
+                    if iCountSnapErrors > 0:
+                        output += "\n  ** NOTE: You have %s history records with a zero or infinity price/rate! **\n" %(iCountSnapErrors)
+
+                    if lFix and lSyncNeeded:
+                        curr.syncItem()
+
+                    continue
+
+                # ############
+                # CURRENCIES #
+                # ############
+                if lFix and not lCurrencies: continue
+
+                lSyncNeeded = False
+
+                output += "\n-----------------------------------------------------------------------------------------------" \
+                          "\nChecking currency: %s\n" % curr
+
+                get_rel_curr_id = curr.getParameter("rel_curr_id", None)
+                get_relative_to_currid = curr.getParameter("relative_to_currid", None)
+                if get_relative_to_currid or get_rel_curr_id:
+                    strEnd = ""
+                else:
+                    strEnd = " - None / NOT SET (this is OK and means the Base Rate will be used)"
+                output += "relative_to_currid: %s, rel_curr_id: %s %s\n" %(get_relative_to_currid, get_rel_curr_id, strEnd)
+
+                if get_relative_to_currid or get_rel_curr_id:
+                    txt = "@@ WARNING: %s relative_to_currid / rel_curr_id should be set to None!" %(curr)
+                    myPrint("J", "%s" %(txt)); output += "----\n%s\n----\n" %(txt)
+
                     if lFix and lFixWarnings:
-                        lSyncNeeded=True
-                        curr.setEditingMode()
+                        lSyncNeeded = True
+                        baseCurr.setEditingMode()
+                        curr.setParameter("rel_curr_id", None)
                         curr.setParameter("relative_to_currid", None)
-                        myPrint("J", "@@SECURITY FIX APPLIED@@")
-                        output += "----\n@@SECURITY FIX APPLIED@@\n----\n"
+                        txt = "@@CURRENCY rel_curr_id / relative_to_currid FIX APPLIED@@"
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     else:
-                        lWarning = True
-                        iWarnings += 1
+                        lWarning = True; iWarnings += 1
 
-                if curr.getParameter("rrate", None) is None and curr.getDoubleParameter("rate", 0.0) > 0.0 \
-                        and (curr.getParameter("relative_to_currid",None) is None or curr.getParameter("relative_to_currid",None) == baseCurr.getParameter("currid",None)):
-                    newRate= 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
-                    myPrint("J","@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s\n" %(curr, curr.getParameter("rrate", None),curr.getParameter("rate"), newRate))
-                    output += "---\n@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s (inverted %s)\n---\n" %(curr, curr.getParameter("rrate", None),curr.getParameter("rate"), newRate, 1/newRate)
-                    if lFix and lFixWarnings:
-                        lSyncNeeded=True
-                        curr.setEditingMode()
-                        curr.setRate(newRate, baseCurr)
-                        myPrint("J", "@@SECURITY FIX APPLIED@@")
-                        output += "----\n@@SECURITY FIX APPLIED@@\n----\n"
-                    else:
-                        lWarning = True
-                        iWarnings  += 1
+                get_rate = curr.getParameter("rate", None)
+                get_rateDbl = curr.getDoubleParameter("rate", 0.0)
+
+                get_rrate = curr.getParameter("rrate", None)
+                get_rrateDbl = curr.getDoubleParameter("rrate", 0.0)
+
+                output += "Rate: %s (inverted: %s)\n" % (get_rate, safeInvertRate(get_rateDbl))
+
+                if get_rate is not None and isGoodRate(get_rateDbl) and get_rrate is not None and isGoodRate(get_rateDbl):
+                    output += "Relative Rate: %s (inverted: %s)\n" % (get_rrate, safeInvertRate(get_rrateDbl))
+
+                elif curr == baseCurr:
+                    # Note: We fix base earlier on....
+                    pass
+
+                else:
+
+                    if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
+                        txt = "@@ WARNING: %s has rate (rate) of ZERO/Invalid" %(curr)
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+
+                        if lFix and lFixWarnings:
+                            lSyncNeeded = True
+                            curr.setEditingMode()
+                            curr.setParameter("rate", 1.0)
+                            curr.setParameter("rrate", 1.0)
+                            txt = "@@CURRENCY FIX APPLIED - Reset both rate and rrate to 1.0 @@"
+                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                        else:
+                            lWarning = True; iWarnings  += 1
+
+                    # should always be set and always relative to base (1.0)
+                    elif get_rateDbl > 0.0:
+                        newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
+                        txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s (inverted %s)" %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
+                        myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
+
+                        if lFix and lFixWarnings:
+                            lSyncNeeded = True
+                            curr.setEditingMode()
+                            # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
+                            curr.setParameter("rate", newRate)
+                            curr.setParameter("rrate", newRate)
+                            curr.setRate(newRate, baseCurr)
+                            txt = "@@CURRENCY rrate FIX APPLIED@@"
+                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                        else:
+                            lWarning = True; iWarnings  += 1
 
                 if lFix and lSyncNeeded:
                     curr.syncItem()
 
-                continue
+                if not lFix and VERBOSE:
+                    output += "  details:\n"
+                    output += "\t" + "ID:             %s\n" %(curr.getID())
+                    output += "\t" + "Name:           %s\n" %(curr.getName())
+                    output += "\t" + "Ticker:         %s\n" %(curr.getTickerSymbol())
+                    output += "\t" + "Is Base:        %s\n" %(curr == baseCurr)
+                    output += "\t" + "Curr_ID:        %s\n" %(curr.getIDString())
+                    output += "\t" + "Decimal Places: %s\n" %(curr.getDecimalPlaces())
+                    output += "\t" + "Hide in UI:     %s\n" %(curr.getHideInUI())
+                    output += "\t" + "Effective Date: %s\n" %(curr.getEffectiveDateInt())
+                    output += "\t" + "Prefix:         %s\n" %(curr.getPrefix())
+                    output += "\t" + "Suffix:         %s\n" %(curr.getSuffix())
 
-            # CURRENCIES
-            if lFix and not lCurrencies: continue
-
-            output += "\nChecking currency: %s\n" % curr
-            getRelative = curr.getParameter("relative_to_currid")
-            if getRelative:
-                getRelative = str(getRelative)
-            else:
-                getRelative = str(getRelative)+" (this is OK and means the Base Rate will be used)"
-            output += "relative_to_currid: " + getRelative + "\n"
-            if curr.getParameter("relative_to_currid") is not None:
-                myPrint("J", "@@ WARNING: %s relative_to_currid should be set to None!" % curr)
-                output += "----\n@@ WARNING: %s relative_to_currid should be set to None!\n----\n" % curr
-
-                if lFix and lFixWarnings:
-                    curr.setParameter("relative_to_currid", None)
-                    curr.syncItem()
-                    myPrint("J", "@@CURRENCY FIX APPLIED@@")
-                    output += "----\n@@CURRENCY FIX APPLIED@@\n----\n"
-                else:
-                    lWarning = True
-                    iWarnings += 1
-
-            output += "Rate: %s (inverted: %s)\n" % (curr.getParameter("rate", None), 1 / float(curr.getParameter("rate", None)))
-
-            if curr.getParameter("rrate", None) is not None:
-                output += "Relative Rate: %s (inverted: %s)\n" % (curr.getParameter("rrate", None), 1 / float(curr.getParameter("rrate", None)))
-
-            if not lFix and VERBOSE:
-                output += "  details:\n"
-                output += "\t" + "ID: " + str(curr.getID()) + "\n"
-                output += "\t" + "Name: " + str(curr.getName()) + "\n"
-                output += "\t" + "Ticker: " + str(curr.getTickerSymbol()) + "\n"
-                output += "\t" + "Is Base: " + str(curr == baseCurr) + "\n"
-                output += "\t" + "Curr_ID: " + str(curr.getIDString()) + "\n"
-                output += "\t" + "Decimal Places: " + str(curr.getDecimalPlaces()) + "\n"
-                output += "\t" + "Hide in UI: " + str(curr.getHideInUI()) + "\n"
-                output += "\t" + "Effective Date: " + str(curr.getEffectiveDateInt()) + "\n"
-                output += "\t" + "Prefix: " + str(curr.getPrefix()) + "\n"
-                output += "\t" + "Suffix: " + str(curr.getSuffix()) + "\n"
-
-                output += "  pricing history:\n"
-                currSnapshots = curr.getSnapshots()
-                if currSnapshots.size() > 0:
-                    i = 0
-                    for currSnapshot in reversed(currSnapshots):
-                        i += 1
-                        output += "  snapshot: %s (reversed: %s)\n" % (currSnapshot, currSnapshot.getRate())
-                        if i > 5:
-                            output += "  stopping after 5 price history records, but more does exist...\n"
-                            break
-                else:
-                    if curr != baseCurr:
-                        output += "  This currency has no historical prices? Is this correct?\n"
+                    output += "  pricing history:\n"
+                    currSnapshots = curr.getSnapshots()
+                    if currSnapshots.size() > 0:
+                        i = 0
+                        for currSnapshot in reversed(currSnapshots):
+                            i += 1
+                            output += "  snapshot: %s (reversed: %s)\n" % (currSnapshot, currSnapshot.getRate())
+                            if i > 5:
+                                output += "  stopping after 5 price history records, but more exists...\n"
+                                break
                     else:
-                        output += "  This currency has no historical prices...\n"
+                        if curr != baseCurr:
+                            output += "  This currency has no historical prices? Is this correct?\n"
+                        else:
+                            output += "  Good - This currency has no historical prices...\n"
 
-        output += "-----------------------------------------------------------------\n"
+                    iCountSnapErrors = 0
+                    for snap in currSnapshots:
+                        if not isGoodRate(snap.getRate()):
+                            iCountSnapErrors += 1
+                    if iCountSnapErrors > 0:
+                        output += "\n  ** NOTE: You have %s history records with a zero or infinity price/rate! **\n" %(iCountSnapErrors)
+
+            output += "-----------------------------------------------------------------\n"
+
+        except:
+
+            if lFix:
+                txt = "MAJOR ERROR - fix relative currencies crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
+            else:
+                txt = "MINOR ERROR - diagnose relative currencies crashed. Please review output and console".upper()
+
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame(txt,output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        finally:
+            if lFix:
+                MD_REF.getUI().getMain().saveCurrentAccount()
+                MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
+                MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+
         if lFix:
             fixRCurrencyCheck = None
             myPrint("B", ">> Currency errors / warning - FIXES APPLIED..")
             output += "\nRELEVANT FIXES APPLIED\n\n"
-            output += "\nDISCLAIMER: I take no responsibility for the execution of this currency fix script\n"
+            output += "\nDISCLAIMER: Please verify your data before proceeding\n"
 
             if lWarning:
                 output += "\n@@@@ You still have %s Warning(s)..\n" % iWarnings
@@ -5449,38 +6227,54 @@ Please update any that you use before proceeding....
             statusLabel.setText(("@@ CURRENCY / SECURITY FIXES APPLIED (as per your parameters) - Please review diagnostic report for details!").ljust(800, " "))
             statusLabel.setForeground(Color.RED)
             play_the_money_sound()
-            myPopupInformationBox(toolbox_frame_,"RELEVANT FIXES APPLIED","FIX RELATIVE CURR/SECs",JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_,"RELEVANT FIXES APPLIED","FIX RELATIVE CURR/SECs",theMessageType=JOptionPane.WARNING_MESSAGE)
 
         else:
             if lNeedFixScript:
                 fixRCurrencyCheck = 3
-                myPrint("B", ">> Currency / Security errors detected - Possible use of FIX required..!?")
-                output += " >> Currency / Security errors detected - Possible use of FIX required..!?\n"
+                txt = ">> Currency / Security errors detected - Consider running the FIX option..!?"
+                myPrint("B", txt); output += "%s\n" %(txt)
                 output += "\nERROR: You have Currency / Security errors..\n"
-                output += "Please discuss details with support and potentially run the FIX Relative Currencies option\n"
-                output += "DISCLAIMER: Always backup your data before running change scripts. I can take no responsibility for the execution of said script\n"
-                statusLabel.setText(("ERROR: You have Currency / Security errors.. Please review diagnostic report!").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
+                output += "Consider running the FIX Relative Currencies option\n"
+                output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
+                txt = "ERROR: You have Currency / Security errors.. Please review diagnostic report!"
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             elif lWarning:
                 fixRCurrencyCheck = 2
-                myPrint("B", "You have %s Warning(s).." % iWarnings)
-                output += "You have %s Warning(s)..\n" % iWarnings
-                output += "These are where your Currency records show a relative currency that's not None...; I believe this to be a data error!\n" \
+                txt = "You have %s Warning(s).." %(iWarnings)
+                myPrint("B", txt); output += "%s\n" %(txt)
+                output += "These are where your Currency records show a relative currency that's not None...; This is a data error!\n" \
                           "... or where Securities have an incorrect relative currency set..\n"\
-                          "... or where a Security's 'rrate' (relative rate) is not set, or different to the 'rate' (rate)...\n"
-                output += "If you are seeing currency problems, then discuss with support and potentially run the FIX Relative Currencies option\n"
-                output += "This would address these issues...\n"
-                output += "DISCLAIMER: Always backup your data before running change scripts. I can take no responsibility for the execution of this function\n"
-                statusLabel.setText(("ERROR: You have Currency / Security warnings.. Please review diagnostic report!").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
+                          "... or where a Currency/Security's 'rrate' (relative rate) is not set, or different to the 'rate' (rate)...\n"
+                output += "Consider running the FIX Relative Currencies option\n"
+                output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
+                txt = "ERROR: You have %s Currency / Security warnings.. Please review diagnostic report!" %(iWarnings)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             else:
                 fixRCurrencyCheck = 1
-                myPrint("J", "All good, Currencies / Securities look clean! Congratulations!")
-                output += "\nAll good, Currencies / Securities look clean! Congratulations!\n"
-                statusLabel.setText(("All good, Currencies / Securities look clean! Congratulations!").ljust(800, " "))
-                statusLabel.setForeground(DARK_GREEN)
+                txt = "All good, Currencies / Securities look clean! Congratulations!"
+                myPrint("J", txt); output += "\n%s\n" %(txt)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(DARK_GREEN)
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
         output += "\n<END>"
+
+        if lFix:
+            theTitle = "FIX RELATIVE CURRENCIES (FIX ERRORS)"
+        else:
+            theTitle = "DIAGNOSE CURRENCIES (LOOK FOR ERRORS)"
+
+        alertLevel = 0
+        if iWarnings: alertLevel = 1
+        if lNeedFixScript: alertLevel = 2
+        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+        if lFix:
+            myPopupInformationBox(jif,u"PLEASE RESTART MONEYDANCE!",
+                                  u"FIX RELATIVE CURRENCIES",
+                                  theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -5802,7 +6596,7 @@ Please update any that you use before proceeding....
             lDoIHaveAnyKeys=True
 
             output = "LIST OF OFX BANK USERIDs STORED ON THE ROOT ACCOUNT\n" \
-                     "===================================================\n\n"
+                     " ==================================================\n\n"
             userIDKeys=[]
             rootKeys=sorted(root.getParameterKeys())
             for userKey in rootKeys:
@@ -6043,6 +6837,40 @@ Please update any that you use before proceeding....
         def __repr__(self):
             return "OnlineTxnList Obj on Acct %s (holding %s Txns)" %(self.acct,self.txnCount)
 
+    # noinspection PyUnresolvedReferences
+    def get_security_holdings(security):
+        if security.getCurrencyType() != CurrencyType.Type.SECURITY:
+            return 0
+
+        acctHoldings = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(22))
+        balance = 0
+        for acct in acctHoldings:
+            if acct.getCurrencyType() == security:
+                balance += acct.getBalance()
+
+        return balance
+
+    class StoreCurrencySecurity():
+        def __init__(self, obj):
+            if isinstance(obj,CurrencyType):
+                self.obj = obj                          # type: CurrencyType
+            else:
+                self.obj = None
+            self.qtyHeld = 0
+            # noinspection PyUnresolvedReferences
+            if self.obj and self.obj.getCurrencyType() == CurrencyType.Type.SECURITY:
+                self.qtyHeld = get_security_holdings(self.obj)
+            self.decimal = MD_REF.getPreferences().getDecimalChar()
+
+        def __str__(self):
+            if self.obj is None:
+                return "Invalid CurrencyType Obj or None"
+            if self.qtyHeld == 0:
+                return "%s: %s" %(self.obj.getCurrencyType(), self.obj.getName())
+            return "%s: %s (%s)" %(self.obj.getCurrencyType(), self.obj.getName(),self.obj.formatSemiFancy(self.qtyHeld,self.decimal))
+
+        def __repr__(self): return self.__str__()
+
     class StoreTheOnlinePayeeList():
         def __init__(self, obj, acct):
             self.obj = obj                          # type: OnlinePayeeList
@@ -6207,6 +7035,8 @@ Please update any that you use before proceeding....
         if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, "OFX PURGE OnlineTxnList OBJECTS","Purge/Clean all Cached OnlineTxnList Txns (very safe to run)?"):
             return
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes....
+
         myPrint("B","Purging / cleaning all OnlineTxnList Cached txns.....")
 
         allAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), AcctFilter.NON_CATEGORY_FILTER)
@@ -6265,6 +7095,8 @@ Please update any that you use before proceeding....
         output += "\n--------\n\n"
 
         MD_REF.getCurrentAccount().getBook().logRemovedItems(olTxnLists)
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes....
+
         if shouldSaveTrunk:
             myPrint("J","Purge/Clean ALL OnlineTxnList objects - Saving Trunk file now....")
             output+=("SAVING TRUNK FILE...\n")
@@ -6380,6 +7212,28 @@ Please update any that you use before proceeding....
         del theOnlineTxnRecord
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+    def quick_check_cached_online_txns():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        countCachedAccounts = 0
+        countCachedTxns = 0
+
+        myPrint("DB","Quick check looking for Cached OFX Downloaded txns (that shouldn't be there)")
+        accountsListForOlTxns = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(18))
+        for acct in accountsListForOlTxns:
+            cached = MyGetDownloadedTxns(acct)
+            if cached.getTxnCount() > 0:
+                myPrint("DB", "Account: %s contains %s cached txns" %(acct,cached.getTxnCount()))
+                countCachedAccounts += 1
+                countCachedTxns += cached.getTxnCount()
+
+        myPrint("DB","... found: %s accounts containing %s cached txns" %(countCachedAccounts, countCachedTxns))
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return countCachedAccounts, countCachedTxns
 
     def OFX_authentication_management(statusLabel):
         global lAdvancedMode, lHackerMode
@@ -7429,11 +8283,11 @@ Please update any that you use before proceeding....
                 return None, lReportDefaultsSelected
 
             if not lForceOneTxn:
-                if txns.getSize() > 20:
-                    if not myPopupAskQuestion(toolbox_frame_, "SEARCH TXNs BY DATE", "YOU HAVE SELECTED %s TXNS.. PROCEED?" % txns.getSize()):
-                        statusLabel.setText(("%s:TXN SEARCH FOUND %s TXNs. USER ABORTED...."%(titleStr,txns.getSize())).ljust(800, " "))
-                        statusLabel.setForeground(Color.RED)
-                        return None, lReportDefaultsSelected
+                if txns.getSize() > 50:
+                    statusLabel.setText(("%s:TXN SEARCH FOUND %s TXNs. TOO MANY, WILL ABORT...."%(titleStr,txns.getSize())).ljust(800, " "))
+                    statusLabel.setForeground(Color.RED)
+                    myPopupInformationBox(toolbox_frame_, "YOU HAVE SELECTED %s TXNS.. THIS IS TOO MANY - WILL ABORT" % txns.getSize())
+                    return None, lReportDefaultsSelected
 
             if lForceOneTxn:
                 objects=ArrayList()
@@ -7461,14 +8315,53 @@ Please update any that you use before proceeding....
         if (objWhat.index(selectedObjType) == _OBJTRANSACTION and not lForceOneTxn):
             pass
         else:
-            selectedObject = JOptionPane.showInputDialog(toolbox_frame_,
-                                                         "Select the specific Object to %s" %(titleStr),
-                                                         "Select Specific Object",
-                                                         JOptionPane.INFORMATION_MESSAGE,
-                                                         MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-                                                         objects,
-                                                         None)
-            objects  = [selectedObject]
+            if len(objects) > 0 and isinstance(objects[0],(ParentTxn,SplitTxn)):
+
+                class StoreTheTxn:
+                    def __init__(self, obj):
+                        if isinstance(obj,(ParentTxn,SplitTxn)):
+                            self.obj = obj
+                        else:
+                            self.obj = None
+
+                    def __str__(self):
+                        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+                        if self.obj is None: return "Invalid Txn Obj or None"
+                        txt = "PARENT TXN: "
+                        if isinstance(self.obj, SplitTxn): txt = "SPLIT TXN:  "
+                        curr = self.obj.getAccount().getCurrencyType()
+                        txt += "Date: %s " %(convertStrippedIntDateFormattedText(self.obj.getDateInt()))
+                        txt += "%s " %(pad(self.obj.getDescription(),40))
+                        txt += "Value: %s" %(rpad(curr.formatFancy(self.obj.getValue(),MD_decimal),15))
+                        return txt
+
+                    def __repr__(self): return self.__str__()
+
+                storeTheTxns = []
+                for storeTxn in objects:
+                    storeTheTxns.append( StoreTheTxn(storeTxn))
+
+                selectedObject = JOptionPane.showInputDialog(toolbox_frame_,
+                                                             "Select the specific Txn to %s" %(titleStr),
+                                                             "Select Specific Txn",
+                                                             JOptionPane.INFORMATION_MESSAGE,
+                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             storeTheTxns,
+                                                             None)
+
+                objects  = [selectedObject.obj]                                                                         # noqa
+                "HERE"
+            else:
+
+                selectedObject = JOptionPane.showInputDialog(toolbox_frame_,
+                                                             "Select the specific Object to %s" %(titleStr),
+                                                             "Select Specific Object",
+                                                             JOptionPane.INFORMATION_MESSAGE,
+                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             objects,
+                                                             None)
+                objects  = [selectedObject]
+
             if not selectedObject:
                 statusLabel.setText(("%s: No Object was selected.." %(titleStr)).ljust(800, " "))
                 statusLabel.setForeground(Color.RED)
@@ -8207,15 +9100,21 @@ Please update any that you use before proceeding....
                                 output += "%s %s\n" % (pad("Suffix:",50),               selectedObject.getSuffix()  )
                                 output += "%s %s\n" % (pad("Decimal Places:",50),       selectedObject.getDecimalPlaces()  )
                                 output += "%s %s\n" % (pad("Curr Start Date:",50),      selectedObject.getEffectiveDateInt()  )
-                                output += "%s %s\n" % (pad("RATE:",50),                 selectedObject.getRate(None)  )
-                                output += "%s %s\n" % (pad("RATE Inverted:",50),        1/selectedObject.getRate(None)  )
-                                output += "%s %s\n" % (pad("RATE in terms of Base:",50),selectedObject.getBaseRate()  )
-                                output += "%s %s\n" % (pad("Relative Currency:",50),    selectedObject.getRelativeCurrency()  )
-                                output += "%s %s\n" % (pad("Relative Rate:",50),        selectedObject.getRelativeRate()  )
-                                output += "%s %s\n" % (pad("Count Price History:",50),  len(selectedObject.getSnapshots()  ))
-                                output += "%s %s\n" % (pad("Count Stock Splits:",50),   len(selectedObject.getSplits()  ))
-                                output += "%s %s\n" % (pad("Daily Change:",50),         selectedObject.getDailyChange()  )
-                                output += "%s %s\n" % (pad("Daily Volume:",50),         selectedObject.getDailyVolume()  )
+
+                                for convertTimeStamp in ["price_date"]:
+                                    if selectedObject.getLongParameter(convertTimeStamp, 0) > 0:
+                                        output += "%s %s\n" % (pad("TIMESTAMP('%s'):" %(convertTimeStamp),50), get_time_stamp_as_nice_text(selectedObject.getLongParameter(convertTimeStamp, 0))  )
+
+                                output += "%s %s\n" % (pad("RATE:",50),                     selectedObject.getRate(None)  )
+                                output += "%s %s\n" % (pad("RATE Inverted:",50),            safeInvertRate(selectedObject.getRate(None))  )
+                                output += "%s %s\n" % (pad("RATE in terms of Base:",50),    selectedObject.getBaseRate()  )
+                                output += "%s %s\n" % (pad("Relative Currency:",50),        selectedObject.getRelativeCurrency()  )
+                                output += "%s %s\n" % (pad("Relative Rate:",50),            selectedObject.getRelativeRate()  )
+                                output += "%s %s\n" % (pad("Relative Rate Inverted:",50),   safeInvertRate(selectedObject.getRelativeRate())  )
+                                output += "%s %s\n" % (pad("Count Price History:",50),      len(selectedObject.getSnapshots()  ))
+                                output += "%s %s\n" % (pad("Count Stock Splits:",50),       len(selectedObject.getSplits()  ))
+                                output += "%s %s\n" % (pad("Daily Change:",50),             selectedObject.getDailyChange()  )
+                                output += "%s %s\n" % (pad("Daily Volume:",50),             selectedObject.getDailyVolume()  )
                                 output += "<END>\n"
                             except:
                                 output += dump_sys_error_to_md_console_and_errorlog( True )
@@ -8349,9 +9248,13 @@ Please update any that you use before proceeding....
 
                             if acct.getBankingFI() is not None:
                                 output += pad(">> Bank Service/Logon profile:",50)+str(acct.getBankingFI())+"\n"
+                                if my_get_account_key(acct):
+                                    output += pad(">> (Account Key):",50)+str(my_get_account_key(acct))+"\n"
 
                             if acct.getBillPayFI() is not None:
                                 output += pad(">> BillPay Service/Logon profile:",50)+str(acct.getBillPayFI())+"\n"
+                                if my_get_account_key(acct):
+                                    output += pad(">> (Account Key):",50)+str(my_get_account_key(acct))+"\n"
 
                             getOnlineData = MyGetDownloadedTxns(acct)
                             if getOnlineData is not None:
@@ -8630,14 +9533,6 @@ Please update any that you use before proceeding....
 
             if x == "list_security_currency_decimal_places()":
                 x = list_security_currency_decimal_places(self.statusLabel)
-                if not x: return
-
-            if x == "diagnose_currencies(False)":
-                x = diagnose_currencies(self.statusLabel, False)
-                if not x: return
-
-            if x == "diagnose_currencies(True)":
-                x = diagnose_currencies(self.statusLabel, True)
                 if not x: return
 
             if not self.lFile:
@@ -9291,6 +10186,7 @@ now after saving the file, restart Moneydance
         # OK - so we are fixing...!
         myPrint("B", ">> User selected to Inactivate %s Zero Balance Categories!?" % iCountForInactivation)
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -9394,10 +10290,11 @@ now after saving the file, restart Moneydance
         output += "\n\nRUNNING FIX ON PARENT ACCOUNTS\n" \
                   "--------------------------------\n\n"
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes...
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
-        iCountErrors, x =  check_fix_accounts(lFix=True)
+        iCountErrors, x = check_fix_accounts(lFix=True)
         output += x
         output += "\n<END>"
 
@@ -9572,6 +10469,7 @@ now after saving the file, restart Moneydance
         myPrint("B","@@ User requested to Force Change the Type of Account: %s from: %s to %s - APPLYING UPDATE NOW...."
                 %(selectedAccount.getFullAccountName(),selectedAccount.getAccountType(),selectedType))          # noqa
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -9666,6 +10564,7 @@ now after saving the file, restart Moneydance
         myPrint("B","@@ User requested to Force Change the Currency of ALL %s Accounts to %s - APPLYING UPDATE NOW...."
                 %(len(accounts),selectedCurrency))     # noqa
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -9709,6 +10608,28 @@ now after saving the file, restart Moneydance
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
+        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
+        if quoteLoader_or_QER_Loaded:
+
+            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+
+            ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating before running fix_invalid_relative_currency_rates?")
+
+            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+            if not ask:
+                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating before running fix_invalid_relative_currency_rates? - NO CHANGES MADE").ljust(800, " "))
+                statusLabel.setForeground(Color.RED)
+                return
+
+        if not check_all_currency_raw_rates_ok():
+            txt = u"FIX INVALID REL CURR RATES: You appear to have 'old' format or invalid currency/relative currency rates/records. Please run Diagnose/Fix Currencies first..."
+            myPrint("B", txt)
+            statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_, txt)
+            return
+
         book = MD_REF.getCurrentAccountBook()
         currencies = book.getCurrencies().getAllCurrencies()
         currencies = sorted(currencies, key=lambda sort_x: (sort_x.getCurrencyType(),sort_x.getName().upper()))
@@ -9717,16 +10638,19 @@ now after saving the file, restart Moneydance
                u" ==============================\n\n"
 
         upperLimit = 9999999999
+
+        output += u"** Wild rates set to %s <= (rate) >= %s\n" %((1.0 / upperLimit), upperLimit)
+
         iErrors = 0
         for curr in currencies:
-            if curr.getRelativeRate() <= 0 or curr.getRelativeRate() > upperLimit:
+            if not isGoodRate(curr.getRelativeRate()) or curr.getRelativeRate() <= (1.0 / upperLimit) or curr.getRelativeRate() >= upperLimit:
                 iErrors += 1
                 output += u"Invalid - Type: %s Name: %s Relative Rate: %s\n" %(curr.getCurrencyType(),pad(curr.getName(),25),rpad(curr.getRelativeRate(),20))
 
         if iErrors < 1:
-            statusLabel.setText((u"FIX INVALID REL CURR RATES: You have no relative rates <0 or >%s to fix - NO CHANGES MADE" %upperLimit).ljust(800, u" "))
-            statusLabel.setForeground(Color.BLUE)
-            myPopupInformationBox(toolbox_frame_,u"You have no relative rates <0 or >%s to fix - NO CHANGES MADE" %upperLimit,u"FIX INVALID REL CURR RATES")
+            txt = u"FIX INVALID REL CURR RATES: You have no relative rates <= %s or >= %s to fix - NO CHANGES MADE" %((1.0 / upperLimit),upperLimit)
+            statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.BLUE)
+            myPopupInformationBox(toolbox_frame_, txt, u"FIX INVALID REL CURR RATES")
             return
 
         jif=QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
@@ -9745,7 +10669,7 @@ now after saving the file, restart Moneydance
         if not ask.go():
             statusLabel.setText((u"User did not say yes to fix invalid relative currencies - no changes made").ljust(800, " "))
             statusLabel.setForeground(Color.BLUE)
-            myPopupInformationBox(toolbox_frame_,u"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(jif,u"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
         del ask
 
@@ -9760,11 +10684,12 @@ now after saving the file, restart Moneydance
         output += u"\n\n APPLYING FIXES\n" \
                   u" ==============\n\n"
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
         for curr in currencies:
-            if curr.getRelativeRate() <= 0 or curr.getRelativeRate() > upperLimit:
+            if not isGoodRate(curr.getRelativeRate()) or curr.getRelativeRate() <= (1.0 / upperLimit) or curr.getRelativeRate() >= upperLimit:
                 output += u"FIXING >> Invalid - Type: %s Name: %s Relative Rate: %s - RESET TO 1.0\n" %(curr.getCurrencyType(),pad(curr.getName(),25),rpad(curr.getRelativeRate(),20))
 
                 myPrint(u"B", u"FIXING >> Invalid - Type: %s Name: %s Relative Rate: %s - RESET TO 1.0" %(curr.getCurrencyType(),pad(curr.getName(),25),rpad(curr.getRelativeRate(),20)))
@@ -9778,6 +10703,8 @@ now after saving the file, restart Moneydance
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
         MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
+        output += "\n<END"
+
         jif=QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
         statusLabel.setText((u"FIX INVALID RELATIVE CURRENCIES: %s Invalid Currency relative rates have been reset to 1.0 - PLEASE REVIEW" %(iErrors)).ljust(800, u" "))   # noqa
@@ -9788,6 +10715,125 @@ now after saving the file, restart Moneydance
                               theMessageType=JOptionPane.ERROR_MESSAGE)   # noqa
 
         myPrint(u"D", u"Exiting ", inspect.currentframe().f_code.co_name, u"()")
+        return
+
+    def fix_invalid_price_history(statusLabel):
+        global toolbox_frame_, debug
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, u"()")
+
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
+        if quoteLoader_or_QER_Loaded:
+
+            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+
+            ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating before running fix invalid price history records?")
+
+            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+            if not ask:
+                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating before running fix invalid price history records? - NO CHANGES MADE").ljust(800, " "))
+                statusLabel.setForeground(Color.RED)
+                return
+
+        if not check_all_currency_raw_rates_ok():
+            txt = "FIX - DELETE PRICE HISTORY WITH 'WILD' RATES: You appear to have 'old' format or invalid currency/relative currency rates/records. Please run Diagnose/Fix Currencies first..."
+            myPrint("B", txt)
+            statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_, txt)
+            return
+
+
+        output="FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES\n" \
+               " ===================================================\n\n"
+
+        upperLimit = 9999999999
+
+        output += "** Wild rates set to %s <= (rate) >= %s\n" %((1.0 / upperLimit), upperLimit)
+
+        allSnaps = MD_REF.getCurrentAccount().getBook().getItemsWithType(CurrencySnapshot.SYNCABLE_TYPE_VALUE)
+        output += "\nFound price history records (snaps): %s" %(len(allSnaps))
+
+        iGood = 0
+        badSnaps = []
+        output += "\n.. scanning snaps for 'wild' rates....\n"
+
+        for snap in allSnaps:
+            snapRate = snap.getRate()
+            if not isGoodRate(snapRate) or snapRate <= (1.0 / upperLimit) or snapRate >= upperLimit:
+                badSnaps.append(snap)
+            else:
+                iGood += 1
+
+        if len(badSnaps) < 1:
+            txt = "CONGRATULATIONS >> No snaps with 'wild' rates (out of %s good found) found! No changes made!" %(iGood)
+            myPrint("DB", txt)
+            statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.BLUE)
+            myPopupInformationBox(toolbox_frame_,txt)
+            return
+
+        badSnaps = sorted(badSnaps, key=lambda sort_x: (sort_x.getParameter("curr", None),sort_x.getDateInt()))
+        for badSnap in badSnaps:
+            output += "Invalid rate found: %s\n" %(badSnap)
+
+        output += "\n\n--------------------------------------\n"
+        output += "Good snaps: %s\n" %(iGood)
+
+        txt = "Bad snaps with 'wild' rates found: %s" %(len(badSnaps))
+        myPrint("B", txt); output += "%s\n" %(txt)
+
+        jif = QuickJFrame("FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+        ask=MyPopUpDialogBox(jif,
+                             theStatus="Are you sure you want to DELETE these %s INVALID PRICE HISTORY RECORDS?" %(len(badSnaps)),
+                             theTitle="FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",
+                             theMessage="Do not proceed unless you know you want to do this....!\n"
+                                        "This fix will NOT attempt to correct any transactions or fx rates etc... It simply deletes the invalid rate(s)",
+                             lCancelButton=True,
+                             OKButtonText="I AGREE - DELETE",
+                             lAlertLevel=2)
+
+        if not ask.go():
+            txt = "User did not say yes to delete %s invalid price history records - no changes made" %(len(badSnaps))
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+        del ask
+
+        if not confirm_backup_confirm_disclaimer(jif, statusLabel,
+                                                 "DELETE INVALID PRICE HISTORY RECORDS WITH 'WILD' RATES",
+                                                 "DELETE %s INVALID PRICE HISTORY RECORDS" %(len(badSnaps))):
+            return
+        jif.dispose()       # already within the EDT
+
+
+        txt = "@@ User requested to delete %s invalid price history with 'wild' rates - DELETING NOW...." %(len(badSnaps))
+        myPrint("B", txt); output += "%s\n\n" %(txt)
+
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        output += "Logging snaps with 'wild' rates for deletion....\n"
+        MD_REF.getCurrentAccount().getBook().logRemovedItems(badSnaps)
+
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        output += "Flushing dataset changes in memory back to disk....\n"
+        MD_REF.getCurrentAccount().getBook().saveTrunkFile()
+
+        txt = "%s snaps with 'wild' rates DELETED." %(len(badSnaps))
+        myPrint("B", txt); output += "%s\n\n" %(txt)
+
+        output += "\n<END>"
+
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+        play_the_money_sound()
+        jif = QuickJFrame("FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, u"()")
         return
 
     def force_change_account_currency(statusLabel):
@@ -9885,6 +10931,7 @@ now after saving the file, restart Moneydance
         myPrint("B","@@ User requested to Force Change the Currency of Account: %s from: %s to %s - APPLYING UPDATE NOW...."
                 %(selectedAccount.getFullAccountName(),selectedAccount.getCurrencyType(),selectedCurrency))     # noqa
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -9996,6 +11043,7 @@ now after saving the file, restart Moneydance
 
         myPrint("B","@@ User requested to REVERSE the (%s) Txn Amounts on Account %s between %s to %s - APPLYING UPDATE NOW...." %(iTxnsFound, selectedAccount, startDate, endDate))
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -10134,6 +11182,7 @@ now after saving the file, restart Moneydance
 
         myPrint("B","@@ User requested to REVERSE the (%s) Txn Exchange Rates on Account %s between %s to %s - APPLYING UPDATE NOW...." %(iTxnsFound, selectedAccount, startDate, endDate))
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -10158,7 +11207,7 @@ now after saving the file, restart Moneydance
                         needsSync = True
                         parentVal = split.getParentValue()
                         rate = split.getRate()
-                        split.setParentAmount(1/rate, parentVal)
+                        split.setParentAmount(safeInvertRate(rate), parentVal)
             else:
                 split = txn
                 if split.getAmount() != split.getValue():
@@ -10169,7 +11218,7 @@ now after saving the file, restart Moneydance
                     needsSync = True
                     parentVal = split.getParentValue()
                     rate = split.getRate()
-                    split.setParentAmount(1/rate, parentVal)
+                    split.setParentAmount(safeInvertRate(rate), parentVal)
 
             if needsSync:
                 ptxn.syncItem()
@@ -10206,6 +11255,22 @@ now after saving the file, restart Moneydance
             statusLabel.setForeground(Color.RED)
             myPopupInformationBox(toolbox_frame_,x,"FIX - THIN/PURGE PRICE HISTORY",JOptionPane.ERROR_MESSAGE)
             return
+
+        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
+        if quoteLoader_or_QER_Loaded:
+
+            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+
+            ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating whilst purging/thinning price history?")
+
+            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+            if not ask:
+                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst purging/thinning price history? - NO CHANGES MADE").ljust(800, " "))
+                statusLabel.setForeground(Color.RED)
+                return
+
 
         # prune historical exchange rates and price history from the given currency
         # this thins price history older than a year by keeping no more than one price per week
@@ -10985,6 +12050,7 @@ now after saving the file, restart Moneydance
                      " =================\n" %(ThnPurgeTxt)
 
         if not simulate:
+            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
             MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
             MD_REF.getUI().setSuspendRefresh(True)
 
@@ -11028,7 +12094,7 @@ now after saving the file, restart Moneydance
         purgingMsg.kill()
 
         diagDisplay+="\n\n ANALYSIS AFTER %s:\n" %(ThnPurgeTxt)
-        diagDisplay+="===============================\n"
+        diagDisplay+=" ==============================\n"
 
         diagDisplay += objects_by_type()
 
@@ -11094,9 +12160,9 @@ now after saving the file, restart Moneydance
                 System.setProperty("apple.awt.fileDialogForDirectories", "true")
 
                 fDialog = FileDialog(toolbox_frame_, "Select location to Extract Attachments to... (CANCEL=ABORT)")
+                fDialog.setDirectory(get_home_dir())
                 fDialog.setMultipleMode(False)
                 fDialog.setMode(FileDialog.LOAD)
-                fDialog.setDirectory(get_home_dir())
 
                 fDialog.setVisible(True)
 
@@ -11151,7 +12217,7 @@ now after saving the file, restart Moneydance
         iSkip=0
         iCountAttachments = 0
         textLog = "\nEXTRACT ATTACHMENTS:\n" \
-                  "====================\n\n"
+                  " ===================\n\n"
         textLog += "Base extract folder: %s%s\n\n" %(theDir,os.path.sep)
         textRecords = []
 
@@ -11597,6 +12663,1533 @@ now after saving the file, restart Moneydance
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
+    def isQuoteLoader_or_QER_Running():
+
+        QLID = "securityquoteload"
+        QERID = "yahooqt"
+
+        foundBuild = 0
+        foundExtn = False
+
+        try:
+            fms = MD_REF.getLoadedModules()
+            for fm in fms:
+                if fm.getIDStr().lower() == QLID.lower() or fm.getIDStr().lower() == QERID.lower():
+                    foundExtn = True
+                    foundBuild = fm.getBuild()
+                    break
+            if foundExtn:
+                myPrint("DB","QuoteLoader or Q&ER extension (build %s) is loaded..." %(foundBuild))
+            else:
+                myPrint("DB","Did not find QuoteLoader or Q&ER extension running...")
+        except:
+            myPrint("B","ERROR, crashed whilst detecting QuoteLoader / Q&ER extension?")
+
+        return foundExtn
+
+    # noinspection PyUnresolvedReferences
+    def detect_fix_nonlinked_investment_security_records(statusLabel):
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        nonLinkedSecurityAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(24))
+
+        if len(nonLinkedSecurityAccounts) < 1:
+            txt = "Congratulations - No Investment Security Accounts not properly linked to a Security Master were detected - No changes made!"
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+            myPrint("DB",txt)
+            myPopupInformationBox(toolbox_frame_,txt)
+            return
+
+        for badLink in nonLinkedSecurityAccounts:
+            myPrint("B","Improperly linked Security Sub Account: %s" %(badLink))
+
+        selectedSecSubAcct = JOptionPane.showInputDialog(toolbox_frame_,
+                                                      "Select the Security that's not properly linked to it's master'",
+                                                      "DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
+                                                      JOptionPane.WARNING_MESSAGE,
+                                                      None,
+                                                      nonLinkedSecurityAccounts,
+                                                      None)
+
+        if not selectedSecSubAcct:
+            statusLabel.setText(("User did not select any of the %s improperly linked Security(s) to fix - no changes made" %(len(nonLinkedSecurityAccounts))).ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        securities = []
+        currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+        for currSec in currencies:
+            if currSec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                        # noqa
+            securities.append(currSec)
+        securities = sorted(securities, key=lambda sort_x: (sort_x.getName().upper()))
+
+        if len(securities) < 1:
+            txt = "ERROR - You seem to have no Security Master records to link to - Create one first (Tools>Securities) - No changes made!"
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+            myPrint("DB",txt)
+            myPopupInformationBox(toolbox_frame_,txt)
+            return
+
+        targetSecurity = JOptionPane.showInputDialog(toolbox_frame_,
+                                                    "Select the target Security to link to this record",
+                                                    "DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
+                                                    JOptionPane.INFORMATION_MESSAGE,
+                                                    None,
+                                                    securities,
+                                                    None)
+
+        if not targetSecurity:
+            statusLabel.setText(("User did not select a target Security - no changes made").ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
+                                                 "Reassign Security '%s' to Security Master: '%s'?" %(selectedSecSubAcct, targetSecurity)):
+            return
+
+        myPrint("B", "USER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH Reassign Security '%s' to Security Master '%s'?" %(selectedSecSubAcct, targetSecurity))
+
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        selectedSecSubAcct.setEditingMode()
+        selectedSecSubAcct.setCurrencyType(targetSecurity)
+        selectedSecSubAcct.syncItem()
+
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        txt = "Fix/reassign Security Sub Account completed. Now reports '%s'. Please Check results" %(selectedSecSubAcct)
+        myPrint("B", txt)
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.GREEN)
+        play_the_money_sound()
+        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
+    # noinspection PyUnresolvedReferences
+    def merge_duplicate_securities(statusLabel):
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        PARAMETER_KEY = "toolbox_security_merge"
+        today = Calendar.getInstance()
+        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
+        "here"
+
+        output = "Merge 'Duplicate' Securities:\n" \
+                 " ============================================================\n\n"
+
+        myPrint("B", "Merge 'Duplicate' Securities: Analysing...")
+
+        try:
+            # Sweep One - gather the potential targets by duplicate Ticker Symbol....
+            dup_securities = {}
+            securities = []
+            currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+            for currSec in currencies:
+                if currSec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                        # noqa
+                securities.append(currSec)
+                theTicker = currSec.getTickerSymbol().strip().lower()
+                if theTicker is None or theTicker == "" or len(theTicker) < 1: continue
+                getDup = dup_securities.get(theTicker)
+                if getDup is not None:
+                    getDup[0] += 1
+                    getDup[1].append(currSec)
+                else:
+                    getDup = [1, [currSec]]
+                dup_securities[theTicker] = getDup
+            del currencies
+
+            def compareSplits(splitsOne, splitsTwo):
+                if len(splitsOne) < 1 and len(splitsTwo) < 1:   return True
+                if len(splitsOne) != len(splitsTwo):            return False
+                splitsOne = sorted(splitsOne, key=lambda sort_x: (sort_x.getDateInt()))
+                splitsTwo = sorted(splitsTwo, key=lambda sort_x: (sort_x.getDateInt()))
+
+                for i in range(0,len(splitsOne)):
+                    s1 = splitsOne[i]
+                    s2 = splitsTwo[i]
+                    if s1.getDateInt() != s2.getDateInt():        return False
+                    if s1.getSplitRatio() != s2.getSplitRatio():  return False
+                    if s1.getNewShares() != s2.getNewShares():    return False
+                    if s1.getOldShares() != s2.getOldShares():    return False
+
+                return True
+
+            myPrint("DB","Merge duplicate securities (by Ticker): Initial candidates found %s %s" %(len(dup_securities),dup_securities))
+
+            # Sweep Two - start validating the data found
+            lShowOutput = False
+            removeList = []
+            for dup in dup_securities:
+                getDup = dup_securities.get(dup)
+                if getDup[0] < 2:
+                    removeList.append(dup)
+                    continue
+
+                highestSnapCount = 0
+                primaryCurr = getDup[1][0]
+                for scanDup in getDup[1]:
+                    getSnaps = scanDup.getSnapshots()
+                    if getSnaps.size() > highestSnapCount:
+                        highestSnapCount = getSnaps.size()
+                        primaryCurr = scanDup
+
+                lFailChecks = False
+                primarySplits = primaryCurr.getSplits()
+                output += "Verifying potential: %s / %s (has %s price history records)\n" %(dup,primaryCurr.getName(),highestSnapCount)
+                for scanDup in getDup[1]:
+                    if scanDup.getRelativeCurrency() != primaryCurr.getRelativeCurrency():
+                        lShowOutput = lFailChecks = True
+                        txt = "... Eliminating %s as not the same relative currency %s vs %s" %(pad(scanDup.getName(),40),rpad(scanDup.getRelativeCurrency(),12),rpad(primaryCurr.getRelativeCurrency(),12))
+                        myPrint("DB",txt); output += "%s\n" %(txt)
+
+                    if scanDup.getDecimalPlaces() != primaryCurr.getDecimalPlaces():
+                        lShowOutput = lFailChecks = True
+                        txt = "... Eliminating %s as not the same decimal places    %s vs %s" %(pad(scanDup.getName(),40),rpad(scanDup.getDecimalPlaces(),12),rpad(primaryCurr.getDecimalPlaces(),12))
+                        myPrint("DB",txt); output += "%s\n" %(txt)
+
+                    if scanDup.getRelativeRate() != primaryCurr.getRelativeRate():
+                        lShowOutput = lFailChecks = True
+                        txt = "... Eliminating %s as not the same relative rates    %s vs %s" %(pad(scanDup.getName(),40),rpad(safeInvertRate(scanDup.getRelativeRate()),12),rpad(safeInvertRate(primaryCurr.getRelativeRate()),12))
+                        myPrint("DB",txt); output += "%s\n" %(txt)
+
+                    if scanDup.getPrefix()+scanDup.getSuffix() != primaryCurr.getPrefix()+primaryCurr.getSuffix():
+                        lShowOutput = lFailChecks = True
+                        txt = "... Eliminating %s as not the same prefix/suffix     %s vs %s" %(pad(scanDup.getName(),40),pad(scanDup.getPrefix()+":"+scanDup.getSuffix(),12),pad(primaryCurr.getPrefix()+":"+primaryCurr.getSuffix(),12))
+                        myPrint("DB",txt); output += "%s\n" %(txt)
+
+                    thisSplits = scanDup.getSplits()
+                    if not compareSplits(primarySplits, thisSplits):
+                        lShowOutput = lFailChecks = True
+                        txt = "... Eliminating %s as not all have the same splits..." %(pad(scanDup.getName(),40))
+                        myPrint("DB",txt); output += "%s\n" %(txt)
+
+                if lFailChecks:
+                    txt = "... *** Failed checks - removing candidate....."
+                    myPrint("DB",txt); output += "%s\n" %(txt)
+                    removeList.append(dup)
+                else:
+                    txt = "... *** PASSED checks - will include candidate....."
+                    myPrint("DB",txt); output += "%s\n" %(txt)
+
+                output += "\n"
+
+            for remove_ticker in removeList:
+                del dup_securities[remove_ticker]
+            del removeList
+
+            myPrint("DB","Merge duplicate securities (by Ticker): After validation, found %s %s" %(len(dup_securities),dup_securities))
+
+            if len(securities) < 2 or len(dup_securities) < 1:
+                output += "\n"
+                txt = "Merge duplicate securities (by Ticker): Not enough Securities or no duplicate Tickers found - no changes made"
+                myPrint("B",txt); output += "%s\n" %(txt)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                output += "\n<END>"
+                if lShowOutput:
+                    jif=QuickJFrame(txt, output, lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                    myPopupInformationBox(jif,txt)
+                else:
+                    myPopupInformationBox(toolbox_frame_,txt)
+                return
+            del lShowOutput
+
+            quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
+            if quoteLoader_or_QER_Loaded:
+
+                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+
+                ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Confirm that it's not updating before running Security Merge?")
+
+                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+                if not ask:
+                    statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating running Security Merge - no changes made").ljust(800, " "))
+                    statusLabel.setForeground(Color.RED)
+                    return
+
+            class StoreTickerData:
+                def __init__(self, _theTicker, numberCandidates, listSecurityCandidates):
+                    self.theTicker = _theTicker
+                    self.numberCandidates = numberCandidates
+                    self.listSecurityCandidates = listSecurityCandidates        # type: [CurrencyType]
+                    self.primarySecurity = self.listSecurityCandidates[0]
+
+                def getTicker(self):
+                    return (self.theTicker)
+
+                def getName(self):
+                    return (self.primarySecurity.getName())
+
+                def getSecurityList(self):
+                    return (self.listSecurityCandidates)
+
+                def getSecurityListWithoutPrimary(self):
+                    listAccts = []
+                    for acct in self.listSecurityCandidates:
+                        if acct == self.getPrimarySecurity(): continue
+                        listAccts.append(acct)
+                    return (listAccts)
+
+                def getPrimarySecurity(self):
+                    return (self.primarySecurity)
+
+                def setPrimarySecurity(self, theSecurity):
+                    self.primarySecurity = theSecurity
+
+                def getDisplayString(self, _security):
+                    return ("Ticker:%s:%s:%s:rate %s:dpc %s:%s:%s:(%s snapshots)"
+                            % (self.theTicker,
+                               _security.getIDString(),
+                               _security.getName(),
+                               _security.getRelativeRate(),
+                               _security.getDecimalPlaces(),
+                               _security.getPrefix(),
+                               _security.getSuffix(),
+                               _security.getSnapshots().size()))
+
+                def __str__(self): return (self.getDisplayString(self.getPrimarySecurity()))[:120]
+
+                def __repr__(self): return self.__str__()
+
+            listDuplicateTickers = []
+            output += "\nFinal list of 'duplicate' candidates...:\n"
+            for dup in dup_securities:
+                theDupDetails = dup_securities[dup]
+                listDuplicateTickers.append(StoreTickerData(dup,theDupDetails[0],theDupDetails[1]))
+                txt = ".. %s found for Ticker: %s" %(theDupDetails[0],dup)
+                myPrint("DB",txt); output += "%s\n" %(txt)
+                for theDups in theDupDetails[1]:
+                    txt = "         - ID: %s Name: %s Rate: %s Dpc: %s Prx:Sfx: %s (Price History: %s)"\
+                          %(pad(theDups.getIDString(),20),
+                            pad(theDups.getName(),30),
+                            rpad(safeInvertRate(theDups.getRelativeRate()),12),
+                            rpad(theDups.getDecimalPlaces(),2),
+                            pad(theDups.getPrefix()+":"+theDups.getSuffix(),20),
+                            rpad(theDups.getSnapshots().size(),12))
+                    myPrint("DB",txt); output += "%s\n" %(txt)
+                output += "\n"
+            del dup_securities
+
+            output += "\n"
+
+            jif = QuickJFrame("Merge duplicate securities (by Ticker): Candidates",output).show_the_frame()
+
+            tickerToMerge = JOptionPane.showInputDialog(jif,
+                                                         "Select Ticker / Security set to merge",
+                                                         "MERGE 'DUPLICATE' SECURITIES",
+                                                         JOptionPane.INFORMATION_MESSAGE,
+                                                         None,
+                                                         listDuplicateTickers,
+                                                         None)                                                              # type: StoreTickerData
+
+            del listDuplicateTickers
+
+            if not tickerToMerge:
+                statusLabel.setText(("User did not select a Ticker / Security set to merge - no changes made").ljust(800, " "))
+                statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            selectedSecurity = JOptionPane.showInputDialog(jif,
+                                                         "Select the Security that will be the final master",
+                                                         "MERGE 'DUPLICATE' SECURITIES",
+                                                         JOptionPane.INFORMATION_MESSAGE,
+                                                         None,
+                                                         tickerToMerge.getSecurityList(),
+                                                         None)                                                              # type: CurrencyType
+
+            if not selectedSecurity:
+                statusLabel.setText(("User did not select a Security as the master for the merge - no changes made").ljust(800, " "))
+                statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            jif.dispose()
+
+            if selectedSecurity != tickerToMerge.getPrimarySecurity():
+                txt = "Primary security switched from %s to %s" %(tickerToMerge.getPrimarySecurity(), selectedSecurity)
+                myPrint("DB",txt); output += "%s\n" %(txt)
+                tickerToMerge.setPrimarySecurity(selectedSecurity)
+
+            output += "\n\n" \
+                      "Selected Ticker / Security: '%s'\n" %(tickerToMerge.getTicker())
+            output += "Selected Security to use as the master for the merge: %s\n\n" %(tickerToMerge.getDisplayString(selectedSecurity))
+            del selectedSecurity
+
+            # MyAcctFilter() - 22 Security Sub Accounts; 23 Investment Accounts
+            allInvestmentAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(23))
+
+            output += "\nAnalysis of Securities to Merge - Ticker '%s' - %s:\n\n" %(tickerToMerge.getTicker(),tickerToMerge.getName())
+
+            # noinspection PyUnresolvedReferences
+            def create_totals(theCount, theAccount, theTable):
+                _acctRelCurr = theAccount.getCurrencyType()
+                theTable.append(["Txn Count",    theCount, "", ""])
+                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal)])
+                theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal)])
+                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance())]
+                for acct in theAccount.getSubAccounts():
+                    if acct.getAccountType() == Account.AccountType.SECURITY:
+                        _subAcctRelCurr = acct.getCurrencyType()
+                        subAcctBal = acct.getBalance()
+                        subAcctCostBasis = InvestUtil.getCostBasis(acct)
+                        price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+
+                        _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
+                        _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
+                        _totals[2] +=  round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())
+                        theTable.append([acct.getAccountName(),
+                                         _subAcctRelCurr.formatSemiFancy(subAcctBal,MD_decimal),
+                                         _acctRelCurr.formatSemiFancy(subAcctCostBasis,MD_decimal),
+                                         _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal)
+                                         ])
+                theTable.append(["**TOTALS:",
+                                 _totals[0],
+                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[1]),MD_decimal),
+                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[2]),MD_decimal)])
+
+            # Prepare before totals...
+            _WHAT = 0
+            _QTY = 1
+            _COSTBASIS = 2
+            _VALUE = 3
+
+            def output_stats(theText, theAccount, theTable):
+
+                local_output = "%s: %s\n" %(theText, theAccount)
+                iRow = 1
+                posInc = 0
+                for data in theTable:
+                    if iRow == 2:
+                        posInc += 14
+                        local_output += "   %s %s %s %s (** adjusted for splits)\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
+
+                    if iRow == 4:
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("",12), rpad("",15), rpad("-------------",15))
+
+                    if data[_WHAT].upper() == "**TOTALS:".upper():
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
+
+                    local_output += "   %s %s %s %s\n" %(pad(data[_WHAT],60+posInc),rpad(data[_QTY],12), rpad(data[_COSTBASIS],15), rpad(data[_VALUE],15))
+                    iRow += 1
+                return local_output
+
+
+            def isSecurityHeldWithinInvestmentAccount(_theSecurity, _theInvestmentAccount):
+
+                _subAccts = _theInvestmentAccount.getSubAccounts()
+                for _subAcct in _subAccts:
+                    # noinspection PyUnresolvedReferences
+                    if _subAcct.getAccountType() != Account.AccountType.SECURITY: continue
+                    _subAcctCurr = _subAcct.getCurrencyType()
+                    if _subAcctCurr is None: continue
+                    if _subAcctCurr == _theSecurity:
+                        return _subAcct
+
+                return None
+
+
+            def isSecurityHeldWithinAnyInvestmentAccount(_theSecurity):
+
+                # MyAcctFilter() - 22 Security Sub Accounts; 23 Investment Accounts
+                _subAccts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(22))
+
+                for _subAcct in _subAccts:
+                    # noinspection PyUnresolvedReferences
+                    if _subAcct.getAccountType() != Account.AccountType.SECURITY: continue
+                    _subAcctCurr = _subAcct.getCurrencyType()
+                    if _subAcctCurr is None: continue
+                    if _subAcctCurr == _theSecurity:
+                        return _subAcct
+
+                return None
+
+
+            def isAnySecurityHeldWithinInvestmentAccount(_theSecurityList, _theInvestmentAccount):
+
+                for _theSecurity in _theSecurityList:
+                    _result = isSecurityHeldWithinInvestmentAccount(_theSecurity,_theInvestmentAccount)
+                    if _result is not None: return True
+
+                return False
+
+
+            for security in tickerToMerge.getSecurityList():
+                output += "%s Price History Records: %s\n" %(pad(security.getName(),30),rpad(security.getSnapshots().size(),10))
+            output += "\n"
+
+
+            # OK, now scan existing investment accounts... More validation.....
+            investmentAccountsInvolvedInMerge = {}
+            investmentAccountsNeedingPrimaryCreated = {}
+            investmentAccountsNeedingSecondaryMerge = {}
+
+            lFailValidation = False
+            iFoundAnyInvestmentAccounts = 0
+            iPrimarySecuritiesToCreate = 0
+            iSecuritiesMergedDeleted = 0
+            output += "Investment Accounts:\n"
+            for investAccount in allInvestmentAccounts:
+                if not isAnySecurityHeldWithinInvestmentAccount(tickerToMerge.getSecurityList(), investAccount): continue
+                failUsesAverageCostValidation = False
+                validateUsesAvgCost = None
+                iFoundAnyInvestmentAccounts += 1
+                output += "** %s\n" %(investAccount.getAccountName())
+                foundPrimary = isSecurityHeldWithinInvestmentAccount(tickerToMerge.getPrimarySecurity(), investAccount)
+                if not foundPrimary:
+                    iPrimarySecuritiesToCreate += 1
+                    output += "   <PRIMARY TARGET NOT FOUND - WILL BE CREATED>\n"
+                foundSecondary = False
+                for security in tickerToMerge.getSecurityList():
+                    foundSecurity = isSecurityHeldWithinInvestmentAccount(security, investAccount)
+                    if foundSecurity is not None:
+                        if security != tickerToMerge.getPrimarySecurity():
+                            foundSecondary = True
+                            iSecuritiesMergedDeleted += 1
+                        txnsUsed = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(foundSecurity)
+                        _relCurr = foundSecurity.getCurrencyType()
+                        output += "   %s Uses Avg Cost: %s Units Held: %s Txns: %s" \
+                                  %(pad(foundSecurity.getFullAccountName(),50),
+                                    pad(str(foundSecurity.getUsesAverageCost()),6),
+                                    rpad(_relCurr.formatSemiFancy(foundSecurity.getBalance(),MD_decimal),18),
+                                    rpad(txnsUsed.getSize(),15))
+                        if security == tickerToMerge.getPrimarySecurity():
+                            output += "   <PRIMARY - KEEP>\n"
+                        else:
+                            output += "   ** will be merged/deleted **\n"
+
+                        if validateUsesAvgCost is None:
+                            validateUsesAvgCost = foundSecurity.getUsesAverageCost()
+                        elif validateUsesAvgCost != foundSecurity.getUsesAverageCost():
+                            output += "   *** <ERROR - UsesAverageCost() differs between sub accounts - CANNOT MERGE>\n"
+                            failUsesAverageCostValidation = lFailValidation = True
+
+                investmentAccountsInvolvedInMerge[investAccount] = True
+
+                if failUsesAverageCostValidation:
+                    output += "   <Above Investment account FAILED VALIDATION. Function will ABORT WITHOUT CHANGES>\n"
+                elif foundSecondary:
+                    investmentAccountsNeedingSecondaryMerge[investAccount] = True
+                    output += "   <Above Investment account will be included in Security merge>\n"
+                    if not foundPrimary:
+                        investmentAccountsNeedingPrimaryCreated[investAccount] = True
+                else:
+                    output += "   <Above Investment account will NOT be touched, no secondary securities to merge>\n"
+
+                output += "   ----\n"
+            del allInvestmentAccounts
+
+            if not iFoundAnyInvestmentAccounts:
+                output += "<NONE FOUND>\n\n"
+            else:
+                output += "%s Investment Accounts are involved in the merge...\n" %(iFoundAnyInvestmentAccounts)
+                output += "... Will create %s primary securities investment sub accounts\n" %(iPrimarySecuritiesToCreate)
+                output += "... Will merge/delete %s non-primary securities in investment sub accounts\n" %(iSecuritiesMergedDeleted)
+                output += "----\n"
+
+
+            if lFailValidation:
+                txt = "\n\n ACCOUNT VALIDATION FAILED - CANNOT PROCEED!\n"
+                myPrint("DB", txt); output += "\n\n%s\n" %(txt)
+                statusLabel.setText((txt).ljust(800, " "));statusLabel.setForeground(Color.RED)
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output).show_the_frame()
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            output += "\n"
+
+            # OK - Snapshot validation etc
+            primarySnaps = 0
+            allOtherSnaps = 0
+            for security in tickerToMerge.getSecurityList():
+                if security == tickerToMerge.getPrimarySecurity():
+                    primarySnaps = security.getSnapshots().size()
+                else:
+                    allOtherSnaps += security.getSnapshots().size()
+
+            lSnapshotActionRequired = False
+            lSnapsDeleteAll = lSnapsMergeAll = lSnapsKeepMasterOnly = lSnapsDumpMaster = False
+            if (primarySnaps+allOtherSnaps) < 1:
+                output += "No Price History Exists - No action required....\n"
+            elif primarySnaps > 0 and allOtherSnaps < 1:
+                output += "Only the Primary Security has Price History records - No action required....\n"
+            else:
+                lSnapshotActionRequired = True
+                output += "Primary Security has %s Price History records, the others have %s - STRATEGY REQUIRED...\n" %(primarySnaps, allOtherSnaps)
+
+            if lSnapshotActionRequired:
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output).show_the_frame()
+
+                options = ["Keep Master's %s Price History Records Only (dump the other's %s records)"  %(primarySnaps, allOtherSnaps),
+                           "Merge all other %s history records into master's (currently holds %s)"      %(allOtherSnaps, primarySnaps),
+                           "Dump Master's %s Price History records, merge %s others into master"        %(primarySnaps, allOtherSnaps),
+                           "DELETE ALL %s PRICE HISTORY RECORDS"                                        %(primarySnaps+allOtherSnaps)]
+
+                selectedSnapStrategy = JOptionPane.showInputDialog(jif,
+                                                               "Select the Price History Strategy?",
+                                                               "MERGE 'DUPLICATE' SECURITIES - PRICE HISTORY",
+                                                               JOptionPane.INFORMATION_MESSAGE,
+                                                               None,
+                                                               options,
+                                                               None)
+
+                if not selectedSnapStrategy:
+                    statusLabel.setText(("User did not select a Price History Strategy for the merge - no changes made").ljust(800, " "))
+                    statusLabel.setForeground(Color.RED)
+                    myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                    return
+
+                jif.dispose()
+
+                if options.index(selectedSnapStrategy) == 0:    lSnapsKeepMasterOnly = True
+                elif options.index(selectedSnapStrategy) == 1:  lSnapsMergeAll = True
+                elif options.index(selectedSnapStrategy) == 2:  lSnapsDumpMaster = True
+                else:                                           lSnapsDeleteAll = True
+
+                output += "** Price History Strategy selected: %s\n\n" %(selectedSnapStrategy)
+
+
+            output += "\n------\n"
+            output += "Investment Accounts included in merge:                                 %s\n" %(len(investmentAccountsInvolvedInMerge))
+            output += "Investment Sub Accounts - new Master/Primary securities to be created: %s\n" %(len(investmentAccountsNeedingPrimaryCreated))
+            output += "Investment Sub Accounts - secondary securities to be merged/deleted:   %s\n" %(len(investmentAccountsNeedingSecondaryMerge))
+            output += "\n------\n"
+
+            ask = MyPopUpDialogBox(toolbox_frame_,
+                                   "Merge 'Duplicate' Securities... REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE SECURITY MERGE",
+                                   output,
+                                   theTitle="MERGE 'DUPLICATE' SECURITIES':",
+                                   lCancelButton=True,
+                                   OKButtonText="PROCEED")
+            if not ask.go():
+                txt = "Merge 'Duplicate' Securities... User Aborted - No changes made!"
+                myPrint("B",txt)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output).show_the_frame()
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"MERGE 'DUPLICATE' SECURITY RECORDS",
+                                                     "EXECUTE MERGE OF SECURITY %s / %s?" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())):
+                return
+
+            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH SECURITY MERGE of %s / %s.....\n\n" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())
+
+            if len(investmentAccountsInvolvedInMerge) > 0:
+                output += "\nSTATISTICS BEFORE START...\n\n"
+                for reportAccount in investmentAccountsInvolvedInMerge:
+                    getTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(reportAccount)
+                    countTxns = getTxns.getSize()
+                    valuesTable = []
+                    create_totals(countTxns, reportAccount, valuesTable)
+                    output += output_stats("Before:", reportAccount, valuesTable)
+                    output += "\n----\n"
+                    del getTxns, valuesTable
+
+            output += "\n"
+
+        except:
+            txt = "MINOR ERROR - merge 'duplicate' Securities crashed before any merge actions. Please review output and console".upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame(txt, output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        # Catch any crash during the update as this would be bad... :-(
+        try:
+
+            pleaseWait = MyPopUpDialogBox(toolbox_frame_,
+                                          "Please wait: executing 'duplicate' security merge right now..",
+                                          theTitle="MERGE 'DUPLICATE' SECURITY",
+                                          theWidth=100,
+                                          lModal=False,
+                                          OKButtonText="WAIT")
+            pleaseWait.go()
+
+            myPrint("DB","Flushing dataset pre-merge changes in memory to sync... and disabling balance recalculation(s) / display refresh(es)..")
+            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the merge..
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
+            MD_REF.getUI().setSuspendRefresh(True)
+
+            # Start with snapshot merge...
+            if not lSnapshotActionRequired:
+                txt = "Skipping Price History actions...."
+                myPrint("B", txt); output += "%s\n\n" %(txt)
+            else:
+                primary = tickerToMerge.getPrimarySecurity()
+                if lSnapsDumpMaster or lSnapsDeleteAll:
+                    getSnaps = primary.getSnapshots()
+                    txt = "Deleting %s snapshots from %s" %(getSnaps.size(), primary)
+                    myPrint("B",txt); output += "%s\n" %(txt)
+                    for snap in getSnaps: snap.deleteItem()
+
+                if lSnapsMergeAll or lSnapsDumpMaster:
+                    for security in tickerToMerge.getSecurityListWithoutPrimary():
+                        rCurr = primary.getRelativeCurrency()
+                        getSnaps = security.getSnapshots()
+                        txt = "Merging %s potential snapshots from %s into %s" %(getSnaps.size(), security, primary)
+                        myPrint("B",txt); output += "%s\n" %(txt)
+                        for snap in getSnaps:
+                            foundSnap = primary.getSnapshotForDate(snap.getDateInt())
+                            if foundSnap is not None and foundSnap.getDateInt() == snap.getDateInt():
+                                # Found a match - skip
+                                pass
+                            else:
+                                newSnap = primary.addSnapshotInt(snap.getDateInt(), snap.getRate(), rCurr)
+                                newSnap.setEditingMode()
+                                newSnap.setDailyVolume(snap.getDailyVolume())
+                                newSnap.setUserDailyLow(snap.getDailyLow())
+                                newSnap.setUserDailyHigh(snap.getDailyHigh())
+                                newSnap.syncItem()
+
+                if lSnapsKeepMasterOnly: pass
+
+                for security in tickerToMerge.getSecurityListWithoutPrimary():
+                    getSnaps = security.getSnapshots()
+                    txt = "Now Deleting %s snapshots from %s (post any merge actions)" %(getSnaps.size(), security)
+                    myPrint("B",txt); output += "%s\n" %(txt)
+                    for snap in getSnaps: snap.deleteItem()
+
+                output += "----\n"
+                output += "Primary %s now contains: %s Price History records...\n" %(primary, primary.getSnapshots().size())
+                for security in tickerToMerge.getSecurityListWithoutPrimary():
+                    output += "Secondary %s now contains: %s Price History records...\n" %(security, security.getSnapshots().size())
+                output += "----\n"
+
+            # Now create any missing Primary security sub account(s)...
+
+            if len(investmentAccountsNeedingPrimaryCreated) > 0:
+                txt = "Creating %s new Primary Securities Sub Accounts in Investment accounts:" %(len(investmentAccountsNeedingPrimaryCreated))
+                myPrint("B", txt); output += "%s\n" %(txt)
+
+                primary = tickerToMerge.getPrimarySecurity()
+                for createAccount in investmentAccountsNeedingPrimaryCreated:
+                    # Copy the first one we find... Yup - there could be more, but tough!
+                    for findAcctToCopy in tickerToMerge.getSecurityListWithoutPrimary():
+                        copyAcct = isSecurityHeldWithinInvestmentAccount(findAcctToCopy,createAccount)
+
+                        if copyAcct is None: continue
+
+                        txt = "... Creating: %s in %s" %(primary.getName(), createAccount)
+                        myPrint("B", txt); output += "%s\n" %(txt)
+
+                        newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(),
+                                                              Account.AccountType.SECURITY,
+                                                              createAccount)
+                        newSecurityAcct.setEditingMode()
+                        newSecurityAcct.getUUID()
+                        newSecurityAcct.setAccountName(primary.getName())
+                        newSecurityAcct.setCurrencyType(primary)
+                        newSecurityAcct.setStartBalance(0)
+
+                        newSecurityAcct.setUsesAverageCost(copyAcct.getUsesAverageCost())
+                        newSecurityAcct.setBroker(copyAcct.getBroker())
+                        newSecurityAcct.setBrokerPhone(copyAcct.getBrokerPhone())
+                        newSecurityAcct.setAPR(copyAcct.getAPR())
+                        newSecurityAcct.setBondType(copyAcct.getBondType())
+                        newSecurityAcct.setComment(copyAcct.getComment())
+                        newSecurityAcct.setCompounding(copyAcct.getCompounding())
+                        newSecurityAcct.setFaceValue(copyAcct.getFaceValue())
+                        newSecurityAcct.setFaceValue(copyAcct.getFaceValue())
+                        newSecurityAcct.setMaturity(copyAcct.getMaturity())
+                        newSecurityAcct.setMonth(copyAcct.getMonth())
+                        newSecurityAcct.setNumYears(copyAcct.getNumYears())
+                        newSecurityAcct.setPut(copyAcct.getPut())
+                        newSecurityAcct.setOptionPrice(copyAcct.getOptionPrice())
+                        newSecurityAcct.setDividend(copyAcct.getDividend())
+                        newSecurityAcct.setExchange(copyAcct.getExchange())
+                        newSecurityAcct.setSecurityType(copyAcct.getSecurityType())
+                        newSecurityAcct.setSecuritySubType(copyAcct.getSecuritySubType())
+                        newSecurityAcct.setStrikePrice(copyAcct.getStrikePrice())
+
+                        for param in ["hide","hide_on_hp","ol.haspendingtxns", "ol.new_txn_count"]:
+                            newSecurityAcct.setParameter(param, copyAcct.getParameter(param))
+
+                        newSecurityAcct.setParameter(PARAMETER_KEY,True)
+                        newSecurityAcct.syncItem()
+
+                        break
+
+            lErrorDeletingSecuritySubAccounts = False
+            if len(investmentAccountsNeedingSecondaryMerge) > 0:
+                txt = "Now reassigning relevant txns to the new/merged primary security....:"
+                myPrint("B", txt); output += "\n\n%s\n" %(txt)
+
+                # now for the merge/reassignment of relevant transactions...
+                for reassignAcct in investmentAccountsNeedingSecondaryMerge:
+
+                    primaryAcct = isSecurityHeldWithinInvestmentAccount(tickerToMerge.getPrimarySecurity(),reassignAcct)
+
+                    for findAcctToCopy in tickerToMerge.getSecurityListWithoutPrimary():
+                        copyAcct = isSecurityHeldWithinInvestmentAccount(findAcctToCopy,reassignAcct)
+                        if copyAcct is None: continue
+
+                        reassignTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(copyAcct)
+                        output += "... retrieved %s txns from secondary %s - reassigning.....\n" %(reassignTxns.getSize(), copyAcct)
+
+                        for srcTxn in reassignTxns:
+
+                            if not isinstance(srcTxn, SplitTxn):       # Should never happen..... ;->
+                                raise Exception("Error: found a non-split: %s" %(srcTxn))
+
+                            srcTxn.setAccount(primaryAcct)
+                            srcTxn.setParameter(PARAMETER_KEY,True)
+                            pTxn = srcTxn.getParentTxn()
+                            pTxn.syncItem()
+                            output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
+                                                           pad(pTxn.getInvestTxnType().getIDString(),12),
+                                                           pad(pTxn.getMemo(),60),
+                                                           rpad(primaryAcct.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
+                            continue
+
+                        output += "\n"
+                        del reassignTxns
+
+                output += "\n>> Txn reassignment completed.....\n\n"
+
+                txt = "Now deleting empty empty Investment secondary sub accounts...."
+                myPrint("B", txt); output += "\n%s\n" %(txt)
+
+                # now delete the empty sub accounts.....
+                for reassignAcct in investmentAccountsNeedingSecondaryMerge:
+
+                    for findAcctToCopy in tickerToMerge.getSecurityListWithoutPrimary():
+                        copyAcct = isSecurityHeldWithinInvestmentAccount(findAcctToCopy,reassignAcct)
+                        if copyAcct is None: continue
+
+                        remainingTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(copyAcct)
+                        output += "... %s txns left in secondary %s ..." %(remainingTxns.getSize(), copyAcct)
+
+                        if remainingTxns.getSize() < 1:
+                            txt = "... Deleting: %s (empty)" %(copyAcct)
+                            myPrint("B", txt); output += "%s\n" %(txt)
+                            copyAcct.deleteItem()
+                        else:
+                            lErrorDeletingSecuritySubAccounts = True
+                            txt = "... *** ERROR - Cannot delete %s as it still contains %s txns! ***" %(copyAcct,remainingTxns.getSize())
+                            myPrint("B", txt); output += "%s\n" %(txt)
+
+                output += "\n>> Secondary Investment Sub Account(s) deletions completed.....\n\n"
+
+            # Now delete the (empty) and now unused old secondary Securities
+            txt = "Now deleting the empty & unused old secondary securities that have been merged into the new master..:"
+            myPrint("B", txt); output += "\n%s\n\n" %(txt)
+
+            lErrorDeletingSecurities = False
+            for securityToDelete in tickerToMerge.getSecurityListWithoutPrimary():
+                findSecurityAcct = isSecurityHeldWithinAnyInvestmentAccount(securityToDelete)
+                if findSecurityAcct is None:
+                    output += ".. Verified %s is not being used...... DELETING SECURITY MASTER....\n" %(securityToDelete)
+                    securityToDelete.deleteItem()
+                else:
+                    lErrorDeletingSecurities = True
+                    output += ".. ERROR %s is still being used in %s ...... ** NOT DELETING SECURITY MASTER**\n" %(securityToDelete, findSecurityAcct)
+
+            output += "\n>> Merge 'duplicate' Securities completed..\n\n"
+
+            del tickerToMerge
+
+        except:
+
+            txt = "MAJOR ERROR - Merge 'duplicate' Securities crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame(txt,output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        finally:
+
+            myPrint("DB","Saving dataset merge 'duplicate' security changes in memory to sync... and re-enabling balance recalculation(s) and display refresh(es)..")
+            MD_REF.getUI().getMain().saveCurrentAccount()
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
+            MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+
+            pleaseWait.kill()       # noqa
+
+        try:
+            # OK - Main update is done....
+
+            if len(investmentAccountsInvolvedInMerge) > 0:
+                output += "\n\nSTATISTICS AFTER MERGE ACTIONS COMPLETED...\n\n"
+                for reportAccount in investmentAccountsInvolvedInMerge:
+                    getTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(reportAccount)
+                    countTxns = getTxns.getSize()
+                    valuesTable = []
+                    create_totals(countTxns, reportAccount, valuesTable)
+                    output += output_stats("Before:", reportAccount, valuesTable)
+                    output += "\n----\n"
+                    del getTxns, valuesTable
+
+            del investmentAccountsInvolvedInMerge, investmentAccountsNeedingSecondaryMerge, investmentAccountsNeedingPrimaryCreated
+
+            output += "\n"
+
+            if True:    # We are saving Trunk as we want to flush the mass changes to disk. Stops the restart reapplying these again....
+                pleaseWait = MyPopUpDialogBox(toolbox_frame_,
+                                              "Please wait: Flushing dataset (and merge actions) back to disk.....",
+                                              theTitle="MERGE 'DUPLICATE' SECURITIES",
+                                              theWidth=100,
+                                              lModal=False,
+                                              OKButtonText="WAIT")
+                pleaseWait.go()
+
+                txt = "... Saving Trunk to flush all changes back to disk now ...."
+                myPrint("B", txt); output += "\n%s\n" %(txt)
+                MD_REF.getCurrentAccount().getBook().saveTrunkFile()
+                pleaseWait.kill()
+
+            if lErrorDeletingSecuritySubAccounts or lErrorDeletingSecurities:
+                txt = "Merge 'duplicate' securities completed ** WITH ERRORS ** Please review log and check the results..."
+                optionMessage = JOptionPane.ERROR_MESSAGE
+                optionColor = Color.RED
+            else:
+                txt = "Merge 'duplicate' securities successfully completed - please review log and check the results..."
+                optionMessage = JOptionPane.INFORMATION_MESSAGE
+                optionColor = Color.GREEN
+            myPrint("B", txt); output += "\n\n%s\n" %(txt)
+            output += "\n\n *** PLEASE CHECK YOUR PORTFOLIO VIEW & REPORTS TO BALANCES ***\n\n"
+            output += "\n<END>"
+
+        except:
+            txt = "ERROR - merge 'duplicate' Securities crashed after the merge actions. Please review output, console, and VERIFY YOUR DATASET!".upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame(txt,output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+
+        jif = QuickJFrame(txt,output).show_the_frame()
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(optionColor)
+        play_the_money_sound()
+        myPopupInformationBox(jif,txt,theMessageType=optionMessage)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
+    # noinspection PyUnresolvedReferences
+    def move_merge_investment_txns(statusLabel):
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        PARAMETER_KEY = "toolbox_txn_merge"
+        today = Calendar.getInstance()
+
+        allInvestmentAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(23))
+        toListAccount = list(allInvestmentAccounts)
+
+        if len(allInvestmentAccounts) < 2:
+            statusLabel.setText(("Move/Merge Investment Accounts: You do not have enough accounts to do this - no changes made").ljust(800, " "))
+            statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,"You do not have enough Investment accounts to do this! No changes made")
+            return
+
+        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
+        if quoteLoader_or_QER_Loaded:
+
+            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+
+            ask = myPopupAskQuestion(toolbox_frame_,"MOVE/MERGE - QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Confirm that it's not updating whilst running Move/Merge?")
+
+            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+            if not ask:
+                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst running Move/Merge - no changes made").ljust(800, " "))
+                statusLabel.setForeground(Color.RED)
+                return
+
+        sourceAccount = JOptionPane.showInputDialog(toolbox_frame_,
+                                                      "Select the 'from' source Account",
+                                                      "MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                                      JOptionPane.INFORMATION_MESSAGE,
+                                                      None,
+                                                      allInvestmentAccounts,
+                                                      None)
+
+        if not sourceAccount:
+            statusLabel.setText(("User did not select a source Account to move txns from - no changes made").ljust(800, " "))
+            statusLabel.setForeground(Color.BLUE)
+            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        toListAccount.remove(sourceAccount)
+
+        targetAccount = JOptionPane.showInputDialog(toolbox_frame_,
+                                                    "Select the target Account to move/merge txns into",
+                                                    "MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                                    JOptionPane.INFORMATION_MESSAGE,
+                                                    None,
+                                                    toListAccount,
+                                                    None)
+
+        if not targetAccount:
+            statusLabel.setText(("User did not select a target Account to move txns into - no changes made").ljust(800, " "))
+            statusLabel.setForeground(Color.BLUE)
+            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
+
+        if sourceTxns.getSize() < 1:
+            txt = "Move/Merge Investment txns: Source Account has no transactions - no changes made!"
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        myPrint("B", "Move/Merge: Analysing Investment accounts %s into %s...." %(sourceAccount, targetAccount))
+
+        output = "Move/merge investment accounts from one account into another:\n" \
+                 " ============================================================\n\n"
+
+        try:
+
+            if quoteLoader_or_QER_Loaded:
+                output += "QuoteLoader / Q&ER extension is loaded. User confirmed that it's not auto-updating and to proceed....\n\n"
+
+            output += "Pre move/merge analysis....\n"
+            output += "Source Account: %s\n" %(sourceAccount.getFullAccountName())
+            output += "Target Account: %s\n\n" %(targetAccount.getFullAccountName())
+
+            MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
+            # noinspection PyUnresolvedReferences
+            def getSubSecAccts(fromWhere, lSource):
+                secs = []
+                _output = ""
+                _txtSource = "Source"
+                if not lSource: _txtSource = "Target"
+                for acct in fromWhere.getSubAccounts():
+                    if acct.getAccountType() == Account.AccountType.SECURITY:
+                        secs.append(acct)
+                        _relCurr = acct.getCurrencyType()
+                        _output += "..%s: %s contains Security: %s (%s units)\n" %(_txtSource, fromWhere, acct, _relCurr.formatSemiFancy(acct.getBalance(),MD_decimal))
+                    else:
+                        _txt = "Error: %s found non SECURITY account %s within %s? - Aborting" %(_txtSource, acct,fromWhere)
+                        myPrint("DB",_txt)
+                        statusLabel.setText((_txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                        myPopupInformationBox(toolbox_frame_,_txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                        return None, None
+                return secs, _output
+
+            response = getSubSecAccts(sourceAccount, lSource=True)
+            if response[0] is None: return
+            sourceSecurities = response[0]
+            output += response[1]
+            output += "\n"
+
+            response = getSubSecAccts(targetAccount, lSource=False)
+            if response[0] is None: return
+            targetSecurities = response[0]
+            output += response[1]
+            output += "\n"
+
+            def find_src_sec_in_target(findSecCurr):
+                for _trgSec in targetSecurities:
+                    if _trgSec.getCurrencyType() == findSecCurr:
+                        return _trgSec
+                return None
+
+            securities_to_create = []
+            for srcSec in sourceSecurities:
+                trgSec = find_src_sec_in_target(srcSec.getCurrencyType())
+                if trgSec:
+                    if trgSec.getUsesAverageCost() != srcSec.getUsesAverageCost():
+                        txt = "Error: Security %s Source & Target UsesAverageCost does NOT match (%s vs %s) - Aborting" %(srcSec,srcSec.getUsesAverageCost(),trgSec.getUsesAverageCost())
+                        myPrint("DB",txt)
+                        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                        return
+                    output += "Matched: %s to %s >> UsesAverageCost=%s\n" %(srcSec, trgSec, srcSec.getUsesAverageCost())
+                else:
+                    securities_to_create.append(srcSec)
+
+            targetTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(targetAccount)
+
+            if sourceAccount.getCurrencyType() != targetAccount.getCurrencyType():
+                txt = "Error: Nice try Batman! Sorry the source acct's currency %s does not match target's %s" %(sourceAccount.getCurrencyType(), targetAccount.getCurrencyType())
+                myPrint("DB",txt)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
+
+            output += "\nConfirmed that source and target accounts use the same currency: %s\n" %(sourceAccount.getCurrencyType())
+
+            countSourceBefore = sourceTxns.getSize()
+            countTargetBefore = targetTxns.getSize()
+
+            output += "\n"
+            output += "Source Account contains: {:>10} transactions\n".format(countSourceBefore)
+            output += "Target Account contains: {:>10} transactions\n".format(countTargetBefore)
+            del targetTxns
+
+            # Validate against a loop where the source contains a txf to/from the target
+            iCountLoops = 0
+            output += "\nValidating against a loop where the source contains a txf to/from the target\n"
+            for srcTxn in sourceTxns:
+
+                if isinstance(srcTxn,SplitTxn):
+                    if srcTxn.getParentTxn().getAccount() == targetAccount:
+                        iCountLoops += 1
+                    continue
+
+                elif isinstance(srcTxn,ParentTxn):
+                    # secTxn = TxnUtil.getSecurityPart(srcTxn)
+                    xfrTxn = TxnUtil.getXfrPart(srcTxn)
+                    feeTxn = TxnUtil.getCommissionPart(srcTxn)
+                    incTxn = TxnUtil.getIncomePart(srcTxn)
+                    expTxn = TxnUtil.getExpensePart(srcTxn)
+
+                    if ((xfrTxn and xfrTxn.getAccount() == targetAccount)
+                            or (feeTxn and feeTxn.getAccount() == targetAccount)
+                            or (incTxn and incTxn.getAccount() == targetAccount)
+                            or (expTxn and expTxn.getAccount() == targetAccount)):
+                        iCountLoops += 1; continue
+
+                    continue
+
+                else:
+                    # Should never happen!!
+                    txt = "Error: found a non-Parent / non-Split Txn - Cannot continue...:\n%s\nDate: %s\n" %(srcTxn.getSyncInfo().toMultilineHumanReadableString(), convertStrippedIntDateFormattedText(srcTxn.getDateInt()))
+                    myPrint("B",txt)
+                    statusLabel.setText(("ERROR: Found a non-Parent / non-Split Txn - Cannot continue...").ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                    MyPopUpDialogBox(toolbox_frame_,"Move/merge: ERROR: Found a non-Parent / non-Split Txn - Cannot continue...",txt,OKButtonText="ABORT",lAlertLevel=2).go()
+                    return
+
+            if iCountLoops < 1:
+                output += "... to/from accounts validated... No loops should be created...\n"
+            else:
+                output += "... to/from accounts validated... %s loops could exist if we proceed with move/merge...\n" %(iCountLoops)
+
+                if not MyPopUpDialogBox(toolbox_frame_,
+                                       "Move/merge: Would create a loop - Proceed or Cancel?",
+                                       "%s source txns already refer to the new target account\n"
+                                       "If you proceed, then these txns would refer to them themselves once move/merged\n"
+                                       "This is illogical, and your cash balances might be 'incorrect'\n"
+                                       "You can proceed and fix yourself later, or cancel to fix first before you proceed?!" %(iCountLoops),
+                                       OKButtonText="PROCEED",
+                                       lCancelButton=True,
+                                       lAlertLevel=1).go():
+                    txt = "ERROR: %s Txns to move/merge includes the target account - would cause a loop - no changes made" %(iCountLoops)
+                    myPrint("B", txt)
+                    statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                    jif = QuickJFrame(txt,output).show_the_frame()
+                    myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+                    return
+
+                else:
+                    output += "\n*** to/from accounts failed validation. The move/merge will create %s txns with account loops that refer to self. PLEASE FIX YOURSELF LATER ***\n" %(iCountLoops)
+
+            sourceRCurr = sourceAccount.getCurrencyType()
+            sourceStartBal = sourceAccount.getStartBalance()
+
+            targetRCurr = targetAccount.getCurrencyType()
+            targetStartBal = targetAccount.getStartBalance()
+
+            if sourceStartBal == 0 and targetStartBal == 0:
+                output += "\nSource & Target have starting cash balances of zero...\n"
+            else:
+                output += "\nSource starting cash balance: %s\n" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))
+                output += "\nTarget starting cash balance: %s\n" %(targetRCurr.formatSemiFancy(targetStartBal,MD_decimal))
+
+            ask = MyPopUpDialogBox(toolbox_frame_,
+                                   "Move/Merge Txns from selected Investment account into another.. REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE MERGE",
+                                   output,
+                                   theTitle="MOVE/MERGE INVESTMENT TRANSACTIONS:",
+                                   lCancelButton=True,
+                                   OKButtonText="PROCEED")
+            if not ask.go():
+                txt = "Move/Merge Investment Txns - User Aborted - No changes made!"
+                myPrint("B",txt)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                jif = QuickJFrame(txt,output).show_the_frame()
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"MOVE/MERGE INVESTMENT TXNS",
+                                                     "EXECUTE MOVE FROM %s to %s?" %(sourceAccount,targetAccount)):
+                return
+
+            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH MOVE/MERGE FROM %s to %s.....\n\n" %(sourceAccount, targetAccount)
+
+            lAddCashBalances = False
+            if sourceStartBal != 0:
+                if myPopupAskQuestion(toolbox_frame_,"MOVE/MERGE INVESTMENT TXNS - CASH BALANCES","Do you want me to add source acct's starting cash balance of %s into target's?" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))):
+                    lAddCashBalances = True
+                    output += "User requested to add source acct's starting cash balance into target's...\n\n"
+                else:
+                    output += "User DECLINED to add source acct's starting cash balance into target's... It will therefore be left behind...\n\n"
+
+            lDeleteEmptyAccount = False
+            if sourceStartBal != 0 and not lAddCashBalances:
+                txt = "NOTE: Source account cannot be auto-deleted post merge as it will be left with a cash starting balance..."
+                myPopupInformationBox(toolbox_frame_,txt,"MOVE/MERGE INVESTMENT TXNS - STARTING CASH BALANCE(S)")
+                output += "%s\n\n" %(txt)
+
+            elif JOptionPane.showOptionDialog(toolbox_frame_,
+                                              "Do you want me to delete the resulting empty source account?",
+                                              "MOVE/MERGE INVESTMENT TXNS - CLEANUP?",
+                                              JOptionPane.YES_NO_OPTION,
+                                              JOptionPane.WARNING_MESSAGE,
+                                              None,
+                                              ["NO", "YES"], "NO") == 1:    # == 1 will == "YES"
+                lDeleteEmptyAccount = True
+                output += "User requested to delete the resulting source account: %s\n\n" %(sourceAccount)
+
+            ################
+            # LET'S DO IT! #
+            ################
+
+            # Prepare before totals...
+            _WHAT = 0
+            _QTY = 1
+            _COSTBASIS = 2
+            _VALUE = 3
+
+            sourceValuesBefore = []
+            targetValuesBefore = []
+
+            # noinspection PyUnresolvedReferences
+            def create_totals(theCount, theAccount, theTable):
+                _acctRelCurr = theAccount.getCurrencyType()
+                theTable.append(["Txn Count",    theCount, "", ""])
+                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal)])
+                theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal)])
+                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance())]
+                for acct in theAccount.getSubAccounts():
+                    if acct.getAccountType() == Account.AccountType.SECURITY:
+                        _subAcctRelCurr = acct.getCurrencyType()
+                        subAcctBal = acct.getBalance()
+                        subAcctCostBasis = InvestUtil.getCostBasis(acct)
+                        price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+
+                        _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
+                        _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
+                        _totals[2] +=  round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())
+                        theTable.append([acct.getAccountName(),
+                                         _subAcctRelCurr.formatSemiFancy(subAcctBal,MD_decimal),
+                                         _acctRelCurr.formatSemiFancy(subAcctCostBasis,MD_decimal),
+                                         _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal)
+                                         ])
+                theTable.append(["**TOTALS:",
+                                 _totals[0],
+                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[1]),MD_decimal),
+                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[2]),MD_decimal)])
+
+            create_totals(countSourceBefore, sourceAccount, sourceValuesBefore)
+            create_totals(countTargetBefore, targetAccount, targetValuesBefore)
+
+        except:
+            txt = "MINOR ERROR - Move/merge crashed before any move/merge. Please review output and console".upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame("MINOR ERROR - MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        # Catch any crash during the update as this would be bad... :-(
+        try:
+
+            pleaseWait = MyPopUpDialogBox(toolbox_frame_,
+                                          "Please wait: executing move/merge right now..",
+                                          theTitle="MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                          theWidth=100,
+                                          lModal=False,
+                                          OKButtonText="WAIT")
+            pleaseWait.go()
+
+            myPrint("DB","Flushing dataset pre-move/merge changes in memory to sync... and disabling balance recalculation(s) / display refresh(es)..")
+            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the move/merge..
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
+            MD_REF.getUI().setSuspendRefresh(True)
+
+            # Start by adding any Account Starting Cash Balances....
+            if lAddCashBalances:
+                txt = "Adding source starting cash balance: %s to target's: %s = %s"\
+                      %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal),
+                        targetRCurr.formatSemiFancy(targetStartBal,MD_decimal),
+                        targetRCurr.formatSemiFancy(sourceStartBal+targetStartBal,MD_decimal))
+
+                myPrint("B", txt); output += "%s\n" %(txt)
+
+                targetAccount.setEditingMode()
+                targetAccount.setStartBalance(sourceStartBal+targetStartBal)
+                targetAccount.setParameter(PARAMETER_KEY,True)
+                targetAccount.syncItem()
+
+                sourceAccount.setEditingMode()
+                sourceAccount.setStartBalance(0)
+                sourceAccount.setParameter(PARAMETER_KEY,True)
+                sourceAccount.syncItem()
+
+
+            # Now create any missing security sub account(s)...
+            if len(securities_to_create) > 0:
+                txt = "Creating destination %s missing security sub accounts:" %(len(securities_to_create))
+                myPrint("B", txt); output += "%s\n" %(txt)
+
+                for sec_to_create in securities_to_create:
+                    txt = "... Creating: %s" %(sec_to_create.getAccountName())
+                    myPrint("B", txt); output += "%s\n" %(txt)
+
+                    # newSecurityAcct = Legacy.makeAccount(MD_REF.getCurrentAccountBook(),
+                    #                                      sec_to_create.getAccountName(),
+                    #                                      -1,
+                    #                                      Account.AccountType.SECURITY,
+                    #                                      sec_to_create.getCurrencyType(),
+                    #                                      None, None,
+                    #                                      targetAccount, 0L)
+
+                    newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(),
+                                                          Account.AccountType.SECURITY,
+                                                          targetAccount)
+                    newSecurityAcct.setEditingMode()
+                    newSecurityAcct.getUUID()
+                    newSecurityAcct.setAccountName(sec_to_create.getAccountName())
+                    newSecurityAcct.setCurrencyType(sec_to_create.getCurrencyType())
+                    newSecurityAcct.setStartBalance(0)
+
+                    newSecurityAcct.setUsesAverageCost(sec_to_create.getUsesAverageCost())
+                    newSecurityAcct.setBroker(sec_to_create.getBroker())
+                    newSecurityAcct.setBrokerPhone(sec_to_create.getBrokerPhone())
+                    newSecurityAcct.setAPR(sec_to_create.getAPR())
+                    newSecurityAcct.setBondType(sec_to_create.getBondType())
+                    newSecurityAcct.setComment(sec_to_create.getComment())
+                    newSecurityAcct.setCompounding(sec_to_create.getCompounding())
+                    newSecurityAcct.setFaceValue(sec_to_create.getFaceValue())
+                    newSecurityAcct.setFaceValue(sec_to_create.getFaceValue())
+                    newSecurityAcct.setMaturity(sec_to_create.getMaturity())
+                    newSecurityAcct.setMonth(sec_to_create.getMonth())
+                    newSecurityAcct.setNumYears(sec_to_create.getNumYears())
+                    newSecurityAcct.setPut(sec_to_create.getPut())
+                    newSecurityAcct.setOptionPrice(sec_to_create.getOptionPrice())
+                    newSecurityAcct.setDividend(sec_to_create.getDividend())
+                    newSecurityAcct.setExchange(sec_to_create.getExchange())
+                    newSecurityAcct.setSecurityType(sec_to_create.getSecurityType())
+                    newSecurityAcct.setSecuritySubType(sec_to_create.getSecuritySubType())
+                    newSecurityAcct.setStrikePrice(sec_to_create.getStrikePrice())
+
+                    for param in ["hide","hide_on_hp","ol.haspendingtxns", "ol.new_txn_count"]:
+                        newSecurityAcct.setParameter(param, sec_to_create.getParameter(param))
+
+                    newSecurityAcct.setParameter(PARAMETER_KEY,True)
+                    newSecurityAcct.syncItem()
+                    targetSecurities.append(newSecurityAcct)
+
+
+            copyTxns = sorted(sourceTxns, key=lambda _x: (_x.getDateInt()))
+            del sourceTxns
+
+            txt = "Now Moving/Merging transactions...:"
+            myPrint("B", txt); output += "\n\n%s\n" %(txt)
+
+            # now for the merge/move of the transactions...
+            for srcTxn in copyTxns:
+
+                if isinstance(srcTxn, SplitTxn):      # This is a cash transfer
+                    srcTxn.setAccount(targetAccount)
+                    srcTxn.setParameter(PARAMETER_KEY,True)
+                    pTxn = srcTxn.getParentTxn()
+                    pTxn.syncItem()
+                    output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
+                                                   pad(pTxn.getInvestTxnType().getIDString(),12),
+                                                   pad(pTxn.getMemo(),60),
+                                                   rpad(sourceAccount.getCurrencyType().formatFancy(pTxn.getValue(),MD_decimal),18))
+                    continue
+
+                # Thus, we are on a parent...
+                if not isinstance(srcTxn, ParentTxn): raise Exception("Error: found a non-parent: %s" %(srcTxn))
+                srcTxn.setEditingMode()
+                for iSplit in range(0, srcTxn.getSplitCount()):
+                    theSplit = srcTxn.getSplit(iSplit)
+                    theSrcSplitAcct = theSplit.getAccount()
+                    if theSrcSplitAcct.getAccountType() == Account.AccountType.SECURITY:
+                        trgSec = find_src_sec_in_target(theSrcSplitAcct.getCurrencyType())
+                        theSplit.setAccount(trgSec)
+                srcTxn.setParameter(PARAMETER_KEY,True)
+                srcTxn.setAccount(targetAccount)
+                srcTxn.syncItem()
+                output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(srcTxn.getDateInt()),
+                                               pad(srcTxn.getInvestTxnType().getIDString(),12),
+                                               pad(srcTxn.getMemo(),60),
+                                               rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
+
+            del copyTxns
+
+            output += "\n>> Move/merge completed..\n\n"
+
+        except:
+
+            txt = "MAJOR ERROR - Move/merge crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame("MAJOR ERROR - MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        finally:
+
+            myPrint("DB","Saving dataset move/merge changes in memory to sync... and re-enabling balance recalculation(s) and display refresh(es)..")
+            MD_REF.getUI().getMain().saveCurrentAccount()
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
+            MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+
+            pleaseWait.kill()       # noqa
+
+        try:
+            # Confirm that there are no txns left in the source account...
+            sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
+            targetTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(targetAccount)
+            countSourceAfter = sourceTxns.getSize()
+            countTargetAfter = targetTxns.getSize()
+            output += "Source Account now contains: {:>10} transactions\n".format(countSourceAfter)
+            output += "Target Account now contains: {:>10} transactions\n".format(countTargetAfter)
+
+            del sourceTxns, targetTxns
+
+            if countSourceAfter == 0:
+                output += "\nVerified that source account now contains ZERO txns...\n"
+            else:
+                txt = "ERROR: source account %s still seems to have %s transactions" %(sourceAccount, countSourceAfter)
+                myPrint("B", txt); output += "\n%s\n" %(txt)
+                jif = QuickJFrame("MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
+
+            if countTargetAfter == (countSourceBefore + countTargetBefore):
+                output += "Verified that ending target txn count of %s is equal to original source %s + target %s\n"\
+                          %(countTargetAfter, countSourceBefore, countTargetBefore)
+            else:
+                txt = "ERROR: target account txn count of %s is NOT equal to original source %s + target %s!"\
+                      %(countTargetAfter, countSourceBefore, countTargetBefore)
+                myPrint("B", txt); output += "\n%s\n" %(txt)
+                jif = QuickJFrame("MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
+
+            # Total up the Accounts after the merge...
+            sourceValuesAfter = []
+            targetValuesAfter = []
+
+            create_totals(countSourceAfter, sourceAccount, sourceValuesAfter)
+            create_totals(countTargetAfter, targetAccount, targetValuesAfter)
+
+            # Delete the empty Account(s) if requested...
+            # Don't forget we block this earlier on if source has a starting balance and user did not request to add into target
+            if lDeleteEmptyAccount:
+                MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
+                MD_REF.getUI().setSuspendRefresh(True)
+
+                txt = "Now deleting the empty source account (and any sub-security Account(s))..:"
+                myPrint("B", txt); output += "%s\n\n" %(txt)
+
+                for subAcct in sourceAccount.getSubAccounts():
+                    subAcct.deleteItem()
+                sourceAccount.deleteItem()
+
+                MD_REF.getUI().getMain().saveCurrentAccount()
+                MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
+                MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+
+            # OK - Main update is done....
+
+            output += "\n\n ***\n\n" \
+                      "STATISTICS OF ACCOUNTS BEFORE AND AFTER...\n"\
+                     " =========================================\n\n"
+            output += "BEFORE:\n"\
+                      "-----------------------------------------------------\n"
+
+            def output_stats(theText, theAccount, theTable):
+
+                local_output = "%s: %s\n" %(theText, theAccount)
+                iRow = 1
+                posInc = 0
+                for data in theTable:
+                    if iRow == 2:
+                        posInc += 14
+                        local_output += "   %s %s %s %s (** adjusted for splits)\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
+
+                    if iRow == 4:
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("",12), rpad("",15), rpad("-------------",15))
+
+                    if data[_WHAT].upper() == "**TOTALS:".upper():
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
+
+                    local_output += "   %s %s %s %s\n" %(pad(data[_WHAT],60+posInc),rpad(data[_QTY],12), rpad(data[_COSTBASIS],15), rpad(data[_VALUE],15))
+                    iRow += 1
+                return local_output
+
+            output += output_stats("Source", sourceAccount, sourceValuesBefore)
+            output += "\n"
+            output += output_stats("Target", targetAccount, targetValuesBefore)
+
+            output += "\n\n"
+            output += "AFTER:\n" \
+                      "-------------------------------------------------------\n"
+
+            output += output_stats("Source", sourceAccount, sourceValuesAfter)
+            output += "\n"
+            output += output_stats("Target", targetAccount, targetValuesAfter)
+
+            if True:    # We are saving Trunk as we want to flush the mass changes to disk. Stops the restart reapplying these again....
+                pleaseWait = MyPopUpDialogBox(toolbox_frame_,
+                                              "Please wait: Flushing dataset (and these move/merge txns) back to disk.....",
+                                              theTitle="MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                              theWidth=100,
+                                              lModal=False,
+                                              OKButtonText="WAIT")
+                pleaseWait.go()
+
+                txt = "... Saving Trunk to flush all changes back to disk now ...."
+                myPrint("B", txt); output += "\n%s\n" %(txt)
+                MD_REF.getCurrentAccount().getBook().saveTrunkFile()
+                pleaseWait.kill()
+
+            txt = "Move/merge from %s to %s successfully completed - please review log and check the results..." %(sourceAccount, targetAccount)
+            myPrint("B", txt); output += "\n\n%s\n" %(txt)
+            output += "\n\n *** PLEASE CHECK YOUR PORTFOLIO VIEW & REPORTS TO BALANCES ***\n\n"
+            output += "\n<END>"
+
+        except:
+            txt = "ERROR - Move/merge crashed after the move/merge. Please review output, console, and VERIFY YOUR DATASET!".upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame("ERROR - MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+
+        jif = QuickJFrame("MOVE/MERGE INVESTMENT TRANSACTIONS COMPLETED:",output).show_the_frame()
+        txt = "Move/merge successfully completed. Review log and check results"
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.GREEN)
+        play_the_money_sound()
+        myPopupInformationBox(jif,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
     def fix_non_hier_sec_acct_txns(statusLabel):
         global toolbox_frame_, debug
 
@@ -11694,6 +14287,7 @@ now after saving the file, restart Moneydance
         output += "\n\nRUNNING FIX ON SECURITY TXNS TO RE-LINK PARENT ACCOUNTS\n" \
                   "------------------------------------------------------------\n\n"
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the move/changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -11767,6 +14361,7 @@ now after saving the file, restart Moneydance
         if not confirm_backup_confirm_disclaimer(jif, statusLabel, "DELETE ONE-SIDED TRANSACTIONS", "delete %s one-sided transactions?" %(len(toDelete))):
             return
 
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
@@ -13292,10 +15887,10 @@ Now you will have a text readable version of the file you can open in a text edi
             System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
         fDialog = FileDialog(toolbox_frame_, "Select QIF file for import")
+        fDialog.setDirectory(get_home_dir())
         fDialog.setMultipleMode(False)
         fDialog.setMode(FileDialog.LOAD)
         fDialog.setFile("select_your_file.qif")
-        fDialog.setDirectory(get_home_dir())
 
         # Copied from MD code... File filters only work on non Macs (or Macs below certain versions)
         if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
@@ -13498,7 +16093,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         myPrint("J",">>FINISHED IMPORT................\n")
 
-        statusLabel.setText(("QIF IMPORT: File %s imported - review console log for messaged" %(os.path.basename(QIFfilename))).ljust(800, " "))
+        statusLabel.setText(("QIF IMPORT: File %s imported - review console log for any messages" %(os.path.basename(QIFfilename))).ljust(800, " "))
         statusLabel.setForeground(Color.BLUE)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,
@@ -13507,6 +16102,26 @@ Now you will have a text readable version of the file you can open in a text edi
                               theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ConsoleWindow.showConsoleWindow(MD_REF.getUI())
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+        return
+
+    def convert_timestamp_readable_date(statusLabel):
+        global toolbox_frame_, debug, DARK_GREEN, lCopyAllToClipBoard_TB
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        getTimeStamp = myPopupAskForInput(toolbox_frame_,"CONVERT TIMESTAMP","TimeStamp:","Enter the TimeStamp (Milliseconds) to see the readable date")
+
+        statusLabel.setText(("").ljust(800, " "))
+        if getTimeStamp is None or getTimeStamp == "" or int(getTimeStamp) < 1: return
+
+        readableStamp = get_time_stamp_as_nice_text(int(getTimeStamp))
+
+        statusLabel.setText(("Convert Timestamp (%s): %s" %(getTimeStamp,readableStamp)).ljust(800, " "))
+        statusLabel.setForeground(Color.BLUE)
+
+        myPopupInformationBox(toolbox_frame_,"Converted: %s" %(readableStamp),"CONVERT TIMESTAMP")
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -14049,6 +16664,7 @@ Now you will have a text readable version of the file you can open in a text edi
             return
 
         myPrint("B","HACKER MODE: 'SAVE TRUNK FILE': Calling saveTrunkFile() now at user request....")
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
         MD_REF.getCurrentAccount().getBook().saveTrunkFile()
         play_the_money_sound()
         statusLabel.setText("'SAVE TRUNK FILE' - OK, I have executed the Save Trunk File function. I suggest a restart of MD".ljust(800, " "))
@@ -14113,8 +16729,6 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
-
-        # todo - handle split txs .syncItem() and also display width on Txns...
 
         if not myPopupAskQuestion(toolbox_frame_,"HACKER: EDIT OBJ'S MODE","DANGER - ARE YOU SURE YOU WANT TO VISIT THIS FUNCTION?",
                                   theMessageType=JOptionPane.ERROR_MESSAGE):
@@ -14212,8 +16826,11 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 if confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"HACKER MODE","ADD PARAMETER VALUE TO %s" %(theObject)):
 
-                    theObject.setParameter(addKey,addValue)                                                     # noqa
-                    theObject.syncItem()                                                                        # noqa
+                    theObject.setParameter(addKey,addValue)                                                             # noqa
+                    if isinstance(theObject, SplitTxn):                                                                 # noqa
+                        theObject.getParentTxn().syncItem()                                                             # noqa
+                    else:
+                        theObject.syncItem()                                                                            # noqa
                     play_the_money_sound()
                     myPrint("B","@@ HACKERMODE: Parameter: %s Value: %s added to %s @@" %(addKey,addValue,theObject))
                     statusLabel.setText(("@@ HACKERMODE: Parameter: %s Value: %s added to %s @@" %(addKey,addValue,theObject)).ljust(800, " "))
@@ -14232,18 +16849,30 @@ Now you will have a text readable version of the file you can open in a text edi
                 output =  "%s PLEASE REVIEW PARAMETER & VALUE BEFORE DELETING OBJECT\n" %(theObject)
                 output += "---------------------------------------------------------\n\n"
 
-                paramKeys = sorted(theObject.getParameterKeys())                                                # noqa
+                if isinstance(theObject, SplitTxn):
+                    txt = theObject.getParentTxn().getSyncInfo().toMultilineHumanReadableString()
+                else:
+                    txt = theObject.getSyncInfo().toMultilineHumanReadableString()
 
-                for param in paramKeys:
-                    value = theObject.getParameter(param, None)                                                 # noqa
-                    output += "\nParameter: %s Value: %s\n" %(pad(param,40), value)
+                output += "\n%s\n" %(txt)
 
                 output += "\n<END>"
-                jif = QuickJFrame("REVIEW THE OBJECT's DATA BEFORE DELETION", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                if isinstance(theObject, SplitTxn):
+                    jif = QuickJFrame("REVIEW THE SPLIT TXN's DATA BEFORE DELETION (OF THE SPLIT)", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                elif isinstance(theObject, ParentTxn):
+                    jif = QuickJFrame("REVIEW THE PARENT'S TXN DATA BEFORE DELETION (OF THE WHOLE PARENT TXN)", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                else:
+                    jif = QuickJFrame("REVIEW THE OBJECT's DATA BEFORE DELETION", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
                 if confirm_backup_confirm_disclaimer(jif,statusLabel,"HACKER: DELETE OBJECT","DELETE OBJECT %s" %(theObject)):
 
-                    theObject.deleteItem()                                                                      # noqa
+                    if isinstance(theObject, SplitTxn):                                                                 # noqa
+                        # This will delete the split only; thus we also must sync the parent
+                        theObject.deleteItem()                                                                          # noqa
+                        theObject.getParentTxn().syncItem()                                                             # noqa
+                    else:
+                        theObject.deleteItem()                                                                          # noqa
+
                     play_the_money_sound()
 
                     myPrint("B","@@ HACKERMODE: OBJECT %s DELETED @@" %(theObject))
@@ -14313,10 +16942,15 @@ Now you will have a text readable version of the file you can open in a text edi
                 if confirm_backup_confirm_disclaimer(jif,statusLabel,"HACKER: %s VALUE IN %s" %(text,theObject),confAction):
 
                     if lDel:
-                        theObject.setParameter(selectedKey,None)                                                # noqa
+                        theObject.setParameter(selectedKey,None)                                                        # noqa
+
                     if lChg:
-                        theObject.setParameter(selectedKey,chgValue)                                            # noqa
-                    theObject.syncItem()                                                                        # noqa
+                        theObject.setParameter(selectedKey,chgValue)                                                    # noqa
+
+                    if isinstance(theObject, SplitTxn):                                                                 # noqa
+                        theObject.getParentTxn().syncItem()                                                             # noqa
+                    else:
+                        theObject.syncItem()                                                                            # noqa
 
                     MD_REF.savePreferences()            # Flush all in memory settings to config.dict file on disk
                     play_the_money_sound()
@@ -14707,9 +17341,9 @@ Now you will have a text readable version of the file you can open in a text edi
             System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
         fileDialog = FileDialog(toolbox_frame_, "Select file to import (encrypt) and save in the LocalStorage TMP directory")
+        fileDialog.setDirectory(attachmentFullPath)     # Keep this first
         fileDialog.setMultipleMode(False)
         fileDialog.setMode(FileDialog.LOAD)
-        fileDialog.setDirectory(attachmentFullPath)
         fileDialog.setVisible(True)
 
         if Platform.isOSX():
@@ -14765,41 +17399,81 @@ Now you will have a text readable version of the file you can open in a text edi
         LS = MD_REF.getCurrentAccountBook().getLocalStorage()
         attachmentFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
 
+        # FileDialog causes some problems as it remembers the last directory - useless for this - we want this specific directory....!
+        # JFileChooser has a non native LaF on Mac, but worked... But then VAQua broke it....
+        # We get close by setting the ClientProperty(s) used below... But now I see that the files are hidden when located within the
+        # MacOS: ~/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents location (oh well)
+        useJFileChooser = True
+
         if Platform.isOSX():
             System.setProperty("com.apple.macos.use-file-dialog-packages", "false")  # Allow access to packages as directories
             System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
-        # Dumped FileDialog as it remembers the last directory - useless for this - we want this directory....!
-        # fileDialog = FileDialog(toolbox_frame_, "Select file to extract and copy to TMP directory")
-        # fileDialog.setMultipleMode(False)
-        # fileDialog.setMode(FileDialog.LOAD)
-        # fileDialog.setDirectory(attachmentFullPath)
-        # fileDialog.setVisible(True)
+            fileChooserOptions = ["JFileChooser() - Try this first... If your files are not visible, try FileDialog",
+                                  "FileDialog() - Works fine, but you may have to navigate to your 'safe' directory manually"]
 
-        # UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
-        encryptedFilename = JFileChooser(attachmentFullPath)
-        encryptedFilename.setMultiSelectionEnabled(False)
-        encryptedFilename.setFileSelectionMode(JFileChooser.FILES_ONLY)
-        encryptedFilename.setDialogTitle("Select Moneydance internal file to extract and copy to TMP directory")
-        # encryptedFilename.setPreferredSize(Dimension(800,800))
-        returnvalue = encryptedFilename.showDialog(toolbox_frame_,"Extract")
+            selectedChooser = JOptionPane.showInputDialog(toolbox_frame_,
+                                                      "MacOSX - Select the method to select the file to decrypt",
+                                                      "HACKER: Extract/Decrypt File",
+                                                      JOptionPane.INFORMATION_MESSAGE,
+                                                      MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                      fileChooserOptions,
+                                                      None)
+
+            if selectedChooser and fileChooserOptions.index(selectedChooser) == 1:
+                myPrint("B","MacOSX - User chose FileDialog() for file selection")
+                useJFileChooser = False
+            else:
+                myPrint("B","MacOSX - defaulting to JFileChooser() for file selection")
+
+        # if useJFileChooser and Platform.isOSX():
+        #     myPopupInformationBox(toolbox_frame_,"NOTE: If your dataset is located within the default ~/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents location you will not be able to see the contents. Relocate it to a normal directory")
+
+        encryptedFilename = fileDialog = returnvalue = None
+
+        if useJFileChooser:
+            encryptedFilename = JFileChooser(attachmentFullPath)
+            if Platform.isOSX():
+                encryptedFilename.putClientProperty("JFileChooser.packageIsTraversable", True)
+                encryptedFilename.putClientProperty("JFileChooser.appBundleIsTraversable", True)
+            encryptedFilename.setMultiSelectionEnabled(False)
+            encryptedFilename.setFileSelectionMode(JFileChooser.FILES_ONLY)
+            encryptedFilename.setDialogTitle("Select Moneydance internal file to extract and copy to TMP directory")
+            encryptedFilename.setApproveButtonText("EXTRACT")
+            returnvalue = encryptedFilename.showOpenDialog(toolbox_frame_)
+        else:
+            fileDialog = FileDialog(toolbox_frame_, "Select Moneydance internal file to extract and copy to TMP directory")
+            fileDialog.setDirectory(attachmentFullPath)
+            fileDialog.setMultipleMode(False)
+            fileDialog.setMode(FileDialog.LOAD)
+            fileDialog.setVisible(True)
 
         if Platform.isOSX():
             System.setProperty("com.apple.macos.use-file-dialog-packages","true")  # In theory prevents access to app file structure (but doesnt seem to work)
             System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
-        if (returnvalue != JFileChooser.APPROVE_OPTION
-                or encryptedFilename.getSelectedFile() is None
-                or encryptedFilename.getSelectedFile().getName() == ""):
-            statusLabel.setText(("No file selected to extract/decrypt/copy..!").ljust(800, " "))
-            statusLabel.setForeground(Color.BLUE)
-            return
+        if useJFileChooser:
+            if (returnvalue != JFileChooser.APPROVE_OPTION
+                    or encryptedFilename.getSelectedFile() is None
+                    or encryptedFilename.getSelectedFile().getName() == ""):
+                statusLabel.setText(("No file selected to extract/decrypt/copy..!").ljust(800, " "))
+                statusLabel.setForeground(Color.BLUE)
+                return
 
-        selectedFile = encryptedFilename.getSelectedFile().getCanonicalPath()   # type: str
+            selectedFile = encryptedFilename.getSelectedFile().getCanonicalPath()   # type: str
+        else:
+            if (fileDialog.getFile() is None) or fileDialog.getFile() == "":
+                statusLabel.setText(("User chose to cancel or no file selected >>  So no extract will be performed...").ljust(800, " "))
+                statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,"User chose to cancel or no file selected >>  So no extract will be performed... ","EXTRACT FILE", theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            selectedFile = os.path.join(fileDialog.getDirectory(), fileDialog.getFile())
 
         if not os.path.exists(selectedFile) or not os.path.isfile(selectedFile):
             statusLabel.setText(("Sorry, file selected to extract either does not exist or is not a file").ljust(800, " "))
             statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,"Sorry, file selected to extract either does not exist or is not a file >> So no extract will be performed... ","EXTRACT FILE", theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         searchForSafe = selectedFile.lower().find(".moneydance"+os.path.sep+"safe"+os.path.sep)
@@ -15367,7 +18041,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 LS.remove(theKey)
                 LS.save()
 
-                MD_REF.getCurrentAccount().getBook().saveTrunkFile()
+                MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record...
                 play_the_money_sound()
 
                 self.myButton.setVisible(False)
@@ -15515,9 +18189,9 @@ Now you will have a text readable version of the file you can open in a text edi
                         System.setProperty("apple.awt.fileDialogForDirectories", "true")
 
                         fDialog = FileDialog(toolbox_frame_, "Select location to start %s Dataset Search (CANCEL=ABORT)" % theExtension)
+                        fDialog.setDirectory(get_home_dir())
                         fDialog.setMultipleMode(False)
                         fDialog.setMode(FileDialog.LOAD)
-                        fDialog.setDirectory(get_home_dir())
 
                         fDialog.setVisible(True)
 
@@ -15985,6 +18659,11 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_thin_price_history.setEnabled(lAdvancedMode)
                 user_thin_price_history.setForeground(Color.RED)
 
+                user_fix_nonlinked_security_records = JRadioButton("FIX: Detect and fix Investment Security records not properly linked to Security Master records", False)
+                user_fix_nonlinked_security_records.setToolTipText("This will scan your Investment Security record and check that it's properly linked to a security master record... Allows you to fix this too")
+                user_fix_nonlinked_security_records.setEnabled(lAdvancedMode)
+                user_fix_nonlinked_security_records.setForeground(Color.RED)
+
                 user_can_i_delete_security = JRadioButton("DIAG: Can I Delete a Security?", False)
                 user_can_i_delete_security.setToolTipText("This will tell you whether a Selected Security is in use and whether you can delete it in Moneydance")
 
@@ -15997,15 +18676,38 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_diag_curr_sec = JRadioButton("DIAG: Diagnose your Currencies (& securities) (reset_relative_currencies.py)", False)
                 user_diag_curr_sec.setToolTipText("This will diagnose your Currency (& Security) setup - checking relative currencies (and advise if you need to run a fix) (reset_relative_currencies.py)")
 
+                user_diag_price_date = JRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
+                user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
+
+                user_merge_duplicate_securities = JRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False)
+                user_merge_duplicate_securities.setToolTipText("This scan for 'duplicated' Securities and merge them together..... Tools>Securities>TickerSymbol is the key... (TickerSymbol; Dpc, RelCurr, Rate, Splits must match)")
+                user_merge_duplicate_securities.setEnabled(lAdvancedMode)
+                user_merge_duplicate_securities.setForeground(Color.RED)
+
+                user_autofix_price_date = JRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)", False)
+                user_autofix_price_date.setToolTipText("This will diagnose then fix your Currency & Security's current price hidden price_date field (and current price/rate)....")
+                user_autofix_price_date.setEnabled(lAdvancedMode)
+                user_autofix_price_date.setForeground(Color.RED)
+
+                user_fix_price_date = JRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field", False)
+                user_fix_price_date.setToolTipText("Allows you to manually edit a Currency / Security's current price hidden 'price_date' field....")
+                user_fix_price_date.setEnabled(lAdvancedMode)
+                user_fix_price_date.setForeground(Color.RED)
+
                 user_fix_curr_sec = JRadioButton("FIX: Fix Relative Currencies (& securities) (reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False)
                 user_fix_curr_sec.setToolTipText("This will apply fixes to your Currency (& security) / Relative Currency setup (use after running the diagnose option first). THIS CHANGES DATA!  (reset_relative_currencies.py)")
                 user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
                 user_fix_curr_sec.setForeground(Color.RED)
 
                 user_fix_invalid_curr_sec = JRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates (fix_invalid_currency_rates.py)", False)
-                user_fix_invalid_curr_sec.setToolTipText("This will reset any relative rates back to 1.0 where < 0 or > 9999999999. THIS CHANGES DATA!  (fix_invalid_currency_rates.py)")
+                user_fix_invalid_curr_sec.setToolTipText("This will reset any relative rates back to 1.0 where <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!  (fix_invalid_currency_rates.py)")
                 user_fix_invalid_curr_sec.setEnabled(lAdvancedMode)
                 user_fix_invalid_curr_sec.setForeground(Color.RED)
+
+                user_fix_invalid_price_history = JRadioButton("FIX: Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.", False)
+                user_fix_invalid_price_history.setToolTipText("This will delete and invalid price history records where rate <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!")
+                user_fix_invalid_price_history.setEnabled(lAdvancedMode)
+                user_fix_invalid_price_history.setForeground(Color.RED)
 
                 user_force_change_accounts_currency = JRadioButton("FIX: FORCE Change an Account's Currency (force_change_account_currency.py)", False)
                 user_force_change_accounts_currency.setToolTipText("This allows you to FORCE change an Account's currency - USE WITH CARE!.. THIS CHANGES DATA! (force_change_account_currency.py)")
@@ -16026,13 +18728,19 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_show_open_share_lots)
                 bg.add(user_convert_stock_lot_FIFO)
                 bg.add(user_convert_stock_avg_cst_control)
+                bg.add(user_fix_nonlinked_security_records)
                 bg.add(user_thin_price_history)
                 bg.add(user_can_i_delete_security)
                 bg.add(user_can_i_delete_currency)
                 bg.add(user_list_curr_sec_dpc)
                 bg.add(user_diag_curr_sec)
+                bg.add(user_diag_price_date)
+                bg.add(user_merge_duplicate_securities)
+                bg.add(user_autofix_price_date)
+                bg.add(user_fix_price_date)
                 bg.add(user_fix_curr_sec)
                 bg.add(user_fix_invalid_curr_sec)
+                bg.add(user_fix_invalid_price_history)
                 bg.add(user_force_change_accounts_currency)
                 bg.add(user_force_change_all_accounts_currency)
                 bg.clearSelection()
@@ -16044,23 +18752,48 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_list_curr_sec_dpc)
                 userFilters.add(user_show_open_share_lots)
                 userFilters.add(user_diag_curr_sec)
+                userFilters.add(user_diag_price_date)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
 
+                userFilters.add(user_merge_duplicate_securities)
                 userFilters.add(user_fix_curr_sec)
+                userFilters.add(user_autofix_price_date)
+                userFilters.add(user_fix_price_date)
                 userFilters.add(user_convert_stock_lot_FIFO)
                 userFilters.add(user_convert_stock_avg_cst_control)
+                userFilters.add(user_fix_nonlinked_security_records)
                 userFilters.add(user_thin_price_history)
                 userFilters.add(user_fix_invalid_curr_sec)
+                userFilters.add(user_fix_invalid_price_history)
                 userFilters.add(user_force_change_accounts_currency)
                 userFilters.add(user_force_change_all_accounts_currency)
 
                 while True:
 
                     user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
+
+                    user_diag_price_date.setEnabled(True)
+
+                    user_merge_duplicate_securities.setEnabled(lAdvancedMode)
+                    user_autofix_price_date.setEnabled(lAdvancedMode)
+                    user_thin_price_history.setEnabled(lAdvancedMode)
+                    user_fix_invalid_curr_sec.setEnabled(lAdvancedMode)
+                    user_fix_invalid_price_history.setEnabled(lAdvancedMode)
+                    user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
+
+                    if not check_all_currency_raw_rates_ok():
+                        user_diag_price_date.setEnabled(False)
+                        user_merge_duplicate_securities.setEnabled(False)
+                        user_autofix_price_date.setEnabled(False)
+                        user_thin_price_history.setEnabled(False)
+                        user_fix_invalid_curr_sec.setEnabled(False)
+                        user_fix_invalid_price_history.setEnabled(False)
+                        user_force_change_all_accounts_currency.setEnabled(False)
+
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
@@ -16089,18 +18822,36 @@ Now you will have a text readable version of the file you can open in a text edi
                         x.actionPerformed(None)
                         return
 
+                    if user_diag_price_date.isSelected():
+                        list_security_currency_price_date(self.statusLabel)
+                        return
+
+                    if user_autofix_price_date.isSelected():
+                        list_security_currency_price_date(self.statusLabel,autofix=True)
+                        return
+
                     if user_diag_curr_sec.isSelected():
-                        x=ViewFileButtonAction(self.statusLabel, "diagnose_currencies(False)", "DIAGNOSE CURRENCIES (LOOK FOR ERRORS)", lFile=False)
-                        x.actionPerformed(None)
+                        diagnose_currencies(self.statusLabel, False)
                         return
 
                     if user_fix_curr_sec.isSelected():
-                        x=ViewFileButtonAction(self.statusLabel, "diagnose_currencies(True)", "FIX RELATIVE CURRENCIES (FIX ERRORS)", lFile=False)
-                        x.actionPerformed(None)
+                        diagnose_currencies(self.statusLabel, True)
                         return
 
                     if user_fix_invalid_curr_sec.isSelected():
                         fix_invalid_relative_currency_rates(self.statusLabel)
+                        return
+
+                    if user_merge_duplicate_securities.isSelected():
+                        merge_duplicate_securities(self.statusLabel)
+                        return
+
+                    if user_fix_invalid_price_history.isSelected():
+                        fix_invalid_price_history(self.statusLabel)
+                        return
+
+                    if user_fix_nonlinked_security_records.isSelected():
+                        detect_fix_nonlinked_investment_security_records(self.statusLabel)
                         return
 
                     if user_thin_price_history.isSelected():
@@ -16124,6 +18875,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_force_change_all_accounts_currency.isSelected():
                         force_change_all_accounts_currencies(self.statusLabel)
+
+                    if user_fix_price_date.isSelected():
+                        manually_edit_price_date_field(self.statusLabel)
 
                     continue
 
@@ -16149,6 +18903,11 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 user_diagnose_attachments = JRadioButton("DIAG: Diagnose Attachments and detect Orphans too", False)
                 user_diagnose_attachments.setToolTipText("This will analise your Attachments, show you the file storage consumed, and detect Orphans/issues")
+
+                user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another", False)
+                user_move_invest_txns.setToolTipText("This allows you to move your investment transactions from one account into (merges with) another")
+                user_move_invest_txns.setEnabled(lAdvancedMode)
+                user_move_invest_txns.setForeground(Color.RED)
 
                 user_fix_non_hier_sec_acct_txns = JRadioButton("FIX: Non-Hierarchical Security Acct Txns (fix_non-hierarchical_security_account_txns.py)", False)
                 user_fix_non_hier_sec_acct_txns.setToolTipText("This reviews your Investment Security Txns and fixes where the Account reference is cross-linked and incorrect (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)")
@@ -16179,6 +18938,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_view_txn_sort)
                 bg.add(user_extract_attachments)
                 bg.add(user_diagnose_attachments)
+                bg.add(user_move_invest_txns)
                 bg.add(user_fix_non_hier_sec_acct_txns)
                 bg.add(user_fix_delete_one_sided_txns)
                 bg.add(user_reverse_txn_amounts)
@@ -16196,6 +18956,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
 
+                userFilters.add(user_move_invest_txns)
                 userFilters.add(user_fix_non_hier_sec_acct_txns)
                 userFilters.add(user_fix_delete_one_sided_txns)
                 userFilters.add(user_reverse_txn_amounts)
@@ -16225,6 +18986,10 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_diagnose_attachments.isSelected():
                         diagnose_attachments(self.statusLabel)
+                        return
+
+                    if user_move_invest_txns.isSelected():
+                        move_merge_investment_txns(self.statusLabel)
                         return
 
                     if user_fix_non_hier_sec_acct_txns.isSelected():
@@ -16290,6 +19055,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_import_QIF = JRadioButton("'Older' Import QIF file and set parameters", False)
                 user_import_QIF.setToolTipText("Runs the 'older' MD importQIFIntoAccount() function and allows you to set parameters (you can select create Account Structure Only) - WILL IMPORT / CHANGE DATA!")
 
+                user_convert_timestamp = JRadioButton("Covert a TimeStamp number into a readable date/time", False)
+                user_convert_timestamp.setToolTipText("Allows you to input a TimeStamp (Milliseconds) and it will display a readable date/time")
+
                 user_change_moneydance_fonts = JRadioButton("Set/Change Default Moneydance FONTS", False)
                 user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
                 user_change_moneydance_fonts.setEnabled(lAdvancedMode and float(MD_REF.getBuild()) >= 3030)
@@ -16325,6 +19093,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_view_memorised_reports)
                 bg.add(user_find_sync_password_in_ios_backups)
                 bg.add(user_import_QIF)
+                bg.add(user_convert_timestamp)
                 bg.add(user_change_moneydance_fonts)
                 bg.add(user_delete_custom_theme_file)
                 bg.add(user_delete_orphan_extensions)
@@ -16342,6 +19111,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_view_memorised_reports)
                 userFilters.add(user_find_sync_password_in_ios_backups)
                 userFilters.add(user_import_QIF)
+                userFilters.add(user_convert_timestamp)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
@@ -16412,6 +19182,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_import_QIF.isSelected():
                         import_QIF(self.statusLabel)
 
+                    if user_convert_timestamp.isSelected():
+                        convert_timestamp_readable_date(self.statusLabel)
+
                     if user_change_moneydance_fonts.isSelected():
                         change_fonts(self.statusLabel)
 
@@ -16473,7 +19246,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_hacker_import_to_storage.setForeground(Color.RED)
 
                 user_hacker_save_trunk = JRadioButton("HACK: Save Trunk File", False)
-                user_hacker_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... UPDATES YOUR DATASET")
+                user_hacker_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart). UPDATES YOUR DATASET")
                 user_hacker_save_trunk.setForeground(Color.RED)
 
                 user_convert_to_primary = JRadioButton("HACK: DEMOTE Primary dataset back to a Secondary Node", False)
@@ -17404,6 +20177,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
                 System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
 
+
+            # Check for secondary node (potentially restored from backup).. Popup alert message
             if not MD_REF.getCurrentAccount().getBook().getLocalStorage().getBoolean("_is_master_node", True):
 
                 MyPopUpDialogBox(toolbox_frame_,"INFORMATION ONLY - THIS IS NOT A PROBLEM",
@@ -17418,6 +20193,33 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  lAlertLevel=1,
                                                  lModal=True).go()
 
+            # Now look for cached downloaded txns that can be purged..
+            try:
+                countCachedAccount, countCachedTxns = quick_check_cached_online_txns()
+                if countCachedTxns > 0:
+
+                    if debug:
+                        myPopupInformationBox(toolbox_frame_,
+                                              "You appear to have %s Accounts\n"
+                                              "with %s cached OFX downloaded bank transactions.\n"
+                                              "These should not really be there.\n"
+                                              "Consider using Online Banking (OFX) Tools menu to delete cached OnlineTxnList txns"
+                                              %(countCachedAccount, countCachedTxns),
+                                              "ALERT: Cached OnlineTxnList records exist",
+                                              JOptionPane.WARNING_MESSAGE)
+                    else:
+                        myPrint("J","")
+                        myPrint("B","#########################################################################################################################################################")
+                        myPrint("B","### ALERT: You appear to have %s Accounts with %s cached OFX downloaded bank transactions."%(countCachedAccount, countCachedTxns))
+                        myPrint("B","### These should not really be there.")
+                        myPrint("B","### Consider using Online Banking (OFX) Tools menu to delete cached OnlineTxnList txns.")
+                        myPrint("B","#########################################################################################################################################################\n")
+                        myPrint("J","")
+                del countCachedAccount, countCachedTxns
+            except:
+                pass
+
+            # Check to see if Tabbing mode needs changing on a MAc
             if lTabbingModeNeedsChanging:
                 myPopupInformationBox(toolbox_frame_,
                                       "Your Mac has 'Tabbing Mode' set to 'always'\n" +
@@ -17428,6 +20230,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                       "MacOS TABBING MODE WARNING",
                                       JOptionPane.ERROR_MESSAGE)
 
+            # Check whether UserHome is missing - porbably on a development platform
             if Platform.isOSX() and System.getProperty(u"UserHome") is None:
                 myPopupInformationBox(toolbox_frame_,
                                       "Your Mac's System Property 'UserHome' is not set\n" +
@@ -17435,22 +20238,22 @@ Now you will have a text readable version of the file you can open in a text edi
                                       "MacOS UserHome Warning",
                                       JOptionPane.WARNING_MESSAGE)
 
-
             # Check for repeated opening of backup files
             try:
-                datapath = moneydance.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
+                datapath = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
                 datafile = os.path.basename(datapath)
                 datafilenew = datafile.replace(".moneydance","")
                 if len(datafilenew) > 17:
                     searchDash = datafilenew[-3] + datafilenew[-6] + datafilenew[-14] + datafilenew[-17]
                     if searchDash == "----":
                         MyPopUpDialogBox(toolbox_frame_,
-                                         "WARNING: Detected multiple dates in dataset filename.",
+                                         "ALERT: Detected multiple dates in dataset filename.",
                                          "This might mean you're opening backup (*.moneydancearchive) files by double-clicking\n"
                                          "...and this may be creating a new dataset everytime as a result... and so on....\n"
-                                         ">> If so, please correct your file opening procedure....",
+                                         ">> If so, please correct your file opening procedure <<\n"
+                                         "(But, if you're happy with your procedure & dataset name, then ignore this alert)",
                                          140,
-                                         "IMPROPER OPENING OF BACKUP FILES",
+                                         "POTENTIAL IMPROPER OPENING OF BACKUP FILES",
                                          OKButtonText="ACKNOWLEDGE",
                                          lAlertLevel=1,
                                          lModal=True).go()

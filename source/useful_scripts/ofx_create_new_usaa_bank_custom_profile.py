@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 12) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 13) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -62,6 +62,7 @@
 # build: 10 - Popup at end to show existing last txn download dates...
 # build: 11 - Common code tweaks
 # build: 12 - Common code tweaks
+# build: 13 - Common code tweaks
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -69,7 +70,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "12"
+version_build = "13"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1187,10 +1188,15 @@ Visit: %s (Author's site)
             myPrint("DB", "Parameter file", migratedFilename, "exists..")
             # Open the file
             try:
+                # Really we should open() the file in binary mode and read/write as binary, then we wouldn't get platform differences!
                 istr = FileInputStream(migratedFilename)
                 load_file = FileUtil.wrap(istr)
-                # noinspection PyTypeChecker
-                myParameters = pickle.load(load_file)
+                if not Platform.isWindows():
+                    load_string = load_file.read().replace('\r', '')    # This allows for files migrated from windows (strip the extra CR)
+                else:
+                    load_string = load_file.read()
+
+                myParameters = pickle.loads(load_string)
                 load_file.close()
             except FileNotFoundException:
                 myPrint("B", "Error: failed to find parameter file...")
@@ -1272,8 +1278,7 @@ Visit: %s (Author's site)
 
         try:
             save_file = FileUtil.wrap(ostr)
-            # noinspection PyTypeChecker
-            pickle.dump(myParameters, save_file)
+            pickle.dump(myParameters, save_file, protocol=0)
             save_file.close()
 
             myPrint("DB","myParameters now contains...:")

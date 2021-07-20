@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1010)
+# fix_hidden_price_date.py (build: 1000)
 
 ###############################################################################
 # MIT License
@@ -27,28 +27,25 @@
 # SOFTWARE.
 ###############################################################################
 
-# Build: 1000 - Initial release - cribbed from extract_reminders_csv (for @CanSaver)
-# Build: 1001 - Enhancement to prevent duplicate extension running.....
-# Build: 1002 - Tweak to block old MD versions...
-# Build: 1003 - tweak to common code for launch detection
-# Build: 1004 - tweak to common code (minor, non-functional change)
-# Build: 1005 - Switch to SwingUtilities.invokeLater() rather than Thread(); other small internal tweaks; fix toolbar location on older versions
-# build: 1005 - Build 3051 of Moneydance... fix references to moneydance_* variables;
-# build: 1006 - Build 3056 'deal' with the Python loader changes..
-# build: 1007 - Build 3056 Utilise .unload() method...
-# build: 1008 - Common code tweaks
-# build: 1009 - Small cosmetic tweaks to confirm to IK design standards
-# build: 1010 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
+# Build: 1000 - Initial release
 
-# Displays Moneydance future reminders
+# Sweeps and fixes the Currency/Security hidden price_date field (and updates the current price too):
+# Extension, detects Quote Loader extension, then reads the QL Parameter file.
+# Then for each Currency/Security found in the parameter file it scans the MD CurrencyType object
+# and resets the hidden price_date field to the latest dated price history date (snapshot)
+
+# Note: QL ignores currencies that are hidden from the summary screen - thus, so does this extension.
+# This extension also obeys the QL parameters to include/exclude currencies and include zero accounts
+# Thus, even if a security is in the parameter file, the above override the inclusion...
+
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
 # SET THESE LINES
-myModuleID = u"list_future_reminders"
-version_build = "1010"
+myModuleID = u"fix_hidden_price_date"
+version_build = "1000"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -56,7 +53,7 @@ if u"debug" in globals():
 	global debug
 else:
 	debug = False
-global list_future_reminders_frame_
+global fix_hidden_price_date_frame_
 # SET LINES ABOVE ^^^^
 
 # COPY >> START
@@ -136,9 +133,9 @@ frameToResurrect = None
 try:
 	# So we check own namespace first for same frame variable...
 	if (u"%s_frame_"%myModuleID in globals()
-			and isinstance(list_future_reminders_frame_, MyJFrame)        # EDIT THIS
-			and list_future_reminders_frame_.isActiveInMoneydance):       # EDIT THIS
-		frameToResurrect = list_future_reminders_frame_                   # EDIT THIS
+			and isinstance(fix_hidden_price_date_frame_, MyJFrame)        # EDIT THIS
+			and fix_hidden_price_date_frame_.isActiveInMoneydance):       # EDIT THIS
+		frameToResurrect = fix_hidden_price_date_frame_                   # EDIT THIS
 	else:
 		# Now check all frames in the JVM...
 		getFr = getMyJFrame( myModuleID )
@@ -270,23 +267,14 @@ else:
 	# END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
 	# >>> THIS SCRIPT'S IMPORTS ############################################################################################
-	from com.moneydance.apps.md.view.gui import EditRemindersWindow
-	from java.awt.event import MouseAdapter
-	from java.util import Comparator
-	from javax.swing import SortOrder, ListSelectionModel
-	from javax.swing.table import DefaultTableCellRenderer, DefaultTableModel, TableRowSorter
-	from javax.swing.border import CompoundBorder, MatteBorder
-	from javax.swing.event import TableColumnModelListener
-	from java.lang import String, Number
-	from com.infinitekind.util import StringUtils
-	from com.moneydance.apps.md.controller import AppEventListener
-
+	import json
+	from com.moneydance.apps.md.controller import Util
 	# >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
 	# >>> THIS SCRIPT'S GLOBALS ############################################################################################
 
 	# Saved to parameters file
-	global __list_future_reminders
+	global __fix_hidden_price_date
 	global userdateformat, lStripASCII, csvDelimiter, _column_widths_LFR, scriptpath, daysToLookForward_LFR
 	global lWriteBOMToExportFile_SWSS
 
@@ -1643,72 +1631,20 @@ Visit: %s (Author's site)
 	# >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 	# >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 	def load_StuWareSoftSystems_parameters_into_memory():
-		global debug, myParameters, lPickle_version_warning, version_build
-
-		# >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-		global __list_future_reminders, lStripASCII, csvDelimiter, scriptpath, userdateformat, _column_widths_LFR
-		global lWriteBOMToExportFile_SWSS, daysToLookForward_LFR                                                                              # noqa
-
-		myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
-		myPrint("DB", "Loading variables into memory...")
-
-		if myParameters is None: myParameters = {}
-
-		if myParameters.get("__list_future_reminders") is not None:
-			__list_future_reminders = myParameters.get("__list_future_reminders")
-
-		if myParameters.get("userdateformat") is not None: userdateformat = myParameters.get("userdateformat")
-		if myParameters.get("lStripASCII") is not None: lStripASCII = myParameters.get("lStripASCII")
-		if myParameters.get("csvDelimiter") is not None: csvDelimiter = myParameters.get("csvDelimiter")
-		if myParameters.get("_column_widths_LFR") is not None: _column_widths_LFR = myParameters.get("_column_widths_LFR")
-		if myParameters.get("daysToLookForward_LFR") is not None: daysToLookForward_LFR = myParameters.get("daysToLookForward_LFR")
-		if myParameters.get("lWriteBOMToExportFile_SWSS") is not None: lWriteBOMToExportFile_SWSS = myParameters.get("lWriteBOMToExportFile_SWSS")                                                                                  # noqa
-
-		if myParameters.get("scriptpath") is not None:
-			scriptpath = myParameters.get("scriptpath")
-			if not os.path.isdir(scriptpath):
-				myPrint("B", "Warning: loaded parameter scriptpath does not appear to be a valid directory:", scriptpath, "will ignore")
-				scriptpath = ""
-
-		myPrint("DB","myParameters{} set into memory (as variables).....")
-
+		pass
 		return
 
-	# >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
+		# >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 	def dump_StuWareSoftSystems_parameters_from_memory():
-		global debug, myParameters, lPickle_version_warning, version_build
-		global lWriteBOMToExportFile_SWSS                                                                                  # noqa
-
-		# >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-		global __list_future_reminders, lStripASCII, csvDelimiter, scriptpath, lDisplayOnly, userdateformat, _column_widths_LFR, daysToLookForward_LFR
-
-		myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
-
-		# NOTE: Parameters were loaded earlier on... Preserve existing, and update any used ones...
-		# (i.e. other StuWareSoftSystems programs might be sharing the same file)
-
-		if myParameters is None: myParameters = {}
-
-		myParameters["__list_future_reminders"] = version_build
-		myParameters["userdateformat"] = userdateformat
-		myParameters["lStripASCII"] = lStripASCII
-		myParameters["csvDelimiter"] = csvDelimiter
-		myParameters["_column_widths_LFR"] = _column_widths_LFR
-		myParameters["daysToLookForward_LFR"] = daysToLookForward_LFR
-		myParameters["lWriteBOMToExportFile_SWSS"] = lWriteBOMToExportFile_SWSS
-
-		if not lDisplayOnly and scriptpath != "" and os.path.isdir(scriptpath):
-			myParameters["scriptpath"] = scriptpath
-
-		myPrint("DB","variables dumped from memory back into myParameters{}.....")
-
+		pass
 		return
 
-	get_StuWareSoftSystems_parameters_from_file()
+	# get_StuWareSoftSystems_parameters_from_file()
 
 	# clear up any old left-overs....
 	destroyOldFrames(myModuleID)
 
+	debug = True
 	myPrint("DB", "DEBUG IS ON..")
 
 	if SwingUtilities.isEventDispatchThread():
@@ -1736,1467 +1672,405 @@ Visit: %s (Author's site)
 	# END ALL CODE COPY HERE ###############################################################################################
 	# END ALL CODE COPY HERE ###############################################################################################
 
-	MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
+	MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),-1)
 
-	class MainAppRunnable(Runnable):
-		def __init__(self):
+	QLID = "securityquoteload"
+	QLFILE = "securityquoteload.bpam2"
+	MBFILE = "MRBPreferences.dict2"
+	MB_KEY = "mapData"
+	QL_STOCKS_KEY = "listAccounts"
+	QL_INCL_CURR_KEY = "includeCurrency"
+	QL_INCL_ZERO_KEY = "includeZero"
+	QL_STOCK_NAME = "name"
+	QL_CURRENCY_FLAG = "currency"
+	QLCURRMARKER = "???"  # as of build 3040 this is 3 invisible 7f high byte ascii characters (previously other high byte chars)
+	QL_MIN_BUILD = 3039   # This build defaults to 'us-ascii' character set parameter file and eliminates the 3 preceding high byte characters
+	QL_MIN_BUILD2 = 3040
+	QL_MAX_BUILD = 9999
+
+	MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
+	MD_REF.getUI().setStatus("%s: Detecting & reading Quote Loader extension/parameters...." %(myModuleID),-1)
+
+	# Having to do this myself as QL does not store trailing spaces and thus lookups fail.... :-<
+	def my_getCurrencyByID(_ct, _theID, isCurrency=False):
+
+		for c in _ct:
+			if isCurrency:
+				if c.getIDString() == _theID:
+					return c
+			else:
+				if c.getTickerSymbol() == _theID:
+					return c
+
+		for c in _ct:
+			if isCurrency:
+				if c.getIDString().lower() == _theID.lower():
+					return c
+			else:
+				if c.getTickerSymbol().lower() == _theID.lower():
+					return c
+
+		for c in _ct:
+			if isCurrency:
+				if c.getIDString().lower().strip() == _theID.lower().strip():
+					return c
+			else:
+				if c.getTickerSymbol().lower().strip() == _theID.lower().strip():
+					return c
+
+		return None
+
+	def convertStrippedIntDateFormattedText( strippedDateInt ):
+
+		prettyDate = ""
+		try:
+			c = Calendar.getInstance()
+			dateFromInt = DateUtil.convertIntDateToLong(strippedDateInt)
+			c.setTime(dateFromInt)
+			dateFormatter = SimpleDateFormat("yyyy/MM/dd")
+			prettyDate = dateFormatter.format(c.getTime())
+		except:
 			pass
 
-		def run(self):                                                                                                      # noqa
-			global debug, list_future_reminders_frame_
+		return prettyDate
 
-			myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
-			myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+	class MyAcctFilter(AcctFilter):
 
-			# Create Application JFrame() so that all popups have correct Moneydance Icons etc
-			JFrame.setDefaultLookAndFeelDecorated(True)
-			list_future_reminders_frame_ = MyJFrame()
-			list_future_reminders_frame_.setName(u"%s_main" %(myModuleID))
-			if (not Platform.isMac()):
-				MD_REF.getUI().getImages()
-				list_future_reminders_frame_.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
-			list_future_reminders_frame_.setVisible(False)
-			list_future_reminders_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+		def __init__(self, selectType=0):
+			self.selectType = selectType
 
-			myPrint("DB","Main JFrame %s for application created.." %(list_future_reminders_frame_.getName()))
+		def matches(self, acct):
 
-	if not SwingUtilities.isEventDispatchThread():
-		myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")
-		SwingUtilities.invokeAndWait(MainAppRunnable())
-	else:
-		myPrint("DB",".. Main App Already within the EDT so calling naked...")
-		MainAppRunnable().run()
+			# Security sub accounts for stock holdings
+			if self.selectType == 22:
+				# noinspection PyUnresolvedReferences
+				if not (acct.getAccountType() == Account.AccountType.SECURITY):
+					return False
+				return True
 
-	class DoTheMenu(AbstractAction):
-	
-		def __init__(self, menu):
-			self.menu = menu
-	
-		def actionPerformed(self, event):																				# noqa
-			global list_future_reminders_frame_, debug
-			global _column_widths_LFR, daysToLookForward_LFR, saveStatusLabel
-	
-			myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-	
-			# ##########################################################################################################
-			if event.getActionCommand().lower().startswith("change look"):
-				days = myPopupAskForInput(list_future_reminders_frame_,
-											"LOOK FORWARD",
-											"DAYS:",
-											"Enter the number of days to look forward",
-											defaultValue=str(daysToLookForward_LFR))
-	
-				if days is None or days == "" or not StringUtils.isInteger(days) or int(days) < 1 or int(days) > 365:
-					myPopupInformationBox(list_future_reminders_frame_,"ERROR - Days must be between 1-365 - no changes made....",theMessageType=JOptionPane.WARNING_MESSAGE)
-				else:
-					daysToLookForward_LFR = int(days)
-					myPrint("B","Days to look forward changed to %s" %(daysToLookForward_LFR))
-	
-					formatDate = DateUtil.incrementDate(DateUtil.getStrippedDateInt(),0,0,daysToLookForward_LFR)
-					formatDate = str(formatDate/10000).zfill(4) + "-" + str((formatDate/100)%100).zfill(2) + "-" + str(formatDate%100).zfill(2)
-					saveStatusLabel.setText("** Looking forward %s days  to %s **" %(daysToLookForward_LFR, formatDate))
-	
-					RefreshMenuAction().refresh()
-	
-			# ##########################################################################################################
-			if event.getActionCommand().lower().startswith("debug"):
-				debug = not debug
-				myPrint("B","DEBUG is now set to: %s" %(debug))
-	
-			# ##########################################################################################################
-			if event.getActionCommand().lower().startswith("reset"):
-				_column_widths_LFR = []
-				RefreshMenuAction().refresh()
-	
-			# ##########################################################################################################
-			if event.getActionCommand().lower().startswith("refresh"):
-				RefreshMenuAction().refresh()
-	
-			# ##########################################################################################################
-			if event.getActionCommand().lower().startswith("extract") or event.getActionCommand().lower().startswith("close"):
-				ExtractMenuAction().extract_or_close()
-	
-			# ##########################################################################################################
-			if event.getActionCommand() == "About":
-				AboutThisScript(list_future_reminders_frame_).go()
+			if (acct.getAccountOrParentIsInactive()): return False
+			if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
 
-			# Save parameters now...
-			if (event.getActionCommand().lower().startswith("change look")
-					or event.getActionCommand().lower().startswith("debug")
-					or event.getActionCommand().lower().startswith("reset")
-					or event.getActionCommand().lower().startswith("extract")
-					or event.getActionCommand().lower().startswith("close")):
-
-				try:
-					save_StuWareSoftSystems_parameters_to_file()
-				except:
-					myPrint("B", "Error - failed to save parameters to pickle file...!")
-					dump_sys_error_to_md_console_and_errorlog()
-
-			myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-			return
-
-	def terminate_script():
-		global debug, list_future_reminders_frame_, lDisplayOnly, lGlobalErrorDetected
-
-		myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
-		myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
-
-		# also do this here to save column widths (set during JFrame display)
-		try:
-			save_StuWareSoftSystems_parameters_to_file()
-		except:
-			myPrint("B", "Error - failed to save parameters to pickle file...!")
-			dump_sys_error_to_md_console_and_errorlog()
-	
-		try:
-			# NOTE - .dispose() - The windowClosed event should set .isActiveInMoneydance False and .removeAppEventListener()
-			if not SwingUtilities.isEventDispatchThread():
-				SwingUtilities.invokeLater(GenericDisposeRunnable(list_future_reminders_frame_))
-			else:
-				list_future_reminders_frame_.dispose()
-		except:
-			myPrint("B","Error. Final dispose failed....?")
-			dump_sys_error_to_md_console_and_errorlog()
-
-	
-	csvfilename = None
-	
-	if decimalCharSep != "." and csvDelimiter == ",": csvDelimiter = ";"  # Override for EU countries or where decimal point is actually a comma...
-	myPrint("DB", "Decimal point:", decimalCharSep, "Grouping Separator", groupingCharSep, "CSV Delimiter set to:", csvDelimiter)
-	
-	sdf = SimpleDateFormat("dd/MM/yyyy")
-	
-	dateStrings=["dd/mm/yyyy", "mm/dd/yyyy", "yyyy/mm/dd", "yyyymmdd"]
-	# 1=dd/mm/yyyy, 2=mm/dd/yyyy, 3=yyyy/mm/dd, 4=yyyymmdd
-	label1 = JLabel("Select Output Date Format (default yyyy/mm/dd):")
-	user_dateformat = JComboBox(dateStrings)
-	
-	if userdateformat == "%d/%m/%Y": user_dateformat.setSelectedItem("dd/mm/yyyy")
-	elif userdateformat == "%m/%d/%Y": user_dateformat.setSelectedItem("mm/dd/yyyy")
-	elif userdateformat == "%Y%m%d": user_dateformat.setSelectedItem("yyyymmdd")
-	else: user_dateformat.setSelectedItem("yyyy/mm/dd")
-	
-	labelRC = JLabel("Reset Column Widths to Defaults?")
-	user_selectResetColumns = JCheckBox("", False)
-	
-	label2 = JLabel("Strip non ASCII characters from CSV export?")
-	user_selectStripASCII = JCheckBox("", lStripASCII)
-	
-	delimStrings = [";","|",","]
-	label3 = JLabel("Change CSV Export Delimiter from default to: ';|,'")
-	user_selectDELIMITER = JComboBox(delimStrings)
-	user_selectDELIMITER.setSelectedItem(csvDelimiter)
-	
-	labelBOM = JLabel("Write BOM (Byte Order Mark) to file (helps Excel open files)?")
-	user_selectBOM = JCheckBox("", lWriteBOMToExportFile_SWSS)
-	
-	label4 = JLabel("Turn DEBUG Verbose messages on?")
-	user_selectDEBUG = JCheckBox("", debug)
-	
-	
-	userFilters = JPanel(GridLayout(0, 2))
-	userFilters.add(label1)
-	userFilters.add(user_dateformat)
-	userFilters.add(labelRC)
-	userFilters.add(user_selectResetColumns)
-	userFilters.add(label2)
-	userFilters.add(user_selectStripASCII)
-	userFilters.add(label3)
-	userFilters.add(user_selectDELIMITER)
-	userFilters.add(labelBOM)
-	userFilters.add(user_selectBOM)
-	userFilters.add(label4)
-	userFilters.add(user_selectDEBUG)
-	
-	lExit = False
-	# lDisplayOnly = False
-	
-	lDisplayOnly = True
-	# options = ["Abort", "Display & CSV Export", "Display Only"]
-	# userAction = (JOptionPane.showOptionDialog(list_future_reminders_frame_,
-	# 											userFilters,
-	# 											"%s(build: %s) Set Script Parameters...." % (myScriptName, version_build),
-	# 											JOptionPane.OK_CANCEL_OPTION,
-	# 											JOptionPane.QUESTION_MESSAGE,
-	# 											MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-	# 											options,
-	# 											options[2])
-	# 											)
-	# if userAction == 1:  # Display & Export
-	# 	myPrint("DB", "Display and export chosen")
-	# 	lDisplayOnly = False
-	# elif userAction == 2:  # Display Only
-	# 	lDisplayOnly = True
-	# 	myPrint("DB", "Display only with no export chosen")
-	# else:
-	# 	# Abort
-	# 	myPrint("DB", "User Cancelled Parameter selection.. Will abort..")
-	# 	myPopupInformationBox(list_future_reminders_frame_, "User Cancelled Parameter selection.. Will abort..", "PARAMETERS")
-	# 	lDisplayOnly = False
-	# 	lExit = True
-
-	if lExit:
-		# Cleanup and terminate
-		cleanup_actions(list_future_reminders_frame_)
-
-	else:
-
-		debug = user_selectDEBUG.isSelected()
-		myPrint("DB", "DEBUG turned on")
-	
-		if debug:
-			myPrint("DB","Parameters Captured",
-				"User Date Format:", user_dateformat.getSelectedItem(),
-				"Reset Columns", user_selectResetColumns.isSelected(),
-				"Strip ASCII:", user_selectStripASCII.isSelected(),
-				"Write BOM to file:", user_selectBOM.isSelected(),
-				"Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
-				"CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
-		# endif
-	
-		if user_dateformat.getSelectedItem() == "dd/mm/yyyy": userdateformat = "%d/%m/%Y"
-		elif user_dateformat.getSelectedItem() == "mm/dd/yyyy": userdateformat = "%m/%d/%Y"
-		elif user_dateformat.getSelectedItem() == "yyyy/mm/dd": userdateformat = "%Y/%m/%d"
-		elif user_dateformat.getSelectedItem() == "yyyymmdd": userdateformat = "%Y%m%d"
-		else:
-			# PROBLEM /  default
-			userdateformat = "%Y/%m/%d"
-	
-		if user_selectResetColumns.isSelected():
-			myPrint("B","User asked to reset columns.... Resetting Now....")
-			_column_widths_LFR=[]  # This will invalidate them
-	
-		lStripASCII = user_selectStripASCII.isSelected()
-	
-		csvDelimiter = user_selectDELIMITER.getSelectedItem()
-		if csvDelimiter == "" or (not (csvDelimiter in ";|,")):
-			myPrint("B", "Invalid Delimiter:", csvDelimiter, "selected. Overriding with:','")
-			csvDelimiter = ","
-		if decimalCharSep == csvDelimiter:
-			myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:", decimalCharSep, " - Proceeding without file export!!")
-			lDisplayOnly = True
-			myPopupInformationBox(None, "ERROR - The CSV file delimiter: %s ""cannot be the same as your decimal point character: %s. "
-										"Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, decimalCharSep),
-										"INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
-	
-		lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
-	
-		myPrint("B", "User Parameters...")
-		myPrint("B", "user date format....:", userdateformat)
-	
-		# Now get the export filename
-		csvfilename = None
-	
-		if not lDisplayOnly:  # i.e. we have asked for a file export - so get the filename
-	
-			if lStripASCII:
-				myPrint("DB", "Will strip non-ASCII characters - e.g. Currency symbols from output file...", " Using Delimiter:", csvDelimiter)
-			else:
-				myPrint("DB", "Non-ASCII characters will not be stripped from file: ", " Using Delimiter:", csvDelimiter)
-	
-			if lWriteBOMToExportFile_SWSS:
-				myPrint("B", "Script will add a BOM (Byte Order Mark) to front of the extracted file...")
-			else:
-				myPrint("B", "No BOM (Byte Order Mark) will be added to the extracted file...")
-	
-	
-			def grabTheFile():
-				global debug, lDisplayOnly, csvfilename, lIamAMac, scriptpath, myScriptName
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-	
-				if scriptpath == "" or scriptpath is None:  # No parameter saved / loaded from disk
-					scriptpath = myDir()
-	
-				myPrint("DB", "Default file export output path is....:", scriptpath)
-	
-				csvfilename = ""
-				if lIamAMac:
-					myPrint("D", "MacOS X detected: Therefore I will run FileDialog with no extension filters to get filename....")
-					# jFileChooser hangs on Mac when using file extension filters, also looks rubbish. So using Mac(ish)GUI
-	
-					System.setProperty("com.apple.macos.use-file-dialog-packages","true")  # In theory prevents access to app file structure (but doesnt seem to work)
-					System.setProperty("apple.awt.fileDialogForDirectories", "false")
-	
-				filename = FileDialog(list_future_reminders_frame_, "Select/Create CSV file for extract (CANCEL=NO EXPORT)")
-				filename.setMultipleMode(False)
-				filename.setMode(FileDialog.SAVE)
-				filename.setFile(extract_filename)
-				if (scriptpath is not None and scriptpath != ""): filename.setDirectory(scriptpath)
-	
-				# Copied from MD code... File filters only work on non Macs (or Macs below certain versions)
-				if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
-					extfilter = ExtFilenameFilter("csv")
-					filename.setFilenameFilter(extfilter)  # I'm not actually sure this works...?
-	
-				filename.setVisible(True)
-	
-				csvfilename = filename.getFile()
-	
-				if (csvfilename is None) or csvfilename == "":
-					lDisplayOnly = True
-					csvfilename = None
-					myPrint("B", "User chose to cancel or no file selected >>  So no Extract will be performed... ")
-					myPopupInformationBox(list_future_reminders_frame_, "User chose to cancel or no file selected >>  So no Extract will be performed... ", "FILE SELECTION")
-				elif str(csvfilename).endswith(".moneydance"):
-					myPrint("B", "User selected file:", csvfilename)
-					myPrint("B", "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed...")
-					myPopupInformationBox(list_future_reminders_frame_, "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed...", "FILE SELECTION")
-					lDisplayOnly = True
-					csvfilename = None
-				elif ".moneydance" in filename.getDirectory():
-					myPrint("B", "User selected file:", filename.getDirectory(), csvfilename)
-					myPrint("B", "Sorry - FileDialog() User chose to save file in .moneydance location. NOT Good practice so I will not allow it!... So no Extract will be performed...")
-					myPopupInformationBox(list_future_reminders_frame_, "Sorry - FileDialog() User chose to save file in .moneydance location. NOT Good practice so I will not allow it!... So no Extract will be performed...", "FILE SELECTION")
-					lDisplayOnly = True
-					csvfilename = None
-				else:
-					csvfilename = os.path.join(filename.getDirectory(), filename.getFile())
-					scriptpath = str(filename.getDirectory())
-	
-				if not lDisplayOnly:
-					if os.path.exists(csvfilename) and os.path.isfile(csvfilename):
-						myPrint("DB", "WARNING: file exists,but assuming user said OK to overwrite..")
-	
-				if not lDisplayOnly:
-					if check_file_writable(csvfilename):
-						if lStripASCII:
-							myPrint("B", 'Will display Reminders and then extract to file: ', csvfilename, "(NOTE: Should drop non utf8 characters...)")
-						else:
-							myPrint("B", 'Will display Reminders and then extract to file: ', csvfilename, "...")
-						scriptpath = os.path.dirname(csvfilename)
-					else:
-						myPrint("B", "Sorry - I just checked and you do not have permissions to create this file:", csvfilename)
-						myPopupInformationBox(list_future_reminders_frame_, "Sorry - I just checked and you do not have permissions to create this file: %s" % csvfilename, "FILE SELECTION")
-						csvfilename=""
-						lDisplayOnly = True
-	
-				return
-	
-	
-			# enddef
-	
-			if not lDisplayOnly: grabTheFile()
-		else:
-			pass
-		# endif
-	
-		if csvfilename is None:
-			lDisplayOnly = True
-			myPrint("B","No Export will be performed")
-	
-		# save here instead of at the end.
-		save_StuWareSoftSystems_parameters_to_file()
-	
-		# Moneydance dates  are int yyyymmddd - convert to locale date string for CSV format
-		def dateoutput(dateinput, theformat):
-	
-			if dateinput == "EXPIRED": _dateoutput = dateinput
-			elif dateinput == "": _dateoutput = ""
-			elif dateinput == 0: _dateoutput = ""
-			elif dateinput == "0": _dateoutput = ""
-			else:
-				dateasdate = datetime.datetime.strptime(str(dateinput), "%Y%m%d")  # Convert to Date field
-				_dateoutput = dateasdate.strftime(theformat)
-	
-			return _dateoutput
-	
-		def myGetNextOccurance(theRem, startDate, maximumDate):
-			cal = Calendar.getInstance()
-			ackPlusOne = theRem.getDateAcknowledgedInt()
-			if ackPlusOne > 0:
-				ackPlusOne = DateUtil.incrementDate(ackPlusOne, 0, 0, 1)
-			DateUtil.setCalendarDate(cal, Math.max(startDate, ackPlusOne))
-			while True:
-				intDate = DateUtil.convertCalToInt(cal)
-				if (intDate > maximumDate or (theRem.getLastDateInt() > 0 and intDate > theRem.getLastDateInt())):	# noqa
-					return 0
-				if (theRem.occursOnDate(cal)):
-					return DateUtil.convertCalToInt(cal)
-				cal.add(Calendar.DAY_OF_MONTH, 1)
-	
-		def build_the_data_file(ind):
-			global sdf, userdateformat, csvlines, csvheaderline, myScriptName, baseCurrency, headerFormats
-			global debug, ExtractDetails_Count, daysToLookForward_LFR
-	
-			# Just override it as the sort is broken as it's sorting on strings and dd/mm/yy won't work etc - fix later
-			overridedateformat = "%Y/%m/%d"
-	
-			ExtractDetails_Count += 1
-	
-			myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", ind, " - On iteration/call: ", ExtractDetails_Count)
-	
-			# ind == 1 means that this is a repeat call, so the table should be refreshed
-	
-			root = MD_REF.getCurrentAccountBook()
-	
-			baseCurrency = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
-	
-			rems = root.getReminders().getAllReminders()
-	
-			if rems.size() < 1:
-				return False
-	
-			myPrint("B", 'Success: read ', rems.size(), 'reminders')
-			print
-			csvheaderline = [
-							"Number#",
-							"NextDue",
-							# "ReminderType",
-							# "Frequency",
-							# "AutoCommitDays",
-							# "LastAcknowledged",
-							# "FirstDate",
-							# "EndDate",
-							"ReminderDescription",
-							"NetAmount"
-							# "TxfrType",
-							# "Account",
-							# "MainDescription",
-							# "Split#",
-							# "SplitAmount",
-							# "Category",
-							# "Description",
-							# "Memo"
-			]
-	
-			headerFormats = [
-								[Number,JLabel.CENTER],
-								[String,JLabel.CENTER],
-								# [String,JLabel.LEFT],
-								# [String,JLabel.LEFT],
-								# [String,JLabel.LEFT],
-								# [String,JLabel.CENTER],
-								# [String,JLabel.CENTER],
-								# [String,JLabel.CENTER],
-								[String,JLabel.LEFT],
-								[Number,JLabel.RIGHT]
-								# [String,JLabel.LEFT],
-								# [String,JLabel.LEFT],
-								# [String,JLabel.LEFT],
-								# [String,JLabel.CENTER],
-								# [Number,JLabel.RIGHT],
-								# [String,JLabel.LEFT],
-								# [String,JLabel.LEFT],
-								# [String,JLabel.LEFT]
-							]
-	
-			# Read each reminder and create a csv line for each in the csvlines array
-			csvlines = []  # Set up an empty array
-	
-			for index in range(0, int(rems.size())):
-				rem = rems[index]  # Get the reminder
-	
-				remtype = rem.getReminderType()  # NOTE or TRANSACTION
-				desc = rem.getDescription().replace(",", " ")  # remove commas to keep csv format happy
-				# memo = str(rem.getMemo()).replace(",", " ").strip()  # remove commas to keep csv format happy
-				# memo = str(memo).replace("\n", "*").strip()  # remove newlines to keep csv format happy
-	
-				myPrint("P", "Reminder: ", index + 1, rem.getDescription())  # Name of Reminder
-	
-				# determine the frequency of the transaction
-				daily = rem.getRepeatDaily()
-				weekly = rem.getRepeatWeeklyModifier()
-				monthly = rem.getRepeatMonthlyModifier()
-				yearly = rem.getRepeatYearly()
-				countfreqs = 0
-	
-				remfreq = ''
-	
-				if daily > 0:
-					remfreq += 'DAILY'
-					remfreq += '(every ' + str(daily) + ' days)'
-					countfreqs += 1
-	
-				if len(rem.getRepeatWeeklyDays()) > 0 and rem.getRepeatWeeklyDays()[0] > 0:
-					for freq in range(0, len(rem.getRepeatWeeklyDays())):
-						if len(remfreq) > 0: remfreq += " & "
-						if weekly == Reminder.WEEKLY_EVERY:                remfreq += 'WEEKLY_EVERY'
-						if weekly == Reminder.WEEKLY_EVERY_FIFTH:            remfreq += 'WEEKLY_EVERY_FIFTH'
-						if weekly == Reminder.WEEKLY_EVERY_FIRST:            remfreq += 'WEEKLY_EVERY_FIRST'
-						if weekly == Reminder.WEEKLY_EVERY_FOURTH:            remfreq += 'WEEKLY_EVERY_FOURTH'
-						if weekly == Reminder.WEEKLY_EVERY_LAST:            remfreq += 'WEEKLY_EVERY_LAST'
-						if weekly == Reminder.WEEKLY_EVERY_SECOND:            remfreq += 'WEEKLY_EVERY_SECOND'
-						if weekly == Reminder.WEEKLY_EVERY_THIRD:            remfreq += 'WEEKLY_EVERY_THIRD'
-	
-						if rem.getRepeatWeeklyDays()[freq] == 1: remfreq += '(on Sunday)'
-						if rem.getRepeatWeeklyDays()[freq] == 2: remfreq += '(on Monday)'
-						if rem.getRepeatWeeklyDays()[freq] == 3: remfreq += '(on Tuesday)'
-						if rem.getRepeatWeeklyDays()[freq] == 4: remfreq += '(on Wednesday)'
-						if rem.getRepeatWeeklyDays()[freq] == 5: remfreq += '(on Thursday)'
-						if rem.getRepeatWeeklyDays()[freq] == 6: remfreq += '(on Friday)'
-						if rem.getRepeatWeeklyDays()[freq] == 7: remfreq += '(on Saturday)'
-						if rem.getRepeatWeeklyDays()[freq] < 1 or rem.getRepeatWeeklyDays()[
-							freq] > 7: remfreq += '(*ERROR*)'
-						countfreqs += 1
-	
-				if len(rem.getRepeatMonthly()) > 0 and rem.getRepeatMonthly()[0] > 0:
-					for freq in range(0, len(rem.getRepeatMonthly())):
-						if len(remfreq) > 0: remfreq += " & "
-						if monthly == Reminder.MONTHLY_EVERY:                 remfreq += 'MONTHLY_EVERY'
-						if monthly == Reminder.MONTHLY_EVERY_FOURTH:         remfreq += 'MONTHLY_EVERY_FOURTH'
-						if monthly == Reminder.MONTHLY_EVERY_OTHER:         remfreq += 'MONTHLY_EVERY_OTHER'
-						if monthly == Reminder.MONTHLY_EVERY_SIXTH:         remfreq += 'MONTHLY_EVERY_SIXTH'
-						if monthly == Reminder.MONTHLY_EVERY_THIRD:         remfreq += 'MONTHLY_EVERY_THIRD'
-	
-						theday = rem.getRepeatMonthly()[freq]
-						if theday == Reminder.LAST_DAY_OF_MONTH:
-							remfreq += '(on LAST_DAY_OF_MONTH)'
-						else:
-							if 4 <= theday <= 20 or 24 <= theday <= 30: suffix = "th"
-							else:                                        suffix = ["st", "nd", "rd"][theday % 10 - 1]
-	
-							remfreq += '(on ' + str(theday) + suffix + ')'
-	
-						countfreqs += 1
-	
-				if yearly:
-					if len(remfreq) > 0: remfreq += " & "
-					remfreq += 'YEARLY'
-					countfreqs += 1
-	
-				if len(remfreq) < 1 or countfreqs == 0:         remfreq = '!ERROR! NO ACTUAL FREQUENCY OPTIONS SET PROPERLY ' + remfreq
-				if countfreqs > 1: remfreq = "**MULTI** " + remfreq													# noqa
-	
-				todayInt = DateUtil.getStrippedDateInt()
-				lastdate = rem.getLastDateInt()
-	
-				if lastdate < 1:  # Detect if an enddate is set
-					stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR),20991231)
-					nextDate = rem.getNextOccurance(stopDate)  # Use cutoff  far into the future
-	
-				else:
-					stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR),lastdate)
-					nextDate = rem.getNextOccurance(stopDate)  # Stop at enddate
-	
-				if nextDate < 1:
-					continue
-	
-				# nextDate = DateUtil.incrementDate(nextDate, 0, 0, -1)
-	
-				loopDetector=0
-	
-				while True:
-	
-					loopDetector+=1
-					if loopDetector > 10000:
-						myPrint("B","Loop detected..? Breaking out.... Reminder %s" %(rem))
-						myPopupInformationBox(list_future_reminders_frame_,"ERROR - Loop detected..?! Will exit (review console log)",theMessageType=JOptionPane.ERROR_MESSAGE)
-						raise Exception("Loop detected..? Aborting.... Reminder %s" %(rem))
-	
-					calcNext = myGetNextOccurance(rem,nextDate, stopDate)
-	
-					if calcNext < 1:
-						break
-	
-					remdate = str(calcNext)
-					# nextDate = DateUtil.incrementDate(calcNext, 0, 0, 1)
-					nextDate = DateUtil.incrementDate(calcNext, 0, 0, 1)
-	
-					lastack = rem.getDateAcknowledgedInt()
-					if lastack == 0 or lastack == 19700101: lastack = ''											# noqa
-	
-					auto = rem.getAutoCommitDays()
-					if auto >= 0:    auto = 'YES: (' + str(auto) + ' days before scheduled)'						# noqa
-					else:            auto = 'NO'																	# noqa
-	
-					if str(remtype) == 'NOTE':
-						csvline = []
-						csvline.append(index + 1)
-						csvline.append(dateoutput(remdate, overridedateformat))
-						# csvline.append(str(rem.getReminderType()))
-						# csvline.append(remfreq)
-						# csvline.append(auto)
-						# csvline.append(dateoutput(lastack, overridedateformat))
-						# csvline.append(dateoutput(rem.getInitialDateInt(), overridedateformat))
-						# csvline.append(dateoutput(lastdate, overridedateformat))
-						csvline.append(desc)
-						csvline.append('')  # NetAmount
-						# csvline.append('')  # TxfrType
-						# csvline.append('')  # Account
-						# csvline.append('')  # MainDescription
-						# csvline.append(str(index + 1) + '.0')  # Split#
-						# csvline.append('')  # SplitAmount
-						# csvline.append('')  # Category
-						# csvline.append('')  # Description
-						# csvline.append('"' + memo + '"')  # Memo
-						csvlines.append(csvline)
-	
-					elif str(remtype) == 'TRANSACTION':
-						txnparent = rem.getTransaction()
-						amount = baseCurrency.getDoubleValue(txnparent.getValue())
-	
-						# for index2 in range(0, int(txnparent.getOtherTxnCount())):
-						for index2 in [0]:
-							# splitdesc = txnparent.getOtherTxn(index2).getDescription().replace(","," ")  # remove commas to keep csv format happy
-							# splitmemo = txnparent.getMemo().replace(",", " ")  # remove commas to keep csv format happy
-							# maindesc = txnparent.getDescription().replace(",", " ").strip()
-	
-							if index2 > 0: amount = ''  # Don't repeat the new amount on subsequent split lines (so you can total column). The split amount will be correct
-	
-							# stripacct = str(txnparent.getAccount()).replace(",",
-							# 												" ").strip()  # remove commas to keep csv format happy
-							# stripcat = str(txnparent.getOtherTxn(index2).getAccount()).replace(","," ").strip()  # remove commas to keep csv format happy
-	
-							csvline = []
-							csvline.append(index + 1)
-							csvline.append(dateoutput(remdate, overridedateformat))
-							# csvline.append(str(rem.getReminderType()))
-							# csvline.append(remfreq)
-							# csvline.append(auto)
-							# csvline.append(dateoutput(lastack, overridedateformat))
-							# csvline.append(dateoutput(rem.getInitialDateInt(), overridedateformat))
-							# csvline.append(dateoutput(lastdate, overridedateformat))
-							csvline.append(desc)
-							csvline.append((amount))
-							# csvline.append(txnparent.getTransferType())
-							# csvline.append(stripacct)
-							# csvline.append(maindesc)
-							# csvline.append(str(index + 1) + '.' + str(index2 + 1))
-							# csvline.append(baseCurrency.getDoubleValue(txnparent.getOtherTxn(index2).getValue()) * -1)
-							# csvline.append(stripcat)
-							# csvline.append(splitdesc)
-							# csvline.append(splitmemo)
-							csvlines.append(csvline)
-	
-				index += 1
-	
-			# if len(csvlines) < 1:
-			# 	return False
-			#
-			ReminderTable(csvlines, ind)
-	
-			myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name)
-			ExtractDetails_Count -= 1
-	
 			return True
-	
-		# ENDDEF
-	
-		# Synchronises column widths of both JTables
-		class ColumnChangeListener(TableColumnModelListener):
-			sourceTable = None
-			targetTable = None
-	
-			def __init__(self, source):
-				self.sourceTable = source
-	
-			def columnAdded(self, e): pass
-	
-			def columnSelectionChanged(self, e): pass
-	
-			def columnRemoved(self, e): pass
-	
-			def columnMoved(self, e): pass
-	
-			# noinspection PyUnusedLocal
-			def columnMarginChanged(self, e):
-				global _column_widths_LFR
-	
-				sourceModel = self.sourceTable.getColumnModel()
-	
-				for _i in range(0, sourceModel.getColumnCount()):
-					# Saving for later... Yummy!!
-					_column_widths_LFR[_i] = sourceModel.getColumn(_i).getWidth()
-					myPrint("D","Saving column %s as width %s for later..." %(_i,_column_widths_LFR[_i]))
-	
-	
-		# The javax.swing package and its subpackages provide a fairly comprehensive set of default renderer implementations, suitable for customization via inheritance. A notable omission is the lack #of a default renderer for a JTableHeader in the public API. The renderer used by default is a Sun proprietary class, sun.swing.table.DefaultTableCellHeaderRenderer, which cannot be extended.
-		# DefaultTableHeaderCellRenderer seeks to fill this void, by providing a rendering designed to be identical with that of the proprietary class, with one difference: the vertical alignment of #the header text has been set to BOTTOM, to provide a better match between DefaultTableHeaderCellRenderer and other custom renderers.
-		# The name of the class has been chosen considering this to be a default renderer for the cells of a table header, and not the table cells of a header as implied by the proprietary class name
-	
-	
-		class DefaultTableHeaderCellRenderer(DefaultTableCellRenderer):
-	
-			# /**
-			# * Constructs a <code>DefaultTableHeaderCellRenderer</code>.
-			# * <P>
-			# * The horizontal alignment and text position are set as appropriate to a
-			# * table header cell, and the opaque property is set to false.
-			# */
-	
-			def __init__(self):
-				# super(DefaultTableHeaderCellRenderer, self).__init__()
-				self.setHorizontalAlignment(JLabel.CENTER)  # This one changes the text alignment
-				self.setHorizontalTextPosition(JLabel.RIGHT)  # This positions the  text to the  left/right of  the sort icon
-				self.setVerticalAlignment(JLabel.BOTTOM)
-				self.setOpaque(True)  # if this is false then it hides the background colour
-	
-			# enddef
-	
-			# /**
-			# * returns the default table header cell renderer.
-			# * <P>
-			# * If the column is sorted, the appropriate icon is retrieved from the
-			# * current Look and Feel, and a border appropriate to a table header cell
-			# * is applied.
-			# * <P>
-			# * Subclasses may overide this method to provide custom content or
-			# * formatting.
-			# *
-			# * @param table the <code>JTable</code>.
-			# * @param value the value to assign to the header cell
-			# * @param isSelected This parameter is ignored.
-			# * @param hasFocus This parameter is ignored.
-			# * @param row This parameter is ignored.
-			# * @param column the column of the header cell to render
-			# * @return the default table header cell renderer
-			# */
-	
-			def getTableCellRendererComponent(self, table, value, isSelected, hasFocus, row, column):				# noqa
-				# noinspection PyUnresolvedReferences
-				super(DefaultTableHeaderCellRenderer, self).getTableCellRendererComponent(table, value, isSelected,hasFocus, row, column)
-				# tableHeader = table.getTableHeader()
-				# if (tableHeader is not None): self.setForeground(tableHeader.getForeground())
-				align = table.getCellRenderer(0, column).getHorizontalAlignment()
-				self.setHorizontalAlignment(align)
-				if align == JLabel.RIGHT:
-					self.setHorizontalTextPosition(JLabel.RIGHT)
-				elif align == JLabel.LEFT:
-					self.setHorizontalTextPosition(JLabel.LEFT)
-				elif align == JLabel.CENTER:
-					self.setHorizontalTextPosition(JLabel.LEFT)
-	
-				self.setIcon(self._getIcon(table, column))
-				self.setBorder(UIManager.getBorder("TableHeader.cellBorder"))
-	
-				self.setForeground(Color.BLACK)
-				self.setBackground(Color.lightGray)
-	
-				# self.setHorizontalAlignment(JLabel.CENTER)
-	
-				return self
-	
-			# enddef
-	
-			# /**
-			# * Overloaded to return an icon suitable to the primary sorted column, or null if
-			# * the column is not the primary sort key.
-			# *
-			# * @param table the <code>JTable</code>.
-			# * @param column the column index.
-			# * @return the sort icon, or null if the column is unsorted.
-			# */
-			def _getIcon(self, table, column):																		# noqa
-				sortKey = self.getSortKey(table, column)
-				if (sortKey is not None and table.convertColumnIndexToView(sortKey.getColumn()) == column):
-					x = (sortKey.getSortOrder())
-					if x == SortOrder.ASCENDING: return UIManager.getIcon("Table.ascendingSortIcon")
-					elif x == SortOrder.DESCENDING: return UIManager.getIcon("Table.descendingSortIcon")
-					elif x == SortOrder.UNSORTED: return UIManager.getIcon("Table.naturalSortIcon")
-				return None
-	
-			# enddef
-	
-			# /**
-			# * returns the current sort key, or null if the column is unsorted.
-			# *
-			# * @param table the table
-			# * @param column the column index
-			# * @return the SortKey, or null if the column is unsorted
-			# */
-			# noinspection PyMethodMayBeStatic
-			# noinspection PyUnusedLocal
-			def getSortKey(self, table, column):																	# noqa
-				rowSorter = table.getRowSorter()
-				if (rowSorter is None): return None
-				sortedColumns = rowSorter.getSortKeys()
-				if (sortedColumns.size() > 0): return sortedColumns.get(0)
-				return None
-	
-	
-		focus = "initial"
-		row = 0
-		EditedReminderCheck = False
-		ReminderTable_Count = 0
-		ExtractDetails_Count = 0
 
-		class MyMoneydanceEventListener(AppEventListener):
+	# noinspection PyUnresolvedReferences
+	def get_security_holdings(security):
+		if security.getCurrencyType() != CurrencyType.Type.SECURITY:
+			return 0
 
-			def __init__(self, theFrame):
-				self.alreadyClosed = False
-				self.theFrame = theFrame
-				self.myModuleID = myModuleID
+		acctHoldings = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(22))
+		balance = 0
+		for acct in acctHoldings:
+			if acct.getCurrencyType() == security:
+				balance += acct.getBalance()
 
-			def getMyself(self):
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-				fm = MD_REF.getModuleForID(self.myModuleID)
-				if fm is None: return None, None
-				try:
-					pyo = fm.getClass().getDeclaredField("extensionObject")
-					pyo.setAccessible(True)
-					pyObject = pyo.get(fm)
-					pyo.setAccessible(False)
-				except:
-					myPrint("DB","Error retrieving my own Python extension object..?")
-					dump_sys_error_to_md_console_and_errorlog()
-					return None, None
+		return balance
 
-				return fm, pyObject
+	def isGoodRate(theRate):
 
-			# noinspection PyMethodMayBeStatic
-			def handleEvent(self, appEvent):
-				global debug
+		if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
+			return False
 
-				myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
-				myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
-				myPrint("DB", "I am .handleEvent() within %s" %(classPrinter("MoneydanceAppListener", self.theFrame.MoneydanceAppListener)))
-				myPrint("DB","Extension .handleEvent() received command: %s" %(appEvent))
+		return True
 
-				if self.alreadyClosed:
-					myPrint("DB","....I'm actually still here (MD EVENT %s CALLED).. - Ignoring and returning back to MD...." %(appEvent))
-					return
+	def safeInvertRate(theRate):
 
-				# MD doesn't call .unload() or .cleanup(), so if uninstalled I need to close myself
-				fm, pyObject = self.getMyself()
-				myPrint("DB", "Checking myself: %s : %s" %(fm, pyObject))
-				# if (fm is None or pyObject is None) and appEvent != "md:app:exiting":
-				if (fm is None or (self.theFrame.isRunTimeExtension and pyObject is None)) and appEvent != "md:app:exiting":
-					myPrint("B", "@@ ALERT - I've detected that I'm no longer installed as an extension - I will deactivate.. (switching event code to :close)")
-					appEvent = "%s:customevent:close" %self.myModuleID
+		if not isGoodRate(theRate):
+			return theRate
 
-				# I am only closing Toolbox when a new Dataset is opened.. I was calling it on MD Close/Exit, but it seemed to cause an Exception...
-				if (appEvent == "md:file:closing"
-						or appEvent == "md:file:closed"
-						or appEvent == "md:file:opening"
-						or appEvent == "md:app:exiting"):
-					myPrint("DB","@@ Ignoring MD handleEvent: %s" %(appEvent))
+		return (1.0 / theRate)
 
-				elif (appEvent == "md:file:opened" or appEvent == "%s:customevent:close" %self.myModuleID):
-					if debug:
-						myPrint("DB","MD event %s triggered.... Will call GenericWindowClosingRunnable (via the Swing EDT) to push a WINDOW_CLOSING Event to %s to close itself (while I exit back to MD quickly) ...." %(appEvent, self.myModuleID))
-					else:
-						myPrint("B","Moneydance triggered event %s triggered - So I am closing %s now...." %(appEvent, self.myModuleID))
-					self.alreadyClosed = True
-					try:
-						# t = Thread(GenericWindowClosingRunnable(self.theFrame))
-						# t.start()
-						SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.theFrame))
-						myPrint("DB","Back from calling GenericWindowClosingRunnable to push a WINDOW_CLOSING Event (via the Swing EDT) to %s.... ;-> ** I'm getting out quick! **" %(self.myModuleID))
-					except:
-						dump_sys_error_to_md_console_and_errorlog()
-						myPrint("B","@@ ERROR calling GenericWindowClosingRunnable to push  a WINDOW_CLOSING Event (via the Swing EDT) to %s.... :-< ** I'm getting out quick! **" %(self.myModuleID))
-					if not debug: myPrint("DB","Returning back to Moneydance after calling for %s to close...." %self.myModuleID)
+	def checkCurrencyRawRatesOK(theCurr):
 
-				# md:file:closing	The Moneydance file is being closed
-				# md:file:closed	The Moneydance file has closed
-				# md:file:opening	The Moneydance file is being opened
-				# md:file:opened	The Moneydance file has opened
-				# md:file:presave	The Moneydance file is about to be saved
-				# md:file:postsave	The Moneydance file has been saved
-				# md:app:exiting	Moneydance is shutting down
-				# md:account:select	An account has been selected by the user
-				# md:account:root	The root account has been selected
-				# md:graphreport	An embedded graph or report has been selected
-				# md:viewbudget	One of the budgets has been selected
-				# md:viewreminders	One of the reminders has been selected
-				# md:licenseupdated	The user has updated the license
+		checkRate = theCurr.getParameter("rate", None)
+		checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
+		checkRRate = theCurr.getParameter("rrate", None)
+		checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
 
-		class WindowListener(WindowAdapter):
+		if checkRate is None or not isGoodRate(checkRateDouble):
+			return False
 
-			def __init__(self, theFrame):
-				self.theFrame = theFrame        # type: MyJFrame
+		if checkRRate is None or not isGoodRate(checkRRateDouble):
+			return False
 
-			def windowClosing(self, WindowEvent):                         												# noqa
-				global debug
-				myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+		return True
 
-				terminate_script()
 
-			def windowClosed(self, WindowEvent):                                                                       # noqa
-
-				myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
-				myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
-
-				self.theFrame.isActiveInMoneydance = False
-
-				myPrint("DB","applistener is %s" %(classPrinter("MoneydanceAppListener", self.theFrame.MoneydanceAppListener)))
-
-				if self.theFrame.MoneydanceAppListener is not None:
-					try:
-						MD_REF.removeAppEventListener(self.theFrame.MoneydanceAppListener)
-						myPrint("DB","\n@@@ Removed my MD App Listener... %s\n" %(classPrinter("MoneydanceAppListener", self.theFrame.MoneydanceAppListener)))
-						self.theFrame.MoneydanceAppListener = None
-					except:
-						myPrint("B","FAILED to remove my MD App Listener... %s" %(classPrinter("MoneydanceAppListener", self.theFrame.MoneydanceAppListener)))
-						dump_sys_error_to_md_console_and_errorlog()
-
-				if self.theFrame.HomePageViewObj is not None:
-					self.theFrame.HomePageViewObj.unload()
-					myPrint("DB","@@ Called HomePageView.unload() and Removed reference to HomePageView %s from MyJFrame()...@@\n" %(classPrinter("HomePageView", self.theFrame.HomePageViewObj)))
-					self.theFrame.HomePageViewObj = None
-
-				cleanup_actions(self.theFrame)
-
-			# noinspection PyMethodMayBeStatic
-			# noinspection PyUnusedLocal
-			def windowGainedFocus(self, WindowEvent):																# noqa
-				global focus, table, row, debug, EditedReminderCheck
-	
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-	
-				if focus == "lost":
-					focus = "gained"
-					if EditedReminderCheck:  # Disable refresh data on all gained-focus events, just refresh if Reminder is Edited...
-						# To always refresh data remove this if statement and always run ExtractDetails(1)
-						myPrint("DB", "pre-build_the_data_file()")
-						build_the_data_file(1)  # Re-extract data when window focus gained - assume something changed
-						myPrint("DB", "back from build_the_data_file(), gained focus, row: ", row)
-						EditedReminderCheck = False
-					if table.getRowCount() > 0:
-						table.setRowSelectionInterval(0, row)
-					cellRect = table.getCellRect(row, 0, True)
-					table.scrollRectToVisible(cellRect)  # force the scrollpane to make the row visible
-					table.requestFocus()
-	
-				myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-				return
-	
-			# noinspection PyMethodMayBeStatic
-			# noinspection PyUnusedLocal
-			def windowLostFocus(self, WindowEvent):																	# noqa
-				global focus, table, row, debug
-	
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-	
-				row = table.getSelectedRow()
-	
-				if focus == "gained": focus = "lost"
-	
-				myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-				return
-	
-	
-		WL = WindowListener(list_future_reminders_frame_)
-	
-	
-		class MouseListener(MouseAdapter):
-			# noinspection PyMethodMayBeStatic
-			def mousePressed(self, event):
-				global table, row, debug
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-				clicks = event.getClickCount()
-				if clicks == 2:
-					row = table.getSelectedRow()
-					index = table.getValueAt(row, 0)
-					ShowEditForm(index)
-				myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-				return
-	
-	
-		ML = MouseListener()
-	
-	
-		class EnterAction(AbstractAction):
-			# noinspection PyMethodMayBeStatic
-			# noinspection PyUnusedLocal
-			def actionPerformed(self, event):
-				global focus, table, row, debug
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-				row = table.getSelectedRow()
-				index = table.getValueAt(row, 0)
-				ShowEditForm(index)
-				myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-				return
-	
-	
-		class CloseAction(AbstractAction):
-
-			# noinspection PyMethodMayBeStatic
-			# noinspection PyUnusedLocal
-			def actionPerformed(self, event):
-				global list_future_reminders_frame_, debug
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-	
-				terminate_script()
-
-				return
-	
-	
-		class ExtractMenuAction():
-			def __init__(self):
-				pass
-	
-			# noinspection PyMethodMayBeStatic
-			def extract_or_close(self):
-				global list_future_reminders_frame_, debug
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-				myPrint("D", "inside ExtractMenuAction() ;->")
-	
-				terminate_script()
-	
-	
-		class RefreshMenuAction():
-			def __init__(self):
-				pass
-	
-			# noinspection PyMethodMayBeStatic
-			def refresh(self):
-				global list_future_reminders_frame_, table, row, debug
-				row = 0  # reset to row 1
-				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "\npre-extract details(1), row: ", row)
-				build_the_data_file(1)  # Re-extract data
-				myPrint("D", "back from extractdetails(1), row: ", row)
-				if table.getRowCount() > 0:
-					table.setRowSelectionInterval(0, row)
-				table.requestFocus()
-				myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-				return
-	
-		class MyJTable(JTable):
-			myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-	
-			def __init__(self, tableModel):
-				global debug
-				super(JTable, self).__init__(tableModel)
-				self.fixTheRowSorter()
-	
-			# noinspection PyMethodMayBeStatic
-			# noinspection PyUnusedLocal
-			def isCellEditable(self, row, column):																	# noqa
-				return False
-	
-			#  Rendering depends on row (i.e. security's currency) as well as column
-			# noinspection PyUnusedLocal
-			# noinspection PyMethodMayBeStatic
-			def getCellRenderer(self, row, column):																	# noqa
-				global headerFormats
-	
-				if column == 0:
-					renderer = MyPlainNumberRenderer()
-				elif headerFormats[column][0] == Number:
-					renderer = MyNumberRenderer()
-				else:
-					renderer = DefaultTableCellRenderer()
-	
-				renderer.setHorizontalAlignment(headerFormats[column][1])
-	
-				return renderer
-	
-			class MyTextNumberComparator(Comparator):
-				lSortNumber = False
-				lSortRealNumber = False
-	
-				def __init__(self, sortType):
-					if sortType == "N":
-						self.lSortNumber = True
-					elif sortType == "%":
-						self.lSortRealNumber = True
-					else:
-						self.lSortNumber = False
-	
-				def compare(self, str1, str2):
-					global decimalCharSep
-					validString = "-0123456789" + decimalCharSep  # Yes this will strip % sign too, but that still works
-	
-					# if debug: print str1, str2, self.lSortNumber, self.lSortRealNumber, type(str1), type(str2)
-	
-					if isinstance(str1, (float,int)) or isinstance(str2,(float,int)):
-						if str1 is None or str1 == "": str1 = 0
-						if str2 is None or str2 == "": str2 = 0
-						if (str1) > (str2):
-							return 1
-						elif str1 == str2:
-							return 0
-						else:
-							return -1
-	
-					if self.lSortNumber:
-						# strip non numerics from string so can convert back to float - yes, a bit of a reverse hack
-						conv_string1 = ""
-						if str1 is None or str1 == "": str1 = "0"
-						if str2 is None or str2 == "": str2 = "0"
-						for char in str1:
-							if char in validString:
-								conv_string1 = conv_string1 + char
-	
-						conv_string2 = ""
-						for char in str2:
-							if char in validString:
-								conv_string2 = conv_string2 + char
-						str1 = float(conv_string1)
-						str2 = float(conv_string2)
-	
-						if str1 > str2:
-							return 1
-						elif str1 == str2:
-							return 0
-						else:
-							return -1
-					elif self.lSortRealNumber:
-						if float(str1) > float(str2):
-							return 1
-						elif str1 == str2:
-							return 0
-						else:
-							return -1
-					else:
-						if str1.upper() > str2.upper():
-							return 1
-						elif str1.upper() == str2.upper():
-							return 0
-						else:
-							return -1
-	
-				# enddef
-	
-			def fixTheRowSorter(self):  # by default everything gets converted to strings. We need to fix this and code for my string number formats
-	
-				sorter = TableRowSorter()
-				self.setRowSorter(sorter)
-				sorter.setModel(self.getModel())
-				for _i in range(0, self.getColumnCount()):
-					if _i == 0:
-						sorter.setComparator(_i, self.MyTextNumberComparator("%"))
-					if _i == 3 or _i == 3:
-						sorter.setComparator(_i, self.MyTextNumberComparator("N"))
-					else:
-						sorter.setComparator(_i, self.MyTextNumberComparator("T"))
-				self.getRowSorter().toggleSortOrder(1)
-	
-			# make Banded rows
-			def prepareRenderer(self, renderer, row, column):  														# noqa
-	
-				lightLightGray = Color(0xDCDCDC)
-				# noinspection PyUnresolvedReferences
-				component = super(MyJTable, self).prepareRenderer(renderer, row, column)
-				if not self.isRowSelected(row):
-					component.setBackground(self.getBackground() if row % 2 == 0 else lightLightGray)
-	
-				return component
-	
-		# This copies the standard class and just changes the colour to RED if it detects a negative - leaves field intact
-		# noinspection PyArgumentList
-		class MyNumberRenderer(DefaultTableCellRenderer):
-			global baseCurrency
-	
-			def __init__(self):
-				super(DefaultTableCellRenderer, self).__init__()
-	
-			def setValue(self, value):
-				global decimalCharSep
-	
-				myGreen = Color(0,102,0)
-	
-				if isinstance(value, (float,int)):
-					if value < 0.0:
-						self.setForeground(Color.RED)
-					else:
-						# self.setForeground(Color.DARK_GRAY)
-						self.setForeground(myGreen)  # DARK_GREEN
-					self.setText(baseCurrency.formatFancy(int(value*100), decimalCharSep, True))
-				else:
-					self.setText(str(value))
-	
-				return
-	
-		# noinspection PyArgumentList
-		class MyPlainNumberRenderer(DefaultTableCellRenderer):
-			global baseCurrency
-	
-			def __init__(self):
-				super(DefaultTableCellRenderer, self).__init__()
-	
-			def setValue(self, value):
-	
-				self.setText(str(value))
-	
-				return
-	
-		def ReminderTable(tabledata, ind):
-			global list_future_reminders_frame_, scrollpane, table, row, debug, ReminderTable_Count, csvheaderline, lDisplayOnly
-			global _column_widths_LFR, daysToLookForward_LFR, saveStatusLabel
-	
-			ReminderTable_Count += 1
-			myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", ind, "  - On iteration/call: ", ReminderTable_Count)
-	
-			myDefaultWidths = [0,95,400,100]
-	
-			validCount=0
-			lInvalidate=True
-			if _column_widths_LFR is not None and isinstance(_column_widths_LFR,(list)) and len(_column_widths_LFR) == len(myDefaultWidths):
-				# if sum(_column_widths_LFR)<1:
-				for width in _column_widths_LFR:
-					if width >= 0 and width <= 1000:																	# noqa
-						validCount += 1
-	
-			if validCount == len(myDefaultWidths): lInvalidate=False
-	
-			if lInvalidate:
-				myPrint("DB","Found invalid saved columns = resetting to defaults")
-				myPrint("DB","Found: %s" %_column_widths_LFR)
-				myPrint("DB","Resetting to: %s" %myDefaultWidths)
-				_column_widths_LFR = myDefaultWidths
+	fms = MD_REF.getLoadedModules()
+	foundBuild = 0
+	foundQL = False
+	for fm in fms:
+		if fm.getIDStr().lower() == QLID:
+			foundBuild = fm.getBuild()
+			if foundBuild >= QL_MIN_BUILD and foundBuild <= QL_MAX_BUILD:
+				foundQL = True
+				break
 			else:
-				myPrint("DB","Valid column widths loaded - Setting to: %s" %_column_widths_LFR)
-				myDefaultWidths = _column_widths_LFR
-	
-			# allcols = col0 + col1 + col2 + col3 + col4 + col5 + col6 + col7 + col8 + col9 + col10 + col11 + col12 + col13 + col14 + col15 + col16 + col17
-			allcols = sum(myDefaultWidths)
-	
-			screenSize = Toolkit.getDefaultToolkit().getScreenSize()
-	
-			# button_width = 220
-			# button_height = 40
-			# frame_width = min(screenSize.width-20, allcols + 100)
-			# frame_height = min(screenSize.height, 900)
-	
-			frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.95,0))))
-			frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.95,0))))
-	
-			frame_width = min( allcols+20, frame_width)
-	
-			# panel_width = frame_width - 50
-			# button_panel_height = button_height + 5
-	
-			if ind == 1:    scrollpane.getViewport().remove(table)  # On repeat, just remove/refresh the table & rebuild the viewport
-	
-			colnames = csvheaderline
-	
-			table = MyJTable(DefaultTableModel(tabledata, colnames))
-	
-			if ind == 0:  # Function can get called multiple times; only set main frames up once
-				JFrame.setDefaultLookAndFeelDecorated(True)
-				list_future_reminders_frame_.setTitle(u"List future reminders...")
-				list_future_reminders_frame_.setName(u"%s_main" %(myModuleID))
+				myPrint("B","Found QL extension build %s but min/max builds are %s-to-%s.." %(foundBuild,QL_MIN_BUILD,QL_MAX_BUILD))
+				break
+	if foundQL:
+		myPrint("DB","Quote Loader (QL) extension (valid build %s) is loaded..." %(foundBuild))
+	else:
+		myPrint("B","Sorry, did not find Quote Loader extension (meeting build requirements) running... ABORTING")
 
-				if (not Platform.isMac()):
-					MD_REF.getUI().getImages()
-					list_future_reminders_frame_.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
-	
-				list_future_reminders_frame_.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
-	
-				shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
-	
-				# Add standard CMD-W keystrokes etc to close window
-				list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
-				list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
-				list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-				list_future_reminders_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
-	
-				list_future_reminders_frame_.addWindowFocusListener(WL)
-				list_future_reminders_frame_.addWindowListener(WL)
-
-				if Platform.isOSX():
-					save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
-					if save_useScreenMenuBar is None or save_useScreenMenuBar == "":
-						save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
-					System.setProperty("apple.laf.useScreenMenuBar", "false")
-					System.setProperty("com.apple.macos.useScreenMenuBar", "false")
-				else:
-					save_useScreenMenuBar = "true"
-	
-				mb = JMenuBar()
-	
-				menuO = JMenu("<html><B>OPTIONS</b></html>")
-	
-				menuItemR = JMenuItem("Refresh Data/Default Sort")
-				menuItemR.setToolTipText("Refresh (re-extract) the data, revert to default sort  order....")
-				menuItemR.addActionListener(DoTheMenu(menuO))
-				menuItemR.setEnabled(True)
-				menuO.add(menuItemR)
-	
-				menuItemL = JMenuItem("Change look forward days")
-				menuItemL.setToolTipText("Change the days to look forward")
-				menuItemL.addActionListener(DoTheMenu(menuO))
-				menuItemL.setEnabled(True)
-				menuO.add(menuItemL)
-	
-				menuItemRC = JMenuItem("Reset default Column Widths")
-				menuItemRC.setToolTipText("Reset default Column Widths")
-				menuItemRC.addActionListener(DoTheMenu(menuO))
-				menuItemRC.setEnabled(True)
-				menuO.add(menuItemRC)
-	
-				menuItemDEBUG = JCheckBoxMenuItem("Debug")
-				menuItemDEBUG.addActionListener(DoTheMenu(menuO))
-				menuItemDEBUG.setToolTipText("Enables script to output debug information (internal technical stuff)")
-				menuItemDEBUG.setSelected(debug)
-				menuO.add(menuItemDEBUG)
-	
-				menuItemE = JMenuItem("Close Window")
-				menuItemE.setToolTipText("Exit and close the window")
-				menuItemE.addActionListener(DoTheMenu(menuO))
-				menuItemE.setEnabled(True)
-				menuO.add(menuItemE)
-	
-				mb.add(menuO)
-	
-				menuH = JMenu("<html><B>ABOUT</b></html>")
-	
-				menuItemA = JMenuItem("About")
-				menuItemA.setToolTipText("About...")
-				menuItemA.addActionListener(DoTheMenu(menuH))
-				menuItemA.setEnabled(True)
-				menuH.add(menuItemA)
-	
-				mb.add(menuH)
-	
-				# mb.add(Box.createHorizontalGlue())
-				mb.add(Box.createRigidArea(Dimension(40, 0)))
-				formatDate = DateUtil.incrementDate(DateUtil.getStrippedDateInt(),0,0,daysToLookForward_LFR)
-				formatDate = str(formatDate/10000).zfill(4) + "-" + str((formatDate/100)%100).zfill(2) + "-" + str(formatDate%100).zfill(2)
-				lblDays = JLabel("** Looking forward %s days  to %s **" %(daysToLookForward_LFR, formatDate))
-				lblDays.setBackground(Color.WHITE)
-				lblDays.setForeground(Color.RED)
-				mb.add(lblDays)
-	
-				saveStatusLabel = lblDays
-	
-				# mb.add(Box.createRigidArea(Dimension(20, 0)))
-	
-				list_future_reminders_frame_.setJMenuBar(mb)
-
-				if Platform.isOSX():
-					System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
-					System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
-	
-			table.getTableHeader().setReorderingAllowed(True)  # no more drag and drop columns, it didn't work (on the footer)
-			table.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
-			table.selectionMode = ListSelectionModel.SINGLE_SELECTION
-	
-			fontSize = table.getFont().getSize()+5
-			table.setRowHeight(fontSize)
-			table.setRowMargin(0)
-	
-			table.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke("ENTER"), "Enter")
-			table.getActionMap().put("Enter", EnterAction())
-	
-			for _i in range(0, table.getColumnModel().getColumnCount()):
-				tcm = table.getColumnModel().getColumn(_i)
-				tcm.setPreferredWidth(myDefaultWidths[_i])
-				if myDefaultWidths[_i] == 0:
-					tcm.setMinWidth(0)
-					tcm.setMaxWidth(0)
-					tcm.setWidth(0)
-	
-			cListener1 = ColumnChangeListener(table)
-			# Put the listener here - else it sets the defaults wrongly above....
-			table.getColumnModel().addColumnModelListener(cListener1)
-	
-			table.getTableHeader().setBackground(Color.LIGHT_GRAY)
-	
-			# table.setAutoCreateRowSorter(True) # DON'T DO THIS - IT WILL OVERRIDE YOUR NICE CUSTOM SORT
-	
-			table.addMouseListener(ML)
-	
-			if ind == 0:
-				scrollpane = JScrollPane(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS)  # On first call, create the scrollpane
-				scrollpane.setBorder(CompoundBorder(MatteBorder(1, 1, 1, 1, Color.gray), EmptyBorder(0, 0, 0, 0)))
-				# scrollpane.setPreferredSize(Dimension(frame_width-20, frame_height-20	))
-	
-			table.setPreferredScrollableViewportSize(Dimension(frame_width-20, frame_height-100))
-			#
-			table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF)
-			#
-			scrollpane.setViewportView(table)
-			if ind == 0:
-				list_future_reminders_frame_.add(scrollpane)
-				list_future_reminders_frame_.pack()
-				list_future_reminders_frame_.setLocationRelativeTo(None)
-
-				try:
-					list_future_reminders_frame_.MoneydanceAppListener = MyMoneydanceEventListener(list_future_reminders_frame_)
-					MD_REF.addAppEventListener(list_future_reminders_frame_.MoneydanceAppListener)
-					myPrint("DB","@@ added AppEventListener() %s @@" %(classPrinter("MoneydanceAppListener", list_future_reminders_frame_.MoneydanceAppListener)))
-				except:
-					myPrint("B","FAILED to add MD App Listener...")
-					dump_sys_error_to_md_console_and_errorlog()
-
-				list_future_reminders_frame_.isActiveInMoneydance = True
-
-				if True or Platform.isOSX():
-					# list_future_reminders_frame_.setAlwaysOnTop(True)
-					list_future_reminders_frame_.toFront()
-
-			list_future_reminders_frame_.setVisible(True)
-			list_future_reminders_frame_.toFront()
-
-			myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-			ReminderTable_Count -= 1
-	
-			return
-	
-		def FormatAmount(oldamount):
-			# Amount is held as an integer in pence
-			# Remove - sign if present
-			if oldamount < 0:
-				oldamount = oldamount * -1
-	
-			oldamount = str(oldamount)
-	
-			# Ensure at least 3 character
-			if len(oldamount) < 3:
-				oldamount = "000" + oldamount
-				oldamount = (oldamount)[-3:]
-	
-			# Extract whole portion of amount
-			whole = (oldamount)[0:-2]
-			if len(whole) == 0:
-				whole = "0"
-	
-			# Extract decimal part of amount
-			decimal = (oldamount)[-2:]
-			declen = len(decimal)
-			if declen == 0:
-				decimal = "00"
-				whole = "0"
-			if declen == 1:
-				decimal = "0" + decimal
-				whole = "0"
-	
-			# Insert , commas in whole part
-			wholelist = list(whole)
-			listlen = len(wholelist)
-			if wholelist[0] == "-":
-				listlen = listlen - 1
-			listpos = 3
-			while listpos < listlen:
-				wholelist.insert(-listpos, ",")
-				listpos = listpos + 4
-				listlen = listlen + 1
-	
-			newwhole = "".join(wholelist)
-			newamount = newwhole + "." + decimal
-			return newamount
-	
-		def FormatDate(olddate):
-			# Date is held as an integer in format YYYYMMDD
-			olddate = str(olddate)
-			if len(olddate) < 8:
-				olddate = "00000000"
-			year = olddate[0:4]
-			month = olddate[4:6]
-			day = olddate[6:8]
-	
-			newdate = day + "/" + month + "/" + year
-			if newdate == "00/00/0000":
-				newdate = "Unavailable"
-	
-			return newdate
-	
-		def ShowEditForm(item):
-			global debug, EditedReminderCheck
-			myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-			reminders = MD_REF.getCurrentAccount().getBook().getReminders()
-			reminder = reminders.getAllReminders()[item-1]
-			myPrint("D", "Calling MD EditRemindersWindow() function...")
-			EditRemindersWindow.editReminder(None, MD_REF.getUI(), reminder)
-			EditedReminderCheck = True
-			myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-			return
-	
-		if build_the_data_file(0):
-	
-			# saveStatusLabel = None
-			#
-			focus = "gained"																							# noqa
-	
-			if table.getRowCount() > 0:
-				table.setRowSelectionInterval(0, row)
-	
-			table.requestFocus()
-
+	f = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),MBFILE)
+	if foundQL:
+		if os.path.exists(f):
+			myPrint("DB","MB Master parameter file found: %s" %(f))
 		else:
-			myPopupInformationBox(list_future_reminders_frame_, "You have no reminders to display!", myScriptName)
-			cleanup_actions(list_future_reminders_frame_)
+			myPrint("B", "Sorry, did not find MB Master parameter file: %s. ABORTING" %(f))
+			foundQL = False
+
+	if foundQL:
+		try:
+			with open(f,'rb') as json_file:
+				contents = json_file.read()
+				data = json.loads(contents)
+				myPrint("DB","Successfully read MB Master parameter file")
+		except:
+			dump_sys_error_to_md_console_and_errorlog()
+			myPrint("B", "Sorry, error reading MB Master parameter file... ABORTING")
+			foundQL = False
+
+	if foundQL:
+		if not data.get(MB_KEY):
+			myPrint("B","Error: The MB Master Parameter file does not contain the key: '%s'. ABORTING" %(MB_KEY))
+			foundQL = False
+		else:
+			for ql_key in sorted(data[MB_KEY]):
+				if ql_key.lower().strip().startswith(QLID.lower().strip()):
+					myPrint("DB","MB Master parameter for QL: '%s': %s" %(ql_key,data[MB_KEY][ql_key]))
+
+	f = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),QLFILE)
+	if foundQL:
+		if os.path.exists(f):
+			myPrint("DB","QL parameter file found: %s" %(f))
+		else:
+			myPrint("B", "Sorry, did not find QL parameter file: %s. ABORTING" %(f))
+			foundQL = False
+
+	if foundQL:
+
+		try:
+			with open(f,'rb') as json_file:
+
+				# It seems that QL extension just uses that machine's platform's default charset.. We have to try both....
+				try_charsets = ['utf-8','iso-8859-1']
+				if Platform.isWindows(): try_charsets = ['iso-8859-1','utf-8']
+				if foundBuild >= QL_MIN_BUILD2: try_charsets.insert(0,'us-ascii')
+
+				myPrint("DB","QL parameter file open format order....: %s" %(try_charsets))
+
+				for tryCharacterSet in try_charsets:
+					try:
+						myPrint("DB","Attempting to read QL parameter file using '%s' charset" %(tryCharacterSet))
+						contents = json_file.read().decode(tryCharacterSet)
+						break
+					except:
+						myPrint("B","Could not read QL parameter file using '%s'..." %(tryCharacterSet))
+						if try_charsets.index(tryCharacterSet)+1 >= len(try_charsets):
+							raise
+
+						json_file.seek(0)  # rewind... try again... ;->
+						continue
+
+				data = json.loads(contents)
+				myPrint("DB","Successfully read QL parameter file (using %s character set)" %(tryCharacterSet))
+		except:
+			dump_sys_error_to_md_console_and_errorlog()
+			myPrint("B", "Sorry, error reading QL parameter file... ABORTING")
+			foundQL = False
+
+	if foundQL:
+		# for ql_key in [QL_STOCKS_KEY]:
+		for ql_key in [QL_STOCKS_KEY,QL_INCL_ZERO_KEY,QL_INCL_CURR_KEY]:
+			if ql_key not in data:
+				myPrint("B","Error: The QL Parameter file does not contain the key: '%s'. ABORTING" %(ql_key))
+				foundQL = False
+				break
+
+	if foundQL:
+		for ql_key in sorted(data):
+			if ql_key.lower().strip() == QL_STOCKS_KEY.lower().strip(): continue
+			myPrint("DB","QL parameter: '%s': %s" %(ql_key,data[ql_key]))
+
+
+	stocksList = []
+	QL_stocks = None
+	QL_includeZero = None
+	QL_includeCurrency = None
+
+	if foundQL:
+		MD_REF.getUI().setStatus("%s: Analysing Quote Loader parameters/stocks...." %(myModuleID),-1)
+		myPrint("DB","Parameters read: %s" %(data))
+		QL_stocks = data[QL_STOCKS_KEY]
+		QL_includeZero = data[QL_INCL_ZERO_KEY]
+		QL_includeCurrency = data[QL_INCL_CURR_KEY]
+		myPrint("DB","QL includeZero: %s" %(QL_includeZero))
+		myPrint("DB","QL includeCurrency: %s" %(QL_includeCurrency))
+
+		for stock in sorted(QL_stocks, key=lambda x: (x[QL_STOCK_NAME])):
+			if stock[QL_CURRENCY_FLAG]:
+				myPrint("DB","Currency ID: %s" %(stock[QL_STOCK_NAME][3:]))	# Currency IDs now has preceding 3 high-byte 7f characters
+				stocksList.append([stock[QL_STOCK_NAME][3:],True])
+				# myPrint("DB","Currency ID: %s" %(stock[QL_STOCK_NAME]))
+				# stocksList.append([stock[QL_STOCK_NAME],True])
+			else:
+				myPrint("DB","Stock Ticker: %s" %(stock[QL_STOCK_NAME]))
+				stocksList.append([stock[QL_STOCK_NAME],False])
+		if len(stocksList) < 1:
+			myPrint("B","Error: QL stock list is empty..")
+			foundQL = False
+
+	stocksDict = {}
+	iCountUnfixedWarnings = 0
+	if foundQL:
+		MD_REF.getUI().setStatus("%s: Linking Quote Loader stocks to Moneydance Objects...." %(myModuleID),-1)
+		ct = moneydance.getCurrentAccount().getBook().getCurrencies()
+		allXCurrs = ct.getAllCurrencies()
+
+		base = ct.getBaseType()
+		allCurrs = []
+		for cr in allXCurrs:
+			if cr != base:
+				allCurrs.append(cr)
+
+		_ID = 0
+		_CURR = 1
+
+		for stock_curr in sorted(stocksList, key=lambda x: (x[_CURR], x[_ID].upper())):
+			if stock_curr[_CURR]:
+				curr = my_getCurrencyByID(allCurrs, stock_curr[_ID], True)
+				if curr is not None:
+					if curr.getHideInUI():
+						myPrint("DB","Ignoring hidden (from summary screen) MD Currency: %s (%s)" %(curr,stock_curr[_ID]))
+					elif not QL_includeCurrency:
+						myPrint("DB","includeCurrency=NO >> Thus, ignoring MD Currency: %s (%s)" %(curr,stock_curr[_ID]))
+					else:
+						myPrint("DB","Found MD Currency: %s (%s)" %(curr,stock_curr[_ID]))
+						stocksDict[curr] = stock_curr[_ID]
+				else:
+					myPrint("B","@@ Warning: Did not find MD Currency: %s (will continue)" %(stock_curr[_ID]))
+					# iCountUnfixedWarnings += 1
+			else:
+				sec = my_getCurrencyByID(allCurrs, stock_curr[_ID], False)
+				if sec is not None:
+					if False and sec.getHideInUI():
+						myPrint("DB","Ignoring hidden (from summary screen) MD Security: %s (%s)" %(sec,stock_curr[_ID]))
+					elif not QL_includeZero and get_security_holdings(sec) == 0:
+						myPrint("DB","Ignoring MD Security: %s (%s) with zero shares/units balance " %(sec,stock_curr[_ID]))
+					else:
+						myPrint("DB","Found MD Security: %s (%s)" %(sec,stock_curr[_ID]))
+						stocksDict[sec] = stock_curr[_ID]
+				else:
+					myPrint("B","@@ Warning: Did not find MD Security: %s (will continue)" %(stock_curr[_ID]))
+					# iCountUnfixedWarnings += 1
+
+		if len(stocksDict) < 1:
+			myPrint("B","Error: Did not find any MD Securities / Currencies that match the QL Parameters... ABORTING")
+			foundQL = False
+		else:
+			myPrint("DB","Successfully linked %s MD Securities / Currencies to QL Parameters...." %(len(stocksDict)))
+
+	iCountUpdated = 0
+
+	if foundQL:
+		stocksDict = sorted(stocksDict, key=lambda x: (x.getCurrencyType(), x.getName().upper()))
+		nowTimeMS = System.currentTimeMillis()
+		intNowTime = DateUtil.convertLongDateToInt(nowTimeMS)
+		MD_REF.getUI().setStatus("%s: Diagnosing hidden price_date fields & updating where necessary...." %(myModuleID),-1)
+		myPrint("B","Diagnosing all matched Securities/Objects....")
+		for ctObj in stocksDict:
+			currPriceDate = ctObj.getLongParameter("price_date", 0L)												# noqa
+			myPrint("B","")
+			myPrint("B","%s: %s" %(ctObj.getCurrencyType(),ctObj.getName()))										# noqa
+
+			if currPriceDate < 1:
+				myPrint("B","Hidden 'price_date' NOT SET, so skipping....")
+				continue
+
+			intCurrPriceDate = DateUtil.convertLongDateToInt(currPriceDate)
+			myPrint("B","Hidden 'price_date' (%s): %s" %(currPriceDate,get_time_stamp_as_nice_text(currPriceDate)))
+
+			snaps = ctObj.getSnapshots()																			# noqa
+			if len(snaps) < 1:
+				myPrint("B","No snapshots exist, so skipping....")
+				continue
+			s=snaps[-1]
+			intLatestSnapDate = s.getDateInt()
+			newestRate = s.getRate()
+			myPrint("B","Latest dated snapshot date: %s - current rate: %s latest history rate: %s"
+					%(convertStrippedIntDateFormattedText(intLatestSnapDate), safeInvertRate(ctObj.getRelativeRate()), safeInvertRate(newestRate)))
+
+			lUpdateRequired = False
+			if intCurrPriceDate > intNowTime:
+				myPrint("B", "@@ WARNING: Your price_date field is future dated! FIXED @@")
+				lUpdateRequired = True
+
+			if intCurrPriceDate < intLatestSnapDate:
+				if intCurrPriceDate < intNowTime:
+					myPrint("B", "@@ WARNING: Your price_date field is older than latest price history: %s FIXED @@" %(convertStrippedIntDateFormattedText(intLatestSnapDate)))
+					lUpdateRequired = True
+				else:
+					myPrint("B", "@@ WARNING: Your price_date field is older than latest price history: %s NOTFIXED @@" %(convertStrippedIntDateFormattedText(intLatestSnapDate)))
+					iCountUnfixedWarnings += 1
+
+			if intLatestSnapDate > intNowTime:
+				myPrint("B", "@@ WARNING: Your latest price history date (snapshot) is future dated! %s - SNAPSHOT NOTFIXED @@" %(convertStrippedIntDateFormattedText(intLatestSnapDate)))
+				iCountUnfixedWarnings += 1
+
+			if intCurrPriceDate > intLatestSnapDate:
+				myPrint("B", "@@ WARNING: price_date field is newer than your latest price history: %s - FIXED @@" %(convertStrippedIntDateFormattedText(intLatestSnapDate)))
+				lUpdateRequired = True
+
+			if lUpdateRequired and not checkCurrencyRawRatesOK(ctObj):
+				myPrint("B", "@@ ERROR: Security/Currency's underlying fields are an old format. Please manually edit this record to address (this will update the record). NOTFIXED @@")
+				iCountUnfixedWarnings += 1
+				lUpdateRequired = False
+
+			if lUpdateRequired and not isGoodRate(newestRate):
+				myPrint("B", "@@ ERROR: Object's latest dated history price/rate is not valid. SKIPPED/NOTFIXED @@")
+				iCountUnfixedWarnings += 1
+				lUpdateRequired = False
+
+			if not lUpdateRequired:
+				myPrint("B","No update required/possible, skipping.....")
+				continue
+
+			rCurr = ctObj.getRelativeCurrency()
+			newDate = DateUtil.convertIntDateToLong(min(intNowTime,intLatestSnapDate)).getTime()
+			myPrint("B","@@@ UPDATE REQUIRED..... Updating %s hidden 'price_date' field to %s..... "
+						"Relative Currency: %s - old current price: %s >> UPDATING current price to: %s @@@"
+					%(ctObj,get_time_stamp_as_nice_text(newDate), rCurr, safeInvertRate(ctObj.getRelativeRate()), safeInvertRate(newestRate)))
+
+			ctObj.setEditingMode()
+			ctObj.setParameter("price_date", newDate)
+			ctObj.setRate(Util.safeRate(newestRate),rCurr)
+			ctObj.syncItem()
+			iCountUpdated += 1
+
+
+	MD_REF.getUI().setStatus("%s: FINISHED (review console output)" %(myModuleID),0)
+	myPrint("B","")
+
+	msgType = JOptionPane.INFORMATION_MESSAGE
+	if foundQL:
+		if iCountUpdated > 0:
+			msg = "FINISHED. Updated %s hidden 'price_date' fields" %(iCountUpdated)
+			msgType = JOptionPane.WARNING_MESSAGE
+		else:
+			msg = "FINISHED. No hidden 'price_date' fields needed updating"
+
+		if iCountUnfixedWarnings > 0:
+			msgType = JOptionPane.WARNING_MESSAGE
+			msg += " (with %s unfixed warnings)" %(iCountUnfixedWarnings)
+	else:
+		msg = "FINISHED WITH WARNINGS! Please review console log. No updates made"
+		msgType = JOptionPane.ERROR_MESSAGE
+
+	myPrint("B",msg)
+	myPopupInformationBox(None,msg,theMessageType=msgType)
+
+	debug = False
+	cleanup_actions()

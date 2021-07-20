@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1003 - March 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1004 - July 2021 - Stuart Beesley - StuWareSoftSystems
 
 ###############################################################################
 # This extension creates a Moneydance Home Page View >> a little widget on the Home / Summary Screen dashboard
@@ -55,6 +55,7 @@
 # Build: 1001 - Fix condition when -invoke[_and_quit] was used to prevent refresh erroring when MD actually closing...
 # Build: 1002 - Build 3067 of MD renamed com.moneydance.apps.md.view.gui.theme.Theme to com.moneydance.apps.md.view.gui.theme.ThemeInfo
 # Build: 1003 - Small tweaks to conform to IK design standards
+# Build: 1004 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -62,7 +63,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1003"
+version_build = "1004"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -301,7 +302,7 @@ else:
     if int(MD_REF.getBuild()) >= 3067:
         from com.moneydance.apps.md.view.gui.theme import ThemeInfo                                                     # noqa
     else:
-        from com.moneydance.apps.md.view.gui.theme import Theme as ThemeInfo
+        from com.moneydance.apps.md.view.gui.theme import Theme as ThemeInfo                                            # noqa
 
     # from com.moneydance.apps.md.controller import URLUtil
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
@@ -1199,10 +1200,15 @@ Visit: %s (Author's site)
             myPrint("DB", "Parameter file", migratedFilename, "exists..")
             # Open the file
             try:
+                # Really we should open() the file in binary mode and read/write as binary, then we wouldn't get platform differences!
                 istr = FileInputStream(migratedFilename)
                 load_file = FileUtil.wrap(istr)
-                # noinspection PyTypeChecker
-                myParameters = pickle.load(load_file)
+                if not Platform.isWindows():
+                    load_string = load_file.read().replace('\r', '')    # This allows for files migrated from windows (strip the extra CR)
+                else:
+                    load_string = load_file.read()
+
+                myParameters = pickle.loads(load_string)
                 load_file.close()
             except FileNotFoundException:
                 myPrint("B", "Error: failed to find parameter file...")
@@ -1284,8 +1290,7 @@ Visit: %s (Author's site)
 
         try:
             save_file = FileUtil.wrap(ostr)
-            # noinspection PyTypeChecker
-            pickle.dump(myParameters, save_file)
+            pickle.dump(myParameters, save_file, protocol=0)
             save_file.close()
 
             myPrint("DB","myParameters now contains...:")

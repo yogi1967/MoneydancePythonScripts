@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# orphan_attachments.py - build: 15 - January 2021 - Stuart Beesley
+# orphan_attachments.py - build: 16 - January 2021 - Stuart Beesley
 
 ###############################################################################
 # MIT License
@@ -38,6 +38,7 @@
 # build: 13 - Build 3056 of Moneydance...
 # build: 14 - Common code tweaks
 # build: 15 - Common code tweaks
+# build: 16 - Common code tweaks
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -45,7 +46,7 @@
 
 # SET THESE LINES
 myModuleID = u"orphan_transactions"
-version_build = "15"
+version_build = "16"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1159,10 +1160,15 @@ Visit: %s (Author's site)
             myPrint("DB", "Parameter file", migratedFilename, "exists..")
             # Open the file
             try:
+                # Really we should open() the file in binary mode and read/write as binary, then we wouldn't get platform differences!
                 istr = FileInputStream(migratedFilename)
                 load_file = FileUtil.wrap(istr)
-                # noinspection PyTypeChecker
-                myParameters = pickle.load(load_file)
+                if not Platform.isWindows():
+                    load_string = load_file.read().replace('\r', '')    # This allows for files migrated from windows (strip the extra CR)
+                else:
+                    load_string = load_file.read()
+
+                myParameters = pickle.loads(load_string)
                 load_file.close()
             except FileNotFoundException:
                 myPrint("B", "Error: failed to find parameter file...")
@@ -1244,8 +1250,7 @@ Visit: %s (Author's site)
 
         try:
             save_file = FileUtil.wrap(ostr)
-            # noinspection PyTypeChecker
-            pickle.dump(myParameters, save_file)
+            pickle.dump(myParameters, save_file, protocol=0)
             save_file.close()
 
             myPrint("DB","myParameters now contains...:")

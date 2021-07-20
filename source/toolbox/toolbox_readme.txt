@@ -114,6 +114,7 @@ ALT-B - Basic Mode
         - View memorised reports (parameters and default settings)
         - Find my Sync Encryption password(s) in iOS Backup(s)
         - Execute the 'older' Import QIF file and set parameters for import (useful if you want to import Account Structure Only)
+        - Covert a TimeStamp number into a readable date/time (display only)
     - MENU: Online (OFX) Banking Tools:
         - Search for stored OFX related data
         - View your installed Service / Bank logon profiles
@@ -130,6 +131,7 @@ ALT-B - Basic Mode
         - DIAGnostics - List decimal places (currency & security). Shows you hidden settings etc.
         - DIAGnostics - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
         - DIAGnostics - Diagnose relative currencies (currency & security's key settings). If errors, then go to FIX below
+        - DIAGnostics - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
     - MENU: Transactions tools
         - View Register Txn Sort Orders
         - Extract your Attachments (this decrypts and extracts your attachments to a directory of your choice) (export_all_attachments.py)
@@ -171,14 +173,20 @@ ALT-M - Advanced Mode
         - FIX - Account's Invalid Parent Account (script fix_account_parent.py)
         - FIX - Correct the Name of Root to match Dataset
     - MENU: Currency & Security tools:
+        - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol; dpc, RelCurr, Rate, Splits must match).
         - FIX - Fix relative currencies (fixes your currency & security's key settings) (reset_relative_currencies.py)
+        - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price/rate whilst fixing 'price_date'
+        - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
         - FIX - Convert Stock to LOT Controlled and Allocate LOTs using FiFo method (MakeFifoCost.py)
         - FIX - Convert Stock to Average Cost Control (and wipe any LOT control records)
+        - FIX - Detect and fix Investment Security records not properly linked to Security Master records
         - FIX - Thin/Purge Price History (allows you to thin/prune your price history based on parameters you input; also fix 'orphans') (price_history_thinner.py)
-        - FIX - Fix invalid relative currency (& security) rates (fixes relative rates where <0 or >9999999999) (fix_invalid_currency_rates.py)
+        - FIX - Fix invalid relative currency (& security) rates >> fixes relative rates where <= (1.0/9999999999) or >= 9999999999) (fix_invalid_currency_rates.py)
+        - FIX - Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.
         - FIX - FORCE change an Account's Currency (use with care. Does not update any transactions) (force_change_account_currency.py)
         - FIX - FORCE change ALL Account's currencies (use with care. Does not update any transactions) (force_change_all_currencies.py)
     - MENU: Transactions tools
+        - Move/Merge Investment transactions from one account into another
         - FIX - Non Hierarchical Security Account Txns (cross-linked securities) (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)
         - FIX - Delete One-Sided Txns (delete_invalid_txns.py)
         - FIX - Reverse Transaction Amounts between dates (reverse_txn_amounts.py)
@@ -209,7 +217,7 @@ Menu - HACKER MODE
     - Remove Int/Ext Files from File-list.
         >> External locations > Edits config.dict to remove references to external files for File/open - AND ALLOWS YOU TO DELETE THE FILES TOO
         >> Default / Internal locations > ALLOWS YOU TO DELETE THE Dataset from disk (this then removes it from the File/Open menu)
-    - Call Save Trunk File option....
+    - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
     - DEMOTE your Primary Sync dataset/node back to a Secondary Node..
     - Suppress the "Your file seems to be in a shared folder (Dropbox)" warning... (optional when condition exists)
 
