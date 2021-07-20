@@ -20,8 +20,9 @@ The minimum version to run as standalone scripts is 2019.4 (build 1904)...
 _(If you have installed the extension, but nothing happens, then check your MD version/build)_
 
 
-**NOTE - As of June 2021 - All my extensions listed below are listed within the Moneydance Manage Extensions menu - Check there first for updates**
+**NOTE: As of June 2021 - All extensions listed below (except ^^1^^) are listed within the Moneydance Manage Extensions menu - Check there first for updates**
 
+**ANY NEWER VERSIONS LISTED HERE SHOULD BE CONSIDERED PREVIEW (LATEST) VERSIONS**
 
 Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
 - Extensions have a file extension of *.mxt
@@ -40,13 +41,15 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 3) Click RUN (and not run snippet)
 4) That's it.... Repeat these steps each time.
 
-### Extension only format (contains only *.mxt file) - Very latest (unsigned) build
+### Extension only format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
 
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Net Account Balances**: Puts a small 'widget' on the Home Page. Displays the total of selected account balances.
 NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView widget
 
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/fix_hidden_price_date.zip">**Fix Hidden Price Date**: Allows you to trigger an auto-fix to the hidden 'price_date' field when using QuoteLoader extension.
+_^^Not listed on the Moneydance Manage Extensions menu^^_
 
 ### Extension and Scripts formats (*.mxt and *.py format) - Very latest (unsigned) builds
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**extract_data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
@@ -75,6 +78,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
   - demo_account_currency_rates.py: demo script for beginner coders with some simple Moneydance API calls etc
   - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
   - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance
+  - import_categories.py.py: script that allows you to import from a CSV file to create new Categories
 
 
 ### My Python Extension and coding tips:
