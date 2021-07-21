@@ -12780,8 +12780,6 @@ now after saving the file, restart Moneydance
         today = Calendar.getInstance()
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
-        "here"
-
         output = "Merge 'Duplicate' Securities:\n" \
                  " ============================================================\n\n"
 
@@ -12990,7 +12988,6 @@ now after saving the file, restart Moneydance
                                                          None,
                                                          listDuplicateTickers,
                                                          None)                                                              # type: StoreTickerData
-
             del listDuplicateTickers
 
             if not tickerToMerge:
@@ -13141,6 +13138,7 @@ now after saving the file, restart Moneydance
             output += "Investment Accounts:\n"
             for investAccount in allInvestmentAccounts:
                 if not isAnySecurityHeldWithinInvestmentAccount(tickerToMerge.getSecurityList(), investAccount): continue
+                failStartingBalanceMustBeZero = False
                 failUsesAverageCostValidation = False
                 validateUsesAvgCost = None
                 iFoundAnyInvestmentAccounts += 1
@@ -13168,15 +13166,19 @@ now after saving the file, restart Moneydance
                         else:
                             output += "   ** will be merged/deleted **\n"
 
+                        if foundSecurity.getStartBalance() != 0:
+                            failStartingBalanceMustBeZero = lFailValidation = True
+                            output += "   *** <ERROR - StartingBalance() reports %s - SHOULD ALWAYS BE ZERO! CANNOT MERGE>\n" %(foundSecurity.getStartBalance())
+
                         if validateUsesAvgCost is None:
                             validateUsesAvgCost = foundSecurity.getUsesAverageCost()
                         elif validateUsesAvgCost != foundSecurity.getUsesAverageCost():
-                            output += "   *** <ERROR - UsesAverageCost() differs between sub accounts - CANNOT MERGE>\n"
+                            output += "   *** <ERROR - UsesAverageCost() differs between sub accounts! CANNOT MERGE>\n"
                             failUsesAverageCostValidation = lFailValidation = True
 
                 investmentAccountsInvolvedInMerge[investAccount] = True
 
-                if failUsesAverageCostValidation:
+                if failUsesAverageCostValidation or failStartingBalanceMustBeZero:
                     output += "   <Above Investment account FAILED VALIDATION. Function will ABORT WITHOUT CHANGES>\n"
                 elif foundSecondary:
                     investmentAccountsNeedingSecondaryMerge[investAccount] = True
@@ -13676,10 +13678,16 @@ now after saving the file, restart Moneydance
                 _txtSource = "Source"
                 if not lSource: _txtSource = "Target"
                 for acct in fromWhere.getSubAccounts():
-                    if acct.getAccountType() == Account.AccountType.SECURITY:
+                    if acct.getAccountType() == Account.AccountType.SECURITY and acct.getStartBalance() == 0:
                         secs.append(acct)
                         _relCurr = acct.getCurrencyType()
                         _output += "..%s: %s contains Security: %s (%s units)\n" %(_txtSource, fromWhere, acct, _relCurr.formatSemiFancy(acct.getBalance(),MD_decimal))
+                    elif acct.getAccountType() == Account.AccountType.SECURITY:
+                        _txt = "Error: %s found SECURITY sub account %s with starting balance of %s - should always be ZERO? - Aborting" %(_txtSource, acct, acct.getStartBalance())
+                        myPrint("DB",_txt)
+                        statusLabel.setText((_txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                        myPopupInformationBox(toolbox_frame_,_txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                        return None, None
                     else:
                         _txt = "Error: %s found non SECURITY account %s within %s? - Aborting" %(_txtSource, acct,fromWhere)
                         myPrint("DB",_txt)
@@ -13723,7 +13731,7 @@ now after saving the file, restart Moneydance
             targetTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(targetAccount)
 
             if sourceAccount.getCurrencyType() != targetAccount.getCurrencyType():
-                txt = "Error: Nice try Batman! Sorry the source acct's currency %s does not match target's %s" %(sourceAccount.getCurrencyType(), targetAccount.getCurrencyType())
+                txt = "Error: Sorry the source acct's currency %s does not match target's %s" %(sourceAccount.getCurrencyType(), targetAccount.getCurrencyType())
                 myPrint("DB",txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -13948,14 +13956,6 @@ now after saving the file, restart Moneydance
                 for sec_to_create in securities_to_create:
                     txt = "... Creating: %s" %(sec_to_create.getAccountName())
                     myPrint("B", txt); output += "%s\n" %(txt)
-
-                    # newSecurityAcct = Legacy.makeAccount(MD_REF.getCurrentAccountBook(),
-                    #                                      sec_to_create.getAccountName(),
-                    #                                      -1,
-                    #                                      Account.AccountType.SECURITY,
-                    #                                      sec_to_create.getCurrencyType(),
-                    #                                      None, None,
-                    #                                      targetAccount, 0L)
 
                     newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(),
                                                           Account.AccountType.SECURITY,
