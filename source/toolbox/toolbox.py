@@ -164,7 +164,7 @@
 # Build: 1024 - Updated search so that it asks again after 10 mins, but then also carries on if no response after 10 seconds
 # Build: 1024 - Moved some buttons to the toolbar...
 # Build: 1024 - Fix for when System Property "HomeDir" is None on Mac (thanks Sean!). Comma in wrong place....!
-# Build: 1025 - New hacker button - Import a file into Local storeage....
+# Build: 1025 - New hacker button - Import a file into Local storage....
 # Build: 1025 - Allow " " and "'" in key data values when editing in Hacker mode..; Added option to demote Primary to Secondary Sync Node
 # Build: 1025 - Added script reverse_txn_amounts.py to Transaction Menu - advanced mode
 # Build: 1025 - Added script reverse_txn_exchange_rates_by_account_and_date.py to Transaction Menu - advanced mode
@@ -202,8 +202,11 @@
 # build: 1041 - New feature - FIX - Detect and fix Investment Security records not properly linked to Security Master records
 # build: 1041 - New feature - FIX - Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.
 # build: 1041 - New feature - FIX - Merge 'duplicate' securities (and related Investment txns) together into one master security record.
-# build: 1041 - Fixed hacker mode on SplitTxns to properly 'manage' the parent record
+# build: 1041 - New feature - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).
+# build: 1041 - Fixed hacker mode on SplitTxns to properly 'manage' the parent record; also fixed Geekout lookup for splits by UUID
+# build: 1041 - Switch back to Home Screen before some functions... Stops Lot control box appearing; Good practice to get out of all accounts first...
 
+# todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
 # todo - check/fix alert colours since VAqua....!?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -473,7 +476,7 @@ else:
     from com.infinitekind.util import StreamTable, StreamVector, IOUtils, StringUtils, CustomDateFormat
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
     from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields
-    from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList
+    from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
     from com.infinitekind.tiksync import SyncRecord
     from com.moneydance.apps.md.controller import Util
     from com.infinitekind.tiksync import SyncableItem
@@ -1994,6 +1997,15 @@ Visit: %s (Author's site)
 
         return prettyDate
 
+    def selectHomeScreen():
+
+        try:
+            currentViewAccount = MD_REF.getUI().firstMainFrame.getSelectedAccount()
+            if currentViewAccount != MD_REF.getRootAccount():
+                myPrint("DB","Switched to Home Page Summary Screen (from: %s)" %(currentViewAccount))
+                MD_REF.getUI().firstMainFrame.selectAccount(MD_REF.getRootAccount())
+        except:
+            myPrint("B","Error switching to Home Page Summary Screen")
 
     class DetectAndChangeMacTabbingMode(AbstractAction):
 
@@ -4990,20 +5002,9 @@ Visit: %s (Author's site)
             myPrint("B", "Script is analysing your Currency & Security current price hidden 'price_date' fields...........")
             myPrint("P", " -----------------------------------------------------------------------------------------------")
 
-            quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
-            if quoteLoader_or_QER_Loaded:
+            txt = "Current Price (Hidden) 'price_date' fix"
+            if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
-                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-
-                ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating whilst running current price hidden 'price_date' fix?")
-
-                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-                if not ask:
-                    statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst running hidden 'price_date' fix - NO CHANGES MADE").ljust(800, " "))
-                    statusLabel.setForeground(Color.RED)
-                    return
 
 
         options = ["All (both Currencies & Securities)",
@@ -5859,20 +5860,8 @@ Please update any that you use before proceeding....
 
         else:
 
-            quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
-            if quoteLoader_or_QER_Loaded:
-
-                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-
-                ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating whilst diagnosing currencies/securities?")
-
-                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-                if not ask:
-                    statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst running diagnose currencies/securities - NO CHANGES MADE").ljust(800, " "))
-                    statusLabel.setForeground(Color.RED)
-                    return
+            txt = "Diagnosing Currencies/Securities"
+            if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
 
         # OK - let's do it!
@@ -8305,6 +8294,10 @@ Please update any that you use before proceeding....
                 return None, lReportDefaultsSelected
 
             selectedObject = MD_REF.getCurrentAccount().getBook().getItemForID(theUUID.strip())
+            if selectedObject is None:
+                txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
+                selectedObject = txnSet.getTxnByID(theUUID.strip())
+
             objects  = [selectedObject]
             if not selectedObject:
                 statusLabel.setText(("%s: No Object was found for UUID: %s" %(titleStr,theUUID)).ljust(800, " "))
@@ -10608,20 +10601,8 @@ now after saving the file, restart Moneydance
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
-        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
-        if quoteLoader_or_QER_Loaded:
-
-            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-
-            ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating before running fix_invalid_relative_currency_rates?")
-
-            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-            if not ask:
-                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating before running fix_invalid_relative_currency_rates? - NO CHANGES MADE").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                return
+        txt = "fix_invalid_relative_currency_rates"
+        if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
         if not check_all_currency_raw_rates_ok():
             txt = u"FIX INVALID REL CURR RATES: You appear to have 'old' format or invalid currency/relative currency rates/records. Please run Diagnose/Fix Currencies first..."
@@ -10724,20 +10705,8 @@ now after saving the file, restart Moneydance
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
-        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
-        if quoteLoader_or_QER_Loaded:
-
-            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-
-            ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating before running fix invalid price history records?")
-
-            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-            if not ask:
-                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating before running fix invalid price history records? - NO CHANGES MADE").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                return
+        txt = "Fix Invalid Price History Records"
+        if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
         if not check_all_currency_raw_rates_ok():
             txt = "FIX - DELETE PRICE HISTORY WITH 'WILD' RATES: You appear to have 'old' format or invalid currency/relative currency rates/records. Please run Diagnose/Fix Currencies first..."
@@ -11256,20 +11225,8 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,x,"FIX - THIN/PURGE PRICE HISTORY",JOptionPane.ERROR_MESSAGE)
             return
 
-        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
-        if quoteLoader_or_QER_Loaded:
-
-            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-
-            ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Please confirm that it's NOT updating whilst purging/thinning price history?")
-
-            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-            if not ask:
-                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst purging/thinning price history? - NO CHANGES MADE").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                return
+        txt = "Purge/Thin Price History"
+        if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
 
         # prune historical exchange rates and price history from the given currency
@@ -12687,6 +12644,23 @@ now after saving the file, restart Moneydance
 
         return foundExtn
 
+
+    def perform_quote_loader_check(_statusLabel, _frame, _txt):
+
+        if isQuoteLoader_or_QER_Running():
+
+            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+            ask = myPopupAskQuestion(_frame,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Confirm that it's not updating before running '%s'?" %(_txt))
+            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+            if not ask:
+                _statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating before running '%s' - no changes made" %(_txt)).ljust(800, " "))
+                _statusLabel.setForeground(Color.RED)
+                return False
+
+        return True
+
     # noinspection PyUnresolvedReferences
     def detect_fix_nonlinked_investment_security_records(statusLabel):
 
@@ -12771,19 +12745,565 @@ now after saving the file, restart Moneydance
         return
 
     # noinspection PyUnresolvedReferences
+    def edit_security_decimal_places(statusLabel):
+
+        _THIS_METHOD_NAME = "Edit a Security's Decimal Places setting"
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        selectHomeScreen()      # Stops the LOT Control box popping up.....
+
+        PARAMETER_KEY = "toolbox_security_dpc"
+        PARAMETER_KEY_DATA = ".old_data"
+        PARAMETER_KEY_COST_BASIS = ".old_cost_basis"
+
+        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
+        output = "%s:\n" \
+                 " ========================================\n\n" %(_THIS_METHOD_NAME)
+
+        myPrint("B", "%s: Analysing..." %(_THIS_METHOD_NAME))
+
+        try:
+
+            if not perform_quote_loader_check(statusLabel, toolbox_frame_, _THIS_METHOD_NAME): return
+
+            class StoreSecurity:
+                def __init__(self, _obj):
+                    self.obj = _obj
+
+                def getSecurity(self):  return self.obj
+
+                def __str__(self):  return "Decimal Places: %s >> %s" %(rpad(self.obj.getDecimalPlaces(),2),self.obj)
+
+                def __repr__(self): return self.__str__()
+
+
+            # Sweep One - gather the potential targets by duplicate Ticker Symbol....
+            allSecurities = []
+            currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+            for currSec in currencies:
+                if currSec.getCurrencyType() != CurrencyType.Type.SECURITY: continue
+                allSecurities.append(StoreSecurity(currSec))
+            del currencies
+            allSecurities = sorted(allSecurities, key=lambda x: (x.getSecurity().getName().upper()))
+
+            securityToEdit = JOptionPane.showInputDialog(toolbox_frame_,
+                                                        "Select Security to edit Decimal Places",
+                                                        _THIS_METHOD_NAME.upper(),
+                                                        JOptionPane.WARNING_MESSAGE,
+                                                        None,
+                                                         allSecurities,
+                                                        None)                                                           # type: StoreSecurity
+
+            if not securityToEdit:
+                txt = "%s: No Security selected.. - NO CHANGES MADE!" %(_THIS_METHOD_NAME)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(toolbox_frame_, txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            securityToEdit = securityToEdit.getSecurity()
+            output += "\n" \
+                      "Security: %s was selected to edit.\n" \
+                      "Current Decimal Places set to: %s\n" %(securityToEdit, securityToEdit.getDecimalPlaces())
+
+            while True:
+
+                newDecimal = myPopupAskForInput(toolbox_frame_,
+                                                _THIS_METHOD_NAME,
+                                                "New Decimal Places:",
+                                                "Enter the new Decimal Places setting (currently %s)" %(securityToEdit.getDecimalPlaces()),
+                                                defaultValue=securityToEdit.getDecimalPlaces())
+
+                if newDecimal is not None and not StringUtils.isInteger(newDecimal):
+                    continue
+
+                if newDecimal is None or int(newDecimal) == securityToEdit.getDecimalPlaces():
+                    txt = "%s: No new decimal places selected.. - NO CHANGES MADE!" %(_THIS_METHOD_NAME)
+                    statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+                    myPopupInformationBox(toolbox_frame_, txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                    return
+
+                if int(newDecimal) >= 0 and int(newDecimal) <= 8:
+                    newDecimal = int(newDecimal)
+                    break
+
+                continue
+
+            # MyAcctFilter() - 22 Security Sub Accounts; 23 Investment Accounts
+            allInvestmentSecurityAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(22))
+
+
+            iTotalTxns = 0
+            iTotalBalance = 0
+            lUsingLotControl = False
+            securitySubAccountsNeedChanging = []
+            output += "\nSearching for related Investment Sub Accounts, transactions, balances etc...:\n"
+
+            lAnyCostBasisErrorsFound = [False]
+
+            for secAcct in allInvestmentSecurityAccounts:
+                if secAcct.getCurrencyType() == securityToEdit:
+                    securitySubAccountsNeedChanging.append(secAcct)
+
+                    txns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(secAcct)
+
+                    lFoundCostBasisTags = False
+                    for txn in txns:
+                        if txn.getParameter("cost_basis", None) is not None:
+                            lFoundCostBasisTags = lUsingLotControl = True
+                            break
+
+                    if lFoundCostBasisTags:
+                        output += "... WARNING: LOT CONTROLLED RECORDS using Cost Basis Tags found ***\n"
+
+                    if not InvestUtil.isCostBasisValid(secAcct):
+                        lAnyCostBasisErrorsFound[0] = True
+                        output += "... WARNING: INVALID COST BASIS / LOT CONTROL DETECTED! ***\n"
+
+                    iTotalTxns += txns.getSize()
+                    bal = securityToEdit.getDoubleValue(secAcct.getBalance())
+                    iTotalBalance += bal
+                    output += "... %s Txns: %s Balance: %s\n" %(pad(secAcct.getFullAccountName(),50),rpad(txns.getSize(),12),rpad(bal,12))
+                    if secAcct.getStartBalance() != 0:
+                        txt = "*** ERROR: %s has a starting balance of %s - SHOULD BE ZERO - Will abort! ***" %(secAcct, secAcct.getStartBalance())
+                        myPrint("B", txt); output += "\n%s\n\n" %(txt)
+                        raise Exception(txt)
+                    del txns
+
+            del allInvestmentSecurityAccounts
+
+            output += "\n" \
+                      "Investment Security Sub Accounts found: %s\n" \
+                      "Related Transactions found: %s\n" \
+                      "Total security balance: %s\n\n" \
+                      %(len(securitySubAccountsNeedChanging), iTotalTxns, iTotalBalance)
+
+            if lUsingLotControl:
+                output += "\n*** WARNING: LOT CONTROLLED RECORDS using Cost Basis Tags found ***\n\n"
+
+            if lAnyCostBasisErrorsFound[0]:
+                output += "\n*** WARNING: INVALID LOT CONTROL / COST BASIS RECORDS BEFORE ANY CHANGES WERE DETECTED ***\n\n"
+            else:
+                output += "\nNOTE: No Invalid Lot Control/Cost Basis records were detected before any changes made....\n\n"
+
+            jif = QuickJFrame(("%s: Accounts, Txns, Balance Analysis" %(_THIS_METHOD_NAME)).upper(),output).show_the_frame()
+
+            if (iTotalBalance + iTotalTxns + len(securitySubAccountsNeedChanging)) == 0:
+                txt = "NOTE - No related accounts, txns, balances were found for this security!"
+                output += "\n*** %s ***\n" %(txt)
+                myPopupInformationBox(jif, txt, _THIS_METHOD_NAME)
+
+            elif lAnyCostBasisErrorsFound[0]:
+                myPopupInformationBox(jif,
+                                      "%s Accounts, %s Txns, Balance %s found ** NOTE: INVALID LOT CONTROL / COST BASIS RECORDS DETECTED! **"
+                                      %(len(securitySubAccountsNeedChanging), iTotalTxns, iTotalBalance),
+                                      _THIS_METHOD_NAME)
+            else:
+                myPopupInformationBox(jif,
+                                      "NOTE: %s Accounts, %s Txns, Balance %s found" %(len(securitySubAccountsNeedChanging), iTotalTxns, iTotalBalance),
+                                      _THIS_METHOD_NAME)
+
+
+            if not myPopupAskQuestion(jif,
+                                  _THIS_METHOD_NAME.upper(),
+                                  "CONFIRM you want to change Decimals from %s to %s?" %(securityToEdit.getDecimalPlaces(),newDecimal)):
+                txt = "%s: User aborted.. - NO CHANGES MADE!" %(_THIS_METHOD_NAME)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(jif, txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            jif.dispose()
+
+            txt = "New Decimal Places %s for %s selected (currently: %s) " %(newDecimal, securityToEdit, securityToEdit.getDecimalPlaces())
+            myPrint("B", txt); output += "\n%s\n" %(txt)
+
+            decimalAdjustmentMethod = "expand"
+            jif = QuickJFrame(("%s: Decimal Strategy" %(_THIS_METHOD_NAME)).upper(),output).show_the_frame()
+
+            if newDecimal < securityToEdit.getDecimalPlaces():
+
+                options = ["Round lost fractional balances up/down (round)",
+                           "Truncate / lose / chop lost fractional balances (floor)",
+                           "Always round up lost fractional balances (ceiling)"]
+
+
+                selectedDecimalStrategy = JOptionPane.showInputDialog(jif,
+                                                                   "Select the Decimal REDUCTION Strategy?",
+                                                                   _THIS_METHOD_NAME.upper(),
+                                                                   JOptionPane.WARNING_MESSAGE,
+                                                                   None,
+                                                                   options,
+                                                                   None)
+
+                if not selectedDecimalStrategy:
+                    txt = "%s: User did not select a Decimal Reduction Strategy for the edit - no changes made" %(_THIS_METHOD_NAME)
+                    statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                    myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                    return
+
+
+                if options.index(selectedDecimalStrategy) == 0:    decimalAdjustmentMethod = "round"
+                elif options.index(selectedDecimalStrategy) == 1:  decimalAdjustmentMethod = "floor"
+                else:                                              decimalAdjustmentMethod = "ceiling"
+                del options
+
+                output += "\n** Decimal Reduction Strategy selected: '%s' (Fractional balances might be affected) **\n\n" %(decimalAdjustmentMethod)
+
+                if lUsingLotControl:
+
+                    ask = MyPopUpDialogBox(jif,
+                                           "%s: WARNING. Lot Controlled Records in use, and reduction of dpc requested!" %(_THIS_METHOD_NAME),
+                                           "You are using LOT Controlled Records (with cost basis tags) that link sells to buys\n"
+                                           "You have also requested to reduce decimal precision\n"
+                                           "This will probably lose fractional share balances\n"
+                                           "This utility can apply the same maths to the Lot Controlled allocations, but it may be fractionally wrong\n"
+                                           "You can/may review and fix these later.... Your choice....",
+                                           theTitle=_THIS_METHOD_NAME.upper(),
+                                           lCancelButton=True,
+                                           OKButtonText="PROCEED")
+                    if not ask.go():
+                        txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
+                        myPrint("B",txt)
+                        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                        jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output).show_the_frame()
+                        myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                        return
+
+                    txt = "** User agreed to reduce decimal precision and accept that LOT Controlled records might be fractionally wrong.... **"
+                    myPrint("B",txt); output += "\n\n%s\n\n" %(txt)
+
+            else:
+                output += "\nDecimal Strategy selected: %s (Increased so no loss of values)\n\n" %(decimalAdjustmentMethod)
+                txt = "DECIMAL INCREASE STRATEGY: You are increasing the number of decimal places; so no values will be lost.."
+                output += "\n%s\n" %(txt)
+                myPopupInformationBox(jif, txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+
+                if lUsingLotControl:
+                    output += "\n\n *** NOTE: LOT CONTROLLED RECORDS using Cost Basis Tags found - As you are increasing the decimal precision, no fractional losses should occur ***\n\n"
+
+            jif.dispose()
+
+
+            ask = MyPopUpDialogBox(toolbox_frame_,
+                                   "%s: REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE DECIMAL EDIT" %(_THIS_METHOD_NAME),
+                                   output,
+                                   theTitle=_THIS_METHOD_NAME.upper(),
+                                   lCancelButton=True,
+                                   OKButtonText="PROCEED")
+            if not ask.go():
+                txt = "%s... User Aborted - No changes made!" %(_THIS_METHOD_NAME)
+                myPrint("B",txt)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output).show_the_frame()
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(),
+                                                     "EXECUTE %s DECIMAL PLACE EDIT FROM %s to %s?" %(securityToEdit,securityToEdit.getDecimalPlaces(),newDecimal)):
+                return
+
+            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH DECIMAL PLACE EDIT of %s FROM %s to %s.....\n\n" %(securityToEdit,securityToEdit.getDecimalPlaces(),newDecimal)
+
+            output += "\n"
+
+        except:
+            txt = ("MINOR ERROR - %s: crashed before any merge actions. Please review output and console" %(_THIS_METHOD_NAME)).upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame(txt, output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        # Catch any crash during the update as this would be bad... :-(
+        try:
+
+            pleaseWait = MyPopUpDialogBox(toolbox_frame_,
+                                          "Please wait: executing %s right now.." %(_THIS_METHOD_NAME),
+                                          theTitle=_THIS_METHOD_NAME.upper(),
+                                          theWidth=100,
+                                          lModal=False,
+                                          OKButtonText="WAIT")
+            pleaseWait.go()
+
+            myPrint("DB","Flushing dataset pre-merge changes in memory to sync... and disabling balance recalculation(s) / display refresh(es)..")
+            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the merge..
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
+            MD_REF.getUI().setSuspendRefresh(True)
+
+            # Do this first, so that the 'internal' MD maths on the txn edits work with the new dpc settings.....
+            txt = "** Updating %s Security Master to new Decimal Places (was %s >> to %s) setting..." %(securityToEdit,securityToEdit.getDecimalPlaces(),newDecimal)
+            myPrint("B", txt); output += "\n%s\n\n" %(txt)
+
+            oldDecimal = securityToEdit.getDecimalPlaces()
+
+            def calculateNewShares(oldValue):
+
+                if newDecimal > oldDecimal:
+                    _newShares = oldValue * Math.pow(10.0, (newDecimal - oldDecimal))
+                else:
+                    if decimalAdjustmentMethod == "round":
+                        _newShares = Math.round(oldValue * Math.pow(10.0, (newDecimal - oldDecimal)))
+                    elif decimalAdjustmentMethod == "floor":
+                        _newShares = Math.floor(oldValue * Math.pow(10.0, (newDecimal - oldDecimal)))
+                    elif decimalAdjustmentMethod == "ceiling":
+                        _newShares = Math.ceil(oldValue * Math.pow(10.0, (newDecimal - oldDecimal)))
+                    else:
+                        raise Exception("ERROR: Bad Decimal Strategy detected '%s'?!" %(decimalAdjustmentMethod))
+
+                _newShares = int(_newShares)
+                return _newShares
+
+
+            securityToEdit.setEditingMode()
+            securityToEdit.setDecimalPlaces(newDecimal)
+            securityToEdit.setParameter(PARAMETER_KEY,True)
+            securityToEdit.syncItem()
+
+            # Now for Txns..    .
+            if len(securitySubAccountsNeedChanging) > 0:
+                txt = "Now editing all relevant txns change decimal precision ....:"
+                myPrint("B", txt); output += "\n\n%s\n\n" %(txt)
+
+                for secAcct in securitySubAccountsNeedChanging:
+                    txt = "Updating %s..." %(secAcct)
+                    myPrint("B",txt); output += "%s\n" %(txt)
+
+                    parentAccount = secAcct.getParentAccount()
+
+                    secAcct.setParameter(PARAMETER_KEY,True)
+
+                    if True or debug:
+                        secAcct.setParameter(PARAMETER_KEY+PARAMETER_KEY_DATA,"{old_decimal_places:%s}" %(oldDecimal))
+
+                    secAcct.syncItem()
+
+                    txnsToEdit = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(secAcct)
+
+                    if txnsToEdit.getSize() < 1:
+                        txt = ".... has no transactions to update..."
+                        output += "%s\n" %(txt)
+                    else:
+                        txt = ".... Updating %s transactions: %s" %(secAcct, txnsToEdit.getSize())
+                        myPrint("B",txt); output += "%s\n" %(txt)
+
+                        for txn in txnsToEdit:
+
+                            if not isinstance(txn, SplitTxn):       # Should never happen..... ;->
+                                raise Exception("Error: found a non-split: %s" %(txn))
+
+                            pTxn = txn.getParentTxn()
+
+                            lEditingMode = False
+
+                            # BOB com.infinitekind.moneydance.model.InvestUtil.isCostBasisValid(Account) : boolean
+
+                            # Look for and fix any Lot Control records at the same time.... Risky business!
+                            if txn.getParameter("cost_basis", None) is not None:
+                                cbTags = TxnUtil.parseCostBasisTag(txn)
+                                if cbTags is not None:
+                                    lAnyTagChanges = False
+                                    totalOldSharesBUYS = totalNewSharesBUYS =0
+                                    for txnID in cbTags:
+                                        oldShareValue = cbTags[txnID]
+                                        if oldShareValue == 0: continue
+                                        totalOldSharesBUYS += oldShareValue
+                                        newShares = calculateNewShares(oldShareValue)
+                                        totalNewSharesBUYS += newShares
+                                        cbTags[txnID] = newShares
+                                        lAnyTagChanges = True
+
+                                    if lAnyTagChanges:
+                                        newTag = ""
+                                        for txnID in cbTags:
+                                            newTag += "{}:{};".format(txnID,cbTags[txnID])
+                                        pTxn.setEditingMode()
+                                        lEditingMode = True
+
+                                        if True or debug:
+                                            txn.setParameter(PARAMETER_KEY+PARAMETER_KEY_COST_BASIS,txn.getParameter("cost_basis", None))
+
+                                        txn.setParameter("cost_basis", newTag)
+                                        output += ".. %s %s ** Updated Lot Control: (Old BUYS: %s New BUYS: %s)**\n" %(
+                                                                                                    convertStrippedIntDateFormattedText(pTxn.getDateInt()),
+                                                                                                    pad(pTxn.getInvestTxnType().getIDString(),12),
+                                                                                                    totalOldSharesBUYS,
+                                                                                                    totalNewSharesBUYS)
+
+                            # get the current raw data
+                            splitShares = txn.getValue()
+                            splitParentShareValue = txn.getAmount() * -1
+                            old_samt = txn.getParameter("samt", None)
+                            old_pamt = txn.getParameter("pamt", None)
+
+                            if splitShares == 0:
+                                output += ".. %s %s %s Val: %s - Skipping as ZERO shares...\n" %(
+                                                               convertStrippedIntDateFormattedText(pTxn.getDateInt()),
+                                                               pad(pTxn.getInvestTxnType().getIDString(),12),
+                                                               pad(pTxn.getDescription()+pTxn.getMemo(),40),
+                                                               rpad(parentAccount.getCurrencyType().formatFancy(-splitParentShareValue,MD_decimal),12))
+
+                                if lEditingMode:
+                                    pTxn.syncItem()  # Left over from the cost basis change above....
+
+                                continue
+
+                            newShares = calculateNewShares(splitShares)
+
+                            if splitParentShareValue == 0:
+                                price = 0.0
+                            else:
+                                price = (1.0 * splitParentShareValue) / (1.0 * splitShares)     # force floating point conversion
+
+                                # Taken from MD code.....
+                                price = CurrencyTable.getRawRate(secAcct.getCurrencyType(), parentAccount.getCurrencyType(), 1.0 / price)
+
+                            pTxn.setEditingMode()
+                            txn.setParameter(PARAMETER_KEY,True)
+
+                            if True or debug:
+                                txn.setParameter(PARAMETER_KEY+PARAMETER_KEY_DATA,"{old_samt:%s,old_pamt:%s}" %(old_samt, old_pamt))
+
+                            # newShares = adjusted, long. Price = recalculated, double, splitParentShareValue = unchanged, long
+                            txn.setAmount(newShares, price, splitParentShareValue)
+                            # txn.setParameter("samt", newShares)
+                            pTxn.syncItem()
+
+                            output += ".. %s %s %s Val: %s Old Raw Shrs: %s New Raw Shrs: %s New Shrs: %s\n" %(
+                                                           convertStrippedIntDateFormattedText(pTxn.getDateInt()),
+                                                           pad(pTxn.getInvestTxnType().getIDString(),12),
+                                                           pad(pTxn.getDescription()+pTxn.getMemo(),40),
+                                                           rpad(parentAccount.getCurrencyType().formatFancy(-splitParentShareValue,MD_decimal),12),
+                                                           rpad(splitShares,12),
+                                                           rpad(newShares,12),
+                                                           rpad(secAcct.getCurrencyType().formatFancy(txn.getValue(),MD_decimal),12))
+
+                            # Fail safe...!
+                            if txn.getParameter("pamt", "ERROR") != old_pamt:
+                                raise Exception("ERROR: Txn's new pamt(%s) != old pamt(%s) - review console..." %(txn.getParameter("pamt", "ERROR"),old_pamt))
+
+                            continue
+
+                    output += "----\n"
+                    del txnsToEdit
+
+                output += "\n>> Txn decimal places update completed.....\n\n"
+
+            output += "\n>> Update of decimal places completed..\n\n"
+
+        except:
+
+            txt = ("MAJOR ERROR - %s crashed. Please review output, console, and RESTORE YOUR DATASET!"%(_THIS_METHOD_NAME)).upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame(txt,output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        finally:
+
+            myPrint("DB","Saving dataset after %s changes in memory to sync... and re-enabling balance recalculation(s) and display refresh(es).." %(_THIS_METHOD_NAME))
+            MD_REF.getUI().getMain().saveCurrentAccount()
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
+            MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+
+            pleaseWait.kill()       # noqa
+
+        try:
+            # OK - Main update is done....
+
+            lAnyCostBasisErrorsFound = [False]
+
+            if len(securitySubAccountsNeedChanging) > 0:
+                output += "\n\nSTATISTICS AFTER EDIT DECIMAL ACTIONS COMPLETED...\n\n"
+
+                for secAcct in securitySubAccountsNeedChanging:
+                    txns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(secAcct).getSize()
+                    bal = securityToEdit.getDoubleValue(secAcct.getBalance())
+                    output += "... %s Txns: %s Balance: %s\n" %(pad(secAcct.getFullAccountName(),50),rpad(txns,12),rpad(bal,12))
+
+                    if not InvestUtil.isCostBasisValid(secAcct):
+                        lAnyCostBasisErrorsFound[0] = True
+                        output += "   ... WARNING: INVALID COST BASIS / LOT CONTROL DETECTED AFTER UPDATE ***\n"
+
+            if lAnyCostBasisErrorsFound[0]:
+                output += "\n\n*** WARNING: INVALID COST BASIS / LOT CONTROL RECORDS WERE DETECTED AFTER UPDATE ***\n"
+            else:
+                output += "\nNOTE: No Invalid Lot Control/Cost Basis records were detected after the changes were made....\n\n"
+
+            del securitySubAccountsNeedChanging
+
+            output += "\n"
+
+            if True:    # We are saving Trunk as we want to flush the mass changes to disk. Stops the restart reapplying these again....
+                pleaseWait = MyPopUpDialogBox(toolbox_frame_,
+                                              "Please wait: Flushing dataset (and %s) back to disk....." %(_THIS_METHOD_NAME),
+                                              theTitle=_THIS_METHOD_NAME.upper(),
+                                              theWidth=100,
+                                              lModal=False,
+                                              OKButtonText="WAIT")
+                pleaseWait.go()
+
+                txt = "... Saving Trunk to flush all changes back to disk now ...."
+                myPrint("B", txt); output += "\n%s\n" %(txt)
+                MD_REF.getCurrentAccount().getBook().saveTrunkFile()
+                pleaseWait.kill()
+
+            if newDecimal < oldDecimal and lUsingLotControl:
+                output += "\n\n *** WARNING - PLEASE REVIEW YOUR LOT CONTROL ALLOCATIONS BUYS to SELLS as fractional losses / mismatches may have occurred! ***\n\n"
+                txt = "%s Completed with WARNINGS - review log, check the results & LOT Controlled BUY/SELL Allocations, then RESTART MONEYDANCE" %(_THIS_METHOD_NAME)
+                optionMessage = JOptionPane.WARNING_MESSAGE; optionColor = Color.RED
+            elif lAnyCostBasisErrorsFound[0]:
+                output += "\n\n *** WARNING - PLEASE REVIEW YOUR LOT CONTROL ALLOCATIONS BUYS to SELLS as LOT CONTROL/COST BASIS ERRORS WERE DETECTED! ***\n\n"
+                txt = "%s Completed with WARNINGS - review log, check the results & LOT Controlled BUY/SELL Allocations (Errors Detected), then RESTART MONEYDANCE" %(_THIS_METHOD_NAME)
+                optionMessage = JOptionPane.WARNING_MESSAGE; optionColor = Color.RED
+            else:
+                txt = "%s successfully completed - please review log, check the results, then RESTART MONEYDANCE" %(_THIS_METHOD_NAME)
+                optionMessage = JOptionPane.INFORMATION_MESSAGE; optionColor = Color.GREEN
+
+            myPrint("B", txt); output += "\n\n%s\n" %(txt)
+            output += "\n\n *** PLEASE CHECK YOUR PORTFOLIO VIEW & REPORTS TO BALANCES & THEN RESTART MONEYDANCE ***\n\n"
+            output += "\n<END>"
+
+        except:
+            txt = ("ERROR - %s crashed after the edit actions. Please review output, console, and VERIFY YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
+            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            jif = QuickJFrame(txt,output).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+
+        jif = QuickJFrame(txt,output).show_the_frame()
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(optionColor)
+        play_the_money_sound()
+        myPopupInformationBox(jif,txt,theMessageType=optionMessage)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
+    # noinspection PyUnresolvedReferences
     def merge_duplicate_securities(statusLabel):
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
         if MD_REF.getCurrentAccount().getBook() is None: return
 
+        _THIS_METHOD_NAME = "Merge 'Duplicate' Securities (by 'ticker')"
+
+        selectHomeScreen()      # Stops the LOT Control box popping up.....
+
         PARAMETER_KEY = "toolbox_security_merge"
         today = Calendar.getInstance()
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
-        output = "Merge 'Duplicate' Securities:\n" \
-                 " ============================================================\n\n"
+        output = "%s:\n" \
+                 " ============================================================\n\n" %(_THIS_METHOD_NAME)
 
-        myPrint("B", "Merge 'Duplicate' Securities: Analysing...")
+        myPrint("B", "%s: Analysing..." %(_THIS_METHOD_NAME))
 
         try:
             # Sweep One - gather the potential targets by duplicate Ticker Symbol....
@@ -12820,7 +13340,7 @@ now after saving the file, restart Moneydance
 
                 return True
 
-            myPrint("DB","Merge duplicate securities (by Ticker): Initial candidates found %s %s" %(len(dup_securities),dup_securities))
+            myPrint("DB","%s: Initial candidates found %s %s" %(_THIS_METHOD_NAME, len(dup_securities),dup_securities))
 
             # Sweep Two - start validating the data found
             lShowOutput = False
@@ -12883,11 +13403,11 @@ now after saving the file, restart Moneydance
                 del dup_securities[remove_ticker]
             del removeList
 
-            myPrint("DB","Merge duplicate securities (by Ticker): After validation, found %s %s" %(len(dup_securities),dup_securities))
+            myPrint("DB","%s: After validation, found %s %s" %(_THIS_METHOD_NAME, len(dup_securities),dup_securities))
 
             if len(securities) < 2 or len(dup_securities) < 1:
                 output += "\n"
-                txt = "Merge duplicate securities (by Ticker): Not enough Securities or no duplicate Tickers found - no changes made"
+                txt = "%s: Not enough Securities or no valid duplicate Tickers found (refer log) - no changes made" %(_THIS_METHOD_NAME)
                 myPrint("B",txt); output += "%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 output += "\n<END>"
@@ -12899,20 +13419,10 @@ now after saving the file, restart Moneydance
                 return
             del lShowOutput
 
-            quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
-            if quoteLoader_or_QER_Loaded:
 
-                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+            txt = _THIS_METHOD_NAME
+            if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
-                ask = myPopupAskQuestion(toolbox_frame_,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Confirm that it's not updating before running Security Merge?")
-
-                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-                if not ask:
-                    statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating running Security Merge - no changes made").ljust(800, " "))
-                    statusLabel.setForeground(Color.RED)
-                    return
 
             class StoreTickerData:
                 def __init__(self, _theTicker, numberCandidates, listSecurityCandidates):
@@ -12979,11 +13489,11 @@ now after saving the file, restart Moneydance
 
             output += "\n"
 
-            jif = QuickJFrame("Merge duplicate securities (by Ticker): Candidates",output).show_the_frame()
+            jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME),output).show_the_frame()
 
             tickerToMerge = JOptionPane.showInputDialog(jif,
                                                          "Select Ticker / Security set to merge",
-                                                         "MERGE 'DUPLICATE' SECURITIES",
+                                                        _THIS_METHOD_NAME.upper(),
                                                          JOptionPane.INFORMATION_MESSAGE,
                                                          None,
                                                          listDuplicateTickers,
@@ -12991,21 +13501,21 @@ now after saving the file, restart Moneydance
             del listDuplicateTickers
 
             if not tickerToMerge:
-                statusLabel.setText(("User did not select a Ticker / Security set to merge - no changes made").ljust(800, " "))
+                statusLabel.setText(("%s: User did not select a Ticker / Security set to merge - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
                 statusLabel.setForeground(Color.BLUE)
                 myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
             selectedSecurity = JOptionPane.showInputDialog(jif,
                                                          "Select the Security that will be the final master",
-                                                         "MERGE 'DUPLICATE' SECURITIES",
+                                                           _THIS_METHOD_NAME.upper(),
                                                          JOptionPane.INFORMATION_MESSAGE,
                                                          None,
                                                          tickerToMerge.getSecurityList(),
                                                          None)                                                              # type: CurrencyType
 
             if not selectedSecurity:
-                statusLabel.setText(("User did not select a Security as the master for the merge - no changes made").ljust(800, " "))
+                statusLabel.setText(("%s: User did not select a Security as the master for the merge - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
                 statusLabel.setForeground(Color.BLUE)
                 myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
@@ -13027,15 +13537,30 @@ now after saving the file, restart Moneydance
 
             output += "\nAnalysis of Securities to Merge - Ticker '%s' - %s:\n\n" %(tickerToMerge.getTicker(),tickerToMerge.getName())
 
+            lAnyCostBasisErrorsFound = [False]
+
+            # Prepare before totals...
+            _WHAT = 0
+            _QTY = 1
+            _COSTBASIS = 2
+            _VALUE = 3
+            _CBFLAG = 4
+
             # noinspection PyUnresolvedReferences
             def create_totals(theCount, theAccount, theTable):
                 _acctRelCurr = theAccount.getCurrencyType()
-                theTable.append(["Txn Count",    theCount, "", ""])
-                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal)])
-                theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal)])
-                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance())]
+                theTable.append(["Txn Count",    theCount, "", "", ""])
+                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
+                theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
+                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance()), False]
+                lDetectCBError = False
                 for acct in theAccount.getSubAccounts():
                     if acct.getAccountType() == Account.AccountType.SECURITY:
+
+                        if not InvestUtil.isCostBasisValid(acct):
+                            lDetectCBError = True
+                            lAnyCostBasisErrorsFound[0] = True
+
                         _subAcctRelCurr = acct.getCurrencyType()
                         subAcctBal = acct.getBalance()
                         subAcctCostBasis = InvestUtil.getCostBasis(acct)
@@ -13044,21 +13569,18 @@ now after saving the file, restart Moneydance
                         _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
                         _totals[2] +=  round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())
+                        if lDetectCBError: _totals[3] = True
                         theTable.append([acct.getAccountName(),
                                          _subAcctRelCurr.formatSemiFancy(subAcctBal,MD_decimal),
                                          _acctRelCurr.formatSemiFancy(subAcctCostBasis,MD_decimal),
-                                         _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal)
-                                         ])
+                                         _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal),
+                                         lDetectCBError])
                 theTable.append(["**TOTALS:",
                                  _totals[0],
                                  _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[1]),MD_decimal),
-                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[2]),MD_decimal)])
+                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[2]),MD_decimal),
+                                 _totals[3]])
 
-            # Prepare before totals...
-            _WHAT = 0
-            _QTY = 1
-            _COSTBASIS = 2
-            _VALUE = 3
 
             def output_stats(theText, theAccount, theTable):
 
@@ -13077,7 +13599,9 @@ now after saving the file, restart Moneydance
                     if data[_WHAT].upper() == "**TOTALS:".upper():
                         local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
 
-                    local_output += "   %s %s %s %s\n" %(pad(data[_WHAT],60+posInc),rpad(data[_QTY],12), rpad(data[_COSTBASIS],15), rpad(data[_VALUE],15))
+                    cbMsg = ""
+                    if data[_CBFLAG]: cbMsg = " * Cost Basis Error detected"
+                    local_output += "   %s %s %s %s %s\n" %(pad(data[_WHAT],60+posInc),rpad(data[_QTY],12), rpad(data[_COSTBASIS],15), rpad(data[_VALUE],15),cbMsg)
                     iRow += 1
                 return local_output
 
@@ -13239,14 +13763,14 @@ now after saving the file, restart Moneydance
 
                 selectedSnapStrategy = JOptionPane.showInputDialog(jif,
                                                                "Select the Price History Strategy?",
-                                                               "MERGE 'DUPLICATE' SECURITIES - PRICE HISTORY",
+                                                               "%s - PRICE HISTORY" %(_THIS_METHOD_NAME.upper()),
                                                                JOptionPane.INFORMATION_MESSAGE,
                                                                None,
                                                                options,
                                                                None)
 
                 if not selectedSnapStrategy:
-                    statusLabel.setText(("User did not select a Price History Strategy for the merge - no changes made").ljust(800, " "))
+                    statusLabel.setText(("%s: User did not select a Price History Strategy for the merge - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
                     statusLabel.setForeground(Color.RED)
                     myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
@@ -13268,20 +13792,20 @@ now after saving the file, restart Moneydance
             output += "\n------\n"
 
             ask = MyPopUpDialogBox(toolbox_frame_,
-                                   "Merge 'Duplicate' Securities... REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE SECURITY MERGE",
+                                   "%s: REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE SECURITY MERGE" %(_THIS_METHOD_NAME.upper()),
                                    output,
-                                   theTitle="MERGE 'DUPLICATE' SECURITIES':",
+                                   theTitle=_THIS_METHOD_NAME.upper(),
                                    lCancelButton=True,
                                    OKButtonText="PROCEED")
             if not ask.go():
-                txt = "Merge 'Duplicate' Securities... User Aborted - No changes made!"
+                txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                 myPrint("B",txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output).show_the_frame()
+                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"MERGE 'DUPLICATE' SECURITY RECORDS",
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(),
                                                      "EXECUTE MERGE OF SECURITY %s / %s?" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())):
                 return
 
@@ -13298,10 +13822,15 @@ now after saving the file, restart Moneydance
                     output += "\n----\n"
                     del getTxns, valuesTable
 
+                if lAnyCostBasisErrorsFound[0]:
+                    output += "\n\n** WARNING: Lot Control / Cost Basis errors detected before changes started - review output....\n\n"
+                else:
+                    output += "\nLot Control / Cost Basis reports OK before changes....\n"
+
             output += "\n"
 
         except:
-            txt = "MINOR ERROR - merge 'duplicate' Securities crashed before any merge actions. Please review output and console".upper()
+            txt = ("MINOR ERROR - %s: crashed before any merge actions. Please review output and console" %(_THIS_METHOD_NAME)).upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
@@ -13314,7 +13843,7 @@ now after saving the file, restart Moneydance
 
             pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                           "Please wait: executing 'duplicate' security merge right now..",
-                                          theTitle="MERGE 'DUPLICATE' SECURITY",
+                                          theTitle=_THIS_METHOD_NAME.upper(),
                                           theWidth=100,
                                           lModal=False,
                                           OKButtonText="WAIT")
@@ -13446,14 +13975,15 @@ now after saving the file, restart Moneydance
                             if not isinstance(srcTxn, SplitTxn):       # Should never happen..... ;->
                                 raise Exception("Error: found a non-split: %s" %(srcTxn))
 
+                            pTxn = srcTxn.getParentTxn()
+                            pTxn.setEditingMode()
                             srcTxn.setAccount(primaryAcct)
                             srcTxn.setParameter(PARAMETER_KEY,True)
-                            pTxn = srcTxn.getParentTxn()
                             pTxn.syncItem()
                             output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
                                                            pad(pTxn.getInvestTxnType().getIDString(),12),
-                                                           pad(pTxn.getMemo(),60),
-                                                           rpad(primaryAcct.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
+                                                           pad(pTxn.getDescription()+pTxn.getMemo(),60),
+                                                           rpad(copyAcct.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
                             continue
 
                         output += "\n"
@@ -13505,7 +14035,7 @@ now after saving the file, restart Moneydance
 
         except:
 
-            txt = "MAJOR ERROR - Merge 'duplicate' Securities crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
+            txt = ("MAJOR ERROR - %s: crashed. Please review output, console, and RESTORE YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
@@ -13525,6 +14055,7 @@ now after saving the file, restart Moneydance
         try:
             # OK - Main update is done....
 
+            lAnyCostBasisErrorsFound[0] = False
             if len(investmentAccountsInvolvedInMerge) > 0:
                 output += "\n\nSTATISTICS AFTER MERGE ACTIONS COMPLETED...\n\n"
                 for reportAccount in investmentAccountsInvolvedInMerge:
@@ -13532,9 +14063,14 @@ now after saving the file, restart Moneydance
                     countTxns = getTxns.getSize()
                     valuesTable = []
                     create_totals(countTxns, reportAccount, valuesTable)
-                    output += output_stats("Before:", reportAccount, valuesTable)
+                    output += output_stats("After:", reportAccount, valuesTable)
                     output += "\n----\n"
                     del getTxns, valuesTable
+
+                if lAnyCostBasisErrorsFound[0]:
+                    output += "\n\n** WARNING: Lot Control / Cost Basis errors detected after changes completed - review output....\n\n"
+                else:
+                    output += "\nLot Control / Cost Basis reports OK after changes....\n"
 
             del investmentAccountsInvolvedInMerge, investmentAccountsNeedingSecondaryMerge, investmentAccountsNeedingPrimaryCreated
 
@@ -13543,7 +14079,7 @@ now after saving the file, restart Moneydance
             if True:    # We are saving Trunk as we want to flush the mass changes to disk. Stops the restart reapplying these again....
                 pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                               "Please wait: Flushing dataset (and merge actions) back to disk.....",
-                                              theTitle="MERGE 'DUPLICATE' SECURITIES",
+                                              theTitle=_THIS_METHOD_NAME.upper(),
                                               theWidth=100,
                                               lModal=False,
                                               OKButtonText="WAIT")
@@ -13555,11 +14091,15 @@ now after saving the file, restart Moneydance
                 pleaseWait.kill()
 
             if lErrorDeletingSecuritySubAccounts or lErrorDeletingSecurities:
-                txt = "Merge 'duplicate' securities completed ** WITH ERRORS ** Please review log and check the results..."
+                txt = "%s: completed ** WITH ERRORS ** Please review log and check the results..." %(_THIS_METHOD_NAME)
+                optionMessage = JOptionPane.ERROR_MESSAGE
+                optionColor = Color.RED
+            elif lAnyCostBasisErrorsFound[0]:
+                txt = "%s: completed ** NOTE: You have Lot Control errors >> please review log and check the results..." %(_THIS_METHOD_NAME)
                 optionMessage = JOptionPane.ERROR_MESSAGE
                 optionColor = Color.RED
             else:
-                txt = "Merge 'duplicate' securities successfully completed - please review log and check the results..."
+                txt = "%s: successfully completed - please review log and check the results..." %(_THIS_METHOD_NAME)
                 optionMessage = JOptionPane.INFORMATION_MESSAGE
                 optionColor = Color.GREEN
             myPrint("B", txt); output += "\n\n%s\n" %(txt)
@@ -13567,7 +14107,7 @@ now after saving the file, restart Moneydance
             output += "\n<END>"
 
         except:
-            txt = "ERROR - merge 'duplicate' Securities crashed after the merge actions. Please review output, console, and VERIFY YOUR DATASET!".upper()
+            txt = ("ERROR - %s: crashed after the merge actions. Please review output, console, and VERIFY YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
@@ -13590,6 +14130,10 @@ now after saving the file, restart Moneydance
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
         if MD_REF.getCurrentAccount().getBook() is None: return
 
+        _THIS_METHOD_NAME = "Move/Merge Investment Accounts"
+
+        selectHomeScreen()      # Stops the LOT Control box popping up.....
+
         PARAMETER_KEY = "toolbox_txn_merge"
         today = Calendar.getInstance()
 
@@ -13597,36 +14141,24 @@ now after saving the file, restart Moneydance
         toListAccount = list(allInvestmentAccounts)
 
         if len(allInvestmentAccounts) < 2:
-            statusLabel.setText(("Move/Merge Investment Accounts: You do not have enough accounts to do this - no changes made").ljust(800, " "))
+            statusLabel.setText(("%s: You do not have enough accounts to do this - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
             statusLabel.setForeground(Color.RED)
             myPopupInformationBox(toolbox_frame_,"You do not have enough Investment accounts to do this! No changes made")
             return
 
-        quoteLoader_or_QER_Loaded = isQuoteLoader_or_QER_Running()
-        if quoteLoader_or_QER_Loaded:
-
-            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-
-            ask = myPopupAskQuestion(toolbox_frame_,"MOVE/MERGE - QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Confirm that it's not updating whilst running Move/Merge?")
-
-            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-            if not ask:
-                statusLabel.setText(("QuoteLoader / Q&ER running. Please verify it's not updating whilst running Move/Merge - no changes made").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                return
+        txt = "%s" %(_THIS_METHOD_NAME)
+        if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
         sourceAccount = JOptionPane.showInputDialog(toolbox_frame_,
                                                       "Select the 'from' source Account",
-                                                      "MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                                      _THIS_METHOD_NAME.upper(),
                                                       JOptionPane.INFORMATION_MESSAGE,
                                                       None,
                                                       allInvestmentAccounts,
                                                       None)
 
         if not sourceAccount:
-            statusLabel.setText(("User did not select a source Account to move txns from - no changes made").ljust(800, " "))
+            statusLabel.setText(("%s: User did not select a source Account to move txns from - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
             statusLabel.setForeground(Color.BLUE)
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
@@ -13635,14 +14167,14 @@ now after saving the file, restart Moneydance
 
         targetAccount = JOptionPane.showInputDialog(toolbox_frame_,
                                                     "Select the target Account to move/merge txns into",
-                                                    "MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                                    _THIS_METHOD_NAME.upper(),
                                                     JOptionPane.INFORMATION_MESSAGE,
                                                     None,
                                                     toListAccount,
                                                     None)
 
         if not targetAccount:
-            statusLabel.setText(("User did not select a target Account to move txns into - no changes made").ljust(800, " "))
+            statusLabel.setText(("%s: User did not select a target Account to move txns into - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
             statusLabel.setForeground(Color.BLUE)
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
@@ -13650,19 +14182,19 @@ now after saving the file, restart Moneydance
         sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
 
         if sourceTxns.getSize() < 1:
-            txt = "Move/Merge Investment txns: Source Account has no transactions - no changes made!"
+            txt = "%s: Source Account has no transactions - no changes made!" %(_THIS_METHOD_NAME)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        myPrint("B", "Move/Merge: Analysing Investment accounts %s into %s...." %(sourceAccount, targetAccount))
+        myPrint("B", "%s: Analysing Investment accounts %s into %s...." %(_THIS_METHOD_NAME, sourceAccount, targetAccount))
 
-        output = "Move/merge investment accounts from one account into another:\n" \
-                 " ============================================================\n\n"
+        output = "%s: from one account into another:\n" \
+                 " ============================================================\n\n" %(_THIS_METHOD_NAME)
 
         try:
 
-            if quoteLoader_or_QER_Loaded:
+            if isQuoteLoader_or_QER_Running():
                 output += "QuoteLoader / Q&ER extension is loaded. User confirmed that it's not auto-updating and to proceed....\n\n"
 
             output += "Pre move/merge analysis....\n"
@@ -13776,8 +14308,8 @@ now after saving the file, restart Moneydance
                     # Should never happen!!
                     txt = "Error: found a non-Parent / non-Split Txn - Cannot continue...:\n%s\nDate: %s\n" %(srcTxn.getSyncInfo().toMultilineHumanReadableString(), convertStrippedIntDateFormattedText(srcTxn.getDateInt()))
                     myPrint("B",txt)
-                    statusLabel.setText(("ERROR: Found a non-Parent / non-Split Txn - Cannot continue...").ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                    MyPopUpDialogBox(toolbox_frame_,"Move/merge: ERROR: Found a non-Parent / non-Split Txn - Cannot continue...",txt,OKButtonText="ABORT",lAlertLevel=2).go()
+                    statusLabel.setText(("%s: ERROR: Found a non-Parent / non-Split Txn - Cannot continue..." %(_THIS_METHOD_NAME)).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                    MyPopUpDialogBox(toolbox_frame_,"%s: ERROR: Found a non-Parent / non-Split Txn - Cannot continue..." %(_THIS_METHOD_NAME),txt,OKButtonText="ABORT",lAlertLevel=2).go()
                     return
 
             if iCountLoops < 1:
@@ -13791,6 +14323,7 @@ now after saving the file, restart Moneydance
                                        "If you proceed, then these txns would refer to them themselves once move/merged\n"
                                        "This is illogical, and your cash balances might be 'incorrect'\n"
                                        "You can proceed and fix yourself later, or cancel to fix first before you proceed?!" %(iCountLoops),
+                                       theTitle=_THIS_METHOD_NAME.upper(),
                                        OKButtonText="PROCEED",
                                        lCancelButton=True,
                                        lAlertLevel=1).go():
@@ -13817,20 +14350,20 @@ now after saving the file, restart Moneydance
                 output += "\nTarget starting cash balance: %s\n" %(targetRCurr.formatSemiFancy(targetStartBal,MD_decimal))
 
             ask = MyPopUpDialogBox(toolbox_frame_,
-                                   "Move/Merge Txns from selected Investment account into another.. REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE MERGE",
+                                   "%s: from selected Investment account into another.. REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE MERGE" %(_THIS_METHOD_NAME),
                                    output,
-                                   theTitle="MOVE/MERGE INVESTMENT TRANSACTIONS:",
+                                   theTitle=_THIS_METHOD_NAME.upper(),
                                    lCancelButton=True,
                                    OKButtonText="PROCEED")
             if not ask.go():
-                txt = "Move/Merge Investment Txns - User Aborted - No changes made!"
+                txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                 myPrint("B",txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 jif = QuickJFrame(txt,output).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"MOVE/MERGE INVESTMENT TXNS",
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(),
                                                      "EXECUTE MOVE FROM %s to %s?" %(sourceAccount,targetAccount)):
                 return
 
@@ -13838,7 +14371,7 @@ now after saving the file, restart Moneydance
 
             lAddCashBalances = False
             if sourceStartBal != 0:
-                if myPopupAskQuestion(toolbox_frame_,"MOVE/MERGE INVESTMENT TXNS - CASH BALANCES","Do you want me to add source acct's starting cash balance of %s into target's?" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))):
+                if myPopupAskQuestion(toolbox_frame_,"%s: - CASH BALANCES" %(_THIS_METHOD_NAME.upper()),"Do you want me to add source acct's starting cash balance of %s into target's?" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))):
                     lAddCashBalances = True
                     output += "User requested to add source acct's starting cash balance into target's...\n\n"
                 else:
@@ -13847,12 +14380,12 @@ now after saving the file, restart Moneydance
             lDeleteEmptyAccount = False
             if sourceStartBal != 0 and not lAddCashBalances:
                 txt = "NOTE: Source account cannot be auto-deleted post merge as it will be left with a cash starting balance..."
-                myPopupInformationBox(toolbox_frame_,txt,"MOVE/MERGE INVESTMENT TXNS - STARTING CASH BALANCE(S)")
+                myPopupInformationBox(toolbox_frame_,txt,"%s: - STARTING CASH BALANCE(S)" %(_THIS_METHOD_NAME.upper()))
                 output += "%s\n\n" %(txt)
 
             elif JOptionPane.showOptionDialog(toolbox_frame_,
                                               "Do you want me to delete the resulting empty source account?",
-                                              "MOVE/MERGE INVESTMENT TXNS - CLEANUP?",
+                                              "%s: - CLEANUP?" %(_THIS_METHOD_NAME.upper()),
                                               JOptionPane.YES_NO_OPTION,
                                               JOptionPane.WARNING_MESSAGE,
                                               None,
@@ -13869,19 +14402,28 @@ now after saving the file, restart Moneydance
             _QTY = 1
             _COSTBASIS = 2
             _VALUE = 3
+            _CBFLAG = 4
 
             sourceValuesBefore = []
             targetValuesBefore = []
 
+            lAnyCostBasisErrorsFound = [False]
+
             # noinspection PyUnresolvedReferences
             def create_totals(theCount, theAccount, theTable):
                 _acctRelCurr = theAccount.getCurrencyType()
-                theTable.append(["Txn Count",    theCount, "", ""])
-                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal)])
-                theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal)])
-                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance())]
+                theTable.append(["Txn Count",    theCount, "", "", ""])
+                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
+                theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
+                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance()), False]
+                lDetectCBError = False
                 for acct in theAccount.getSubAccounts():
                     if acct.getAccountType() == Account.AccountType.SECURITY:
+
+                        if not InvestUtil.isCostBasisValid(acct):
+                            lDetectCBError = True
+                            lAnyCostBasisErrorsFound[0] = True
+
                         _subAcctRelCurr = acct.getCurrencyType()
                         subAcctBal = acct.getBalance()
                         subAcctCostBasis = InvestUtil.getCostBasis(acct)
@@ -13890,25 +14432,34 @@ now after saving the file, restart Moneydance
                         _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
                         _totals[2] +=  round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())
+                        if lDetectCBError: _totals[3] = True
                         theTable.append([acct.getAccountName(),
                                          _subAcctRelCurr.formatSemiFancy(subAcctBal,MD_decimal),
                                          _acctRelCurr.formatSemiFancy(subAcctCostBasis,MD_decimal),
-                                         _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal)
-                                         ])
+                                         _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal),
+                                         lDetectCBError])
                 theTable.append(["**TOTALS:",
                                  _totals[0],
                                  _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[1]),MD_decimal),
-                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[2]),MD_decimal)])
+                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[2]),MD_decimal),
+                                _totals[3]])
 
             create_totals(countSourceBefore, sourceAccount, sourceValuesBefore)
             create_totals(countTargetBefore, targetAccount, targetValuesBefore)
+
+            if lAnyCostBasisErrorsFound[0]:
+                output += "\n\n** WARNING: Lot Control / Cost Basis errors detected before changes started - review output....\n\n"
+            else:
+                output += "\nLot Control / Cost Basis reports OK before changes....\n"
+
+            output += "\n"
 
         except:
             txt = "MINOR ERROR - Move/merge crashed before any move/merge. Please review output and console".upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame("MINOR ERROR - MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+            jif = QuickJFrame("MINOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -13917,7 +14468,7 @@ now after saving the file, restart Moneydance
 
             pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                           "Please wait: executing move/merge right now..",
-                                          theTitle="MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                          theTitle=_THIS_METHOD_NAME.upper(),
                                           theWidth=100,
                                           lModal=False,
                                           OKButtonText="WAIT")
@@ -14004,14 +14555,15 @@ now after saving the file, restart Moneydance
             for srcTxn in copyTxns:
 
                 if isinstance(srcTxn, SplitTxn):      # This is a cash transfer
+                    pTxn = srcTxn.getParentTxn()
+                    pTxn.setEditingMode()
                     srcTxn.setAccount(targetAccount)
                     srcTxn.setParameter(PARAMETER_KEY,True)
-                    pTxn = srcTxn.getParentTxn()
                     pTxn.syncItem()
                     output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
                                                    pad(pTxn.getInvestTxnType().getIDString(),12),
-                                                   pad(pTxn.getMemo(),60),
-                                                   rpad(sourceAccount.getCurrencyType().formatFancy(pTxn.getValue(),MD_decimal),18))
+                                                   pad(pTxn.getDescription()+pTxn.getMemo(),60),
+                                                   rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
                     continue
 
                 # Thus, we are on a parent...
@@ -14028,7 +14580,7 @@ now after saving the file, restart Moneydance
                 srcTxn.syncItem()
                 output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(srcTxn.getDateInt()),
                                                pad(srcTxn.getInvestTxnType().getIDString(),12),
-                                               pad(srcTxn.getMemo(),60),
+                                               pad(srcTxn.getDescription()+srcTxn.getMemo(),60),
                                                rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
 
             del copyTxns
@@ -14037,11 +14589,11 @@ now after saving the file, restart Moneydance
 
         except:
 
-            txt = "MAJOR ERROR - Move/merge crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
+            txt = ("MAJOR ERROR - %s: crashed. Please review output, console, and RESTORE YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame("MAJOR ERROR - MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+            jif = QuickJFrame("MAJOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14070,7 +14622,7 @@ now after saving the file, restart Moneydance
             else:
                 txt = "ERROR: source account %s still seems to have %s transactions" %(sourceAccount, countSourceAfter)
                 myPrint("B", txt); output += "\n%s\n" %(txt)
-                jif = QuickJFrame("MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output).show_the_frame()
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
@@ -14082,7 +14634,7 @@ now after saving the file, restart Moneydance
                 txt = "ERROR: target account txn count of %s is NOT equal to original source %s + target %s!"\
                       %(countTargetAfter, countSourceBefore, countTargetBefore)
                 myPrint("B", txt); output += "\n%s\n" %(txt)
-                jif = QuickJFrame("MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output).show_the_frame()
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
@@ -14091,6 +14643,7 @@ now after saving the file, restart Moneydance
             sourceValuesAfter = []
             targetValuesAfter = []
 
+            lAnyCostBasisErrorsFound[0] = False
             create_totals(countSourceAfter, sourceAccount, sourceValuesAfter)
             create_totals(countTargetAfter, targetAccount, targetValuesAfter)
 
@@ -14136,7 +14689,9 @@ now after saving the file, restart Moneydance
                     if data[_WHAT].upper() == "**TOTALS:".upper():
                         local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
 
-                    local_output += "   %s %s %s %s\n" %(pad(data[_WHAT],60+posInc),rpad(data[_QTY],12), rpad(data[_COSTBASIS],15), rpad(data[_VALUE],15))
+                    cbMsg = ""
+                    if data[_CBFLAG]: cbMsg = " * Cost Basis Error detected"
+                    local_output += "   %s %s %s %s %s\n" %(pad(data[_WHAT],60+posInc),rpad(data[_QTY],12), rpad(data[_COSTBASIS],15), rpad(data[_VALUE],15),cbMsg)
                     iRow += 1
                 return local_output
 
@@ -14152,10 +14707,15 @@ now after saving the file, restart Moneydance
             output += "\n"
             output += output_stats("Target", targetAccount, targetValuesAfter)
 
+            if lAnyCostBasisErrorsFound[0]:
+                output += "\n\n** WARNING: Lot Control / Cost Basis errors detected after changes completed - review output....\n\n"
+            else:
+                output += "\nLot Control / Cost Basis reports OK after changes....\n"
+
             if True:    # We are saving Trunk as we want to flush the mass changes to disk. Stops the restart reapplying these again....
                 pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                               "Please wait: Flushing dataset (and these move/merge txns) back to disk.....",
-                                              theTitle="MOVE/MERGE INVESTMENT TRANSACTIONS",
+                                              theTitle=_THIS_METHOD_NAME.upper(),
                                               theWidth=100,
                                               lModal=False,
                                               OKButtonText="WAIT")
@@ -14166,26 +14726,33 @@ now after saving the file, restart Moneydance
                 MD_REF.getCurrentAccount().getBook().saveTrunkFile()
                 pleaseWait.kill()
 
-            txt = "Move/merge from %s to %s successfully completed - please review log and check the results..." %(sourceAccount, targetAccount)
+            if lAnyCostBasisErrorsFound[0]:
+                txt = "%s: from %s to %s completed. NOTE: You have Lot Control errors >> please review log and check the results..." %(_THIS_METHOD_NAME, sourceAccount, targetAccount)
+                optionColor = Color.RED
+                optionFlag = JOptionPane.WARNING_MESSAGE
+            else:
+                txt = "%s: from %s to %s successfully completed - please review log and check the results..." %(_THIS_METHOD_NAME, sourceAccount, targetAccount)
+                optionColor = Color.GREEN
+                optionFlag = JOptionPane.INFORMATION_MESSAGE
+
             myPrint("B", txt); output += "\n\n%s\n" %(txt)
             output += "\n\n *** PLEASE CHECK YOUR PORTFOLIO VIEW & REPORTS TO BALANCES ***\n\n"
             output += "\n<END>"
 
         except:
-            txt = "ERROR - Move/merge crashed after the move/merge. Please review output, console, and VERIFY YOUR DATASET!".upper()
+            txt = ("ERROR - %s crashed after the move/merge. Please review output, console, and VERIFY YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame("ERROR - MOVE/MERGE INVESTMENT TRANSACTIONS:",output).show_the_frame()
+            jif = QuickJFrame("ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
 
-        jif = QuickJFrame("MOVE/MERGE INVESTMENT TRANSACTIONS COMPLETED:",output).show_the_frame()
-        txt = "Move/merge successfully completed. Review log and check results"
-        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.GREEN)
+        jif = QuickJFrame("%s COMPLETED:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(optionColor)
         play_the_money_sound()
-        myPopupInformationBox(jif,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+        myPopupInformationBox(jif,txt,theMessageType=optionFlag)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
@@ -14389,6 +14956,8 @@ now after saving the file, restart Moneydance
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
+        selectHomeScreen()      # Stops the LOT Control box popping up.....
+
         if not myPopupAskQuestion(toolbox_frame_,"CONVERT ACCT/STOCK TO Avg Cst Ctrl","Do you want to convert a stock to Average Cost Control and reset/wipe any LOT data?",theMessageType=JOptionPane.WARNING_MESSAGE):
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
@@ -14485,6 +15054,8 @@ now after saving the file, restart Moneydance
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
+
+        selectHomeScreen()      # Stops the LOT Control box popping up.....
 
         if not myPopupAskQuestion(toolbox_frame_,"CONVERT ACCT/STOCK TO LOT/FIFO","Do you want to attempt to convert a stock to LOT Controlled and match Sells to Buys using FiFo?",theMessageType=JOptionPane.WARNING_MESSAGE):
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -18596,6 +19167,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     if userAction != 1:
                         return
 
+                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
+
                     if user_view_check_number_settings.isSelected():
                         x = ViewFileButtonAction(self.statusLabel, "view_check_num_settings()", "Check Number Settings etc", lFile=False)
                         x.actionPerformed(None)
@@ -18679,8 +19252,13 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_diag_price_date = JRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
                 user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
 
+                user_edit_security_decimal_places = JRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly)", False)
+                user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
+                user_edit_security_decimal_places.setEnabled(lAdvancedMode)
+                user_edit_security_decimal_places.setForeground(Color.RED)
+
                 user_merge_duplicate_securities = JRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False)
-                user_merge_duplicate_securities.setToolTipText("This scan for 'duplicated' Securities and merge them together..... Tools>Securities>TickerSymbol is the key... (TickerSymbol; Dpc, RelCurr, Rate, Splits must match)")
+                user_merge_duplicate_securities.setToolTipText("This scans for 'duplicated' Securities and merge them together..... Tools>Securities>TickerSymbol is the key... (TickerSymbol; Dpc, RelCurr, Rate, Splits must match)")
                 user_merge_duplicate_securities.setEnabled(lAdvancedMode)
                 user_merge_duplicate_securities.setForeground(Color.RED)
 
@@ -18735,6 +19313,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_list_curr_sec_dpc)
                 bg.add(user_diag_curr_sec)
                 bg.add(user_diag_price_date)
+                bg.add(user_edit_security_decimal_places)
                 bg.add(user_merge_duplicate_securities)
                 bg.add(user_autofix_price_date)
                 bg.add(user_fix_price_date)
@@ -18759,6 +19338,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
 
+                userFilters.add(user_edit_security_decimal_places)
                 userFilters.add(user_merge_duplicate_securities)
                 userFilters.add(user_fix_curr_sec)
                 userFilters.add(user_autofix_price_date)
@@ -18778,6 +19358,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     user_diag_price_date.setEnabled(True)
 
+                    user_edit_security_decimal_places.setEnabled(lAdvancedMode)
                     user_merge_duplicate_securities.setEnabled(lAdvancedMode)
                     user_autofix_price_date.setEnabled(lAdvancedMode)
                     user_thin_price_history.setEnabled(lAdvancedMode)
@@ -18787,6 +19368,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if not check_all_currency_raw_rates_ok():
                         user_diag_price_date.setEnabled(False)
+                        user_edit_security_decimal_places.setEnabled(False)
                         user_merge_duplicate_securities.setEnabled(False)
                         user_autofix_price_date.setEnabled(False)
                         user_thin_price_history.setEnabled(False)
@@ -18806,6 +19388,8 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                options, options[0]))
                     if userAction != 1:
                         return
+
+                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
                     if user_can_i_delete_security.isSelected():
                         x = ViewFileButtonAction(self.statusLabel, "can_I_delete_security()", "CAN I DELETE A SECURITY?", lFile=False)
@@ -18840,6 +19424,10 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_fix_invalid_curr_sec.isSelected():
                         fix_invalid_relative_currency_rates(self.statusLabel)
+                        return
+
+                    if user_edit_security_decimal_places.isSelected():
+                        edit_security_decimal_places(self.statusLabel)
                         return
 
                     if user_merge_duplicate_securities.isSelected():
@@ -18974,6 +19562,8 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                options, options[0]))
                     if userAction != 1:
                         return
+
+                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
                     if user_view_txn_sort.isSelected():
                         x = ViewFileButtonAction(self.statusLabel, "get_register_txn_sort_orders()", "Register TXN Sort Orders etc", lFile=False)
@@ -19308,6 +19898,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     if userAction != 1:
                         return
 
+                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
                     if user_hacker_toggle_DEBUG.isSelected():
                         hacker_mode_DEBUG(self.statusLabel)
@@ -20230,7 +20821,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                       "MacOS TABBING MODE WARNING",
                                       JOptionPane.ERROR_MESSAGE)
 
-            # Check whether UserHome is missing - porbably on a development platform
+            # Check whether UserHome is missing - probably on a development platform
             if Platform.isOSX() and System.getProperty(u"UserHome") is None:
                 myPopupInformationBox(toolbox_frame_,
                                       "Your Mac's System Property 'UserHome' is not set\n" +

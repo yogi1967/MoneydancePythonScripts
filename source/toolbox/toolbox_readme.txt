@@ -173,6 +173,7 @@ ALT-M - Advanced Mode
         - FIX - Account's Invalid Parent Account (script fix_account_parent.py)
         - FIX - Correct the Name of Root to match Dataset
     - MENU: Currency & Security tools:
+        - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).
         - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol; dpc, RelCurr, Rate, Splits must match).
         - FIX - Fix relative currencies (fixes your currency & security's key settings) (reset_relative_currencies.py)
         - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price/rate whilst fixing 'price_date'
