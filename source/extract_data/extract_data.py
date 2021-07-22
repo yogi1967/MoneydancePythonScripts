@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1012 - February 2021 - Stuart Beesley
+# extract_data.py - build: 1013 - February 2021 - Stuart Beesley
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -73,6 +73,7 @@
 # build: 1010 - Incorporated new category filter in Extract Account Registers - mods by IK user @mark - thanks!
 # build: 1011 - Conforming to IK design requirements... Minor tweaks...
 # build: 1012 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
+# build: 1013 - Disabled StockGlance2020 rounding to Security.getDecimalPlaces() as this is the share balance, not price rounding..!
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -80,7 +81,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1012"
+version_build = "1013"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -432,7 +433,7 @@ else:
     lSplitSecuritiesByAccount = False                                                                                   # noqa
     lExcludeTotalsFromCSV = False                                                                                       # noqa
     lIncludeFutureBalances_SG2020 = False                                                                               # noqa
-    lRoundPrice = True                                                                                                  # noqa
+    lRoundPrice = False                                                                                                 # noqa
     _column_widths_SG2020 = []                                                                                          # noqa
     headingNames = ""                                                                                                   # noqa
     acctSeparator = u' : '                                                                                              # noqa
@@ -3255,6 +3256,7 @@ Visit: %s (Author's site)
 
             label7d = JLabel("Round calculated price using security dpc setting (N=No Rounding)?")
             user_roundPrice = JCheckBox("", lRoundPrice)
+            user_roundPrice.setEnabled(False)
 
             labelRC = JLabel("Reset Column Widths to Defaults?")
             user_selectResetColumns = JCheckBox("", False)
@@ -3386,7 +3388,8 @@ Visit: %s (Author's site)
                 lSplitSecuritiesByAccount = user_splitSecurities.isSelected()
                 lExcludeTotalsFromCSV = user_excludeTotalsFromCSV.isSelected()
                 lIncludeFutureBalances_SG2020 = user_includeFutureBalances.isSelected()
-                lRoundPrice = user_roundPrice.isSelected()
+                # lRoundPrice = user_roundPrice.isSelected()
+                lRoundPrice = False     # Override - always OFF = NO ROUNDING NOW....
                 lStripASCII = user_selectStripASCII.isSelected()
 
                 csvDelimiter = user_selectDELIMITER.getSelectedItem()
@@ -4001,10 +4004,11 @@ Visit: %s (Author's site)
                                 # NOTE: .getPrice(None) gives you the Current Price relative to the current Base to Security Currency..
                                 # .......So Base>Currency rate * .getRate(None) also gives Current Price
 
-                                _roundPrice = curr.getDecimalPlaces()
                                 if lRoundPrice:
+                                    _roundPrice = curr.getDecimalPlaces()
                                     price = round(1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate()), _roundPrice)       # noqa
                                 else:
+                                    _roundPrice = 30
                                     price = (1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), curr.getRelativeRate()))                        # noqa
 
                                 qty = self.QtyOfSharesTable.get(curr)
