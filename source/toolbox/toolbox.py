@@ -205,6 +205,9 @@
 # build: 1041 - New feature - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).
 # build: 1041 - Fixed hacker mode on SplitTxns to properly 'manage' the parent record; also fixed Geekout lookup for splits by UUID
 # build: 1041 - Switch back to Home Screen before some functions... Stops Lot control box appearing; Good practice to get out of all accounts first...
+# build: 1041 - Renamed feature to: - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
+
+# todo - Update decimal places diagnosis now that we know that .getDecimalPlaces() on Securities relates to Stock balances, not price/rates...!
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
@@ -5762,17 +5765,17 @@ Please update any that you use before proceeding....
         return [orphan_outdated_prefs, orphan_outdated_files, orphan_confirmed_extn_keys]
 
     def diagnose_currencies(statusLabel, lFix=False):
+
+        ABORT
+
         global toolbox_frame_, debug, fixRCurrencyCheck, DARK_GREEN
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         # reset_relative_currencies.py
-
         if lFix:
-            myPrint("B", "Script running to FIX your relative currencies...............")
-            myPrint("P", "---------------------------------------------------------")
+            myPrint("B", "Script running to FIX your currencies & securities (including relative setup)...............")
         else:
-            myPrint("B", "Script running to diagnose your relative currencies...............")
-            myPrint("P", "---------------------------------------------------------")
+            myPrint("B", "Script running to diagnose your currencies & securities (including relative setup)...............")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -5782,21 +5785,21 @@ Please update any that you use before proceeding....
 
         if lFix:
             if not fixRCurrencyCheck:
-                statusLabel.setText(("Sorry, you must run 'DIAG: Diagnose Currencies' first!").ljust(800, " "))
+                statusLabel.setText(("Sorry, you must run 'DIAG: Diagnose Currencies / Securities' first!").ljust(800, " "))
                 statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,"Sorry, you must run the 'DIAG: Diagnose Currencies' option first! - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(toolbox_frame_,"Sorry, you must run the 'DIAG: Diagnose Currencies / Securities' option first! - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
             elif fixRCurrencyCheck == 1:
-                statusLabel.setText(("'DIAG: Diagnose Currencies' reported no issues - so I will not run fixes").ljust(800, " "))
+                statusLabel.setText(("'DIAG: Diagnose Currencies / Securities' reported no issues - so I will not run fixes").ljust(800, " "))
                 statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,"'DIAG: Diagnose Currencies' reported no issues - so I will not run fixes - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(toolbox_frame_,"'DIAG: Diagnose Currencies / Securities' reported no issues - so I will not run fixes - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
             elif fixRCurrencyCheck == 2:
                 pass
             elif fixRCurrencyCheck != 3:
-                statusLabel.setText(("LOGIC ERROR reviewing 'DIAG: Diagnose Currencies' - so I will not run fixes").ljust(800, " "))
+                statusLabel.setText(("LOGIC ERROR reviewing 'DIAG: Diagnose Currencies / Securities' - so I will not run fixes").ljust(800, " "))
                 statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,"LOGIC ERROR reviewing 'DIAG: Diagnose Currencies' - so I will not run fixes - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(toolbox_frame_,"LOGIC ERROR reviewing 'DIAG: Diagnose Currencies / Securities' - so I will not run fixes - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
             user_fixOnlyErrors = JRadioButton("Fix only Errors (ignore warnings)?", False)
@@ -5830,13 +5833,13 @@ Please update any that you use before proceeding....
                 options = ["EXIT", "PROCEED"]
                 userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                            userFilters,
-                                                           "FIX RELATIVE CURRENCIES",
+                                                           "FIX CURRENCIES & SECURITIES",
                                                            JOptionPane.OK_CANCEL_OPTION,
                                                            JOptionPane.QUESTION_MESSAGE,
                                                            MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                            options, options[0]))
                 if userAction != 1:
-                    statusLabel.setText(("'FIX RELATIVE CURRENCIES' - No changes made.....").ljust(800, " "))
+                    statusLabel.setText(("'FIX CURRENCIES & SECURITIES' - No changes made.....").ljust(800, " "))
                     statusLabel.setForeground(Color.BLUE)
                     myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
@@ -5849,7 +5852,7 @@ Please update any that you use before proceeding....
 
             del userFilters, bg1, bg2
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"FIX RELATIVE CURRENCIES", "EXECUTE FIX RELATIVE CURRENCIES?"):
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"FIX CURRENCIES & SECURITIES", "EXECUTE FIX CURRENCIES & SECURITIES?"):
                 return
 
             VERBOSE = user_VERBOSE.isSelected()
@@ -5874,11 +5877,11 @@ Please update any that you use before proceeding....
         baseCurr = currencies.getBaseType()
 
         if lFix:
-            output = "FIX RELATIVE CURRENCIES/SECURITIES\n" \
-                     " =================================\n\n"
+            output = "FIX CURRENCIES/SECURITIES (including relative setup)\n" \
+                     " ===================================================\n\n"
         else:
-            output = "DIAGNOSE RELATIVE CURRENCIES & SECURITIES\n" \
-                     " ========================================\n\n"
+            output = "DIAGNOSE CURRENCIES & SECURITIES (including relative setup)\n" \
+                     " ==========================================================\n\n"
 
         # Catch any error during update - this would be bad! :-<
         try:
@@ -5990,7 +5993,8 @@ Please update any that you use before proceeding....
                     if VERBOSE:
                         output += "-----------------------------------------------------------------------------------------\n" \
                                   "Checking security: %s\n" %(curr)
-
+                    BOB
+                    # todo - fix this
                     get_rel_curr_id = curr.getParameter("rel_curr_id",None)
                     get_relative_to_currid = curr.getParameter("relative_to_currid",None)
                     if (get_relative_to_currid is not None and get_relative_to_currid == baseCurr.getParameter("currid", None)) or (get_rel_curr_id is not None and get_rel_curr_id == baseCurr.getParameter("id", None)):
@@ -6028,9 +6032,11 @@ Please update any that you use before proceeding....
                             lWarning = True; iWarnings  += 1
 
                     elif get_rrate is None or get_rrateDbl == 0.0 or not isGoodRate(get_rrateDbl):
-                        if (get_relative_to_currid is None or get_relative_to_currid == baseCurr.getParameter("currid",None)):
+                        rCurr = curr.getRelativeCurrency()
+                        if (get_relative_to_currid is None or get_relative_to_currid == baseCurr.getParameter("currid",None)) or rCurr == baseCurr:
                             newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
-                            txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s (inverted %s)\n" %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
+                            txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s (inverted %s)\n"\
+                                  %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
                             myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
 
                             if lFix and lFixWarnings:
@@ -6045,9 +6051,22 @@ Please update any that you use before proceeding....
                             else:
                                 lWarning = True; iWarnings  += 1
                         else:
-                            txt = "@@ ERROR: %s rrate not set and relative rate is not base - cannot be auto-fixed!"
+                            newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, rCurr))
+                            txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s ** Relative Curr is: %s ** (whereas 'rate' is currently %s). It should be %s (inverted %s)\n"\
+                                  %(curr, get_rrate, rCurr, get_rate, newRate, safeInvertRate(newRate))
                             myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
-                            lWarning = True; iWarnings  += 1
+
+                            if lFix and lFixWarnings:
+                                lSyncNeeded = True
+                                curr.setEditingMode()
+                                # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
+                                curr.setParameter("rate", newRate)
+                                curr.setParameter("rrate", newRate)
+                                curr.setRate(newRate, rCurr)
+                                txt = "@@SECURITY FIX APPLIED@@"
+                                myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                            else:
+                                lWarning = True; iWarnings  += 1
 
                     iCountSnapErrors = 0
                     currSnapshots = curr.getSnapshots()
@@ -6187,9 +6206,9 @@ Please update any that you use before proceeding....
         except:
 
             if lFix:
-                txt = "MAJOR ERROR - fix relative currencies crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
+                txt = "MAJOR ERROR - FIX CURRENCIES & SECURITIES crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
             else:
-                txt = "MINOR ERROR - diagnose relative currencies crashed. Please review output and console".upper()
+                txt = "MINOR ERROR - Diagnose FIX CURRENCIES & SECURITIES crashed. Please review output and console".upper()
 
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
@@ -6206,7 +6225,7 @@ Please update any that you use before proceeding....
 
         if lFix:
             fixRCurrencyCheck = None
-            myPrint("B", ">> Currency errors / warning - FIXES APPLIED..")
+            myPrint("B", ">> Currency / Security errors / warning - FIXES APPLIED..")
             output += "\nRELEVANT FIXES APPLIED\n\n"
             output += "\nDISCLAIMER: Please verify your data before proceeding\n"
 
@@ -6216,15 +6235,15 @@ Please update any that you use before proceeding....
             statusLabel.setText(("@@ CURRENCY / SECURITY FIXES APPLIED (as per your parameters) - Please review diagnostic report for details!").ljust(800, " "))
             statusLabel.setForeground(Color.RED)
             play_the_money_sound()
-            myPopupInformationBox(toolbox_frame_,"RELEVANT FIXES APPLIED","FIX RELATIVE CURR/SECs",theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_,"RELEVANT FIXES APPLIED","FIX CURRENCIES & SECURITIES",theMessageType=JOptionPane.WARNING_MESSAGE)
 
         else:
             if lNeedFixScript:
                 fixRCurrencyCheck = 3
-                txt = ">> Currency / Security errors detected - Consider running the FIX option..!?"
+                txt = ">> Currency / Security errors detected - Consider running the FIX option.."
                 myPrint("B", txt); output += "%s\n" %(txt)
                 output += "\nERROR: You have Currency / Security errors..\n"
-                output += "Consider running the FIX Relative Currencies option\n"
+                output += "Consider running the 'FIX CURRENCIES & SECURITIES' option\n"
                 output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
                 txt = "ERROR: You have Currency / Security errors.. Please review diagnostic report!"
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
@@ -6235,8 +6254,9 @@ Please update any that you use before proceeding....
                 myPrint("B", txt); output += "%s\n" %(txt)
                 output += "These are where your Currency records show a relative currency that's not None...; This is a data error!\n" \
                           "... or where Securities have an incorrect relative currency set..\n"\
-                          "... or where a Currency/Security's 'rrate' (relative rate) is not set, or different to the 'rate' (rate)...\n"
-                output += "Consider running the FIX Relative Currencies option\n"
+                          "... or where a Currency/Security's 'rrate' (relative rate) is not set, or different to the 'rate' (rate)...\n"\
+                          "... or where an 'invalid' / 'infinity' / ZERO / Not A Number (NaN) rate / rrate was found\n"
+                output += "Consider running the 'FIX CURRENCIES & SECURITIES' option\n"
                 output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
                 txt = "ERROR: You have %s Currency / Security warnings.. Please review diagnostic report!" %(iWarnings)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
@@ -6251,9 +6271,9 @@ Please update any that you use before proceeding....
         output += "\n<END>"
 
         if lFix:
-            theTitle = "FIX RELATIVE CURRENCIES (FIX ERRORS)"
+            theTitle = "FIX CURRENCIES & SECURITIES (FIX ERRORS)"
         else:
-            theTitle = "DIAGNOSE CURRENCIES (LOOK FOR ERRORS)"
+            theTitle = "DIAGNOSE CURRENCIES & SECURITIES (LOOK FOR ERRORS)"
 
         alertLevel = 0
         if iWarnings: alertLevel = 1
@@ -6261,9 +6281,7 @@ Please update any that you use before proceeding....
         jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
         if lFix:
-            myPopupInformationBox(jif,u"PLEASE RESTART MONEYDANCE!",
-                                  u"FIX RELATIVE CURRENCIES",
-                                  theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(jif,"PLEASE RESTART MONEYDANCE!", "FIX CURRENCIES & SECURITIES", theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -12760,6 +12778,12 @@ now after saving the file, restart Moneydance
 
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
+        if detect_non_hier_sec_acct_txns() > 0:
+            txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
         output = "%s:\n" \
                  " ========================================\n\n" %(_THIS_METHOD_NAME)
 
@@ -13089,6 +13113,8 @@ now after saving the file, restart Moneydance
                         txt = ".... Updating %s transactions: %s" %(secAcct, txnsToEdit.getSize())
                         myPrint("B",txt); output += "%s\n" %(txt)
 
+                        txnsToEdit = sorted(txnsToEdit, key=lambda _x: (_x.getDateInt()))
+
                         for txn in txnsToEdit:
 
                             if not isinstance(txn, SplitTxn):       # Should never happen..... ;->
@@ -13097,8 +13123,6 @@ now after saving the file, restart Moneydance
                             pTxn = txn.getParentTxn()
 
                             lEditingMode = False
-
-                            # BOB com.infinitekind.moneydance.model.InvestUtil.isCostBasisValid(Account) : boolean
 
                             # Look for and fix any Lot Control records at the same time.... Risky business!
                             if txn.getParameter("cost_basis", None) is not None:
@@ -13300,6 +13324,12 @@ now after saving the file, restart Moneydance
         today = Calendar.getInstance()
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
+        if detect_non_hier_sec_acct_txns() > 0:
+            txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
         output = "%s:\n" \
                  " ============================================================\n\n" %(_THIS_METHOD_NAME)
 
@@ -13407,7 +13437,7 @@ now after saving the file, restart Moneydance
 
             if len(securities) < 2 or len(dup_securities) < 1:
                 output += "\n"
-                txt = "%s: Not enough Securities or no valid duplicate Tickers found (refer log) - no changes made" %(_THIS_METHOD_NAME)
+                txt = "%s: Not enough Securities / no valid duplicate Tickers found (refer report on screen for details) - no changes made" %(_THIS_METHOD_NAME)
                 myPrint("B",txt); output += "%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 output += "\n<END>"
@@ -13725,7 +13755,7 @@ now after saving the file, restart Moneydance
 
 
             if lFailValidation:
-                txt = "\n\n ACCOUNT VALIDATION FAILED - CANNOT PROCEED!\n"
+                txt = "\n\n SECURITY SUB ACCOUNT VALIDATION FAILED - CANNOT PROCEED! Review the report on screen for details.\n"
                 myPrint("DB", txt); output += "\n\n%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " "));statusLabel.setForeground(Color.RED)
                 jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output).show_the_frame()
@@ -13968,6 +13998,8 @@ now after saving the file, restart Moneydance
                         if copyAcct is None: continue
 
                         reassignTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(copyAcct)
+                        reassignTxns = sorted(reassignTxns, key=lambda _x: (_x.getDateInt()))
+
                         output += "... retrieved %s txns from secondary %s - reassigning.....\n" %(reassignTxns.getSize(), copyAcct)
 
                         for srcTxn in reassignTxns:
@@ -14137,6 +14169,12 @@ now after saving the file, restart Moneydance
         PARAMETER_KEY = "toolbox_txn_merge"
         today = Calendar.getInstance()
 
+        if detect_non_hier_sec_acct_txns() > 0:
+            txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
         allInvestmentAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(23))
         toListAccount = list(allInvestmentAccounts)
 
@@ -14180,7 +14218,6 @@ now after saving the file, restart Moneydance
             return
 
         sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
-
         if sourceTxns.getSize() < 1:
             txt = "%s: Source Account has no transactions - no changes made!" %(_THIS_METHOD_NAME)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
@@ -14281,13 +14318,17 @@ now after saving the file, restart Moneydance
 
             # Validate against a loop where the source contains a txf to/from the target
             iCountLoops = 0
-            output += "\nValidating against a loop where the source contains a txf to/from the target\n"
+            output += "\nValidating against an account 'loop' where the source contains a txf to/from the target\n"
+
+            sourceTxns = sorted(sourceTxns, key=lambda _x: (_x.getDateInt()))       # Sort for the log output of txns with loops
+
             for srcTxn in sourceTxns:
 
                 if isinstance(srcTxn,SplitTxn):
                     if srcTxn.getParentTxn().getAccount() == targetAccount:
-                        iCountLoops += 1
-                    continue
+                        pass
+                    else:
+                        continue
 
                 elif isinstance(srcTxn,ParentTxn):
                     # secTxn = TxnUtil.getSecurityPart(srcTxn)
@@ -14300,9 +14341,9 @@ now after saving the file, restart Moneydance
                             or (feeTxn and feeTxn.getAccount() == targetAccount)
                             or (incTxn and incTxn.getAccount() == targetAccount)
                             or (expTxn and expTxn.getAccount() == targetAccount)):
-                        iCountLoops += 1; continue
-
-                    continue
+                        pass
+                    else:
+                        continue
 
                 else:
                     # Should never happen!!
@@ -14312,13 +14353,23 @@ now after saving the file, restart Moneydance
                     MyPopUpDialogBox(toolbox_frame_,"%s: ERROR: Found a non-Parent / non-Split Txn - Cannot continue..." %(_THIS_METHOD_NAME),txt,OKButtonText="ABORT",lAlertLevel=2).go()
                     return
 
-            if iCountLoops < 1:
-                output += "... to/from accounts validated... No loops should be created...\n"
-            else:
-                output += "... to/from accounts validated... %s loops could exist if we proceed with move/merge...\n" %(iCountLoops)
+                # OK - we have a loop - list them out for the user to find....
+                pTxn = srcTxn.getParentTxn()
+                iCountLoops += 1
 
-                if not MyPopUpDialogBox(toolbox_frame_,
-                                       "Move/merge: Would create a loop - Proceed or Cancel?",
+                output += ".. *** LOOP DETECTED %s %s %s %s ***\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
+                                               pad(pTxn.getInvestTxnType().getIDString(),12),
+                                               pad(pTxn.getDescription()+pTxn.getMemo(),60),
+                                               rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
+
+            if iCountLoops < 1:
+                output += "... to/from accounts validated... No account 'loops' should be created...\n"
+            else:
+                output += "... to/from accounts checked... %s account 'loops' could exist if we proceed with move/merge...\n" %(iCountLoops)
+                jif = QuickJFrame(txt,output).show_the_frame()
+                if not MyPopUpDialogBox(jif,
+                                       "Move/merge: Would create %s account loop(s) - Proceed or Cancel?" %(iCountLoops),
+                                       ">>The txns that would cause an account 'loop' are shown on screen....\n"
                                        "%s source txns already refer to the new target account\n"
                                        "If you proceed, then these txns would refer to them themselves once move/merged\n"
                                        "This is illogical, and your cash balances might be 'incorrect'\n"
@@ -14327,15 +14378,15 @@ now after saving the file, restart Moneydance
                                        OKButtonText="PROCEED",
                                        lCancelButton=True,
                                        lAlertLevel=1).go():
-                    txt = "ERROR: %s Txns to move/merge includes the target account - would cause a loop - no changes made" %(iCountLoops)
+                    txt = "ERROR: %s Txns to move/merge includes the target account - would cause account 'loop(s)' - no changes made" %(iCountLoops)
                     myPrint("B", txt)
                     statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                    jif = QuickJFrame(txt,output).show_the_frame()
                     myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                     return
 
                 else:
-                    output += "\n*** to/from accounts failed validation. The move/merge will create %s txns with account loops that refer to self. PLEASE FIX YOURSELF LATER ***\n" %(iCountLoops)
+                    jif.dispose()
+                    output += "\n*** to/from accounts failed validation. The move/merge will create %s txns with account 'loops' that refer to self. PLEASE FIX YOURSELF LATER ***\n" %(iCountLoops)
 
             sourceRCurr = sourceAccount.getCurrencyType()
             sourceStartBal = sourceAccount.getStartBalance()
@@ -14545,7 +14596,7 @@ now after saving the file, restart Moneydance
                     targetSecurities.append(newSecurityAcct)
 
 
-            copyTxns = sorted(sourceTxns, key=lambda _x: (_x.getDateInt()))
+            copyTxns = sourceTxns
             del sourceTxns
 
             txt = "Now Moving/Merging transactions...:"
@@ -14793,8 +14844,10 @@ now after saving the file, restart Moneydance
 
                 if fields.hasSecurity and not acct.isAncestorOf(fields.security):
                     count_the_errors += 1
-                    text+=("Must fix txn %s\n >%s\n > in %s with sec acct %s\n" %(fields.txnType, txn, acct, fields.security.getFullAccountName()))
-
+                    txnTxt = txn.toMultilineString().replace(";",";\n")
+                    text+=("Must fix txn %s\n"
+                           "%s\n"
+                           " > in %s with sec acct %s\n" %(fields.txnType, txnTxt, acct, fields.security.getFullAccountName()))
                     # This fix assumes that the split / security bit should sit within the txn's parent account. It seeks for the same
                     # security in this account and reattaches it.
 
@@ -14877,6 +14930,43 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
+
+    def detect_non_hier_sec_acct_txns():
+
+        txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
+        txns = txnSet.iterableTxns()
+        fields = InvestFields()
+
+        count_the_errors = 0
+
+        for txn in txns:
+
+            if not isinstance(txn, ParentTxn):
+                continue   # only work with parent transactions
+
+            acct = txn.getAccount()
+
+            # noinspection PyUnresolvedReferences
+            if acct.getAccountType() != Account.AccountType.INVESTMENT:
+                continue
+
+            # at this point we are only dealing with investment parent txns
+            fields.setFieldStatus(txn)
+
+            if fields.hasSecurity and not acct.isAncestorOf(fields.security):
+                count_the_errors += 1
+                myPrint("B", "ERROR: Txn for Security %s found within Investment Account %s that is cross linked to another account!\n"
+                             "txn: %s\n" %(fields.security, acct, txn.getSyncInfo().toMultilineHumanReadableString()))
+
+        del txnSet, txns
+
+        if count_the_errors:
+            myPrint("DB", "ERROR: %s investment txns with cross-linked securities detected" %(count_the_errors))
+        else:
+            myPrint("DB", "NOTE: No investment txns with cross-linked securities were detected - phew!")
+
+        return count_the_errors
+
 
     def fix_delete_one_sided_txns(statusLabel):
         global toolbox_frame_, debug
@@ -19246,8 +19336,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_list_curr_sec_dpc = JRadioButton("DIAG: List Security / Currency decimal place settings", False)
                 user_list_curr_sec_dpc.setToolTipText("This will list your Security and Currency hidden decimal place settings (and attempt to advise of setup errors)")
 
-                user_diag_curr_sec = JRadioButton("DIAG: Diagnose your Currencies (& securities) (reset_relative_currencies.py)", False)
-                user_diag_curr_sec.setToolTipText("This will diagnose your Currency (& Security) setup - checking relative currencies (and advise if you need to run a fix) (reset_relative_currencies.py)")
+                user_diag_curr_sec = JRadioButton("DIAG: Diagnose currencies / securities (including relative currencies) (if errors see fix below) (based on reset_relative_currencies.py)", False)
+                user_diag_curr_sec.setToolTipText("This will diagnose your Currency & Security setup, also checking relative currencies (and advise if you need to run a fix) (reset_relative_currencies.py)")
 
                 user_diag_price_date = JRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
                 user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
@@ -19272,7 +19362,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_fix_price_date.setEnabled(lAdvancedMode)
                 user_fix_price_date.setForeground(Color.RED)
 
-                user_fix_curr_sec = JRadioButton("FIX: Fix Relative Currencies (& securities) (reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False)
+                user_fix_curr_sec = JRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False)
                 user_fix_curr_sec.setToolTipText("This will apply fixes to your Currency (& security) / Relative Currency setup (use after running the diagnose option first). THIS CHANGES DATA!  (reset_relative_currencies.py)")
                 user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
                 user_fix_curr_sec.setForeground(Color.RED)
@@ -19300,6 +19390,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced mode **")
                 labelFYI2.setForeground(Color.RED)
 
+                labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected **")
+                labelFYI_curr_fix.setForeground(Color.RED)
+
                 userFilters = JPanel(GridLayout(0, 1))
 
                 bg = ButtonGroup()
@@ -19326,21 +19419,23 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                userFilters.add(user_diag_curr_sec)
                 userFilters.add(user_can_i_delete_security)
                 userFilters.add(user_can_i_delete_currency)
                 userFilters.add(user_list_curr_sec_dpc)
                 userFilters.add(user_show_open_share_lots)
-                userFilters.add(user_diag_curr_sec)
                 userFilters.add(user_diag_price_date)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
+                else:
+                    userFilters.add(labelFYI_curr_fix)
 
+                userFilters.add(user_fix_curr_sec)
                 userFilters.add(user_edit_security_decimal_places)
                 userFilters.add(user_merge_duplicate_securities)
-                userFilters.add(user_fix_curr_sec)
                 userFilters.add(user_autofix_price_date)
                 userFilters.add(user_fix_price_date)
                 userFilters.add(user_convert_stock_lot_FIFO)
@@ -19367,6 +19462,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
 
                     if not check_all_currency_raw_rates_ok():
+
+                        user_diag_curr_sec.setForeground(Color.BLUE)
+
                         user_diag_price_date.setEnabled(False)
                         user_edit_security_decimal_places.setEnabled(False)
                         user_merge_duplicate_securities.setEnabled(False)
@@ -20502,7 +20600,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             if MD_REF.getCurrentAccount().getBook().getLocalStorage().getStr("migrated.netsync.dropbox.fileid", None):
                 FixDropboxOneWaySync_button = JButton("<html><center><B>FIX: Fix Dropbox<BR>One Way Syncing</B></center></html>")
-                FixDropboxOneWaySync_button.setToolTipText("This removes the key migrated.netsync.dropbox.fileid to fix Dropbox One-way Syncing (reset_sync_and_dropbox_settings.py)")
+                FixDropboxOneWaySync_button.setToolTipText("This removes the key 'migrated.netsync.dropbox.fileid' to fix Dropbox One-way Syncing (reset_sync_and_dropbox_settings.py)")
                 FixDropboxOneWaySync_button.setBackground(Color.ORANGE)
                 FixDropboxOneWaySync_button.setForeground(Color.WHITE)
                 FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(statusLabel, FixDropboxOneWaySync_button))

@@ -126,11 +126,11 @@ ALT-B - Basic Mode
         - View Check number settings
         - DIAGnostics - View Categories with zero balance. You can also inactivate using Advanced mode.
     - MENU: Currency & Security tools:
+        - DIAGnostics - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
         - DIAGnostics - Can I delete a Security (tells you whether a security/stock is being used - and where)
         - DIAGnostics - Can I delete a Currency (tells you whether a currency is being used - and where)
         - DIAGnostics - List decimal places (currency & security). Shows you hidden settings etc.
         - DIAGnostics - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
-        - DIAGnostics - Diagnose relative currencies (currency & security's key settings). If errors, then go to FIX below
         - DIAGnostics - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
     - MENU: Transactions tools
         - View Register Txn Sort Orders
@@ -143,7 +143,7 @@ ALT-M - Advanced Mode
         - FIX - Create Dropbox Sync Folder (creates the missing .moneydancesync folder if missing from Dropbox)
         - FIX - Check / fix MacOS Tabbing Mode on Big Sur (when set to always). It will allow you to change it to fullscreen or manual/never.
                 More information here: https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac
-        - FIX - Fix Dropbox One Way Syncing (runs the fix_dropbox_one_way_syncing.py / reset_sync_and_dropbox_settings.py script / fix). Removes key "migrated.netsync.dropbox.fileid"
+        - FIX - Fix Dropbox One Way Syncing (runs the fix_dropbox_one_way_syncing.py / reset_sync_and_dropbox_settings.py script / fix).
     - MENU: General Tools (contains a variety of general Diagnostics, Fixes and Tools...)
         - FIX - Change Moneydance Fonts
         - FIX - Delete Custom Theme file
@@ -173,9 +173,9 @@ ALT-M - Advanced Mode
         - FIX - Account's Invalid Parent Account (script fix_account_parent.py)
         - FIX - Correct the Name of Root to match Dataset
     - MENU: Currency & Security tools:
+        - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
         - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).
         - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol; dpc, RelCurr, Rate, Splits must match).
-        - FIX - Fix relative currencies (fixes your currency & security's key settings) (reset_relative_currencies.py)
         - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price/rate whilst fixing 'price_date'
         - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
         - FIX - Convert Stock to LOT Controlled and Allocate LOTs using FiFo method (MakeFifoCost.py)
@@ -184,8 +184,8 @@ ALT-M - Advanced Mode
         - FIX - Thin/Purge Price History (allows you to thin/prune your price history based on parameters you input; also fix 'orphans') (price_history_thinner.py)
         - FIX - Fix invalid relative currency (& security) rates >> fixes relative rates where <= (1.0/9999999999) or >= 9999999999) (fix_invalid_currency_rates.py)
         - FIX - Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.
-        - FIX - FORCE change an Account's Currency (use with care. Does not update any transactions) (force_change_account_currency.py)
-        - FIX - FORCE change ALL Account's currencies (use with care. Does not update any transactions) (force_change_all_currencies.py)
+        - FIX - FORCE change an Account's Currency (use with care). (Does not update any transactions) (force_change_account_currency.py)
+        - FIX - FORCE change ALL Account's currencies (use with care). (Does not update any transactions) (force_change_all_currencies.py)
     - MENU: Transactions tools
         - Move/Merge Investment transactions from one account into another
         - FIX - Non Hierarchical Security Account Txns (cross-linked securities) (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)
