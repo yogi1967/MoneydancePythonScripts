@@ -73,7 +73,8 @@
 # build: 1010 - Incorporated new category filter in Extract Account Registers - mods by IK user @mark - thanks!
 # build: 1011 - Conforming to IK design requirements... Minor tweaks...
 # build: 1012 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
-# build: 1013 - Disabled StockGlance2020 rounding to Security.getDecimalPlaces() as this is the share balance, not price rounding..!
+# build: 1013 - StockGlance2020 Disabled rounding to Security.getDecimalPlaces() as this is the share balance, not price rounding..!
+# build: 1013 - StockGlance2020 Enhanced rounding options with user parameters for mac decimal places rounding, and use current price (or latest price history price)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -323,6 +324,7 @@ else:
     from javax.swing.event import TableColumnModelListener
     from java.lang import String, Number
     from com.moneydance.apps.md.controller import AppEventListener
+    from com.infinitekind.util import StringUtils
 
     # from extract_currency_history
     # <none>
@@ -354,8 +356,9 @@ else:
 
     # from stockglance2020
     global lIncludeCashBalances, _column_widths_SG2020
-    global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, lRoundPrice
+    global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV
     global lIncludeFutureBalances_SG2020
+    global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
 
     # from extract_reminders_csv
     global _column_widths_ERTC
@@ -433,7 +436,8 @@ else:
     lSplitSecuritiesByAccount = False                                                                                   # noqa
     lExcludeTotalsFromCSV = False                                                                                       # noqa
     lIncludeFutureBalances_SG2020 = False                                                                               # noqa
-    lRoundPrice = False                                                                                                 # noqa
+    maxDecimalPlacesRounding_SG2020 = 4                                                                                 # noqa
+    lUseCurrentPrice_SG2020 = True                                                                                      # noqa
     _column_widths_SG2020 = []                                                                                          # noqa
     headingNames = ""                                                                                                   # noqa
     acctSeparator = u' : '                                                                                              # noqa
@@ -1811,7 +1815,8 @@ Visit: %s (Author's site)
 
         # stockglance2020
         global lIncludeCashBalances
-        global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, lRoundPrice, _column_widths_SG2020, lIncludeFutureBalances_SG2020
+        global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, _column_widths_SG2020, lIncludeFutureBalances_SG2020
+        global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
 
         # extract_reminders_csv
         global _column_widths_ERTC
@@ -1829,7 +1834,8 @@ Visit: %s (Author's site)
                                   "__StockGlance2020",
                                   "__stockglance2020",
                                   "__extract_reminders_to_csv",
-                                  "__extract_reminders_csv"]:
+                                  "__extract_reminders_csv",
+                                  "lRoundPrice"]:
 
             if myParameters.get(deleteObsoleteKey) is not None:
                 myPrint("B", "@@ Detected old %s extract version key... Will delete it..." %(deleteObsoleteKey))
@@ -1885,7 +1891,9 @@ Visit: %s (Author's site)
         if myParameters.get("lSplitSecuritiesByAccount") is not None: lSplitSecuritiesByAccount = myParameters.get("lSplitSecuritiesByAccount")
         if myParameters.get("lExcludeTotalsFromCSV") is not None: lExcludeTotalsFromCSV = myParameters.get("lExcludeTotalsFromCSV")
         if myParameters.get("lIncludeFutureBalances_SG2020") is not None: lIncludeFutureBalances_SG2020 = myParameters.get("lIncludeFutureBalances_SG2020")
-        if myParameters.get("lDontRoundPrice") is not None: lRoundPrice = myParameters.get("lDontRoundPrice")
+        if myParameters.get("maxDecimalPlacesRounding_SG2020") is not None: maxDecimalPlacesRounding_SG2020 = myParameters.get("maxDecimalPlacesRounding_SG2020")
+        if myParameters.get("lUseCurrentPrice_SG2020") is not None: lUseCurrentPrice_SG2020 = myParameters.get("lUseCurrentPrice_SG2020")
+
         if myParameters.get("_column_widths_SG2020") is not None: _column_widths_SG2020 = myParameters.get("_column_widths_SG2020")
 
         # extract_reminders_csv
@@ -1932,7 +1940,8 @@ Visit: %s (Author's site)
 
         # stockglance2020
         global lIncludeCashBalances
-        global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, lRoundPrice, _column_widths_SG2020, lIncludeFutureBalances_SG2020
+        global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, _column_widths_SG2020, lIncludeFutureBalances_SG2020
+        global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
 
         # extract_reminders_csv
         global _column_widths_ERTC
@@ -1993,7 +2002,9 @@ Visit: %s (Author's site)
         myParameters["lSplitSecuritiesByAccount"] = lSplitSecuritiesByAccount
         myParameters["lExcludeTotalsFromCSV"] = lExcludeTotalsFromCSV
         myParameters["lIncludeFutureBalances_SG2020"] = lIncludeFutureBalances_SG2020
-        myParameters["lDontRoundPrice"] = lRoundPrice
+        myParameters["maxDecimalPlacesRounding_SG2020"] = maxDecimalPlacesRounding_SG2020
+        myParameters["lUseCurrentPrice_SG2020"] = lUseCurrentPrice_SG2020
+
         myParameters["_column_widths_SG2020"] = _column_widths_SG2020
 
         # extract_reminders_csv
@@ -3254,9 +3265,12 @@ Visit: %s (Author's site)
             label7c = JLabel("Exclude Totals from CSV extract (helps pivots)?")
             user_excludeTotalsFromCSV = JCheckBox("", lExcludeTotalsFromCSV)
 
-            label7d = JLabel("Round calculated price using security dpc setting (N=No Rounding)?")
-            user_roundPrice = JCheckBox("", lRoundPrice)
-            user_roundPrice.setEnabled(False)
+            labelUseCurrentPrice = JLabel("Enabled = Use 'Current Price' (Not ticked = use latest dated price history price instead")
+            user_useCurrentPrice = JCheckBox("", lUseCurrentPrice_SG2020)
+
+            labelMaxDecimalRounding = JLabel("Enter the maximum decimal rounding to use on calculated price (0-12; default=4)")
+            user_maxDecimalRounding = JTextField(2)
+            user_maxDecimalRounding.setText(str(maxDecimalPlacesRounding_SG2020))
 
             labelRC = JLabel("Reset Column Widths to Defaults?")
             user_selectResetColumns = JCheckBox("", False)
@@ -3296,8 +3310,10 @@ Visit: %s (Author's site)
             userFilters.add(user_includeFutureBalances)
             userFilters.add(label7c)
             userFilters.add(user_excludeTotalsFromCSV)
-            userFilters.add(label7d)
-            userFilters.add(user_roundPrice)
+            userFilters.add(labelUseCurrentPrice)
+            userFilters.add(user_useCurrentPrice)
+            userFilters.add(labelMaxDecimalRounding)
+            userFilters.add(user_maxDecimalRounding)
             userFilters.add(labelRC)
             userFilters.add(user_selectResetColumns)
             userFilters.add(label8)
@@ -3336,24 +3352,24 @@ Visit: %s (Author's site)
 
             if not lExit:
                 if debug:
-                    myPrint("DB", "Parameters Captured",
+                    myPrint("DB", "Parameters Captured::",
                             "Sec: ", user_hideHiddenSecurities.isSelected(),
-                            "InActAct:", user_hideInactiveAccounts.isSelected(),
-                            "HidAct:", user_hideHiddenAccounts.isSelected(),
-                            "Curr:", user_selectCurrency.getText(),
-                            "Ticker:", user_selectTicker.getText(),
-                            "Filter Accts:", user_selectAccounts.getText(),
-                            "Include Cash Balances:", user_selectCashBalances.isSelected(),
-                            "Split Securities:", user_splitSecurities.isSelected(),
-                            "Include Future Balances:", user_includeFutureBalances.isSelected(),
-                            "Exclude Totals from CSV:", user_excludeTotalsFromCSV.isSelected(),
-                            "Round Calc Price:", user_roundPrice.isSelected(),
-                            "Reset Columns:", user_selectResetColumns.isSelected(),
-                            "Strip ASCII:", user_selectStripASCII.isSelected(),
-                            "Write BOM to file:", user_selectBOM.isSelected(),
-                            "Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
-                            "CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
-                # endif
+                            ", InActAct:", user_hideInactiveAccounts.isSelected(),
+                            ", HidAct:", user_hideHiddenAccounts.isSelected(),
+                            ", Curr:", user_selectCurrency.getText(),
+                            ", Ticker:", user_selectTicker.getText(),
+                            ", Filter Accts:", user_selectAccounts.getText(),
+                            ", Include Cash Balances:", user_selectCashBalances.isSelected(),
+                            ", Split Securities:", user_splitSecurities.isSelected(),
+                            ", Include Future Balances:", user_includeFutureBalances.isSelected(),
+                            ", Exclude Totals from CSV:", user_excludeTotalsFromCSV.isSelected(),
+                            ", Use Current Price:", user_useCurrentPrice.isSelected(),
+                            ", Max Decimal Places for price rounding (if not valid will default to 4):", user_maxDecimalRounding.getText(),
+                            ", Reset Columns:", user_selectResetColumns.isSelected(),
+                            ", Strip ASCII:", user_selectStripASCII.isSelected(),
+                            ", Write BOM to file:", user_selectBOM.isSelected(),
+                            ", Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
+                            ", CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
 
                 if user_selectResetColumns.isSelected():
                     myPrint("B","User asked to reset columns.... Resetting Now....")
@@ -3388,8 +3404,18 @@ Visit: %s (Author's site)
                 lSplitSecuritiesByAccount = user_splitSecurities.isSelected()
                 lExcludeTotalsFromCSV = user_excludeTotalsFromCSV.isSelected()
                 lIncludeFutureBalances_SG2020 = user_includeFutureBalances.isSelected()
-                # lRoundPrice = user_roundPrice.isSelected()
-                lRoundPrice = False     # Override - always OFF = NO ROUNDING NOW....
+
+                lUseCurrentPrice_SG2020 = user_useCurrentPrice.isSelected()
+                del user_useCurrentPrice, labelUseCurrentPrice
+
+                getVal = user_maxDecimalRounding.getText()
+                if StringUtils.isInteger(getVal) and int(getVal) >= 0 and int(getVal) <= 12:
+                    maxDecimalPlacesRounding_SG2020 = int(getVal)
+                else:
+                    myPrint("B", "Parameter Max Decimal Places '%s 'invalid, overriding to a default of max 4pc rounding...." %(getVal))
+                    maxDecimalPlacesRounding_SG2020 = 4
+                del user_maxDecimalRounding, labelMaxDecimalRounding
+
                 lStripASCII = user_selectStripASCII.isSelected()
 
                 csvDelimiter = user_selectDELIMITER.getSelectedItem()
@@ -3448,10 +3474,12 @@ Visit: %s (Author's site)
                 else:
                     myPrint("B", "Including Current Balances Only....")
 
-                if lRoundPrice:
-                    myPrint("B", "Will round the calculated price to the security's decimal precision setting...")
+                if lUseCurrentPrice_SG2020:
+                    myPrint("B", "Will use Current Price (not the latest dated price history price...")
                 else:
-                    myPrint("B", "Will perform no rounding of calculated price...")
+                    myPrint("B", "Will use the latest dated price history price (not the current price)...")
+
+                myPrint("B", "Maximum rounding for decimal places on stock prices is set to: %s" %(maxDecimalPlacesRounding_SG2020))
 
                 if lSplitSecuritiesByAccount:
                     myPrint("B", "Splitting Securities by account - WARNING, this will disable sorting....")
@@ -3830,6 +3858,15 @@ Visit: %s (Author's site)
             # ####################################################
             # STOCKGLANCE2020 EXECUTION
             # ####################################################
+
+            def isGoodRate(_theRate):
+
+                if Double.isNaN(_theRate) or Double.isInfinite(_theRate) or _theRate == 0:
+                    return False
+
+                return True
+
+
             def do_stockglance2020():
                 global debug
                 global decimalCharSep, lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
@@ -3845,7 +3882,8 @@ Visit: %s (Author's site)
                 global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lAllCurrency, filterForCurrency
                 global whichDefaultExtractToRun_SWSS
                 global lIncludeCashBalances, _column_widths_SG2020
-                global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, lRoundPrice
+                global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV
+                global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
                 global lIncludeFutureBalances_SG2020
 
                 def terminate_script():
@@ -3899,7 +3937,8 @@ Visit: %s (Author's site)
                     def __init__(self):
                         pass
 
-                    global debug, hideHiddenSecurities, hideInactiveAccounts, lSplitSecuritiesByAccount, acctSeparator, lRoundPrice, lIncludeFutureBalances_SG2020
+                    global debug, hideHiddenSecurities, hideInactiveAccounts, lSplitSecuritiesByAccount, acctSeparator, lIncludeFutureBalances_SG2020
+                    global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
                     global rawDataTable, rawFooterTable, headingNames
                     global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW, _SORT
                     global _CBVALUE_FORMATTED, _CBVALUE_RAW, _GAIN_FORMATTED, _GAIN_RAW, _EXCLUDECSV, _GAINPCT
@@ -4004,12 +4043,10 @@ Visit: %s (Author's site)
                                 # NOTE: .getPrice(None) gives you the Current Price relative to the current Base to Security Currency..
                                 # .......So Base>Currency rate * .getRate(None) also gives Current Price
 
-                                if lRoundPrice:
-                                    _roundPrice = curr.getDecimalPlaces()
-                                    price = round(1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate()), _roundPrice)       # noqa
-                                else:
-                                    _roundPrice = 30
-                                    price = (1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), curr.getRelativeRate()))                        # noqa
+                                _roundPrice = maxDecimalPlacesRounding_SG2020   # Don't use currency.getDecimalPlaces() as this is for stock qty balances, not price...!
+
+                                priceDate = (0 if (lUseCurrentPrice_SG2020) else DateUtil.convertCalToInt(today))
+                                price = round(1.0 / curr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today),curr.getRelativeRate(priceDate)), _roundPrice)
 
                                 qty = self.QtyOfSharesTable.get(curr)
                                 if qty is None: qty = 0
@@ -4083,29 +4120,22 @@ Visit: %s (Author's site)
                                                 entry.append(curr.getTickerSymbol())  # c0
                                                 entry.append(curr.getName())  # c1
                                                 entry.append(curr.formatSemiFancy(qtySplit, decimalCharSep))  # c2
-                                                entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency,
-                                                                                    _roundPrice))  # c3
+                                                entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))  # c3
                                                 entry.append(self.currXrate.getIDString())  # c4
                                                 x = None
                                                 if securityIsBase:
                                                     entry.append(None)  # c5 - don't bother displaying if base curr
                                                 else:
                                                     self.lRemoveCurrColumn = False
-                                                    entry.append(self.myNumberFormatter(balanceSplit, False, self.currXrate,
-                                                                                        baseCurrency, 2))  # Local Curr Value
+                                                    entry.append(self.myNumberFormatter(balanceSplit, False, self.currXrate, baseCurrency, 2))  # Local Curr Value
                                                     x = round(balanceSplit, 2)
-                                                entry.append(self.myNumberFormatter(balanceBaseSplit, True, self.currXrate,
-                                                                                    baseCurrency,
-                                                                                    2))  # Value Base Currency
-                                                entry.append(self.myNumberFormatter(costBasisBaseSplit, True, self.currXrate,
-                                                                                    baseCurrency, 2))  # Cost Basis
-                                                entry.append(self.myNumberFormatter(gainBaseSplit, True, self.currXrate,
-                                                                                    baseCurrency,
-                                                                                    2))  # Gain
+                                                entry.append(self.myNumberFormatter(balanceBaseSplit, True, self.currXrate, baseCurrency, 2))  # Value Base Currency
+                                                entry.append(self.myNumberFormatter(costBasisBaseSplit, True, self.currXrate, baseCurrency, 2))  # Cost Basis
+                                                entry.append(self.myNumberFormatter(gainBaseSplit, True, self.currXrate, baseCurrency, 2))  # Gain
                                                 entry.append(round(gainBaseSplit / costBasisBaseSplit, 3))
                                                 entry.append(split_acct_array[iSplitAcctArray][0].replace(acctSeparator, "",1))  # Acct
                                                 entry.append(curr.getDoubleValue(qtySplit))  # _Shrs
-                                                entry.append(price)  # _Price
+                                                entry.append(price)  # _Price = raw number
                                                 entry.append(x)  # _CValue
                                                 entry.append(round(balanceBaseSplit, 2))  # _BValue
                                                 entry.append(costBasisBaseSplit)  # _Cost Basis
@@ -4146,8 +4176,7 @@ Visit: %s (Author's site)
                                                 entry.append(curr.getTickerSymbol())  # c0
                                             entry.append(curr.getName())  # c1
                                             entry.append(curr.formatSemiFancy(qty, decimalCharSep))  # c2
-                                            entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency,
-                                                                                _roundPrice))  # c3
+                                            entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))  # c3
                                             entry.append(self.currXrate.getIDString())  # c4
                                             x = None
                                             if securityIsBase:                                                                          # noqa
@@ -4408,7 +4437,7 @@ Visit: %s (Author's site)
 
                         if theNumber is None or Double.isNaN(float(theNumber)): return ""
 
-                        if Math.abs(float(theNumber)) < 0.01: theNumber = 0L
+                        # if Math.abs(float(theNumber)) < 0.01: theNumber = 0L
 
                         if useBase:
                             if noDecimals == 0:
@@ -5317,7 +5346,8 @@ Visit: %s (Author's site)
                     if not lDisplayOnly:
                         def ExportDataToFile():
                             global debug, extract_data_frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version_build
-                            global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, myScriptName, lRoundPrice, lGlobalErrorDetected, lIncludeFutureBalances_SG2020
+                            global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, myScriptName, lGlobalErrorDetected, lIncludeFutureBalances_SG2020
+                            global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
                             global lWriteBOMToExportFile_SWSS
 
                             global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW, _SORT
@@ -5398,7 +5428,8 @@ Visit: %s (Author's site)
                                     writer.writerow(["Currency filter............: %s '%s'" %(lAllCurrency,filterForCurrency)])
                                     writer.writerow(["Include Cash Balances......: %s" %(lIncludeCashBalances)])
                                     writer.writerow(["Include Future Balances....: %s" %(lIncludeFutureBalances_SG2020)])
-                                    writer.writerow(["Default Price Rounding.....: %s" %(lRoundPrice)])
+                                    writer.writerow(["Use Current Price..........: %s (False means use the latest dated price history price)" %(lUseCurrentPrice_SG2020)])
+                                    writer.writerow(["Max Price dpc Rounding.....: %s" %(maxDecimalPlacesRounding_SG2020)])
                                     writer.writerow(["Split Securities by Account: %s" %(lSplitSecuritiesByAccount)])
                                     writer.writerow(["Extract Totals from CSV....: %s" %(lExcludeTotalsFromCSV)])
 
@@ -8407,9 +8438,8 @@ Visit: %s (Author's site)
                                 row.append(None)
                                 curr_table.append(row)
 
-                            # noinspection PyUnusedLocal
-                            dpc = curr.getDecimalPlaces()
                             dpc = 8   # Override to 8dpc
+
 
                             for currSnapshot in currSnapshots:
                                 if currSnapshot.getDateInt() < userdateStart_ECH \

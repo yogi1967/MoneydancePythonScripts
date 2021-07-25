@@ -8,5 +8,5 @@
   "module_name" = "Extract Data"
   "module_desc" = "Extract data to screen/csv. Options incl: 'StockGlance2020' investments, Reminders, Account / Investment txns, Currency History; Attachments..."
   "mac_sandbox_friendly" = "true"
-  "news" = "Disabled StockGlance2020 price rounding to Security.getDecimalPlaces() as it's not relevant!"
+  "news" = "StockGlance2020 disabled price rounding to Security.getDecimalPlaces(). Added parameters for Max Decimal Places rounding, and use current price (or latest price history price)"
 }
