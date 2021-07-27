@@ -129,7 +129,7 @@ ALT-B - Basic Mode
         - DIAGnostics - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
         - DIAGnostics - Can I delete a Security (tells you whether a security/stock is being used - and where)
         - DIAGnostics - Can I delete a Currency (tells you whether a currency is being used - and where)
-        - DIAGnostics - List decimal places (currency & security). Shows you hidden settings etc.
+        - DIAGnostics - List decimal places (currency & security). Shows you the hidden setting and related data.
         - DIAGnostics - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
         - DIAGnostics - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
     - MENU: Transactions tools

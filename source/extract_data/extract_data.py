@@ -4039,6 +4039,7 @@ Visit: %s (Author's site)
                             # noinspection PyUnresolvedReferences
                             if ((hideHiddenSecurities and not curr.getHideInUI()) or (
                                     not hideHiddenSecurities)) and curr.getCurrencyType() == CurrencyType.Type.SECURITY:
+
                                 # NOTE: (1.0 / .getRelativeRate() ) gives you the 'Current Price' from the History Screen
                                 # NOTE: .getPrice(None) gives you the Current Price relative to the current Base to Security Currency..
                                 # .......So Base>Currency rate * .getRate(None) also gives Current Price

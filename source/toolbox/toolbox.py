@@ -206,8 +206,7 @@
 # build: 1041 - Fixed hacker mode on SplitTxns to properly 'manage' the parent record; also fixed Geekout lookup for splits by UUID
 # build: 1041 - Switch back to Home Screen before some functions... Stops Lot control box appearing; Good practice to get out of all accounts first...
 # build: 1041 - Renamed feature to: - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
-
-# todo - Update decimal places diagnosis now that we know that .getDecimalPlaces() on Securities relates to Stock balances, not price/rates...!
+# build: 1041 - Updated 'Diagnose Currency / Security (hidden) Decimal Places' report
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
@@ -4715,21 +4714,29 @@ Visit: %s (Author's site)
         global toolbox_frame_, debug, DARK_GREEN
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        myPrint("B", "Script is analysing your Security decimal place settings...........")
-        myPrint("P", "-------------------------------------------------------------------")
+        myPrint("B", "Script is analysing your (hidden) Currency/Security decimal place settings...........")
+        myPrint("P", "-------------------------------------------------------------------------------------")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         iWarnings = 0
         myLen = 50
 
-        decimalPoint_MD = MD_REF.getUI().getPreferences().getSetting("decimal_character", ".")
+        decimalPoint_MD = MD_REF.getPreferences().getDecimalChar()
 
         currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
 
         currs = sorted(currs, key=lambda x: str(x.getName()).upper())
 
-        output = ""
+        output = "List Currency/Security (hidden) Decimal Places setting and related data:\n" \
+                 " =======================================================================\n"
+
+        output += "** NOTE: The hidden 'Decimal Places' (dpc) setting is set when you create a new Currency/Security.\n" \
+                  "         - This can not normally be changed once set in the Moneydance menus.\n" \
+                  "         - However - Toolbox extension has a menu feature to allow you to do this\n" \
+                  "         - For a Currency, the dpc controls the decimal precision of both balances and stored values on transactions\n" \
+                  "         - For a Security, the dpc controls ONLY the qty of shares/units held and it does NOT affect the stored dpc of prices/rates.\n" \
+                  "\n"
 
         def get_curr_sec_name(curr_sec):
             if curr_sec.getName() is not None and len(curr_sec.getName().strip()) > 0:
@@ -4742,8 +4749,8 @@ Visit: %s (Author's site)
             for sec_curr in theCurr:
                 if str(sec_curr.getCurrencyType()) != theType: continue
 
-                foo = str(round(CurrencyUtil.getUserRate(sec_curr, sec_curr.getRelativeCurrency()), 8))
-                priceDecimals = max(sec_curr.getDecimalPlaces(), min(8, len(foo.split(decimalPoint_MD)[-1])))
+                foo = str(round(CurrencyUtil.getUserRate(sec_curr, sec_curr.getRelativeCurrency()), 30))
+                priceDecimals = min(30, len(foo.split(decimalPoint_MD)[-1]))
 
                 output += pad(get_curr_sec_name(sec_curr),myLen) + "\tDPC: " + \
                           str(sec_curr.getDecimalPlaces()) + \
@@ -4752,12 +4759,15 @@ Visit: %s (Author's site)
                           "\t" + \
                           "Current rate: " + str(foo)[:20].ljust(20, " ") + \
                           "\tRate dpc: " + str(priceDecimals)
-                if (sec_curr.getDecimalPlaces() < priceDecimals and theType == "SECURITY") and \
-                        not foo.endswith(".0"):
-                    iWarn += 1
-                    output += " ***\n"
-                else:
-                    output += "\n"
+
+                # if (sec_curr.getDecimalPlaces() < priceDecimals and theType == "SECURITY") and \
+                #         not foo.endswith(".0"):
+                #     iWarn += 1
+                #     output += " ***\n"
+                # else:
+                #     output += "\n"
+
+                output += "\n"
             return iWarn, output
 
         output += " ==============\n"
@@ -4768,33 +4778,37 @@ Visit: %s (Author's site)
         iWarnings += result[0]
         output += result[1]
 
-        output += " ==============\n"
+        output += "\n" \
+                  " ==============\n"
         output += " --- CURRENCIES ----\n"
         output += " ==============\n"
         result = analyse_curr(currs, "CURRENCY")
         iWarnings += result[0]
         output += result[1]
 
-        output += "-----------------------------------------------------------------"
-        if iWarnings:
-            output += "\nYou have %s Warning(s)..\n" % iWarnings
-            output += "These are where your security decimal place settings seem less than 4 or not equal to price history dpc; This might be OK - depends on your setup\n"
-            output += "NOTE: It's quite hard to determine the stored dpc, so use this as guidance only, not definitive!\n"
-            output += "NOTE: - This setting is fixed. The only resolution is to create a new security and alter your txns to use the new security...\n"
-            output += "DISCLAIMER: Always backup your data before changing your data. I can take no responsibility for any changes....\n"
-            myPrint("J", "Decimal places: You have %s Warning(s).. Refer diagnostic file...\n" % iWarnings)
-            statusLabel.setText(
-                ("Decimal places: You have %s Warning(s).. Refer diagnostic file..." % iWarnings).ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
-        else:
-            output += "\nAll good, decimal places look clean! Congratulations!\n"
-            myPrint("J", "All good, decimal places look clean! Congratulations!")
-            statusLabel.setText("All good, decimal places look clean! Congratulations!".ljust(800, " "))
-            statusLabel.setForeground(DARK_GREEN)
+        output += "\n" \
+                  "-----------------------------------------------------------------"
+        # if iWarnings:
+        #     output += "\nYou have %s Warning(s)..\n" % iWarnings
+        #     output += "These are where your security decimal place settings seem less than 4 or not equal to price history dpc; This might be OK - depends on your setup\n"
+        #     output += "NOTE: It's quite hard to determine the stored dpc, so use this as guidance only, not definitive!\n"
+        #     output += "NOTE: - This setting is fixed. The only resolution is to create a new security and alter your txns to use the new security...\n"
+        #     output += "DISCLAIMER: Always backup your data before changing your data. I can take no responsibility for any changes....\n"
+        #     myPrint("J", "Decimal places: You have %s Warning(s).. Refer diagnostic file...\n" % iWarnings)
+        #     statusLabel.setText(
+        #         ("Decimal places: You have %s Warning(s).. Refer diagnostic file..." % iWarnings).ljust(800, " "))
+        #     statusLabel.setForeground(Color.RED)
+        # else:
+        #     output += "\nAll good, decimal places look clean! Congratulations!\n"
+        #     myPrint("J", "All good, decimal places look clean! Congratulations!")
+        #     statusLabel.setText("All good, decimal places look clean! Congratulations!".ljust(800, " "))
+        #     statusLabel.setForeground(DARK_GREEN)
+
+        output += "\n<END>"
+        statusLabel.setText("DIAG: Currency/Security Decimal Places report executed".ljust(800, " ")); statusLabel.setForeground(DARK_GREEN)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-        output += "\n<END>"
         return output
 
     def isGoodRate(theRate):
@@ -13405,6 +13419,19 @@ now after saving the file, restart Moneydance
             # Sweep Two - start validating the data found
             lShowOutput = False
             removeList = []
+
+            output += "Performing analysis and validation of potential 'duplicate' Securities. The check / validation rules are:\n" \
+                      "- Find potential 'duplicates' where Securities' 'Ticker' Symbols are the same; then...\n" \
+                      "- Each Security's relative 'Currency' must match (e.g. FACEBOOK relative to USD)\n" \
+                      "- Each Security's 'Current Price' must match\n" \
+                      "- Each Security's 'Prefix' & 'Suffix' must match\n" \
+                      "- Each Security's 'Splits' data must match\n" \
+                      "- Each Security's hidden 'Decimal Places' setting must match **\n" \
+                      "- NOTE: Security ID & Security Name are not matched, but you should ensure the Security you want to become the final 'master' has the right details\n" \
+                      "\n" \
+                      "The above data can be edited in MD Menu > Tools>Securities (** except 'Decimal Places' where you will need to use Toolbox to edit)\n" \
+                      "----------------------------------------------------------------------------------------------------------------------------------\n\n"
+
             for dup in dup_securities:
                 getDup = dup_securities.get(dup)
                 if getDup[0] < 2:
@@ -13425,28 +13452,28 @@ now after saving the file, restart Moneydance
                 for scanDup in getDup[1]:
                     if scanDup.getRelativeCurrency() != primaryCurr.getRelativeCurrency():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating %s as not the same relative currency %s vs %s" %(pad(scanDup.getName(),40),rpad(scanDup.getRelativeCurrency(),12),rpad(primaryCurr.getRelativeCurrency(),12))
+                        txt = "... Eliminating '%s' as not using the same relative currency %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getRelativeCurrency().getName(),18),pad(primaryCurr.getRelativeCurrency().getName(),18))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getDecimalPlaces() != primaryCurr.getDecimalPlaces():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating %s as not the same decimal places    %s vs %s" %(pad(scanDup.getName(),40),rpad(scanDup.getDecimalPlaces(),12),rpad(primaryCurr.getDecimalPlaces(),12))
+                        txt = "... Eliminating '%s' as not the same decimal places          %s vs %s" %(pad(scanDup.getName(),50),pad(str(scanDup.getDecimalPlaces()),18),pad(str(primaryCurr.getDecimalPlaces()),18))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getRelativeRate() != primaryCurr.getRelativeRate():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating %s as not the same relative rates    %s vs %s" %(pad(scanDup.getName(),40),rpad(safeInvertRate(scanDup.getRelativeRate()),12),rpad(safeInvertRate(primaryCurr.getRelativeRate()),12))
+                        txt = "... Eliminating '%s' as not the same 'Current Prices'        %s vs %s" %(pad(scanDup.getName(),50),pad(str(safeInvertRate(scanDup.getRelativeRate())),18),pad(str(safeInvertRate(primaryCurr.getRelativeRate())),18))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getPrefix()+scanDup.getSuffix() != primaryCurr.getPrefix()+primaryCurr.getSuffix():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating %s as not the same prefix/suffix     %s vs %s" %(pad(scanDup.getName(),40),pad(scanDup.getPrefix()+":"+scanDup.getSuffix(),12),pad(primaryCurr.getPrefix()+":"+primaryCurr.getSuffix(),12))
+                        txt = "... Eliminating '%s' as not the same prefix/suffix           %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getPrefix()+":"+scanDup.getSuffix(),18),pad(primaryCurr.getPrefix()+":"+primaryCurr.getSuffix(),30))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     thisSplits = scanDup.getSplits()
                     if not compareSplits(primarySplits, thisSplits):
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating %s as not all have the same splits..." %(pad(scanDup.getName(),40))
+                        txt = "... Eliminating '%s' as not all have the same splits..." %(pad(scanDup.getName(),50))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                 if lFailChecks:
@@ -13466,7 +13493,9 @@ now after saving the file, restart Moneydance
             myPrint("DB","%s: After validation, found %s %s" %(_THIS_METHOD_NAME, len(dup_securities),dup_securities))
 
             if len(securities) < 2 or len(dup_securities) < 1:
-                output += "\n"
+                output += "\n" \
+                          "Use MD Menu > Tools>Securities to make changes necessary for Securities to 'qualify' for merging....\n" \
+                          "\n"
                 txt = "%s: Not enough Securities / no valid duplicate Tickers found (refer report on screen for details) - no changes made" %(_THIS_METHOD_NAME)
                 myPrint("B",txt); output += "%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
@@ -13533,7 +13562,7 @@ now after saving the file, restart Moneydance
             for dup in dup_securities:
                 theDupDetails = dup_securities[dup]
                 listDuplicateTickers.append(StoreTickerData(dup,theDupDetails[0],theDupDetails[1]))
-                txt = ".. %s found for Ticker: %s" %(theDupDetails[0],dup)
+                txt = ".. %s found for Ticker: '%s'" %(theDupDetails[0],dup)
                 myPrint("DB",txt); output += "%s\n" %(txt)
                 for theDups in theDupDetails[1]:
                     txt = "         - ID: %s Name: %s Rate: %s Dpc: %s Prx:Sfx: %s (Price History: %s)"\
@@ -14030,7 +14059,8 @@ now after saving the file, restart Moneydance
                         reassignTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(copyAcct)
                         reassignTxns = sorted(reassignTxns, key=lambda _x: (_x.getDateInt()))
 
-                        output += "... retrieved %s txns from secondary %s - reassigning.....\n" %(reassignTxns.getSize(), copyAcct)
+                        # Note sorted loses x.getSize() >> use len(x)
+                        output += "... retrieved %s txns from secondary %s - reassigning.....\n" %(len(reassignTxns), copyAcct)
 
                         for srcTxn in reassignTxns:
 
@@ -19404,7 +19434,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_can_i_delete_currency = JRadioButton("DIAG: Can I Delete a Currency?", False)
                 user_can_i_delete_currency.setToolTipText("This will tell you whether a Selected Currency is in use and whether you can delete it in Moneydance")
 
-                user_list_curr_sec_dpc = JRadioButton("DIAG: List Security / Currency decimal place settings", False)
+                user_list_curr_sec_dpc = JRadioButton("DIAG: List Security / Currency (hidden) decimal place settings", False)
                 user_list_curr_sec_dpc.setToolTipText("This will list your Security and Currency hidden decimal place settings (and attempt to advise of setup errors)")
 
                 user_diag_curr_sec = JRadioButton("DIAG: Diagnose currencies / securities (including relative currencies) (if errors see fix below) (based on reset_relative_currencies.py)", False)
@@ -19438,7 +19468,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
                 user_fix_curr_sec.setForeground(Color.RED)
 
-                user_fix_invalid_curr_sec = JRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates (fix_invalid_currency_rates.py)", False)
+                user_fix_invalid_curr_sec = JRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates where <= (1.0/9999999999) or >= 9999999999 (fix_invalid_currency_rates.py)", False)
                 user_fix_invalid_curr_sec.setToolTipText("This will reset any relative rates back to 1.0 where <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!  (fix_invalid_currency_rates.py)")
                 user_fix_invalid_curr_sec.setEnabled(lAdvancedMode)
                 user_fix_invalid_curr_sec.setForeground(Color.RED)
