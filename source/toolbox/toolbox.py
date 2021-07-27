@@ -5764,18 +5764,24 @@ Please update any that you use before proceeding....
         myPrint("DB","ORPHAN/OUTDATED Extension Files:", orphan_outdated_files)
         return [orphan_outdated_prefs, orphan_outdated_files, orphan_confirmed_extn_keys]
 
+    # noinspection PyUnresolvedReferences
     def diagnose_currencies(statusLabel, lFix=False):
-
-        ABORT
 
         global toolbox_frame_, debug, fixRCurrencyCheck, DARK_GREEN
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
+        # raise Exception("SORRY THIS FUNCTION IS DISABLED!!!!!")
+
+        _THIS_METHOD_NAME = "Diagnose currencies / securities (including relative currencies)"
+        if lFix: _THIS_METHOD_NAME = "FIX currencies / securities (including relative currencies)"
+
+        PARAM_RATE = "rate"
+        PARAM_RRATE = "rrate"
+        PARAM_REL_CURR_ID = "rel_curr_id"
+        PARAM_RELATIVE_TO_CURRID = "relative_to_currid"
+
         # reset_relative_currencies.py
-        if lFix:
-            myPrint("B", "Script running to FIX your currencies & securities (including relative setup)...............")
-        else:
-            myPrint("B", "Script running to diagnose your currencies & securities (including relative setup)...............")
+        myPrint("B", "Script running to %s ..............." %(_THIS_METHOD_NAME))
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -5785,21 +5791,21 @@ Please update any that you use before proceeding....
 
         if lFix:
             if not fixRCurrencyCheck:
-                statusLabel.setText(("Sorry, you must run 'DIAG: Diagnose Currencies / Securities' first!").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,"Sorry, you must run the 'DIAG: Diagnose Currencies / Securities' option first! - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                txt = "Sorry, you must run 'DIAG: Diagnose Currencies / Securities' first! - NO CHANGES MADE"
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
             elif fixRCurrencyCheck == 1:
-                statusLabel.setText(("'DIAG: Diagnose Currencies / Securities' reported no issues - so I will not run fixes").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,"'DIAG: Diagnose Currencies / Securities' reported no issues - so I will not run fixes - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                txt = "'DIAG: Diagnose Currencies / Securities' reported no issues - so I will not run fixes - NO CHANGES MADE"
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
             elif fixRCurrencyCheck == 2:
                 pass
             elif fixRCurrencyCheck != 3:
-                statusLabel.setText(("LOGIC ERROR reviewing 'DIAG: Diagnose Currencies / Securities' - so I will not run fixes").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,"LOGIC ERROR reviewing 'DIAG: Diagnose Currencies / Securities' - so I will not run fixes - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                txt = "LOGIC ERROR reviewing 'DIAG: Diagnose Currencies / Securities' - so I will not run fixes - NO CHANGES MADE"
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
             user_fixOnlyErrors = JRadioButton("Fix only Errors (ignore warnings)?", False)
@@ -5833,15 +5839,15 @@ Please update any that you use before proceeding....
                 options = ["EXIT", "PROCEED"]
                 userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                            userFilters,
-                                                           "FIX CURRENCIES & SECURITIES",
+                                                           _THIS_METHOD_NAME.upper(),
                                                            JOptionPane.OK_CANCEL_OPTION,
                                                            JOptionPane.QUESTION_MESSAGE,
                                                            MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                            options, options[0]))
                 if userAction != 1:
-                    statusLabel.setText(("'FIX CURRENCIES & SECURITIES' - No changes made.....").ljust(800, " "))
-                    statusLabel.setForeground(Color.BLUE)
-                    myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                    txt = "'%s' - No changes made....." %(_THIS_METHOD_NAME.upper())
+                    statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+                    myPopupInformationBox(toolbox_frame_,_THIS_METHOD_NAME,theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
 
                 if not user_fixOnlyErrors.isSelected() and not user_fixErrorsAndWarnings.isSelected():
@@ -5852,7 +5858,7 @@ Please update any that you use before proceeding....
 
             del userFilters, bg1, bg2
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"FIX CURRENCIES & SECURITIES", "EXECUTE FIX CURRENCIES & SECURITIES?"):
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(), "EXECUTE '%s'?" %(_THIS_METHOD_NAME.upper())):
                 return
 
             VERBOSE = user_VERBOSE.isSelected()
@@ -5876,12 +5882,8 @@ Please update any that you use before proceeding....
         currencies = MD_REF.getCurrentAccount().getBook().getCurrencies()
         baseCurr = currencies.getBaseType()
 
-        if lFix:
-            output = "FIX CURRENCIES/SECURITIES (including relative setup)\n" \
-                     " ===================================================\n\n"
-        else:
-            output = "DIAGNOSE CURRENCIES & SECURITIES (including relative setup)\n" \
-                     " ==========================================================\n\n"
+        output = "%s: \n" \
+                 " ===================================================\n\n" %(_THIS_METHOD_NAME)
 
         # Catch any error during update - this would be bad! :-<
         try:
@@ -5900,38 +5902,48 @@ Please update any that you use before proceeding....
                 MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
                 MD_REF.getUI().setSuspendRefresh(True)
 
+            # #####################
+            # BASE CURRENCY FIRST #
+            # #####################
             if not lFix or lCurrencies:
                 output += "Analysing the Base currency setup....\n"
                 output += "Base currency: %s\n" % baseCurr
 
-                if baseCurr.getParameter("rrate", None) is None or baseCurr.getDoubleParameter("rrate", 0.0) != 1.0:
-                    txt = "@@ERROR@@ - base currency %s has relative rate (rrate) <> 1: %s" %(baseCurr, baseCurr.getParameter("rrate", None))
+                lSyncNeeded = False
+
+                # Relative Rate - should always be 1.0
+                if baseCurr.getParameter(PARAM_RRATE, None) is None or not isGoodRate(baseCurr.getDoubleParameter(PARAM_RRATE, 0.0)) or baseCurr.getDoubleParameter(PARAM_RRATE, 0.0) != 1.0:
+                    txt = "@@ERROR@@ - base currency '%s' has relative rate ('rrate') <> 1: %s" %(baseCurr, baseCurr.getParameter(PARAM_RRATE, None))
                     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     lNeedFixScript = True
                     if lFix:
+                        lSyncNeeded = True
                         baseCurr.setEditingMode()
-                        baseCurr.setParameter("rrate", 1.0)
+                        baseCurr.setParameter(PARAM_RRATE, 1.0)
 
-                        txt = "@@CURRENCY FIX APPLIED@@"
+                        txt = "@@BASE CURRENCY FIX APPLIED (set rrate to 1.0) @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
-                if baseCurr.getParameter("rate", None) is None or baseCurr.getDoubleParameter("rate", 0.0) != 1.0:
-                    txt = "@@ERROR@@ - base currency has rate <> 1: %s" %(baseCurr.getParameter("rate", None))
+                # The Rate - should always be 1.0
+                if baseCurr.getParameter(PARAM_RATE, None) is None or not isGoodRate(baseCurr.getDoubleParameter(PARAM_RATE, 0.0)) or baseCurr.getDoubleParameter(PARAM_RATE, 0.0) != 1.0:
+                    txt = "@@ERROR@@ - base currency has rate <> 1: %s" %(baseCurr.getParameter(PARAM_RATE, None))
                     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     lNeedFixScript = True
                     if lFix:
+                        lSyncNeeded = True
                         baseCurr.setEditingMode()
-                        baseCurr.setParameter("rate", 1.0)
-                        txt = "@@CURRENCY FIX APPLIED@@"
+                        baseCurr.setParameter(PARAM_RATE, 1.0)
+                        txt = "@@BASE CURRENCY FIX APPLIED (set rate to 1.0) @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
-                if lFix and lNeedFixScript:
-                    baseCurr.syncItem()
+                if lSyncNeeded:
+                    baseCurr.syncItem(); lSyncNeeded = False                                                            # noqa
 
                 if not lNeedFixScript:
                     output += ("Base currency has Rate (rate) of: %s and Relative Rate (rrate): of %s.  This is Correct...\n"
-                               % (baseCurr.getParameter("rate", None), baseCurr.getParameter("rrate", None)))
+                               % (baseCurr.getParameter(PARAM_RATE, None), baseCurr.getParameter(PARAM_RRATE, None)))
 
+                # Check for price history - should be none on base currency (also now handled by MD launch)
                 baseSnapshots = baseCurr.getSnapshots()
                 if baseSnapshots.size() > 0:
                     lNeedFixScript = True
@@ -5947,25 +5959,27 @@ Please update any that you use before proceeding....
                 else:
                     output += "\nBase currency has no historical prices. This is correct\n"
 
+                # Check Root account's currency is base
                 root = MD_REF.getCurrentAccount().getBook().getRootAccount()
                 if root.getCurrencyType() != baseCurr:
                     lNeedFixScript = True
 
-                    txt = "Root account's currency: %s, Base currency: %s" %(root.getCurrencyType(), baseCurr)
+                    txt = "Root account's currency: '%s', Base currency: '%s'" %(root.getCurrencyType(), baseCurr)
                     myPrint("J", txt); output += "%s\n" %(txt)
 
                     txt = "ERROR - The root account's currency is not set to base! This needs correcting!"
                     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                     if lFix:
-                        root.setCurrencyType(baseCurr)
-                        root.syncItem()
-                        txt = "@@CURRENCY FIX APPLIED@@"
+                        root.setCurrencyType(baseCurr); root.syncItem()
+                        txt = "@@ROOT ACCOUNT CURRENCY FIX APPLIED (set to base)@@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                 else:
-                    output += "GOOD, the root account's currency is set to the base currency! Root: %s, Base: %s\n" % (root.getCurrencyType(), baseCurr)
+                    output += "GOOD, the 'root' account's currency is set to the base currency! Root: '%s', Base: '%s'\n" % (root.getCurrencyType(), baseCurr)
 
+
+            # Sort the table so that Currencies and Securities are together and by name
             currencies = sorted(currencies, key=lambda x: (x.getCurrencyType(), x.getName().upper()))
 
             last = None
@@ -5980,93 +5994,104 @@ Please update any that you use before proceeding....
                               " ========================\n" %(curr.getCurrencyType())
                     last = curr.getCurrencyType()
 
-                # noinspection PyUnresolvedReferences
                 if curr.getCurrencyType() == CurrencyType.Type.SECURITY:
 
-                    # ############
-                    # SECURITIES #
-                    # ############
+                    # ##################################################################################################
+                    # SECURITIES
+                    # ##################################################################################################
                     if lFix and not lSecurities: continue
 
-                    lSyncNeeded=False
+                    lSyncNeeded = False
 
                     if VERBOSE:
                         output += "-----------------------------------------------------------------------------------------\n" \
-                                  "Checking security: %s\n" %(curr)
-                    BOB
-                    # todo - fix this
-                    get_rel_curr_id = curr.getParameter("rel_curr_id",None)
-                    get_relative_to_currid = curr.getParameter("relative_to_currid",None)
-                    if (get_relative_to_currid is not None and get_relative_to_currid == baseCurr.getParameter("currid", None)) or (get_rel_curr_id is not None and get_rel_curr_id == baseCurr.getParameter("id", None)):
-                        txt = "@@ WARNING: %s relative_to_currid / rel_curr_id should only be None or NOT your base currency (currently %s : %s)!" %(curr,get_relative_to_currid,get_rel_curr_id)
-                        myPrint("J", txt); output += "---\n%s\n----\n" %(txt)
+                                  "Checking security: '%s' (uuid: %s)\n" %(curr, curr.getUUID())
+
+                    get_rel_curr_id = curr.getParameter(PARAM_REL_CURR_ID,None)
+                    get_relative_to_currid = curr.getParameter(PARAM_RELATIVE_TO_CURRID,None)
+
+                    rCurr = curr.getRelativeCurrency()
+                    rCurrByIDs = curr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
+
+                    # This might still miss where one of the parameters is set, but the other is not, or where one is 'invalid'.... but let's see
+                    if get_relative_to_currid is None and get_rel_curr_id is None:
+                        pass    # This is OK, None is fine and means base
+                    elif rCurrByIDs is None and rCurr is None:
+                        pass    # This is OK, None is fine and means base
+                    elif rCurrByIDs != baseCurr and rCurrByIDs.getCurrencyType() == CurrencyType.Type.CURRENCY:
+                        pass    # This is OK, non-base currency is OK
+                    elif rCurr is not None and rCurr != baseCurr and rCurr.getCurrencyType() == CurrencyType.Type.CURRENCY:
+                        pass    # This is OK, non-base currency is OK
+                    else:
+                        txt = "@@ WARNING: '%s' relative_to_currid / rel_curr_id should only be None or NOT your base currency (currently %s : %s)!" \
+                              %(curr,get_relative_to_currid,get_rel_curr_id)
+                        myPrint("J", txt); output += "---\n%s\n" %(txt)
                         if lFix and lFixWarnings:
-                            lSyncNeeded=True
+                            lSyncNeeded = True
                             curr.setEditingMode()
-                            curr.setParameter("rel_curr_id", None)
-                            curr.setParameter("relative_to_currid", None)
-                            txt = "@@SECURITY FIX APPLIED@@"
-                            myPrint("J", txt)
-                            output += "----\n%s\n----\n" %(txt)
+                            curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
+                            txt = "@@SECURITY FIX APPLIED (set relative currency parameters to None) @@"
+                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                         else:
                             lWarning = True; iWarnings += 1
 
-                    get_rate = curr.getParameter("rate", None)
-                    get_rateDbl = curr.getDoubleParameter("rate", 0.0)
+                    get_rate = curr.getParameter(PARAM_RATE, None)
+                    get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
 
-                    get_rrate = curr.getParameter("rrate", None)
-                    get_rrateDbl = curr.getDoubleParameter("rrate", 0.0)
+                    get_rrate = curr.getParameter(PARAM_RRATE, None)
+                    get_rrateDbl = curr.getDoubleParameter(PARAM_RRATE, 0.0)
 
                     if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
-                        txt = "@@ WARNING: %s has rate (rate) of ZERO/Invalid" %(curr)
-                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                        txt = "@@ WARNING: '%s' has rate (rate) of ZERO/Invalid" %(curr)
+                        myPrint("J", txt); output += "----\n%s\n" %(txt)
 
                         if lFix and lFixWarnings:
                             lSyncNeeded = True
                             curr.setEditingMode()
-                            curr.setParameter("rate", 1.0)
-                            curr.setParameter("rrate", 1.0)
-                            txt = "@@SECURITY FIX APPLIED - Reset both rate and rrate to 1.0 @@"
+                            curr.setParameter(PARAM_RATE, 1.0)
+                            curr.setParameter(PARAM_RRATE, 1.0)
+                            txt = "@@SECURITY FIX APPLIED (reset both rate and rrate to 1.0) @@"
                             myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                         else:
                             lWarning = True; iWarnings  += 1
 
                     elif get_rrate is None or get_rrateDbl == 0.0 or not isGoodRate(get_rrateDbl):
-                        rCurr = curr.getRelativeCurrency()
-                        if (get_relative_to_currid is None or get_relative_to_currid == baseCurr.getParameter("currid",None)) or rCurr == baseCurr:
+
+                        if rCurr is None or rCurrByIDs is None:
+                            isRelativeBase = True
+                        elif rCurr == baseCurr or rCurrByIDs == baseCurr:
+                            isRelativeBase = True
+                        else:
+                            isRelativeBase = False
+
+                        if isRelativeBase:
                             newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
-                            txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s (inverted %s)\n"\
+                            txt = "@@ WARNING: '%s' Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). 'rrate' should be %s (inverted %s)\n"\
                                   %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
-                            myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
+                            myPrint("J", txt); output += "---\n%s\n" %(txt)
 
                             if lFix and lFixWarnings:
                                 lSyncNeeded = True
                                 curr.setEditingMode()
                                 # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                                curr.setParameter("rate", newRate)
-                                curr.setParameter("rrate", newRate)
+                                curr.setParameter(PARAM_RATE, newRate)
+                                curr.setParameter(PARAM_RRATE, newRate)
                                 curr.setRate(newRate, baseCurr)
-                                txt = "@@SECURITY FIX APPLIED@@"
+                                txt = "@@SECURITY FIX APPLIED (reset both rate and rrate) @@"
                                 myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                             else:
                                 lWarning = True; iWarnings  += 1
                         else:
-                            newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, rCurr))
-                            txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s ** Relative Curr is: %s ** (whereas 'rate' is currently %s). It should be %s (inverted %s)\n"\
-                                  %(curr, get_rrate, rCurr, get_rate, newRate, safeInvertRate(newRate))
+
+                            # Relative to another currency.... Sorry, I couldn't work this one out just yet....
+                            txt = "@@ WARNING: '%s' Relative Rate ('rrate') is set to: %s ** Relative Curr is: '%s' ** (whereas 'rate' is currently %s). MD reports getRate() as %s, and getRelativeRate() as %s\n"\
+                                  %(curr, get_rrate, rCurr, get_rate, curr.getRelativeRate(), curr.getRate(None))
+                            myPrint("J", txt); output += "---\n%s\n" %(txt)
+
+                            txt = "@@ WARNING - SORRY TOOLBOX IS NOT PROGRAMMED TO FIX THIS. PLEASE USE TOOLS->CURRENCIES TO EDIT WHICH WILL FIX THIS\n"
                             myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
 
-                            if lFix and lFixWarnings:
-                                lSyncNeeded = True
-                                curr.setEditingMode()
-                                # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                                curr.setParameter("rate", newRate)
-                                curr.setParameter("rrate", newRate)
-                                curr.setRate(newRate, rCurr)
-                                txt = "@@SECURITY FIX APPLIED@@"
-                                myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
-                            else:
-                                lWarning = True; iWarnings  += 1
+                            lWarning = True; iWarnings  += 1
 
                     iCountSnapErrors = 0
                     currSnapshots = curr.getSnapshots()
@@ -6088,41 +6113,48 @@ Please update any that you use before proceeding....
 
                 lSyncNeeded = False
 
-                output += "\n-----------------------------------------------------------------------------------------------" \
-                          "\nChecking currency: %s\n" % curr
+                if VERBOSE:
+                    output += "\n-----------------------------------------------------------------------------------------------" \
+                              "\nChecking currency: %s\n" % curr
 
-                get_rel_curr_id = curr.getParameter("rel_curr_id", None)
-                get_relative_to_currid = curr.getParameter("relative_to_currid", None)
-                if get_relative_to_currid or get_rel_curr_id:
+                get_rel_curr_id = curr.getParameter(PARAM_REL_CURR_ID, None)
+                get_relative_to_currid = curr.getParameter(PARAM_RELATIVE_TO_CURRID, None)
+                rCurr = curr.getRelativeCurrency()                                                                      # noqa
+                rCurrByIDs = curr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
+
+                if rCurrByIDs is not None:
                     strEnd = ""
                 else:
                     strEnd = " - None / NOT SET (this is OK and means the Base Rate will be used)"
-                output += "relative_to_currid: %s, rel_curr_id: %s %s\n" %(get_relative_to_currid, get_rel_curr_id, strEnd)
 
-                if get_relative_to_currid or get_rel_curr_id:
-                    txt = "@@ WARNING: %s relative_to_currid / rel_curr_id should be set to None!" %(curr)
+                if VERBOSE:
+                    output += "relative_to_currid: %s, rel_curr_id: %s %s\n" %(get_relative_to_currid, get_rel_curr_id, strEnd)
+
+                if rCurrByIDs is not None:
+                    txt = "@@ WARNING: '%s' relative_to_currid & rel_curr_id should both be set to None (which means use base currency)!" %(curr)
                     myPrint("J", "%s" %(txt)); output += "----\n%s\n----\n" %(txt)
 
                     if lFix and lFixWarnings:
                         lSyncNeeded = True
                         baseCurr.setEditingMode()
-                        curr.setParameter("rel_curr_id", None)
-                        curr.setParameter("relative_to_currid", None)
-                        txt = "@@CURRENCY rel_curr_id / relative_to_currid FIX APPLIED@@"
+                        curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
+                        txt = "@@CURRENCY FIX APPLIED (set relative currency parameters to None) @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     else:
                         lWarning = True; iWarnings += 1
 
-                get_rate = curr.getParameter("rate", None)
-                get_rateDbl = curr.getDoubleParameter("rate", 0.0)
+                get_rate = curr.getParameter(PARAM_RATE, None)
+                get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
 
-                get_rrate = curr.getParameter("rrate", None)
-                get_rrateDbl = curr.getDoubleParameter("rrate", 0.0)
+                get_rrate = curr.getParameter(PARAM_RRATE, None)
+                get_rrateDbl = curr.getDoubleParameter(PARAM_RRATE, 0.0)
 
-                output += "Rate: %s (inverted: %s)\n" % (get_rate, safeInvertRate(get_rateDbl))
+                if VERBOSE:
+                    output += "Rate: %s (inverted: %s)\n" % (get_rate, safeInvertRate(get_rateDbl))
 
                 if get_rate is not None and isGoodRate(get_rateDbl) and get_rrate is not None and isGoodRate(get_rateDbl):
-                    output += "Relative Rate: %s (inverted: %s)\n" % (get_rrate, safeInvertRate(get_rrateDbl))
+                    if VERBOSE:
+                        output += "Relative Rate: %s (inverted: %s)\n" % (get_rrate, safeInvertRate(get_rrateDbl))
 
                 elif curr == baseCurr:
                     # Note: We fix base earlier on....
@@ -6131,62 +6163,63 @@ Please update any that you use before proceeding....
                 else:
 
                     if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
-                        txt = "@@ WARNING: %s has rate (rate) of ZERO/Invalid" %(curr)
+                        txt = "@@ WARNING: '%s' has rate (rate) of ZERO/Invalid" %(curr)
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                         if lFix and lFixWarnings:
                             lSyncNeeded = True
                             curr.setEditingMode()
-                            curr.setParameter("rate", 1.0)
-                            curr.setParameter("rrate", 1.0)
-                            txt = "@@CURRENCY FIX APPLIED - Reset both rate and rrate to 1.0 @@"
+                            curr.setParameter(PARAM_RATE, 1.0)
+                            curr.setParameter(PARAM_RRATE, 1.0)
+                            txt = "@@CURRENCY FIX APPLIED (reset both rate and rrate to 1.0) @@"
                             myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                         else:
                             lWarning = True; iWarnings  += 1
 
                     # should always be set and always relative to base (1.0)
-                    elif get_rateDbl > 0.0:
-                        newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
-                        txt = "@@ WARNING: %s Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). It should be %s (inverted %s)" %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
-                        myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
+                    newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
+                    txt = "@@ WARNING: '%s' Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). 'rrate' should be %s (inverted %s)" %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
+                    myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
 
-                        if lFix and lFixWarnings:
-                            lSyncNeeded = True
-                            curr.setEditingMode()
-                            # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                            curr.setParameter("rate", newRate)
-                            curr.setParameter("rrate", newRate)
-                            curr.setRate(newRate, baseCurr)
-                            txt = "@@CURRENCY rrate FIX APPLIED@@"
-                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
-                        else:
-                            lWarning = True; iWarnings  += 1
+                    if lFix and lFixWarnings:
+                        lSyncNeeded = True
+                        curr.setEditingMode()
+                        # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
+                        curr.setParameter(PARAM_RATE, newRate)
+                        curr.setParameter(PARAM_RRATE, newRate)
+                        curr.setRate(newRate, baseCurr)
+                        txt = "@@CURRENCY FIX APPLIED (reset both rate and rrate) @@"
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                    else:
+                        lWarning = True; iWarnings  += 1
 
                 if lFix and lSyncNeeded:
                     curr.syncItem()
 
                 if not lFix and VERBOSE:
                     output += "  details:\n"
-                    output += "\t" + "ID:             %s\n" %(curr.getID())
+                    output += "\t" + "ID:             %s    (uuid: %s)\n" %(curr.getID(), curr.getUUID())
                     output += "\t" + "Name:           %s\n" %(curr.getName())
-                    output += "\t" + "Ticker:         %s\n" %(curr.getTickerSymbol())
-                    output += "\t" + "Is Base:        %s\n" %(curr == baseCurr)
+                    if curr.getTickerSymbol():
+                        output += "\t" + "Ticker:         %s\n" %(curr.getTickerSymbol())
                     output += "\t" + "Curr_ID:        %s\n" %(curr.getIDString())
                     output += "\t" + "Decimal Places: %s\n" %(curr.getDecimalPlaces())
-                    output += "\t" + "Hide in UI:     %s\n" %(curr.getHideInUI())
+                    if curr.getHideInUI():
+                        output += "\t" + "Hide in UI:     %s\n" %(curr.getHideInUI())
                     output += "\t" + "Effective Date: %s\n" %(curr.getEffectiveDateInt())
-                    output += "\t" + "Prefix:         %s\n" %(curr.getPrefix())
-                    output += "\t" + "Suffix:         %s\n" %(curr.getSuffix())
+                    if curr.getPrefix():
+                        output += "\t" + "Prefix:         %s\n" %(curr.getPrefix())
+                    if curr.getSuffix():
+                        output += "\t" + "Suffix:         %s\n" %(curr.getSuffix())
 
-                    output += "  pricing history:\n"
+                    output += "  pricing history (latest 2 prices):\n"
                     currSnapshots = curr.getSnapshots()
                     if currSnapshots.size() > 0:
                         i = 0
                         for currSnapshot in reversed(currSnapshots):
                             i += 1
-                            output += "  snapshot: %s (reversed: %s)\n" % (currSnapshot, currSnapshot.getRate())
-                            if i > 5:
-                                output += "  stopping after 5 price history records, but more exists...\n"
+                            output += "    snapshot: %s (reversed: %s)\n" % (currSnapshot, currSnapshot.getRate())
+                            if i >= 2:
                                 break
                     else:
                         if curr != baseCurr:
@@ -6205,15 +6238,12 @@ Please update any that you use before proceeding....
 
         except:
 
-            if lFix:
-                txt = "MAJOR ERROR - FIX CURRENCIES & SECURITIES crashed. Please review output, console, and RESTORE YOUR DATASET!".upper()
-            else:
-                txt = "MINOR ERROR - Diagnose FIX CURRENCIES & SECURITIES crashed. Please review output and console".upper()
+            txt = ("MAJOR ERROR - '%s' crashed. Please review output, console, and RESTORE YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
 
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt,output).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -6235,7 +6265,7 @@ Please update any that you use before proceeding....
             statusLabel.setText(("@@ CURRENCY / SECURITY FIXES APPLIED (as per your parameters) - Please review diagnostic report for details!").ljust(800, " "))
             statusLabel.setForeground(Color.RED)
             play_the_money_sound()
-            myPopupInformationBox(toolbox_frame_,"RELEVANT FIXES APPLIED","FIX CURRENCIES & SECURITIES",theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_,"RELEVANT FIXES APPLIED",_THIS_METHOD_NAME.upper(),theMessageType=JOptionPane.WARNING_MESSAGE)
 
         else:
             if lNeedFixScript:
@@ -6271,9 +6301,9 @@ Please update any that you use before proceeding....
         output += "\n<END>"
 
         if lFix:
-            theTitle = "FIX CURRENCIES & SECURITIES (FIX ERRORS)"
+            theTitle = "%s: (FIX ERRORS)" %(_THIS_METHOD_NAME.upper())
         else:
-            theTitle = "DIAGNOSE CURRENCIES & SECURITIES (LOOK FOR ERRORS)"
+            theTitle = "%s: (LOOK FOR ERRORS)" %(_THIS_METHOD_NAME.upper())
 
         alertLevel = 0
         if iWarnings: alertLevel = 1
@@ -6281,7 +6311,7 @@ Please update any that you use before proceeding....
         jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
         if lFix:
-            myPopupInformationBox(jif,"PLEASE RESTART MONEYDANCE!", "FIX CURRENCIES & SECURITIES", theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(jif,"PLEASE RESTART MONEYDANCE!", _THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -12912,7 +12942,7 @@ now after saving the file, restart Moneydance
             else:
                 output += "\nNOTE: No Invalid Lot Control/Cost Basis records were detected before any changes made....\n\n"
 
-            jif = QuickJFrame(("%s: Accounts, Txns, Balance Analysis" %(_THIS_METHOD_NAME)).upper(),output).show_the_frame()
+            jif = QuickJFrame(("%s: Accounts, Txns, Balance Analysis" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
             if (iTotalBalance + iTotalTxns + len(securitySubAccountsNeedChanging)) == 0:
                 txt = "NOTE - No related accounts, txns, balances were found for this security!"
@@ -12944,7 +12974,7 @@ now after saving the file, restart Moneydance
             myPrint("B", txt); output += "\n%s\n" %(txt)
 
             decimalAdjustmentMethod = "expand"
-            jif = QuickJFrame(("%s: Decimal Strategy" %(_THIS_METHOD_NAME)).upper(),output).show_the_frame()
+            jif = QuickJFrame(("%s: Decimal Strategy" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
             if newDecimal < securityToEdit.getDecimalPlaces():
 
@@ -12991,7 +13021,7 @@ now after saving the file, restart Moneydance
                         txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                         myPrint("B",txt)
                         statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                        jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output).show_the_frame()
+                        jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                         myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                         return
 
@@ -13020,7 +13050,7 @@ now after saving the file, restart Moneydance
                 txt = "%s... User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                 myPrint("B",txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output).show_the_frame()
+                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -13037,7 +13067,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt, output).show_the_frame()
+            jif = QuickJFrame(txt, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -13223,7 +13253,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt,output).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -13297,12 +13327,12 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt,output).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
 
-        jif = QuickJFrame(txt,output).show_the_frame()
+        jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
         statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(optionColor)
         play_the_money_sound()
         myPopupInformationBox(jif,txt,theMessageType=optionMessage)
@@ -13519,7 +13549,7 @@ now after saving the file, restart Moneydance
 
             output += "\n"
 
-            jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME),output).show_the_frame()
+            jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
             tickerToMerge = JOptionPane.showInputDialog(jif,
                                                          "Select Ticker / Security set to merge",
@@ -13758,7 +13788,7 @@ now after saving the file, restart Moneydance
                 txt = "\n\n SECURITY SUB ACCOUNT VALIDATION FAILED - CANNOT PROCEED! Review the report on screen for details.\n"
                 myPrint("DB", txt); output += "\n\n%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " "));statusLabel.setForeground(Color.RED)
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -13784,7 +13814,7 @@ now after saving the file, restart Moneydance
                 output += "Primary Security has %s Price History records, the others have %s - STRATEGY REQUIRED...\n" %(primarySnaps, allOtherSnaps)
 
             if lSnapshotActionRequired:
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
                 options = ["Keep Master's %s Price History Records Only (dump the other's %s records)"  %(primarySnaps, allOtherSnaps),
                            "Merge all other %s history records into master's (currently holds %s)"      %(allOtherSnaps, primarySnaps),
@@ -13831,7 +13861,7 @@ now after saving the file, restart Moneydance
                 txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                 myPrint("B",txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output).show_the_frame()
+                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -13864,7 +13894,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt, output).show_the_frame()
+            jif = QuickJFrame(txt, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14071,7 +14101,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt,output).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14143,12 +14173,12 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt,output).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
 
-        jif = QuickJFrame(txt,output).show_the_frame()
+        jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
         statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(optionColor)
         play_the_money_sound()
         myPopupInformationBox(jif,txt,theMessageType=optionMessage)
@@ -14366,7 +14396,7 @@ now after saving the file, restart Moneydance
                 output += "... to/from accounts validated... No account 'loops' should be created...\n"
             else:
                 output += "... to/from accounts checked... %s account 'loops' could exist if we proceed with move/merge...\n" %(iCountLoops)
-                jif = QuickJFrame(txt,output).show_the_frame()
+                jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 if not MyPopUpDialogBox(jif,
                                        "Move/merge: Would create %s account loop(s) - Proceed or Cancel?" %(iCountLoops),
                                        ">>The txns that would cause an account 'loop' are shown on screen....\n"
@@ -14410,7 +14440,7 @@ now after saving the file, restart Moneydance
                 txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                 myPrint("B",txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                jif = QuickJFrame(txt,output).show_the_frame()
+                jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -14510,7 +14540,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame("MINOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
+            jif = QuickJFrame("MINOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14644,7 +14674,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame("MAJOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
+            jif = QuickJFrame("MAJOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14673,7 +14703,7 @@ now after saving the file, restart Moneydance
             else:
                 txt = "ERROR: source account %s still seems to have %s transactions" %(sourceAccount, countSourceAfter)
                 myPrint("B", txt); output += "\n%s\n" %(txt)
-                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output).show_the_frame()
+                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
@@ -14685,7 +14715,7 @@ now after saving the file, restart Moneydance
                 txt = "ERROR: target account txn count of %s is NOT equal to original source %s + target %s!"\
                       %(countTargetAfter, countSourceBefore, countTargetBefore)
                 myPrint("B", txt); output += "\n%s\n" %(txt)
-                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output).show_the_frame()
+                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
@@ -14795,12 +14825,12 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame("ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
+            jif = QuickJFrame("ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
 
-        jif = QuickJFrame("%s COMPLETED:" %(_THIS_METHOD_NAME.upper()),output).show_the_frame()
+        jif = QuickJFrame("%s COMPLETED:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
         statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(optionColor)
         play_the_money_sound()
         myPopupInformationBox(jif,txt,theMessageType=optionFlag)
@@ -15048,6 +15078,12 @@ now after saving the file, restart Moneydance
 
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
+        if detect_non_hier_sec_acct_txns() > 0:
+            txt = "CONVERT ACCT/STOCK TO Avg Cst Ctrl: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
         if not myPopupAskQuestion(toolbox_frame_,"CONVERT ACCT/STOCK TO Avg Cst Ctrl","Do you want to convert a stock to Average Cost Control and reset/wipe any LOT data?",theMessageType=JOptionPane.WARNING_MESSAGE):
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
@@ -15146,6 +15182,12 @@ now after saving the file, restart Moneydance
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         selectHomeScreen()      # Stops the LOT Control box popping up.....
+
+        if detect_non_hier_sec_acct_txns() > 0:
+            txt = "CONVERT ACCT/STOCK TO LOT/FIFO: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
 
         if not myPopupAskQuestion(toolbox_frame_,"CONVERT ACCT/STOCK TO LOT/FIFO","Do you want to attempt to convert a stock to LOT Controlled and match Sells to Buys using FiFo?",theMessageType=JOptionPane.WARNING_MESSAGE):
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -15346,14 +15388,29 @@ now after saving the file, restart Moneydance
 
         output+=("\nFinished. Processed {} securities producing {} warnings.\n".format(len(Securities),WrngCnt))
 
+        _secAcctRelCurr = accountSec.getCurrencyType()                                                                  # noqa
+        _secAcctCostBasis = InvestUtil.getCostBasis(accountSec)
+        _secAcctCostBasisDbl = _secAcctRelCurr.getDoubleValue(_secAcctCostBasis)
+
+        output += "\nMD Reports the cost basis for '%s' is now %s\n" %(accountSec, _secAcctCostBasisDbl)
+
+        if not InvestUtil.isCostBasisValid(accountSec):
+            cbMessageValidIndicator = "** INVALID ** (you can edit these manually later in MD)"
+            txt = "CONVERT STOCK FIFO: WARNING - MD reports the cost basis for '%s' is **INVALID** after the update.." %(accountSec)
+        else:
+            cbMessageValidIndicator = "VALID"
+            txt = "CONVERT STOCK FIFO: NOTE: MD is reporting that the cost basis for '%s' is VALID after the update.." %(accountSec)
+        myPrint("B", txt); output += "\n%s\n" %(txt)
+
         jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
         ask=MyPopUpDialogBox(jif,
                              theStatus="Please review results on security: %s" %(accountSec),
                              theMessage="These changes have already been made to your dataset\n"
+                                        "FYI - MD is reporting that the updated Cost Basis / Lot control status is %s\n"
                                         "To reset the security back to Avg Cost Control and reset/remove these altered LOT records select CANCEL\n"
                                         "(NOTE: I will put the LOT records back to the same state before this script ran)"
-                                        "[OK KEEP RESULTS] will accept these changes",
+                                        "[OK KEEP RESULTS] will accept these changes" %(cbMessageValidIndicator),
                              theWidth=200,
                              theTitle="CONVERT STOCK FIFO",
                              OKButtonText="OK KEEP RESULTS",
@@ -19208,6 +19265,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced mode **")
                 labelFYI2.setForeground(Color.RED)
 
+                labelFYI_curr_fix = JLabel("       ** disabled when a serious currency/security issue has been detected **")
+                labelFYI_curr_fix.setForeground(Color.RED)
+
                 userFilters = JPanel(GridLayout(0, 1))
 
                 bg = ButtonGroup()
@@ -19230,6 +19290,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
+                else:
+                    userFilters.add(labelFYI_curr_fix)
 
                 userFilters.add(user_inactivate_zero_bal_cats)
                 userFilters.add(user_force_change_an_accounts_type)
@@ -19244,6 +19306,15 @@ Now you will have a text readable version of the file you can open in a text edi
                     root = MD_REF.getCurrentAccountBook().getRootAccount()
                     rootName = root.getAccountName().strip()
                     user_fix_root_account_name.setEnabled(lAdvancedMode and (rootName != bookName))
+
+                    user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
+                    user_force_change_accounts_currency.setEnabled(lAdvancedMode)
+
+                    if not check_all_currency_raw_rates_ok():
+
+                        user_force_change_all_accounts_currency.setEnabled(False)
+                        user_force_change_accounts_currency.setEnabled(False)
+
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
@@ -19459,6 +19530,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_thin_price_history.setEnabled(lAdvancedMode)
                     user_fix_invalid_curr_sec.setEnabled(lAdvancedMode)
                     user_fix_invalid_price_history.setEnabled(lAdvancedMode)
+                    user_force_change_accounts_currency.setEnabled(lAdvancedMode)
                     user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
 
                     if not check_all_currency_raw_rates_ok():
@@ -19472,6 +19544,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         user_thin_price_history.setEnabled(False)
                         user_fix_invalid_curr_sec.setEnabled(False)
                         user_fix_invalid_price_history.setEnabled(False)
+                        user_force_change_accounts_currency.setEnabled(False)
                         user_force_change_all_accounts_currency.setEnabled(False)
 
                     bg.clearSelection()
