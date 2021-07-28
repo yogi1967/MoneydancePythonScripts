@@ -207,6 +207,7 @@
 # build: 1041 - Switch back to Home Screen before some functions... Stops Lot control box appearing; Good practice to get out of all accounts first...
 # build: 1041 - Renamed feature to: - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
 # build: 1041 - Updated 'Diagnose Currency / Security (hidden) Decimal Places' report
+# build: 1041 - Added options to report and set the shouldBeIncludedInNetWorth() settings to Accounts Tools Menu
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
@@ -4331,6 +4332,10 @@ Visit: %s (Author's site)
                     return True
                 return False
 
+            # ALL
+            if self.selectType == 25:
+                return True
+
             if (acct.getAccountOrParentIsInactive()): return False
             if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
 
@@ -5781,10 +5786,13 @@ Please update any that you use before proceeding....
     # noinspection PyUnresolvedReferences
     def diagnose_currencies(statusLabel, lFix=False):
 
+        # MD2017.10 backwards did not use the rrate. Onwards the 'relative' currency setup changed
+        # Currencies can only be relative to base (and should be set to None)
+        # Securities should be set to Base (as None), or can be relative to another Currency (not Security)
+        # Max relative relational depth is SEC>CURR>Base or CURR>Base
+
         global toolbox_frame_, debug, fixRCurrencyCheck, DARK_GREEN
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
-
-        # raise Exception("SORRY THIS FUNCTION IS DISABLED!!!!!")
 
         _THIS_METHOD_NAME = "Diagnose currencies / securities (including relative currencies)"
         if lFix: _THIS_METHOD_NAME = "FIX currencies / securities (including relative currencies)"
@@ -5799,9 +5807,9 @@ Please update any that you use before proceeding....
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
-        VERBOSE=True
-        lFixErrors=lFixWarnings=False
-        lCurrencies=lSecurities=True
+        VERBOSE = True
+        lFixErrors = lFixWarnings = False
+        lCurrencies = lSecurities = True
 
         if lFix:
             if not fixRCurrencyCheck:
@@ -5916,9 +5924,9 @@ Please update any that you use before proceeding....
                 MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
                 MD_REF.getUI().setSuspendRefresh(True)
 
-            # #####################
-            # BASE CURRENCY FIRST #
-            # #####################
+            # ##########################################################################################################
+            # BASE CURRENCY FIRST
+            # ##########################################################################################################
             if not lFix or lCurrencies:
                 output += "Analysing the Base currency setup....\n"
                 output += "Base currency: %s\n" % baseCurr
@@ -5934,6 +5942,7 @@ Please update any that you use before proceeding....
                         lSyncNeeded = True
                         baseCurr.setEditingMode()
                         baseCurr.setParameter(PARAM_RRATE, 1.0)
+                        baseCurr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
                         txt = "@@BASE CURRENCY FIX APPLIED (set rrate to 1.0) @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
@@ -5947,6 +5956,7 @@ Please update any that you use before proceeding....
                         lSyncNeeded = True
                         baseCurr.setEditingMode()
                         baseCurr.setParameter(PARAM_RATE, 1.0)
+                        baseCurr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
                         txt = "@@BASE CURRENCY FIX APPLIED (set rate to 1.0) @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
@@ -6032,7 +6042,7 @@ Please update any that you use before proceeding....
                         pass    # This is OK, None is fine and means base
                     elif rCurrByIDs is None and rCurr is None:
                         pass    # This is OK, None is fine and means base
-                    elif rCurrByIDs != baseCurr and rCurrByIDs.getCurrencyType() == CurrencyType.Type.CURRENCY:
+                    elif rCurrByIDs is not None and rCurrByIDs != baseCurr and rCurrByIDs.getCurrencyType() == CurrencyType.Type.CURRENCY:
                         pass    # This is OK, non-base currency is OK
                     elif rCurr is not None and rCurr != baseCurr and rCurr.getCurrencyType() == CurrencyType.Type.CURRENCY:
                         pass    # This is OK, non-base currency is OK
@@ -6078,7 +6088,7 @@ Please update any that you use before proceeding....
                         else:
                             isRelativeBase = False
 
-                        if isRelativeBase:
+                        if isRelativeBase:  # Relative to base currency
                             newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
                             txt = "@@ WARNING: '%s' Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). 'rrate' should be %s (inverted %s)\n"\
                                   %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
@@ -6091,21 +6101,43 @@ Please update any that you use before proceeding....
                                 curr.setParameter(PARAM_RATE, newRate)
                                 curr.setParameter(PARAM_RRATE, newRate)
                                 curr.setRate(newRate, baseCurr)
+                                curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
                                 txt = "@@SECURITY FIX APPLIED (reset both rate and rrate) @@"
                                 myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                             else:
                                 lWarning = True; iWarnings  += 1
-                        else:
 
-                            # Relative to another currency.... Sorry, I couldn't work this one out just yet....
-                            txt = "@@ WARNING: '%s' Relative Rate ('rrate') is set to: %s ** Relative Curr is: '%s' ** (whereas 'rate' is currently %s). MD reports getRate() as %s, and getRelativeRate() as %s\n"\
-                                  %(curr, get_rrate, rCurr, get_rate, curr.getRelativeRate(), curr.getRate(None))
+                        else:  # Relative to another currency....
+
+                            newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
+                            newRRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, rCurr))
+
+                            txt = "@@ WARNING: '%s' ** Relative Curr is: '%s' ** Rate 'rate' is currently %s, Relative Rate ('rrate') is set to: %s  . Should be 'rate': %s, 'rrate': %s (inversed: %s, %s)\n"\
+                                  %(curr, rCurr, get_rate, get_rrate, newRate, newRRate, safeInvertRate(newRate), safeInvertRate(newRRate))
                             myPrint("J", txt); output += "---\n%s\n" %(txt)
 
-                            txt = "@@ WARNING - SORRY TOOLBOX IS NOT PROGRAMMED TO FIX THIS. PLEASE USE TOOLS->CURRENCIES TO EDIT WHICH WILL FIX THIS\n"
-                            myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
+                            if lFix and lFixWarnings:
+                                lSyncNeeded = True
+                                curr.setEditingMode()
+                                # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
+                                curr.setParameter(PARAM_RATE, newRate)
+                                curr.setParameter(PARAM_RRATE, newRRate)
+                                curr.setRate(newRRate, rCurr)
+                                txt = "@@SECURITY FIX APPLIED (reset both rate and rrate) @@"
+                                myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
-                            lWarning = True; iWarnings  += 1
+                                # Doing this here so as not to trigger MD to set rrate to 1.0 (bug)
+                                if rCurrByIDs is not None \
+                                        and rCurrByIDs != baseCurr \
+                                        and rCurrByIDs.getCurrencyType() == CurrencyType.Type.CURRENCY \
+                                        and (get_relative_to_currid is None or get_rel_curr_id is None):
+
+                                    curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, rCurrByIDs)
+                                    txt = "@@EXTRA SECURITY FIX APPLIED (set both relative currency parameters) @@"
+                                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                            else:
+                                lWarning = True; iWarnings  += 1
+
 
                     iCountSnapErrors = 0
                     currSnapshots = curr.getSnapshots()
@@ -6120,9 +6152,9 @@ Please update any that you use before proceeding....
 
                     continue
 
-                # ############
-                # CURRENCIES #
-                # ############
+                # ######################################################################################################
+                # CURRENCIES
+                # ######################################################################################################
                 if lFix and not lCurrencies: continue
 
                 lSyncNeeded = False
@@ -6150,7 +6182,7 @@ Please update any that you use before proceeding....
 
                     if lFix and lFixWarnings:
                         lSyncNeeded = True
-                        baseCurr.setEditingMode()
+                        curr.setEditingMode()
                         curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
                         txt = "@@CURRENCY FIX APPLIED (set relative currency parameters to None) @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
@@ -9160,12 +9192,13 @@ Please update any that you use before proceeding....
                                     if selectedObject.getLongParameter(convertTimeStamp, 0) > 0:
                                         output += "%s %s\n" % (pad("TIMESTAMP('%s'):" %(convertTimeStamp),50), get_time_stamp_as_nice_text(selectedObject.getLongParameter(convertTimeStamp, 0))  )
 
-                                output += "%s %s\n" % (pad("RATE:",50),                     selectedObject.getRate(None)  )
-                                output += "%s %s\n" % (pad("RATE Inverted:",50),            safeInvertRate(selectedObject.getRate(None))  )
+                                output += "%s %s\n" % (pad("RATE (to base):",50),           selectedObject.getRate(None)  )
+                                output += "%s %s\n" % (pad("     (Inverted):",50),          safeInvertRate(selectedObject.getRate(None))  )
                                 output += "%s %s\n" % (pad("RATE in terms of Base:",50),    selectedObject.getBaseRate()  )
+                                output += "%s %s\n" % (pad("     (Inverted):",50),          safeInvertRate(selectedObject.getBaseRate())  )
                                 output += "%s %s\n" % (pad("Relative Currency:",50),        selectedObject.getRelativeCurrency()  )
                                 output += "%s %s\n" % (pad("Relative Rate:",50),            selectedObject.getRelativeRate()  )
-                                output += "%s %s\n" % (pad("Relative Rate Inverted:",50),   safeInvertRate(selectedObject.getRelativeRate())  )
+                                output += "%s %s\n" % (pad("     (Inverted):",50),          safeInvertRate(selectedObject.getRelativeRate())  )
                                 output += "%s %s\n" % (pad("Count Price History:",50),      len(selectedObject.getSnapshots()  ))
                                 output += "%s %s\n" % (pad("Count Stock Splits:",50),       len(selectedObject.getSplits()  ))
                                 output += "%s %s\n" % (pad("Daily Change:",50),             selectedObject.getDailyChange()  )
@@ -9902,6 +9935,139 @@ now after saving the file, restart Moneydance
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
+
+
+    def view_shouldBeIncludedInNetWorth_settings(statusLabel):
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        _THIS_METHOD_NAME = "View Accounts' shouldBeIncludedInNetWorth() settings"
+
+        PARAM_APPLIES_TO_NW = "applies_to_net_worth"
+
+        output = "\n" \
+                 "%s:\n" \
+                 " ======================================================\n\n" %(_THIS_METHOD_NAME.upper())
+
+        output += "Moneydance predefines some rules to include Accounts in the HomeScreen NetWorthView widget/view\n" \
+                  "- If the Account or Parent is Inactive, then it's excluded\n" \
+                  "- ROOT and Income/Expense Categories are excluded\n" \
+                  "- Then it checks for a hidden Account setting >> You can set this in Toolbox Advanced Mode\n\n"
+
+        output += "%s %s %s %s\n" %(pad("Account Name",50),
+                                    pad("Account Type",20),
+                                    pad("shouldBeIncludedInNetWorth()",30),
+                                    pad("Override Setting",20))
+
+        output += "%s %s %s %s\n" %("-"*50,
+                                    "-"*20,
+                                    "-"*30,
+                                    "-"*20)
+
+        output += "\n"
+
+        allAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(25))
+        allAccounts = sorted(allAccounts, key=lambda x: (x.getAccountType(), x.getFullAccountName().upper()))
+
+        for acct in allAccounts:
+            output += "%s %s %s %s\n" %(pad(acct.getFullAccountName(),50),
+                                        pad(str(acct.getAccountType()),20),
+                                        pad(str(acct.shouldBeIncludedInNetWorth()),30),
+                                        ("NOT SET" if (not acct.getParameter(PARAM_APPLIES_TO_NW, None)) else (str(acct.getBooleanParameter(PARAM_APPLIES_TO_NW, True)))))
+        output += "\n<END>"
+
+        statusLabel.setText(("%s: - Displaying NetWorth Settings" %(_THIS_METHOD_NAME)).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        del allAccounts
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
+
+    def edit_shouldBeIncludedInNetWorth_settings(statusLabel):
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        _THIS_METHOD_NAME = "EDIT an Account's shouldBeIncludedInNetWorth() setting"
+
+        PARAM_APPLIES_TO_NW = "applies_to_net_worth"
+
+        allAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(25))
+        allAccounts = sorted(allAccounts, key=lambda x: (x.getAccountType(), x.getFullAccountName().upper()))
+
+        newAccounts = []
+        for acct in allAccounts: newAccounts.append(StoreAccountList(acct))
+        del allAccounts
+
+        lPresentedBackupDisclaimer = False
+        iCountChanges = 0
+
+        while True:
+
+            selectedAcct = JOptionPane.showInputDialog(toolbox_frame_,
+                                                       "Select the Acct edit the shouldBeIncludedInNetWorth() setting",
+                                                       _THIS_METHOD_NAME.upper(),
+                                                       JOptionPane.INFORMATION_MESSAGE,
+                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       newAccounts,
+                                                       None)
+            if not selectedAcct: break
+
+            selectedAcct = selectedAcct.obj       # type: Account                                                       # noqa
+
+            currentNWsettingBool = selectedAcct.getBooleanParameter(PARAM_APPLIES_TO_NW, True)
+
+            options = ["YES - Include", "NO - Exclude"]
+            if currentNWsettingBool:
+                current = options[0]
+            else:
+                current = options[1]
+
+            selectedIncludeInNW = JOptionPane.showInputDialog(toolbox_frame_,
+                                                       "Select whether to include this account in the default NW Home Screen Widget",
+                                                       _THIS_METHOD_NAME.upper()+" for: %s" %(selectedAcct.getAccountName()),
+                                                       JOptionPane.WARNING_MESSAGE,
+                                                       None,
+                                                       options,
+                                                       current)
+            if not selectedIncludeInNW: continue
+
+            if not lPresentedBackupDisclaimer:
+                if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, _THIS_METHOD_NAME.upper(), "Change this Account's shouldBeIncludedInNetWorth setting to '%s'?" %(selectedIncludeInNW)):
+                    return
+                lPresentedBackupDisclaimer = True
+
+            if options.index(selectedIncludeInNW) == 0:
+                # Include selected
+                selectedAcct.setParameter(PARAM_APPLIES_TO_NW, None)
+            else:
+                # Exclude selected
+                selectedAcct.setParameter(PARAM_APPLIES_TO_NW, False)
+
+            selectedAcct.syncItem()
+            iCountChanges += 1
+
+            myPrint("B", "%s: Account: '%s' Parameter: '%s' set to %s" %(_THIS_METHOD_NAME, selectedAcct, PARAM_APPLIES_TO_NW, selectedIncludeInNW))
+            myPopupInformationBox(toolbox_frame_,"Account %s Include in NW setting set to %s" %(selectedAcct, selectedIncludeInNW))
+
+            continue
+
+        del newAccounts
+
+        if iCountChanges:
+            txt = "%s: Updated the NW setting in %s Account(s)!" %(_THIS_METHOD_NAME, iCountChanges)
+        else:
+            txt = "%s: No Accounts changed" %(_THIS_METHOD_NAME)
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
 
     def zero_bal_categories(statusLabel, lFix):
         global toolbox_frame_, debug, DARK_GREEN, lCopyAllToClipBoard_TB
@@ -13420,17 +13586,18 @@ now after saving the file, restart Moneydance
             lShowOutput = False
             removeList = []
 
-            output += "Performing analysis and validation of potential 'duplicate' Securities. The check / validation rules are:\n" \
+            output += "Performing analysis and validation of potential 'duplicate' Securities.\n\n" \
+                      "The following data can be edited in MD Menu > Tools>Securities (** except 'Decimal Places' where you will need to use Toolbox to edit)\n\n" \
+                      "The check / validation rules are:\n" \
                       "- Find potential 'duplicates' where Securities' 'Ticker' Symbols are the same; then...\n" \
-                      "- Each Security's relative 'Currency' must match (e.g. FACEBOOK relative to USD)\n" \
-                      "- Each Security's 'Current Price' must match\n" \
-                      "- Each Security's 'Prefix' & 'Suffix' must match\n" \
-                      "- Each Security's 'Splits' data must match\n" \
-                      "- Each Security's hidden 'Decimal Places' setting must match **\n" \
-                      "- NOTE: Security ID & Security Name are not matched, but you should ensure the Security you want to become the final 'master' has the right details\n" \
+                      "- Duplicate Security's 'Currency' must match\n" \
+                      "- Duplicate Security's 'Current Price' must match\n" \
+                      "- Duplicate Security's 'Prefix' & 'Suffix' must match\n" \
+                      "- Duplicate Security's 'Splits' data must match\n" \
+                      "- Duplicate Security's hidden 'Decimal Places' setting must match **\n" \
+                      "- NOTE: Security ID & Name are not matched, but you can select the Security to become the 'master', that has right details, as part of the process\n" \
                       "\n" \
-                      "The above data can be edited in MD Menu > Tools>Securities (** except 'Decimal Places' where you will need to use Toolbox to edit)\n" \
-                      "----------------------------------------------------------------------------------------------------------------------------------\n\n"
+                      "--------------------------------------------------------------------------------------------------------------------------------------------------\n\n"
 
             for dup in dup_securities:
                 getDup = dup_securities.get(dup)
@@ -13452,28 +13619,28 @@ now after saving the file, restart Moneydance
                 for scanDup in getDup[1]:
                     if scanDup.getRelativeCurrency() != primaryCurr.getRelativeCurrency():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating '%s' as not using the same relative currency %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getRelativeCurrency().getName(),18),pad(primaryCurr.getRelativeCurrency().getName(),18))
+                        txt = "... '%s' CANNOT be MERGED as not using the same relative currency %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getRelativeCurrency().getName(),18),pad(primaryCurr.getRelativeCurrency().getName(),18))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getDecimalPlaces() != primaryCurr.getDecimalPlaces():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating '%s' as not the same decimal places          %s vs %s" %(pad(scanDup.getName(),50),pad(str(scanDup.getDecimalPlaces()),18),pad(str(primaryCurr.getDecimalPlaces()),18))
+                        txt = "... '%s'  CANNOT be MERGED as not the same decimal places          %s vs %s" %(pad(scanDup.getName(),50),pad(str(scanDup.getDecimalPlaces()),18),pad(str(primaryCurr.getDecimalPlaces()),18))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getRelativeRate() != primaryCurr.getRelativeRate():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating '%s' as not the same 'Current Prices'        %s vs %s" %(pad(scanDup.getName(),50),pad(str(safeInvertRate(scanDup.getRelativeRate())),18),pad(str(safeInvertRate(primaryCurr.getRelativeRate())),18))
+                        txt = "... '%s' CANNOT be MERGED as not the same 'Current Prices'        %s vs %s" %(pad(scanDup.getName(),50),pad(str(safeInvertRate(scanDup.getRelativeRate())),18),pad(str(safeInvertRate(primaryCurr.getRelativeRate())),18))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getPrefix()+scanDup.getSuffix() != primaryCurr.getPrefix()+primaryCurr.getSuffix():
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating '%s' as not the same prefix/suffix           %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getPrefix()+":"+scanDup.getSuffix(),18),pad(primaryCurr.getPrefix()+":"+primaryCurr.getSuffix(),30))
+                        txt = "... '%s' CANNOT be MERGED as not the same prefix/suffix           %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getPrefix()+":"+scanDup.getSuffix(),18),pad(primaryCurr.getPrefix()+":"+primaryCurr.getSuffix(),30))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     thisSplits = scanDup.getSplits()
                     if not compareSplits(primarySplits, thisSplits):
                         lShowOutput = lFailChecks = True
-                        txt = "... Eliminating '%s' as not all have the same splits..." %(pad(scanDup.getName(),50))
+                        txt = "... '%s' CANNOT be MERGED as not all have the same splits..." %(pad(scanDup.getName(),50))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                 if lFailChecks:
@@ -13547,13 +13714,13 @@ now after saving the file, restart Moneydance
                             % (self.theTicker,
                                _security.getIDString(),
                                _security.getName(),
-                               _security.getRelativeRate(),
+                               safeInvertRate(_security.getRelativeRate()),
                                _security.getDecimalPlaces(),
                                _security.getPrefix(),
                                _security.getSuffix(),
                                _security.getSnapshots().size()))
 
-                def __str__(self): return (self.getDisplayString(self.getPrimarySecurity()))[:120]
+                def __str__(self): return (self.getDisplayString(self.getPrimarySecurity()))[:200]
 
                 def __repr__(self): return self.__str__()
 
@@ -13880,7 +14047,9 @@ now after saving the file, restart Moneydance
             output += "Investment Sub Accounts - secondary securities to be merged/deleted:   %s\n" %(len(investmentAccountsNeedingSecondaryMerge))
             output += "\n------\n"
 
-            ask = MyPopUpDialogBox(toolbox_frame_,
+
+            jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            ask = MyPopUpDialogBox(jif,
                                    "%s: REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE SECURITY MERGE" %(_THIS_METHOD_NAME.upper()),
                                    output,
                                    theTitle=_THIS_METHOD_NAME.upper(),
@@ -13890,13 +14059,14 @@ now after saving the file, restart Moneydance
                 txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                 myPrint("B",txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
             if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(),
                                                      "EXECUTE MERGE OF SECURITY %s / %s?" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())):
                 return
+
+            jif.dispose()
 
             output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH SECURITY MERGE of %s / %s.....\n\n" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())
 
@@ -19279,6 +19449,14 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_inactivate_zero_bal_cats.setEnabled(lAdvancedMode)
                 user_inactivate_zero_bal_cats.setForeground(Color.RED)
 
+                user_view_shouldBeIncludedInNetWorth_settings = JRadioButton("DIAG: View Accounts' shouldBeIncludedInNetWorth() settings...", False)
+                user_view_shouldBeIncludedInNetWorth_settings.setToolTipText("This will list all Accounts/Categories and the shouldBeIncludedInNetWorth() setting - USE ADVANCED MODE TO EDIT")
+
+                user_edit_shouldBeIncludedInNetWorth_settings = JRadioButton("FIX: Edit an Account's shouldBeIncludedInNetWorth() setting", False)
+                user_edit_shouldBeIncludedInNetWorth_settings.setToolTipText("This will allow you to edit an Account's shouldBeIncludedInNetWorth() setting. THIS CHANGES DATA!")
+                user_edit_shouldBeIncludedInNetWorth_settings.setEnabled(lAdvancedMode)
+                user_edit_shouldBeIncludedInNetWorth_settings.setForeground(Color.RED)
+
                 user_fix_accounts_parent = JRadioButton("FIX: Account's Invalid Parent Account (fix_account_parent.py)", False)
                 user_fix_accounts_parent.setToolTipText("This will diagnose your Parent Accounts and fix if invalid. THIS CHANGES DATA! (fix_account_parent.py)")
                 user_fix_accounts_parent.setEnabled(lAdvancedMode)
@@ -19304,6 +19482,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_view_check_number_settings)
                 bg.add(user_view_zero_bal_cats)
                 bg.add(user_inactivate_zero_bal_cats)
+                bg.add(user_view_shouldBeIncludedInNetWorth_settings)
+                bg.add(user_edit_shouldBeIncludedInNetWorth_settings)
                 bg.add(user_force_change_an_accounts_type)
                 bg.add(user_force_change_accounts_currency)
                 bg.add(user_force_change_all_accounts_currency)
@@ -19315,6 +19495,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
                 userFilters.add(user_view_check_number_settings)
                 userFilters.add(user_view_zero_bal_cats)
+                userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
@@ -19324,6 +19505,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(labelFYI_curr_fix)
 
                 userFilters.add(user_inactivate_zero_bal_cats)
+                userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
                 userFilters.add(user_force_change_an_accounts_type)
                 userFilters.add(user_force_change_accounts_currency)
                 userFilters.add(user_force_change_all_accounts_currency)
@@ -19371,6 +19553,14 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_inactivate_zero_bal_cats.isSelected():
                         zero_bal_categories(self.statusLabel, True)
+                        return
+
+                    if user_view_shouldBeIncludedInNetWorth_settings.isSelected():
+                        view_shouldBeIncludedInNetWorth_settings(self.statusLabel)
+                        return
+
+                    if user_edit_shouldBeIncludedInNetWorth_settings.isSelected():
+                        edit_shouldBeIncludedInNetWorth_settings(self.statusLabel)
                         return
 
                     if user_force_change_an_accounts_type.isSelected():

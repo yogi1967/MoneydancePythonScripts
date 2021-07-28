@@ -125,6 +125,7 @@ ALT-B - Basic Mode
     - MENU: Accounts & Categories tools
         - View Check number settings
         - DIAGnostics - View Categories with zero balance. You can also inactivate using Advanced mode.
+        - DIAGnostics - View Accounts' shouldBeIncludedInNetWorth() settings...
     - MENU: Currency & Security tools:
         - DIAGnostics - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
         - DIAGnostics - Can I delete a Security (tells you whether a security/stock is being used - and where)
@@ -167,6 +168,7 @@ ALT-M - Advanced Mode
         - OFX Authentication Management (some options also required Hacker mode)
     - MENU: Accounts & Categories tools
         - FIX - Inactivate all Categories with Zero Balance
+        - FIX - Edit an Account's shouldBeIncludedInNetWorth() setting
         - FIX - FORCE change an Account's Type (use with care. Does not update any transactions) (set_account_type.py)
         - FIX - FORCE change an Account's Currency (use with care. Does not update any transactions) (force_change_account_currency.py)
         - FIX - FORCE change ALL Account's currencies (use with care. Does not update any transactions) (force_change_all_currencies.py)
