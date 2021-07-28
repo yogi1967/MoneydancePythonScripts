@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1041 - November 2020 thru February 2021+ - Stuart Beesley StuWareSoftSystems (>500 programming hours)
+# toolbox.py build: 1041 - November 2020 thru July 2021+ - Stuart Beesley StuWareSoftSystems (>600 programming hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -19,7 +19,7 @@
 #       This is not the same as backing up your Dataset that contains your financial data.
 
 # NOTE: You will see some usage of globals... I wrote this when I was learning Python and Java... Know I know a lot more,
-# I would do this differently, but leaving this as-is for now...
+# I would do this differently, but leaving this as-is for now... (I'll upgrade elements as I make future changes)
 
 # DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Export Backup will achieve this)
 
@@ -9951,10 +9951,17 @@ now after saving the file, restart Moneydance
                  "%s:\n" \
                  " ======================================================\n\n" %(_THIS_METHOD_NAME.upper())
 
-        output += "Moneydance predefines some rules to include Accounts in the HomeScreen NetWorthView widget/view\n" \
+        output += "Moneydance predefines rules to include/exclude Accounts in the Home Summary Screen NetWorthView widget, & also the Titlebar NW instant graph\n" \
                   "- If the Account or Parent is Inactive, then it's excluded\n" \
                   "- ROOT and Income/Expense Categories are excluded\n" \
-                  "- Then it checks for a hidden Account setting >> You can set this in Toolbox Advanced Mode\n\n"
+                  "- Then it checks for a hidden Account setting >> You can set this in Toolbox Advanced Mode\n" \
+                  "- You cannot force include an account into these, you can only force exclude accounts....\n" \
+                  "\n" \
+                  "Other NetWorth rules for information:\n" \
+                  "- NW Reports / Graphs are based on transactions up to the date you specify; uses Price history data for balance valuations\n" \
+                  "- The Top title bar NW Graph's cutoff date can be changed: 'All Dates' includes future Balances; uses Price history data for balance valuations\n" \
+                  "- The Home Screen View NW widget total ALWAYS uses Current Balance(s) - so future balances are excluded; uses Current Price\n" \
+                  "\n\n"
 
         output += "%s %s %s %s\n" %(pad("Account Name",50),
                                     pad("Account Type",20),
@@ -10028,7 +10035,7 @@ now after saving the file, restart Moneydance
                 current = options[1]
 
             selectedIncludeInNW = JOptionPane.showInputDialog(toolbox_frame_,
-                                                       "Select whether to include this account in the default NW Home Screen Widget",
+                                                       "Select whether to include/exclude this account in the default NW Home Screen Widget & Titlebar Graph",
                                                        _THIS_METHOD_NAME.upper()+" for: %s" %(selectedAcct.getAccountName()),
                                                        JOptionPane.WARNING_MESSAGE,
                                                        None,
