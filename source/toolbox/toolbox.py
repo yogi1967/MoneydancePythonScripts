@@ -2343,7 +2343,7 @@ Visit: %s (Author's site)
     # noinspection PyBroadException
     def buildDiagText():
 
-        textArray = []
+        textArray = []                                                                                                  # noqa
         textArray.append(u"Moneydance Version / Build: %s" %(MD_REF.getVersion()) + u"  Build: %s" %(MD_REF.getBuild()))
         textArray.append(u"Moneydance Config file reports: %s" %MD_REF.getUI().getPreferences().getSetting(u"current_version", u""))
         textArray.append(u"Moneydance updater version to track: %s" %MD_REF.getUI().getPreferences().getSetting(u"updater.version_to_track",u""))
@@ -2639,7 +2639,8 @@ Visit: %s (Author's site)
             for y in x:
                 textArray.append(u"Internal/suppressed/secret/unloadable extensions: %s" %(y))
             if float(MD_REF.getBuild()) < 3051:
-                x = MD_REF.getOutdatedExtensionIDs()
+                # .getOutdatedExtensionIDs() name changed prior to 3051
+                x = MD_REF.getOutdatedExtensionIDs()                                                                    # noqa
             else:
                 x = MD_REF.getUnloadableExtensionIDs()  # now includes 'extension too new' extns....
             for y in x:
@@ -3033,7 +3034,8 @@ Visit: %s (Author's site)
                 theData.append("Internal/suppressed/secret extensions: %s" %(y))
 
             if float(MD_REF.getBuild()) < 3051:
-                x = MD_REF.getOutdatedExtensionIDs()
+                # .getOutdatedExtensionIDs() name changed prior to 3051
+                x = MD_REF.getOutdatedExtensionIDs()                                                                    # noqa
             else:
                 x = MD_REF.getUnloadableExtensionIDs()  # now includes 'extension too new' extns....
             for y in x:
@@ -5731,7 +5733,8 @@ Please update any that you use before proceeding....
 
         outdated={}
         if float(MD_REF.getBuild()) < 3051:
-            x = MD_REF.getOutdatedExtensionIDs()
+            # .getOutdatedExtensionIDs() name changed prior to 3051
+            x = MD_REF.getOutdatedExtensionIDs()                                                                        # noqa
         else:
             x = MD_REF.getUnloadableExtensionIDs()  # now includes 'extension too new' extns....
         for y in x: outdated[y.lower().strip()] = True
@@ -12160,10 +12163,10 @@ now after saving the file, restart Moneydance
             _orphanSnaps = len(_orphans)
             text = "\nReviewing 'orphan' (or duplicates/stranded) snaps...:\n"
 
-            theList = []
+            theList = []                                                                                                # noqa
             theList.append(None)
-            if incCurrencies: theList.append(CurrencyType.Type.CURRENCY)                                        # noqa
-            if incSecurities: theList.append(CurrencyType.Type.SECURITY)                                        # noqa
+            if incCurrencies: theList.append(CurrencyType.Type.CURRENCY)                                                # noqa
+            if incSecurities: theList.append(CurrencyType.Type.SECURITY)                                                # noqa
 
             filteredOrphanList=[]
             for theCType in theList:
@@ -19430,6 +19433,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
+                lAlertPopupShown = False
+
                 user_view_check_number_settings = JRadioButton("View Check Number Settings", False)
                 user_view_check_number_settings.setToolTipText("View the Check Number settings that will display in the Transaction Register")
 
@@ -19531,6 +19536,18 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if not check_all_currency_raw_rates_ok():
 
+                        if lAdvancedMode and not lAlertPopupShown:
+
+                            MyPopUpDialogBox(toolbox_frame_,
+                                             "ALERT: Currency/Security data issues need fixing - some menu items are disabled...",
+                                             "You have some Currency / Security records which were created in an older version of Moneydance\n"
+                                             "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
+                                             "Please run the DIAG then FIX 'currencies / securities' option to address this issue\n"
+                                             "Menu items will remain disabled until you do this....",
+                                             lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
+                            lAlertPopupShown = True
+
+
                         user_force_change_all_accounts_currency.setEnabled(False)
                         user_force_change_accounts_currency.setEnabled(False)
 
@@ -19601,6 +19618,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 global lAdvancedMode, lHackerMode, fixRCurrencyCheck
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                lAlertPopupShown = False
 
                 user_show_open_share_lots = JRadioButton("DIAG: Show Open Share LOTS (unconsumed) (show_open_tax_lots.py)", False)
                 user_show_open_share_lots.setToolTipText("This will list all Stocks/Shares with Open/Unconsumed LOTS (when LOT Control ON) - READONLY (show_open_tax_lots.py)")
@@ -19745,6 +19764,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_force_change_accounts_currency)
                 userFilters.add(user_force_change_all_accounts_currency)
 
+
                 while True:
 
                     user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
@@ -19761,6 +19781,17 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
 
                     if not check_all_currency_raw_rates_ok():
+
+                        if lAdvancedMode and not lAlertPopupShown:
+
+                            MyPopUpDialogBox(toolbox_frame_,
+                                             "ALERT: Currency/Security data issues need fixing - some menu items are disabled...",
+                                             "You have some Currency / Security records which were created in an older version of Moneydance\n"
+                                             "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
+                                             "Please run the DIAG then FIX 'currencies / securities' option to address this issue\n"
+                                             "Menu items will remain disabled until you do this....",
+                                             lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
+                            lAlertPopupShown = True
 
                         user_diag_curr_sec.setForeground(Color.BLUE)
 

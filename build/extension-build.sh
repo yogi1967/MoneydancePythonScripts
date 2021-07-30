@@ -164,6 +164,17 @@ else
     exit 7
   fi
 
+  echo "Zipping *.pyi stub files into mxt..."
+  if test -f "${EXTN_DIR}"/*.pyi; then
+    zip -j "${MXT}" "${EXTN_DIR}"/*.pyi
+    if [ $? -ne 0 ]; then
+      echo "*** zip *.pyi Failed??"
+      exit 8
+    fi
+  else
+    echo "No *.pyi stub file(s) to ZIP - skipping....."
+  fi
+
   echo "Zipping *.txt into mxt..."
   if test -f "${EXTN_DIR}"/*.txt; then
     zip -j "${MXT}" "${EXTN_DIR}"/*.txt
@@ -312,6 +323,13 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
     exit 22
   fi
 
+  echo "Adding *.pyi stub to zip file..."
+  zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
+  if [ $? -ne 0 ]; then
+    echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
+    exit 22
+  fi
+
   echo "Adding *.pdf to zip file..."
   zip -j "${ZIP}" "${EXTN_DIR}"/*.pdf
   if [ $? -ne 0 ]; then
@@ -335,6 +353,13 @@ else
       echo "*** final zip of *.py script(s) into zip package Failed??"
       exit 25
     fi
+
+    zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
+    if [ $? -ne 0 ]; then
+      echo "*** final zip of *.pyi stub into zip package Failed??"
+      exit 25
+    fi
+
   else
     echo "@@ Not including *.py file(s) for ${EXTN_NAME} package...."
   fi
@@ -343,7 +368,7 @@ else
     echo "adding *.dict file(s) too into zip file..."
     zip -j "${ZIP}" "${EXTN_DIR}"/*.dict
     if [ $? -ne 0 ]; then
-      echo "*** final zip of *.py script(s) into zip package Failed??"
+      echo "*** final zip of *.dict script(s) into zip package Failed??"
       exit 25
     fi
   else
