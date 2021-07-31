@@ -1639,12 +1639,11 @@ Visit: %s (Author's site)
 		pass
 		return
 
-	# get_StuWareSoftSystems_parameters_from_file()
+	get_StuWareSoftSystems_parameters_from_file()
 
 	# clear up any old left-overs....
 	destroyOldFrames(myModuleID)
 
-	debug = True
 	myPrint("DB", "DEBUG IS ON..")
 
 	if SwingUtilities.isEventDispatchThread():
@@ -1912,7 +1911,7 @@ Visit: %s (Author's site)
 
 		for stock in sorted(QL_stocks, key=lambda x: (x[QL_STOCK_NAME])):
 			if stock[QL_CURRENCY_FLAG]:
-				myPrint("DB","Currency ID: %s" %(stock[QL_STOCK_NAME][3:]))	# Currency IDs now has preceding 3 high-byte 7f characters
+				myPrint("DB","Currency ID: %s" %(stock[QL_STOCK_NAME][3:]))		# Currency IDs now has preceding 3 high-byte 7f characters
 				stocksList.append([stock[QL_STOCK_NAME][3:],True])
 				# myPrint("DB","Currency ID: %s" %(stock[QL_STOCK_NAME]))
 				# stocksList.append([stock[QL_STOCK_NAME],True])
@@ -2072,5 +2071,4 @@ Visit: %s (Author's site)
 	myPrint("B",msg)
 	myPopupInformationBox(None,msg,theMessageType=msgType)
 
-	debug = False
 	cleanup_actions()

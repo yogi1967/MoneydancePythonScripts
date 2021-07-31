@@ -8,8 +8,8 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "test" "my_networth" "fix_hidden_price_date")
-RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "test" "my_networth" "fix_hidden_price_date" "total_selected_transactions")
+RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "total_selected_transactions")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth")
 
@@ -323,11 +323,13 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
     exit 22
   fi
 
-  echo "Adding *.pyi stub to zip file..."
-  zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
-  if [ $? -ne 0 ]; then
-    echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
-    exit 22
+  if test -f "${EXTN_DIR}"/*.pyi; then
+    echo "Adding *.pyi stub to zip file..."
+    zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
+    if [ $? -ne 0 ]; then
+      echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
+      exit 22
+    fi
   fi
 
   echo "Adding *.pdf to zip file..."
@@ -354,10 +356,13 @@ else
       exit 25
     fi
 
-    zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
-    if [ $? -ne 0 ]; then
-      echo "*** final zip of *.pyi stub into zip package Failed??"
-      exit 25
+    if test -f "${EXTN_DIR}"/*.pyi; then
+      echo "Adding *.pyi stub to zip file..."
+      zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
+      if [ $? -ne 0 ]; then
+        echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
+        exit 25
+      fi
     fi
 
   else
