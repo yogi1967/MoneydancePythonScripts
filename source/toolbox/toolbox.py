@@ -6331,10 +6331,11 @@ Please update any that you use before proceeding....
                 fixRCurrencyCheck = 2
                 txt = "You have %s Warning(s).." %(iWarnings)
                 myPrint("B", txt); output += "%s\n" %(txt)
-                output += "These are where your Currency records show a relative currency that's not None...; This is a data error!\n" \
+                output += "These are where your Currency records show a relative currency that's not None...;\n" \
                           "... or where Securities have an incorrect relative currency set..\n"\
                           "... or where a Currency/Security's 'rrate' (relative rate) is not set, or different to the 'rate' (rate)...\n"\
-                          "... or where an 'invalid' / 'infinity' / ZERO / Not A Number (NaN) rate / rrate was found\n"
+                          "... or where an 'invalid' / 'infinity' / ZERO / Not A Number (NaN) rate / rrate was found\n" \
+                          "NOTE: Often these issues are from 'old' format records from an older version of Moneydance and need 'upgrading.\n"
                 output += "Consider running the 'FIX CURRENCIES & SECURITIES' option\n"
                 output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
                 txt = "ERROR: You have %s Currency / Security warnings.. Please review diagnostic report!" %(iWarnings)
@@ -10843,7 +10844,7 @@ now after saving the file, restart Moneydance
         if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
         if not check_all_currency_raw_rates_ok():
-            txt = u"FIX INVALID REL CURR RATES: You appear to have 'old' format or invalid currency/relative currency rates/records. Please run Diagnose/Fix Currencies first..."
+            txt = u"FIX INVALID REL CURR RATES: You appear to have 'old' format Currency/Security currency records. Please run Diagnose/Fix Currencies/Securities first..."
             myPrint("B", txt)
             statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
             myPopupInformationBox(toolbox_frame_, txt)
@@ -10947,7 +10948,7 @@ now after saving the file, restart Moneydance
         if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
         if not check_all_currency_raw_rates_ok():
-            txt = "FIX - DELETE PRICE HISTORY WITH 'WILD' RATES: You appear to have 'old' format or invalid currency/relative currency rates/records. Please run Diagnose/Fix Currencies first..."
+            txt = "FIX - DELETE PRICE HISTORY WITH 'WILD' RATES: You appear to have 'old' format Currency/Security records. Please run Diagnose/Fix Currencies/Securities first..."
             myPrint("B", txt)
             statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
             myPopupInformationBox(toolbox_frame_, txt)
@@ -19539,7 +19540,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if lAdvancedMode and not lAlertPopupShown:
 
                             MyPopUpDialogBox(toolbox_frame_,
-                                             "ALERT: Currency/Security data issues need fixing - some menu items are disabled...",
+                                             "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
                                              "You have some Currency / Security records which were created in an older version of Moneydance\n"
                                              "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
                                              "Please run the DIAG then FIX 'currencies / securities' option to address this issue\n"
@@ -19785,7 +19786,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if lAdvancedMode and not lAlertPopupShown:
 
                             MyPopUpDialogBox(toolbox_frame_,
-                                             "ALERT: Currency/Security data issues need fixing - some menu items are disabled...",
+                                             "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
                                              "You have some Currency / Security records which were created in an older version of Moneydance\n"
                                              "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
                                              "Please run the DIAG then FIX 'currencies / securities' option to address this issue\n"
