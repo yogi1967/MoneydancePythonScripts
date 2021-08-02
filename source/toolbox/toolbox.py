@@ -20074,7 +20074,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_import_QIF = JRadioButton("'Older' Import QIF file and set parameters", False)
                 user_import_QIF.setToolTipText("Runs the 'older' MD importQIFIntoAccount() function and allows you to set parameters (you can select create Account Structure Only) - WILL IMPORT / CHANGE DATA!")
 
-                user_convert_timestamp = JRadioButton("Covert a TimeStamp number into a readable date/time", False)
+                user_convert_timestamp = JRadioButton("Convert a TimeStamp number into a readable date/time", False)
                 user_convert_timestamp.setToolTipText("Allows you to input a TimeStamp (Milliseconds) and it will display a readable date/time")
 
                 user_change_moneydance_fonts = JRadioButton("Set/Change Default Moneydance FONTS", False)

@@ -114,7 +114,7 @@ ALT-B - Basic Mode
         - View memorised reports (parameters and default settings)
         - Find my Sync Encryption password(s) in iOS Backup(s)
         - Execute the 'older' Import QIF file and set parameters for import (useful if you want to import Account Structure Only)
-        - Covert a TimeStamp number into a readable date/time (display only)
+        - Convert a TimeStamp number into a readable date/time (display only)
     - MENU: Online (OFX) Banking Tools:
         - Search for stored OFX related data
         - View your installed Service / Bank logon profiles
