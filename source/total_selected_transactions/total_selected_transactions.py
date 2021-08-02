@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# total_selected_transactions.py build: 1000 - July 2021 - Stuart Beesley StuWareSoftSystems
+# total_selected_transactions.py build: 1001 - July 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -29,8 +29,10 @@
 # Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
 
 # build: 1000 - Initial Release
+# build: 1001 - Enhanced the popup with extra info (e.g. average, fx)
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
+# NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -38,9 +40,9 @@
 
 # SET THESE LINES
 myModuleID = u"total_selected_transactions"
-version_build = "1000"
+version_build = "1001"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
-_I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
+_I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
 if u"debug" in globals():
     global debug
@@ -140,7 +142,7 @@ except:
     print(msg); System.err.write(msg)
 
 # ############################
-# Trap startup conditions here.... The 'if'secondary_window pass through to oblivion (and thus a clean exit)... The final 'else' actually runs the script
+# Trap startup conditions here.... The 'if's pass through to oblivion (and thus a clean exit)... The final 'else' actually runs the script
 if int(MD_REF.getBuild()) < MIN_BUILD_REQD:     # Check for builds less than 1904 (version 2019.4) or build 3056 accordingly
     msg = "SORRY YOUR MONEYDANCE VERSION IS TOO OLD FOR THIS SCRIPT/EXTENSION (min build %s required)" %(MIN_BUILD_REQD)
     print(msg); System.err.write(msg)
@@ -165,7 +167,7 @@ elif not _I_CAN_RUN_AS_MONEYBOT_SCRIPT and u"moneydance_extension_loader" not in
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)
 
-elif frameToResurrect:  # and it'secondary_window active too...
+elif frameToResurrect:  # and it's active too...
     try:
         msg = "%s: Detected that %s is already running..... Attempting to resurrect..\n" %(myModuleID, myModuleID)
         print(msg); System.err.write(msg)
@@ -295,14 +297,14 @@ extract_data                            Extract various data to screen and/or cs
 - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
 - extract_currency_history_csv          Extract currency history to csv
 - extract_investment_transactions_csv   Extract investment transactions to csv
-- extract_account_registers_csv         Extract Account Register(secondary_window) to csv along with any attachments
+- extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
 list_future_reminders:                  View future reminders on screen. Allows you to set the days to look forward
 
 A collection of useful ad-hoc scripts (zip file)
 useful_scripts:                         Just unzip and select the script you want for the task at hand...
 
-Visit: %s (Author'secondary_window site)
+Visit: %s (Author's site)
 ----------------------------------------------------------------------------------------------------------------------
 """ %(myScriptName, MYPYTHON_DOWNLOAD_URL)
 
@@ -430,7 +432,7 @@ Visit: %s (Author'secondary_window site)
 
         try:
             theFont = MD_REF.getUI().getFonts().code
-            # if debug: myPrint("B","Success setting Font set to Moneydance code: %secondary_window" %theFont)
+            # if debug: myPrint("B","Success setting Font set to Moneydance code: %s" %theFont)
         except:
             theFont = Font("monospaced", Font.PLAIN, 15)
             if debug: myPrint("B","Failed to Font set to Moneydance code - So using: %s" %theFont)
@@ -1303,7 +1305,7 @@ Visit: %s (Author'secondary_window site)
 
     def classPrinter(className, theObject):
         try:
-            text = "Class: %secondary_window %secondary_window@{:x}".format(System.identityHashCode(theObject)) %(className, theObject.__class__)
+            text = "Class: %s %s@{:x}".format(System.identityHashCode(theObject)) %(className, theObject.__class__)
         except:
             text = "Error in classPrinter(): %s: %s" %(className, theObject)
         return text
@@ -1633,7 +1635,10 @@ Visit: %s (Author'secondary_window site)
             destroyOldFrames(myModuleID)
 
         try:
-            MD_REF.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
+            if storeSum[0]:
+                MD_REF.getUI().setStatus("Total Selected Txns: %s" %(storeSum[0]),0)
+            else:
+                MD_REF.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
         except:
             pass  # If this fails, then MD is probably shutting down.......
 
@@ -1698,6 +1703,20 @@ Visit: %s (Author'secondary_window site)
 
                 break     # Seems to appear twice, so skip the second one.....
 
+    def isGoodRate(theRate):
+
+        if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
+            return False
+
+        return True
+
+    def safeInvertRate(theRate):
+
+        if not isGoodRate(theRate):
+            return theRate
+
+        return (1.0 / theRate)
+
     def analyseTxns(listTxns, frame):
 
         if listTxns:
@@ -1727,21 +1746,46 @@ Visit: %s (Author'secondary_window site)
                 myPrint("DB", "------")
 
             if total:
-                myPrint("B", "Account: '%s' Total of selected txns: %s" %(account, acctCurr.formatFancy(total,MD_decimal)))
 
-                acctType = "Account  "
+                acctType = pad("Account:", 11)
                 # noinspection PyUnresolvedReferences
                 if account.getAccountType() == Account.AccountType.INCOME \
                         or account.getAccountType() == Account.AccountType.EXPENSE:
-                    acctType = "Category "
+                    acctType = pad("Category:", 11)
 
-                # myPopupInformationBox(frame, "%s" %(acctCurr.formatFancy(total,MD_decimal)),"Value Selected Txns")
-                MyPopUpDialogBox(frame, "Value: %s" %(acctCurr.formatFancy(total,MD_decimal)),
-                                 theMessage="%s: %s\n"
-                                            "Acct Type: %s\n"
-                                            "Currency : %s\n"
-                                            "%s txns selected"
-                                            %(acctType, account.getAccountName(), account.getAccountType(), acctCurr.getName(), len(listTxns)),
+                storeSum[0] = "%s: '%s' Total of selected txns: %s" %(acctType, account, acctCurr.formatFancy(total,MD_decimal))
+                myPrint("B", storeSum[0])
+
+                if len(listTxns) and total:
+                    averageValue = acctCurr.formatFancy(int(round(total/len(listTxns),0)),MD_decimal)
+                else:
+                    averageValue = ""
+
+                if isinstance(acctCurr, CurrencyType): pass     # This forces a type hint of sorts....
+
+                base = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
+                if acctCurr != base and isGoodRate(acctCurr.getRate(base)):
+
+                    rate = round(safeInvertRate(acctCurr.getRate(base)),4)
+                    convertBase = int(round(total / acctCurr.getRate(base),0))
+
+                    fx_line = "%s %s (using current rate @ %s)\n" %(pad("Base Value:",11),
+                                                                          base.formatFancy(convertBase,MD_decimal),
+                                                                          rate)
+                else:
+                    fx_line = ""
+
+                MyPopUpDialogBox(frame, "Value: %s (Count: %s, Average: %s)" %(acctCurr.formatFancy(total,MD_decimal),
+                                                                               len(listTxns),
+                                                                               averageValue),
+                                 theMessage="%s %s\n"
+                                            "%s"
+                                            "Acct Type:  %s\n"
+                                            "Currency:   %s\n"
+                                            %(acctType, account.getAccountName(),
+                                              fx_line,
+                                              account.getAccountType(),
+                                              acctCurr.getName()),
                                  lModal=False,
                                  theWidth=100,
                                  theTitle="Value Selected Txns").go()
@@ -1757,6 +1801,8 @@ Visit: %s (Author'secondary_window site)
 
     foundTxnRegister = None
     foundJSplitPane = None
+
+    storeSum = [None]
 
     myPrint("DB", "Searching Secondary Windows....:")
 
