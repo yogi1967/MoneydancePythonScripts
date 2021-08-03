@@ -4969,9 +4969,8 @@ Visit: %s (Author's site)
             return
 
         if not checkCurrencyRawRatesOK(selectedCurrSec.obj):                                                            # noqa
-            txt = "@@ ERROR: Old format Currency record detected (empty relative rate). Please manually edit the Currency/Security first to fix - No changes allowed!"
-            statusLabel.setText((txt).ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
+            txt = "@@ ERROR: Old format Currency record detected (empty relative rate). Please use 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix - No changes allowed!"
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
             myPrint("B",txt)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -5150,8 +5149,8 @@ Visit: %s (Author's site)
 
         if not justProvideFilter:
             if not check_all_currency_raw_rates_ok():
-                myPrint("B","@@ Error: failed checkCurrencyRawRatesOK() check... Exiting list_security_currency_price_date() without any changes...")
-                txt = "ERROR: You have old format Currency/Security record(s). Consider running Fix relative currencies option first"
+                myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok() check... Exiting list_security_currency_price_date() without any changes...")
+                txt = "ERROR: You have old format Currency/Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
                 myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 return
@@ -5270,7 +5269,7 @@ Visit: %s (Author's site)
 
                 if lUpdateRequired:
                     if not checkCurrencyRawRatesOK(sec_curr):
-                        output += "@@@ ERROR: Currency object has an old underlying format (empty 'rate' / 'rrate' fields); please manually edit this Currency/Security to fix (skipping....) @@@\n"
+                        output += "@@@ ERROR: Currency object has an old underlying format (empty 'rate' / 'rrate' fields); please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix (skipping....) @@@\n"
                         _lMustRunFixCurrenciesFirst = True
                         lUpdateRequired = False
 
@@ -7633,6 +7632,13 @@ Please update any that you use before proceeding....
         # Credit to: Finite Mobius, LLC / Jason R. Miller" for original code (https://github.com/finitemobius/moneydance-py)
         # change-security-cusip.py
         # Variant of remove_ofx_security_bindings.py
+
+        if not check_all_currency_raw_rates_ok():
+            myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok() check... Exiting CUSIPFix() without any changes...")
+            txt = "ERROR: You have old format Currency/Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            return
 
         # Find Securities with CUSIP(s) set...
         dropdownSecs = ArrayList()
@@ -10921,7 +10927,7 @@ now after saving the file, restart Moneydance
         if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
         if not check_all_currency_raw_rates_ok():
-            txt = u"FIX INVALID REL CURR RATES: You appear to have 'old' format Currency/Security currency records. Please run Diagnose/Fix Currencies/Securities first..."
+            txt = u"FIX INVALID REL CURR RATES: You appear to have 'old' format Currency/Security currency records. Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first..."
             myPrint("B", txt)
             statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
             myPopupInformationBox(toolbox_frame_, txt)
@@ -11025,7 +11031,7 @@ now after saving the file, restart Moneydance
         if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
         if not check_all_currency_raw_rates_ok():
-            txt = "FIX - DELETE PRICE HISTORY WITH 'WILD' RATES: You appear to have 'old' format Currency/Security records. Please run Diagnose/Fix Currencies/Securities first..."
+            txt = "FIX - DELETE PRICE HISTORY WITH 'WILD' RATES: You appear to have 'old' format Currency/Security records. Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first..."
             myPrint("B", txt)
             statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
             myPopupInformationBox(toolbox_frame_, txt)
@@ -19631,7 +19637,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                              "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
                                              "You have some Currency / Security records which were created in an older version of Moneydance\n"
                                              "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
-                                             "Please run the DIAG then FIX 'currencies / securities' option to address this issue\n"
+                                             "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
                                              "Menu items will remain disabled until you do this....",
                                              lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
                             lAlertPopupShown = True
@@ -19877,7 +19883,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                              "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
                                              "You have some Currency / Security records which were created in an older version of Moneydance\n"
                                              "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
-                                             "Please run the DIAG then FIX 'currencies / securities' option to address this issue\n"
+                                             "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
                                              "Menu items will remain disabled until you do this....",
                                              lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
                             lAlertPopupShown = True
