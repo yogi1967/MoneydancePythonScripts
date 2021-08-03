@@ -208,6 +208,7 @@
 # build: 1041 - Renamed feature to: - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
 # build: 1041 - Updated 'Diagnose Currency / Security (hidden) Decimal Places' report
 # build: 1041 - Added options to report and set the shouldBeIncludedInNetWorth() settings to Accounts Tools Menu
+# build: 1041 - Added feature - View your Security's hidden CUSIP settings to Online Banking (OFX) Tools Menu
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
@@ -3634,6 +3635,82 @@ Visit: %s (Author's site)
 
         outputDates += "\n<END>"
         QuickJFrame("LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+
+    def OFX_view_CUSIP_settings(statusLabel):
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        _THIS_METHOD_NAME = "OFX: View Security's hidden CUSIP settings"
+
+        PARAM_CURRID = "curr_id."
+
+        output = "%s:\n" \
+                 "%s\n\n" %(_THIS_METHOD_NAME, " "*len(_THIS_METHOD_NAME))
+
+        output += "The hidden link between your Financial Institution Investment Securities and your MD Securities when downloading\n" \
+                  "is stored as a hidden setting against your security in a key known as the CUSIP. For USA Customers this is the USA\n" \
+                  "standard called CUSIP and all Securities have a unique number. In other markets this might be called ISIN for example.\n" \
+                  "When matching Securities on Download, this setting needs to be blank or match the CUSIP. Your OFX download will contain\n" \
+                  "the tags '<UNIQUEIDTYPE>' (which normally contains 'CUSIP') and '<UNIQUEID>' (which contains the CUSIP number).\n" \
+                  "If your MD Security already contains a different CUSIP number, then it will NOT appear in the match list.\n" \
+                  "You can edit your hidden CUSIP data in Advanced Mode.\n\n"
+
+        output += " SECURITIES\n" \
+                  " ==========\n\n"
+
+        output += "%s %s %s %s %s\n" % (pad("Security", 45),
+                                        pad("ID", 15),
+                                        pad("Ticker Symbol", 15),
+                                        pad("SCHEME", 12),
+                                        pad("IDENTIFIER (CUSIP)", 20))
+
+        output += "%s %s %s %s %s\n" % ("-" * 45,
+                                        "-" * 15,
+                                        "-" * 15,
+                                        "-" * 12,
+                                        "-" * 20)
+
+        output += "\n"
+
+        securities = sorted(MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies(),
+                            key=lambda x: (x.getCurrencyType(), x.getName().upper()))
+
+        iCountFound = 0
+        for sec in securities:
+            if sec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                       # noqa
+            for key in sec.getParameterKeys():
+
+                if key.startswith(PARAM_CURRID):
+
+                    theScheme = key[len(PARAM_CURRID):]
+                    theCUSIP = sec.getIDForScheme(theScheme)
+
+                    if not theCUSIP: raise Exception("ERROR: %s - empty CUSIP returned? Security: %s, Scheme: %s" %(_THIS_METHOD_NAME, sec, theScheme))
+
+                    iCountFound += 1
+                    output += "%s %s %s %s %s\n" % (pad(sec.getName(), 45),
+                                                    pad(sec.getIDString(), 15),
+                                                    pad(sec.getTickerSymbol(), 15),
+                                                    pad(theScheme, 12),
+                                                    theCUSIP)
+
+        if not iCountFound:
+            output += "\nNONE FOUND!\n"
+        else:
+            output += "\n\n%s Security hidden CUSIP record(s) found\n" %(iCountFound)
+
+        output += "\n<END>"
+
+        statusLabel.setText(("%s: - Displaying Security hidden CUSIP Settings" %(_THIS_METHOD_NAME)).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        del securities
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
 
     def OFX_view_online_txns_payees_payments(statusLabel):
 
@@ -7558,11 +7635,11 @@ Please update any that you use before proceeding....
         # Variant of remove_ofx_security_bindings.py
 
         # Find Securities with CUSIP(s) set...
-        dropdownSecs=ArrayList()
-        allSecs=ArrayList()
+        dropdownSecs = ArrayList()
+        allSecs = ArrayList()
         currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
         for curr in currencies:
-            if curr.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                  # noqa
+            if curr.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                           # noqa
             allSecs.append(curr)
             for key in curr.getParameterKeys():
                 if key.startswith(currID):
@@ -7777,15 +7854,15 @@ Please update any that you use before proceeding....
 
             elif lAdd:
 
-                newScheme = myPopupAskForInput(toolbox_frame_,"FIX CUSIP","NEW CUSIP Scheme/Key:","Enter the new CUSIP Scheme/Key to add to Security: %s"
-                                               %(selectedSecurity))
+                newScheme = myPopupAskForInput(toolbox_frame_,"FIX CUSIP","NEW CUSIP Scheme/Key:","Enter Scheme Type to add (normally 'CUSIP'): %s"
+                                               %(selectedSecurity), defaultValue="CUSIP")
 
                 if not newScheme or newScheme == "":
-                    statusLabel.setText(("FIX CUSIP - EDIT - new CUSIP Scheme/Key not entered - no changes made").ljust(800, " "))
+                    statusLabel.setText(("FIX CUSIP - EDIT - new CUSIP Scheme Type not entered - no changes made").ljust(800, " "))
                     statusLabel.setForeground(Color.RED)
                     return
 
-                newID = myPopupAskForInput(toolbox_frame_,"FIX CUSIP","NEW CUSIP ID:","Enter the new CUSIP ID for Scheme/Key: %s to add to Security: %s"
+                newID = myPopupAskForInput(toolbox_frame_,"FIX CUSIP","NEW CUSIP ID:","Enter the new CUSIP ID for Scheme Type: %s to add to Security: %s"
                                            %(newScheme,selectedSecurity))
 
                 if not newID or newID == "":
@@ -18760,6 +18837,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_viewListALLMDServices = JRadioButton("View list of MD's Bank dynamic setup profiles (then select one)", False)
                 user_viewListALLMDServices.setToolTipText("This will display Moneydance's dynamic setup profiles for all banks - pulled from Infinite Kind's website..")
 
+                user_view_CUSIP_settings = JRadioButton("View your Security's hidden CUSIP settings (The link between your Bank's Securities & MD Securities)", False)
+                user_view_CUSIP_settings.setToolTipText("This will show your Security's hidden CUSIP settings. These link your downloads on Investment Securities to MD Securities")
+
                 user_viewOnlineTxnsPayeesPayments = JRadioButton("View your Online Txns/Payees/Payments", False)
                 user_viewOnlineTxnsPayeesPayments.setToolTipText("This will show you your cached Online Txns (there should be none) and also your saved online payees and payments")
 
@@ -18823,6 +18903,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_manageCUSIPLink)
                 bg.add(user_searchOFXData)
                 bg.add(user_viewInstalledBankProfiles)
+                bg.add(user_view_CUSIP_settings)
                 bg.add(user_viewOnlineTxnsPayeesPayments)
                 bg.add(user_viewAllLastTxnDownloadDates)
                 bg.add(user_cookieManagement)
@@ -18840,6 +18921,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_searchOFXData)
                 userFilters.add(user_viewInstalledBankProfiles)
                 userFilters.add(user_viewListALLMDServices)
+                userFilters.add(user_view_CUSIP_settings)
                 userFilters.add(user_viewOnlineTxnsPayeesPayments)
                 userFilters.add(user_viewAllLastTxnDownloadDates)
                 userFilters.add(user_toggleMDDebug)
@@ -18912,6 +18994,12 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_viewListALLMDServices.isSelected():
                         download_md_fiscal_setup()
                         self.statusLabel.setText(("OFX: Moneydance's Dynamic Fiscal Institution Setup profiles have been retrieved and displayed....").ljust(800, " "))
+                        self.statusLabel.setForeground(Color.BLUE)
+                        return
+
+                    if user_view_CUSIP_settings.isSelected():
+                        OFX_view_CUSIP_settings(self.statusLabel)
+                        self.statusLabel.setText(("OFX: Your Security's hidden CUSIP settings have been retrieved and displayed....").ljust(800, " "))
                         self.statusLabel.setForeground(Color.BLUE)
                         return
 
