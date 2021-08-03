@@ -4918,20 +4918,21 @@ Visit: %s (Author's site)
         checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
 
         if checkRate is None or not isGoodRate(checkRateDouble):
-            myPrint("B", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s" %(theCurr))
+            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
             return False
 
         if checkRRate is None or not isGoodRate(checkRRateDouble):
-            myPrint("B", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s" %(theCurr))
+            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
             return False
 
         return True
 
 
-    def check_all_currency_raw_rates_ok():
+    def check_all_currency_raw_rates_ok(filterType=None):
 
         currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
         for curr in currs:
+            if filterType and curr.getCurrencyType() != filterType: continue
             if not checkCurrencyRawRatesOK(curr):
                 return False
 
@@ -5146,14 +5147,6 @@ Visit: %s (Author's site)
 
         currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
         currs = sorted(currs, key=lambda x: (x.getCurrencyType(), x.getName().upper()))
-
-        if not justProvideFilter:
-            if not check_all_currency_raw_rates_ok():
-                myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok() check... Exiting list_security_currency_price_date() without any changes...")
-                txt = "ERROR: You have old format Currency/Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
-                myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
-                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                return
 
         if justProvideFilter and lEverything: return currs
 
@@ -7633,9 +7626,9 @@ Please update any that you use before proceeding....
         # change-security-cusip.py
         # Variant of remove_ofx_security_bindings.py
 
-        if not check_all_currency_raw_rates_ok():
-            myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok() check... Exiting CUSIPFix() without any changes...")
-            txt = "ERROR: You have old format Currency/Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
+        if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):
+            myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok(SECURITY) check... Exiting CUSIPFix() without any changes...")
+            txt = "ERROR: You have old format Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
             return
@@ -7645,7 +7638,7 @@ Please update any that you use before proceeding....
         allSecs = ArrayList()
         currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
         for curr in currencies:
-            if curr.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                           # noqa
+            if curr.getCurrencyType() != CurrencyType.Type.SECURITY: continue
             allSecs.append(curr)
             for key in curr.getParameterKeys():
                 if key.startswith(currID):
@@ -10926,13 +10919,6 @@ now after saving the file, restart Moneydance
         txt = "fix_invalid_relative_currency_rates"
         if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
 
-        if not check_all_currency_raw_rates_ok():
-            txt = u"FIX INVALID REL CURR RATES: You appear to have 'old' format Currency/Security currency records. Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first..."
-            myPrint("B", txt)
-            statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_, txt)
-            return
-
         book = MD_REF.getCurrentAccountBook()
         currencies = book.getCurrencies().getAllCurrencies()
         currencies = sorted(currencies, key=lambda sort_x: (sort_x.getCurrencyType(),sort_x.getName().upper()))
@@ -11029,14 +11015,6 @@ now after saving the file, restart Moneydance
 
         txt = "Fix Invalid Price History Records"
         if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
-
-        if not check_all_currency_raw_rates_ok():
-            txt = "FIX - DELETE PRICE HISTORY WITH 'WILD' RATES: You appear to have 'old' format Currency/Security records. Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first..."
-            myPrint("B", txt)
-            statusLabel.setText((txt).ljust(800, u" ")); statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_, txt)
-            return
-
 
         output="FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES\n" \
                " ===================================================\n\n"
@@ -13616,6 +13594,8 @@ now after saving the file, restart Moneydance
 
     # noinspection PyUnresolvedReferences
     def merge_duplicate_securities(statusLabel):
+
+        # todo = "MOVE CUSIP HERE TOO!!!"
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
         if MD_REF.getCurrentAccount().getBook() is None: return
@@ -19528,8 +19508,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                lAlertPopupShown = False
-
                 user_view_check_number_settings = JRadioButton("View Check Number Settings", False)
                 user_view_check_number_settings.setToolTipText("View the Check Number settings that will display in the Transaction Register")
 
@@ -19624,27 +19602,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     bookName = MD_REF.getCurrentAccountBook().getName().strip()
                     root = MD_REF.getCurrentAccountBook().getRootAccount()
                     rootName = root.getAccountName().strip()
+
                     user_fix_root_account_name.setEnabled(lAdvancedMode and (rootName != bookName))
-
-                    user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
-                    user_force_change_accounts_currency.setEnabled(lAdvancedMode)
-
-                    if not check_all_currency_raw_rates_ok():
-
-                        if lAdvancedMode and not lAlertPopupShown:
-
-                            MyPopUpDialogBox(toolbox_frame_,
-                                             "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
-                                             "You have some Currency / Security records which were created in an older version of Moneydance\n"
-                                             "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
-                                             "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
-                                             "Menu items will remain disabled until you do this....",
-                                             lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
-                            lAlertPopupShown = True
-
-
-                        user_force_change_all_accounts_currency.setEnabled(False)
-                        user_force_change_accounts_currency.setEnabled(False)
 
                     bg.clearSelection()
 
@@ -19794,6 +19753,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_force_change_accounts_currency.setEnabled(lAdvancedMode)
                 user_force_change_accounts_currency.setForeground(Color.RED)
 
+
                 user_force_change_all_accounts_currency = JRadioButton("FIX: FORCE Change ALL Account's Currencies (force_change_all_currencies.py)", False)
                 user_force_change_all_accounts_currency.setToolTipText("This allows you to FORCE change ALL Account's Currencies - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
                 user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
@@ -19864,16 +19824,12 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
 
-                    user_diag_price_date.setEnabled(True)
-
                     user_edit_security_decimal_places.setEnabled(lAdvancedMode)
                     user_merge_duplicate_securities.setEnabled(lAdvancedMode)
                     user_autofix_price_date.setEnabled(lAdvancedMode)
                     user_thin_price_history.setEnabled(lAdvancedMode)
                     user_fix_invalid_curr_sec.setEnabled(lAdvancedMode)
                     user_fix_invalid_price_history.setEnabled(lAdvancedMode)
-                    user_force_change_accounts_currency.setEnabled(lAdvancedMode)
-                    user_force_change_all_accounts_currency.setEnabled(lAdvancedMode)
 
                     if not check_all_currency_raw_rates_ok():
 
@@ -19890,15 +19846,15 @@ Now you will have a text readable version of the file you can open in a text edi
 
                         user_diag_curr_sec.setForeground(Color.BLUE)
 
-                        user_diag_price_date.setEnabled(False)
-                        user_edit_security_decimal_places.setEnabled(False)
-                        user_merge_duplicate_securities.setEnabled(False)
                         user_autofix_price_date.setEnabled(False)
                         user_thin_price_history.setEnabled(False)
                         user_fix_invalid_curr_sec.setEnabled(False)
                         user_fix_invalid_price_history.setEnabled(False)
-                        user_force_change_accounts_currency.setEnabled(False)
-                        user_force_change_all_accounts_currency.setEnabled(False)
+
+                        # Just disable if errors on Security records....
+                        if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
+                            user_edit_security_decimal_places.setEnabled(False)
+                            user_merge_duplicate_securities.setEnabled(False)
 
                     bg.clearSelection()
 
