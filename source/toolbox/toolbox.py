@@ -210,6 +210,7 @@
 # build: 1041 - Added options to report and set the shouldBeIncludedInNetWorth() settings to Accounts Tools Menu
 # build: 1041 - Added feature - View your Security's hidden CUSIP settings to Online Banking (OFX) Tools Menu
 # build: 1041 - Currency rrate checking / fix features now detect build 3070 of Moneydance where the code 'issue' was resolved...
+# build: 1041 - Added save output button to QuickJFrame() popup that displays output text.
 
 # todo - Check the rrate 3070 build number etc.....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -461,6 +462,7 @@ else:
     import subprocess
     import time
     import shutil
+    from collections import OrderedDict
 
     from java.util import Timer, TimerTask
 
@@ -1681,14 +1683,87 @@ Visit: %s (Author's site)
 
             return
 
+    class SaveQuickJFrameTextToFile(AbstractAction):
+
+        def __init__(self, theText, callingFrame):
+            self.theText = theText
+            self.callingFrame = callingFrame
+
+        def actionPerformed(self, event):
+            global toolbox_frame_, debug
+            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+            if Platform.isOSX():
+                System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
+                System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+            filename = FileDialog(self.callingFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
+            filename.setDirectory(get_home_dir())
+            filename.setMultipleMode(False)
+            filename.setMode(FileDialog.SAVE)
+            filename.setFile("toolbox_output.txt")
+
+            if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+                extFilter = ExtFilenameFilter("txt")
+                filename.setFilenameFilter(extFilter)
+
+            filename.setVisible(True)
+
+            copyToFile = filename.getFile()
+
+            if Platform.isOSX():
+                System.setProperty("com.apple.macos.use-file-dialog-packages","true")
+                System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+            if (copyToFile is None) or copyToFile == "":
+                filename.dispose(); del filename
+                return
+            elif not str(copyToFile).endswith(".txt"):
+                myPopupInformationBox(self.callingFrame, "Sorry - please use a .txt file extension when saving output txt")
+                filename.dispose(); del filename
+                return
+            elif ".moneydance" in filename.getDirectory():
+                myPopupInformationBox(self.callingFrame, "Sorry, please choose a location outside of the  Moneydance location")
+                filename.dispose();del filename
+                return
+
+            copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
+
+            if not check_file_writable(copyToFile):
+                myPopupInformationBox(self.callingFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
+
+            toFile = None
+            try:
+                toFile = os.path.join(filename.getDirectory(), filename.getFile())
+                with open(toFile, 'w') as f: f.write(self.theText)
+                myPrint("B", "QuickJFrame text output copied to: %s" %(toFile))
+
+                # noinspection PyTypeChecker
+                if os.path.exists(toFile):
+                    play_the_money_sound()
+                    myPopupInformationBox(self.callingFrame, "Output text saved as requested to: %s" %(toFile))
+                else:
+                    txt = "ERROR - failed to write output text to file: %s" %(toFile)
+                    myPrint("B", txt)
+                    myPopupInformationBox(self.callingFrame, txt)
+            except:
+                txt = "ERROR - failed to wite output text to file: %s" %(toFile)
+                dump_sys_error_to_md_console_and_errorlog()
+                myPopupInformationBox(self.callingFrame, txt)
+
+            filename.dispose(); del filename
+
+            return
+
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False):
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
             self.returnFrame = None
             self.copyToClipboard = copyToClipboard
+            self.lJumpToEnd = lJumpToEnd
 
         class CloseAction(AbstractAction):
 
@@ -1757,13 +1832,41 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
+                    saveButton = JButton("Save to file")
+                    saveButton.setToolTipText("Saves the output displayed in this window to a file")
+                    saveButton.setOpaque(True)
+                    saveButton.setBackground(Color.WHITE)
+                    saveButton.setForeground(Color.BLACK)
+                    saveButton.addActionListener(SaveQuickJFrameTextToFile(self.callingClass.output, jInternalFrame))
+
+                    if Platform.isOSX():
+                        save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
+                        if save_useScreenMenuBar is None or save_useScreenMenuBar == "":
+                            save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
+                        System.setProperty("apple.laf.useScreenMenuBar", "false")
+                        System.setProperty("com.apple.macos.useScreenMenuBar", "false")
+                    else:
+                        save_useScreenMenuBar = "true"
+
+                    mb = JMenuBar()
+
+                    mb.add(Box.createHorizontalGlue())
+                    mb.add(saveButton)
+                    mb.add(Box.createRigidArea(Dimension(30, 0)))
+
+                    jInternalFrame.setJMenuBar(mb)
+
                     jInternalFrame.add(internalScrollPane)
 
                     jInternalFrame.pack()
                     jInternalFrame.setLocationRelativeTo(None)
                     jInternalFrame.setVisible(True)
 
-                    if "errlog.txt" in self.callingClass.title:
+                    if Platform.isOSX():
+                        System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
+                        System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
+
+                    if "errlog.txt" in self.callingClass.title or self.callingClass.lJumpToEnd:
                         theJText.setCaretPosition(theJText.getDocument().getLength())
 
                     try:
@@ -3696,11 +3799,12 @@ Visit: %s (Author's site)
                     if not theCUSIP: raise Exception("ERROR: %s - empty CUSIP returned? Security: %s, Scheme: %s" %(_THIS_METHOD_NAME, sec, theScheme))
 
                     iCountFound += 1
-                    output += "%s %s %s %s %s\n" % (pad(sec.getName(), 45),
+                    output += "%s %s %s %s %s %s\n" % (pad(sec.getName(), 45),
                                                     pad(sec.getIDString(), 15),
                                                     pad(sec.getTickerSymbol(), 15),
                                                     pad(theScheme, 12),
-                                                    theCUSIP)
+                                                    theCUSIP,
+                                                    ("** CUSIP & TICKER ARE DIFFERENT **" if (theCUSIP.strip() != sec.getTickerSymbol().strip()) else ("")))
 
         if not iCountFound:
             output += "\nNONE FOUND!\n"
@@ -13002,9 +13106,9 @@ now after saving the file, restart Moneydance
                                                       None)
 
         if not selectedSecSubAcct:
-            statusLabel.setText(("User did not select any of the %s improperly linked Security(s) to fix - no changes made" %(len(nonLinkedSecurityAccounts))).ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            txt = "User did not select any of the %s improperly linked Security(s) to fix - no changes made" %(len(nonLinkedSecurityAccounts))
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         securities = []
@@ -13030,9 +13134,9 @@ now after saving the file, restart Moneydance
                                                     None)
 
         if not targetSecurity:
-            statusLabel.setText(("User did not select a target Security - no changes made").ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            txt = "User did not select a target Security - no changes made"
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
@@ -13609,8 +13713,6 @@ now after saving the file, restart Moneydance
     # noinspection PyUnresolvedReferences
     def merge_duplicate_securities(statusLabel):
 
-        # todo = "MOVE CUSIP HERE TOO!!!"
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -13619,6 +13721,8 @@ now after saving the file, restart Moneydance
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
         PARAMETER_KEY = "toolbox_security_merge"
+        PARAM_CURRID = "curr_id."
+
         today = Calendar.getInstance()
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
@@ -13635,13 +13739,15 @@ now after saving the file, restart Moneydance
 
         try:
             # Sweep One - gather the potential targets by duplicate Ticker Symbol....
-            dup_securities = {}
+            dup_securities = OrderedDict()
             securities = []
-            currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+            currencies = sorted(MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies(),
+                                key=lambda x: (x.getCurrencyType(), x.getName().upper(), x.getTickerSymbol(), x.getIDString()))
+
             for currSec in currencies:
                 if currSec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                        # noqa
                 securities.append(currSec)
-                theTicker = currSec.getTickerSymbol().strip().lower()
+                theTicker = currSec.getTickerSymbol().strip().upper()
                 if theTicker is None or theTicker == "" or len(theTicker) < 1: continue
                 getDup = dup_securities.get(theTicker)
                 if getDup is not None:
@@ -13703,8 +13809,11 @@ now after saving the file, restart Moneydance
 
                 lFailChecks = False
                 primarySplits = primaryCurr.getSplits()
-                output += "Verifying potential: %s / %s (has %s price history records)\n" %(dup,primaryCurr.getName(),highestSnapCount)
+                output += "Verifying potential 'duplicate': %s(Ticker: %s) (has %s price history records)\n" %(primaryCurr.getName(),dup,highestSnapCount)
                 for scanDup in getDup[1]:
+                    txt = "... '%s' NOTE: has %s price history records" %(pad(scanDup.getName(),50), scanDup.getSnapshots().size())
+                    output += "%s\n" %(txt)
+
                     if scanDup.getRelativeCurrency() != primaryCurr.getRelativeCurrency():
                         lShowOutput = lFailChecks = True
                         txt = "... '%s' CANNOT be MERGED as not using the same relative currency %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getRelativeCurrency().getName(),18),pad(primaryCurr.getRelativeCurrency().getName(),18))
@@ -13712,7 +13821,7 @@ now after saving the file, restart Moneydance
 
                     if scanDup.getDecimalPlaces() != primaryCurr.getDecimalPlaces():
                         lShowOutput = lFailChecks = True
-                        txt = "... '%s'  CANNOT be MERGED as not the same decimal places          %s vs %s" %(pad(scanDup.getName(),50),pad(str(scanDup.getDecimalPlaces()),18),pad(str(primaryCurr.getDecimalPlaces()),18))
+                        txt = "... '%s' CANNOT be MERGED as not the same decimal places          %s vs %s" %(pad(scanDup.getName(),50),pad(str(scanDup.getDecimalPlaces()),18),pad(str(primaryCurr.getDecimalPlaces()),18))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getRelativeRate() != primaryCurr.getRelativeRate():
@@ -13736,7 +13845,7 @@ now after saving the file, restart Moneydance
                     myPrint("DB",txt); output += "%s\n" %(txt)
                     removeList.append(dup)
                 else:
-                    txt = "... *** PASSED checks - will include candidate....."
+                    txt = "... *** PASSED checks - will include as candidate for merging....."
                     myPrint("DB",txt); output += "%s\n" %(txt)
 
                 output += "\n"
@@ -13750,8 +13859,9 @@ now after saving the file, restart Moneydance
             if len(securities) < 2 or len(dup_securities) < 1:
                 output += "\n" \
                           "Use MD Menu > Tools>Securities to make changes necessary for Securities to 'qualify' for merging....\n" \
+                          "** except for decimal places differences. Use Toolbox 'MENU: Currency & Security tools > FIX: Edit a Security's (hidden) Decimal Place setting'\n" \
                           "\n"
-                txt = "%s: Not enough Securities / no valid duplicate Tickers found (refer report on screen for details) - no changes made" %(_THIS_METHOD_NAME)
+                txt = "%s: Not enough Securities / no valid duplicate Tickers found (refer report on screen for details)\n\nNO CHANGES MADE\n" %(_THIS_METHOD_NAME)
                 myPrint("B",txt); output += "%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 output += "\n<END>"
@@ -13766,6 +13876,29 @@ now after saving the file, restart Moneydance
 
             txt = _THIS_METHOD_NAME
             if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
+
+
+            class StoreSecurity:
+                def __init__(self, _obj):
+                    self.obj = _obj                         # type: CurrencyType
+
+                def getSecurity(self): return self.obj      # type: CurrencyType
+
+                # noinspection PyMethodMayBeStatic
+                def getDisplayString(self, _security):
+                    return ("%s:Ticker %s:ID %s:rate %s:dpc %s:%s:%s:(%s price history recs)"
+                            % (_security.getName(),
+                               _security.getTickerSymbol(),
+                               _security.getIDString(),
+                               safeInvertRate(_security.getRelativeRate()),
+                               _security.getDecimalPlaces(),
+                               _security.getPrefix(),
+                               _security.getSuffix(),
+                               _security.getSnapshots().size()))
+
+                def __str__(self): return (self.getDisplayString(self.getSecurity()))[:200]
+
+                def __repr__(self): return self.__str__()
 
 
             class StoreTickerData:
@@ -13797,11 +13930,12 @@ now after saving the file, restart Moneydance
                 def setPrimarySecurity(self, theSecurity):
                     self.primarySecurity = theSecurity
 
+                # noinspection PyMethodMayBeStatic
                 def getDisplayString(self, _security):
-                    return ("Ticker:%s:%s:%s:rate %s:dpc %s:%s:%s:(%s snapshots)"
-                            % (self.theTicker,
+                    return ("%s:Ticker %s:ID %s:rate %s:dpc %s:%s:%s:(%s price history recs)"
+                            % (_security.getName(),
+                               self.theTicker,
                                _security.getIDString(),
-                               _security.getName(),
                                safeInvertRate(_security.getRelativeRate()),
                                _security.getDecimalPlaces(),
                                _security.getPrefix(),
@@ -13814,15 +13948,16 @@ now after saving the file, restart Moneydance
 
             listDuplicateTickers = []
             output += "\nFinal list of 'duplicate' candidates...:\n"
+
             for dup in dup_securities:
                 theDupDetails = dup_securities[dup]
                 listDuplicateTickers.append(StoreTickerData(dup,theDupDetails[0],theDupDetails[1]))
                 txt = ".. %s found for Ticker: '%s'" %(theDupDetails[0],dup)
                 myPrint("DB",txt); output += "%s\n" %(txt)
                 for theDups in theDupDetails[1]:
-                    txt = "         - ID: %s Name: %s Rate: %s Dpc: %s Prx:Sfx: %s (Price History: %s)"\
-                          %(pad(theDups.getIDString(),20),
-                            pad(theDups.getName(),30),
+                    txt = "         - Name: %s ID: %s Rate: %s Dpc: %s Prx:Sfx: %s (Price History records: %s)"\
+                          %(pad(theDups.getName(),30),
+                            pad(theDups.getIDString(),20),
                             rpad(safeInvertRate(theDups.getRelativeRate()),12),
                             rpad(theDups.getDecimalPlaces(),2),
                             pad(theDups.getPrefix()+":"+theDups.getSuffix(),20),
@@ -13836,7 +13971,7 @@ now after saving the file, restart Moneydance
             jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
             tickerToMerge = JOptionPane.showInputDialog(jif,
-                                                         "Select Ticker / Security set to merge",
+                                                         "Select Ticker / Security set to merge (sorted by Name, Ticker, ID)",
                                                         _THIS_METHOD_NAME.upper(),
                                                          JOptionPane.INFORMATION_MESSAGE,
                                                          None,
@@ -13845,24 +13980,30 @@ now after saving the file, restart Moneydance
             del listDuplicateTickers
 
             if not tickerToMerge:
-                statusLabel.setText(("%s: User did not select a Ticker / Security set to merge - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
-                statusLabel.setForeground(Color.BLUE)
-                myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                txt = "%s: User did not select a Ticker / Security set to merge - no changes made" %(_THIS_METHOD_NAME)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
+
+            quickSecurityDropdownList = []
+            for secDropdown in tickerToMerge.getSecurityList():
+                quickSecurityDropdownList.append(StoreSecurity(secDropdown))
 
             selectedSecurity = JOptionPane.showInputDialog(jif,
-                                                         "Select the Security that will be the final master",
+                                                           "Select the Security that will be the final master (sorted by Name, Ticker, ID)",
                                                            _THIS_METHOD_NAME.upper(),
-                                                         JOptionPane.INFORMATION_MESSAGE,
-                                                         None,
-                                                         tickerToMerge.getSecurityList(),
-                                                         None)                                                              # type: CurrencyType
+                                                           JOptionPane.INFORMATION_MESSAGE,
+                                                           None,
+                                                           quickSecurityDropdownList,
+                                                           None)  # type: StoreSecurity
 
             if not selectedSecurity:
-                statusLabel.setText(("%s: User did not select a Security as the master for the merge - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
-                statusLabel.setForeground(Color.BLUE)
-                myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                txt = "%s: User did not select a Security as the master for the merge - no changes made" %(_THIS_METHOD_NAME)
+                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
+
+            selectedSecurity = selectedSecurity.getSecurity()
 
             jif.dispose()
 
@@ -14014,7 +14155,7 @@ now after saving the file, restart Moneydance
                 foundPrimary = isSecurityHeldWithinInvestmentAccount(tickerToMerge.getPrimarySecurity(), investAccount)
                 if not foundPrimary:
                     iPrimarySecuritiesToCreate += 1
-                    output += "   <PRIMARY TARGET NOT FOUND - WILL BE CREATED>\n"
+                    output += "   <NEW MASTER SECURITY NOT FOUND IN THIS INVESTMENT ACCOUNT - WILL BE ADDED>\n"
                 foundSecondary = False
                 for security in tickerToMerge.getSecurityList():
                     foundSecurity = isSecurityHeldWithinInvestmentAccount(security, investAccount)
@@ -14063,7 +14204,7 @@ now after saving the file, restart Moneydance
                 output += "<NONE FOUND>\n\n"
             else:
                 output += "%s Investment Accounts are involved in the merge...\n" %(iFoundAnyInvestmentAccounts)
-                output += "... Will create %s primary securities investment sub accounts\n" %(iPrimarySecuritiesToCreate)
+                output += "... Will create/add %s primary securities investment sub accounts\n" %(iPrimarySecuritiesToCreate)
                 output += "... Will merge/delete %s non-primary securities in investment sub accounts\n" %(iSecuritiesMergedDeleted)
                 output += "----\n"
 
@@ -14078,6 +14219,7 @@ now after saving the file, restart Moneydance
 
             output += "\n"
 
+            ############################################################################################################
             # OK - Snapshot validation etc
             primarySnaps = 0
             allOtherSnaps = 0
@@ -14098,7 +14240,7 @@ now after saving the file, restart Moneydance
                 output += "Primary Security has %s Price History records, the others have %s - STRATEGY REQUIRED...\n" %(primarySnaps, allOtherSnaps)
 
             if lSnapshotActionRequired:
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
 
                 options = ["Keep Master's %s Price History Records Only (dump the other's %s records)"  %(primarySnaps, allOtherSnaps),
                            "Merge all other %s history records into master's (currently holds %s)"      %(allOtherSnaps, primarySnaps),
@@ -14114,9 +14256,9 @@ now after saving the file, restart Moneydance
                                                                None)
 
                 if not selectedSnapStrategy:
-                    statusLabel.setText(("%s: User did not select a Price History Strategy for the merge - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
-                    statusLabel.setForeground(Color.RED)
-                    myPopupInformationBox(jif,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                    txt = "%s: User did not select a Price History Strategy for the merge - no changes made" %(_THIS_METHOD_NAME)
+                    statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                    myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
 
                 jif.dispose()
@@ -14129,6 +14271,104 @@ now after saving the file, restart Moneydance
                 output += "** Price History Strategy selected: %s\n\n" %(selectedSnapStrategy)
 
 
+            ############################################################################################################
+            # OK - hidden CUSIP validation etc
+
+
+            def countCUSIPs(_theSec):
+                iCUSIPs = 0
+                for key in _theSec.getParameterKeys():
+                    if key.startswith(PARAM_CURRID):
+                        iCUSIPs += 1
+                return iCUSIPs
+
+
+            def getAllUniqueCUSIPs(_theSecList):
+                _allUniqueCUSIPs = {}
+                returnUniqueCUSIPs = []
+                for _theSec in _theSecList:
+                    for key in _theSec.getParameterKeys():
+                        if key.startswith(PARAM_CURRID):
+                            _theScheme = key[len(PARAM_CURRID):]
+                            _theCUSIP = _theSec.getIDForScheme(_theScheme)
+                            if _allUniqueCUSIPs.get(_theScheme+"."+_theCUSIP) is None:
+                                _allUniqueCUSIPs[_theScheme+"."+_theCUSIP] = True
+                                returnUniqueCUSIPs.append([_theScheme, _theCUSIP])
+                return returnUniqueCUSIPs
+
+
+            primaryCUSIPs = 0
+            allOtherCUSIPs = 0
+            for security in tickerToMerge.getSecurityList():
+                if security == tickerToMerge.getPrimarySecurity():
+                    primaryCUSIPs = countCUSIPs(security)
+                else:
+                    allOtherCUSIPs += countCUSIPs(security)
+
+            allUniqueCUSIPs = getAllUniqueCUSIPs(tickerToMerge.getSecurityList())
+            if len(allUniqueCUSIPs) > 0:
+                output += "Hidden CUSIP data found (used for linking Investment Downloaded Securities to MD Securities)...:\n"
+                for theScheme, theCUSIP in allUniqueCUSIPs:
+                    output += "Scheme: %s, ID: %s\n" %(theScheme, theCUSIP)
+                output += "\n"
+
+            lCUSIPActionRequired = False
+            if len(allUniqueCUSIPs) < 1:
+                output += "No hidden CUSIP data exists - This is OK and No action required....\n"
+            elif primaryCUSIPs > 0 and allOtherCUSIPs < 1:
+                output += "Only the Primary Security has hidden CUSIP data - This is OK and No action required....\n"
+            else:
+                lCUSIPActionRequired = True
+                output += "Hidden CUSIP data - STRATEGY REQUIRED...\n"
+
+            selectedCUSIP = None
+            if lCUSIPActionRequired:
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+
+                class StoreCUSIP:
+                    def __init__(self, _objScheme, _objCUSIP):
+                        self._objScheme = _objScheme
+                        self._objCUSIP = _objCUSIP
+
+                    def getScheme(self): return self._objScheme
+
+                    def getCUSIP(self): return self._objCUSIP
+
+                    def __str__(self):
+                        if self.getScheme() is None: return ("<NONE> (No hidden CUSIP data)")
+                        return ("Scheme: %s, ID: %s" % (self.getScheme(), self.getCUSIP()))
+
+                    def __repr__(self): return self.__str__()
+
+
+                allUniqueCUSIPsPicklist = []                                                                            # noqa
+                allUniqueCUSIPsPicklist.append(StoreCUSIP(None,None))
+                for theScheme, theCUSIP in allUniqueCUSIPs:
+                    allUniqueCUSIPsPicklist.append(StoreCUSIP(theScheme, theCUSIP))
+
+                selectedCUSIP = JOptionPane.showInputDialog(jif,
+                                                            "Select the hidden CUSIP to keep/use in the new Primary Security?",
+                                                            "%s - HIDDEN CUSIP DATA" % (_THIS_METHOD_NAME.upper()),
+                                                            JOptionPane.INFORMATION_MESSAGE,
+                                                            None,
+                                                            allUniqueCUSIPsPicklist,
+                                                            None)
+
+                del allUniqueCUSIPsPicklist
+
+                if not selectedCUSIP:
+                    txt = "%s: User did not select a hidden CUSIP record for the merge - no changes made" %(_THIS_METHOD_NAME)
+                    statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+                    myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                    return
+
+                jif.dispose()
+
+                output += "** Hidden CUSIP Strategy: - CUSIP data selected: %s\n\n" %(selectedCUSIP)
+            del allUniqueCUSIPs
+
+
+            ############################################################################################################
             output += "\n------\n"
             output += "Investment Accounts included in merge:                                 %s\n" %(len(investmentAccountsInvolvedInMerge))
             output += "Investment Sub Accounts - new Master/Primary securities to be created: %s\n" %(len(investmentAccountsNeedingPrimaryCreated))
@@ -14181,7 +14421,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt, output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14201,6 +14441,7 @@ now after saving the file, restart Moneydance
             MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
             MD_REF.getUI().setSuspendRefresh(True)
 
+            ############################################################################################################
             # Start with snapshot merge...
             if not lSnapshotActionRequired:
                 txt = "Skipping Price History actions...."
@@ -14246,6 +14487,45 @@ now after saving the file, restart Moneydance
                     output += "Secondary %s now contains: %s Price History records...\n" %(security, security.getSnapshots().size())
                 output += "----\n"
 
+            ############################################################################################################
+            # Now CUSIP merge...
+
+            def deleteCUSIPs(_theSec):
+                _deleteList = []
+                for key in _theSec.getParameterKeys():
+                    if key.startswith(PARAM_CURRID):
+                        _theScheme = key[len(PARAM_CURRID):]
+                        _deleteList.append(_theScheme)
+                for _delSchemeCUSIP in _deleteList:
+                    _theSec.setIDForScheme(_delSchemeCUSIP, None)
+
+
+            if not lCUSIPActionRequired:
+                txt = "Skipping hidden CUSIP data actions...."
+                myPrint("B", txt); output += "%s\n\n" %(txt)
+
+            else:
+
+                txt = "Removing any hidden CUSIP data from %s" %(tickerToMerge.getPrimarySecurity())
+                myPrint("B",txt); output += "%s\n" %(txt)
+
+                tickerToMerge.getPrimarySecurity().setEditingMode()
+                deleteCUSIPs(tickerToMerge.getPrimarySecurity())
+
+                if selectedCUSIP.getScheme():
+                    txt = "Adding CUSIP data - Scheme: %s ID: %s to %s" %(selectedCUSIP.getScheme(), selectedCUSIP.getCUSIP(), tickerToMerge.getPrimarySecurity())
+                    myPrint("B",txt); output += "%s\n" %(txt)
+                    tickerToMerge.getPrimarySecurity().setIDForScheme(selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
+
+                tickerToMerge.getPrimarySecurity().setParameter(PARAMETER_KEY,True)
+                tickerToMerge.getPrimarySecurity().syncItem()
+
+                output += "----\n"
+                output += "Primary %s now contains: hidden CUSIP record: Scheme: %s, ID: %s\n" %(tickerToMerge.getPrimarySecurity(), selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
+                output += "----\n"
+
+
+            ############################################################################################################
             # Now create any missing Primary security sub account(s)...
 
             if len(investmentAccountsNeedingPrimaryCreated) > 0:
@@ -14344,6 +14624,7 @@ now after saving the file, restart Moneydance
                 txt = "Now deleting empty empty Investment secondary sub accounts...."
                 myPrint("B", txt); output += "\n%s\n" %(txt)
 
+                ############################################################################################################
                 # now delete the empty sub accounts.....
                 for reassignAcct in investmentAccountsNeedingSecondaryMerge:
 
@@ -14389,7 +14670,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14461,7 +14742,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -14497,9 +14778,9 @@ now after saving the file, restart Moneydance
         toListAccount = list(allInvestmentAccounts)
 
         if len(allInvestmentAccounts) < 2:
-            statusLabel.setText(("%s: You do not have enough accounts to do this - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_,"You do not have enough Investment accounts to do this! No changes made")
+            txt = "%s: You do not have enough accounts to do this - no changes made" %(_THIS_METHOD_NAME)
+            statusLabel.setText((txt).ljust(800, " "));statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         txt = "%s" %(_THIS_METHOD_NAME)
@@ -14514,9 +14795,9 @@ now after saving the file, restart Moneydance
                                                       None)
 
         if not sourceAccount:
-            statusLabel.setText(("%s: User did not select a source Account to move txns from - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
-            statusLabel.setForeground(Color.BLUE)
-            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            txt = "%s: User did not select a source Account to move txns from - no changes made" %(_THIS_METHOD_NAME)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         toListAccount.remove(sourceAccount)
@@ -14530,9 +14811,9 @@ now after saving the file, restart Moneydance
                                                     None)
 
         if not targetAccount:
-            statusLabel.setText(("%s: User did not select a target Account to move txns into - no changes made" %(_THIS_METHOD_NAME)).ljust(800, " "))
-            statusLabel.setForeground(Color.BLUE)
-            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            txt = "%s: User did not select a target Account to move txns into - no changes made" %(_THIS_METHOD_NAME)
+            statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
