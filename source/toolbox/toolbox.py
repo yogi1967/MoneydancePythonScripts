@@ -209,7 +209,9 @@
 # build: 1041 - Updated 'Diagnose Currency / Security (hidden) Decimal Places' report
 # build: 1041 - Added options to report and set the shouldBeIncludedInNetWorth() settings to Accounts Tools Menu
 # build: 1041 - Added feature - View your Security's hidden CUSIP settings to Online Banking (OFX) Tools Menu
+# build: 1041 - Currency rrate checking / fix features now detect build 3070 of Moneydance where the code 'issue' was resolved...
 
+# todo - Check the rrate 3070 build number etc.....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
 # todo - check/fix alert colours since VAqua....!?
@@ -519,6 +521,7 @@ else:
     global TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_BUILD
     global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
+    global MD_RRATE_ISSUE_FIXED_BUILD
     DARK_GREEN = Color(0, 192, 0)                                                                                       # noqa
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lGeekOutModeEnabled_TB = False                                                                                      # noqa
@@ -532,6 +535,8 @@ else:
     globalSave_DEBUG_FI_data = None                                                                                     # noqa
     TOOLBOX_STOP_NOW = False                                                                                            # noqa
 
+    # todo - check the rrate is fixed build line below
+    MD_RRATE_ISSUE_FIXED_BUILD = 3070                                                                                   # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.1                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3069                                                                            # noqa
@@ -4969,7 +4974,8 @@ Visit: %s (Author's site)
             statusLabel.setForeground(Color.RED)
             return
 
-        if not checkCurrencyRawRatesOK(selectedCurrSec.obj):                                                            # noqa
+        # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
+        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not checkCurrencyRawRatesOK(selectedCurrSec.obj):                                                            # noqa
             txt = "@@ ERROR: Old format Currency record detected (empty relative rate). Please use 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix - No changes allowed!"
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
             myPrint("B",txt)
@@ -5261,7 +5267,8 @@ Visit: %s (Author's site)
                     output +=  "... current price/rate %s, latest dated price history price/rate %s\n" %(safeInvertRate(sec_curr.getRelativeRate()), safeInvertRate(snap.getRate()))
 
                 if lUpdateRequired:
-                    if not checkCurrencyRawRatesOK(sec_curr):
+                    # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
+                    if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not checkCurrencyRawRatesOK(sec_curr):
                         output += "@@@ ERROR: Currency object has an old underlying format (empty 'rate' / 'rrate' fields); please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix (skipping....) @@@\n"
                         _lMustRunFixCurrenciesFirst = True
                         lUpdateRequired = False
@@ -6380,12 +6387,13 @@ Please update any that you use before proceeding....
             if lWarning:
                 output += "\n@@@@ You still have %s Warning(s)..\n" % iWarnings
 
-            statusLabel.setText(("@@ CURRENCY / SECURITY FIXES APPLIED (as per your parameters) - Please review diagnostic report for details!").ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
+            txt = "@@ CURRENCY / SECURITY FIXES APPLIED - Please review diagnostic report for details!"
             play_the_money_sound()
-            myPopupInformationBox(toolbox_frame_,"RELEVANT FIXES APPLIED",_THIS_METHOD_NAME.upper(),theMessageType=JOptionPane.WARNING_MESSAGE)
+            msgType = JOptionPane.WARNING_MESSAGE
+            statusColor = Color.RED
 
         else:
+
             if lNeedFixScript:
                 fixRCurrencyCheck = 3
                 txt = ">> Currency / Security errors detected - Consider running the FIX option.."
@@ -6394,8 +6402,9 @@ Please update any that you use before proceeding....
                 output += "Consider running the 'FIX CURRENCIES & SECURITIES' option\n"
                 output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
                 txt = "ERROR: You have Currency / Security errors.. Please review diagnostic report!"
-                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                msgType = JOptionPane.ERROR_MESSAGE
+                statusColor = Color.RED
+
             elif lWarning:
                 fixRCurrencyCheck = 2
                 txt = "You have %s Warning(s).." %(iWarnings)
@@ -6408,14 +6417,15 @@ Please update any that you use before proceeding....
                 output += "Consider running the 'FIX CURRENCIES & SECURITIES' option\n"
                 output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
                 txt = "ERROR: You have %s Currency / Security warnings.. Please review diagnostic report!" %(iWarnings)
-                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                msgType = JOptionPane.WARNING_MESSAGE
+                statusColor = Color.RED
+
             else:
                 fixRCurrencyCheck = 1
                 txt = "All good, Currencies / Securities look clean! Congratulations!"
                 myPrint("J", txt); output += "\n%s\n" %(txt)
-                statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(DARK_GREEN)
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+                msgType = JOptionPane.INFORMATION_MESSAGE
+                statusColor = DARK_GREEN
 
         output += "\n<END>"
 
@@ -6428,6 +6438,9 @@ Please update any that you use before proceeding....
         if iWarnings: alertLevel = 1
         if lNeedFixScript: alertLevel = 2
         jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+        statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(statusColor)
+        myPopupInformationBox(jif, txt, theTitle=_THIS_METHOD_NAME.upper(), theMessageType=msgType)
 
         if lFix:
             myPopupInformationBox(jif,"PLEASE RESTART MONEYDANCE!", _THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -7626,7 +7639,8 @@ Please update any that you use before proceeding....
         # change-security-cusip.py
         # Variant of remove_ofx_security_bindings.py
 
-        if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):
+        # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
+        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):
             myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok(SECURITY) check... Exiting CUSIPFix() without any changes...")
             txt = "ERROR: You have old format Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -19587,7 +19601,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
                 else:
-                    userFilters.add(labelFYI_curr_fix)
+                    if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
+                        userFilters.add(labelFYI_curr_fix)
 
                 userFilters.add(user_inactivate_zero_bal_cats)
                 userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
@@ -19715,7 +19730,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 user_edit_security_decimal_places = JRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly)", False)
                 user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
-                user_edit_security_decimal_places.setEnabled(lAdvancedMode)
+                user_edit_security_decimal_places.setEnabled(lAdvancedMode and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
                 user_edit_security_decimal_places.setForeground(Color.RED)
 
                 user_merge_duplicate_securities = JRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False)
@@ -19803,7 +19818,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
                 else:
-                    userFilters.add(labelFYI_curr_fix)
+                    if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
+                        userFilters.add(labelFYI_curr_fix)
 
                 userFilters.add(user_fix_curr_sec)
                 userFilters.add(user_edit_security_decimal_places)
@@ -19824,37 +19840,41 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
 
-                    user_edit_security_decimal_places.setEnabled(lAdvancedMode)
+                    user_edit_security_decimal_places.setEnabled(lAdvancedMode and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
                     user_merge_duplicate_securities.setEnabled(lAdvancedMode)
                     user_autofix_price_date.setEnabled(lAdvancedMode)
                     user_thin_price_history.setEnabled(lAdvancedMode)
                     user_fix_invalid_curr_sec.setEnabled(lAdvancedMode)
                     user_fix_invalid_price_history.setEnabled(lAdvancedMode)
 
+                    # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
                     if not check_all_currency_raw_rates_ok():
-
-                        if lAdvancedMode and not lAlertPopupShown:
-
-                            MyPopUpDialogBox(toolbox_frame_,
-                                             "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
-                                             "You have some Currency / Security records which were created in an older version of Moneydance\n"
-                                             "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
-                                             "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
-                                             "Menu items will remain disabled until you do this....",
-                                             lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
-                            lAlertPopupShown = True
 
                         user_diag_curr_sec.setForeground(Color.BLUE)
 
-                        user_autofix_price_date.setEnabled(False)
-                        user_thin_price_history.setEnabled(False)
-                        user_fix_invalid_curr_sec.setEnabled(False)
-                        user_fix_invalid_price_history.setEnabled(False)
+                        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
 
-                        # Just disable if errors on Security records....
-                        if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
-                            user_edit_security_decimal_places.setEnabled(False)
-                            user_merge_duplicate_securities.setEnabled(False)
+                            if lAdvancedMode and not lAlertPopupShown:
+
+                                MyPopUpDialogBox(toolbox_frame_,
+                                                 "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
+                                                 "You have some Currency / Security records which were created in an older version of Moneydance\n"
+                                                 "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
+                                                 "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
+                                                 "OR upgrade to Moneydance build %s onwards (as the code was fixed to cope with this data issue)\n"
+                                                 "Menu items will remain disabled until you do this...." %(MD_RRATE_ISSUE_FIXED_BUILD),
+                                                 lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
+                                lAlertPopupShown = True
+
+                            user_autofix_price_date.setEnabled(False)
+                            user_thin_price_history.setEnabled(False)
+                            user_fix_invalid_curr_sec.setEnabled(False)
+                            user_fix_invalid_price_history.setEnabled(False)
+
+                            # Just disable if errors on Security records....
+                            if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
+                                user_edit_security_decimal_places.setEnabled(False)
+                                user_merge_duplicate_securities.setEnabled(False)
 
                     bg.clearSelection()
 
