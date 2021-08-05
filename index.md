@@ -48,6 +48,9 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
 
+    <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)
+
+
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Net Account Balances**: Puts a small 'widget' on the Home Page. Displays the total of selected account balances.
 NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView widget
 
