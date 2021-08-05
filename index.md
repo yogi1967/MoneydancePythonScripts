@@ -12,7 +12,8 @@ This allows you to perform all sorts of 'wonderful' things based on your own fin
 Python is actual Jython 2.7 and accesses the Moneydance Java codebase.
 
 My scripts and extensions are identical. The extension version(s) are simply a 'packaged' script version. 
-InfiniteKind (the creators of Moneydance) have now signed all my Extensions. NOTE: The signed versions may be a few builds behind my latest versions.
+InfiniteKind (the creators of Moneydance) have now signed my Extensions.
+NOTE: The signed versions hosted by IK/MD may be a few builds behind my latest versions.
 If you require a signed version, then download links are at the bottom of this page...
 
 The Extensions will only run properly on Moneydance version 2021.1 (build 3056 onwards)...
@@ -22,15 +23,17 @@ _(If you have installed the extension, but nothing happens, then check your MD v
 
 **NOTE: As of June 2021 - All extensions listed below (except marked with ^^) are listed within the Moneydance Manage Extensions menu - Check there first for updates**
 
-**ANY NEWER VERSIONS LISTED HERE SHOULD BE CONSIDERED PREVIEW (LATEST) VERSIONS**
+**ANY NEWER VERSIONS LISTED HERE SHOULD BE CONSIDERED PREVIEW (LATEST) VERSIONS (FULLY WORKING, WITH ENHANCEMENTS, FIXES, AND PREVIEW FEATURES)**
 
 Click a link below to download a ZIP file. The ZIP file contains both the Extension (if available) and Script version for you to choose from....
 - Extensions have a file extension of *.mxt
 - Scripts have a file extension of *.py
 
 **To install/run Extensions:**
-1) Start Moneydance
-2) Drag and drop the .mxt file onto the Moneydance left side bar; OR Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install
+1) Launch Moneydance
+2) Double-click the .mxt file; or drag and drop the .mxt file onto the Moneydance left side bar;
+   or Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install;
+   (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
 3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
 4) Once its installed, restart Moneydance.
 5) From now on, just click Menu>Extensions and the name of the Extension
@@ -79,7 +82,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
   - demo_account_currency_rates.py: demo script for beginner coders with some simple Moneydance API calls etc
   - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
   - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance
-  - import_categories.py.py: script that allows you to import from a CSV file to create new Categories
+  - import_categories.py: script that allows you to import from a CSV file to create new Categories
 
 
 ### My Python Extension and coding tips:
