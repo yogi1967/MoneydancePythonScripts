@@ -1683,78 +1683,6 @@ Visit: %s (Author's site)
 
             return
 
-    class SaveQuickJFrameTextToFile(AbstractAction):
-
-        def __init__(self, theText, callingFrame):
-            self.theText = theText
-            self.callingFrame = callingFrame
-
-        def actionPerformed(self, event):
-            global toolbox_frame_, debug
-            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
-            if Platform.isOSX():
-                System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
-                System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-            filename = FileDialog(self.callingFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
-            filename.setDirectory(get_home_dir())
-            filename.setMultipleMode(False)
-            filename.setMode(FileDialog.SAVE)
-            filename.setFile("toolbox_output.txt")
-
-            if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
-                extFilter = ExtFilenameFilter("txt")
-                filename.setFilenameFilter(extFilter)
-
-            filename.setVisible(True)
-
-            copyToFile = filename.getFile()
-
-            if Platform.isOSX():
-                System.setProperty("com.apple.macos.use-file-dialog-packages","true")
-                System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-            if (copyToFile is None) or copyToFile == "":
-                filename.dispose(); del filename
-                return
-            elif not str(copyToFile).endswith(".txt"):
-                myPopupInformationBox(self.callingFrame, "Sorry - please use a .txt file extension when saving output txt")
-                filename.dispose(); del filename
-                return
-            elif ".moneydance" in filename.getDirectory():
-                myPopupInformationBox(self.callingFrame, "Sorry, please choose a location outside of the  Moneydance location")
-                filename.dispose();del filename
-                return
-
-            copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
-
-            if not check_file_writable(copyToFile):
-                myPopupInformationBox(self.callingFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
-
-            toFile = None
-            try:
-                toFile = os.path.join(filename.getDirectory(), filename.getFile())
-                with open(toFile, 'w') as f: f.write(self.theText)
-                myPrint("B", "QuickJFrame text output copied to: %s" %(toFile))
-
-                # noinspection PyTypeChecker
-                if os.path.exists(toFile):
-                    play_the_money_sound()
-                    myPopupInformationBox(self.callingFrame, "Output text saved as requested to: %s" %(toFile))
-                else:
-                    txt = "ERROR - failed to write output text to file: %s" %(toFile)
-                    myPrint("B", txt)
-                    myPopupInformationBox(self.callingFrame, txt)
-            except:
-                txt = "ERROR - failed to wite output text to file: %s" %(toFile)
-                dump_sys_error_to_md_console_and_errorlog()
-                myPopupInformationBox(self.callingFrame, txt)
-
-            filename.dispose(); del filename
-
-            return
-
     class QuickJFrame():
 
         def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False):
@@ -1777,6 +1705,94 @@ Visit: %s (Author's site)
 
                 # Already within the EDT
                 self.theFrame.dispose()
+                return
+
+        class QuickJFrameNavigate(AbstractAction):
+
+            def __init__(self, theJText, lTop=False, lBottom=False):
+                self.theJText = theJText
+                self.lTop = lTop
+                self.lBottom = lBottom
+
+            def actionPerformed(self, event):
+                global toolbox_frame_, debug
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                if self.lBottom: self.theJText.setCaretPosition(self.theJText.getDocument().getLength())
+                if self.lTop:    self.theJText.setCaretPosition(0)
+
+                return
+
+        class QuickJFrameSaveTextToFile(AbstractAction):
+
+            def __init__(self, theText, callingFrame):
+                self.theText = theText
+                self.callingFrame = callingFrame
+
+            def actionPerformed(self, event):
+                global toolbox_frame_, debug
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                if Platform.isOSX():
+                    System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
+                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+                filename = FileDialog(self.callingFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
+                filename.setDirectory(get_home_dir())
+                filename.setMultipleMode(False)
+                filename.setMode(FileDialog.SAVE)
+                filename.setFile("toolbox_output.txt")
+
+                if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+                    extFilter = ExtFilenameFilter("txt")
+                    filename.setFilenameFilter(extFilter)
+
+                filename.setVisible(True)
+
+                copyToFile = filename.getFile()
+
+                if Platform.isOSX():
+                    System.setProperty("com.apple.macos.use-file-dialog-packages","true")
+                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+                if (copyToFile is None) or copyToFile == "":
+                    filename.dispose(); del filename
+                    return
+                elif not str(copyToFile).endswith(".txt"):
+                    myPopupInformationBox(self.callingFrame, "Sorry - please use a .txt file extension when saving output txt")
+                    filename.dispose(); del filename
+                    return
+                elif ".moneydance" in filename.getDirectory():
+                    myPopupInformationBox(self.callingFrame, "Sorry, please choose a location outside of the  Moneydance location")
+                    filename.dispose();del filename
+                    return
+
+                copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
+
+                if not check_file_writable(copyToFile):
+                    myPopupInformationBox(self.callingFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
+
+                toFile = None
+                try:
+                    toFile = os.path.join(filename.getDirectory(), filename.getFile())
+                    with open(toFile, 'w') as f: f.write(self.theText)
+                    myPrint("B", "QuickJFrame text output copied to: %s" %(toFile))
+
+                    # noinspection PyTypeChecker
+                    if os.path.exists(toFile):
+                        play_the_money_sound()
+                        myPopupInformationBox(self.callingFrame, "Output text saved as requested to: %s" %(toFile))
+                    else:
+                        txt = "ERROR - failed to write output text to file: %s" %(toFile)
+                        myPrint("B", txt)
+                        myPopupInformationBox(self.callingFrame, txt)
+                except:
+                    txt = "ERROR - failed to wite output text to file: %s" %(toFile)
+                    dump_sys_error_to_md_console_and_errorlog()
+                    myPopupInformationBox(self.callingFrame, txt)
+
+                filename.dispose(); del filename
+
                 return
 
         def show_the_frame(self):
@@ -1835,9 +1851,23 @@ Visit: %s (Author's site)
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
                     saveButton.setOpaque(True)
-                    saveButton.setBackground(Color.WHITE)
-                    saveButton.setForeground(Color.BLACK)
-                    saveButton.addActionListener(SaveQuickJFrameTextToFile(self.callingClass.output, jInternalFrame))
+                    saveButton.setBackground(Color.WHITE); saveButton.setForeground(Color.BLACK)
+                    saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
+
+                    topButton = JButton("Top")
+                    topButton.setOpaque(True)
+                    topButton.setBackground(Color.WHITE); topButton.setForeground(Color.BLACK)
+                    topButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lTop=True))
+
+                    botButton = JButton("Bottom")
+                    botButton.setOpaque(True)
+                    botButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
+                    botButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lBottom=True))
+
+                    closeButton = JButton("Close")
+                    closeButton.setOpaque(True)
+                    closeButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
+                    closeButton.addActionListener(self.callingClass.CloseAction(jInternalFrame))
 
                     if Platform.isOSX():
                         save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
@@ -1849,9 +1879,15 @@ Visit: %s (Author's site)
                         save_useScreenMenuBar = "true"
 
                     mb = JMenuBar()
-
+                    mb.setBorder(EmptyBorder(0, 0, 0, 0))
+                    mb.add(Box.createRigidArea(Dimension(30, 0)))
+                    mb.add(topButton)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
+                    mb.add(botButton)
                     mb.add(Box.createHorizontalGlue())
                     mb.add(saveButton)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
+                    mb.add(closeButton)
                     mb.add(Box.createRigidArea(Dimension(30, 0)))
 
                     jInternalFrame.setJMenuBar(mb)
@@ -13484,6 +13520,7 @@ now after saving the file, restart Moneydance
             securityToEdit.setEditingMode()
             securityToEdit.setDecimalPlaces(newDecimal)
             securityToEdit.setParameter(PARAMETER_KEY,True)
+            securityToEdit.setParameter(PARAMETER_KEY+PARAMETER_KEY_DATA,"{old_decimal_places:%s}" %(oldDecimal))
             securityToEdit.syncItem()
 
             # Now for Txns..    .
@@ -13498,9 +13535,7 @@ now after saving the file, restart Moneydance
                     parentAccount = secAcct.getParentAccount()
 
                     secAcct.setParameter(PARAMETER_KEY,True)
-
-                    if True or debug:
-                        secAcct.setParameter(PARAMETER_KEY+PARAMETER_KEY_DATA,"{old_decimal_places:%s}" %(oldDecimal))
+                    secAcct.setParameter(PARAMETER_KEY+PARAMETER_KEY_DATA,"{old_decimal_places:%s}" %(oldDecimal))
 
                     secAcct.syncItem()
 
@@ -13546,7 +13581,7 @@ now after saving the file, restart Moneydance
                                         pTxn.setEditingMode()
                                         lEditingMode = True
 
-                                        if True or debug:
+                                        if debug:
                                             txn.setParameter(PARAMETER_KEY+PARAMETER_KEY_COST_BASIS,txn.getParameter("cost_basis", None))
 
                                         txn.setParameter("cost_basis", newTag)
@@ -13587,7 +13622,7 @@ now after saving the file, restart Moneydance
                             pTxn.setEditingMode()
                             txn.setParameter(PARAMETER_KEY,True)
 
-                            if True or debug:
+                            if debug:
                                 txn.setParameter(PARAMETER_KEY+PARAMETER_KEY_DATA,"{old_samt:%s,old_pamt:%s}" %(old_samt, old_pamt))
 
                             # newShares = adjusted, long. Price = recalculated, double, splitParentShareValue = unchanged, long
@@ -13861,8 +13896,11 @@ now after saving the file, restart Moneydance
                           "Use MD Menu > Tools>Securities to make changes necessary for Securities to 'qualify' for merging....\n" \
                           "** except for decimal places differences. Use Toolbox 'MENU: Currency & Security tools > FIX: Edit a Security's (hidden) Decimal Place setting'\n" \
                           "\n"
-                txt = "%s: Not enough Securities / no valid duplicate Tickers found (refer report on screen for details)\n\nNO CHANGES MADE\n" %(_THIS_METHOD_NAME)
-                myPrint("B",txt); output += "%s\n" %(txt)
+                if lShowOutput:
+                    txt = "%s: Not enough Securities / no valid duplicate Tickers found (refer report on screen for details) - NO CHANGES MADE" %(_THIS_METHOD_NAME)
+                else:
+                    txt = "%s: Not enough Securities / no duplicate Tickers found - NO CHANGES MADE" %(_THIS_METHOD_NAME)
+                myPrint("B",txt); output += "\n%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
                 output += "\n<END>"
                 if lShowOutput:
@@ -14965,7 +15003,7 @@ now after saving the file, restart Moneydance
                 output += "... to/from accounts validated... No account 'loops' should be created...\n"
             else:
                 output += "... to/from accounts checked... %s account 'loops' could exist if we proceed with move/merge...\n" %(iCountLoops)
-                jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
                 if not MyPopUpDialogBox(jif,
                                        "Move/merge: Would create %s account loop(s) - Proceed or Cancel?" %(iCountLoops),
                                        ">>The txns that would cause an account 'loop' are shown on screen....\n"
@@ -17947,7 +17985,7 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"SAVE TRUNK FILE","execute Save Trunk File function?"):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"SAVE TRUNK FILE","Execute Save Trunk File function?"):
             return
 
         myPrint("B","HACKER MODE: 'SAVE TRUNK FILE': Calling saveTrunkFile() now at user request....")
