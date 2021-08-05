@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# total_selected_transactions.py build: 1001 - July 2021 - Stuart Beesley StuWareSoftSystems
+# total_selected_transactions.py build: 1001 - August 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -30,6 +30,7 @@
 
 # build: 1000 - Initial Release
 # build: 1001 - Enhanced the popup with extra info (e.g. average, fx)
+# build: 1001 - Common code tweaks
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -290,6 +291,7 @@ The author has other useful Extensions / Moneybot Python scripts available...:
 Extension (.mxt) format only:
 toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
 net_account_balances:                   Homepage / summary screen widget. Display the total of selected Account Balances
+total_selected_transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
 Extension (.mxt) and Script (.py) Versions available:
 extract_data                            Extract various data to screen and/or csv.. Consolidation of:
@@ -1407,12 +1409,13 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False):
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
             self.returnFrame = None
             self.copyToClipboard = copyToClipboard
+            self.lJumpToEnd = lJumpToEnd
 
         class CloseAction(AbstractAction):
 
@@ -1426,6 +1429,94 @@ Visit: %s (Author's site)
 
                 # Already within the EDT
                 self.theFrame.dispose()
+                return
+
+        class QuickJFrameNavigate(AbstractAction):
+
+            def __init__(self, theJText, lTop=False, lBottom=False):
+                self.theJText = theJText
+                self.lTop = lTop
+                self.lBottom = lBottom
+
+            def actionPerformed(self, event):
+                global toolbox_frame_, debug
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                if self.lBottom: self.theJText.setCaretPosition(self.theJText.getDocument().getLength())
+                if self.lTop:    self.theJText.setCaretPosition(0)
+
+                return
+
+        class QuickJFrameSaveTextToFile(AbstractAction):
+
+            def __init__(self, theText, callingFrame):
+                self.theText = theText
+                self.callingFrame = callingFrame
+
+            def actionPerformed(self, event):
+                global toolbox_frame_, debug
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                if Platform.isOSX():
+                    System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
+                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+                filename = FileDialog(self.callingFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
+                filename.setDirectory(get_home_dir())
+                filename.setMultipleMode(False)
+                filename.setMode(FileDialog.SAVE)
+                filename.setFile("toolbox_output.txt")
+
+                if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+                    extFilter = ExtFilenameFilter("txt")
+                    filename.setFilenameFilter(extFilter)
+
+                filename.setVisible(True)
+
+                copyToFile = filename.getFile()
+
+                if Platform.isOSX():
+                    System.setProperty("com.apple.macos.use-file-dialog-packages","true")
+                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+                if (copyToFile is None) or copyToFile == "":
+                    filename.dispose(); del filename
+                    return
+                elif not str(copyToFile).endswith(".txt"):
+                    myPopupInformationBox(self.callingFrame, "Sorry - please use a .txt file extension when saving output txt")
+                    filename.dispose(); del filename
+                    return
+                elif ".moneydance" in filename.getDirectory():
+                    myPopupInformationBox(self.callingFrame, "Sorry, please choose a location outside of the  Moneydance location")
+                    filename.dispose();del filename
+                    return
+
+                copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
+
+                if not check_file_writable(copyToFile):
+                    myPopupInformationBox(self.callingFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
+
+                toFile = None
+                try:
+                    toFile = os.path.join(filename.getDirectory(), filename.getFile())
+                    with open(toFile, 'w') as f: f.write(self.theText)
+                    myPrint("B", "QuickJFrame text output copied to: %s" %(toFile))
+
+                    # noinspection PyTypeChecker
+                    if os.path.exists(toFile):
+                        play_the_money_sound()
+                        myPopupInformationBox(self.callingFrame, "Output text saved as requested to: %s" %(toFile))
+                    else:
+                        txt = "ERROR - failed to write output text to file: %s" %(toFile)
+                        myPrint("B", txt)
+                        myPopupInformationBox(self.callingFrame, txt)
+                except:
+                    txt = "ERROR - failed to wite output text to file: %s" %(toFile)
+                    dump_sys_error_to_md_console_and_errorlog()
+                    myPopupInformationBox(self.callingFrame, txt)
+
+                filename.dispose(); del filename
+
                 return
 
         def show_the_frame(self):
@@ -1481,13 +1572,61 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
+                    saveButton = JButton("Save to file")
+                    saveButton.setToolTipText("Saves the output displayed in this window to a file")
+                    saveButton.setOpaque(True)
+                    saveButton.setBackground(Color.WHITE); saveButton.setForeground(Color.BLACK)
+                    saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
+
+                    topButton = JButton("Top")
+                    topButton.setOpaque(True)
+                    topButton.setBackground(Color.WHITE); topButton.setForeground(Color.BLACK)
+                    topButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lTop=True))
+
+                    botButton = JButton("Bottom")
+                    botButton.setOpaque(True)
+                    botButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
+                    botButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lBottom=True))
+
+                    closeButton = JButton("Close")
+                    closeButton.setOpaque(True)
+                    closeButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
+                    closeButton.addActionListener(self.callingClass.CloseAction(jInternalFrame))
+
+                    if Platform.isOSX():
+                        save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
+                        if save_useScreenMenuBar is None or save_useScreenMenuBar == "":
+                            save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
+                        System.setProperty("apple.laf.useScreenMenuBar", "false")
+                        System.setProperty("com.apple.macos.useScreenMenuBar", "false")
+                    else:
+                        save_useScreenMenuBar = "true"
+
+                    mb = JMenuBar()
+                    mb.setBorder(EmptyBorder(0, 0, 0, 0))
+                    mb.add(Box.createRigidArea(Dimension(30, 0)))
+                    mb.add(topButton)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
+                    mb.add(botButton)
+                    mb.add(Box.createHorizontalGlue())
+                    mb.add(saveButton)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
+                    mb.add(closeButton)
+                    mb.add(Box.createRigidArea(Dimension(30, 0)))
+
+                    jInternalFrame.setJMenuBar(mb)
+
                     jInternalFrame.add(internalScrollPane)
 
                     jInternalFrame.pack()
                     jInternalFrame.setLocationRelativeTo(None)
                     jInternalFrame.setVisible(True)
 
-                    if "errlog.txt" in self.callingClass.title:
+                    if Platform.isOSX():
+                        System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
+                        System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
+
+                    if "errlog.txt" in self.callingClass.title or self.callingClass.lJumpToEnd:
                         theJText.setCaretPosition(theJText.getDocument().getLength())
 
                     try:

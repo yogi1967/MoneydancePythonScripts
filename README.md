@@ -17,8 +17,9 @@ Unzip this file, and then install the Extension, or run the Script, as required 
 **!! As of June 2021, most extensions available via the Moneydance menu >> Manage Extensions - Check there first !!**
 
 To use extension (*.mxt):
-- Run Moneydance
-- Drag and drop the .mxt file onto the Moneydance left side bar
+- Launch Moneydance
+- Double-click the .mxt file
+- .. or drag and drop the .mxt file onto the Moneydance left side bar
 - .. or Menu>Extensions>Manage Extensions>add from file>Select the mxt>Open/Install.
 - Then exit and restart Moneydance 
 - To run, Menu>Extensions> and choose the Extension to run
