@@ -6,6 +6,10 @@
 # Shell script: launch-moneydance.sh
 # Make sure you 'chmod +x launch-moneydance.sh' to make script executable
 
+# NOTE:   You can also just run the 'code-signed app' by launching the following from Terminal (which is a simpler approach):
+#         "/Applications/Moneydance.app/Contents/MacOS/Moneydance"                [-d] [-v] [... etc]
+#         "/Applications/Moneydance 2021.2 (3089).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
+
 # THIS IS WRITTEN FOR MacOS Terminal(zsh). Adjust accordingly...!
 
 # The purpose of this shell script is to launch Moneydance from the Terminal command line, simulating the same
@@ -32,6 +36,12 @@
 #                                 (e.g. my own extension with an id of test defines it's own command called 'test:customevent:magic'
 #                                 (there are other variations of this parameter and with ? instead of ':' for parameters.....
 # Parameter: '-invoke=x'          Same as -invoke_and_quit but does launch the UI first and doesn't quit...!
+
+# MD2021.2(3089): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
+#                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
+
+#unset md_passphrase
+export md_passphrase=XxX
 
 
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -88,7 +98,7 @@ modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2021.1 (3069)"
+md_version=" 2021.2 (3089)"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"

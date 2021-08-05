@@ -209,10 +209,10 @@
 # build: 1041 - Updated 'Diagnose Currency / Security (hidden) Decimal Places' report
 # build: 1041 - Added options to report and set the shouldBeIncludedInNetWorth() settings to Accounts Tools Menu
 # build: 1041 - Added feature - View your Security's hidden CUSIP settings to Online Banking (OFX) Tools Menu
-# build: 1041 - Currency rrate checking / fix features now detect build 3070 of Moneydance where the code 'issue' was resolved...
+# build: 1041 - Currency rrate checking / fix features now detect version 2021.2 build 3089 of Moneydance where the code 'issue' was resolved...
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text.
+# build: 1041 - Tweaks to cope with MD2021.2(3089)
 
-# todo - Check the rrate 3070 build number etc.....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
 # todo - check/fix alert colours since VAqua....!?
@@ -537,11 +537,10 @@ else:
     globalSave_DEBUG_FI_data = None                                                                                     # noqa
     TOOLBOX_STOP_NOW = False                                                                                            # noqa
 
-    # todo - check the rrate is fixed build line below
-    MD_RRATE_ISSUE_FIXED_BUILD = 3070                                                                                   # noqa
+    MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.1                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3069                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.2                                                                          # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3089                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -2381,6 +2380,7 @@ Visit: %s (Author's site)
         saveSyncFolder=None
         try:
             # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
+            # Also, MD2021.2 Build 3089 adds iCloud Sync which crashes if launched from command line....
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
 
@@ -2555,6 +2555,14 @@ Visit: %s (Author's site)
                 textArray.append(u"@@ WARNING: You have also SUPPRESSED the warning messages - THIS IS AT YOUR OWN RISK!")
             textArray.append(u"@@ The recommendation is to move your Dataset to your local drive (out of Dropbox) and a) use MD's internal Sync feature, or b) set Dropbox as the location for MD Backups\n")
 
+        # MD2021.2(3089) adds this capability.....
+        grabEnvPassphrases = findEnvironmentPassphrases()
+        if grabEnvPassphrases:
+            textArray.append(u"\nENVIRONMENT PASSPHRASE(S) STORED TO BYPASS POPUP ENCRYPTION PROMPTS")
+            for k, v in grabEnvPassphrases:
+                textArray.append(u"Environment key: %s <Stored Passphrase: ******>"  %(k))
+        del grabEnvPassphrases
+
         textArray.append(u"\nRUNTIME ENVIRONMENT")
 
         textArray.append(u"Java version: %s"  %(System.getProperty(u"java.version")))
@@ -2638,15 +2646,17 @@ Visit: %s (Author's site)
             x = u"***************"
         textArray.append(u"Sync Password: %s" %x)
 
-        syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
-        noSyncOption = SyncFolderUtil.configurerForIDFromList(u"none", syncMethods)
-        syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
-        if syncMethod is None:
-            syncMethod = noSyncOption
-        else:
-            syncMethod = syncMethod
-
         try:
+            # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
+            # MD2021.2 Build 3089 adds iCloud Sync which crashes if launched from command line....
+            syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
+            noSyncOption = SyncFolderUtil.configurerForIDFromList(u"none", syncMethods)
+            syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
+            if syncMethod is None:
+                syncMethod = noSyncOption
+            else:
+                syncMethod = syncMethod
+
             textArray.append(u"Sync Method: %s" %(syncMethod.getSyncFolder()))
         except:
             textArray.append(u"Sync Method: *** YOU HAVE A PROBLEM WITH YOUR DROPBOX CONFIGURATION! ***")
@@ -2656,6 +2666,7 @@ Visit: %s (Author's site)
             MyPopUpDialogBox(toolbox_frame_,
                              u"WARNING - DROPBOX ERROR",
                              u"You seem to have a Dropbox configuration issue!?\n"
+                             u"(or you have launched from command line, not the code-signed app bundle)\n"
                              u"Toolbox cannot fix this for you - please review your console logs\n"
                              u"and contact the online support forum for help....\n"
                              u"(if you find a fix, please inform the Toolbox author)",
@@ -5115,7 +5126,7 @@ Visit: %s (Author's site)
             statusLabel.setForeground(Color.RED)
             return
 
-        # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
+        # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
         if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not checkCurrencyRawRatesOK(selectedCurrSec.obj):                                                            # noqa
             txt = "@@ ERROR: Old format Currency record detected (empty relative rate). Please use 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix - No changes allowed!"
             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.RED)
@@ -5408,7 +5419,7 @@ Visit: %s (Author's site)
                     output +=  "... current price/rate %s, latest dated price history price/rate %s\n" %(safeInvertRate(sec_curr.getRelativeRate()), safeInvertRate(snap.getRate()))
 
                 if lUpdateRequired:
-                    # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
+                    # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
                     if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not checkCurrencyRawRatesOK(sec_curr):
                         output += "@@@ ERROR: Currency object has an old underlying format (empty 'rate' / 'rrate' fields); please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix (skipping....) @@@\n"
                         _lMustRunFixCurrenciesFirst = True
@@ -6674,12 +6685,14 @@ Please update any that you use before proceeding....
 
     def check_for_dropbox_folder():
 
-        syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
-        syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
-
-        dropboxOption = SyncFolderUtil.configurerForIDFromList("dropbox_folder", syncMethods)
-
         try:
+            # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
+            # MD2021.2 Build 3089 adds iCloud Sync which crashes if launched from command line....
+            syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
+            syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
+
+            dropboxOption = SyncFolderUtil.configurerForIDFromList("dropbox_folder", syncMethods)
+
             if (not dropboxOption) or syncMethod.getSyncFolder():
                 return True
         except:
@@ -7780,7 +7793,7 @@ Please update any that you use before proceeding....
         # change-security-cusip.py
         # Variant of remove_ofx_security_bindings.py
 
-        # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
+        # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
         if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):
             myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok(SECURITY) check... Exiting CUSIPFix() without any changes...")
             txt = "ERROR: You have old format Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
@@ -19049,6 +19062,15 @@ Now you will have a text readable version of the file you can open in a text edi
     # ##################################################################################################################
     # ##################################################################################################################
 
+    def findEnvironmentPassphrases():
+        theList = []
+        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:     # MD2021.2(3089) added this capability
+            return theList
+        for k, v in os.environ.items():
+            if k.startswith("md_passphrase"):
+                theList.append([k,v])
+        return theList
+
     class DiagnosticDisplay():
 
         def __init__(self):
@@ -20186,7 +20208,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_fix_invalid_curr_sec.setEnabled(lAdvancedMode)
                     user_fix_invalid_price_history.setEnabled(lAdvancedMode)
 
-                    # Pre 2021.1(3070) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3070 onwards
+                    # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
                     if not check_all_currency_raw_rates_ok():
 
                         user_diag_curr_sec.setForeground(Color.BLUE)
