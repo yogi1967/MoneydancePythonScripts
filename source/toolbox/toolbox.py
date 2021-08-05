@@ -13829,6 +13829,42 @@ now after saving the file, restart Moneydance
                       "\n" \
                       "--------------------------------------------------------------------------------------------------------------------------------------------------\n\n"
 
+            class StoreSecurity:
+                def __init__(self, _obj):
+                    self.obj = _obj                         # type: CurrencyType
+
+                def getSecurity(self): return self.obj      # type: CurrencyType
+
+                # noinspection PyMethodMayBeStatic
+                def getDisplayString(self, _security, _short=False):
+
+                    if _short:
+                        return ("%s:ID %s:rate %s:dpc %s:%s:%s:(%s price recs)"
+                                % (_security.getName()[:35]+"..",
+                                   _security.getIDString(),
+                                   safeInvertRate(_security.getRelativeRate()),
+                                   _security.getDecimalPlaces(),
+                                   _security.getPrefix(),
+                                   _security.getSuffix(),
+                                   _security.getSnapshots().size()))
+
+                    return ("%s:Ticker %s:ID %s:rate %s:dpc %s:%s:%s:(%s price history recs)"
+                            % (_security.getName(),
+                               _security.getTickerSymbol(),
+                               _security.getIDString(),
+                               safeInvertRate(_security.getRelativeRate()),
+                               _security.getDecimalPlaces(),
+                               _security.getPrefix(),
+                               _security.getSuffix(),
+                               _security.getSnapshots().size()))
+
+                def shortDisplay(self):
+                    return (self.getDisplayString(self.getSecurity(),True))
+
+                def __str__(self): return (self.getDisplayString(self.getSecurity()))[:200]
+
+                def __repr__(self): return self.__str__()
+
             for dup in dup_securities:
                 getDup = dup_securities.get(dup)
                 if getDup[0] < 2:
@@ -13847,34 +13883,40 @@ now after saving the file, restart Moneydance
                 primarySplits = primaryCurr.getSplits()
                 output += "Verifying potential 'duplicate': %s(Ticker: %s) (has %s price history records)\n" %(primaryCurr.getName(),dup,highestSnapCount)
                 for scanDup in getDup[1]:
-                    txt = "... '%s' NOTE: has %s price history records" %(pad(scanDup.getName(),50), scanDup.getSnapshots().size())
+
+                    _tempSec = StoreSecurity(scanDup)
+                    _len = 95
+
+                    txt = "... '%s' NOTE: has %s price history records" %(pad(_tempSec.shortDisplay(),_len), scanDup.getSnapshots().size())
                     output += "%s\n" %(txt)
 
                     if scanDup.getRelativeCurrency() != primaryCurr.getRelativeCurrency():
                         lShowOutput = lFailChecks = True
-                        txt = "... '%s' CANNOT be MERGED as not using the same relative currency %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getRelativeCurrency().getName(),18),pad(primaryCurr.getRelativeCurrency().getName(),18))
+                        txt = "... '%s' CANNOT be MERGED as not using the same relative currency %s vs %s" %(pad(_tempSec.shortDisplay(),_len),scanDup.getRelativeCurrency().getName(),primaryCurr.getRelativeCurrency().getName())
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getDecimalPlaces() != primaryCurr.getDecimalPlaces():
                         lShowOutput = lFailChecks = True
-                        txt = "... '%s' CANNOT be MERGED as not the same decimal places          %s vs %s" %(pad(scanDup.getName(),50),pad(str(scanDup.getDecimalPlaces()),18),pad(str(primaryCurr.getDecimalPlaces()),18))
+                        txt = "... '%s' CANNOT be MERGED as not the same decimal places          %s vs %s" %(pad(_tempSec.shortDisplay(),_len),scanDup.getDecimalPlaces(),primaryCurr.getDecimalPlaces())
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getRelativeRate() != primaryCurr.getRelativeRate():
                         lShowOutput = lFailChecks = True
-                        txt = "... '%s' CANNOT be MERGED as not the same 'Current Prices'        %s vs %s" %(pad(scanDup.getName(),50),pad(str(safeInvertRate(scanDup.getRelativeRate())),18),pad(str(safeInvertRate(primaryCurr.getRelativeRate())),18))
+                        txt = "... '%s' CANNOT be MERGED as not the same 'Current Prices'        %s vs %s" %(pad(_tempSec.shortDisplay(),_len),safeInvertRate(scanDup.getRelativeRate()),safeInvertRate(primaryCurr.getRelativeRate()))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     if scanDup.getPrefix()+scanDup.getSuffix() != primaryCurr.getPrefix()+primaryCurr.getSuffix():
                         lShowOutput = lFailChecks = True
-                        txt = "... '%s' CANNOT be MERGED as not the same prefix/suffix           %s vs %s" %(pad(scanDup.getName(),50),pad(scanDup.getPrefix()+":"+scanDup.getSuffix(),18),pad(primaryCurr.getPrefix()+":"+primaryCurr.getSuffix(),30))
+                        txt = "... '%s' CANNOT be MERGED as not the same prefix/suffix           %s vs %s" %(pad(_tempSec.shortDisplay(),_len),scanDup.getPrefix()+":"+scanDup.getSuffix(),primaryCurr.getPrefix()+":"+primaryCurr.getSuffix())
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
                     thisSplits = scanDup.getSplits()
                     if not compareSplits(primarySplits, thisSplits):
                         lShowOutput = lFailChecks = True
-                        txt = "... '%s' CANNOT be MERGED as not all have the same splits..." %(pad(scanDup.getName(),50))
+                        txt = "... '%s' CANNOT be MERGED as not all have the same splits..." %(pad(_tempSec.shortDisplay(),_len))
                         myPrint("DB",txt); output += "%s\n" %(txt)
+
+                    del _tempSec
 
                 if lFailChecks:
                     txt = "... *** Failed checks - removing candidate....."
@@ -13915,29 +13957,6 @@ now after saving the file, restart Moneydance
 
             txt = _THIS_METHOD_NAME
             if not perform_quote_loader_check(statusLabel, toolbox_frame_, txt): return
-
-
-            class StoreSecurity:
-                def __init__(self, _obj):
-                    self.obj = _obj                         # type: CurrencyType
-
-                def getSecurity(self): return self.obj      # type: CurrencyType
-
-                # noinspection PyMethodMayBeStatic
-                def getDisplayString(self, _security):
-                    return ("%s:Ticker %s:ID %s:rate %s:dpc %s:%s:%s:(%s price history recs)"
-                            % (_security.getName(),
-                               _security.getTickerSymbol(),
-                               _security.getIDString(),
-                               safeInvertRate(_security.getRelativeRate()),
-                               _security.getDecimalPlaces(),
-                               _security.getPrefix(),
-                               _security.getSuffix(),
-                               _security.getSnapshots().size()))
-
-                def __str__(self): return (self.getDisplayString(self.getSecurity()))[:200]
-
-                def __repr__(self): return self.__str__()
 
 
             class StoreTickerData:
