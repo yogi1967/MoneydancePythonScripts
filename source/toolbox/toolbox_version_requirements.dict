@@ -20,48 +20,48 @@
                     "disable" = "n"
                     "news" = "Internal tweaks requested by IK to gain entry into MD's internal Manage Extensions list"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3069"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
                     }
                     {
                     "build" = "1039"
                     "disable" = "n"
                     "news" = "Catch dropbox configuration issue - causing Toolbox crash..."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3069"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
                     }
                     {
                     "build" = "1038"
                     "disable" = "n"
                     "news" = "Released for the stable release of MD2021.1 (build 3069); plus small internal tweaks.."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3069"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
                     }
                     {
                     "build" = "1037"
                     "disable" = "n"
                     "news" = "Released for the stable release of MD2021.1 (build 3069)"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3069"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
                     }
                     {
                     "build" = "1036"
                     "disable" = "n"
                     "news" = "added the 'Can I Delete a Currency' menu option"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3069"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
                     }
                     {
                     "build" = "1035"
                     "disable" = "n"
                     "news" = "Fixed for MD build 3067 and change of theme class name"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3069"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
                     }
                     {
                     "build" = "1034"
