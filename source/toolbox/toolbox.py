@@ -213,6 +213,7 @@
 # build: 1041 - Currency rrate checking / fix features now detect version 2021.2 build 3089 of Moneydance where the code 'issue' was resolved...
 # build: 1041 - Amended fix relative currencies accordingly with MD2021.2(3088) rate / rrate knowledge. I now only touch 'rrate' (not 'rate)...
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text, along with top and bottom buttons.....
+# build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
@@ -473,6 +474,14 @@ else:
     else:
         from com.moneydance.apps.md.view.gui.theme import Theme as ThemeInfo                                            # noqa
 
+    try:
+        if Platform.isOSX() and int(MD_REF.getBuild()) >= 3088:
+            from com.moneydance.apps.md.view.gui.sync import ICloudSyncConfigurer                                       # noqa
+            from com.moneydance.apps.md.controller.sync import ICloudContainer                                          # noqa
+    except:
+        pass
+
+    from java.lang import String
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller import ModuleMetaData
     from com.moneydance.apps.md.controller import LocalStorageCipher
@@ -524,7 +533,7 @@ else:
     global TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_BUILD
     global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
-    global MD_RRATE_ISSUE_FIXED_BUILD
+    global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED
     DARK_GREEN = Color(0, 192, 0)                                                                                       # noqa
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lGeekOutModeEnabled_TB = False                                                                                      # noqa
@@ -538,6 +547,7 @@ else:
     globalSave_DEBUG_FI_data = None                                                                                     # noqa
     TOOLBOX_STOP_NOW = False                                                                                            # noqa
 
+    MD_ICLOUD_ENABLED = 3088                                                                                            # noqa
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.2                                                                          # noqa
@@ -2659,6 +2669,9 @@ Visit: %s (Author's site)
                 syncMethod = syncMethod
 
             textArray.append(u"Sync Method: %s" %(syncMethod.getSyncFolder()))
+            x = get_sync_folder()
+            if x: textArray.append(u"Sync local disk base location: %s" %(x))
+
         except:
             textArray.append(u"Sync Method: *** YOU HAVE A PROBLEM WITH YOUR DROPBOX CONFIGURATION! ***")
             myPrint("B",u"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
@@ -6714,6 +6727,51 @@ Please update any that you use before proceeding....
             dump_sys_error_to_md_console_and_errorlog()
 
         return False
+
+    def get_sync_folder():
+
+        try:
+            syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
+            syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
+
+            # New feature and Mac only
+            if Platform.isOSX() and int(MD_REF.getBuild()) >= MD_ICLOUD_ENABLED and isinstance(syncMethod, ICloudSyncConfigurer):
+
+                syncF = syncMethod.getSyncFolder()
+
+                p_icloud = syncF.getClass().getDeclaredField("icloud")
+                p_icloud.setAccessible(True)
+                p_icloudObject = p_icloud.get(syncF)        # type: ICloudContainer
+                p_icloud.setAccessible(False)
+
+                # p_getPathToDocFile = syncF.getClass().getDeclaredMethod("getPathToDocFile",[String])
+                # p_getPathToDocFile.setAccessible(True)
+                # syncBaseFolder = p_getPathToDocFile.invoke(syncF,[""])
+                # p_getPathToDocFile.setAccessible(False)
+
+                p_nativeGetICloudPath = p_icloudObject.getClass().getDeclaredMethod("nativeGetICloudPath")
+                p_nativeGetICloudPath.setAccessible(True)
+                syncBaseFolder = p_nativeGetICloudPath.invoke(p_icloudObject)
+                p_nativeGetICloudPath.setAccessible(False)
+
+                del p_icloud, p_icloudObject, p_nativeGetICloudPath,
+
+                saveSyncFolder = syncBaseFolder
+
+                if os.path.exists(saveSyncFolder):
+                    myPrint("DB","icloud folder found:", saveSyncFolder)
+                    return saveSyncFolder
+
+            elif syncMethod is not None and syncMethod.getSyncFolder() is not None:
+                syncBaseFolder = syncMethod.getSyncFolder().getSyncBaseFolder()                                             # noqa
+                saveSyncFolder = syncBaseFolder.getCanonicalPath()
+                if os.path.exists(saveSyncFolder):
+                    myPrint("DB","sync folder found:", syncBaseFolder)
+                    return saveSyncFolder
+        except:
+            pass
+
+        return None
 
     def check_for_dropbox_folder():
 
@@ -13944,7 +14002,7 @@ now after saving the file, restart Moneydance
                     _len = 95
 
                     getDupID = scanDup.getIDString().strip().lower()
-                    txt = "--- (Validating ID: %s)\n" \
+                    txt = " --- (Validating ID: %s)\n" \
                           "... '%s' NOTE: has %s price history records" %(scanDup.getIDString(), pad(_tempSec.shortDisplay(),_len), scanDup.getSnapshots().size())
                     output += "%s\n" %(txt)
 
@@ -16274,6 +16332,8 @@ now after saving the file, restart Moneydance
             grabProgramDir = find_the_program_install_dir()
             if not os.path.exists((grabProgramDir)): grabProgramDir = None
 
+            grabSyncFolder = get_sync_folder()
+
             locations = [
                 "Show Preferences (config.dict) Folder",
                 "Show custom themes Folder",
@@ -16282,8 +16342,6 @@ now after saving the file, restart Moneydance
                 "Show Extensions Folder",
                 "Show Auto Backup Folder",
                 "Show Last used (Manual) Backup Folder"]
-            if grabProgramDir:
-                locations.append("Open Program's Install Directory")
 
             # noinspection PyUnresolvedReferences
             locationsDirs = [
@@ -16295,7 +16353,12 @@ now after saving the file, restart Moneydance
                 FileUtils.getBackupDir(MD_REF.getPreferences()),
                 File(MD_REF.getUI().getPreferences().getSetting("backup.last_saved", ""))]
 
+            if grabSyncFolder:
+                locations.append("Open Sync Folder")
+                locationsDirs.append(File(grabSyncFolder))
+
             if grabProgramDir:
+                locations.append("Open Program's Install Directory")
                 locationsDirs.append(File(grabProgramDir))
 
             selectedFolder = JOptionPane.showInputDialog(toolbox_frame_,
@@ -16315,9 +16378,15 @@ now after saving the file, restart Moneydance
                 self.statusLabel.setForeground(Color.RED)
                 return
 
-            helper.openDirectory(locationsDirs[locations.index(selectedFolder)])
-            self.statusLabel.setText(("Folder " + selectedFolder + " opened..: " + str(locationsDirs[locations.index(selectedFolder)])).ljust(800, " "))
-            self.statusLabel.setForeground(Color.BLUE)
+            if Platform.isOSX() and int(MD_REF.getBuild()) >= MD_ICLOUD_ENABLED \
+                    and grabSyncFolder and "iCloud~com~infinitekind~moneydancesync" in locationsDirs[locations.index(selectedFolder)].getCanonicalPath():
+                self.statusLabel.setText(("iCloud Sync Folder location: %s" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath())).ljust(800, " "))
+                self.statusLabel.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_,"Permissions: Cannot open location: %s" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath()))
+            else:
+                helper.openDirectory(locationsDirs[locations.index(selectedFolder)])
+                self.statusLabel.setText(("Folder " + selectedFolder + " opened..: " + str(locationsDirs[locations.index(selectedFolder)])).ljust(800, " "))
+                self.statusLabel.setForeground(Color.BLUE)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return

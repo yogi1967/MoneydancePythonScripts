@@ -98,12 +98,20 @@ modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2021.2 (3089)"
+md_version=" 2021.2 (3090)"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
 md_icon="/Applications/Moneydance${md_version}.app/Contents/Resources/desktop_icon.icns"
 
+if ! test -d "${md_jars}"; then
+  echo "ERROR - directory ${md_jars}/ does not exist!"
+  exit 1
+fi
+
+# Other paths....
+macos="/Applications/Moneydance${md_version}.app/Contents/MacOS"
+machelper2="/Applications/Moneydance${md_version}.app/Contents/PlugIns/vm.jdk/Contents/Home/lib"
 
 # Set to "" for no sandbox (however, with enabled=true is not really a sandbox)
 #use_sandbox=""
@@ -123,6 +131,7 @@ ${java} \
   -cp "${md_jars}/*" \
   --module-path "${javafx}" \
   --add-modules ${modules} \
+  -Djava.library.path="${macos}:${machelper2}" \
   -Dapple.laf.useScreenMenuBar=true \
   -Dcom.apple.macos.use-file-dialog-packages=true \
   -Dcom.apple.macos.useScreenMenuBar=true \
