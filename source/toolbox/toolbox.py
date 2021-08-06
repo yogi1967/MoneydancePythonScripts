@@ -209,9 +209,9 @@
 # build: 1041 - Updated 'Diagnose Currency / Security (hidden) Decimal Places' report
 # build: 1041 - Added options to report and set the shouldBeIncludedInNetWorth() settings to Accounts Tools Menu
 # build: 1041 - Added feature - View your Security's hidden CUSIP settings to Online Banking (OFX) Tools Menu
+# build: 1041 - Tweaks to cope with MD2021.2(3088)+ (iCloud Sync, env var 'md_passphrase', currency rrate fixes)
 # build: 1041 - Currency rrate checking / fix features now detect version 2021.2 build 3089 of Moneydance where the code 'issue' was resolved...
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text.
-# build: 1041 - Tweaks to cope with MD2021.2(3089)
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
@@ -540,7 +540,7 @@ else:
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.2                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3089                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3090                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -2380,7 +2380,7 @@ Visit: %s (Author's site)
         saveSyncFolder=None
         try:
             # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
-            # Also, MD2021.2 Build 3089 adds iCloud Sync which crashes if launched from command line....
+            # Also, MD2021.2 Build 3088 adds iCloud Sync which crashes if launched from command line....
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
 
@@ -2555,7 +2555,7 @@ Visit: %s (Author's site)
                 textArray.append(u"@@ WARNING: You have also SUPPRESSED the warning messages - THIS IS AT YOUR OWN RISK!")
             textArray.append(u"@@ The recommendation is to move your Dataset to your local drive (out of Dropbox) and a) use MD's internal Sync feature, or b) set Dropbox as the location for MD Backups\n")
 
-        # MD2021.2(3089) adds this capability.....
+        # MD2021.2(3088) adds this capability.....
         grabEnvPassphrases = findEnvironmentPassphrases()
         if grabEnvPassphrases:
             textArray.append(u"\nENVIRONMENT PASSPHRASE(S) STORED TO BYPASS POPUP ENCRYPTION PROMPTS")
@@ -2648,7 +2648,7 @@ Visit: %s (Author's site)
 
         try:
             # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
-            # MD2021.2 Build 3089 adds iCloud Sync which crashes if launched from command line....
+            # MD2021.2 Build 3088 adds iCloud Sync which crashes if launched from command line....
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             noSyncOption = SyncFolderUtil.configurerForIDFromList(u"none", syncMethods)
             syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
@@ -6687,7 +6687,7 @@ Please update any that you use before proceeding....
 
         try:
             # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
-            # MD2021.2 Build 3089 adds iCloud Sync which crashes if launched from command line....
+            # MD2021.2 Build 3088 adds iCloud Sync which crashes if launched from command line....
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
 
@@ -19064,7 +19064,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
     def findEnvironmentPassphrases():
         theList = []
-        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:     # MD2021.2(3089) added this capability
+        if int(MD_REF.getBuild()) < 3088:     # MD2021.2(3088) added this capability
             return theList
         for k, v in os.environ.items():
             if k.startswith("md_passphrase"):
