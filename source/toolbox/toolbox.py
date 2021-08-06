@@ -211,7 +211,8 @@
 # build: 1041 - Added feature - View your Security's hidden CUSIP settings to Online Banking (OFX) Tools Menu
 # build: 1041 - Tweaks to cope with MD2021.2(3088)+ (iCloud Sync, env var 'md_passphrase', currency rrate fixes)
 # build: 1041 - Currency rrate checking / fix features now detect version 2021.2 build 3089 of Moneydance where the code 'issue' was resolved...
-# build: 1041 - Added save output button to QuickJFrame() popup that displays output text.
+# build: 1041 - Amended fix relative currencies accordingly with MD2021.2(3088) rate / rrate knowledge. I now only touch 'rrate' (not 'rate)...
+# build: 1041 - Added save output button to QuickJFrame() popup that displays output text, along with top and bottom buttons.....
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - Add print button to QuickJFrame()
@@ -2626,16 +2627,16 @@ Visit: %s (Author's site)
             x = u"***************"
         textArray.append(u"Encryption passphrase hint: %s" %x)
 
-        # if MD_REF.getUI().getCurrentAccounts().getEncryptionLevel(): # Always reports des - is this legacy?
-        if MD_REF.getRootAccount().getParameter(u"md.crypto_level", None):
-            x = u"Encryption level - Moneydance reports: %s (but I believe this is a legacy encryption method??)" %MD_REF.getUI().getCurrentAccounts().getEncryptionLevel()
+        if MD_REF.getCurrentAccount().getBook().getLocalStorage().getString("md.crypto_level", None):
+            x = u"Encryption level - Moneydance reports 'md.crypto_level' set as: %s" %(MD_REF.getCurrentAccount().getBook().getLocalStorage().getString("md.crypto_level", None))
             textArray.append(x)
-        else:
-            x = u"My Encryption 'test' of your key/passphrase reports: %s\n" %(getMDEncryptionKey())
-            x += u"I understand the dataset encryption is: AES 128-bit. Passphrase encrypted using PBKDF2WithHmacSHA512 " \
-                 u"(fixed internal salt, high iteration) and then your (secure/random) key is encrypted and used to encrypt " \
-                 u"data to disk using AES/CBC/PKCS5Padding with a fixed internal IV"
-            textArray.append(x)
+
+        x = u"Toolbox's actual 'test' of your Encryption key/passphrase reports: %s\n" %(getMDEncryptionKey())
+
+        x += u"I understand the dataset encryption is: AES 128-bit. Passphrase encrypted using PBKDF2WithHmacSHA512 " \
+             u"(fixed internal salt, high iteration) and then your (secure/random) key is encrypted and used to encrypt " \
+             u"data to disk using AES/CBC/PKCS5Padding with a fixed internal IV"
+        textArray.append(x)
 
         textArray.append(u"\nSYNC DETAILS")
         # SYNC details
@@ -6017,7 +6018,33 @@ Please update any that you use before proceeding....
     # noinspection PyUnresolvedReferences
     def diagnose_currencies(statusLabel, lFix=False):
 
-        # MD2017.10 backwards did not use the rrate. Onwards the 'relative' currency setup changed
+        # MD2017.10 backwards did not use the 'rrate' parameter. It only used 'rate'
+        # 'rate' was the raw rate expressed as a factor of the difference in decimal places relative to the base currency.
+        # From MD2019 onwards, the 'relative' currency setup changed and 'rrate' was created. 'rrate' stored the actual rate.
+        # It was supposed to be the case that MD2019+ would see the missing 'rrate' field and convert the legacy rate in memory
+        # Even though new 'rrate' was now in memory, the data was not stored on disk, so the parameter 'rrate' was always missing
+        # Once you actually edited a rate using Tools/Currencies, then the new 'rrate' would be created on disk...
+        # BUT, there is a bug and in fact as well as the new 'rrate' the old 'rate' was changed too. So, backwards compatibility to 2017 was lost.
+
+        # Example: Stock: Price £6.25 Old 'rate' was stored as 16 (2dpc) in MD2017. In MD2019 new 'rrate' is 0.16.
+        # Old 'rate' was supposed to always stay as 16, but once edited in MD2019 it became 0.16 too (BUG).
+        # This does not matter for MD2019 onwards as it's legacy and ignored.
+        # However, if you go back to MD2017, then you will see your Current Price become £625 as 'rate' is now wrong....
+
+        # There was another bug, in that if you edited any part of the CurrencyType record where the 'rrate' was missing,
+        # then .itemWasUpdated() would run and reload the rate in memory from 'rrate' which was missing. This then corrupted the rate
+        # This was addressed in MD2021.2(3089), and .itemWillSync() was changed so that 'rrate' is set (in memory) if missing.
+        # It appears that upon opening a dataset in MD2021.2(3089) onwards, that this change updates all missing rrate fields in memory.....
+        # These in memory changes are not saved by calling .syncIntem(), thus they only exist in memory unless a subsequent update is made and .syncItem() called
+        # .... so the change does not exist in trunk or a .txn file until a subsequent change..
+        # And so, updating the record in MD2021.2(3089) onwards is not an issue.
+        # I'm assuming as these are not sync'd that sync copies must also run the matching version and will self-apply the same in memory fixes...
+
+        # Given this knowledge, I have disabled any updates to legacy 'rate', and I now only touch 'rrate'.
+        # MD can do whatever it wants (rightly or wrongly to 'rate')
+        # I would expect that this fix utility will now only find relative rate errors not rate/rrate errors from MD2021.1(3089)+
+
+        # Other notes:
         # Currencies can only be relative to base (and should be set to None)
         # Securities should be set to Base (as None), or can be relative to another Currency (not Security)
         # Max relative relational depth is SEC>CURR>Base or CURR>Base
@@ -6166,7 +6193,8 @@ Please update any that you use before proceeding....
 
                 # Relative Rate - should always be 1.0
                 if baseCurr.getParameter(PARAM_RRATE, None) is None or not isGoodRate(baseCurr.getDoubleParameter(PARAM_RRATE, 0.0)) or baseCurr.getDoubleParameter(PARAM_RRATE, 0.0) != 1.0:
-                    txt = "@@ERROR@@ - base currency '%s' has relative rate ('rrate') <> 1: %s" %(baseCurr, baseCurr.getParameter(PARAM_RRATE, None))
+                    txt = "@@ERROR@@ - base currency '%s' has (new) relative 'rrate' <> 1: %s (whereas legacy 'rate' is set to: %s)" \
+                          %(baseCurr, baseCurr.getParameter(PARAM_RRATE, None), baseCurr.getParameter(PARAM_RATE, None))
                     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     lNeedFixScript = True
                     if lFix:
@@ -6175,27 +6203,27 @@ Please update any that you use before proceeding....
                         baseCurr.setParameter(PARAM_RRATE, 1.0)
                         baseCurr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
-                        txt = "@@BASE CURRENCY FIX APPLIED (set rrate to 1.0) @@"
+                        txt = "@@BASE CURRENCY FIX APPLIED (set 'rrate' to 1.0) @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                 # The Rate - should always be 1.0
-                if baseCurr.getParameter(PARAM_RATE, None) is None or not isGoodRate(baseCurr.getDoubleParameter(PARAM_RATE, 0.0)) or baseCurr.getDoubleParameter(PARAM_RATE, 0.0) != 1.0:
-                    txt = "@@ERROR@@ - base currency has rate <> 1: %s" %(baseCurr.getParameter(PARAM_RATE, None))
-                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
-                    lNeedFixScript = True
-                    if lFix:
-                        lSyncNeeded = True
-                        baseCurr.setEditingMode()
-                        baseCurr.setParameter(PARAM_RATE, 1.0)
-                        baseCurr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
-                        txt = "@@BASE CURRENCY FIX APPLIED (set rate to 1.0) @@"
-                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                # if baseCurr.getParameter(PARAM_RATE, None) is None or not isGoodRate(baseCurr.getDoubleParameter(PARAM_RATE, 0.0)) or baseCurr.getDoubleParameter(PARAM_RATE, 0.0) != 1.0:
+                #     txt = "@@ERROR@@ - base currency has (legacy) 'rate' <> 1: %s" %(baseCurr.getParameter(PARAM_RATE, None))
+                #     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                #     lNeedFixScript = True
+                #     if lFix:
+                #         lSyncNeeded = True
+                #         baseCurr.setEditingMode()
+                #         baseCurr.setParameter(PARAM_RATE, 1.0)
+                #         baseCurr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
+                #         txt = "@@BASE CURRENCY FIX APPLIED (set legacy 'rate' to 1.0) @@"
+                #         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                 if lSyncNeeded:
                     baseCurr.syncItem(); lSyncNeeded = False                                                            # noqa
 
                 if not lNeedFixScript:
-                    output += ("Base currency has Rate (rate) of: %s and Relative Rate (rrate): of %s.  This is Correct...\n"
+                    output += ("Base currency has legacy 'rate' of: %s and new relative 'rrate': of %s >> 'rrate' is correct...\n"
                                % (baseCurr.getParameter(PARAM_RATE, None), baseCurr.getParameter(PARAM_RRATE, None)))
 
                 # Check for price history - should be none on base currency (also now handled by MD launch)
@@ -6291,26 +6319,26 @@ Please update any that you use before proceeding....
                             lWarning = True; iWarnings += 1
 
                     get_rate = curr.getParameter(PARAM_RATE, None)
-                    get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
+                    # get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
 
                     get_rrate = curr.getParameter(PARAM_RRATE, None)
                     get_rrateDbl = curr.getDoubleParameter(PARAM_RRATE, 0.0)
 
-                    if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
-                        txt = "@@ WARNING: '%s' has rate (rate) of ZERO/Invalid" %(curr)
-                        myPrint("J", txt); output += "----\n%s\n" %(txt)
-
-                        if lFix and lFixWarnings:
-                            lSyncNeeded = True
-                            curr.setEditingMode()
-                            curr.setParameter(PARAM_RATE, 1.0)
-                            curr.setParameter(PARAM_RRATE, 1.0)
-                            txt = "@@SECURITY FIX APPLIED (reset both rate and rrate to 1.0) @@"
-                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
-                        else:
-                            lWarning = True; iWarnings  += 1
-
-                    elif get_rrate is None or get_rrateDbl == 0.0 or not isGoodRate(get_rrateDbl):
+                    # if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
+                    #     txt = "@@ WARNING: '%s' has legacy rate (rate) of ZERO/Invalid" %(curr)
+                    #     myPrint("J", txt); output += "----\n%s\n" %(txt)
+                    #
+                    #     if lFix and lFixWarnings:
+                    #         lSyncNeeded = True
+                    #         curr.setEditingMode()
+                    #         curr.setParameter(PARAM_RATE, 1.0)
+                    #         curr.setParameter(PARAM_RRATE, 1.0)
+                    #         txt = "@@SECURITY FIX APPLIED (reset both legacy rate and new rrate to 1.0) @@"
+                    #         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                    #     else:
+                    #         lWarning = True; iWarnings  += 1
+                    #
+                    if get_rrate is None or get_rrateDbl == 0.0 or not isGoodRate(get_rrateDbl):
 
                         if rCurr is None or rCurrByIDs is None:
                             isRelativeBase = True
@@ -6321,40 +6349,40 @@ Please update any that you use before proceeding....
 
                         if isRelativeBase:  # Relative to base currency
                             newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
-                            txt = "@@ WARNING: '%s' Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). 'rrate' should be %s (inverted %s)\n"\
+                            txt = "@@ WARNING: '%s' new relative 'rrate' is set to: %s (whereas legacy 'rate' is currently %s). New 'rrate' should be %s (inverted %s)\n"\
                                   %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
                             myPrint("J", txt); output += "---\n%s\n" %(txt)
 
                             if lFix and lFixWarnings:
                                 lSyncNeeded = True
                                 curr.setEditingMode()
-                                # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                                curr.setParameter(PARAM_RATE, newRate)
+                                # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters)...
+                                # curr.setParameter(PARAM_RATE, newRate)
                                 curr.setParameter(PARAM_RRATE, newRate)
-                                curr.setRate(newRate, baseCurr)
+                                # curr.setRate(newRate, baseCurr)
                                 curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
-                                txt = "@@SECURITY FIX APPLIED (reset both rate and rrate) @@"
+                                txt = "@@SECURITY FIX APPLIED (reset new 'rrate') @@"
                                 myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                             else:
                                 lWarning = True; iWarnings  += 1
 
                         else:  # Relative to another currency....
 
-                            newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
+                            # newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
                             newRRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, rCurr))
 
-                            txt = "@@ WARNING: '%s' ** Relative Curr is: '%s' ** Rate 'rate' is currently %s, Relative Rate ('rrate') is set to: %s  . Should be 'rate': %s, 'rrate': %s (inversed: %s, %s)\n"\
-                                  %(curr, rCurr, get_rate, get_rrate, newRate, newRRate, safeInvertRate(newRate), safeInvertRate(newRRate))
+                            txt = "@@ WARNING: '%s' ** Relative Curr is: '%s' ** legacy 'rate' is currently %s, whereas new relative 'rrate' is set to: %s. Should be new 'rrate': %s (inversed: %s)\n"\
+                                  %(curr, rCurr, get_rate, get_rrate, newRRate, safeInvertRate(newRRate))
                             myPrint("J", txt); output += "---\n%s\n" %(txt)
 
                             if lFix and lFixWarnings:
                                 lSyncNeeded = True
                                 curr.setEditingMode()
                                 # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                                curr.setParameter(PARAM_RATE, newRate)
+                                # curr.setParameter(PARAM_RATE, newRate)
                                 curr.setParameter(PARAM_RRATE, newRRate)
-                                curr.setRate(newRRate, rCurr)
-                                txt = "@@SECURITY FIX APPLIED (reset both rate and rrate) @@"
+                                # curr.setRate(newRRate, rCurr)
+                                txt = "@@SECURITY FIX APPLIED (reset new 'rrate') @@"
                                 myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                                 # Doing this here so as not to trigger MD to set rrate to 1.0 (bug)
@@ -6427,11 +6455,12 @@ Please update any that you use before proceeding....
                 get_rrateDbl = curr.getDoubleParameter(PARAM_RRATE, 0.0)
 
                 if VERBOSE:
-                    output += "Rate: %s (inverted: %s)\n" % (get_rate, safeInvertRate(get_rateDbl))
+                    output += "Legacy 'rate': %s (inverted: %s)\n" % (get_rate, safeInvertRate(get_rateDbl))
 
                 if get_rate is not None and isGoodRate(get_rateDbl) and get_rrate is not None and isGoodRate(get_rateDbl):
+
                     if VERBOSE:
-                        output += "Relative Rate: %s (inverted: %s)\n" % (get_rrate, safeInvertRate(get_rrateDbl))
+                        output += "New relative 'rrate': %s (inverted: %s)\n" % (get_rrate, safeInvertRate(get_rrateDbl))
 
                 elif curr == baseCurr:
                     # Note: We fix base earlier on....
@@ -6439,33 +6468,35 @@ Please update any that you use before proceeding....
 
                 else:
 
-                    if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
-                        txt = "@@ WARNING: '%s' has rate (rate) of ZERO/Invalid" %(curr)
-                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
-
-                        if lFix and lFixWarnings:
-                            lSyncNeeded = True
-                            curr.setEditingMode()
-                            curr.setParameter(PARAM_RATE, 1.0)
-                            curr.setParameter(PARAM_RRATE, 1.0)
-                            txt = "@@CURRENCY FIX APPLIED (reset both rate and rrate to 1.0) @@"
-                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
-                        else:
-                            lWarning = True; iWarnings  += 1
+                    # if get_rate is None or get_rateDbl == 0.0 or not isGoodRate(get_rateDbl):
+                    #     txt = "@@ WARNING: '%s' has legacy 'rate' of ZERO/Invalid" %(curr)
+                    #     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                    #
+                    #     if lFix and lFixWarnings:
+                    #         lSyncNeeded = True
+                    #         curr.setEditingMode()
+                    #         curr.setParameter(PARAM_RATE, 1.0)
+                    #         curr.setParameter(PARAM_RRATE, 1.0)
+                    #         txt = "@@CURRENCY FIX APPLIED (reset both 'rate' and 'rrate' to 1.0) @@"
+                    #         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                    #     else:
+                    #         lWarning = True; iWarnings  += 1
+                    #
 
                     # should always be set and always relative to base (1.0)
                     newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
-                    txt = "@@ WARNING: '%s' Relative Rate ('rrate') is set to: %s (whereas 'rate' is currently %s). 'rrate' should be %s (inverted %s)" %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
+                    txt = "@@ WARNING: '%s' new relative 'rrate' is set to: %s (whereas legacy 'rate' is currently %s). 'rrate' should be %s (inverted %s)" \
+                          %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
                     myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
 
                     if lFix and lFixWarnings:
                         lSyncNeeded = True
                         curr.setEditingMode()
                         # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                        curr.setParameter(PARAM_RATE, newRate)
+                        # curr.setParameter(PARAM_RATE, newRate)
                         curr.setParameter(PARAM_RRATE, newRate)
-                        curr.setRate(newRate, baseCurr)
-                        txt = "@@CURRENCY FIX APPLIED (reset both rate and rrate) @@"
+                        # curr.setRate(newRate, baseCurr)
+                        txt = "@@CURRENCY FIX APPLIED (reset new 'rrate') @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     else:
                         lWarning = True; iWarnings  += 1
@@ -6563,9 +6594,10 @@ Please update any that you use before proceeding....
                 myPrint("B", txt); output += "%s\n" %(txt)
                 output += "These are where your Currency records show a relative currency that's not None...;\n" \
                           "... or where Securities have an incorrect relative currency set..\n"\
-                          "... or where a Currency/Security's 'rrate' (relative rate) is not set, or different to the 'rate' (rate)...\n"\
-                          "... or where an 'invalid' / 'infinity' / ZERO / Not A Number (NaN) rate / rrate was found\n" \
-                          "NOTE: Often these issues are from 'old' format records from an older version of Moneydance and need 'upgrading.\n"
+                          "... or where a Currency/Security's new 'rrate' (relative rate) is not set, or different to the legacy 'rate'...\n"\
+                          "... or where an 'invalid' / 'infinity' / ZERO / Not A Number (NaN) rate / 'rrate' was found\n" \
+                          "NOTE: Often these issues are from 'legacy' MD2017 records that need updating to MD2019+ format by adding the 'rrate' field\n" \
+                          "      MD2021.2 has fixes built in to address the 'rrate' issues....\n"
                 output += "Consider running the 'FIX CURRENCIES & SECURITIES' option\n"
                 output += "DISCLAIMER: Always backup your data before running change scripts and verify the result before continuing...\n"
                 txt = "ERROR: You have %s Currency / Security warnings.. Please review diagnostic report!" %(iWarnings)
@@ -13829,18 +13861,20 @@ now after saving the file, restart Moneydance
             lShowOutput = False
             removeList = []
 
-            output += "Performing analysis and validation of potential 'duplicate' Securities.\n\n" \
-                      "The following data can be edited in MD Menu > Tools>Securities (** except 'Decimal Places' where you will need to use Toolbox to edit)\n\n" \
-                      "The check / validation rules are:\n" \
-                      "- Find potential 'duplicates' where Securities' 'Ticker' Symbols are the same; then...\n" \
-                      "- Duplicate Security's 'Currency' must match\n" \
-                      "- Duplicate Security's 'Current Price' must match\n" \
-                      "- Duplicate Security's 'Prefix' & 'Suffix' must match\n" \
-                      "- Duplicate Security's 'Splits' data must match\n" \
-                      "- Duplicate Security's hidden 'Decimal Places' setting must match **\n" \
-                      "- NOTE: Security ID & Name are not matched, but you can select the Security to become the 'master', that has right details, as part of the process\n" \
-                      "\n" \
-                      "--------------------------------------------------------------------------------------------------------------------------------------------------\n\n"
+            output +=   "Performing analysis and validation of potential 'duplicate' Securities.\n\n" \
+                        "The following data can be edited in MD Menu > Tools>Securities (** except 'Decimal Places' where you will need to use Toolbox to edit)\n\n" \
+                        "The check / validation rules are:\n" \
+                        "- Find potential 'duplicates' where Securities' 'Ticker' Symbols are the same; then Duplicate Security's...:\n" \
+                        "... ID must be short and DIFFERENT (so you can identify them in this process). Examples: use '^APPL1', '^APPL2', '^APPL3'.. to merge 3 Apple Stocks\n" \
+                        "....(^^Close this window and use Tools>Securities>EDIT and change the Security ID for each duplicate and then re-run this function again)\n" \
+                        "...'Currency' must match\n" \
+                        "...'Current Price' must match\n" \
+                        "...'Prefix' & 'Suffix' must match\n" \
+                        "...'Splits' data must match\n" \
+                        "... hidden 'Decimal Places' setting must match **\n" \
+                        "- NOTE: Security Name is not matched, but you can select the Security to become the 'master', that has right details, as part of the process\n" \
+                        "\n" \
+                        "--------------------------------------------------------------------------------------------------------------------------------------------------\n\n"
 
             class StoreSecurity:
                 def __init__(self, _obj):
@@ -13892,16 +13926,34 @@ now after saving the file, restart Moneydance
                         highestSnapCount = getSnaps.size()
                         primaryCurr = scanDup
 
+                getDup[1].remove(primaryCurr)
+                getDup[1].insert(0, primaryCurr)
+
+                foundIDs = [primaryCurr.getIDString().strip().lower()]
+
                 lFailChecks = False
                 primarySplits = primaryCurr.getSplits()
-                output += "Verifying potential 'duplicate': %s(Ticker: %s) (has %s price history records)\n" %(primaryCurr.getName(),dup,highestSnapCount)
+                output += "Verifying potential 'duplicates': %s(Ticker: %s Master ID: %s) (has %s price history records)\n"\
+                          %(primaryCurr.getName(),dup,primaryCurr.getIDString(),highestSnapCount)
+
                 for scanDup in getDup[1]:
+
+                    if scanDup == primaryCurr: continue     # You can't check against yourself...!
 
                     _tempSec = StoreSecurity(scanDup)
                     _len = 95
 
-                    txt = "... '%s' NOTE: has %s price history records" %(pad(_tempSec.shortDisplay(),_len), scanDup.getSnapshots().size())
+                    getDupID = scanDup.getIDString().strip().lower()
+                    txt = "--- (Validating ID: %s)\n" \
+                          "... '%s' NOTE: has %s price history records" %(scanDup.getIDString(), pad(_tempSec.shortDisplay(),_len), scanDup.getSnapshots().size())
                     output += "%s\n" %(txt)
+
+                    if getDupID in foundIDs:
+                        lShowOutput = lFailChecks = True
+                        txt = "... '%s' CANNOT be MERGED as using identical ID                   %s vs %s" %(pad(_tempSec.shortDisplay(),_len),scanDup.getIDString(),primaryCurr.getIDString())
+                        myPrint("DB",txt); output += "%s\n" %(txt)
+                    else:
+                        foundIDs.append(getDupID)
 
                     if scanDup.getRelativeCurrency() != primaryCurr.getRelativeCurrency():
                         lShowOutput = lFailChecks = True
@@ -13929,6 +13981,7 @@ now after saving the file, restart Moneydance
                         txt = "... '%s' CANNOT be MERGED as not all have the same splits..." %(pad(_tempSec.shortDisplay(),_len))
                         myPrint("DB",txt); output += "%s\n" %(txt)
 
+                    output += "\n"
                     del _tempSec
 
                 if lFailChecks:
@@ -13950,6 +14003,7 @@ now after saving the file, restart Moneydance
             if len(securities) < 2 or len(dup_securities) < 1:
                 output += "\n" \
                           "Use MD Menu > Tools>Securities to make changes necessary for Securities to 'qualify' for merging....\n" \
+                          "Ensure you use a DIFFERENT ID for each duplicate - e.g. ^APPL1, ^APPL2, ^APPL3 for Apple (for example)...\n" \
                           "** except for decimal places differences. Use Toolbox 'MENU: Currency & Security tools > FIX: Edit a Security's (hidden) Decimal Place setting'\n" \
                           "\n"
                 if lShowOutput:
@@ -14079,12 +14133,14 @@ now after saving the file, restart Moneydance
             jif.dispose()
 
             if selectedSecurity != tickerToMerge.getPrimarySecurity():
-                txt = "Primary security switched from %s to %s" %(tickerToMerge.getPrimarySecurity(), selectedSecurity)
+                txt = "Master security switched from %s to %s (ID: %s)"\
+                      %(tickerToMerge.getPrimarySecurity(), selectedSecurity, selectedSecurity.getIDString())
                 myPrint("DB",txt); output += "%s\n" %(txt)
                 tickerToMerge.setPrimarySecurity(selectedSecurity)
 
             output += "\n\n" \
                       "Selected Ticker / Security: '%s'\n" %(tickerToMerge.getTicker())
+
             output += "Selected Security to use as the master for the merge: %s\n\n" %(tickerToMerge.getDisplayString(selectedSecurity))
             del selectedSecurity
 
@@ -14266,7 +14322,7 @@ now after saving the file, restart Moneydance
                     if not foundPrimary:
                         investmentAccountsNeedingPrimaryCreated[investAccount] = True
                 else:
-                    output += "   <Above Investment account will NOT be touched, no secondary securities to merge>\n"
+                    output += "   <Above Investment account will NOT be touched, no 'duplicate' securities to merge>\n"
 
                 output += "   ----\n"
             del allInvestmentAccounts
@@ -14275,8 +14331,8 @@ now after saving the file, restart Moneydance
                 output += "<NONE FOUND>\n\n"
             else:
                 output += "%s Investment Accounts are involved in the merge...\n" %(iFoundAnyInvestmentAccounts)
-                output += "... Will create/add %s primary securities investment sub accounts\n" %(iPrimarySecuritiesToCreate)
-                output += "... Will merge/delete %s non-primary securities in investment sub accounts\n" %(iSecuritiesMergedDeleted)
+                output += "... Will create/add master security to %s investment sub-accounts\n" %(iPrimarySecuritiesToCreate)
+                output += "... Will merge/delete %s duplicate securities in investment sub accounts\n" %(iSecuritiesMergedDeleted)
                 output += "----\n"
 
 
@@ -14308,7 +14364,7 @@ now after saving the file, restart Moneydance
                 output += "Only the Primary Security has Price History records - No action required....\n"
             else:
                 lSnapshotActionRequired = True
-                output += "Primary Security has %s Price History records, the others have %s - STRATEGY REQUIRED...\n" %(primarySnaps, allOtherSnaps)
+                output += "Master Security has %s Price History records, the others have %s - STRATEGY REQUIRED...\n" %(primarySnaps, allOtherSnaps)
 
             if lSnapshotActionRequired:
                 jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
@@ -14387,7 +14443,7 @@ now after saving the file, restart Moneydance
             if len(allUniqueCUSIPs) < 1:
                 output += "No hidden CUSIP data exists - This is OK and No action required....\n"
             elif primaryCUSIPs > 0 and allOtherCUSIPs < 1:
-                output += "Only the Primary Security has hidden CUSIP data - This is OK and No action required....\n"
+                output += "Only the Master Security has hidden CUSIP data - This is OK and No action required....\n"
             else:
                 lCUSIPActionRequired = True
                 output += "Hidden CUSIP data - STRATEGY REQUIRED...\n"
@@ -14418,7 +14474,7 @@ now after saving the file, restart Moneydance
                     allUniqueCUSIPsPicklist.append(StoreCUSIP(theScheme, theCUSIP))
 
                 selectedCUSIP = JOptionPane.showInputDialog(jif,
-                                                            "Select the hidden CUSIP to keep/use in the new Primary Security?",
+                                                            "Select the hidden CUSIP to keep/use in the new Master Security?",
                                                             "%s - HIDDEN CUSIP DATA" % (_THIS_METHOD_NAME.upper()),
                                                             JOptionPane.INFORMATION_MESSAGE,
                                                             None,
@@ -14442,8 +14498,8 @@ now after saving the file, restart Moneydance
             ############################################################################################################
             output += "\n------\n"
             output += "Investment Accounts included in merge:                                 %s\n" %(len(investmentAccountsInvolvedInMerge))
-            output += "Investment Sub Accounts - new Master/Primary securities to be created: %s\n" %(len(investmentAccountsNeedingPrimaryCreated))
-            output += "Investment Sub Accounts - secondary securities to be merged/deleted:   %s\n" %(len(investmentAccountsNeedingSecondaryMerge))
+            output += "Investment Sub Accounts - new Master securities to be created:         %s\n" %(len(investmentAccountsNeedingPrimaryCreated))
+            output += "Investment Sub Accounts - 'duplicate' securities to be merged/deleted: %s\n" %(len(investmentAccountsNeedingSecondaryMerge))
             output += "\n------\n"
 
 
@@ -14553,9 +14609,9 @@ now after saving the file, restart Moneydance
                     for snap in getSnaps: snap.deleteItem()
 
                 output += "----\n"
-                output += "Primary %s now contains: %s Price History records...\n" %(primary, primary.getSnapshots().size())
+                output += "Master %s now contains: %s Price History records...\n" %(primary, primary.getSnapshots().size())
                 for security in tickerToMerge.getSecurityListWithoutPrimary():
-                    output += "Secondary %s now contains: %s Price History records...\n" %(security, security.getSnapshots().size())
+                    output += "Duplicate %s now contains: %s Price History records...\n" %(security, security.getSnapshots().size())
                 output += "----\n"
 
             ############################################################################################################
@@ -14592,7 +14648,7 @@ now after saving the file, restart Moneydance
                 tickerToMerge.getPrimarySecurity().syncItem()
 
                 output += "----\n"
-                output += "Primary %s now contains: hidden CUSIP record: Scheme: %s, ID: %s\n" %(tickerToMerge.getPrimarySecurity(), selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
+                output += "Master %s now contains: hidden CUSIP record: Scheme: %s, ID: %s\n" %(tickerToMerge.getPrimarySecurity(), selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
                 output += "----\n"
 
 
@@ -14600,7 +14656,7 @@ now after saving the file, restart Moneydance
             # Now create any missing Primary security sub account(s)...
 
             if len(investmentAccountsNeedingPrimaryCreated) > 0:
-                txt = "Creating %s new Primary Securities Sub Accounts in Investment accounts:" %(len(investmentAccountsNeedingPrimaryCreated))
+                txt = "Creating %s new Master Securities Sub Accounts in Investment accounts:" %(len(investmentAccountsNeedingPrimaryCreated))
                 myPrint("B", txt); output += "%s\n" %(txt)
 
                 primary = tickerToMerge.getPrimarySecurity()
@@ -14653,7 +14709,7 @@ now after saving the file, restart Moneydance
 
             lErrorDeletingSecuritySubAccounts = False
             if len(investmentAccountsNeedingSecondaryMerge) > 0:
-                txt = "Now reassigning relevant txns to the new/merged primary security....:"
+                txt = "Now reassigning relevant txns to the new/merged master security....:"
                 myPrint("B", txt); output += "\n\n%s\n" %(txt)
 
                 # now for the merge/reassignment of relevant transactions...
@@ -14669,7 +14725,7 @@ now after saving the file, restart Moneydance
                         reassignTxns = sorted(reassignTxns, key=lambda _x: (_x.getDateInt()))
 
                         # Note sorted loses x.getSize() >> use len(x)
-                        output += "... retrieved %s txns from secondary %s - reassigning.....\n" %(len(reassignTxns), copyAcct)
+                        output += "... retrieved %s txns from duplicate %s - reassigning.....\n" %(len(reassignTxns), copyAcct)
 
                         for srcTxn in reassignTxns:
 
@@ -14692,7 +14748,7 @@ now after saving the file, restart Moneydance
 
                 output += "\n>> Txn reassignment completed.....\n\n"
 
-                txt = "Now deleting empty empty Investment secondary sub accounts...."
+                txt = "Now deleting empty empty Investment duplicate sub accounts...."
                 myPrint("B", txt); output += "\n%s\n" %(txt)
 
                 ############################################################################################################
@@ -14704,7 +14760,7 @@ now after saving the file, restart Moneydance
                         if copyAcct is None: continue
 
                         remainingTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(copyAcct)
-                        output += "... %s txns left in secondary %s ..." %(remainingTxns.getSize(), copyAcct)
+                        output += "... %s txns left in duplicate %s ..." %(remainingTxns.getSize(), copyAcct)
 
                         if remainingTxns.getSize() < 1:
                             txt = "... Deleting: %s (empty)" %(copyAcct)
@@ -14715,10 +14771,10 @@ now after saving the file, restart Moneydance
                             txt = "... *** ERROR - Cannot delete %s as it still contains %s txns! ***" %(copyAcct,remainingTxns.getSize())
                             myPrint("B", txt); output += "%s\n" %(txt)
 
-                output += "\n>> Secondary Investment Sub Account(s) deletions completed.....\n\n"
+                output += "\n>> Duplicate Investment Sub Account(s) deletions completed.....\n\n"
 
-            # Now delete the (empty) and now unused old secondary Securities
-            txt = "Now deleting the empty & unused old secondary securities that have been merged into the new master..:"
+            # Now delete the (empty) and now unused old duplicate Securities
+            txt = "Now deleting the empty & unused old duplicate securities that have been merged into the new master..:"
             myPrint("B", txt); output += "\n%s\n\n" %(txt)
 
             lErrorDeletingSecurities = False
@@ -20095,7 +20151,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_edit_security_decimal_places.setForeground(Color.RED)
 
                 user_merge_duplicate_securities = JRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False)
-                user_merge_duplicate_securities.setToolTipText("This scans for 'duplicated' Securities and merge them together..... Tools>Securities>TickerSymbol is the key... (TickerSymbol; Dpc, RelCurr, Rate, Splits must match)")
+                user_merge_duplicate_securities.setToolTipText("Scans for 'duplicated' Securities and can merge together.. Tools>Securities>TickerSymbol is key, ID must be different... (Dpc, RelCurr, Rate, Splits must also match)")
                 user_merge_duplicate_securities.setEnabled(lAdvancedMode)
                 user_merge_duplicate_securities.setForeground(Color.RED)
 
