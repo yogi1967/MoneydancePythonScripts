@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# total_selected_transactions.py build: 1001 - August 2021 - Stuart Beesley StuWareSoftSystems
+# total_selected_transactions.py build: 1002 - August 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -31,6 +31,7 @@
 # build: 1000 - Initial Release
 # build: 1001 - Enhanced the popup with extra info (e.g. average, fx)
 # build: 1001 - Common code tweaks
+# build: 1002 - Extra investment totals
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -41,7 +42,7 @@
 
 # SET THESE LINES
 myModuleID = u"total_selected_transactions"
-version_build = "1001"
+version_build = "1002"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -268,6 +269,7 @@ else:
     from com.moneydance.apps.md.view.gui.acctpanels import BankAcctPanel
     from com.moneydance.apps.md.view.gui import MainFrame, AccountDetailPanel, InvestAccountDetailPanel, LoanAccountDetailPanel, LiabilityAccountInfoPanel
     from com.moneydance.apps.md.view.gui.txnreg import TxnRegister, TxnRegisterList
+    from com.infinitekind.moneydance.model import InvestFields, InvestTxnType                                           # noqa
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
@@ -1439,7 +1441,6 @@ Visit: %s (Author's site)
                 self.lBottom = lBottom
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 if self.lBottom: self.theJText.setCaretPosition(self.theJText.getDocument().getLength())
@@ -1454,7 +1455,6 @@ Visit: %s (Author's site)
                 self.callingFrame = callingFrame
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 if Platform.isOSX():
@@ -1820,7 +1820,7 @@ Visit: %s (Author's site)
 
                 myPrint("DB", "...............", type(pnlComp))
 
-                p_reg = pnlComp.getClass().getDeclaredField("reg")
+                p_reg = pnlComp.getClass().getDeclaredField("reg")                                                      # noqa
                 p_reg.setAccessible(True)
                 p_regObject = p_reg.get(pnlComp)                                                                        # type: TxnRegister
                 p_reg.setAccessible(False)
@@ -1858,13 +1858,20 @@ Visit: %s (Author's site)
 
     def analyseTxns(listTxns, frame):
 
+        iCountTxns = 0
+
         if listTxns:
 
             total = 0
             account = acctCurr = None
+            lInvestments = False
+            shares = fees = amounts = 0.0
+            buys = sells = 0
+            fields = InvestFields()
 
             _i = 1
             for txn in listTxns:
+                iCountTxns += 1
                 # if not isinstance(txn, AbstractTxn): raise Exception("LOGIC ERROR: Found a non AbstractTxn? %s" %(txn))
                 myPrint("DB","--- Txn: %s ---" %(_i)); _i += 1
                 myPrint("DB", " Account: %s isParent: %s" %(txn.getAccount(), isinstance(txn,ParentTxn)))
@@ -1880,11 +1887,41 @@ Visit: %s (Author's site)
                 else:
                     myPrint("DB", "\n", txn)
 
+                # noinspection PyUnresolvedReferences
+                if account.getAccountType() == Account.AccountType.INVESTMENT: lInvestments = True
+
+                if lInvestments:
+                    fields.setFieldStatus(txn)
+
+                    mult = 1.0
+                    if fields.negateSecurity: mult = -1.0
+
+                    if fields.hasShares:
+                        if shares > 0.0:
+                            buys += 1
+                        else:
+                            sells += 1
+
+                        shares += fields.secCurr.getDoubleValue(fields.shares) * mult
+
+                    if fields.hasFee:
+                        fees += fields.curr.getDoubleValue(fields.fee)
+
+                    if fields.hasAmount:
+                        amounts += fields.curr.getDoubleValue(fields.amount) * mult
+
+                    # if fields.txnType.isSell():
+                    # elif fields.txnType.isBuy():
+                    # elif fields.txnType.isDividend():
+                    # elif fields.txnType == InvestTxnType.BANK:
+                    # elif fields.txnType == InvestTxnType.MISCEXP:
+                    # elif fields.txnType == InvestTxnType.MISCINC:
+
                 total += txn.getValue()
 
                 myPrint("DB", "------")
 
-            if total:
+            if iCountTxns:
 
                 acctType = pad("Account:", 11)
                 # noinspection PyUnresolvedReferences
@@ -1914,15 +1951,24 @@ Visit: %s (Author's site)
                 else:
                     fx_line = ""
 
-                MyPopUpDialogBox(frame, "Value: %s (Count: %s, Average: %s)" %(acctCurr.formatFancy(total,MD_decimal),
+                if lInvestments:
+                    invest_line = "Shares:     %s (Buys: %s, Sells: %s)\n" \
+                                  "Amounts:    %s\n" \
+                                  "Fees:       %s\n" %(shares, buys, sells, amounts, fees)
+                else:
+                    invest_line = ""
+
+                MyPopUpDialogBox(frame, "Cash value: %s (Count: %s, Average: %s)" %(acctCurr.formatFancy(total,MD_decimal),
                                                                                len(listTxns),
                                                                                averageValue),
                                  theMessage="%s %s\n"
+                                            "%s"
                                             "%s"
                                             "Acct Type:  %s\n"
                                             "Currency:   %s\n"
                                             %(acctType, account.getAccountName(),
                                               fx_line,
+                                              invest_line,
                                               account.getAccountType(),
                                               acctCurr.getName()),
                                  lModal=False,
@@ -1951,11 +1997,12 @@ Visit: %s (Author's site)
             # myPrint("DB", "... skipping: '%s'" %(secondary_window.getTitle()))
             continue
 
-        if not secondary_window.isFocused():
-            myPrint("DB", "Skipping Non-Focused Secondary Window: '%s'" %(secondary_window.getTitle()))
+        if not secondary_window.isFocused():                                                                            # noqa
+            myPrint("DB", "Skipping Non-Focused Secondary Window: '%s'" %(secondary_window.getTitle()))                 # noqa
             continue
         else:
-            myPrint("DB", "Secondary Window: '%s' - isFocused: %s, isVisible: %s, hasFocus: %s" %(secondary_window.getTitle(), secondary_window.isFocused(), secondary_window.isVisible(), secondary_window.hasFocus()))
+            myPrint("DB", "Secondary Window: '%s' - isFocused: %s, isVisible: %s, hasFocus: %s"
+                    %(secondary_window.getTitle(), secondary_window.isFocused(), secondary_window.isVisible(), secondary_window.hasFocus()))    # noqa
 
         try:
             accountPanel = secondary_window.getAccountPanel()
@@ -1965,7 +2012,7 @@ Visit: %s (Author's site)
             continue
 
         account_panel_component = None
-        for account_panel_component in secondary_window.getAccountPanel().getComponents():
+        for account_panel_component in secondary_window.getAccountPanel().getComponents():                              # noqa
             myPrint("DB", ".. hunting for TxnRegister...")
             foundTxnRegister = hunt_component(account_panel_component, TxnRegister)
 

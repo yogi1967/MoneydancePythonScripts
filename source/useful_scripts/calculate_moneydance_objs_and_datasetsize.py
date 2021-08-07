@@ -1438,7 +1438,6 @@ Visit: %s (Author's site)
                 self.lBottom = lBottom
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 if self.lBottom: self.theJText.setCaretPosition(self.theJText.getDocument().getLength())
@@ -1453,7 +1452,6 @@ Visit: %s (Author's site)
                 self.callingFrame = callingFrame
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 if Platform.isOSX():
@@ -1822,28 +1820,28 @@ Visit: %s (Author's site)
     total_size = 0
     start_path = startDir  # To get size of current directory
     for path, dirs, files in os.walk(start_path):
-        for f in files:
+        for f_file in files:
             lValidFile = False
 
-            fp = os.path.join(path, f)
+            fp = os.path.join(path, f_file)
             thisFileSize = os.path.getsize(fp)
 
             total_size += thisFileSize
 
-            if os.path.basename(f) == "key" and path==keyDir and len:
+            if os.path.basename(f_file) == "key" and path==keyDir and len:
                 lValidFile = True
                 keySize=thisFileSize
-            if os.path.basename(f) == "settings" and path==settingsDir:
+            if os.path.basename(f_file) == "settings" and path==settingsDir:
                 lValidFile = True
                 safe_settingsSize=thisFileSize
-            if os.path.basename(f) == "trunk" and path==trunkDir:
+            if os.path.basename(f_file) == "trunk" and path==trunkDir:
                 lValidFile = True
                 safe_trunkSize=thisFileSize
-            if path[:len(sync_outDir)] == sync_outDir and (f.endswith(".txn") ):
+            if path[:len(sync_outDir)] == sync_outDir and (f_file.endswith(".txn")):
                 lValidFile = True
                 sync_outSize+=thisFileSize
                 sync_outCount+=1
-            if path[:len(trunkDir)] == trunkDir and (f.endswith("trunk") or f.endswith(".mdtxn") or f.endswith("processed.dct") or f.endswith("delete_to_push_sync_info") or f.endswith(".txn") or f.endswith("force_push_resync") ):
+            if path[:len(trunkDir)] == trunkDir and (f_file.endswith("trunk") or f_file.endswith(".mdtxn") or f_file.endswith("processed.dct") or f_file.endswith("delete_to_push_sync_info") or f_file.endswith(".txn") or f_file.endswith("force_push_resync")):
                 lValidFile = True
                 safe_tiksyncSize+=thisFileSize
                 countTIKfiles+=1
@@ -1851,7 +1849,7 @@ Visit: %s (Author's site)
                 lValidFile = True
                 safe_attachmentsSize+=thisFileSize
                 countAttachments+=1
-            if path[:len(archiveDir)] == archiveDir and f.endswith(".mdtxnarchive"):
+            if path[:len(archiveDir)] == archiveDir and f_file.endswith(".mdtxnarchive"):
                 lValidFile = True
                 safe_archiveSize+=thisFileSize
                 countArchiveFiles+=1

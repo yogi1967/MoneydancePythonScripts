@@ -1464,7 +1464,6 @@ Visit: %s (Author's site)
 				self.lBottom = lBottom
 
 			def actionPerformed(self, event):
-				global toolbox_frame_, debug
 				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
 				if self.lBottom: self.theJText.setCaretPosition(self.theJText.getDocument().getLength())
@@ -1479,7 +1478,6 @@ Visit: %s (Author's site)
 				self.callingFrame = callingFrame
 
 			def actionPerformed(self, event):
-				global toolbox_frame_, debug
 				myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
 				if Platform.isOSX():
@@ -1952,17 +1950,17 @@ Visit: %s (Author's site)
 	else:
 		myPrint("B","Sorry, did not find Quote Loader extension (meeting build requirements) running... ABORTING")
 
-	f = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),MBFILE)
+	f_file = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),MBFILE)
 	if foundQL:
-		if os.path.exists(f):
-			myPrint("DB","MB Master parameter file found: %s" %(f))
+		if os.path.exists(f_file):
+			myPrint("DB","MB Master parameter file found: %s" %(f_file))
 		else:
-			myPrint("B", "Sorry, did not find MB Master parameter file: %s. ABORTING" %(f))
+			myPrint("B", "Sorry, did not find MB Master parameter file: %s. ABORTING" %(f_file))
 			foundQL = False
 
 	if foundQL:
 		try:
-			with open(f,'rb') as json_file:
+			with open(f_file,'rb') as json_file:
 				contents = json_file.read()
 				data = json.loads(contents)
 				myPrint("DB","Successfully read MB Master parameter file")
@@ -1980,18 +1978,18 @@ Visit: %s (Author's site)
 				if ql_key.lower().strip().startswith(QLID.lower().strip()):
 					myPrint("DB","MB Master parameter for QL: '%s': %s" %(ql_key,data[MB_KEY][ql_key]))
 
-	f = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),QLFILE)
+	f_file = os.path.join(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(),QLFILE)
 	if foundQL:
-		if os.path.exists(f):
-			myPrint("DB","QL parameter file found: %s" %(f))
+		if os.path.exists(f_file):
+			myPrint("DB","QL parameter file found: %s" %(f_file))
 		else:
-			myPrint("B", "Sorry, did not find QL parameter file: %s. ABORTING" %(f))
+			myPrint("B", "Sorry, did not find QL parameter file: %s. ABORTING" %(f_file))
 			foundQL = False
 
 	if foundQL:
 
 		try:
-			with open(f,'rb') as json_file:
+			with open(f_file,'rb') as json_file:
 
 				# It seems that QL extension just uses that machine's platform's default charset.. We have to try both....
 				try_charsets = ['utf-8','iso-8859-1']
@@ -2032,7 +2030,6 @@ Visit: %s (Author's site)
 		for ql_key in sorted(data):
 			if ql_key.lower().strip() == QL_STOCKS_KEY.lower().strip(): continue
 			myPrint("DB","QL parameter: '%s': %s" %(ql_key,data[ql_key]))
-
 
 	stocksList = []
 	QL_stocks = None

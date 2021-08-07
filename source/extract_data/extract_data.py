@@ -1619,7 +1619,6 @@ Visit: %s (Author's site)
                 self.lBottom = lBottom
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 if self.lBottom: self.theJText.setCaretPosition(self.theJText.getDocument().getLength())
@@ -1634,7 +1633,6 @@ Visit: %s (Author's site)
                 self.callingFrame = callingFrame
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 if Platform.isOSX():
