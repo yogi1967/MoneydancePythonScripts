@@ -3,12 +3,12 @@
 
 """Example script accessing moneydance data in 'headless' mode using jpython
 
-NOTE: Superceded by open_mdheadless_external_jython_with_environment_passphrase.py when using MD2021.2(3088) onwards....
+NOTE:  Works with an encryption passphrase from MD2021.2(3088) onwards as this allows you to set the passphrase into
+       an environment variable: md_passphrase=  or  md_passphrase_[filename in lowercase format]=
 
-Usage: ./launch-moneydance-via-jython.sh open_mdheadless_external_jython_with_passphrase2.py [dataset path/name] [encryption passphrase]
+Usage: ./launch-moneydance-via-jython.sh open_mdheadless_external_jython_with_environment_passphrase.py [dataset path/name]
 
-DISCLAIMER: This is NOT a method 'supported' by Infinite Kind!
-            Always BACKUP FIRST
+DISCLAIMER: Always BACKUP FIRST
             Do not use when Moneydance is open
             I would suggest you stay READONLY - do not update data
             USE AT YOUR OWN RISK!
@@ -51,15 +51,10 @@ INSTRUCTIONS:
 
 NOTE:
 - This is a basic script to get access to your Moneydance data externally and allows you to open with a user set passphrase
-- See Dale Furrow's scripts 1-5 for further examples of automation. Currently it's tricky to do these steps if you have a user
-- passphrase set without extending Main and overriding .getUI(); and extending MoneydanceGUI() and overriding .getSecretKeyCallback(), .showErrorMessage(), .go()
-- The IK developer (Sean) has indicated he's willing to set en environment variable to pass the passphrase (April 2021) - let's see....
 """
 
 # ################## `set these default variables or use command line arguments ##########################################
-myEncryptionPassphrase = u"bob"  # Just use "" if not set... Moneydance checks the 'key' file and if userpass=0 it will just use it's known 'internal' default...  ;->
-mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/FAKE2.moneydance"
-theScript = None
+mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/DEREKQLTEST.moneydance"
 # ################## `set these variables ################################################################################
 
 import sys
@@ -68,25 +63,28 @@ sys.setdefaultencoding('utf8')  # Dirty hack to eliminate UTF-8 coding errors. W
 
 import os
 
-print("Importing useful Java Classes...")
-from java.io import File
-from java.lang import System
-
-
 if len(sys.argv) > 1:
     mdDataFolder = sys.argv[1]
 
-if len(sys.argv) > 2:
-    myEncryptionPassphrase = sys.argv[2]
+_ENV_PASSPHRASE = "md_passphrase"
 
-if len(sys.argv) > 3:
-    theScript = sys.argv[3]
-    print("Python file: '%s'" %(theScript))
-    if not os.path.exists(theScript):
-        print("Sorry, python script file does not exist...?! Aborting")
-        System.exit(0)      # this stops the popup message and infinite loop...
+def findEnvironmentPassphrases():
+    theList = []
+    for _k, _v in os.environ.items():
+        if _k.startswith(_ENV_PASSPHRASE):
+            theList.append([_k,_v])
+    return theList
 
-print("\n@@@ Opening file: %s, Encryption: %s @@\n" %(mdDataFolder, myEncryptionPassphrase))
+
+envs = findEnvironmentPassphrases()
+if envs:
+    print("Current passphrase environment variables set..:")
+    for k, v in envs: print("Key:%s Passphrase: %s" %(k,v))
+    print()
+else:
+    print("No passphrases detected in environment\n")
+
+print("\n@@@ Opening file: %s @@\n" %(mdDataFolder))
 
 # get oriented, print current working directory (script is based on working directory as project root)
 print("Working Directory: {0}".format(os.getcwd()))
@@ -94,25 +92,18 @@ print("Working Directory: {0}".format(os.getcwd()))
 ###################################################################
 print("Importing necessary Moneydance Classes...")
 from com.moneydance.apps.md.controller import Main 
-from com.moneydance.security import SecretKeyCallback
+# from com.moneydance.security import SecretKeyCallback
 from com.moneydance.apps.md.controller import AccountBookWrapper
-from com.moneydance.apps.md.view.gui import MoneydanceGUI
 
 print("Importing useful Moneydance Classes...")
-from com.infinitekind.moneydance.model import ParentTxn
-from com.infinitekind.moneydance.model import CurrencyType
-# from com.infinitekind.moneydance.model import AccountBook
-# from com.infinitekind.moneydance.model import Account
-# from com.infinitekind.moneydance.model import TxnSet
-# from com.infinitekind.moneydance.model import AbstractTxn
-# from com.infinitekind.moneydance.model import SplitTxn
-# from com.infinitekind.moneydance.model import TxnUtil
-# from com.infinitekind.moneydance.model import CurrencySnapshot
-# from com.infinitekind.moneydance.model import CurrencyTable
-# from com.infinitekind.moneydance.model import CurrencyUtil
-# from com.infinitekind.moneydance.model import MoneydanceSyncableItem
+from com.infinitekind.moneydance.model import ParentTxn, CurrencyType
+# from com.infinitekind.moneydance.model import AccountBook, Account, MoneydanceSyncableItem, TxnSet, TxnUtil, AbstractTxn, SplitTxn, CurrencySnapshot, CurrencyTable, CurrencyUtil
 
-print("prove moneydance data file exists, load it into java File object")
+print("Importing useful Java Classes...")
+from java.io import File
+# from java.lang import System
+
+print("Prove moneydance data file exists, load it into java File object")
 print("Moneydance Data File exists? {0}, in {1}".format(os.path.exists(mdDataFolder), mdDataFolder))
 if not os.path.exists(mdDataFolder):
     raise Exception("!!!! ERROR: Datafile: %s does NOT exist! Aborting...." %(mdDataFolder))
@@ -121,52 +112,15 @@ mdFileJava = File(mdDataFolder)
 last_modded_long = mdFileJava.lastModified()
 print("data folder last modified: %s" %(last_modded_long))
 
-
-###################################################################
-# The 'magic' that holds/returns the encryption key....
-class MySecret(SecretKeyCallback):
-    def __init__(self, theKey):
-        self.theKey = theKey
-        self.passwordCalls = 0
-
-    def getPassphrase(self, arg1, arg2=None):
-        print("@getPassphrase(%s,%s) will return %s" %(arg1,arg2,self.theKey))
-
-        if self.passwordCalls:
-            print("@@ Second call to getPassphrase()... Assuming bad password, so aborting.....")
-            System.exit(0)      # this stops the popup message and infinite loop...
-
-        self.passwordCalls += 1
-
-        return self.theKey
-
-
-###################################################################
-# Fire up Moneydance and initialize key stuff...
-
 theMain = Main()
 theMain.DEBUG = True
 theMain.initializeApp()
+# theMain.startApplication()
 
-wrapper = AccountBookWrapper.wrapperForFolder(mdFileJava)  # wrapper is of java type 'AccountBookWrapper'
+wrapper = AccountBookWrapper.wrapperForFolder(mdFileJava)  # type: AccountBookWrapper
 theMain.setCurrentBook(wrapper)
 
-mdGui = MoneydanceGUI(theMain)
-
-###################################################################
-
-def runPythonScript(mdMain, pythonScript):                                                                    # noqa
-    python = mdMain.getPythonInterpreter()
-    python.execfile(pythonScript)
-
-
-if theScript:
-    runPythonScript(theMain, theScript)
-
-###################################################################
-# Away we go, accessing the data...
-
-accountBook = theMain.getCurrentAccountBook()
+accountBook = wrapper.getBook()
 print(accountBook)
 
 root_account = accountBook.getRootAccount()
@@ -196,7 +150,6 @@ for txn in parent_txns:
 
 
 print("Printing Information on Securities...")
-from com.infinitekind.moneydance.model.CurrencyType import CURRTYPE_SECURITY                                            # noqa
 currencies = accountBook.getCurrencies().getAllCurrencies()
 securities = [x for x in currencies if x.getCurrencyType() == CurrencyType.Type.SECURITY]                               # noqa
 
@@ -217,7 +170,6 @@ for security in securities:
 
 # theMain.showURL("invokeAndQuitURI")
 theMain.saveCurrentAccount()
-# theMain.shutdown()
-
+theMain.shutdown()
 
 print("@@@@  END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")

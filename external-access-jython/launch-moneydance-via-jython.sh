@@ -30,6 +30,16 @@
 # Parameter: '-invoke=x'          Same as -invoke_and_quit but does launch the UI first and doesn't quit...!
 
 
+# MD2021.2(3088): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
+#                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
+
+
+unset md_passphrase
+unset md_passphrase
+export md_passphrase=xxx
+#export md_passphrase_filename=xxx
+
+
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 
@@ -89,12 +99,20 @@ modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2021 (3065)"
+md_version=" 2021.2 (3090)"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
 md_icon="/Applications/Moneydance${md_version}.app/Contents/Resources/desktop_icon.icns"
 
+if ! test -d "${md_jars}"; then
+  echo "ERROR - directory ${md_jars}/ does not exist!"
+  exit 1
+fi
+
+# Other paths....
+macos="/Applications/Moneydance${md_version}.app/Contents/MacOS"
+machelper2="/Applications/Moneydance${md_version}.app/Contents/PlugIns/vm.jdk/Contents/Home/lib"
 
 # Set to "" for no sandbox (however, with enabled=true is not really a sandbox)
 #use_sandbox=""
@@ -114,6 +132,7 @@ ${jython} \
   -J-cp "${md_jars}/*" \
   -J--module-path="${javafx}" \
   -J--add-modules=${modules} \
+  -J-Djava.library.path="${macos}:${machelper2}" \
   -J-Dapple.laf.useScreenMenuBar=true \
   -J-Dcom.apple.macos.use-file-dialog-packages=true \
   -J-Dcom.apple.macos.useScreenMenuBar=true \

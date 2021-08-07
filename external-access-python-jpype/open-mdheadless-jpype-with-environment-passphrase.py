@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""Example script accessing moneydance data in 'headless' mode using jpype - uses: wrapper.loadDataModel()
+"""Example script accessing moneydance data in 'headless' mode using jpype
 
-NOTE: Superceded by open-mdheadless-jpype-with-environment-passphrase.py when using MD2021.2(3088) onwards....
+NOTE:  Works with an encryption passphrase from MD2021.2(3088) onwards as this allows you to set the passphrase into
+       an environment variable: md_passphrase=  or  md_passphrase_[filename in lowercase format]=
 
-DISCLAIMER: This is NOT a method 'supported' by Infinite Kind!
-            Always BACKUP FIRST
+       Seems a little flaky, and I would recommend you stick with Jython access.
+
+DISCLAIMER: Always BACKUP FIRST
             Do not use when Moneydance is open
             I would suggest you stay READONLY - do not update data
             USE AT YOUR OWN RISK!
@@ -52,19 +54,13 @@ INSTRUCTIONS:
 
 NOTE:
 - This is a basic script to get access to your Moneydance data externally and allows you to open with a user set passphrase
-- See Dale Furrow's scripts 1-5 for further examples of automation. Currently it's tricky to do these steps if you have a user
-- passphrase set without extending Main and overriding .getUI(); and extending MoneydanceGUI() and overriding .getSecretKeyCallback(), .showErrorMessage(), .go()
-- JPype cannot extend Java classes.. so see my own open_mdheadless_external_jython_with_passphrase2.py for example
-- The IK developer (Sean) has indicated he's willing to set en environment variable to pass the passphrase (April 2021) - let's see....
+- See Dale Furrow's scripts 1-5 for further examples of automation.
 """
 
 ################### `set these variables ##########################################
-lUsePassphrase = True
-myEncryptionPassphrase = u"bob"
 mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
 MD_PATH = "../Moneydance_jars/"       # include moneydance.jar and mdpython.jar
 ################### `set these variables ##########################################
-
 
 # from datetime import datetime, date
 import os
@@ -72,7 +68,24 @@ import os
 # import jpype
 import jpype.imports
 from jpype.types import *
-from jpype import JImplements, JOverride
+
+_ENV_PASSPHRASE = "md_passphrase"
+
+def findEnvironmentPassphrases():
+    theList = []
+    for _k, _v in os.environ.items():
+        if _k.startswith(_ENV_PASSPHRASE):
+            theList.append([_k,_v])
+    return theList
+
+
+envs = findEnvironmentPassphrases()
+if envs:
+    print("Current passphrase environment variables set..:")
+    for k, v in envs: print("Key:%s Passphrase: %s" %(k,v))
+    print()
+else:
+    print("No passphrases detected in environment\n")
 
 # get oriented, print current working directory (script is based on working directory as project root)
 print("Working Directory: {0}".format(os.getcwd()))
@@ -94,7 +107,6 @@ jpype.startJVM(classpath=[join_jars])
 
 print("Importing necessary Moneydance Classes...")
 from com.moneydance.apps.md.controller import Main 
-from com.moneydance.security import SecretKeyCallback
 
 print("Importing useful Moneydance Classes...")
 from com.moneydance.apps.md.controller import AccountBookWrapper
@@ -122,19 +134,6 @@ print("data folder last modified: %s" %(last_modded_long))
 
 
 ###################################################################
-# The 'magic' that holds/returns the encryption key....
-@JImplements(SecretKeyCallback)
-class MySecret(object):
-    def __init__(self, theKey):
-        self.theKey = theKey
-
-    @JOverride
-    def getPassphrase(self, arg1, arg2=None):
-        print("@getPassphrase(%s,%s) will return %s" %(arg1,arg2,self.theKey))
-        return self.theKey
-
-
-###################################################################
 # Fire up Moneydance and initialize key stuff...
 mdMain = Main()
 mdMain.initializeApp()
@@ -143,17 +142,11 @@ mdMain.initializeApp()
 ###################################################################
 # Now get the 'wrapper' etc
 print("@@@now get AccountBookWrapper, accountBook, and rootAccount")
-wrapper = AccountBookWrapper.wrapperForFolder(mdFileJava)  # wrapper is of java type 'AccountBookWrapper'
+wrapper = AccountBookWrapper.wrapperForFolder(mdFileJava)  # type: AccountBookWrapper
+mdMain.setCurrentBook(wrapper)
+
 accountBook = wrapper.getBook()
-
-if lUsePassphrase:
-    callback = MySecret(myEncryptionPassphrase)
-else:
-    callback = None
-
-wrapper.loadLocalStorage(callback)
-wrapper.loadDataModel(callback)
-
+print(accountBook)
 
 ###################################################################
 # Away we go, accessing the data...

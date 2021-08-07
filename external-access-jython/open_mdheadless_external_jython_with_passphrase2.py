@@ -3,6 +3,8 @@
 
 """Example script accessing moneydance data in 'headless' mode using jpython
 
+NOTE: Superceded by open_mdheadless_external_jython_with_environment_passphrase.py when using MD2021.2(3088) onwards....
+
 Usage: ./launch-moneydance-via-jython.sh open_mdheadless_external_jython_with_passphrase2.py [dataset path/name] [encryption passphrase]
 
 DISCLAIMER: This is NOT a method 'supported' by Infinite Kind!

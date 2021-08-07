@@ -3,6 +3,8 @@
 
 """Example script accessing moneydance data in 'headless' mode using jpython
 
+NOTE: Superceded by open_mdheadless_external_jython_with_environment_passphrase.py when using MD2021.2(3088) onwards....
+
 Usage: ./launch-moneydance-via-jython.sh open_mdheadless_external_jython_with_passphrase1.py [dataset path/name] [encryption passphrase]
 
 DISCLAIMER: This is NOT a method 'supported' by Infinite Kind!
@@ -57,7 +59,7 @@ NOTE:
 
 # ################## `set these default variables or use command line arguments ##########################################
 myEncryptionPassphrase = u"bob"  # Just use "" if not set... Moneydance checks the 'key' file and if userpass=0 it will just use it's known 'internal' default...  ;->
-mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/FAKE2.moneydance"
+mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/DEREKQLTEST.moneydance"
 # ################## `set these variables ################################################################################
 
 import sys

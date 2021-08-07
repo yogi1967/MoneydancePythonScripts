@@ -476,12 +476,11 @@ else:
 
     try:
         if Platform.isOSX() and int(MD_REF.getBuild()) >= 3088:
-            from com.moneydance.apps.md.view.gui.sync import ICloudSyncConfigurer                                       # noqa
-            from com.moneydance.apps.md.controller.sync import ICloudContainer                                          # noqa
+            from com.moneydance.apps.md.view.gui.sync import ICloudSyncConfigurer
+            from com.moneydance.apps.md.controller.sync import ICloudContainer
     except:
         pass
 
-    from java.lang import String
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller import ModuleMetaData
     from com.moneydance.apps.md.controller import LocalStorageCipher
@@ -3861,12 +3860,13 @@ Visit: %s (Author's site)
                     if not theCUSIP: raise Exception("ERROR: %s - empty CUSIP returned? Security: %s, Scheme: %s" %(_THIS_METHOD_NAME, sec, theScheme))
 
                     iCountFound += 1
-                    output += "%s %s %s %s %s %s\n" % (pad(sec.getName(), 45),
+                    output += "%s %s %s %s %s %s %s\n" % (pad(sec.getName(), 45),
                                                     pad(sec.getIDString(), 15),
                                                     pad(sec.getTickerSymbol(), 15),
                                                     pad(theScheme, 12),
                                                     theCUSIP,
-                                                    ("** CUSIP & TICKER ARE DIFFERENT **" if (theCUSIP.strip() != sec.getTickerSymbol().strip()) else ("")))
+                                                    ("** CUSIP & TICKER ARE DIFFERENT **" if (theCUSIP.strip() != sec.getTickerSymbol().strip()) else (""*34)),
+                                                    ("id: "+sec.getUUID() if (debug) else ("")))
 
         if not iCountFound:
             output += "\nNONE FOUND!\n"
@@ -6035,23 +6035,24 @@ Please update any that you use before proceeding....
         # 'rate' was the raw rate expressed as a factor of the difference in decimal places relative to the base currency.
         # From MD2019 onwards, the 'relative' currency setup changed and 'rrate' was created. 'rrate' stored the actual rate.
         # It was supposed to be the case that MD2019+ would see the missing 'rrate' field and convert the legacy rate in memory
-        # Even though new 'rrate' was now in memory, the data was not stored on disk, so the parameter 'rrate' was always missing
-        # Once you actually edited a rate using Tools/Currencies, then the new 'rrate' would be created on disk...
+        # Even though new 'rrate' was now in memory (in a variable), the data was not stored back to the parameter 'rrate', and was always missing
+        # Once you actually edited a price using Tools/Currencies, then the new 'rrate' parameter would be created...
         # BUT, there is a bug and in fact as well as the new 'rrate' the old 'rate' was changed too. So, backwards compatibility to 2017 was lost.
 
         # Example: Stock: Price £6.25 Old 'rate' was stored as 16 (2dpc) in MD2017. In MD2019 new 'rrate' is 0.16.
         # Old 'rate' was supposed to always stay as 16, but once edited in MD2019 it became 0.16 too (BUG).
         # This does not matter for MD2019 onwards as it's legacy and ignored.
         # However, if you go back to MD2017, then you will see your Current Price become £625 as 'rate' is now wrong....
+        # Also, if you use the edit decimal places function in Toolbox, then you will also have a rate dpc issue if you go back to 2017.
 
         # There was another bug, in that if you edited any part of the CurrencyType record where the 'rrate' was missing,
-        # then .itemWasUpdated() would run and reload the rate in memory from 'rrate' which was missing. This then corrupted the rate
-        # This was addressed in MD2021.2(3089), and .itemWillSync() was changed so that 'rrate' is set (in memory) if missing.
-        # It appears that upon opening a dataset in MD2021.2(3089) onwards, that this change updates all missing rrate fields in memory.....
+        # then .itemWasUpdated() would run and reload the new rate in memory (from 'rrate') which was missing. This then corrupted the rate
+        # This was addressed in MD2021.2(3089), and .itemWillSync() was changed so that 'rrate' parameter is set (in memory) if missing.
+        # It appears that upon opening a dataset in MD2021.2(3089) onwards, that this change updates all missing rrate parameters in memory.....
         # These in memory changes are not saved by calling .syncIntem(), thus they only exist in memory unless a subsequent update is made and .syncItem() called
-        # .... so the change does not exist in trunk or a .txn file until a subsequent change..
+        # .... so the change does not exist in trunk or any .txn file until a subsequent change..
         # And so, updating the record in MD2021.2(3089) onwards is not an issue.
-        # I'm assuming as these are not sync'd that sync copies must also run the matching version and will self-apply the same in memory fixes...
+        # I'm assuming as these are not sync'd that sync copies must also run the matching MD version and will self-apply the same in memory fixes...
 
         # Given this knowledge, I have disabled any updates to legacy 'rate', and I now only touch 'rrate'.
         # MD can do whatever it wants (rightly or wrongly to 'rate')
@@ -6739,7 +6740,7 @@ Please update any that you use before proceeding....
 
                 syncF = syncMethod.getSyncFolder()
 
-                p_icloud = syncF.getClass().getDeclaredField("icloud")
+                p_icloud = syncF.getClass().getDeclaredField("icloud")                                                  # noqa
                 p_icloud.setAccessible(True)
                 p_icloudObject = p_icloud.get(syncF)        # type: ICloudContainer
                 p_icloud.setAccessible(False)
@@ -6763,7 +6764,7 @@ Please update any that you use before proceeding....
                     return saveSyncFolder
 
             elif syncMethod is not None and syncMethod.getSyncFolder() is not None:
-                syncBaseFolder = syncMethod.getSyncFolder().getSyncBaseFolder()                                             # noqa
+                syncBaseFolder = syncMethod.getSyncFolder().getSyncBaseFolder()                                         # noqa
                 saveSyncFolder = syncBaseFolder.getCanonicalPath()
                 if os.path.exists(saveSyncFolder):
                     myPrint("DB","sync folder found:", syncBaseFolder)
@@ -7381,7 +7382,7 @@ Please update any that you use before proceeding....
                 statusLabel.setText(("OFX: User cancelled entering an invalid OFXLastTxnUpdate date...").ljust(800, " "))
                 statusLabel.setForeground(Color.RED)
                 user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
-                user_selectDateStart.setForeground(Color.RED)
+                user_selectDateStart.setForeground(Color.RED)                                                           # noqa
                 continue
 
             break   # Valid date
@@ -8688,8 +8689,8 @@ Please update any that you use before proceeding....
                         and user_selectDateEnd.getDateInt() >= user_selectDateStart.getDateInt():
                     break   # Valid date range
 
-                user_selectDateStart.setForeground(Color.RED)
-                user_selectDateEnd.setForeground(Color.RED)
+                user_selectDateStart.setForeground(Color.RED)                                                           # noqa
+                user_selectDateEnd.setForeground(Color.RED)                                                             # noqa
                 continue   # Loop
 
             if objWhat.index(selectedObjType) == _OBJTRANSACTION:
@@ -13325,7 +13326,12 @@ now after saving the file, restart Moneydance
             return
 
         output = "%s:\n" \
-                 " ========================================\n\n" %(_THIS_METHOD_NAME)
+                 " ========================================\n\n" \
+                 "NOTE: The decimal places setting was used to store the price/rate prior to MD2019 (as a factor compared to the base currency dpc)\n" \
+                 "      So, if you are using MD2019 or later, then this is not issue for you\n" \
+                 "      If you want to revert to MD2017 or earlier, you will need to check/edit/update the price/rate of any Security where you change the dpc\n" \
+                 "      (Also note, that if you revert to MD2017 you will probably have to check the rates/prices anyway, due to an unrelated MD bug.....)\n\n" \
+                 "" %(_THIS_METHOD_NAME)
 
         myPrint("B", "%s: Analysing..." %(_THIS_METHOD_NAME))
 
@@ -13862,7 +13868,7 @@ now after saving the file, restart Moneydance
         PARAMETER_KEY = "toolbox_security_merge"
         PARAM_CURRID = "curr_id."
 
-        today = Calendar.getInstance()
+        today = Calendar.getInstance()                                                                                  # noqa
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
         if detect_non_hier_sec_acct_txns() > 0:
@@ -13877,6 +13883,9 @@ now after saving the file, restart Moneydance
         myPrint("B", "%s: Analysing..." %(_THIS_METHOD_NAME))
 
         try:
+
+            base = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
+
             # Sweep One - gather the potential targets by duplicate Ticker Symbol....
             dup_securities = OrderedDict()
             securities = []
@@ -14220,9 +14229,9 @@ now after saving the file, restart Moneydance
             def create_totals(theCount, theAccount, theTable):
                 _acctRelCurr = theAccount.getCurrencyType()
                 theTable.append(["Txn Count",    theCount, "", "", ""])
-                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
+                theTable.append(["Account Initial Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
                 theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
-                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance()), False]
+                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getBalance()), False]
                 lDetectCBError = False
                 for acct in theAccount.getSubAccounts():
                     if acct.getAccountType() == Account.AccountType.SECURITY:
@@ -14234,7 +14243,14 @@ now after saving the file, restart Moneydance
                         _subAcctRelCurr = acct.getCurrencyType()
                         subAcctBal = acct.getBalance()
                         subAcctCostBasis = InvestUtil.getCostBasis(acct)
-                        price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+                        # price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+                        price = CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr)                                # noqa
+
+                        myPrint("B", acct, _subAcctRelCurr, _acctRelCurr)
+                        myPrint("B", "Bal", round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces()))
+                        myPrint("B", "getUserRate()", CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr))
+                        myPrint("B", "getRate()", _subAcctRelCurr.getRate(None))
+                        myPrint("B", "getRate()", _acctRelCurr.getRate(None))
 
                         _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
@@ -14254,13 +14270,18 @@ now after saving the file, restart Moneydance
 
             def output_stats(theText, theAccount, theTable):
 
-                local_output = "%s: %s\n" %(theText, theAccount)
+                if theAccount.getCurrencyType() == base or theAccount.getCurrencyType() is None:
+                    relText = ""
+                else:
+                    relText = " relative to %s" %(theAccount.getCurrencyType().getRelativeCurrency())
+
+                local_output = "%s: %s (Currency: %s%s)\n" %(theText, theAccount, theAccount.getCurrencyType(), relText)
                 iRow = 1
                 posInc = 0
                 for data in theTable:
                     if iRow == 2:
                         posInc += 14
-                        local_output += "   %s %s %s %s (** adjusted for splits)\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
                         local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
 
                     if iRow == 4:
@@ -14350,15 +14371,15 @@ now after saving the file, restart Moneydance
                             iSecuritiesMergedDeleted += 1
                         txnsUsed = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(foundSecurity)
                         _relCurr = foundSecurity.getCurrencyType()
-                        output += "   %s Uses Avg Cost: %s Units Held: %s Txns: %s" \
+                        output += "   %s Uses Avg Cost: %s Shares Held: %s Txns: %s" \
                                   %(pad(foundSecurity.getFullAccountName(),50),
                                     pad(str(foundSecurity.getUsesAverageCost()),6),
                                     rpad(_relCurr.formatSemiFancy(foundSecurity.getBalance(),MD_decimal),18),
                                     rpad(txnsUsed.getSize(),15))
                         if security == tickerToMerge.getPrimarySecurity():
-                            output += "   <PRIMARY - KEEP>\n"
+                            output += "   <MASTER - KEEP>\n"
                         else:
-                            output += "   ** will be merged/deleted **\n"
+                            output += "   ** will be merged/removed **\n"
 
                         if foundSecurity.getStartBalance() != 0:
                             failStartingBalanceMustBeZero = lFailValidation = True
@@ -14367,7 +14388,7 @@ now after saving the file, restart Moneydance
                         if validateUsesAvgCost is None:
                             validateUsesAvgCost = foundSecurity.getUsesAverageCost()
                         elif validateUsesAvgCost != foundSecurity.getUsesAverageCost():
-                            output += "   *** <ERROR - UsesAverageCost() differs between sub accounts! CANNOT MERGE>\n"
+                            output += "   *** <ERROR - UsesAverageCost() differs between Investment Accounts for this same Security! CANNOT MERGE>\n"
                             failUsesAverageCostValidation = lFailValidation = True
 
                 investmentAccountsInvolvedInMerge[investAccount] = True
@@ -14389,13 +14410,13 @@ now after saving the file, restart Moneydance
                 output += "<NONE FOUND>\n\n"
             else:
                 output += "%s Investment Accounts are involved in the merge...\n" %(iFoundAnyInvestmentAccounts)
-                output += "... Will create/add master security to %s investment sub-accounts\n" %(iPrimarySecuritiesToCreate)
-                output += "... Will merge/delete %s duplicate securities in investment sub accounts\n" %(iSecuritiesMergedDeleted)
+                output += "... Will add the master security to %s investment accounts\n" %(iPrimarySecuritiesToCreate)
+                output += "... Will merge/remove %s duplicate securities from investment accounts\n" %(iSecuritiesMergedDeleted)
                 output += "----\n"
 
 
             if lFailValidation:
-                txt = "\n\n SECURITY SUB ACCOUNT VALIDATION FAILED - CANNOT PROCEED! Review the report on screen for details.\n"
+                txt = "\n\n INVESTMENT ACCOUNT: SECURITY HOLDING VALIDATION FAILED - CANNOT PROCEED! Review the report on screen for details.\n"
                 myPrint("DB", txt); output += "\n\n%s\n" %(txt)
                 statusLabel.setText((txt).ljust(800, " "));statusLabel.setForeground(Color.RED)
                 jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
@@ -14555,9 +14576,9 @@ now after saving the file, restart Moneydance
 
             ############################################################################################################
             output += "\n------\n"
-            output += "Investment Accounts included in merge:                                 %s\n" %(len(investmentAccountsInvolvedInMerge))
-            output += "Investment Sub Accounts - new Master securities to be created:         %s\n" %(len(investmentAccountsNeedingPrimaryCreated))
-            output += "Investment Sub Accounts - 'duplicate' securities to be merged/deleted: %s\n" %(len(investmentAccountsNeedingSecondaryMerge))
+            output += "Investment Accounts included in merge:                  %s\n" %(len(investmentAccountsInvolvedInMerge))
+            output += "Investment new Master securities to be added:           %s\n" %(len(investmentAccountsNeedingPrimaryCreated))
+            output += "Investment 'duplicate' securities to be merged/removed: %s\n" %(len(investmentAccountsNeedingSecondaryMerge))
             output += "\n------\n"
 
 
@@ -14714,7 +14735,7 @@ now after saving the file, restart Moneydance
             # Now create any missing Primary security sub account(s)...
 
             if len(investmentAccountsNeedingPrimaryCreated) > 0:
-                txt = "Creating %s new Master Securities Sub Accounts in Investment accounts:" %(len(investmentAccountsNeedingPrimaryCreated))
+                txt = "Adding the new master Security to %s Investment accounts:" %(len(investmentAccountsNeedingPrimaryCreated))
                 myPrint("B", txt); output += "%s\n" %(txt)
 
                 primary = tickerToMerge.getPrimarySecurity()
@@ -14725,7 +14746,7 @@ now after saving the file, restart Moneydance
 
                         if copyAcct is None: continue
 
-                        txt = "... Creating: %s in %s" %(primary.getName(), createAccount)
+                        txt = "... Adding: %s to %s" %(primary.getName(), createAccount)
                         myPrint("B", txt); output += "%s\n" %(txt)
 
                         newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(),
@@ -14806,7 +14827,7 @@ now after saving the file, restart Moneydance
 
                 output += "\n>> Txn reassignment completed.....\n\n"
 
-                txt = "Now deleting empty empty Investment duplicate sub accounts...."
+                txt = "Now removing empty duplicate securities from Investment accounts...."
                 myPrint("B", txt); output += "\n%s\n" %(txt)
 
                 ############################################################################################################
@@ -14829,7 +14850,7 @@ now after saving the file, restart Moneydance
                             txt = "... *** ERROR - Cannot delete %s as it still contains %s txns! ***" %(copyAcct,remainingTxns.getSize())
                             myPrint("B", txt); output += "%s\n" %(txt)
 
-                output += "\n>> Duplicate Investment Sub Account(s) deletions completed.....\n\n"
+                output += "\n>> Removal of duplicate Securities from Investment Account(s) completed.....\n\n"
 
             # Now delete the (empty) and now unused old duplicate Securities
             txt = "Now deleting the empty & unused old duplicate securities that have been merged into the new master..:"
@@ -15034,7 +15055,7 @@ now after saving the file, restart Moneydance
                     if acct.getAccountType() == Account.AccountType.SECURITY and acct.getStartBalance() == 0:
                         secs.append(acct)
                         _relCurr = acct.getCurrencyType()
-                        _output += "..%s: %s contains Security: %s (%s units)\n" %(_txtSource, fromWhere, acct, _relCurr.formatSemiFancy(acct.getBalance(),MD_decimal))
+                        _output += "..%s: %s contains Security: %s (%s shares)\n" %(_txtSource, fromWhere, acct, _relCurr.formatSemiFancy(acct.getBalance(),MD_decimal))
                     elif acct.getAccountType() == Account.AccountType.SECURITY:
                         _txt = "Error: %s found SECURITY sub account %s with starting balance of %s - should always be ZERO? - Aborting" %(_txtSource, acct, acct.getStartBalance())
                         myPrint("DB",_txt)
