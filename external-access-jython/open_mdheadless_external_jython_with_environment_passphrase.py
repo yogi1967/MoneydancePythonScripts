@@ -54,7 +54,7 @@ NOTE:
 """
 
 # ################## `set these default variables or use command line arguments ##########################################
-mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/DEREKQLTEST.moneydance"
+mdDataFolder = "/Users/xxx/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
 # ################## `set these variables ################################################################################
 
 import sys

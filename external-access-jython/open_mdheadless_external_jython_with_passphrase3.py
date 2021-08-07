@@ -58,7 +58,7 @@ NOTE:
 
 # ################## `set these default variables or use command line arguments ##########################################
 myEncryptionPassphrase = u"bob"  # Just use "" if not set... Moneydance checks the 'key' file and if userpass=0 it will just use it's known 'internal' default...  ;->
-mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/FAKE2.moneydance"
+mdDataFolder = "/Users/xxx/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
 theScript = None
 # ################## `set these variables ################################################################################
 

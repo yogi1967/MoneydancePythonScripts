@@ -58,7 +58,7 @@ NOTE:
 """
 
 ################### `set these variables ##########################################
-mdDataFolder = "/Users/stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
+mdDataFolder = "/Users/xxx/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
 MD_PATH = "../Moneydance_jars/"       # include moneydance.jar and mdpython.jar
 ################### `set these variables ##########################################
 
