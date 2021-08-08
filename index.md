@@ -96,13 +96,13 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 ### Experimental / advanced:
 It's possible to load Moneydance components externally. _This would not be supported by IK and you do so at your own risk. 
 As of MD2021.2(3088) you can set an environment variable 'md_passphrase=' or 'md_passphrase_<lowercase_filename>' and this will bypass the popup 'Enter your password' prompt.
-This means that the headless methods, to access MD data externally will work much more seamlessly. There are examples below on how to do this:_
+This means that the headless methods, to access MD data externally will work much more seamlessly. There are examples below on how to do this (with 'environment_passphrase' in filename):_
 
 Method 1: Using Jython (for true Java integration) (with a launch script to set up the JVM properly) - See folder contents: 
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-jython">**external-access-jython**: Folder containing Jython launch script, and Jython examples accessing Moneydance externally....
 
-Method 2: Using Python and JPype (sets up the JVM as part of the script) - See folder contents::
+Method 2: Using Python and JPype (sets up the JVM as part of the script) - See folder contents:
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/external-access-python-jpype">**open-mdheadless-jpype**: Folder containing Python script using JPype to access Moneydance externally....
 
 
