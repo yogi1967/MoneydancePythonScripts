@@ -214,9 +214,9 @@
 # build: 1041 - Amended fix relative currencies accordingly with MD2021.2(3088) rate / rrate knowledge. I now only touch 'rrate' (not 'rate)...
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text, along with top and bottom buttons.....
 # build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button
+# build: 1041 - Added print function to QuickJFrame()
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
-# todo - Add print button to QuickJFrame()
 # todo - check/fix alert colours since VAqua....!?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - Known  issue  on Linux: Any drag to  resize main window, causes width to maximise. No issue on Mac or Windows..
@@ -1732,6 +1732,19 @@ Visit: %s (Author's site)
 
                 return
 
+        class QuickJFramePrint(AbstractAction):
+
+            def __init__(self, theJText):
+                self.theJText = theJText
+
+            def actionPerformed(self, event):
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                # YUP - IntelliJ doesn't like this statement below, but it works..... ;->
+                self.theJText.print()
+
+                return
+
         class QuickJFrameSaveTextToFile(AbstractAction):
 
             def __init__(self, theText, callingFrame):
@@ -1856,6 +1869,12 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
+                    printButton = JButton("Print")
+                    printButton.setToolTipText("Prints the output displayed in this window to your printer")
+                    printButton.setOpaque(True)
+                    printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
+                    printButton.addActionListener(self.callingClass.QuickJFramePrint(theJText))
+
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
                     saveButton.setOpaque(True)
@@ -1893,6 +1912,8 @@ Visit: %s (Author's site)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(botButton)
                     mb.add(Box.createHorizontalGlue())
+                    mb.add(printButton)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(saveButton)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(closeButton)
@@ -17028,6 +17049,7 @@ Now you will have a text readable version of the file you can open in a text edi
         from struct import unpack
         from datetime import tzinfo, timedelta
 
+        # noinspection PyDeprecation
         def dump_plist(obj, _format):
             if 'plist' == (_format or 'plist'):
                 from plistlib import writePlist

@@ -1626,6 +1626,19 @@ Visit: %s (Author's site)
 
                 return
 
+        class QuickJFramePrint(AbstractAction):
+
+            def __init__(self, theJText):
+                self.theJText = theJText
+
+            def actionPerformed(self, event):
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                # YUP - IntelliJ doesn't like this statement below, but it works..... ;->
+                self.theJText.print()
+
+                return
+
         class QuickJFrameSaveTextToFile(AbstractAction):
 
             def __init__(self, theText, callingFrame):
@@ -1750,6 +1763,12 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
+                    printButton = JButton("Print")
+                    printButton.setToolTipText("Prints the output displayed in this window to your printer")
+                    printButton.setOpaque(True)
+                    printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
+                    printButton.addActionListener(self.callingClass.QuickJFramePrint(theJText))
+
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
                     saveButton.setOpaque(True)
@@ -1787,6 +1806,8 @@ Visit: %s (Author's site)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(botButton)
                     mb.add(Box.createHorizontalGlue())
+                    mb.add(printButton)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(saveButton)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(closeButton)
@@ -2615,25 +2636,25 @@ Visit: %s (Author's site)
 
             labelDateStart = JLabel("Date range start (enter as yyyy/mm/dd):")
             user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
-            user_selectDateStart.setName("user_selectDateStart")
-            user_selectDateStart.setEnabled(False)
-            user_selectDateStart.setDisabledTextColor(Color.gray)
+            user_selectDateStart.setName("user_selectDateStart")                                                        # noqa
+            user_selectDateStart.setEnabled(False)                                                                      # noqa
+            user_selectDateStart.setDisabledTextColor(Color.gray)                                                       # noqa
             user_selectDateStart.setDateInt(userdateStart_EAR)
 
             labelDateEnd = JLabel("Date range end (enter as yyyy/mm/dd):")
             user_selectDateEnd = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
-            user_selectDateEnd.setName("user_selectDateEnd")
-            user_selectDateEnd.setEnabled(False)
-            user_selectDateEnd.setDisabledTextColor(Color.gray)
+            user_selectDateEnd.setName("user_selectDateEnd")                                                            # noqa
+            user_selectDateEnd.setEnabled(False)                                                                        # noqa
+            user_selectDateEnd.setDisabledTextColor(Color.gray)                                                         # noqa
             user_selectDateEnd.setDateInt(userdateEnd_EAR)
 
             if saveDropDownDateRange_EAR == "custom_date":
-                user_selectDateStart.setEnabled(True)
-                user_selectDateEnd.setEnabled(True)
+                user_selectDateStart.setEnabled(True)                                                                   # noqa
+                user_selectDateEnd.setEnabled(True)                                                                     # noqa
             else:
                 # Refresh the date range
-                user_selectDateStart.setEnabled(False)
-                user_selectDateEnd.setEnabled(False)
+                user_selectDateStart.setEnabled(False)                                                                  # noqa
+                user_selectDateEnd.setEnabled(False)                                                                    # noqa
                 _s, _e = getDateRange(saveDropDownDateRange_EAR)
                 user_selectDateStart.setDateInt(_s)
                 user_selectDateEnd.setDateInt(_e)
@@ -2770,8 +2791,8 @@ Visit: %s (Author's site)
 
                 if not (user_selectDateStart.getDateInt() <= user_selectDateEnd.getDateInt()
                         and user_selectDateEnd.getDateInt() >= user_selectDateStart.getDateInt()):
-                    user_selectDateStart.setForeground(Color.RED)
-                    user_selectDateEnd.setForeground(Color.RED)
+                    user_selectDateStart.setForeground(Color.RED)                                                       # noqa
+                    user_selectDateEnd.setForeground(Color.RED)                                                         # noqa
                     labelSTATUSbar.setText(">> Error - date range incorrect, please try again... <<".upper())
                     labelSTATUSbar.setForeground(Color.RED)
                     continue
@@ -2797,8 +2818,8 @@ Visit: %s (Author's site)
                     labelSTATUSbar.setForeground(Color.RED)
                     continue
 
-                user_selectDateStart.setForeground(saveColor)
-                user_selectDateEnd.setForeground(saveColor)
+                user_selectDateStart.setForeground(saveColor)                                                           # noqa
+                user_selectDateEnd.setForeground(saveColor)                                                             # noqa
                 labelSTATUSbar.setText("")
 
                 if isinstance(accountDropdown.getSelectedItem(),(str,unicode)) and accountDropdown.getSelectedItem() == textToUse:
@@ -3296,8 +3317,8 @@ Visit: %s (Author's site)
                     break   # Valid date range
 
                 myPrint("P","Error - date range incorrect, please try again...")
-                user_selectDateStart.setForeground(Color.RED)
-                user_selectDateEnd.setForeground(Color.RED)
+                user_selectDateStart.setForeground(Color.RED)                                                           # noqa
+                user_selectDateEnd.setForeground(Color.RED)                                                             # noqa
                 continue   # Loop
 
             if not lExit:

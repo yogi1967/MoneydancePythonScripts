@@ -1489,6 +1489,19 @@ Visit: %s (Author's site)
 
                 return
 
+        class QuickJFramePrint(AbstractAction):
+
+            def __init__(self, theJText):
+                self.theJText = theJText
+
+            def actionPerformed(self, event):
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                # YUP - IntelliJ doesn't like this statement below, but it works..... ;->
+                self.theJText.print()
+
+                return
+
         class QuickJFrameSaveTextToFile(AbstractAction):
 
             def __init__(self, theText, callingFrame):
@@ -1613,6 +1626,12 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
+                    printButton = JButton("Print")
+                    printButton.setToolTipText("Prints the output displayed in this window to your printer")
+                    printButton.setOpaque(True)
+                    printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
+                    printButton.addActionListener(self.callingClass.QuickJFramePrint(theJText))
+
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
                     saveButton.setOpaque(True)
@@ -1650,6 +1669,8 @@ Visit: %s (Author's site)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(botButton)
                     mb.add(Box.createHorizontalGlue())
+                    mb.add(printButton)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(saveButton)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(closeButton)
@@ -3085,6 +3106,7 @@ Visit: %s (Author's site)
                 else:
                     myPrint("DB","... refresher is None - just returning without refresh...")
 
+            # noinspection PyUnresolvedReferences
             def reallyRefresh(self):
 
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
