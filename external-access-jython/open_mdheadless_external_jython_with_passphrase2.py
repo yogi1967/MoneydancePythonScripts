@@ -135,13 +135,13 @@ class MySecret(SecretKeyCallback):
 class MyGUI(MoneydanceGUI):
 
     # noinspection PyMethodMayBeStatic
-    def getSecretKeyCallback(self, theWrapper):
+    def getSecretKeyCallback(self, theWrapper):                                                                         # noqa
         print("@MoneydanceGUI>>MyGUI>> .getSecretKeyCallback(%s)" %(theWrapper))
         callback = MySecret(myEncryptionPassphrase)
         return callback
 
     # noinspection PyMethodMayBeStatic
-    def showErrorMessage(self, errorMsg):
+    def showErrorMessage(self, errorMsg):                                                                               # noqa
         print("@@ showErrorMessage(): %s" %(errorMsg))
 
     # noinspection PyMethodMayBeStatic
