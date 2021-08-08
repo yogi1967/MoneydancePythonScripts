@@ -89,6 +89,7 @@ join_jars = ":".join(listFiles)
 print("join_jars\n%s" %(join_jars))
 
 print("Starting JVM...")
+# noinspection PyUnresolvedReferences
 jpype.startJVM(classpath=[join_jars])
 
 
@@ -203,8 +204,17 @@ for security in securities:
     except:
         pass
 
+print("Finished peeking at data....")
 # theMain.showURL("invokeAndQuitURI")
+
+print("Calling saveCurrentAccount()")
 mdMain.saveCurrentAccount()
+
+print("Calling shutdown()")
 mdMain.shutdown()
+
+print("Shutting down the JVM...")
+# noinspection PyUnresolvedReferences
+jpype.shutdownJVM()
 
 print("@@@@  END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")

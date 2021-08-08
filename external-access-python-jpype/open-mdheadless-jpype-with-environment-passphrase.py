@@ -6,9 +6,8 @@
 NOTE:  Works with an encryption passphrase from MD2021.2(3088) onwards as this allows you to set the passphrase into
        an environment variable: md_passphrase=  or  md_passphrase_[filename in lowercase format]=
 
-       Seems a little flaky, and I would recommend you stick with Jython access.
-
 DISCLAIMER: Always BACKUP FIRST
+            This is a demo program only....!
             Do not use when Moneydance is open
             I would suggest you stay READONLY - do not update data
             USE AT YOUR OWN RISK!
@@ -47,7 +46,7 @@ MODIFICATIONS: Stuart Beesley - StuWareSoftSystems 2021 - https://yogi1967.githu
 Help and credits: hleofxquotes...
 
 INSTRUCTIONS:
-- Get Python working (outside of Moneydance)
+- Get Python3 working (outside of Moneydance)
 - Read the JPype instructions at the website link provided: https://jpype.readthedocs.io/en/latest/
 - Download / pip install the correct JPype for your platform
 - extract the moneydance.jar and mdpython.jar files into a directory of your choosing
@@ -56,6 +55,8 @@ NOTE:
 - This is a basic script to get access to your Moneydance data externally and allows you to open with a user set passphrase
 - See Dale Furrow's scripts 1-5 for further examples of automation.
 """
+
+import sys                                                                                                              # noqa
 
 ################### `set these variables ##########################################
 mdDataFolder = "/Users/xxx/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
@@ -67,7 +68,7 @@ import os
 
 # import jpype
 import jpype.imports
-from jpype.types import *
+from jpype.types import *                                                                                               # noqa
 
 _ENV_PASSPHRASE = "md_passphrase"
 
@@ -101,12 +102,76 @@ for f in os.listdir(MD_PATH):
 join_jars = ":".join(listFiles)
 print("join_jars\n%s" %(join_jars))
 
+my_user_path = "/Users/xxx"
+
+# Set your JAVA_HOME
+# On Mac, output of '/usr/libexec/java_home --verbose' can help
+JAVA_HOME="%s/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home" %(my_user_path)
+
+# JavaFX directory
+javafx="%s/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib" %(my_user_path)
+modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
+
+# set to "" for standard app install name (I add the version and build to the app name when installing)
+md_version=" 2021.2 (3090)"
+
+# Where are the MD jar files
+md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
+md_icon="/Applications/Moneydance${md_version}.app/Contents/Resources/desktop_icon.icns"
+
+# Set to None for no sandbox (however, with enabled=true is not really a sandbox)
+#use_sandbox=None
+use_sandbox="-DSandboxEnabled=true"
+
+# NOTE: I set '-Dinstall4j.exeDir=x' to help my Toolbox extension - this is not needed
+
+console_file="%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/errlog.txt" %(my_user_path)
+
+java_args = []
+# java_args.append("-Xdock:icon=%s" %(md_icon))
+# java_args.append("--module-path %s" %(javafx))
+# java_args.append("--add-modules=%s" %(modules))
+java_args.append("-Dapple.laf.useScreenMenuBar=true")
+java_args.append("-Dcom.apple.macos.use-file-dialog-packages=true")
+java_args.append("-Dcom.apple.macos.useScreenMenuBar=true")
+java_args.append("-Dcom.apple.mrj.application.apple.menu.about.name=Moneydance")
+java_args.append("-Dapple.awt.application.name=Moneydance")
+java_args.append("-Dcom.apple.smallTabs=true")
+java_args.append("-Dapple.awt.application.appearance=system")
+java_args.append("-Dfile.encoding=UTF-8")
+java_args.append("-DUserHome=%s" %(my_user_path))
+if use_sandbox:
+    java_args.append("%s" %(use_sandbox))
+java_args.append("-Dinstall4j.exeDir=%s" %(md_jars))
+# java_args.append("-Duser.dir=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data" %(my_user_path))
+java_args.append("-Duser.home=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data" %(my_user_path))
+java_args.append("-DApplicationSupportDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support" %(my_user_path))
+java_args.append("-DLibraryDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library" %(my_user_path))
+java_args.append("-DDownloadsDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Downloads" %(my_user_path))
+java_args.append("-DDesktopDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Desktop" %(my_user_path))
+java_args.append("-DPicturesDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Pictures" %(my_user_path))
+java_args.append("-DDocumentsDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents" %(my_user_path))
+java_args.append("-DCachesDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Caches" %(my_user_path))
+java_args.append("-DSharedPublicDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Public" %(my_user_path))
+java_args.append("-DMoviesDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Movies" %(my_user_path))
+java_args.append("-DDownloadsDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Downloads" %(my_user_path))
+java_args.append("-DApplicationDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Applications" %(my_user_path))
+java_args.append("-DMusicDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Music" %(my_user_path))
+java_args.append("-DAutosavedInformationDirectory=%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Autosave Information" %(my_user_path))
+java_args.append("-Xmx2G")
+java_args.append("-Ddummyarg1=arg1")
+java_args.append("-Ddummyarg2=arg2")
+
+print("Java arguments:")
+for a in java_args: print(a)
+
 print("Starting JVM...")
-jpype.startJVM(classpath=[join_jars])
+# noinspection PyUnresolvedReferences
+jpype.startJVM(classpath=[join_jars], *java_args)
 
 
 print("Importing necessary Moneydance Classes...")
-from com.moneydance.apps.md.controller import Main 
+from com.moneydance.apps.md.controller import Main
 
 print("Importing useful Moneydance Classes...")
 from com.moneydance.apps.md.controller import AccountBookWrapper
@@ -128,6 +193,10 @@ from java.io import File
 
 print("prove moneydance data file exists, load it into java File object")
 print("Moneydance Data File exists? {0}, in {1}".format(os.path.exists(mdDataFolder), mdDataFolder))
+if not os.path.exists(mdDataFolder):
+    raise Exception("ERROR - Datafile does NOT exist... Aborting...")
+
+
 mdFileJava = File(mdDataFolder)
 last_modded_long = mdFileJava.lastModified()  # type is java class 'JLong'
 print("data folder last modified: %s" %(last_modded_long))
@@ -136,6 +205,7 @@ print("data folder last modified: %s" %(last_modded_long))
 ###################################################################
 # Fire up Moneydance and initialize key stuff...
 mdMain = Main()
+mdMain.DEBUG = True
 mdMain.initializeApp()
 # mdMain.startApplication()
 
@@ -196,8 +266,18 @@ for security in securities:
     except:
         pass
 
+
+print("Finished peeking at data....")
 # theMain.showURL("invokeAndQuitURI")
+
+print("Calling saveCurrentAccount()")
 mdMain.saveCurrentAccount()
+
+print("Calling shutdown()")
 mdMain.shutdown()
+
+print("Shutting down the JVM...")
+# noinspection PyUnresolvedReferences
+jpype.shutdownJVM()
 
 print("@@@@  END @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
