@@ -422,7 +422,7 @@ else:
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
     from java.util import Date
 
-    from java.text import DecimalFormat, SimpleDateFormat
+    from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
     from java.lang import Double, Math, Character
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
@@ -1732,16 +1732,30 @@ Visit: %s (Author's site)
 
                 return
 
+        # noinspection PyUnresolvedReferences
         class QuickJFramePrint(AbstractAction):
 
-            def __init__(self, theJText):
+            def __init__(self, theJText, theTitle=""):
                 self.theJText = theJText
+                self.theTitle = theTitle
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                # YUP - IntelliJ doesn't like this statement below, but it works..... ;->
-                self.theJText.print()
+                # IntelliJ doesnt like the use of 'print' (as it's a keyword); but it works :-<
+                from javax.print import attribute
+                pAttrs = attribute.HashPrintRequestAttributeSet()
+                pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+                pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
+                pAttrs.add(attribute.standard.Copies(1))
+                pAttrs.add(attribute.standard.PrintQuality.NORMAL)
+                pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), self.theTitle), None))
+                header = MessageFormat(self.theTitle)
+                footer = MessageFormat("- page {0} -")
+
+                set print font here
+
+                self.theJText.print(header, footer, True, None, pAttrs, True)
 
                 return
 
@@ -1873,7 +1887,7 @@ Visit: %s (Author's site)
                     printButton.setToolTipText("Prints the output displayed in this window to your printer")
                     printButton.setOpaque(True)
                     printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
-                    printButton.addActionListener(self.callingClass.QuickJFramePrint(theJText))
+                    printButton.addActionListener(self.callingClass.QuickJFramePrint(theJText, self.callingClass.title))
 
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
