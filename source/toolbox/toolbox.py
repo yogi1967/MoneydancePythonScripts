@@ -14299,7 +14299,7 @@ now after saving the file, restart Moneydance
             def create_totals(theCount, theAccount, theTable):
                 _acctRelCurr = theAccount.getCurrencyType()
                 theTable.append(["Txn Count",    theCount, "", "", ""])
-                theTable.append(["Account Initial Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
+                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
                 theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
                 _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getBalance()), False]
                 lDetectCBError = False
@@ -14315,12 +14315,6 @@ now after saving the file, restart Moneydance
                         subAcctCostBasis = InvestUtil.getCostBasis(acct)
                         # price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
                         price = CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr)                                # noqa
-
-                        myPrint("B", acct, _subAcctRelCurr, _acctRelCurr)
-                        myPrint("B", "Bal", round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces()))
-                        myPrint("B", "getUserRate()", CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr))
-                        myPrint("B", "getRate()", _subAcctRelCurr.getRate(None))
-                        myPrint("B", "getRate()", _acctRelCurr.getRate(None))
 
                         _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
@@ -15042,7 +15036,7 @@ now after saving the file, restart Moneydance
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
         PARAMETER_KEY = "toolbox_txn_merge"
-        today = Calendar.getInstance()
+        today = Calendar.getInstance()                                                                                  # noqa
 
         if detect_non_hier_sec_acct_txns() > 0:
             txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
@@ -15105,6 +15099,8 @@ now after saving the file, restart Moneydance
                  " ============================================================\n\n" %(_THIS_METHOD_NAME)
 
         try:
+
+            base = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
 
             if isQuoteLoader_or_QER_Running():
                 output += "QuoteLoader / Q&ER extension is loaded. User confirmed that it's not auto-updating and to proceed....\n\n"
@@ -15341,7 +15337,7 @@ now after saving the file, restart Moneydance
                 theTable.append(["Txn Count",    theCount, "", "", ""])
                 theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
                 theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
-                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance()), False]
+                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getBalance()), False]
                 lDetectCBError = False
                 for acct in theAccount.getSubAccounts():
                     if acct.getAccountType() == Account.AccountType.SECURITY:
@@ -15353,7 +15349,8 @@ now after saving the file, restart Moneydance
                         _subAcctRelCurr = acct.getCurrencyType()
                         subAcctBal = acct.getBalance()
                         subAcctCostBasis = InvestUtil.getCostBasis(acct)
-                        price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+                        # price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+                        price = CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr)                                # noqa
 
                         _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
@@ -15600,13 +15597,18 @@ now after saving the file, restart Moneydance
 
             def output_stats(theText, theAccount, theTable):
 
-                local_output = "%s: %s\n" %(theText, theAccount)
+                if theAccount.getCurrencyType() == base or theAccount.getCurrencyType() is None:
+                    relText = ""
+                else:
+                    relText = " relative to %s" %(theAccount.getCurrencyType().getRelativeCurrency())
+
+                local_output = "%s: %s (Currency: %s%s)\n" %(theText, theAccount, theAccount.getCurrencyType(), relText)
                 iRow = 1
                 posInc = 0
                 for data in theTable:
                     if iRow == 2:
                         posInc += 14
-                        local_output += "   %s %s %s %s (** adjusted for splits)\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
                         local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
 
                     if iRow == 4:
