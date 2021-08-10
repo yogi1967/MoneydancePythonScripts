@@ -213,7 +213,7 @@
 # build: 1041 - Currency rrate checking / fix features now detect version 2021.2 build 3089 of Moneydance where the code 'issue' was resolved...
 # build: 1041 - Amended fix relative currencies accordingly with MD2021.2(3088) rate / rrate knowledge. I now only touch 'rrate' (not 'rate)...
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text, along with top and bottom buttons.....
-# build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button
+# build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button; also now copy tha path to clipboard too.
 # build: 1041 - Added print function to QuickJFrame()
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -550,7 +550,7 @@ else:
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.2                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3090                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3093                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -6102,6 +6102,20 @@ Please update any that you use before proceeding....
         lFixErrors = lFixWarnings = False
         lCurrencies = lSecurities = True
 
+
+        def validateCurrencyKeys(theCurr):
+
+            _rCurrByIDs = theCurr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
+            if _rCurrByIDs: return True
+
+            _get_rel_curr_id = theCurr.getParameter(PARAM_REL_CURR_ID,None)
+            _get_relative_to_currid = theCurr.getParameter(PARAM_RELATIVE_TO_CURRID,None)
+
+            if not _get_rel_curr_id and not _get_relative_to_currid: return True
+
+            return False
+
+
         if lFix:
             if not fixRCurrencyCheck:
                 txt = "Sorry, you must run 'DIAG: Diagnose Currencies / Securities' first! - NO CHANGES MADE"
@@ -6339,17 +6353,30 @@ Please update any that you use before proceeding....
                     elif rCurr is not None and rCurr != baseCurr and rCurr.getCurrencyType() == CurrencyType.Type.CURRENCY:
                         pass    # This is OK, non-base currency is OK
                     else:
-                        txt = "@@ WARNING: '%s' relative_to_currid / rel_curr_id should only be None or NOT your base currency (currently %s : %s)!" \
-                              %(curr,get_relative_to_currid,get_rel_curr_id)
+                        if validateCurrencyKeys(curr):
+                            lValidateCurrencies = True
+                            txt = "@@ WARNING: '%s' relative_to_currid / rel_curr_id should only be None or NOT your base currency (currently %s : %s)!" %(curr,get_relative_to_currid,get_rel_curr_id)
+                        else:
+                            lValidateCurrencies = False
+                            txt = "@@ WARNING: '%s' The relative currency appears to be missing? Either use Tools>Securities to fix manually, or this fix will reset it to base currency." %(curr)
                         myPrint("J", txt); output += "---\n%s\n" %(txt)
                         if lFix and lFixWarnings:
                             lSyncNeeded = True
                             curr.setEditingMode()
-                            curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
-                            txt = "@@SECURITY FIX APPLIED (set relative currency parameters to None) @@"
+                            curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)  # Force the parameters in regardless!
+                            if lValidateCurrencies:
+                                txt = "@@SECURITY FIX APPLIED (set relative currency parameters to None) @@"
+                            else:
+                                txt = "@@SECURITY FIX APPLIED (reset the missing relative currency back to None - PLEASE VERIFY PRICE AND HISTORY IN TOOLS>SECURITIES!) @@"
                             myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                         else:
                             lWarning = True; iWarnings += 1
+
+                    # reset in case I changed these above....
+                    get_rel_curr_id = curr.getParameter(PARAM_REL_CURR_ID,None)
+                    get_relative_to_currid = curr.getParameter(PARAM_RELATIVE_TO_CURRID,None)
+                    rCurr = curr.getRelativeCurrency()
+                    rCurrByIDs = curr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
                     get_rate = curr.getParameter(PARAM_RATE, None)
                     # get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
@@ -6460,23 +6487,40 @@ Please update any that you use before proceeding....
                 rCurr = curr.getRelativeCurrency()                                                                      # noqa
                 rCurrByIDs = curr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
+                if validateCurrencyKeys(curr):
+                    lValidateCurrencies = True
+                else:
+                    lValidateCurrencies = False
+
                 if rCurrByIDs is not None:
                     strEnd = ""
+                elif not lValidateCurrencies:
+                    strEnd = " - YOU APPEAR TO HAVE A MISSING RELATIVE CURRENCY?"
                 else:
                     strEnd = " - None / NOT SET (this is OK and means the Base Rate will be used)"
 
                 if VERBOSE:
                     output += "relative_to_currid: %s, rel_curr_id: %s %s\n" %(get_relative_to_currid, get_rel_curr_id, strEnd)
 
-                if rCurrByIDs is not None:
-                    txt = "@@ WARNING: '%s' relative_to_currid & rel_curr_id should both be set to None (which means use base currency)!" %(curr)
+                if rCurrByIDs is not None or not lValidateCurrencies:
+                    if lValidateCurrencies:
+                        txt = "@@ WARNING: '%s' relative_to_currid & rel_curr_id should both be set to None (which means use base currency)!" %(curr)
+                    else:
+                        txt = "@@ WARNING: '%s' You have a missing Relative Currency. This fix can reset it back to base currency." %(curr)
                     myPrint("J", "%s" %(txt)); output += "----\n%s\n----\n" %(txt)
 
                     if lFix and lFixWarnings:
                         lSyncNeeded = True
                         curr.setEditingMode()
-                        curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
-                        txt = "@@CURRENCY FIX APPLIED (set relative currency parameters to None) @@"
+                        curr.setRelativeCurrency(None)  # This converts the snaps too!
+                        curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)  # Force the parameters in regardless
+                        if lValidateCurrencies:
+                            if rCurrByIDs == baseCurr:
+                                txt = "@@CURRENCY FIX APPLIED (set both relative currency parameters to None) @@"
+                            else:
+                                txt = "@@CURRENCY FIX APPLIED (set relative currency parameters to None, rates, price history converted back to base) >> REVIEW CURRENT PRICE & HISTORICAL PRICES IN TOOLS>CURRENCIES! @@"
+                        else:
+                            txt = "@@CURRENCY FIX APPLIED (missing relative currency reset to base) >> REVIEW CURRENT PRICE & HISTORICAL PRICES IN TOOLS>CURRENCIES! @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     else:
                         lWarning = True; iWarnings += 1
@@ -16413,19 +16457,24 @@ now after saving the file, restart Moneydance
                 self.statusLabel.setForeground(Color.RED)
                 return
 
+            try:
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(str(locationsDirs[locations.index(selectedFolder)])),None)
+            except:
+                pass
+
             if not os.path.exists(str(locationsDirs[locations.index(selectedFolder)])):
-                self.statusLabel.setText(("Sorry - File/Folder does not exist!").ljust(800, " "))
+                self.statusLabel.setText(("Sorry - File/Folder does not exist! (path copied to clipboard)").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 return
 
             if Platform.isOSX() and int(MD_REF.getBuild()) >= MD_ICLOUD_ENABLED \
                     and grabSyncFolder and "iCloud~com~infinitekind~moneydancesync" in locationsDirs[locations.index(selectedFolder)].getCanonicalPath():
-                self.statusLabel.setText(("iCloud Sync Folder location: %s" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath())).ljust(800, " "))
+                self.statusLabel.setText(("iCloud Sync Folder location: %s  (copied to clipboard)" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath())).ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 myPopupInformationBox(toolbox_frame_,"Permissions: Cannot open location: %s" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath()))
             else:
                 helper.openDirectory(locationsDirs[locations.index(selectedFolder)])
-                self.statusLabel.setText(("Folder " + selectedFolder + " opened..: " + str(locationsDirs[locations.index(selectedFolder)])).ljust(800, " "))
+                self.statusLabel.setText(("Folder " + selectedFolder + " opened..: %s  (path copied to clipboard)" %(str(locationsDirs[locations.index(selectedFolder)]))).ljust(800, " "))
                 self.statusLabel.setForeground(Color.BLUE)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
