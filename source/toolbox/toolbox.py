@@ -14006,6 +14006,13 @@ now after saving the file, restart Moneydance
                         "\n" \
                         "--------------------------------------------------------------------------------------------------------------------------------------------------\n\n"
 
+            def getSecurityNameAndID(theSec, theLen=None):
+
+                theName = theSec.getName()
+                if theLen: theName = theName[:theLen]+".."
+                return "%s(ID: %s)" %(theName,theSec.getIDString())
+
+
             class StoreSecurity:
                 def __init__(self, _obj):
                     self.obj = _obj                         # type: CurrencyType
@@ -14319,7 +14326,7 @@ now after saving the file, restart Moneydance
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
                         _totals[2] +=  round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())
                         if lDetectCBError: _totals[3] = True
-                        theTable.append([acct.getAccountName(),
+                        theTable.append([getSecurityNameAndID(acct.getCurrencyType()),
                                          _subAcctRelCurr.formatSemiFancy(subAcctBal,MD_decimal),
                                          _acctRelCurr.formatSemiFancy(subAcctCostBasis,MD_decimal),
                                          _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal),
@@ -14400,7 +14407,7 @@ now after saving the file, restart Moneydance
 
 
             for security in tickerToMerge.getSecurityList():
-                output += "%s Price History Records: %s\n" %(pad(security.getName(),30),rpad(security.getSnapshots().size(),10))
+                output += "%s Price History Records: %s\n" %(pad(getSecurityNameAndID(security),80),rpad(security.getSnapshots().size(),10))
             output += "\n"
 
 
@@ -14435,7 +14442,7 @@ now after saving the file, restart Moneydance
                         txnsUsed = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(foundSecurity)
                         _relCurr = foundSecurity.getCurrencyType()
                         output += "   %s Uses Avg Cost: %s Shares Held: %s Txns: %s" \
-                                  %(pad(foundSecurity.getFullAccountName(),50),
+                                  %(pad("'%s':%s" %(foundSecurity.getParentAccount().getAccountName()[:30], getSecurityNameAndID(foundSecurity.getCurrencyType(),theLen=35)),85),
                                     pad(str(foundSecurity.getUsesAverageCost()),6),
                                     rpad(_relCurr.formatSemiFancy(foundSecurity.getBalance(),MD_decimal),18),
                                     rpad(txnsUsed.getSize(),15))
@@ -14665,7 +14672,7 @@ now after saving the file, restart Moneydance
 
             jif.dispose()
 
-            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH SECURITY MERGE of %s / %s.....\n\n" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())
+            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH SECURITY MERGE of %s / %s.....\n\n" %(tickerToMerge.getTicker(),getSecurityNameAndID(tickerToMerge.getPrimarySecurity()))
 
             if len(investmentAccountsInvolvedInMerge) > 0:
                 output += "\nSTATISTICS BEFORE START...\n\n"
@@ -14719,7 +14726,7 @@ now after saving the file, restart Moneydance
                 primary = tickerToMerge.getPrimarySecurity()
                 if lSnapsDumpMaster or lSnapsDeleteAll:
                     getSnaps = primary.getSnapshots()
-                    txt = "Deleting %s snapshots from %s" %(getSnaps.size(), primary)
+                    txt = "Deleting %s snapshots from %s" %(getSnaps.size(), getSecurityNameAndID(primary))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     for snap in getSnaps: snap.deleteItem()
 
@@ -14727,7 +14734,7 @@ now after saving the file, restart Moneydance
                     for security in tickerToMerge.getSecurityListWithoutPrimary():
                         rCurr = primary.getRelativeCurrency()
                         getSnaps = security.getSnapshots()
-                        txt = "Merging %s potential snapshots from %s into %s" %(getSnaps.size(), security, primary)
+                        txt = "Merging %s potential snapshots from %s into %s" %(getSnaps.size(), getSecurityNameAndID(security), getSecurityNameAndID(primary))
                         myPrint("B",txt); output += "%s\n" %(txt)
                         for snap in getSnaps:
                             foundSnap = primary.getSnapshotForDate(snap.getDateInt())
@@ -14746,14 +14753,14 @@ now after saving the file, restart Moneydance
 
                 for security in tickerToMerge.getSecurityListWithoutPrimary():
                     getSnaps = security.getSnapshots()
-                    txt = "Now Deleting %s snapshots from %s (post any merge actions)" %(getSnaps.size(), security)
+                    txt = "Now Deleting %s snapshots from %s (post any merge actions)" %(getSnaps.size(), getSecurityNameAndID(security))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     for snap in getSnaps: snap.deleteItem()
 
                 output += "----\n"
-                output += "Master %s now contains: %s Price History records...\n" %(primary, primary.getSnapshots().size())
+                output += "Master %s now contains: %s Price History records...\n" %(getSecurityNameAndID(primary), primary.getSnapshots().size())
                 for security in tickerToMerge.getSecurityListWithoutPrimary():
-                    output += "Duplicate %s now contains: %s Price History records...\n" %(security, security.getSnapshots().size())
+                    output += "Duplicate %s now contains: %s Price History records...\n" %(getSecurityNameAndID(security), security.getSnapshots().size())
                 output += "----\n"
 
             ############################################################################################################
@@ -14775,14 +14782,14 @@ now after saving the file, restart Moneydance
 
             else:
 
-                txt = "Removing any hidden CUSIP data from %s" %(tickerToMerge.getPrimarySecurity())
+                txt = "Removing any hidden CUSIP data from %s" %(getSecurityNameAndID(tickerToMerge.getPrimarySecurity()))
                 myPrint("B",txt); output += "%s\n" %(txt)
 
                 tickerToMerge.getPrimarySecurity().setEditingMode()
                 deleteCUSIPs(tickerToMerge.getPrimarySecurity())
 
                 if selectedCUSIP.getScheme():
-                    txt = "Adding CUSIP data - Scheme: %s ID: %s to %s" %(selectedCUSIP.getScheme(), selectedCUSIP.getCUSIP(), tickerToMerge.getPrimarySecurity())
+                    txt = "Adding CUSIP data - Scheme: %s ID: %s to %s" %(selectedCUSIP.getScheme(), selectedCUSIP.getCUSIP(), getSecurityNameAndID(tickerToMerge.getPrimarySecurity()))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     tickerToMerge.getPrimarySecurity().setIDForScheme(selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
 
@@ -14790,7 +14797,7 @@ now after saving the file, restart Moneydance
                 tickerToMerge.getPrimarySecurity().syncItem()
 
                 output += "----\n"
-                output += "Master %s now contains: hidden CUSIP record: Scheme: %s, ID: %s\n" %(tickerToMerge.getPrimarySecurity(), selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
+                output += "Master %s now contains: hidden CUSIP record: Scheme: %s, ID: %s\n" %(getSecurityNameAndID(tickerToMerge.getPrimarySecurity()), selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
                 output += "----\n"
 
 
@@ -14809,7 +14816,7 @@ now after saving the file, restart Moneydance
 
                         if copyAcct is None: continue
 
-                        txt = "... Adding: %s to %s" %(primary.getName(), createAccount)
+                        txt = "... Adding: %s to %s" %(getSecurityNameAndID(primary), createAccount)
                         myPrint("B", txt); output += "%s\n" %(txt)
 
                         newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(),
@@ -14867,7 +14874,7 @@ now after saving the file, restart Moneydance
                         reassignTxns = sorted(reassignTxns, key=lambda _x: (_x.getDateInt()))
 
                         # Note sorted loses x.getSize() >> use len(x)
-                        output += "... retrieved %s txns from duplicate %s - reassigning.....\n" %(len(reassignTxns), copyAcct)
+                        output += "... retrieved %s txns from duplicate security %s within investment account '%s' - reassigning.....\n" %(len(reassignTxns), getSecurityNameAndID(copyAcct.getCurrencyType()), copyAcct.getParentAccount())
 
                         for srcTxn in reassignTxns:
 
@@ -14890,7 +14897,7 @@ now after saving the file, restart Moneydance
 
                 output += "\n>> Txn reassignment completed.....\n\n"
 
-                txt = "Now removing empty duplicate securities from Investment accounts...."
+                txt = "Now removing duplicate securities from Investment account(s)...."
                 myPrint("B", txt); output += "\n%s\n" %(txt)
 
                 ############################################################################################################
@@ -14902,32 +14909,32 @@ now after saving the file, restart Moneydance
                         if copyAcct is None: continue
 
                         remainingTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(copyAcct)
-                        output += "... %s txns left in duplicate %s ..." %(remainingTxns.getSize(), copyAcct)
+                        output += "... %s txns left in %s for duplicate security %s ..." %(remainingTxns.getSize(), copyAcct.getParentAccount(), getSecurityNameAndID(copyAcct.getCurrencyType()))
 
                         if remainingTxns.getSize() < 1:
-                            txt = "... Deleting: %s (empty)" %(copyAcct)
+                            txt = "... Removing: security %s (empty) from Account: %s" %(getSecurityNameAndID(copyAcct.getCurrencyType()), copyAcct.getParentAccount())
                             myPrint("B", txt); output += "%s\n" %(txt)
                             copyAcct.deleteItem()
                         else:
                             lErrorDeletingSecuritySubAccounts = True
-                            txt = "... *** ERROR - Cannot delete %s as it still contains %s txns! ***" %(copyAcct,remainingTxns.getSize())
+                            txt = "... *** ERROR - Cannot remove security %s from %s as it still contains %s txns! ***" %(getSecurityNameAndID(copyAcct.getCurrencyType()), copyAcct.getParentAccount(), remainingTxns.getSize())
                             myPrint("B", txt); output += "%s\n" %(txt)
 
                 output += "\n>> Removal of duplicate Securities from Investment Account(s) completed.....\n\n"
 
             # Now delete the (empty) and now unused old duplicate Securities
-            txt = "Now deleting the empty & unused old duplicate securities that have been merged into the new master..:"
+            txt = "Now deleting the redundant duplicate security records that have been merged into the new master..:"
             myPrint("B", txt); output += "\n%s\n\n" %(txt)
 
             lErrorDeletingSecurities = False
             for securityToDelete in tickerToMerge.getSecurityListWithoutPrimary():
                 findSecurityAcct = isSecurityHeldWithinAnyInvestmentAccount(securityToDelete)
                 if findSecurityAcct is None:
-                    output += ".. Verified %s is not being used...... DELETING SECURITY MASTER....\n" %(securityToDelete)
+                    output += ".. Verified %s is not being used...... DELETING REDUNDANT SECURITY MASTER....\n" %(getSecurityNameAndID(securityToDelete))
                     securityToDelete.deleteItem()
                 else:
                     lErrorDeletingSecurities = True
-                    output += ".. ERROR %s is still being used in %s ...... ** NOT DELETING SECURITY MASTER**\n" %(securityToDelete, findSecurityAcct)
+                    output += ".. ERROR %s is still being used in %s ...... ** NOT DELETING REDUNDANT SECURITY MASTER**\n" %(getSecurityNameAndID(securityToDelete), findSecurityAcct)
 
             output += "\n>> Merge 'duplicate' Securities completed..\n\n"
 

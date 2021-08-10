@@ -112,7 +112,7 @@ JAVA_HOME="%s/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Hom
 javafx="%s/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib" %(my_user_path)
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
-# set to "" for standard app install name (I add the version and build to the app name when installing)
+# set to "" for standard app install name (I add the version and build to the app name when installing).
 md_version=" 2021.2 (3093)"
 
 # Where are the MD jar files
