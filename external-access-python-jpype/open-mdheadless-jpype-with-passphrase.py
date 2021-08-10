@@ -55,7 +55,7 @@ NOTE:
 - See Dale Furrow's scripts 1-5 for further examples of automation. Currently it's tricky to do these steps if you have a user
 - passphrase set without extending Main and overriding .getUI(); and extending MoneydanceGUI() and overriding .getSecretKeyCallback(), .showErrorMessage(), .go()
 - JPype cannot extend Java classes.. so see my own open_mdheadless_external_jython_with_passphrase2.py for example
-- The IK developer (Sean) has indicated he's willing to set en environment variable to pass the passphrase (April 2021) - let's see....
+- The IK developer (Sean) has indicated he's willing to set en environment variable to pass the passphrase (April 2021) - let's see.....
 """
 
 ################### `set these variables ##########################################
@@ -71,7 +71,7 @@ import os
 
 # import jpype
 import jpype.imports
-from jpype.types import *
+from jpype.types import *                                                                                               # noqa
 from jpype import JImplements, JOverride
 
 # get oriented, print current working directory (script is based on working directory as project root)

@@ -5,10 +5,10 @@
                     {
                     "build" = "1041"
                     "disable" = "n"
-                    "news" = "Lots of enhancements and new functions for Currency/Security tools menu"
+                    "news" = "Lots of enhancements and new functions for Currency/Security tools menu."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
                     "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
                     "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -21,7 +21,7 @@
                     "news" = "Internal tweaks requested by IK to gain entry into MD's internal Manage Extensions list"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
                     }
                     {
                     "build" = "1039"
@@ -29,7 +29,7 @@
                     "news" = "Catch dropbox configuration issue - causing Toolbox crash..."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
                     }
                     {
                     "build" = "1038"
@@ -37,7 +37,7 @@
                     "news" = "Released for the stable release of MD2021.1 (build 3069); plus small internal tweaks.."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
                     }
                     {
                     "build" = "1037"
@@ -45,7 +45,7 @@
                     "news" = "Released for the stable release of MD2021.1 (build 3069)"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
                     }
                     {
                     "build" = "1036"
@@ -53,7 +53,7 @@
                     "news" = "added the 'Can I Delete a Currency' menu option"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
                     }
                     {
                     "build" = "1035"
@@ -61,7 +61,7 @@
                     "news" = "Fixed for MD build 3067 and change of theme class name"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3090"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
                     }
                     {
                     "build" = "1034"

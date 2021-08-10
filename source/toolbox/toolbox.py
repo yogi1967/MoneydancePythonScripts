@@ -213,7 +213,7 @@
 # build: 1041 - Currency rrate checking / fix features now detect version 2021.2 build 3089 of Moneydance where the code 'issue' was resolved...
 # build: 1041 - Amended fix relative currencies accordingly with MD2021.2(3088) rate / rrate knowledge. I now only touch 'rrate' (not 'rate)...
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text, along with top and bottom buttons.....
-# build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button
+# build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button; also now copy tha path to clipboard too.
 # build: 1041 - Added print function to QuickJFrame()
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -550,7 +550,7 @@ else:
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2021.2                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3090                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   3093                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -6116,6 +6116,20 @@ Please update any that you use before proceeding....
         lFixErrors = lFixWarnings = False
         lCurrencies = lSecurities = True
 
+
+        def validateCurrencyKeys(theCurr):
+
+            _rCurrByIDs = theCurr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
+            if _rCurrByIDs: return True
+
+            _get_rel_curr_id = theCurr.getParameter(PARAM_REL_CURR_ID,None)
+            _get_relative_to_currid = theCurr.getParameter(PARAM_RELATIVE_TO_CURRID,None)
+
+            if not _get_rel_curr_id and not _get_relative_to_currid: return True
+
+            return False
+
+
         if lFix:
             if not fixRCurrencyCheck:
                 txt = "Sorry, you must run 'DIAG: Diagnose Currencies / Securities' first! - NO CHANGES MADE"
@@ -6353,17 +6367,30 @@ Please update any that you use before proceeding....
                     elif rCurr is not None and rCurr != baseCurr and rCurr.getCurrencyType() == CurrencyType.Type.CURRENCY:
                         pass    # This is OK, non-base currency is OK
                     else:
-                        txt = "@@ WARNING: '%s' relative_to_currid / rel_curr_id should only be None or NOT your base currency (currently %s : %s)!" \
-                              %(curr,get_relative_to_currid,get_rel_curr_id)
+                        if validateCurrencyKeys(curr):
+                            lValidateCurrencies = True
+                            txt = "@@ WARNING: '%s' relative_to_currid / rel_curr_id should only be None or NOT your base currency (currently %s : %s)!" %(curr,get_relative_to_currid,get_rel_curr_id)
+                        else:
+                            lValidateCurrencies = False
+                            txt = "@@ WARNING: '%s' The relative currency appears to be missing? Either use Tools>Securities to fix manually, or this fix will reset it to base currency." %(curr)
                         myPrint("J", txt); output += "---\n%s\n" %(txt)
                         if lFix and lFixWarnings:
                             lSyncNeeded = True
                             curr.setEditingMode()
-                            curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
-                            txt = "@@SECURITY FIX APPLIED (set relative currency parameters to None) @@"
+                            curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)  # Force the parameters in regardless!
+                            if lValidateCurrencies:
+                                txt = "@@SECURITY FIX APPLIED (set relative currency parameters to None) @@"
+                            else:
+                                txt = "@@SECURITY FIX APPLIED (reset the missing relative currency back to None - PLEASE VERIFY PRICE AND HISTORY IN TOOLS>SECURITIES!) @@"
                             myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                         else:
                             lWarning = True; iWarnings += 1
+
+                    # reset in case I changed these above....
+                    get_rel_curr_id = curr.getParameter(PARAM_REL_CURR_ID,None)
+                    get_relative_to_currid = curr.getParameter(PARAM_RELATIVE_TO_CURRID,None)
+                    rCurr = curr.getRelativeCurrency()
+                    rCurrByIDs = curr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
                     get_rate = curr.getParameter(PARAM_RATE, None)
                     # get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
@@ -6474,23 +6501,40 @@ Please update any that you use before proceeding....
                 rCurr = curr.getRelativeCurrency()                                                                      # noqa
                 rCurrByIDs = curr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
+                if validateCurrencyKeys(curr):
+                    lValidateCurrencies = True
+                else:
+                    lValidateCurrencies = False
+
                 if rCurrByIDs is not None:
                     strEnd = ""
+                elif not lValidateCurrencies:
+                    strEnd = " - YOU APPEAR TO HAVE A MISSING RELATIVE CURRENCY?"
                 else:
                     strEnd = " - None / NOT SET (this is OK and means the Base Rate will be used)"
 
                 if VERBOSE:
                     output += "relative_to_currid: %s, rel_curr_id: %s %s\n" %(get_relative_to_currid, get_rel_curr_id, strEnd)
 
-                if rCurrByIDs is not None:
-                    txt = "@@ WARNING: '%s' relative_to_currid & rel_curr_id should both be set to None (which means use base currency)!" %(curr)
+                if rCurrByIDs is not None or not lValidateCurrencies:
+                    if lValidateCurrencies:
+                        txt = "@@ WARNING: '%s' relative_to_currid & rel_curr_id should both be set to None (which means use base currency)!" %(curr)
+                    else:
+                        txt = "@@ WARNING: '%s' You have a missing Relative Currency. This fix can reset it back to base currency." %(curr)
                     myPrint("J", "%s" %(txt)); output += "----\n%s\n----\n" %(txt)
 
                     if lFix and lFixWarnings:
                         lSyncNeeded = True
                         curr.setEditingMode()
-                        curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
-                        txt = "@@CURRENCY FIX APPLIED (set relative currency parameters to None) @@"
+                        curr.setRelativeCurrency(None)  # This converts the snaps too!
+                        curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)  # Force the parameters in regardless
+                        if lValidateCurrencies:
+                            if rCurrByIDs == baseCurr:
+                                txt = "@@CURRENCY FIX APPLIED (set both relative currency parameters to None) @@"
+                            else:
+                                txt = "@@CURRENCY FIX APPLIED (set relative currency parameters to None, rates, price history converted back to base) >> REVIEW CURRENT PRICE & HISTORICAL PRICES IN TOOLS>CURRENCIES! @@"
+                        else:
+                            txt = "@@CURRENCY FIX APPLIED (missing relative currency reset to base) >> REVIEW CURRENT PRICE & HISTORICAL PRICES IN TOOLS>CURRENCIES! @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     else:
                         lWarning = True; iWarnings += 1
@@ -13976,6 +14020,13 @@ now after saving the file, restart Moneydance
                         "\n" \
                         "--------------------------------------------------------------------------------------------------------------------------------------------------\n\n"
 
+            def getSecurityNameAndID(theSec, theLen=None):
+
+                theName = theSec.getName()
+                if theLen: theName = theName[:theLen]+".."
+                return "%s(ID: %s)" %(theName,theSec.getIDString())
+
+
             class StoreSecurity:
                 def __init__(self, _obj):
                     self.obj = _obj                         # type: CurrencyType
@@ -14262,7 +14313,7 @@ now after saving the file, restart Moneydance
             def create_totals(theCount, theAccount, theTable):
                 _acctRelCurr = theAccount.getCurrencyType()
                 theTable.append(["Txn Count",    theCount, "", "", ""])
-                theTable.append(["Account Initial Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
+                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
                 theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
                 _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getBalance()), False]
                 lDetectCBError = False
@@ -14279,17 +14330,11 @@ now after saving the file, restart Moneydance
                         # price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
                         price = CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr)                                # noqa
 
-                        myPrint("B", acct, _subAcctRelCurr, _acctRelCurr)
-                        myPrint("B", "Bal", round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces()))
-                        myPrint("B", "getUserRate()", CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr))
-                        myPrint("B", "getRate()", _subAcctRelCurr.getRate(None))
-                        myPrint("B", "getRate()", _acctRelCurr.getRate(None))
-
                         _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
                         _totals[2] +=  round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())
                         if lDetectCBError: _totals[3] = True
-                        theTable.append([acct.getAccountName(),
+                        theTable.append([getSecurityNameAndID(acct.getCurrencyType()),
                                          _subAcctRelCurr.formatSemiFancy(subAcctBal,MD_decimal),
                                          _acctRelCurr.formatSemiFancy(subAcctCostBasis,MD_decimal),
                                          _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal),
@@ -14370,7 +14415,7 @@ now after saving the file, restart Moneydance
 
 
             for security in tickerToMerge.getSecurityList():
-                output += "%s Price History Records: %s\n" %(pad(security.getName(),30),rpad(security.getSnapshots().size(),10))
+                output += "%s Price History Records: %s\n" %(pad(getSecurityNameAndID(security),80),rpad(security.getSnapshots().size(),10))
             output += "\n"
 
 
@@ -14405,7 +14450,7 @@ now after saving the file, restart Moneydance
                         txnsUsed = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(foundSecurity)
                         _relCurr = foundSecurity.getCurrencyType()
                         output += "   %s Uses Avg Cost: %s Shares Held: %s Txns: %s" \
-                                  %(pad(foundSecurity.getFullAccountName(),50),
+                                  %(pad("'%s':%s" %(foundSecurity.getParentAccount().getAccountName()[:30], getSecurityNameAndID(foundSecurity.getCurrencyType(),theLen=35)),85),
                                     pad(str(foundSecurity.getUsesAverageCost()),6),
                                     rpad(_relCurr.formatSemiFancy(foundSecurity.getBalance(),MD_decimal),18),
                                     rpad(txnsUsed.getSize(),15))
@@ -14635,7 +14680,7 @@ now after saving the file, restart Moneydance
 
             jif.dispose()
 
-            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH SECURITY MERGE of %s / %s.....\n\n" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())
+            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH SECURITY MERGE of %s / %s.....\n\n" %(tickerToMerge.getTicker(),getSecurityNameAndID(tickerToMerge.getPrimarySecurity()))
 
             if len(investmentAccountsInvolvedInMerge) > 0:
                 output += "\nSTATISTICS BEFORE START...\n\n"
@@ -14689,7 +14734,7 @@ now after saving the file, restart Moneydance
                 primary = tickerToMerge.getPrimarySecurity()
                 if lSnapsDumpMaster or lSnapsDeleteAll:
                     getSnaps = primary.getSnapshots()
-                    txt = "Deleting %s snapshots from %s" %(getSnaps.size(), primary)
+                    txt = "Deleting %s snapshots from %s" %(getSnaps.size(), getSecurityNameAndID(primary))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     for snap in getSnaps: snap.deleteItem()
 
@@ -14697,7 +14742,7 @@ now after saving the file, restart Moneydance
                     for security in tickerToMerge.getSecurityListWithoutPrimary():
                         rCurr = primary.getRelativeCurrency()
                         getSnaps = security.getSnapshots()
-                        txt = "Merging %s potential snapshots from %s into %s" %(getSnaps.size(), security, primary)
+                        txt = "Merging %s potential snapshots from %s into %s" %(getSnaps.size(), getSecurityNameAndID(security), getSecurityNameAndID(primary))
                         myPrint("B",txt); output += "%s\n" %(txt)
                         for snap in getSnaps:
                             foundSnap = primary.getSnapshotForDate(snap.getDateInt())
@@ -14716,14 +14761,14 @@ now after saving the file, restart Moneydance
 
                 for security in tickerToMerge.getSecurityListWithoutPrimary():
                     getSnaps = security.getSnapshots()
-                    txt = "Now Deleting %s snapshots from %s (post any merge actions)" %(getSnaps.size(), security)
+                    txt = "Now Deleting %s snapshots from %s (post any merge actions)" %(getSnaps.size(), getSecurityNameAndID(security))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     for snap in getSnaps: snap.deleteItem()
 
                 output += "----\n"
-                output += "Master %s now contains: %s Price History records...\n" %(primary, primary.getSnapshots().size())
+                output += "Master %s now contains: %s Price History records...\n" %(getSecurityNameAndID(primary), primary.getSnapshots().size())
                 for security in tickerToMerge.getSecurityListWithoutPrimary():
-                    output += "Duplicate %s now contains: %s Price History records...\n" %(security, security.getSnapshots().size())
+                    output += "Duplicate %s now contains: %s Price History records...\n" %(getSecurityNameAndID(security), security.getSnapshots().size())
                 output += "----\n"
 
             ############################################################################################################
@@ -14745,14 +14790,14 @@ now after saving the file, restart Moneydance
 
             else:
 
-                txt = "Removing any hidden CUSIP data from %s" %(tickerToMerge.getPrimarySecurity())
+                txt = "Removing any hidden CUSIP data from %s" %(getSecurityNameAndID(tickerToMerge.getPrimarySecurity()))
                 myPrint("B",txt); output += "%s\n" %(txt)
 
                 tickerToMerge.getPrimarySecurity().setEditingMode()
                 deleteCUSIPs(tickerToMerge.getPrimarySecurity())
 
                 if selectedCUSIP.getScheme():
-                    txt = "Adding CUSIP data - Scheme: %s ID: %s to %s" %(selectedCUSIP.getScheme(), selectedCUSIP.getCUSIP(), tickerToMerge.getPrimarySecurity())
+                    txt = "Adding CUSIP data - Scheme: %s ID: %s to %s" %(selectedCUSIP.getScheme(), selectedCUSIP.getCUSIP(), getSecurityNameAndID(tickerToMerge.getPrimarySecurity()))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     tickerToMerge.getPrimarySecurity().setIDForScheme(selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
 
@@ -14760,7 +14805,7 @@ now after saving the file, restart Moneydance
                 tickerToMerge.getPrimarySecurity().syncItem()
 
                 output += "----\n"
-                output += "Master %s now contains: hidden CUSIP record: Scheme: %s, ID: %s\n" %(tickerToMerge.getPrimarySecurity(), selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
+                output += "Master %s now contains: hidden CUSIP record: Scheme: %s, ID: %s\n" %(getSecurityNameAndID(tickerToMerge.getPrimarySecurity()), selectedCUSIP.getScheme(),selectedCUSIP.getCUSIP())
                 output += "----\n"
 
 
@@ -14779,7 +14824,7 @@ now after saving the file, restart Moneydance
 
                         if copyAcct is None: continue
 
-                        txt = "... Adding: %s to %s" %(primary.getName(), createAccount)
+                        txt = "... Adding: %s to %s" %(getSecurityNameAndID(primary), createAccount)
                         myPrint("B", txt); output += "%s\n" %(txt)
 
                         newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(),
@@ -14837,7 +14882,7 @@ now after saving the file, restart Moneydance
                         reassignTxns = sorted(reassignTxns, key=lambda _x: (_x.getDateInt()))
 
                         # Note sorted loses x.getSize() >> use len(x)
-                        output += "... retrieved %s txns from duplicate %s - reassigning.....\n" %(len(reassignTxns), copyAcct)
+                        output += "... retrieved %s txns from duplicate security %s within investment account '%s' - reassigning.....\n" %(len(reassignTxns), getSecurityNameAndID(copyAcct.getCurrencyType()), copyAcct.getParentAccount())
 
                         for srcTxn in reassignTxns:
 
@@ -14860,7 +14905,7 @@ now after saving the file, restart Moneydance
 
                 output += "\n>> Txn reassignment completed.....\n\n"
 
-                txt = "Now removing empty duplicate securities from Investment accounts...."
+                txt = "Now removing duplicate securities from Investment account(s)...."
                 myPrint("B", txt); output += "\n%s\n" %(txt)
 
                 ############################################################################################################
@@ -14872,32 +14917,32 @@ now after saving the file, restart Moneydance
                         if copyAcct is None: continue
 
                         remainingTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(copyAcct)
-                        output += "... %s txns left in duplicate %s ..." %(remainingTxns.getSize(), copyAcct)
+                        output += "... %s txns left in %s for duplicate security %s ..." %(remainingTxns.getSize(), copyAcct.getParentAccount(), getSecurityNameAndID(copyAcct.getCurrencyType()))
 
                         if remainingTxns.getSize() < 1:
-                            txt = "... Deleting: %s (empty)" %(copyAcct)
+                            txt = "... Removing: security %s (empty) from Account: %s" %(getSecurityNameAndID(copyAcct.getCurrencyType()), copyAcct.getParentAccount())
                             myPrint("B", txt); output += "%s\n" %(txt)
                             copyAcct.deleteItem()
                         else:
                             lErrorDeletingSecuritySubAccounts = True
-                            txt = "... *** ERROR - Cannot delete %s as it still contains %s txns! ***" %(copyAcct,remainingTxns.getSize())
+                            txt = "... *** ERROR - Cannot remove security %s from %s as it still contains %s txns! ***" %(getSecurityNameAndID(copyAcct.getCurrencyType()), copyAcct.getParentAccount(), remainingTxns.getSize())
                             myPrint("B", txt); output += "%s\n" %(txt)
 
                 output += "\n>> Removal of duplicate Securities from Investment Account(s) completed.....\n\n"
 
             # Now delete the (empty) and now unused old duplicate Securities
-            txt = "Now deleting the empty & unused old duplicate securities that have been merged into the new master..:"
+            txt = "Now deleting the redundant duplicate security records that have been merged into the new master..:"
             myPrint("B", txt); output += "\n%s\n\n" %(txt)
 
             lErrorDeletingSecurities = False
             for securityToDelete in tickerToMerge.getSecurityListWithoutPrimary():
                 findSecurityAcct = isSecurityHeldWithinAnyInvestmentAccount(securityToDelete)
                 if findSecurityAcct is None:
-                    output += ".. Verified %s is not being used...... DELETING SECURITY MASTER....\n" %(securityToDelete)
+                    output += ".. Verified %s is not being used...... DELETING REDUNDANT SECURITY MASTER....\n" %(getSecurityNameAndID(securityToDelete))
                     securityToDelete.deleteItem()
                 else:
                     lErrorDeletingSecurities = True
-                    output += ".. ERROR %s is still being used in %s ...... ** NOT DELETING SECURITY MASTER**\n" %(securityToDelete, findSecurityAcct)
+                    output += ".. ERROR %s is still being used in %s ...... ** NOT DELETING REDUNDANT SECURITY MASTER**\n" %(getSecurityNameAndID(securityToDelete), findSecurityAcct)
 
             output += "\n>> Merge 'duplicate' Securities completed..\n\n"
 
@@ -15005,7 +15050,7 @@ now after saving the file, restart Moneydance
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
         PARAMETER_KEY = "toolbox_txn_merge"
-        today = Calendar.getInstance()
+        today = Calendar.getInstance()                                                                                  # noqa
 
         if detect_non_hier_sec_acct_txns() > 0:
             txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
@@ -15068,6 +15113,8 @@ now after saving the file, restart Moneydance
                  " ============================================================\n\n" %(_THIS_METHOD_NAME)
 
         try:
+
+            base = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
 
             if isQuoteLoader_or_QER_Running():
                 output += "QuoteLoader / Q&ER extension is loaded. User confirmed that it's not auto-updating and to proceed....\n\n"
@@ -15304,7 +15351,7 @@ now after saving the file, restart Moneydance
                 theTable.append(["Txn Count",    theCount, "", "", ""])
                 theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
                 theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
-                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getStartBalance()+theAccount.getBalance()), False]
+                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getBalance()), False]
                 lDetectCBError = False
                 for acct in theAccount.getSubAccounts():
                     if acct.getAccountType() == Account.AccountType.SECURITY:
@@ -15316,7 +15363,8 @@ now after saving the file, restart Moneydance
                         _subAcctRelCurr = acct.getCurrencyType()
                         subAcctBal = acct.getBalance()
                         subAcctCostBasis = InvestUtil.getCostBasis(acct)
-                        price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+                        # price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
+                        price = CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr)                                # noqa
 
                         _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
                         _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
@@ -15563,13 +15611,18 @@ now after saving the file, restart Moneydance
 
             def output_stats(theText, theAccount, theTable):
 
-                local_output = "%s: %s\n" %(theText, theAccount)
+                if theAccount.getCurrencyType() == base or theAccount.getCurrencyType() is None:
+                    relText = ""
+                else:
+                    relText = " relative to %s" %(theAccount.getCurrencyType().getRelativeCurrency())
+
+                local_output = "%s: %s (Currency: %s%s)\n" %(theText, theAccount, theAccount.getCurrencyType(), relText)
                 iRow = 1
                 posInc = 0
                 for data in theTable:
                     if iRow == 2:
                         posInc += 14
-                        local_output += "   %s %s %s %s (** adjusted for splits)\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
+                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
                         local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
 
                     if iRow == 4:
@@ -16427,19 +16480,24 @@ now after saving the file, restart Moneydance
                 self.statusLabel.setForeground(Color.RED)
                 return
 
+            try:
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(str(locationsDirs[locations.index(selectedFolder)])),None)
+            except:
+                pass
+
             if not os.path.exists(str(locationsDirs[locations.index(selectedFolder)])):
-                self.statusLabel.setText(("Sorry - File/Folder does not exist!").ljust(800, " "))
+                self.statusLabel.setText(("Sorry - File/Folder does not exist! (path copied to clipboard)").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 return
 
             if Platform.isOSX() and int(MD_REF.getBuild()) >= MD_ICLOUD_ENABLED \
                     and grabSyncFolder and "iCloud~com~infinitekind~moneydancesync" in locationsDirs[locations.index(selectedFolder)].getCanonicalPath():
-                self.statusLabel.setText(("iCloud Sync Folder location: %s" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath())).ljust(800, " "))
+                self.statusLabel.setText(("iCloud Sync Folder location: %s  (copied to clipboard)" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath())).ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 myPopupInformationBox(toolbox_frame_,"Permissions: Cannot open location: %s" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath()))
             else:
                 helper.openDirectory(locationsDirs[locations.index(selectedFolder)])
-                self.statusLabel.setText(("Folder " + selectedFolder + " opened..: " + str(locationsDirs[locations.index(selectedFolder)])).ljust(800, " "))
+                self.statusLabel.setText(("Folder " + selectedFolder + " opened..: %s  (path copied to clipboard)" %(str(locationsDirs[locations.index(selectedFolder)]))).ljust(800, " "))
                 self.statusLabel.setForeground(Color.BLUE)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
