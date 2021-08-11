@@ -1695,13 +1695,14 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False):
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
             self.returnFrame = None
             self.copyToClipboard = copyToClipboard
             self.lJumpToEnd = lJumpToEnd
+            self.lWrapText = lWrapText
 
         class CloseAction(AbstractAction):
 
@@ -1753,6 +1754,17 @@ Visit: %s (Author's site)
                 header = MessageFormat(self.theTitle)
                 footer = MessageFormat("- page {0} -")
 
+                # try:
+                #     # New for MD2020.2012
+                #     x = MD_REF.getUI().getFonts().code
+                # except:
+                #     myPrint("B",u"Failed to get Moneydance code font (must be older version), loading older mono")
+                #     x = MD_REF.getUI().getFonts().mono
+                #
+                # if myFont.getSize()>18:
+                #     try:
+                #         myFont = myFont.deriveFont(16.0)
+                #
                 set print font here
 
                 self.theJText.print(header, footer, True, None, pAttrs, True)
@@ -1863,7 +1875,8 @@ Visit: %s (Author's site)
 
                     theJText = JTextArea(self.callingClass.output)
                     theJText.setEditable(False)
-                    theJText.setLineWrap(True)
+                    if self.callingClass.lWrapText:
+                        theJText.setLineWrap(True)
                     theJText.setWrapStyleWord(True)
                     theJText.setFont( getMonoFont() )
 
