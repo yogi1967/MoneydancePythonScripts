@@ -203,7 +203,7 @@
 # build: 1041 - New feature - FIX - Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.
 # build: 1041 - New feature - FIX - Merge 'duplicate' securities (and related Investment txns) together into one master security record.
 # build: 1041 - New feature - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).
-# build: 1041 - Fixed hacker mode on SplitTxns to properly 'manage' the parent record; also fixed Geekout lookup for splits by UUID
+# build: 1041 - Fixed hacker mode on SplitTxns to properly 'manage' parent record; fixed Geekout lookup for splits by UUID; Added 5 newest/oldest Snapshots data to geekout
 # build: 1041 - Switch back to Home Screen before some functions... Stops Lot control box appearing; Good practice to get out of all accounts first...
 # build: 1041 - Renamed feature to: - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
 # build: 1041 - Updated 'Diagnose Currency / Security (hidden) Decimal Places' report
@@ -2067,6 +2067,47 @@ Visit: %s (Author's site)
                 MyAboutRunnable(self).run()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+    def isGoodRate(theRate):
+
+        if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
+            return False
+
+        return True
+
+    def safeInvertRate(theRate):
+
+        if not isGoodRate(theRate):
+            return theRate
+
+        return (1.0 / theRate)
+
+    def checkCurrencyRawRatesOK(theCurr):
+
+        checkRate = theCurr.getParameter("rate", None)
+        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
+        checkRRate = theCurr.getParameter("rrate", None)
+        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
+
+        if checkRate is None or not isGoodRate(checkRateDouble):
+            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
+            return False
+
+        if checkRRate is None or not isGoodRate(checkRRateDouble):
+            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
+            return False
+
+        return True
+
+    def check_all_currency_raw_rates_ok(filterType=None):
+
+        _currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+        for _curr in _currs:
+            if filterType and _curr.getCurrencyType() != filterType: continue
+            if not checkCurrencyRawRatesOK(_curr):
+                return False
+
+        return True
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -5111,50 +5152,6 @@ Visit: %s (Author's site)
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
         return output
-
-    def isGoodRate(theRate):
-
-        if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
-            return False
-
-        return True
-
-    def safeInvertRate(theRate):
-
-        if not isGoodRate(theRate):
-            return theRate
-
-        return (1.0 / theRate)
-
-
-    def checkCurrencyRawRatesOK(theCurr):
-
-        checkRate = theCurr.getParameter("rate", None)
-        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
-        checkRRate = theCurr.getParameter("rrate", None)
-        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
-
-        if checkRate is None or not isGoodRate(checkRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        if checkRRate is None or not isGoodRate(checkRRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        return True
-
-
-    def check_all_currency_raw_rates_ok(filterType=None):
-
-        currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
-        for curr in currs:
-            if filterType and curr.getCurrencyType() != filterType: continue
-            if not checkCurrencyRawRatesOK(curr):
-                return False
-
-        return True
-
 
     def manually_edit_price_date_field(statusLabel):
         global lAdvancedMode
@@ -9621,6 +9618,8 @@ Please update any that you use before proceeding....
                                     if selectedObject.getLongParameter(convertTimeStamp, 0) > 0:
                                         output += "%s %s\n" % (pad("TIMESTAMP('%s'):" %(convertTimeStamp),50), get_time_stamp_as_nice_text(selectedObject.getLongParameter(convertTimeStamp, 0))  )
 
+                                snaps = selectedObject.getSnapshots()
+
                                 output += "%s %s\n" % (pad("RATE (to base):",50),           selectedObject.getRate(None)  )
                                 output += "%s %s\n" % (pad("     (Inverted):",50),          safeInvertRate(selectedObject.getRate(None))  )
                                 output += "%s %s\n" % (pad("RATE in terms of Base:",50),    selectedObject.getBaseRate()  )
@@ -9628,10 +9627,37 @@ Please update any that you use before proceeding....
                                 output += "%s %s\n" % (pad("Relative Currency:",50),        selectedObject.getRelativeCurrency()  )
                                 output += "%s %s\n" % (pad("Relative Rate:",50),            selectedObject.getRelativeRate()  )
                                 output += "%s %s\n" % (pad("     (Inverted):",50),          safeInvertRate(selectedObject.getRelativeRate())  )
-                                output += "%s %s\n" % (pad("Count Price History:",50),      len(selectedObject.getSnapshots()  ))
+                                output += "%s %s\n" % (pad("Count Price History:",50),      snaps.size() )
                                 output += "%s %s\n" % (pad("Count Stock Splits:",50),       len(selectedObject.getSplits()  ))
                                 output += "%s %s\n" % (pad("Daily Change:",50),             selectedObject.getDailyChange()  )
                                 output += "%s %s\n" % (pad("Daily Volume:",50),             selectedObject.getDailyVolume()  )
+
+                                output += "\n" \
+                                          "Oldest and Newest (max) 5 Price History Records (RAW records) (use 1.0/rate to convert values):\n" \
+                                          " ----------------------------------------------------------------------------------------------\n"
+
+                                if snaps.size():
+                                    # Put all maps back for snapshots listed.....
+                                    dummySyncR = SyncRecord()
+
+                                    iCountSnapsPrinted = iSnap = 0
+                                    maxToPrint = min(10, snaps.size())
+
+                                    output += "<-- Oldest (max) 5 records -->>\n"
+                                    while iCountSnapsPrinted <= maxToPrint:
+                                        snaps[iSnap].itemWillSync(dummySyncR)
+                                        output += dummySyncR.toMultilineHumanReadableString()+"---\n"
+                                        dummySyncR.clear()                                                                  # noqa
+                                        iSnap += 1
+                                        iCountSnapsPrinted += 1
+                                        if iCountSnapsPrinted >= snaps.size() or iSnap >= snaps.size(): break
+                                        if iCountSnapsPrinted < 5: continue
+                                        if iCountSnapsPrinted == 5:
+                                            output += "<-- Newest (max) 5 records -->>\n"
+                                            iSnap = max(5 ,snaps.size() - (maxToPrint-iCountSnapsPrinted))
+                                        if iCountSnapsPrinted > 10: break
+                                    del dummySyncR
+                                del snaps
                                 output += "<END>\n"
                             except:
                                 output += dump_sys_error_to_md_console_and_errorlog( True )
