@@ -14801,7 +14801,7 @@ now after saving the file, restart Moneydance
                 primary = tickerToMerge.getPrimarySecurity()
                 if lSnapsDumpMaster or lSnapsDeleteAll:
                     getSnaps = primary.getSnapshots()
-                    txt = "Deleting %s snapshots from %s" %(getSnaps.size(), getSecurityNameAndID(primary))
+                    txt = "Deleting %s price history records from %s" %(getSnaps.size(), getSecurityNameAndID(primary))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     for snap in getSnaps: snap.deleteItem()
 
@@ -14809,7 +14809,7 @@ now after saving the file, restart Moneydance
                     for security in tickerToMerge.getSecurityListWithoutPrimary():
                         rCurr = primary.getRelativeCurrency()
                         getSnaps = security.getSnapshots()
-                        txt = "Merging %s potential snapshots from %s into %s" %(getSnaps.size(), getSecurityNameAndID(security), getSecurityNameAndID(primary))
+                        txt = "Merging %s potential price history records from %s into %s" %(getSnaps.size(), getSecurityNameAndID(security), getSecurityNameAndID(primary))
                         myPrint("B",txt); output += "%s\n" %(txt)
                         for snap in getSnaps:
                             foundSnap = primary.getSnapshotForDate(snap.getDateInt())
@@ -14828,7 +14828,7 @@ now after saving the file, restart Moneydance
 
                 for security in tickerToMerge.getSecurityListWithoutPrimary():
                     getSnaps = security.getSnapshots()
-                    txt = "Now Deleting %s snapshots from %s (post any merge actions)" %(getSnaps.size(), getSecurityNameAndID(security))
+                    txt = "Now Deleting %s price history records from %s (post any merge actions)" %(getSnaps.size(), getSecurityNameAndID(security))
                     myPrint("B",txt); output += "%s\n" %(txt)
                     for snap in getSnaps: snap.deleteItem()
 
