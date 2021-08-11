@@ -15117,18 +15117,18 @@ now after saving the file, restart Moneydance
                 output += "\n>> Removal of duplicate Securities from Investment Account(s) completed.....\n\n"
 
             # Now delete the (empty) and now unused old duplicate Securities
-            txt = "Now deleting the redundant duplicate security records that have been merged into the new master..:"
+            txt = "Now deleting the redundant duplicate security(s) (that have been merged into the new master) from Tools>Securities..:"
             myPrint("B", txt); output += "\n%s\n\n" %(txt)
 
             lErrorDeletingSecurities = False
             for securityToDelete in tickerToMerge.getSecurityListWithoutPrimary():
                 findSecurityAcct = isSecurityHeldWithinAnyInvestmentAccount(securityToDelete)
                 if findSecurityAcct is None:
-                    output += ".. Verified %s is not being used...... DELETING REDUNDANT SECURITY MASTER....\n" %(getSecurityNameAndID(securityToDelete))
+                    output += ".. Verified %s is not being used...... DELETING REDUNDANT SECURITY FROM TOOLS>SECURITIES....\n" %(getSecurityNameAndID(securityToDelete))
                     securityToDelete.deleteItem()
                 else:
                     lErrorDeletingSecurities = True
-                    output += ".. ERROR %s is still being used in %s ...... ** NOT DELETING REDUNDANT SECURITY MASTER**\n" %(getSecurityNameAndID(securityToDelete), findSecurityAcct)
+                    output += ".. ERROR %s is still being used in %s ...... ** NOT DELETING REDUNDANT SECURITY FROM TOOLS>SECURITIES **\n" %(getSecurityNameAndID(securityToDelete), findSecurityAcct)
 
             output += "\n>> Merge 'duplicate' Securities completed..\n\n"
 
