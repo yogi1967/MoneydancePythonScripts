@@ -214,7 +214,7 @@
 # build: 1041 - Amended fix relative currencies accordingly with MD2021.2(3088) rate / rrate knowledge. I now only touch 'rrate' (not 'rate)...
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text, along with top and bottom buttons.....
 # build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button; also now copy tha path to clipboard too.
-# build: 1041 - Added print function to QuickJFrame()
+# build: 1041 - Added print function to QuickJFrame(); also save and print to main diagnostics display
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix alert colours since VAqua....!?
@@ -413,6 +413,8 @@ else:
     from javax.swing import JTextField, JPasswordField, Box, UIManager, JTable, JCheckBox, JRadioButton, ButtonGroup
     from javax.swing.text import PlainDocument
     from javax.swing.border import EmptyBorder
+
+    exec("from javax.print import attribute")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
 
     from java.awt.datatransfer import StringSelection
     from javax.swing.text import DefaultHighlighter
@@ -1693,6 +1695,195 @@ Visit: %s (Author's site)
 
             return
 
+    def computeFontSize(theComponent, _maxPaperWidth):
+
+        # Auto shrink font so that text fits on one line when printing
+        # Note: Java seems to operate it's maths at 72DPI....
+
+        try:
+            _DEFAULT_MIN_WIDTH = 100
+
+            _minFontSize = 5
+            theString = theComponent.getText()
+            _startingComponentFont = theComponent.getFont()
+
+            if not theString or len(theString) < 1: return -1
+
+            fm = theComponent.getFontMetrics(_startingComponentFont)
+            _maxFontSize = curFontSize = _startingComponentFont.getSize()
+
+            maxLineWidthInFile = _DEFAULT_MIN_WIDTH
+            longestLine = ""
+            for line in theString.split("\n"):
+                _w = fm.stringWidth(line)
+                if _w > maxLineWidthInFile:
+                    longestLine = line
+                    maxLineWidthInFile = _w
+
+            while (fm.stringWidth(longestLine) + 5 > _maxPaperWidth):
+                curFontSize -= 1
+                fm = theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curFontSize))
+
+            # Code to increase width....
+            # while (fm.stringWidth(theString) + 5 < _maxPaperWidth):
+            #     curSize += 1
+            #     fm = theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curSize))
+
+            curFontSize = max(_minFontSize, curFontSize)
+            curFontSize = min(_maxFontSize, curFontSize)
+
+        except:
+            myPrint("B", "ERROR: computeFontSize() crashed?")
+            dump_sys_error_to_md_console_and_errorlog()
+            return -1
+
+        return curFontSize
+
+    def saveOutputFile(_theFrame, _theTitle, _fileName, _theText, _statusLabel=None):
+
+        if Platform.isOSX():
+            System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
+            System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+        filename = FileDialog(_theFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
+        filename.setDirectory(get_home_dir())
+        filename.setMultipleMode(False)
+        filename.setMode(FileDialog.SAVE)
+        filename.setFile(_fileName)
+
+        if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+            extFilter = ExtFilenameFilter("txt")
+            filename.setFilenameFilter(extFilter)
+
+        filename.setVisible(True)
+        copyToFile = filename.getFile()
+
+        if Platform.isOSX():
+            System.setProperty("com.apple.macos.use-file-dialog-packages","true")
+            System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+        if (copyToFile is None) or copyToFile == "":
+            filename.dispose(); del filename
+            return
+        elif not str(copyToFile).endswith(".txt"):
+            myPopupInformationBox(_theFrame, "Sorry - please use a .txt file extension when saving output txt")
+            filename.dispose(); del filename
+            return
+        elif ".moneydance" in filename.getDirectory():
+            myPopupInformationBox(_theFrame, "Sorry, please choose a location outside of the Moneydance location")
+            filename.dispose();del filename
+            return
+
+        copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
+
+        if not check_file_writable(copyToFile):
+            myPopupInformationBox(_theFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
+
+        toFile = None
+        try:
+            toFile = os.path.join(filename.getDirectory(), filename.getFile())
+            with open(toFile, 'w') as f: f.write(_theText)
+            myPrint("B", "%s: text output copied to: %s" %(_theTitle, toFile))
+
+            # noinspection PyTypeChecker
+            if os.path.exists(toFile):
+                play_the_money_sound()
+                txt = "%s: Output text saved as requested to: %s" %(_theTitle, toFile)
+                if _statusLabel:
+                    _statusLabel.setText((txt).ljust(800, " ")); _statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(_theFrame, txt)
+            else:
+                txt = "ERROR - failed to write output text to file: %s" %(toFile)
+                myPrint("B", txt)
+                myPopupInformationBox(_theFrame, txt)
+        except:
+            txt = "ERROR - failed to write output text to file: %s" %(toFile)
+            dump_sys_error_to_md_console_and_errorlog()
+            myPopupInformationBox(_theFrame, txt)
+
+        filename.dispose(); del filename
+
+    # noinspection PyUnresolvedReferences, PyUnusedLocal
+    def printOutputFile(_callingClass=None, _theTitle=None, _theJText=None, _theString=None):
+
+        try:
+            if _theJText is None and _theString is None: return
+            if _theJText is not None and len(_theJText.getText()) < 1: return
+            if _theString is not None and len(_theString) < 1: return
+
+            # Make a new one for printing
+            if _theJText is not None:
+                printJTextArea = JTextArea(_theJText.getText())
+            else:
+                printJTextArea = JTextArea(_theString)
+
+            printJTextArea.setEditable(False)
+            # if _callingClass is not None:
+            #     printJTextArea.setLineWrap(_callingClass.lWrapText)  # Mirror the word wrap set by user
+            # else:
+            #     printJTextArea.setLineWrap(False)
+            printJTextArea.setLineWrap(True)
+
+            printJTextArea.setWrapStyleWord(False)
+
+            # IntelliJ doesnt like the use of 'print' (as it's a keyword)
+            defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+
+            theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
+            theFontToUse = theFontToUse.deriveFont(float(defaultPrintFontSize))
+            printJTextArea.setFont(theFontToUse)
+
+            _IN2MM = 25.4                                                                                               # noqa
+            _IN2CM = 2.54                                                                                               # noqa
+            _IN2PT = 72                                                                                                 # noqa
+            def mm2pt(_mm):                 return _mm * _IN2PT / _IN2MM                                                # noqa
+            def mm2mpt(_mm):                return _mm * 1000 * _IN2PT / _IN2MM                                         # noqa
+            def pt2mm(_pt):                 return _pt * _IN2MM / _IN2PT                                                # noqa
+            def mm2in(_mm):                 return _mm / _IN2MM                                                         # noqa
+            def in2mm(_in):                 return _in * _IN2MM                                                         # noqa
+            def in2mpt(_in):                return _in * _IN2PT * 1000                                                  # noqa
+            def in2pt(_in):                 return _in * _IN2PT                                                         # noqa
+            def mpt2in(_mpt):               return _mpt / _IN2PT / 1000                                                 # noqa
+            def mm2px(_mm, _resolution):    return mm2in(_mm) * _resolution                                             # noqa
+            def mpt2px(_mpt, _resolution):  return mpt2in(_mpt) * _resolution                                           # noqa
+
+            _DPI = 72
+            _MARGINS = 5
+            _BUFFER_PCT = 0.95
+
+            # Refer: https://docs.oracle.com/javase/7/docs/api/javax/print/attribute/standard/package-summary.html
+            thePaper = attribute.standard.MediaPrintableArea(_MARGINS, _MARGINS, 210 - _MARGINS, 297 - _MARGINS, attribute.standard.MediaPrintableArea.MM)
+            maxPaperWidth = mm2px(thePaper.getPrintableArea(attribute.standard.MediaPrintableArea.MM)[3] - thePaper.getPrintableArea(attribute.standard.MediaPrintableArea.MM)[1],_DPI)
+            maxPaperWidth *= _BUFFER_PCT
+
+            if _callingClass is None or not _callingClass.lWrapText:
+                newFontSize = computeFontSize(printJTextArea, int(maxPaperWidth))
+
+                if newFontSize > 0:
+                    theFontToUse = theFontToUse.deriveFont(float(newFontSize))
+                    printJTextArea.setFont(theFontToUse)
+
+            pAttrs = attribute.HashPrintRequestAttributeSet()
+            pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+            pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
+            pAttrs.add(attribute.standard.MediaSizeName.ISO_A4)
+            pAttrs.add(thePaper)
+            pAttrs.add(attribute.standard.Copies(1))
+            pAttrs.add(attribute.standard.PrintQuality.NORMAL)
+            pAttrs.add(attribute.standard.PrinterResolution(_DPI, _DPI, attribute.standard.PrinterResolution.DPI))
+            pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), _theTitle), None))
+            header = MessageFormat(_theTitle)
+            footer = MessageFormat("- page {0} -")
+
+            # avoiding Intellij errors
+            eval("printJTextArea.print(header, footer, True, None, pAttrs, True)")
+            del printJTextArea
+        except:
+            myPrint("B", "ERROR in printing routines.....:")
+            dump_sys_error_to_md_console_and_errorlog()
+        return
+
+
     class QuickJFrame():
 
         def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False):
@@ -1747,7 +1938,6 @@ Visit: %s (Author's site)
 
                 return
 
-        # noinspection PyUnresolvedReferences
         class QuickJFramePrint(AbstractAction):
 
             def __init__(self, theCallingClass, theJText, theTitle=""):
@@ -1758,40 +1948,7 @@ Visit: %s (Author's site)
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                if len(self.theJText.getText()) < 1: return
-
-                # Make a new one for printing
-                printJTextArea = JTextArea(self.theJText.getText())
-                printJTextArea.setEditable(False)
-                printJTextArea.setLineWrap(self.theCallingClass.lWrapText)
-                printJTextArea.setWrapStyleWord(self.theCallingClass.lWrapText)     # Mirror the word wrap set by user
-                printJTextArea.setFont( getMonoFont() )
-
-                # IntelliJ doesnt like the use of 'print' (as it's a keyword); but it works :-<
-                from javax.print import attribute                                                                       # noqa
-                pAttrs = attribute.HashPrintRequestAttributeSet()
-                pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
-                pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
-                pAttrs.add(attribute.standard.Copies(1))
-                pAttrs.add(attribute.standard.PrintQuality.NORMAL)
-                pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), self.theTitle), None))
-                header = MessageFormat(self.theTitle)
-                footer = MessageFormat("- page {0} -")
-
-                # try:
-                #     # New for MD2020.2012
-                #     x = MD_REF.getUI().getFonts().code
-                # except:
-                #     myPrint("B",u"Failed to get Moneydance code font (must be older version), loading older mono")
-                #     x = MD_REF.getUI().getFonts().mono
-                #
-                # if myFont.getSize()>18:
-                #     try:
-                #         myFont = myFont.deriveFont(16.0)
-                #
-                # set print font here
-
-                printJTextArea.print(header, footer, True, None, pAttrs, True)
+                printOutputFile(_callingClass=self.theCallingClass, _theTitle=self.theTitle, _theJText=self.theJText)
 
                 return
 
@@ -1804,65 +1961,7 @@ Visit: %s (Author's site)
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                if Platform.isOSX():
-                    System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
-                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-                filename = FileDialog(self.callingFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
-                filename.setDirectory(get_home_dir())
-                filename.setMultipleMode(False)
-                filename.setMode(FileDialog.SAVE)
-                filename.setFile("toolbox_output.txt")
-
-                if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
-                    extFilter = ExtFilenameFilter("txt")
-                    filename.setFilenameFilter(extFilter)
-
-                filename.setVisible(True)
-
-                copyToFile = filename.getFile()
-
-                if Platform.isOSX():
-                    System.setProperty("com.apple.macos.use-file-dialog-packages","true")
-                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-                if (copyToFile is None) or copyToFile == "":
-                    filename.dispose(); del filename
-                    return
-                elif not str(copyToFile).endswith(".txt"):
-                    myPopupInformationBox(self.callingFrame, "Sorry - please use a .txt file extension when saving output txt")
-                    filename.dispose(); del filename
-                    return
-                elif ".moneydance" in filename.getDirectory():
-                    myPopupInformationBox(self.callingFrame, "Sorry, please choose a location outside of the  Moneydance location")
-                    filename.dispose();del filename
-                    return
-
-                copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
-
-                if not check_file_writable(copyToFile):
-                    myPopupInformationBox(self.callingFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
-
-                toFile = None
-                try:
-                    toFile = os.path.join(filename.getDirectory(), filename.getFile())
-                    with open(toFile, 'w') as f: f.write(self.theText)
-                    myPrint("B", "QuickJFrame text output copied to: %s" %(toFile))
-
-                    # noinspection PyTypeChecker
-                    if os.path.exists(toFile):
-                        play_the_money_sound()
-                        myPopupInformationBox(self.callingFrame, "Output text saved as requested to: %s" %(toFile))
-                    else:
-                        txt = "ERROR - failed to write output text to file: %s" %(toFile)
-                        myPrint("B", txt)
-                        myPopupInformationBox(self.callingFrame, txt)
-                except:
-                    txt = "ERROR - failed to wite output text to file: %s" %(toFile)
-                    dump_sys_error_to_md_console_and_errorlog()
-                    myPopupInformationBox(self.callingFrame, txt)
-
-                filename.dispose(); del filename
+                saveOutputFile(self.callingFrame, "QUICKJFRAME", "toolbox_output.txt", self.theText)
 
                 return
 
@@ -1900,7 +1999,7 @@ Visit: %s (Author's site)
                     theJText = JTextArea(self.callingClass.output)
                     theJText.setEditable(False)
                     theJText.setLineWrap(self.callingClass.lWrapText)
-                    theJText.setWrapStyleWord(True)
+                    theJText.setWrapStyleWord(False)
                     theJText.setFont( getMonoFont() )
 
                     jInternalFrame.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAction(jInternalFrame))
@@ -1931,7 +2030,7 @@ Visit: %s (Author's site)
                     saveButton.setBackground(Color.WHITE); saveButton.setForeground(Color.BLACK)
                     saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
 
-                    wrapOption = JCheckBox("Wrap Contents", self.callingClass.lWrapText)
+                    wrapOption = JCheckBox("Wrap Contents (Screen & Print)", self.callingClass.lWrapText)
                     wrapOption.addActionListener(self.callingClass.ToggleWrap(self.callingClass, theJText))
 
                     topButton = JButton("Top")
@@ -3607,7 +3706,7 @@ Visit: %s (Author's site)
         excludedIDs = MD_REF.getSuppressedExtensionIDs()            # List<String>
         for installedMod in installed:
             if installedMod.isBundled():
-                excludedIDs.add(installedMod.getIDStr().toLowerCase())
+                excludedIDs.add(installedMod.getIDStr().lower())
 
         miniUpdateList={}
 
@@ -4765,22 +4864,42 @@ Visit: %s (Author's site)
         return None
 
     class ClipboardButtonAction(AbstractAction):
-        theString = ""
 
         def __init__(self, theString, statusLabel):
             self.theString = theString
             self.statusLabel = statusLabel
 
         def actionPerformed(self, event):
-            global toolbox_frame_, debug
+
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-            x = StringSelection(self.theString)
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(x, None)
 
-            self.statusLabel.setText(("Contents of all text below copied to Clipboard..").ljust(800, " "))
-            self.statusLabel.setForeground(Color.BLUE)
+            _THIS_METHOD_NAME = "DIAGNOSTIC OUTPUT"
 
-            myPrint("DB", "Contents of diagnostic report copied to clipboard....!")
+            options = ["Copy the diagnostics to the Clipboard",
+                       "Save the diagnostics to a text file",
+                       "Print the diagnostics to your printer"]
+
+            selectedOption = JOptionPane.showInputDialog(toolbox_frame_,
+                                                         _THIS_METHOD_NAME.upper(), "Select Option:",
+                                                         JOptionPane.INFORMATION_MESSAGE,
+                                                         MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                         options, None)
+            if not selectedOption: return
+
+            optionIndex = options.index(selectedOption)
+            if optionIndex == 0:
+                x = StringSelection(self.theString)
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(x, None)
+                self.statusLabel.setText(("Contents of all text below copied to Clipboard..").ljust(800, " ")); self.statusLabel.setForeground(Color.BLUE)
+                return
+
+            if optionIndex == 1:
+                saveOutputFile(toolbox_frame_, _THIS_METHOD_NAME.upper(), "toolbox_diagnostics.txt", self.theString, self.statusLabel)
+                return
+
+            if optionIndex == 2:
+                printOutputFile(_callingClass=None, _theTitle=_THIS_METHOD_NAME.upper(), _theJText=None, _theString=self.theString)
+                return
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             return
@@ -9682,7 +9801,7 @@ Please update any that you use before proceeding....
                                         if iCountSnapsPrinted < 5: continue
                                         if iCountSnapsPrinted == 5:
                                             output += "<-- Newest (max) 5 records -->>\n"
-                                            iSnap = max(5 ,snaps.size() - (maxToPrint-iCountSnapsPrinted))
+                                            iSnap = max(5, snaps.size() - (maxToPrint-iCountSnapsPrinted))
                                         if iCountSnapsPrinted > 10: break
                                     del dummySyncR
                                 del snaps
@@ -21885,8 +22004,8 @@ Now you will have a text readable version of the file you can open in a text edi
             btnOpenMDFolder.setBackground(Color.WHITE)
             btnOpenMDFolder.setForeground(Color.BLACK)
 
-            btnCopyDiagnostics = JButton("Copy Diagnostics below to Clipboard")
-            btnCopyDiagnostics.setToolTipText("Copies the contents of the main diagnostics window (below) to the Clipboard..")
+            btnCopyDiagnostics = JButton("Copy/Save/Print Diagnostics below")
+            btnCopyDiagnostics.setToolTipText("Option to Copy the contents of the main diagnostics window (below) to the Clipboard.., or save to file, or print...")
             btnCopyDiagnostics.setOpaque(True)
             btnCopyDiagnostics.setBackground(Color.WHITE)
             btnCopyDiagnostics.setForeground(Color.BLACK)
