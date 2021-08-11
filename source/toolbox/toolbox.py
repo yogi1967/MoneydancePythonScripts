@@ -21,7 +21,7 @@
 # NOTE: You will see some usage of globals... I wrote this when I was learning Python and Java... Know I know a lot more,
 # I would do this differently, but leaving this as-is for now... (I'll upgrade elements as I make future changes)
 
-# DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Export Backup will achieve this)
+# DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Export Backup will achieve this).
 
 # Includes previous / standalone scripts (which I have now decommissioned):
 # FIX-reset_window_location_data.py 0.2beta
