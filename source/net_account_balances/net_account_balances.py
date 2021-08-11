@@ -1798,6 +1798,47 @@ Visit: %s (Author's site)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
+    def isGoodRate(theRate):
+
+        if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
+            return False
+
+        return True
+
+    def safeInvertRate(theRate):
+
+        if not isGoodRate(theRate):
+            return theRate
+
+        return (1.0 / theRate)
+
+    def checkCurrencyRawRatesOK(theCurr):
+
+        checkRate = theCurr.getParameter("rate", None)
+        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
+        checkRRate = theCurr.getParameter("rrate", None)
+        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
+
+        if checkRate is None or not isGoodRate(checkRateDouble):
+            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
+            return False
+
+        if checkRRate is None or not isGoodRate(checkRRateDouble):
+            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
+            return False
+
+        return True
+
+    def check_all_currency_raw_rates_ok(filterType=None):
+
+        _currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+        for _curr in _currs:
+            if filterType and _curr.getCurrencyType() != filterType: continue
+            if not checkCurrencyRawRatesOK(_curr):
+                return False
+
+        return True
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
