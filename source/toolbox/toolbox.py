@@ -1695,14 +1695,14 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=False):
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
             self.returnFrame = None
             self.copyToClipboard = copyToClipboard
             self.lJumpToEnd = lJumpToEnd
-            self.lWrapText = lWrapText
+            self.lWrapText = True
 
         class CloseAction(AbstractAction):
 
@@ -1716,6 +1716,20 @@ Visit: %s (Author's site)
 
                 # Already within the EDT
                 self.theFrame.dispose()
+                return
+
+        class ToggleWrap(AbstractAction):
+
+            def __init__(self, theCallingClass, theJText):
+                self.theCallingClass = theCallingClass
+                self.theJText = theJText
+
+            def actionPerformed(self, event):
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                self.theCallingClass.lWrapText = not self.theCallingClass.lWrapText
+                self.theJText.setLineWrap(self.theCallingClass.lWrapText)
+
                 return
 
         class QuickJFrameNavigate(AbstractAction):
@@ -1736,15 +1750,25 @@ Visit: %s (Author's site)
         # noinspection PyUnresolvedReferences
         class QuickJFramePrint(AbstractAction):
 
-            def __init__(self, theJText, theTitle=""):
+            def __init__(self, theCallingClass, theJText, theTitle=""):
+                self.theCallingClass = theCallingClass
                 self.theJText = theJText
                 self.theTitle = theTitle
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
+                if len(self.theJText.getText()) < 1: return
+
+                # Make a new one for printing
+                printJTextArea = JTextArea(self.theJText.getText())
+                printJTextArea.setEditable(False)
+                printJTextArea.setLineWrap(self.theCallingClass.lWrapText)
+                printJTextArea.setWrapStyleWord(self.theCallingClass.lWrapText)     # Mirror the word wrap set by user
+                printJTextArea.setFont( getMonoFont() )
+
                 # IntelliJ doesnt like the use of 'print' (as it's a keyword); but it works :-<
-                from javax.print import attribute
+                from javax.print import attribute                                                                       # noqa
                 pAttrs = attribute.HashPrintRequestAttributeSet()
                 pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
                 pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
@@ -1765,9 +1789,9 @@ Visit: %s (Author's site)
                 #     try:
                 #         myFont = myFont.deriveFont(16.0)
                 #
-                set print font here
+                # set print font here
 
-                self.theJText.print(header, footer, True, None, pAttrs, True)
+                printJTextArea.print(header, footer, True, None, pAttrs, True)
 
                 return
 
@@ -1875,8 +1899,7 @@ Visit: %s (Author's site)
 
                     theJText = JTextArea(self.callingClass.output)
                     theJText.setEditable(False)
-                    if self.callingClass.lWrapText:
-                        theJText.setLineWrap(True)
+                    theJText.setLineWrap(self.callingClass.lWrapText)
                     theJText.setWrapStyleWord(True)
                     theJText.setFont( getMonoFont() )
 
@@ -1900,13 +1923,16 @@ Visit: %s (Author's site)
                     printButton.setToolTipText("Prints the output displayed in this window to your printer")
                     printButton.setOpaque(True)
                     printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
-                    printButton.addActionListener(self.callingClass.QuickJFramePrint(theJText, self.callingClass.title))
+                    printButton.addActionListener(self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
 
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
                     saveButton.setOpaque(True)
                     saveButton.setBackground(Color.WHITE); saveButton.setForeground(Color.BLACK)
                     saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
+
+                    wrapOption = JCheckBox("Wrap Contents", self.callingClass.lWrapText)
+                    wrapOption.addActionListener(self.callingClass.ToggleWrap(self.callingClass, theJText))
 
                     topButton = JButton("Top")
                     topButton.setOpaque(True)
@@ -1935,6 +1961,8 @@ Visit: %s (Author's site)
                     mb = JMenuBar()
                     mb.setBorder(EmptyBorder(0, 0, 0, 0))
                     mb.add(Box.createRigidArea(Dimension(30, 0)))
+                    mb.add(wrapOption)
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(topButton)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(botButton)
