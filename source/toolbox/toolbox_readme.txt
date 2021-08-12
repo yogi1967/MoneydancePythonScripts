@@ -96,8 +96,13 @@ TOOLBAR / MENU BAR Contains the following:
     - Help menu
     - Button: Launch Console Window (opens the Moneydance Help>Show Console Window)
     - Button: Save Console Log (to a file of your choosing)
-    - Button: Open MD Folder (Preferences, Themes, Console log, Dataset, Extensions, Auto-backup folder, last backup folder[, Install Dir])
-    - Button: Copy Diagnostics below to Clipboard (copies the main screen output to clipboard)
+    - Button: Open MD Folder (Preferences, Themes, Console log, Dataset, Extensions, Auto-backup folder, last backup folder[, Sync Dir][, Install Dir])
+    - Button: Copy/Save/Print Diagnostics below (to Clipboard (copies the main screen output to clipboard), or save to file, or print)
+
+POPUP Output/Report Window(s):
+    - Top, Bottom: Jump to beginning or end of display
+    - Wrap Contents: Turns on line wrap. Also enables print 'fit-to-width'
+    - Print, Save to file: Prints the contents or saves to file.
 
 ALT-B - Basic Mode
 - Basic mode: Buttons

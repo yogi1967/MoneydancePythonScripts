@@ -1,11 +1,11 @@
 {
-    "last_updated" = "20210806"
+    "last_updated" = "20210812"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1041"
                     "disable" = "n"
-                    "news" = "Lots of enhancements and new functions for Currency/Security tools menu."
+                    "news" = "Lots of enhancements; new functions for Currency/Security tools menu; print capability"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
@@ -25,166 +25,83 @@
                     }
                     {
                     "build" = "1039"
-                    "disable" = "n"
-                    "news" = "Catch dropbox configuration issue - causing Toolbox crash..."
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1038"
-                    "disable" = "n"
-                    "news" = "Released for the stable release of MD2021.1 (build 3069); plus small internal tweaks.."
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1037"
-                    "disable" = "n"
-                    "news" = "Released for the stable release of MD2021.1 (build 3069)"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1036"
-                    "disable" = "n"
-                    "news" = "added the 'Can I Delete a Currency' menu option"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1035"
-                    "disable" = "n"
-                    "news" = "Fixed for MD build 3067 and change of theme class name"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3093"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1034"
-                    "disable" = "n"
-                    "news" = "Remove tabbing mode check build 3065 onwards - ** cannot be used on newer builds of MD **"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3066"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1033"
-                    "disable" = "n"
-                    "news" = "Enhancements for build 3056+"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3066"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1032"
-                    "disable" = "n"
-                    "news" = "Internal tweaks; cope with MD build 3051 & 3056+"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3066"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1031"
-                    "disable" = "n"
-                    "news" = "Internal tweaks; cope with MD build 3051 & 3056+"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3066"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1030"
-                    "disable" = "n"
-                    "news" = "Internal tweaks; cope with MD build 3051 & 3056+"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3066"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1029"
-                    "disable" = "n"
-                    "news" = "Internal tweaks; cope with MD build 3051"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3051"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1028"
-                    "disable" = "n"
-                    "news" = "Minor internal tweaks; allow slashes in keys/data"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1027"
-                    "disable" = "n"
-                    "news" = "includes new CMD-F text/find features"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1026"
-                    "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1025"
-                    "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1024"
-                    "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1023"
-                    "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1022"
-                    "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1021"
-                    "disable" = "n"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1020"
-                    "disable" = "n"
-                    "news" = "2.0 Major Release (including OFX menu)"
-                    "OFX_SETUP_MATCH_MD_BUILD" = "3039"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3039"
+                    "disable" = "y"
                     }
 
     )
