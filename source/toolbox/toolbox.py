@@ -1695,7 +1695,7 @@ Visit: %s (Author's site)
 
             return
 
-    def computeFontSize(theComponent, _maxPaperWidth):
+    def computeFontSize(_theComponent, _maxPaperWidth):
 
         # Auto shrink font so that text fits on one line when printing
         # Note: Java seems to operate it's maths at 72DPI....
@@ -1704,12 +1704,12 @@ Visit: %s (Author's site)
             _DEFAULT_MIN_WIDTH = 100
 
             _minFontSize = 5
-            theString = theComponent.getText()
-            _startingComponentFont = theComponent.getFont()
+            theString = _theComponent.getText()
+            _startingComponentFont = _theComponent.getFont()
 
             if not theString or len(theString) < 1: return -1
 
-            fm = theComponent.getFontMetrics(_startingComponentFont)
+            fm = _theComponent.getFontMetrics(_startingComponentFont)
             _maxFontSize = curFontSize = _startingComponentFont.getSize()
 
             maxLineWidthInFile = _DEFAULT_MIN_WIDTH
@@ -1722,12 +1722,12 @@ Visit: %s (Author's site)
 
             while (fm.stringWidth(longestLine) + 5 > _maxPaperWidth):
                 curFontSize -= 1
-                fm = theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curFontSize))
+                fm = _theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curFontSize))
 
             # Code to increase width....
             # while (fm.stringWidth(theString) + 5 < _maxPaperWidth):
             #     curSize += 1
-            #     fm = theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curSize))
+            #     fm = _theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curSize))
 
             curFontSize = max(_minFontSize, curFontSize)
             curFontSize = min(_maxFontSize, curFontSize)
@@ -1803,6 +1803,8 @@ Visit: %s (Author's site)
 
         filename.dispose(); del filename
 
+    rememberPrintSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
+
     # noinspection PyUnresolvedReferences, PyUnusedLocal
     def printOutputFile(_callingClass=None, _theTitle=None, _theJText=None, _theString=None):
 
@@ -1827,7 +1829,12 @@ Visit: %s (Author's site)
             printJTextArea.setWrapStyleWord(False)
 
             # IntelliJ doesnt like the use of 'print' (as it's a keyword)
-            defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+            if "MD_REF" in globals():
+                defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+            elif "moneydance" in globals():
+                defaultPrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
+            else:
+                defaultPrintFontSize = rememberPrintSize
 
             theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
             theFontToUse = theFontToUse.deriveFont(float(defaultPrintFontSize))
@@ -1882,7 +1889,6 @@ Visit: %s (Author's site)
             myPrint("B", "ERROR in printing routines.....:")
             dump_sys_error_to_md_console_and_errorlog()
         return
-
 
     class QuickJFrame():
 

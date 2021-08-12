@@ -241,6 +241,8 @@ else:
     from javax.swing.text import PlainDocument
     from javax.swing.border import EmptyBorder
 
+    exec("from javax.print import attribute")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
+
     from java.awt.datatransfer import StringSelection
     from javax.swing.text import DefaultHighlighter
 
@@ -249,7 +251,7 @@ else:
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
     from java.util import Date
 
-    from java.text import DecimalFormat, SimpleDateFormat
+    from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
     from java.lang import Double, Math, Character
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
@@ -1450,6 +1452,201 @@ Visit: %s (Author's site)
 
             return
 
+    def computeFontSize(_theComponent, _maxPaperWidth):
+
+        # Auto shrink font so that text fits on one line when printing
+        # Note: Java seems to operate it's maths at 72DPI....
+
+        try:
+            _DEFAULT_MIN_WIDTH = 100
+
+            _minFontSize = 5
+            theString = _theComponent.getText()
+            _startingComponentFont = _theComponent.getFont()
+
+            if not theString or len(theString) < 1: return -1
+
+            fm = _theComponent.getFontMetrics(_startingComponentFont)
+            _maxFontSize = curFontSize = _startingComponentFont.getSize()
+
+            maxLineWidthInFile = _DEFAULT_MIN_WIDTH
+            longestLine = ""
+            for line in theString.split("\n"):
+                _w = fm.stringWidth(line)
+                if _w > maxLineWidthInFile:
+                    longestLine = line
+                    maxLineWidthInFile = _w
+
+            while (fm.stringWidth(longestLine) + 5 > _maxPaperWidth):
+                curFontSize -= 1
+                fm = _theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curFontSize))
+
+            # Code to increase width....
+            # while (fm.stringWidth(theString) + 5 < _maxPaperWidth):
+            #     curSize += 1
+            #     fm = _theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curSize))
+
+            curFontSize = max(_minFontSize, curFontSize)
+            curFontSize = min(_maxFontSize, curFontSize)
+
+        except:
+            myPrint("B", "ERROR: computeFontSize() crashed?")
+            dump_sys_error_to_md_console_and_errorlog()
+            return -1
+
+        return curFontSize
+
+    def saveOutputFile(_theFrame, _theTitle, _fileName, _theText, _statusLabel=None):
+
+        if Platform.isOSX():
+            System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
+            System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+        filename = FileDialog(_theFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
+        filename.setDirectory(get_home_dir())
+        filename.setMultipleMode(False)
+        filename.setMode(FileDialog.SAVE)
+        filename.setFile(_fileName)
+
+        if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+            extFilter = ExtFilenameFilter("txt")
+            filename.setFilenameFilter(extFilter)
+
+        filename.setVisible(True)
+        copyToFile = filename.getFile()
+
+        if Platform.isOSX():
+            System.setProperty("com.apple.macos.use-file-dialog-packages","true")
+            System.setProperty("apple.awt.fileDialogForDirectories", "false")
+
+        if (copyToFile is None) or copyToFile == "":
+            filename.dispose(); del filename
+            return
+        elif not str(copyToFile).endswith(".txt"):
+            myPopupInformationBox(_theFrame, "Sorry - please use a .txt file extension when saving output txt")
+            filename.dispose(); del filename
+            return
+        elif ".moneydance" in filename.getDirectory():
+            myPopupInformationBox(_theFrame, "Sorry, please choose a location outside of the Moneydance location")
+            filename.dispose();del filename
+            return
+
+        copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
+
+        if not check_file_writable(copyToFile):
+            myPopupInformationBox(_theFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
+
+        toFile = None
+        try:
+            toFile = os.path.join(filename.getDirectory(), filename.getFile())
+            with open(toFile, 'w') as f: f.write(_theText)
+            myPrint("B", "%s: text output copied to: %s" %(_theTitle, toFile))
+
+            # noinspection PyTypeChecker
+            if os.path.exists(toFile):
+                play_the_money_sound()
+                txt = "%s: Output text saved as requested to: %s" %(_theTitle, toFile)
+                if _statusLabel:
+                    _statusLabel.setText((txt).ljust(800, " ")); _statusLabel.setForeground(Color.BLUE)
+                myPopupInformationBox(_theFrame, txt)
+            else:
+                txt = "ERROR - failed to write output text to file: %s" %(toFile)
+                myPrint("B", txt)
+                myPopupInformationBox(_theFrame, txt)
+        except:
+            txt = "ERROR - failed to write output text to file: %s" %(toFile)
+            dump_sys_error_to_md_console_and_errorlog()
+            myPopupInformationBox(_theFrame, txt)
+
+        filename.dispose(); del filename
+
+    rememberPrintSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
+
+    # noinspection PyUnresolvedReferences, PyUnusedLocal
+    def printOutputFile(_callingClass=None, _theTitle=None, _theJText=None, _theString=None):
+
+        try:
+            if _theJText is None and _theString is None: return
+            if _theJText is not None and len(_theJText.getText()) < 1: return
+            if _theString is not None and len(_theString) < 1: return
+
+            # Make a new one for printing
+            if _theJText is not None:
+                printJTextArea = JTextArea(_theJText.getText())
+            else:
+                printJTextArea = JTextArea(_theString)
+
+            printJTextArea.setEditable(False)
+            # if _callingClass is not None:
+            #     printJTextArea.setLineWrap(_callingClass.lWrapText)  # Mirror the word wrap set by user
+            # else:
+            #     printJTextArea.setLineWrap(False)
+            printJTextArea.setLineWrap(True)
+
+            printJTextArea.setWrapStyleWord(False)
+
+            # IntelliJ doesnt like the use of 'print' (as it's a keyword)
+            if "MD_REF" in globals():
+                defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+            elif "moneydance" in globals():
+                defaultPrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
+            else:
+                defaultPrintFontSize = rememberPrintSize
+
+            theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
+            theFontToUse = theFontToUse.deriveFont(float(defaultPrintFontSize))
+            printJTextArea.setFont(theFontToUse)
+
+            _IN2MM = 25.4                                                                                               # noqa
+            _IN2CM = 2.54                                                                                               # noqa
+            _IN2PT = 72                                                                                                 # noqa
+            def mm2pt(_mm):                 return _mm * _IN2PT / _IN2MM                                                # noqa
+            def mm2mpt(_mm):                return _mm * 1000 * _IN2PT / _IN2MM                                         # noqa
+            def pt2mm(_pt):                 return _pt * _IN2MM / _IN2PT                                                # noqa
+            def mm2in(_mm):                 return _mm / _IN2MM                                                         # noqa
+            def in2mm(_in):                 return _in * _IN2MM                                                         # noqa
+            def in2mpt(_in):                return _in * _IN2PT * 1000                                                  # noqa
+            def in2pt(_in):                 return _in * _IN2PT                                                         # noqa
+            def mpt2in(_mpt):               return _mpt / _IN2PT / 1000                                                 # noqa
+            def mm2px(_mm, _resolution):    return mm2in(_mm) * _resolution                                             # noqa
+            def mpt2px(_mpt, _resolution):  return mpt2in(_mpt) * _resolution                                           # noqa
+
+            _DPI = 72
+            _MARGINS = 5
+            _BUFFER_PCT = 0.95
+
+            # Refer: https://docs.oracle.com/javase/7/docs/api/javax/print/attribute/standard/package-summary.html
+            thePaper = attribute.standard.MediaPrintableArea(_MARGINS, _MARGINS, 210 - _MARGINS, 297 - _MARGINS, attribute.standard.MediaPrintableArea.MM)
+            maxPaperWidth = mm2px(thePaper.getPrintableArea(attribute.standard.MediaPrintableArea.MM)[3] - thePaper.getPrintableArea(attribute.standard.MediaPrintableArea.MM)[1],_DPI)
+            maxPaperWidth *= _BUFFER_PCT
+
+            if _callingClass is None or not _callingClass.lWrapText:
+                newFontSize = computeFontSize(printJTextArea, int(maxPaperWidth))
+
+                if newFontSize > 0:
+                    theFontToUse = theFontToUse.deriveFont(float(newFontSize))
+                    printJTextArea.setFont(theFontToUse)
+
+            pAttrs = attribute.HashPrintRequestAttributeSet()
+            pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+            pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
+            pAttrs.add(attribute.standard.MediaSizeName.ISO_A4)
+            pAttrs.add(thePaper)
+            pAttrs.add(attribute.standard.Copies(1))
+            pAttrs.add(attribute.standard.PrintQuality.NORMAL)
+            pAttrs.add(attribute.standard.PrinterResolution(_DPI, _DPI, attribute.standard.PrinterResolution.DPI))
+            pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), _theTitle), None))
+            header = MessageFormat(_theTitle)
+            footer = MessageFormat("- page {0} -")
+
+            # avoiding Intellij errors
+            eval("printJTextArea.print(header, footer, True, None, pAttrs, True)")
+            del printJTextArea
+        except:
+            myPrint("B", "ERROR in printing routines.....:")
+            dump_sys_error_to_md_console_and_errorlog()
+        return
+
     class QuickJFrame():
 
         def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False):
@@ -1459,6 +1656,7 @@ Visit: %s (Author's site)
             self.returnFrame = None
             self.copyToClipboard = copyToClipboard
             self.lJumpToEnd = lJumpToEnd
+            self.lWrapText = True
 
         class CloseAction(AbstractAction):
 
@@ -1472,6 +1670,20 @@ Visit: %s (Author's site)
 
                 # Already within the EDT
                 self.theFrame.dispose()
+                return
+
+        class ToggleWrap(AbstractAction):
+
+            def __init__(self, theCallingClass, theJText):
+                self.theCallingClass = theCallingClass
+                self.theJText = theJText
+
+            def actionPerformed(self, event):
+                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                self.theCallingClass.lWrapText = not self.theCallingClass.lWrapText
+                self.theJText.setLineWrap(self.theCallingClass.lWrapText)
+
                 return
 
         class QuickJFrameNavigate(AbstractAction):
@@ -1491,14 +1703,15 @@ Visit: %s (Author's site)
 
         class QuickJFramePrint(AbstractAction):
 
-            def __init__(self, theJText):
+            def __init__(self, theCallingClass, theJText, theTitle=""):
+                self.theCallingClass = theCallingClass
                 self.theJText = theJText
+                self.theTitle = theTitle
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                # YUP - IntelliJ doesn't like this statement below, but it works..... ;->
-                self.theJText.print()
+                printOutputFile(_callingClass=self.theCallingClass, _theTitle=self.theTitle, _theJText=self.theJText)
 
                 return
 
@@ -1511,65 +1724,7 @@ Visit: %s (Author's site)
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                if Platform.isOSX():
-                    System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
-                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-                filename = FileDialog(self.callingFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
-                filename.setDirectory(get_home_dir())
-                filename.setMultipleMode(False)
-                filename.setMode(FileDialog.SAVE)
-                filename.setFile("toolbox_output.txt")
-
-                if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
-                    extFilter = ExtFilenameFilter("txt")
-                    filename.setFilenameFilter(extFilter)
-
-                filename.setVisible(True)
-
-                copyToFile = filename.getFile()
-
-                if Platform.isOSX():
-                    System.setProperty("com.apple.macos.use-file-dialog-packages","true")
-                    System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-                if (copyToFile is None) or copyToFile == "":
-                    filename.dispose(); del filename
-                    return
-                elif not str(copyToFile).endswith(".txt"):
-                    myPopupInformationBox(self.callingFrame, "Sorry - please use a .txt file extension when saving output txt")
-                    filename.dispose(); del filename
-                    return
-                elif ".moneydance" in filename.getDirectory():
-                    myPopupInformationBox(self.callingFrame, "Sorry, please choose a location outside of the  Moneydance location")
-                    filename.dispose();del filename
-                    return
-
-                copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
-
-                if not check_file_writable(copyToFile):
-                    myPopupInformationBox(self.callingFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
-
-                toFile = None
-                try:
-                    toFile = os.path.join(filename.getDirectory(), filename.getFile())
-                    with open(toFile, 'w') as f: f.write(self.theText)
-                    myPrint("B", "QuickJFrame text output copied to: %s" %(toFile))
-
-                    # noinspection PyTypeChecker
-                    if os.path.exists(toFile):
-                        play_the_money_sound()
-                        myPopupInformationBox(self.callingFrame, "Output text saved as requested to: %s" %(toFile))
-                    else:
-                        txt = "ERROR - failed to write output text to file: %s" %(toFile)
-                        myPrint("B", txt)
-                        myPopupInformationBox(self.callingFrame, txt)
-                except:
-                    txt = "ERROR - failed to wite output text to file: %s" %(toFile)
-                    dump_sys_error_to_md_console_and_errorlog()
-                    myPopupInformationBox(self.callingFrame, txt)
-
-                filename.dispose(); del filename
+                saveOutputFile(self.callingFrame, "QUICKJFRAME", "toolbox_output.txt", self.theText)
 
                 return
 
@@ -1603,15 +1758,17 @@ Visit: %s (Author's site)
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F,  shortcut), "search-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "print-me")
 
                     theJText = JTextArea(self.callingClass.output)
                     theJText.setEditable(False)
-                    theJText.setLineWrap(True)
-                    theJText.setWrapStyleWord(True)
+                    theJText.setLineWrap(self.callingClass.lWrapText)
+                    theJText.setWrapStyleWord(False)
                     theJText.setFont( getMonoFont() )
 
                     jInternalFrame.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAction(jInternalFrame))
                     jInternalFrame.getRootPane().getActionMap().put("search-window", SearchAction(jInternalFrame,theJText))
+                    jInternalFrame.getRootPane().getActionMap().put("print-me", self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
 
                     internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
@@ -1630,13 +1787,16 @@ Visit: %s (Author's site)
                     printButton.setToolTipText("Prints the output displayed in this window to your printer")
                     printButton.setOpaque(True)
                     printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
-                    printButton.addActionListener(self.callingClass.QuickJFramePrint(theJText))
+                    printButton.addActionListener(self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
 
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
                     saveButton.setOpaque(True)
                     saveButton.setBackground(Color.WHITE); saveButton.setForeground(Color.BLACK)
                     saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
+
+                    wrapOption = JCheckBox("Wrap Contents (Screen & Print)", self.callingClass.lWrapText)
+                    wrapOption.addActionListener(self.callingClass.ToggleWrap(self.callingClass, theJText))
 
                     topButton = JButton("Top")
                     topButton.setOpaque(True)
@@ -1664,10 +1824,12 @@ Visit: %s (Author's site)
 
                     mb = JMenuBar()
                     mb.setBorder(EmptyBorder(0, 0, 0, 0))
-                    mb.add(Box.createRigidArea(Dimension(30, 0)))
+                    mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(topButton)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
                     mb.add(botButton)
+                    mb.add(Box.createHorizontalGlue())
+                    mb.add(wrapOption)
                     mb.add(Box.createHorizontalGlue())
                     mb.add(printButton)
                     mb.add(Box.createRigidArea(Dimension(10, 0)))
@@ -1736,7 +1898,7 @@ Visit: %s (Author's site)
 
                 def run(self):                                                                                                      # noqa
 
-                    myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
                     myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                     # noinspection PyUnresolvedReferences
