@@ -8,7 +8,7 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "test" "my_networth" "fix_hidden_price_date" "total_selected_transactions")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "test" "my_networth" "total_selected_transactions")
 RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "total_selected_transactions")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth")
