@@ -1,32 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 13) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_secu_bank_custom_profile.py (build 5) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
-# https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
+# https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_secu_bank_custom_profile.pdf
 
-# Official Infinite Kind knowledgeable article:
-# https://infinitekind.tenderapp.com/kb/online-banking-and-bill-pay/connecting-with-usaa
-
-# This script builds a new USAA Bank Custom Profile from scratch to work with the new connection information
-# It will DELETE your existing USAA profile(s) first!
+# This script builds a new NCSECU Bank Custom Profile from scratch to work with the new connection information
+# It will DELETE your existing NCSECU profile(s) first!
 # It will populate your UserID, Password, and allow you to change/update the Bank and Credit Card Number
-# It will allow also allow you to prime a second account in case you have multiple logins
-# This will create a custom profile to avoid any refresh issues....
-# NOTE: ofx_create_new_usaa_bank_profile.py and ofx_fix_existing_usaa_bank_profile.py have both been deprecated
+# This will create a non MD profile to avoid any refresh issues....
+# Based on the original 'magic' contained within ofx_create_new_usaa_bank_custom_profile.py
 
 # DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Export Backup will achieve this)
 #               You use this at your own risk. I take no responsibility for its usage..!
 #               This should be considered a temporary fix only until Moneydance is fixed
 
-# CREDITS:  @hleofxquotes for his technical input
-#           @dtd for his extensive testing and the documentation
+# CREDITS:  hleofxquotes for his technical input and dtd for his extensive testing
 
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2021 Stuart Beesley - StuWareSoftSystems
+# Copyright (c) 2020 Stuart Beesley - StuWareSoftSystems
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -48,43 +43,30 @@
 ###############################################################################
 # Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
 
-# build: 1 - Initial preview release..... Based upon ofx_create_new_usaa_bank_profile.py (now deprecated)
-# build: 1 - Released: 8th March 2021
-# build: 2 - Put objects into editing mode by calling .setEditingMode() whilst editing until .syncItem() called
-# build: 3 - Small internal tweak; allow 15 digit Amex numbers too
-# build: 4 - Allow selection of Account Type
-# build: 5 - Cosmetic tweaks - no change to core functionality; change "so_passwd_type_USAASignon" back to "FIXED"
-# build: 6 - Internal common code tweaks - nothing to do with the core functionality
-# build: 6 - URLEncoder.encode() the UserID and Password in the stored cached string
-# build: 7 - Build 3051 of Moneydance... fix references to moneydance_* variables;
-# build: 8 - Build 3056 of Moneydance...
-# build: 9 - Change "date_avail_accts" to 2021-01-01
-# build: 10 - Popup at end to show existing last txn download dates...
-# build: 11 - Common code tweaks
-# build: 12 - Common code tweaks
-# build: 13 - Common code tweaks
+# build 1 - Initial preview release.....
+# build 1 - Released: 13th March 2021 (thanks to @margopowell for volunteering her data to set this script up)
+# build 2 - Internal tweaks - nothing to do with the core functionality
+# build 3 - Cosmetic tweaks - nothing to do with the core functionality
+# build 4 - Internal common code tweaks - nothing to do with the core functionality
+# build 4 - URLEncoder.encode() the UserID and Password in the stored cached string
+# build 5 - Build 3051 of Moneydance... fix references to moneydance_* variables;
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
 # SET THESE LINES
-myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "13"
-MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
-_I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
-
+myModuleID = u"ofx_create_new_secu_bank_custom_profile"
+version_build = "5"
 if u"debug" in globals():
     global debug
 else:
     debug = False
-global ofx_create_new_usaa_bank_profile_frame_
-# SET LINES ABOVE ^^^^
+global ofx_create_new_secu_bank_custom_profile_frame_
 
 # COPY >> START
-global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter
-MD_REF = moneydance             # Make my own copy of reference as MD removes it once main thread ends.. Don't use/hold on to _data variable
-MD_REF_UI = moneydance_ui       # Necessary as calls to .getUI() will try to load UI if None - we don't want this....
+global moneydance, moneydance_extension_loader
+MD_REF = moneydance     # Make my own copy of reference as MD removes it once main thread ends.. Don't use/hold on to _ui / _data variables
 if MD_REF is None: raise Exception("CRITICAL ERROR - moneydance object/variable is None?")
 if u"moneydance_extension_loader" in globals():
     MD_EXTENSION_LOADER = moneydance_extension_loader
@@ -110,7 +92,7 @@ class GenericWindowClosingRunnable(Runnable):
     def __init__(self, theFrame):
         self.theFrame = theFrame
 
-    def run(self):
+    def run(self):                                                                                                      # noqa
         self.theFrame.setVisible(False)
         self.theFrame.dispatchEvent(WindowEvent(self.theFrame, WindowEvent.WINDOW_CLOSING))
 
@@ -118,8 +100,7 @@ class GenericDisposeRunnable(Runnable):
     def __init__(self, theFrame):
         self.theFrame = theFrame
 
-    def run(self):
-        self.theFrame.setVisible(False)
+    def run(self):                                                                                                      # noqa
         self.theFrame.dispose()
 
 class GenericVisibleRunnable(Runnable):
@@ -128,7 +109,7 @@ class GenericVisibleRunnable(Runnable):
         self.lVisible = lVisible
         self.lToFront = lToFront
 
-    def run(self):
+    def run(self):                                                                                                      # noqa
         self.theFrame.setVisible(self.lVisible)
         if self.lVisible and self.lToFront:
             if self.theFrame.getExtendedState() == JFrame.ICONIFIED:
@@ -142,75 +123,75 @@ def getMyJFrame( moduleName ):
             if (fr.getName().lower().startswith(u"%s_main" %moduleName)
                     and type(fr).__name__ == MyJFrame.__name__                         # isinstance() won't work across namespaces
                     and fr.isActiveInMoneydance):
-                _msg = "%s: Found live frame: %s (MyJFrame() version: %s)\n" %(myModuleID,fr.getName(),fr.myJFrameVersion)
-                print(_msg); System.err.write(_msg)
-                if fr.isRunTimeExtension:
-                    _msg = "%s: ... and this is a run-time self-installed extension too...\n" %(myModuleID)
-                    print(_msg); System.err.write(_msg)
+                print("%s: Found live frame: %s (MyJFrame() version: %s)" %(myModuleID,fr.getName(),fr.myJFrameVersion))
+                System.err.write("%s: Found live frame: %s (MyJFrame() version: %s)\n" %(myModuleID, fr.getName(),fr.myJFrameVersion))
+                if fr.isRunTimeExtension: print("%s: This extension is a run-time self-installed extension too..." %(myModuleID))
+                if fr.isRunTimeExtension: System.err.write("%s: This extension is a run-time self-installed extension too...\n" %(myModuleID))
                 return fr
     except:
-        _msg = "%s: Critical error in getMyJFrame(); caught and ignoring...!\n" %(myModuleID)
-        print(_msg); System.err.write(_msg)
+        System.err.write("%s: Critical error in getMyJFrame(); caught and ignoring...!\n" %(myModuleID))
     return None
 
 
 frameToResurrect = None
 try:
-    # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(ofx_create_new_usaa_bank_profile_frame_, MyJFrame)        # EDIT THIS
-            and ofx_create_new_usaa_bank_profile_frame_.isActiveInMoneydance):       # EDIT THIS
-        frameToResurrect = ofx_create_new_usaa_bank_profile_frame_                   # EDIT THIS
+            and isinstance(ofx_create_new_secu_bank_custom_profile_frame_, MyJFrame)        # EDIT THIS
+            and ofx_create_new_secu_bank_custom_profile_frame_.isActiveInMoneydance):       # EDIT THIS
+        frameToResurrect = ofx_create_new_secu_bank_custom_profile_frame_                   # EDIT THIS
     else:
-        # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
         if getFr is not None:
             frameToResurrect = getFr
         del getFr
 except:
-    msg = "%s: Critical error checking frameToResurrect(1); caught and ignoring...!\n" %(myModuleID)
-    print(msg); System.err.write(msg)
+    System.err.write("%s: Critical error checking frameToResurrect(1); caught and ignoring...!\n" %(myModuleID))
 
-# ############################
-# Trap startup conditions here.... The 'if's pass through to oblivion (and thus a clean exit)... The final 'else' actually runs the script
-if int(MD_REF.getBuild()) < MIN_BUILD_REQD:     # Check for builds less than 1904 (version 2019.4) or build 3056 accordingly
-    msg = "SORRY YOUR MONEYDANCE VERSION IS TOO OLD FOR THIS SCRIPT/EXTENSION (min build %s required)" %(MIN_BUILD_REQD)
-    print(msg); System.err.write(msg)
-    try:    MD_REF_UI.showInfoMessage(msg)
-    except: raise Exception(msg)
+lTerminatedExtension = False
 
-elif frameToResurrect and frameToResurrect.isRunTimeExtension:
-    msg = "%s: Sorry - runtime extension already running. Please uninstall/reinstall properly. Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
-    print(msg); System.err.write(msg)
-    try: MD_REF_UI.showInfoMessage(msg)
-    except: raise Exception(msg)
+try:
+    if frameToResurrect:  # and it's still alive.....
+        if frameToResurrect.isRunTimeExtension:     # this must be an install/reinstall. I need to deactivate and re-register extension...
+            print("%s: Detected that runtime extension %s is already running..... Assuming a re-installation... Taking appropriate action..." %(myModuleID, myModuleID))
+            System.err.write("%s: Detected that runtime extension %s is already running..... Assuming a re-installation... Taking appropriate action...\n" %(myModuleID, myModuleID))
+            frameToResurrect.isActiveInMoneydance = False
+            try:
+                SwingUtilities.invokeLater(GenericWindowClosingRunnable(frameToResurrect))
+                System.err.write("%s: Pushed a windowClosing event - via SwingUtilities.invokeLater() - to existing extension... Hopefully it will close to allow re-installation...\n" %(myModuleID))
+            except:
+                System.err.write("%s: ERROR pushing a windowClosing event to existing extension!\n" %(myModuleID))
 
-elif not _I_CAN_RUN_AS_MONEYBOT_SCRIPT and u"__file__" in globals():
-    msg = "%s: Sorry - this script cannot be run in Moneybot console. Please install mxt and run extension properly. Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
-    print(msg); System.err.write(msg)
-    try: MD_REF_UI.showInfoMessage(msg)
-    except: raise Exception(msg)
+            lTerminatedExtension = True
+            frameToResurrect = None
+        else:
+            print("%s: Detected that %s is already running..... Attempting to resurrect.." %(myModuleID, myModuleID))
+            System.err.write("%s: Detected that %s is already running..... Attempting to resurrect..\n" %(myModuleID, myModuleID))
+except:
+    System.err.write("%s: Critical error checking frameToResurrect(2); caught and ignoring...!\n" %(myModuleID))
 
-elif not _I_CAN_RUN_AS_MONEYBOT_SCRIPT and u"moneydance_extension_loader" not in globals():
-    msg = "%s: Error - moneydance_extension_loader seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
-    print(msg); System.err.write(msg)
-    try: MD_REF_UI.showInfoMessage(msg)
-    except: raise Exception(msg)
-
-elif frameToResurrect:  # and it's active too...
+if float(MD_REF.getBuild()) < 1904:     # Check for builds less than 1904 / version < 2019.4
     try:
-        msg = "%s: Detected that %s is already running..... Attempting to resurrect..\n" %(myModuleID, myModuleID)
-        print(msg); System.err.write(msg)
+        MD_REF.getUI().showInfoMessage("SORRY YOUR VERSION IS TOO OLD FOR THIS SCRIPT/EXTENSION")
+    except:
+        raise Exception("SORRY YOUR MONEYDANCE VERSION IS TOO OLD FOR THIS SCRIPT/EXTENSION")
+
+elif frameToResurrect:
+    try:
         SwingUtilities.invokeLater(GenericVisibleRunnable(frameToResurrect, True, True))
     except:
-        msg  = "%s: Failed to resurrect main Frame.. This duplicate Script/extension is now terminating.....\n" %(myModuleID)
-        print(msg); System.err.write(msg)
-        raise Exception(msg)
+        print("%s: Failed to resurrect main Frame - via SwingUtilities.invokeLater() - This duplicate Script/extension is now terminating....." %(myModuleID))
+        System.err.write("%s: Failed to resurrect main Frame.. This duplicate Script/extension is now terminating.....\n" %(myModuleID))
+        raise Exception("SORRY - YOU CAN ONLY HAVE ONE INSTANCE OF %s RUNNING AT ONCE" %(myModuleID.upper()))
 
 else:
     del frameToResurrect
-    msg = "%s: Startup conditions passed (and no other instances of this program detected). Now executing....\n" %(myModuleID)
-    print(msg); System.err.write(msg)
+
+    if not lTerminatedExtension:
+        print("%s: No other 'live' instances of this program detected (or I terminated it) - running as normal" %(myModuleID))
+        System.err.write("%s: No other instances of this program detected (or I terminated it) - running as normal\n" %(myModuleID))
+    else:
+        print("%s: I terminated extension in memory, running script to allow new installation..." %(myModuleID))
+        System.err.write("%s: I terminated extension in memory, running script to allow new installation...\n" %(myModuleID))
 
     # COMMON IMPORTS #######################################################################################################
     # COMMON IMPORTS #######################################################################################################
@@ -247,10 +228,6 @@ else:
     from javax.swing.text import PlainDocument
     from javax.swing.border import EmptyBorder
 
-    exec("from javax.print import attribute")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
-    exec("from java.awt.print import PrinterJob")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
-    global attribute, PrinterJob
-
     from java.awt.datatransfer import StringSelection
     from javax.swing.text import DefaultHighlighter
 
@@ -259,7 +236,7 @@ else:
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
     from java.util import Date
 
-    from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
+    from java.text import DecimalFormat, SimpleDateFormat
     from java.util import Calendar, ArrayList
     from java.lang import Double, Math, Character
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
@@ -293,14 +270,6 @@ else:
     lIamAMac = False                                                                                                    # noqa
     lGlobalErrorDetected = False																						# noqa
     MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
-
-    class GlobalVars:        # Started using this method for storing global variables from August 2021
-        defaultPrintService = None
-        defaultPrinterAttributes = None
-        defaultPrintFontSize = None
-        defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
-        def __init__(self): pass    # Leave empty
-
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
@@ -308,9 +277,9 @@ else:
     from com.moneydance.apps.md.view.gui import MDAccountProxy
     from com.infinitekind.tiksync import SyncRecord
     from com.infinitekind.util import StreamTable
+    from java.util import UUID
+    from com.infinitekind.util import StringUtils
     from java.net import URLEncoder
-    from com.infinitekind.moneydance.model import OnlineTxnList
-    from com.infinitekind.tiksync import SyncableItem
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
@@ -332,8 +301,6 @@ The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
 toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
-net_account_balances:                   Homepage / summary screen widget. Display the total of selected Account Balances
-total_selected_transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
 Extension (.mxt) and Script (.py) Versions available:
 extract_data                            Extract various data to screen and/or csv.. Consolidation of:
@@ -353,9 +320,9 @@ Visit: %s (Author's site)
 """ %(myScriptName, MYPYTHON_DOWNLOAD_URL)
 
     def cleanup_references():
-        global MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
-        myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
-        del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
+        global MD_REF, MD_EXTENSION_LOADER
+        myPrint("DB","About to delete reference to MD_REF and MD_EXTENSION_LOADER....!")
+        del MD_REF, MD_EXTENSION_LOADER
 
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -574,7 +541,7 @@ Visit: %s (Author's site)
             result+=ch
         return result
 
-    def myPopupAskBackup(theParent=None, theMessage="What no message?!", lReturnTheTruth=False):
+    def myPopupAskBackup(theParent=None, theMessage="What no message?!"):
 
         _options=["STOP", "PROCEED WITHOUT BACKUP", "DO BACKUP NOW"]
         response = JOptionPane.showOptionDialog(theParent,
@@ -588,15 +555,12 @@ Visit: %s (Author's site)
 
         if response == 2:
             myPrint("B", "User requested to perform Export Backup before update/fix - calling moneydance export backup routine...")
-            MD_REF.getUI().setStatus("%s performing an Export Backup...." %(myScriptName),-1.0)
             MD_REF.getUI().saveToBackup(None)
-            MD_REF.getUI().setStatus("%s Export Backup completed...." %(myScriptName),0)
             return True
 
         elif response == 1:
             myPrint("B", "User DECLINED to perform Export Backup before update/fix...!")
-            if not lReturnTheTruth:
-                return True
+            return True
 
         return False
 
@@ -1084,10 +1048,9 @@ Visit: %s (Author's site)
         except:
             myPrint("B","Failed to set Swing default fonts to use Moneydance defaults... sorry")
 
-        myPrint("DB",".setDefaultFonts() successfully executed...")
         return
 
-    if MD_REF_UI is not None:
+    if MD_REF.getUI() is not None:
         setDefaultFonts()
 
     def who_am_i():
@@ -1201,15 +1164,10 @@ Visit: %s (Author's site)
             myPrint("DB", "Parameter file", migratedFilename, "exists..")
             # Open the file
             try:
-                # Really we should open() the file in binary mode and read/write as binary, then we wouldn't get platform differences!
                 istr = FileInputStream(migratedFilename)
                 load_file = FileUtil.wrap(istr)
-                if not Platform.isWindows():
-                    load_string = load_file.read().replace('\r', '')    # This allows for files migrated from windows (strip the extra CR)
-                else:
-                    load_string = load_file.read()
-
-                myParameters = pickle.loads(load_string)
+                # noinspection PyTypeChecker
+                myParameters = pickle.load(load_file)
                 load_file.close()
             except FileNotFoundException:
                 myPrint("B", "Error: failed to find parameter file...")
@@ -1291,7 +1249,8 @@ Visit: %s (Author's site)
 
         try:
             save_file = FileUtil.wrap(ostr)
-            pickle.dump(myParameters, save_file, protocol=0)
+            # noinspection PyTypeChecker
+            pickle.dump(myParameters, save_file)
             save_file.close()
 
             myPrint("DB","myParameters now contains...:")
@@ -1449,334 +1408,14 @@ Visit: %s (Author's site)
 
             return
 
-    def saveOutputFile(_theFrame, _theTitle, _fileName, _theText, _statusLabel=None):
-
-        if Platform.isOSX():
-            System.setProperty("com.apple.macos.use-file-dialog-packages", "true")
-            System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-        filename = FileDialog(_theFrame, "Select location to save the current displayed output... (CANCEL=ABORT)")
-        filename.setDirectory(get_home_dir())
-        filename.setMultipleMode(False)
-        filename.setMode(FileDialog.SAVE)
-        filename.setFile(_fileName)
-
-        if (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
-            extFilter = ExtFilenameFilter("txt")
-            filename.setFilenameFilter(extFilter)
-
-        filename.setVisible(True)
-        copyToFile = filename.getFile()
-
-        if Platform.isOSX():
-            System.setProperty("com.apple.macos.use-file-dialog-packages","true")
-            System.setProperty("apple.awt.fileDialogForDirectories", "false")
-
-        if (copyToFile is None) or copyToFile == "":
-            filename.dispose(); del filename
-            return
-        elif not str(copyToFile).endswith(".txt"):
-            myPopupInformationBox(_theFrame, "Sorry - please use a .txt file extension when saving output txt")
-            filename.dispose(); del filename
-            return
-        elif ".moneydance" in filename.getDirectory():
-            myPopupInformationBox(_theFrame, "Sorry, please choose a location outside of the Moneydance location")
-            filename.dispose();del filename
-            return
-
-        copyToFile = os.path.join(filename.getDirectory(), filename.getFile())
-
-        if not check_file_writable(copyToFile):
-            myPopupInformationBox(_theFrame, "Sorry, that file/location does not appear allowed by the operating system!?")
-
-        toFile = None
-        try:
-            toFile = os.path.join(filename.getDirectory(), filename.getFile())
-            with open(toFile, 'w') as f: f.write(_theText)
-            myPrint("B", "%s: text output copied to: %s" %(_theTitle, toFile))
-
-            # noinspection PyTypeChecker
-            if os.path.exists(toFile):
-                play_the_money_sound()
-                txt = "%s: Output text saved as requested to: %s" %(_theTitle, toFile)
-                if _statusLabel:
-                    _statusLabel.setText((txt).ljust(800, " ")); _statusLabel.setForeground(Color.BLUE)
-                myPopupInformationBox(_theFrame, txt)
-            else:
-                txt = "ERROR - failed to write output text to file: %s" %(toFile)
-                myPrint("B", txt)
-                myPopupInformationBox(_theFrame, txt)
-        except:
-            txt = "ERROR - failed to write output text to file: %s" %(toFile)
-            dump_sys_error_to_md_console_and_errorlog()
-            myPopupInformationBox(_theFrame, txt)
-
-        filename.dispose(); del filename
-
-    try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: pass
-
-    ####################################################################################################################
-    # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
-    _IN2MM = 25.4; _IN2CM = 2.54; _IN2PT = 72
-    def pt2dpi(_pt,_resolution):    return _pt * _resolution / _IN2PT
-    def mm2pt(_mm):                 return _mm * _IN2PT / _IN2MM
-    def mm2mpt(_mm):                return _mm * 1000 * _IN2PT / _IN2MM
-    def pt2mm(_pt):                 return round(_pt * _IN2MM / _IN2PT, 1)
-    def mm2in(_mm):                 return _mm / _IN2MM
-    def in2mm(_in):                 return _in * _IN2MM
-    def in2mpt(_in):                return _in * _IN2PT * 1000
-    def in2pt(_in):                 return _in * _IN2PT
-    def mpt2in(_mpt):               return _mpt / _IN2PT / 1000
-    def mm2px(_mm, _resolution):    return mm2in(_mm) * _resolution
-    def mpt2px(_mpt, _resolution):  return mpt2in(_mpt) * _resolution
-
-    def printDeducePrintableWidth(_thePageFormat, _pAttrs):
-
-        _BUFFER_PCT = 0.95
-
-        myPrint("DB", "PageFormat after user dialog: Portrait=%s Landscape=%s W: %sMM(%spts) H: %sMM(%spts) Paper: %s Paper W: %sMM(%spts) H: %sMM(%spts)"
-                %(_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT, _thePageFormat.getOrientation()==_thePageFormat.LANDSCAPE,
-                  pt2mm(_thePageFormat.getWidth()),_thePageFormat.getWidth(), pt2mm(_thePageFormat.getHeight()),_thePageFormat.getHeight(),
-                  _thePageFormat.getPaper(),
-                  pt2mm(_thePageFormat.getPaper().getWidth()), _thePageFormat.getPaper().getWidth(), pt2mm(_thePageFormat.getPaper().getHeight()), _thePageFormat.getPaper().getHeight()))
-
-        if _pAttrs.get(attribute.standard.MediaSizeName):
-            myPrint("DB", "Requested Media: %s" %(_pAttrs.get(attribute.standard.MediaSizeName)))
-
-        if not _pAttrs.get(attribute.standard.MediaPrintableArea):
-            raise Exception("ERROR: MediaPrintableArea not present in pAttrs!?")
-
-        mediaPA = _pAttrs.get(attribute.standard.MediaPrintableArea)
-        myPrint("DB", "MediaPrintableArea settings from Printer Attributes..: w%sMM h%sMM MediaPrintableArea: %s, getPrintableArea: %s "
-                % (mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM),
-                   mediaPA.getHeight(attribute.standard.MediaPrintableArea.MM),
-                   mediaPA, mediaPA.getPrintableArea(attribute.standard.MediaPrintableArea.MM)))
-
-        if (_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT):
-            deducedWidthMM = mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM)
-        elif (_thePageFormat.getOrientation()==_thePageFormat.LANDSCAPE):
-            deducedWidthMM = mediaPA.getHeight(attribute.standard.MediaPrintableArea.MM)
-        else:
-            raise Exception("ERROR: thePageFormat.getOrientation() was not PORTRAIT or LANDSCAPE!?")
-
-        myPrint("DB","Paper Orientation: %s" %("LANDSCAPE" if _thePageFormat.getOrientation()==_thePageFormat.LANDSCAPE else "PORTRAIT"))
-
-        _maxPaperWidthPTS = mm2px(deducedWidthMM, GlobalVars.defaultDPI)
-        _maxPaperWidthPTS_buff = _maxPaperWidthPTS * _BUFFER_PCT
-
-        myPrint("DB", "MediaPrintableArea: deduced printable width: %sMM(%sPTS) (using factor of *%s = %sPTS)" %(round(deducedWidthMM,1), round(_maxPaperWidthPTS,1), _BUFFER_PCT, _maxPaperWidthPTS_buff))
-        return deducedWidthMM, _maxPaperWidthPTS, _maxPaperWidthPTS_buff
-
-    def loadDefaultPrinterAttributes(_pAttrs=None):
-
-        if _pAttrs is None:
-            _pAttrs = attribute.HashPrintRequestAttributeSet()
-        else:
-            _pAttrs.clear()
-
-        # Refer: https://docs.oracle.com/javase/7/docs/api/javax/print/attribute/standard/package-summary.html
-        _pAttrs.add(attribute.standard.DialogTypeSelection.NATIVE)
-        _pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
-        _pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
-        _pAttrs.add(attribute.standard.JobSheets.NONE)
-        _pAttrs.add(attribute.standard.Copies(1))
-        _pAttrs.add(attribute.standard.PrintQuality.NORMAL)
-
-        return _pAttrs
-
-    def printOutputFile(_callingClass=None, _theTitle=None, _theJText=None, _theString=None):
-
-        # Possible future modification, leverage MDPrinter, and it's classes / methods to save/load preferences and create printers
-        try:
-            if _theJText is None and _theString is None: return
-            if _theJText is not None and len(_theJText.getText()) < 1: return
-            if _theString is not None and len(_theString) < 1: return
-
-            # Make a new one for printing
-            if _theJText is not None:
-                printJTextArea = JTextArea(_theJText.getText())
-            else:
-                printJTextArea = JTextArea(_theString)
-
-            printJTextArea.setEditable(False)
-            printJTextArea.setLineWrap(True)    # As we are reducing the font size so that the width fits the page width, this forces any remainder to wrap
-            # if _callingClass is not None: printJTextArea.setLineWrap(_callingClass.lWrapText)  # Mirror the word wrap set by user
-            printJTextArea.setWrapStyleWord(False)
-            printJTextArea.setOpaque(False); printJTextArea.setBackground(Color(0,0,0,0)); printJTextArea.setForeground(Color.BLACK)
-            printJTextArea.setBorder(EmptyBorder(0, 0, 0, 0))
-
-            # IntelliJ doesnt like the use of 'print' (as it's a keyword)
-            if "MD_REF" in globals():
-                usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
-            elif "moneydance" in globals():
-                usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
-            else:
-                usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
-
-            theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
-            theFontToUse = theFontToUse.deriveFont(float(usePrintFontSize))
-            printJTextArea.setFont(theFontToUse)
-
-            def computeFontSize(_theComponent, _maxPaperWidth, _dpi):
-
-                # Auto shrink font so that text fits on one line when printing
-                # Note: Java seems to operate it's maths at 72DPI (so must factor that into the maths)
-                try:
-                    _DEFAULT_MIN_WIDTH = mm2px(100, _dpi)   # 100MM
-                    _minFontSize = 5                        # Below 5 too small
-                    theString = _theComponent.getText()
-                    _startingComponentFont = _theComponent.getFont()
-
-                    if not theString or len(theString) < 1: return -1
-
-                    fm = _theComponent.getFontMetrics(_startingComponentFont)
-                    _maxFontSize = curFontSize = _startingComponentFont.getSize()   # Max out at the MD default for print font size saved in preferences
-                    myPrint("DB","Print - starting font:", _startingComponentFont)
-                    myPrint("DB","... calculating.... The starting/max font size is:", curFontSize)
-
-                    maxLineWidthInFile = _DEFAULT_MIN_WIDTH
-                    longestLine = ""
-                    for line in theString.split("\n"):              # Look for the widest line adjusted for font style
-                        _w = pt2dpi(fm.stringWidth(line), _dpi)
-                        # myPrint("DB", "Found line (len: %s):" %(len(line)), line)
-                        # myPrint("DB", "...calculated length metrics: %s/%sPTS (%sMM)" %(fm.stringWidth(line), _w, pt2mm(_w)))
-                        if _w > maxLineWidthInFile:
-                            longestLine = line
-                            maxLineWidthInFile = _w
-                    myPrint("DB","longest line width %s chars; maxLineWidthInFile now: %sPTS (%sMM)" %(len(longestLine),maxLineWidthInFile, pt2mm(maxLineWidthInFile)))
-
-                    # Now shrink the font size to fit.....
-                    while (pt2dpi(fm.stringWidth(longestLine) + 5,_dpi) > _maxPaperWidth):
-                        myPrint("DB","At font size: %s; (pt2dpi(fm.stringWidth(longestLine) + 5,_dpi):" %(curFontSize), (pt2dpi(fm.stringWidth(longestLine) + 5,_dpi)), pt2mm(pt2dpi(fm.stringWidth(longestLine) + 5,_dpi)), "MM", " >> max width:", _maxPaperWidth)
-                        curFontSize -= 1
-                        fm = _theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curFontSize))
-                        myPrint("DB","... next will be: at font size: %s; (pt2dpi(fm.stringWidth(longestLine) + 5,_dpi):" %(curFontSize), (pt2dpi(fm.stringWidth(longestLine) + 5,_dpi)), pt2mm(pt2dpi(fm.stringWidth(longestLine) + 5,_dpi)), "MM")
-
-                        myPrint("DB","... calculating.... length of line still too long... reducing font size to:", curFontSize)
-                        if curFontSize < _minFontSize:
-                            myPrint("DB","... calculating... Next font size is too small... exiting the reduction loop...")
-                            break
-
-                    if not Platform.isMac():
-                        curFontSize -= 1   # For some reason, sometimes on Linux/Windows still too big....
-                        myPrint("DB","..knocking 1 off font size for good luck...! Now: %s" %(curFontSize))
-
-                    # Code to increase width....
-                    # while (pt2dpi(fm.stringWidth(theString) + 5,_dpi) < _maxPaperWidth):
-                    #     curSize += 1
-                    #     fm = _theComponent.getFontMetrics(Font(_startingComponentFont.getName(), _startingComponentFont.getStyle(), curSize))
-
-                    curFontSize = max(_minFontSize, curFontSize); curFontSize = min(_maxFontSize, curFontSize)
-                    myPrint("DB","... calculating.... Adjusted final font size to:", curFontSize)
-
-                except:
-                    myPrint("B", "ERROR: computeFontSize() crashed?"); dump_sys_error_to_md_console_and_errorlog()
-                    return -1
-                return curFontSize
-
-            myPrint("DB", "Creating new PrinterJob...")
-            printer_job = PrinterJob.getPrinterJob()
-
-            if GlobalVars.defaultPrintService is not None:
-                printer_job.setPrintService(GlobalVars.defaultPrintService)
-                myPrint("DB","Assigned remembered PrintService...: %s" %(printer_job.getPrintService()))
-
-            if GlobalVars.defaultPrinterAttributes is not None:
-                pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
-            else:
-                pAttrs = loadDefaultPrinterAttributes(None)
-
-            pAttrs.remove(attribute.standard.JobName)
-            pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), _theTitle), None))
-
-            if GlobalVars.defaultDPI != 72:
-                pAttrs.remove(attribute.standard.PrinterResolution)
-                pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
-
-            for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes before user dialog: %s:%s" %(atr.getName(), atr))
-
-            if not printer_job.printDialog(pAttrs):
-                myPrint("DB","User aborted the Print Dialog setup screen, so exiting...")
-                return
-
-            selectedPrintService = printer_job.getPrintService()
-            myPrint("DB", "User selected print service:", selectedPrintService)
-
-            thePageFormat = printer_job.getPageFormat(pAttrs)
-
-            # .setPrintable() seems to modify pAttrs & adds MediaPrintableArea. Do this before printDeducePrintableWidth()
-            header = MessageFormat(_theTitle)
-            footer = MessageFormat("- page {0} -")
-            printer_job.setPrintable(printJTextArea.getPrintable(header, footer), thePageFormat)
-
-            for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes **AFTER** user dialog (and setPrintable): %s:%s" %(atr.getName(), atr))
-
-            deducedWidthMM, maxPaperWidthPTS, maxPaperWidthPTS_buff = printDeducePrintableWidth(thePageFormat, pAttrs)
-
-            if _callingClass is None or not _callingClass.lWrapText:
-
-                newFontSize = computeFontSize(printJTextArea, int(maxPaperWidthPTS), GlobalVars.defaultDPI)
-
-                if newFontSize > 0:
-                    theFontToUse = theFontToUse.deriveFont(float(newFontSize))
-                    printJTextArea.setFont(theFontToUse)
-
-            # avoiding Intellij errors
-            eval("printJTextArea.print(header, footer, False, selectedPrintService, pAttrs, True)")
-            del printJTextArea
-
-            myPrint("DB", "Saving current print service:", printer_job.getPrintService())
-            GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
-            GlobalVars.defaultPrintService = printer_job.getPrintService()
-
-        except:
-            myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
-        return
-
-    def pageSetup():
-
-        myPrint("DB","Printer Page setup routines..:")
-
-        myPrint("DB", 'NOTE: A4        210mm x 297mm	8.3" x 11.7"	Points: w595 x h842')
-        myPrint("DB", 'NOTE: Letter    216mm x 279mm	8.5" x 11.0"	Points: w612 x h791')
-
-        pj = PrinterJob.getPrinterJob()
-
-        # Note: PrintService is not used/remembered/set by .pageDialog
-
-        if GlobalVars.defaultPrinterAttributes is not None:
-            pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
-        else:
-            pAttrs = loadDefaultPrinterAttributes(None)
-
-        for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes before Page Setup: %s:%s" %(atr.getName(), atr))
-
-        if not pj.pageDialog(pAttrs):
-            myPrint("DB", "User cancelled Page Setup - exiting...")
-            return
-
-        for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes **AFTER** Page Setup: %s:%s" %(atr.getName(), atr))
-
-        if debug: printDeducePrintableWidth(pj.getPageFormat(pAttrs), pAttrs)
-
-        myPrint("DB", "Printer selected: %s" %(pj.getPrintService()))
-
-        GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
-        myPrint("DB", "Printer Attributes saved....")
-
-        return
-
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True):
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
             self.returnFrame = None
             self.copyToClipboard = copyToClipboard
-            self.lJumpToEnd = lJumpToEnd
-            self.lWrapText = lWrapText
 
         class CloseAction(AbstractAction):
 
@@ -1790,63 +1429,7 @@ Visit: %s (Author's site)
 
                 # Already within the EDT
                 self.theFrame.dispose()
-
-        class ToggleWrap(AbstractAction):
-
-            def __init__(self, theCallingClass, theJText):
-                self.theCallingClass = theCallingClass
-                self.theJText = theJText
-
-            def actionPerformed(self, event):
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
-                self.theCallingClass.lWrapText = not self.theCallingClass.lWrapText
-                self.theJText.setLineWrap(self.theCallingClass.lWrapText)
-
-        class QuickJFrameNavigate(AbstractAction):
-
-            def __init__(self, theJText, lTop=False, lBottom=False):
-                self.theJText = theJText
-                self.lTop = lTop
-                self.lBottom = lBottom
-
-            def actionPerformed(self, event):
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
-                if self.lBottom: self.theJText.setCaretPosition(self.theJText.getDocument().getLength())
-                if self.lTop:    self.theJText.setCaretPosition(0)
-
-        class QuickJFramePrint(AbstractAction):
-
-            def __init__(self, theCallingClass, theJText, theTitle=""):
-                self.theCallingClass = theCallingClass
-                self.theJText = theJText
-                self.theTitle = theTitle
-
-            def actionPerformed(self, event):
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
-                printOutputFile(_callingClass=self.theCallingClass, _theTitle=self.theTitle, _theJText=self.theJText)
-
-        class QuickJFramePageSetup(AbstractAction):
-
-            def __init__(self): pass
-
-            # noinspection PyMethodMayBeStatic
-            def actionPerformed(self, event):
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-                pageSetup()
-
-        class QuickJFrameSaveTextToFile(AbstractAction):
-
-            def __init__(self, theText, callingFrame):
-                self.theText = theText
-                self.callingFrame = callingFrame
-
-            def actionPerformed(self, event):
-                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
-                saveOutputFile(self.callingFrame, "QUICKJFRAME", "toolbox_output.txt", self.theText)
+                return
 
         def show_the_frame(self):
             global debug
@@ -1878,17 +1461,15 @@ Visit: %s (Author's site)
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F,  shortcut), "search-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "print-me")
 
                     theJText = JTextArea(self.callingClass.output)
                     theJText.setEditable(False)
-                    theJText.setLineWrap(self.callingClass.lWrapText)
-                    theJText.setWrapStyleWord(False)
+                    theJText.setLineWrap(True)
+                    theJText.setWrapStyleWord(True)
                     theJText.setFont( getMonoFont() )
 
                     jInternalFrame.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAction(jInternalFrame))
                     jInternalFrame.getRootPane().getActionMap().put("search-window", SearchAction(jInternalFrame,theJText))
-                    jInternalFrame.getRootPane().getActionMap().put("print-me", self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
 
                     internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
@@ -1903,86 +1484,13 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
-                    printButton = JButton("Print")
-                    printButton.setToolTipText("Prints the output displayed in this window to your printer")
-                    printButton.setOpaque(True)
-                    printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
-                    printButton.addActionListener(self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
-
-                    if GlobalVars.defaultPrinterAttributes is None:
-                        printPageSetup = JButton("Page Setup")
-                        printPageSetup.setToolTipText("Printer Page Setup")
-                        printPageSetup.setOpaque(True)
-                        printPageSetup.setBackground(Color.WHITE); printPageSetup.setForeground(Color.BLACK)
-                        printPageSetup.addActionListener(self.callingClass.QuickJFramePageSetup())
-
-                    saveButton = JButton("Save to file")
-                    saveButton.setToolTipText("Saves the output displayed in this window to a file")
-                    saveButton.setOpaque(True)
-                    saveButton.setBackground(Color.WHITE); saveButton.setForeground(Color.BLACK)
-                    saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
-
-                    wrapOption = JCheckBox("Wrap Contents (Screen & Print)", self.callingClass.lWrapText)
-                    wrapOption.addActionListener(self.callingClass.ToggleWrap(self.callingClass, theJText))
-
-                    topButton = JButton("Top")
-                    topButton.setOpaque(True)
-                    topButton.setBackground(Color.WHITE); topButton.setForeground(Color.BLACK)
-                    topButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lTop=True))
-
-                    botButton = JButton("Bottom")
-                    botButton.setOpaque(True)
-                    botButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
-                    botButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lBottom=True))
-
-                    closeButton = JButton("Close")
-                    closeButton.setOpaque(True)
-                    closeButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
-                    closeButton.addActionListener(self.callingClass.CloseAction(jInternalFrame))
-
-                    if Platform.isOSX():
-                        save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
-                        if save_useScreenMenuBar is None or save_useScreenMenuBar == "":
-                            save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
-                        System.setProperty("apple.laf.useScreenMenuBar", "false")
-                        System.setProperty("com.apple.macos.useScreenMenuBar", "false")
-                    else:
-                        save_useScreenMenuBar = "true"
-
-                    mb = JMenuBar()
-                    mb.setBorder(EmptyBorder(0, 0, 0, 0))
-                    mb.add(Box.createRigidArea(Dimension(10, 0)))
-                    mb.add(topButton)
-                    mb.add(Box.createRigidArea(Dimension(10, 0)))
-                    mb.add(botButton)
-                    mb.add(Box.createHorizontalGlue())
-                    mb.add(wrapOption)
-
-                    if GlobalVars.defaultPrinterAttributes is None:
-                        mb.add(Box.createRigidArea(Dimension(10, 0)))
-                        mb.add(printPageSetup)                                                                          # noqa
-
-                    mb.add(Box.createHorizontalGlue())
-                    mb.add(printButton)
-                    mb.add(Box.createRigidArea(Dimension(10, 0)))
-                    mb.add(saveButton)
-                    mb.add(Box.createRigidArea(Dimension(10, 0)))
-                    mb.add(closeButton)
-                    mb.add(Box.createRigidArea(Dimension(30, 0)))
-
-                    jInternalFrame.setJMenuBar(mb)
-
                     jInternalFrame.add(internalScrollPane)
 
                     jInternalFrame.pack()
                     jInternalFrame.setLocationRelativeTo(None)
                     jInternalFrame.setVisible(True)
 
-                    if Platform.isOSX():
-                        System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
-                        System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
-
-                    if "errlog.txt" in self.callingClass.title or self.callingClass.lJumpToEnd:
+                    if "errlog.txt" in self.callingClass.title:
                         theJText.setCaretPosition(theJText.getDocument().getLength())
 
                     try:
@@ -2051,7 +1559,7 @@ Visit: %s (Author's site)
 
                     aboutPanel=JPanel()
                     aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
-                    aboutPanel.setPreferredSize(Dimension(1120, 525))
+                    aboutPanel.setPreferredSize(Dimension(1120, 500))
 
                     _label1 = JLabel(pad("Author: Stuart Beesley", 800))
                     _label1.setForeground(Color.BLUE)
@@ -2060,10 +1568,6 @@ Visit: %s (Author's site)
                     _label2 = JLabel(pad("StuWareSoftSystems (2020-2021)", 800))
                     _label2.setForeground(Color.BLUE)
                     aboutPanel.add(_label2)
-
-                    _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(myScriptName, version_build), 800))
-                    _label3.setForeground(Color.BLUE)
-                    aboutPanel.add(_label3)
 
                     displayString=scriptExit
                     displayJText = JTextArea(displayString)
@@ -2092,46 +1596,21 @@ Visit: %s (Author's site)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def isGoodRate(theRate):
+    def cleanup_actions(theFrame=None):
+        myPrint("DB", "In", inspect.currentframe().f_code.co_name, "()")
+        myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-        if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
-            return False
+        if theFrame is not None and not theFrame.isActiveInMoneydance:
+            destroyOldFrames(myModuleID)
 
-        return True
+        try:
+            MD_REF.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
+        except:
+            pass  # If this fails, then MD is probably shutting down.......
 
-    def safeInvertRate(theRate):
+        if not i_am_an_extension_so_run_headless: print(scriptExit)
 
-        if not isGoodRate(theRate):
-            return theRate
-
-        return (1.0 / theRate)
-
-    def checkCurrencyRawRatesOK(theCurr):
-
-        checkRate = theCurr.getParameter("rate", None)
-        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
-        checkRRate = theCurr.getParameter("rrate", None)
-        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
-
-        if checkRate is None or not isGoodRate(checkRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        if checkRRate is None or not isGoodRate(checkRRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        return True
-
-    def check_all_currency_raw_rates_ok(filterType=None):
-
-        _currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
-        for _curr in _currs:
-            if filterType and _curr.getCurrencyType() != filterType: continue
-            if not checkCurrencyRawRatesOK(_curr):
-                return False
-
-        return True
+        cleanup_references()
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -2150,7 +1629,7 @@ Visit: %s (Author's site)
         pass
         return
 
-    get_StuWareSoftSystems_parameters_from_file()
+    # get_StuWareSoftSystems_parameters_from_file()
 
     # clear up any old left-overs....
     destroyOldFrames(myModuleID)
@@ -2162,27 +1641,18 @@ Visit: %s (Author's site)
     else:
         myPrint("DB", "FYI - This script/extension is NOT currently running within the Swing Event Dispatch Thread (EDT)")
 
-    def cleanup_actions(theFrame=None):
-        myPrint("DB", "In", inspect.currentframe().f_code.co_name, "()")
-        myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-
-        if theFrame is not None and not theFrame.isActiveInMoneydance:
-            destroyOldFrames(myModuleID)
-
-        try:
-            MD_REF.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
-        except:
-            pass  # If this fails, then MD is probably shutting down.......
-
-        if not i_am_an_extension_so_run_headless: print(scriptExit)
-
-        cleanup_references()
-
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
-    MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
+    MD_REF.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
+
+    def createNewClientUID():
+        uid = UUID.randomUUID().toString()
+        uid = StringUtils.replaceAll(uid, "-", "").trim()
+        if (uid.length() > 32):
+            uid = uid.substring(0, 32)
+        return uid
 
     def isUserEncryptionPassphraseSet():
 
@@ -2227,11 +1697,6 @@ Visit: %s (Author's site)
                 else:
                     return True
 
-            if self.selectType == 3:
-                # noinspection PyUnresolvedReferences
-                if not (acct.getAccountType() == Account.AccountType.BANK or acct.getAccountType() == Account.AccountType.CREDIT_CARD):
-                    return False
-
             if (acct.getAccountOrParentIsInactive()): return False
             if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
 
@@ -2254,7 +1719,7 @@ Visit: %s (Author's site)
                 return "Invalid Acct Obj or None"
             return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
 
-    if not myPopupAskQuestion(None, "BACKUP", "CREATE A NEW (CUSTOM) USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
+    if not myPopupAskQuestion(None, "BACKUP", "CREATE A NEW (CUSTOM) NCSECU PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
         alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
@@ -2264,22 +1729,18 @@ Visit: %s (Author's site)
         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
-    ask = MyPopUpDialogBox(None, "This script will delete your existing USAA bank profile(s) and CREATE A BRAND NEW CUSTOM USAA PROFILE:",
-                           "Get the latest useful_scripts.zip package from: %s \n"
-                           "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
-                           "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
+    ask = MyPopUpDialogBox(None, "This script will delete your existing NCSECU bank profile(s) and CREATE A BRAND NEW CUSTOM NCSECU PROFILE:",
+                           "Get the latest useful_scripts.zip package from: https://yogi1967.github.io/MoneydancePythonScripts/ \n"
+                           "Read the latest walk through guide: ofx_create_new_secu_bank_custom_profile.pdf\n"
+                           "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_secu_bank_custom_profile.pdf\n\n"
                            "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
-                           "It will also allow you to 'prime' a second additional set of credentials for setup later [optional]\n\n"
-                           "> You login to USAA at https://www.usaa.com/accessid to get your 'Quicken user' credentials.\n"
-                           "> This is also where you find your clientUid (UUID) hidden within the browser url (BEFORE you click approve Quicken access)\n\n"
                            "This script will ask you for many numbers. You must know them:\n"
-                           "- Do you know your new Bank Supplied UUID (36 digits 8-4-4-4-12)?\n"
-                           "- Do you know your Bank supplied UserID (min length 8)?\n"
-                           "- Do you know your new Password (min length 6) - no longer a PIN?\n"
-                           "- Do you know your Bank Account Number(s) (10-digits) and routing Number (9-digits - usually '314074269')?\n"
-                           "- Do you know the DIFFERENT Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
+                           "- Do you know your Bank supplied UserID (min length 7)?\n"
+                           "- Do you know your Pin/Password (min length 4)?\n"
+                           "- Do you know your Bank Account Number and routing Number (9-digits - usually '253177049')?\n"
+                           "- Do you know your Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
                            "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
-                           "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL),
+                           "IF NOT, STOP AND GATHER ALL INFORMATION",
                            250,"KNOWLEDGE",
                            lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
     if not ask.go():
@@ -2299,42 +1760,45 @@ Visit: %s (Author's site)
     lOverrideRootUUID = False
     lMultiAccountSetup = False
 
-    prime_options = ["NO (Skip this)", "YES - PRIME SECOND ACCOUNT"]
-    theResult = JOptionPane.showOptionDialog(None,
-                                          "Do you have multiple DIFFERENT credentials where you wish to 'prime' the default UUID into (Root's) profile?",
-                                          "MULTI-ACCOUNTS",
-                                             JOptionPane.YES_NO_OPTION,
-                                             JOptionPane.QUESTION_MESSAGE,
-                                             None,
-                                             prime_options,
-                                             prime_options[0])
-    if theResult > 0:
-        lMultiAccountSetup = True
-        myPrint("B","Will setup multi-accounts too.... ")
-
-        # prime_options = ["NO (Skip this)","YES - SET GLOBAL DEFAULT ROOT UUID"]
-        # theResult = JOptionPane.showOptionDialog(None,
-        #                                          "Do you also wish to override Root's (global) default UUID with the one you specify?",
-        #                                          "OVERRIDE ROOT DEFAULT UUID",
-        #                                          JOptionPane.YES_NO_OPTION,
-        #                                          JOptionPane.QUESTION_MESSAGE,
-        #                                          None,
-        #                                          prime_options,
-        #                                          prime_options[0])
-        # if theResult > 0:
-        #     lOverrideRootUUID = True
-        #     myPrint("B","Will also override Root UUID too.... ")
-        # else:
-        #     myPrint("B","User declined NOT to prime the global Root Default UUID...")
-    else:
-        myPrint("B","User selected NOT to prime for multiple-accounts...")
+    # options = ["NO (Skip this)","YES - PRIME SECOND ACCOUNT"]
+    # theResult = JOptionPane.showOptionDialog(None,
+    #                                       "Do you have multiple DIFFERENT credentials where you wish to 'prime' the default UUID into (Root's) profile?",
+    #                                       "MULTI-ACCOUNTS",
+    #                                        JOptionPane.YES_NO_OPTION,
+    #                                        JOptionPane.QUESTION_MESSAGE,
+    #                                        None,
+    #                                        options,
+    #                                        options[0])
+    # if theResult > 0:
+    #     lMultiAccountSetup = True
+    #     myPrint("B","Will setup multi-accounts too.... ")
+    #
+    #     # options = ["NO (Skip this)","YES - SET GLOBAL DEFAULT ROOT UUID"]
+    #     # theResult = JOptionPane.showOptionDialog(None,
+    #     #                                          "Do you also wish to override Root's (global) default UUID with the one you specify?",
+    #     #                                          "OVERRIDE ROOT DEFAULT UUID",
+    #     #                                          JOptionPane.YES_NO_OPTION,
+    #     #                                          JOptionPane.QUESTION_MESSAGE,
+    #     #                                          None,
+    #     #                                          options,
+    #     #                                          options[0])
+    #     # if theResult > 0:
+    #     #     lOverrideRootUUID = True
+    #     #     myPrint("B","Will also override Root UUID too.... ")
+    #     # else:
+    #     #     myPrint("B","User declined NOT to prime the global Root Default UUID...")
+    # else:
+    #     myPrint("B","User selected NOT to prime for multiple-accounts...")
+    #
 
     serviceList = MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices()  # type: [OnlineService]
 
-    USAA_FI_ID = "67811"
-    USAA_FI_ORG = "USAA Federal Savings Bank"
-    USAA_PROFILE_NAME = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
-    OLD_TIK_FI_ID = "md:1295"
+    SECU_FI_ID = "1001"
+    SECU_FI_ORG = "SECU"
+    SECU_PROFILE_NAME = "NCSECU Custom Profile (ofx_create_new_secu_bank_profile_custom.py)"
+    OLD_TIK_FI_ID = "md:1262"
+    SECU_BOOTSTRAP = "https://onlineaccess.ncsecu.org/secuofx/secu.ofx"
+    SECU_ACCT_LENGTH = 7
 
     authKeyPrefix = "ofx.client_uid"
 
@@ -2344,10 +1808,10 @@ Visit: %s (Author's site)
     deleteServices = []
     for svc in serviceList:
         if (svc.getTIKServiceID() == OLD_TIK_FI_ID
-                or svc.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
-                or "USAA" in svc.getFIOrg()
-                or "USAA" in svc.getFIName()):
-            myPrint("B", "Found USAA service - to delete: %s" %(svc))
+                or svc.getServiceId() == ":%s:%s" %(SECU_FI_ORG, SECU_FI_ID)
+                or "SECU" in svc.getFIOrg()
+                or "SECU" in svc.getFIName()):
+            myPrint("B", "Found NCSECU service - to delete: %s" %(svc))
             deleteServices.append(svc)
 
     root = MD_REF.getRootAccount()
@@ -2355,10 +1819,10 @@ Visit: %s (Author's site)
     lRootNeedsSync = False
 
     if len(deleteServices) < 1:
-        myPrint("B", "No USAA services / profile found to delete...")
+        myPrint("B", "No NCSECU services / profile found to delete...")
     else:
-        if not myPopupAskQuestion(None, "DELETE OLD SERVICES", "OK TO DELETE %s OLD USAA SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
-            alert = "ERROR - User declined to delete %s old USAA service profiles - no changes made" %(len(deleteServices))
+        if not myPopupAskQuestion(None, "DELETE OLD SERVICES", "OK TO DELETE %s OLD NCSECU SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
+            alert = "ERROR - User declined to delete %s old NCSECU service profiles - no changes made" %(len(deleteServices))
             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         else:
@@ -2373,24 +1837,25 @@ Visit: %s (Author's site)
                         a.setBankingFI(None)
                         a.setBillPayFI(None)
                         a.syncItem()
+
                 myPrint("B", "Clearing authentication cache from %s" %s)
                 s.clearAuthenticationCache()
 
-                # Clean up root here - as with custom profiles the UUID sets stored instead of the TIK ID which can be identified later....
-                if s.getTIKServiceID() != OLD_TIK_FI_ID:  # Thus we presume it's our own custom profile
-                    for i in range(0,len(rootKeys)):
-                        rk = rootKeys[i]
-                        if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
-                            myPrint("B", "Deleting old authKey associated with this profile (from Root) %s: %s" %(rk,root.getParameter(rk)))
-
-                            if not lRootNeedsSync:
-                                myPrint("B",".. triggering .setEditingMode() on root...")
-                                root.setEditingMode()
-
-                            root.setParameter(rk, None)
-                            lRootNeedsSync = True
-                        i+=1
-
+                # # Clean up root here - as with custom profiles the UUID sets stored instead of the TIK ID which can be identified later....
+                # if s.getTIKServiceID() != OLD_TIK_FI_ID:  # Thus we presume it's our own custom profile
+                #     for i in range(0,len(rootKeys)):
+                #         rk = rootKeys[i]
+                #         if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
+                #             myPrint("B", "Deleting old authKey associated with this profile (from Root) %s: %s" %(rk,root.getParameter(rk)))
+                #
+                #             if not lRootNeedsSync:
+                #                 myPrint("B",".. triggering .setEditingMode() on root...")
+                #                 root.setEditingMode()
+                #
+                #             root.setParameter(rk, None)
+                #             lRootNeedsSync = True
+                #         i+=1
+                #
                 myPrint("B", "Deleting profile %s" %s)
                 s.deleteItem()
                 myPopupInformationBox(None,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
@@ -2434,6 +1899,7 @@ Visit: %s (Author's site)
     del invalidBankingLinks, invalidBillPayLinks, accounts
     ####################################################################################################################
 
+    # BANK ACCOUNT
     selectedBankAccount = selectedCCAccount = None
 
     accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(0))
@@ -2537,50 +2003,51 @@ Visit: %s (Author's site)
 
     ####################################################################################################################
 
-    dummy = "12345678-1111-1111-1111-123456789012"
-
-    defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
-    while True:
-        uuid = myPopupAskForInput(None, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
-        myPrint("B", "UUID entered: %s" %uuid)
-        if uuid is None:
-            alert = "ERROR - No uuid entered! Aborting"
-            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-            raise Exception(alert)
-        defaultEntry = uuid
-        if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
-                (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
-            myPrint("B", "\n ** ERROR - no valid uuid supplied - try again ** \n")
-            continue
-        break
-    del defaultEntry
+    # dummy = "12345678-1111-1111-1111-123456789012"
+    #
+    # defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+    # while True:
+    #     uuid = myPopupAskForInput(None, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+    #     myPrint("B", "UUID entered: %s" %uuid)
+    #     if uuid is None:
+    #         alert = "ERROR - No uuid entered! Aborting"
+    #         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #         raise Exception(alert)
+    #     defaultEntry = uuid
+    #     if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+    #             (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
+    #         myPrint("B", "\n ** ERROR - no valid uuid supplied - try again ** \n")
+    #         continue
+    #     break
+    # del defaultEntry
+    #
 
     defaultEntry = "UserID"
     while True:
-        userID = myPopupAskForInput(None, "UserID", "UserID", "Type/Paste your UserID (min length 8) very carefully", defaultEntry)
+        userID = myPopupAskForInput(None, "UserID", "UserID", "Type/Paste your UserID (min length 7) very carefully", defaultEntry)
         myPrint("B", "userID entered: %s" %userID)
         if userID is None:
             alert = "ERROR - no userID supplied! Aborting"
             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = userID
-        if userID is None or userID == "" or userID == "UserID" or len(userID)<8:
+        if userID is None or userID == "" or userID == "UserID" or len(userID)<7:
             myPrint("B", "\n ** ERROR - no valid userID supplied - try again ** \n")
             continue
         break
     del defaultEntry
 
-    defaultEntry = "*****"
+    defaultEntry = "***"
     while True:
-        password = myPopupAskForInput(None, "password", "password", "Type/Paste your Password (min length 6) very carefully", defaultEntry)
-        myPrint("B", "password entered: %s" %password)
+        password = myPopupAskForInput(None, "Pin/Password", "Pin/Password", "Type/Paste your Pin/Password (min length 4) very carefully", defaultEntry)
+        myPrint("B", "Pin/Password entered: %s" %password)
         if password is None:
-            alert = "ERROR - no password supplied! Aborting"
+            alert = "ERROR - no Pin/Password supplied! Aborting"
             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
             raise Exception(alert)
         defaultEntry = password
-        if password is None or password == "" or password == "*****" or len(password) < 6:
-            myPrint("B", "\n ** ERROR - no password supplied - try again ** \n")
+        if password is None or password == "" or password == "***" or len(password) < 4:
+            myPrint("B", "\n ** ERROR - no Pin/Password supplied - try again ** \n")
             continue
         break
     del defaultEntry
@@ -2600,8 +2067,8 @@ Visit: %s (Author's site)
 
         route = selectedBankAccount.getOFXBankID()                      # noqa
         if route == "" or len(route) != 9:
-            route = "314074269"
-        routID = myPopupAskForInput(None, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '314074269')- very carefully", route)
+            route = "253177049"
+        routID = myPopupAskForInput(None, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '253177049')- very carefully", route)
         if routID is None or routID == "" or len(routID) != 9:
             alert = "ERROR - invalid Routing supplied - Aborting"
             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -2614,7 +2081,7 @@ Visit: %s (Author's site)
     if selectedCCAccount:
         while True:
             ccAccount = selectedCCAccount.getBankAccountNumber()        # noqa
-            ccID = myPopupAskForInput(None, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 16) very carefully", ccAccount)
+            ccID = myPopupAskForInput(None, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 15/16) very carefully", ccAccount)
             myPrint("B", "existing CC number:      %s" %ccAccount)
             myPrint("B", "ccID entered:            %s" %ccID)
             if ccID is None:
@@ -2622,172 +2089,212 @@ Visit: %s (Author's site)
                 myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
                 raise Exception(alert)
             if ccID is None or ccID == "" or len(ccID) < 15 or len(ccID) > 16:
-                myPrint("B", "\n ** ERROR - no valid ccID supplied! Please try again (Number should be 15 or 16 digits) ** \n")
+                myPrint("B", "\n ** ERROR - no valid ccID supplied! Please try again ** \n")
                 continue
             break
 
-        if ccID == ccAccount:
-            if not myPopupAskQuestion(None, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
-                alert = "ERROR - User aborted on keeping the CC the same"
-                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-                raise Exception(alert)
-        else:
-            if not myPopupAskQuestion(None, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
-                alert = "ERROR - User aborted on CC change"
-                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-                raise Exception(alert)
+        # if ccID == ccAccount:
+        #     if not myPopupAskQuestion(None, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
+        #         alert = "ERROR - User aborted on keeping the CC the same"
+        #         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        #         raise Exception(alert)
+        # else:
+        #     if not myPopupAskQuestion(None, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
+        #         alert = "ERROR - User aborted on CC change"
+        #         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        #         raise Exception(alert)
 
     del ccAccount, route, bankAccount
 
     ####################################################################################################################
 
-    if lMultiAccountSetup:
-        defaultEntry = uuid
-        while True:
-            uuid2 = myPopupAskForInput(None, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
-            myPrint("B", "UUID2 entered: %s" %uuid2)
-            if uuid2 is None:
-                alert = "ERROR - No uuid2 entered! Aborting"
-                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-                raise Exception(alert)
-            defaultEntry = uuid2
-            if (uuid2 is None or uuid2 == "" or len(uuid2) != 36 or uuid2 == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
-                    (str(uuid2)[8]+str(uuid2)[13]+str(uuid2)[18]+str(uuid2)[23]) != "----"):
-                myPrint("B", "\n ** ERROR - no valid uuid2 supplied - try again ** \n")
-                continue
-            break
-        del defaultEntry
-
-        defaultEntry = "UserID2"
-        while True:
-            userID2 = myPopupAskForInput(None, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
-            myPrint("B", "userID2 entered: %s" %userID2)
-            if userID2 is None:
-                alert = "ERROR - no userID2 supplied! Aborting"
-                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-                raise Exception(alert)
-            defaultEntry = userID2
-            if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
-                myPrint("B", "\n ** ERROR - no valid userID2 supplied - try again ** \n")
-                continue
-            break
-        del defaultEntry
+    # if lMultiAccountSetup:
+    #     defaultEntry = uuid
+    #     while True:
+    #         uuid2 = myPopupAskForInput(None, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
+    #         myPrint("B", "UUID2 entered: %s" %uuid2)
+    #         if uuid2 is None:
+    #             alert = "ERROR - No uuid2 entered! Aborting"
+    #             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             raise Exception(alert)
+    #         defaultEntry = uuid2
+    #         if (uuid2 is None or uuid2 == "" or len(uuid2) != 36 or uuid2 == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+    #                 (str(uuid2)[8]+str(uuid2)[13]+str(uuid2)[18]+str(uuid2)[23]) != "----"):
+    #             myPrint("B", "\n ** ERROR - no valid uuid2 supplied - try again ** \n")
+    #             continue
+    #         break
+    #     del defaultEntry
+    #
+    #     defaultEntry = "UserID2"
+    #     while True:
+    #         userID2 = myPopupAskForInput(None, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
+    #         myPrint("B", "userID2 entered: %s" %userID2)
+    #         if userID2 is None:
+    #             alert = "ERROR - no userID2 supplied! Aborting"
+    #             myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             raise Exception(alert)
+    #         defaultEntry = userID2
+    #         if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
+    #             myPrint("B", "\n ** ERROR - no valid userID2 supplied - try again ** \n")
+    #             continue
+    #         break
+    #     del defaultEntry
 
     ####################################################################################################################
 
     myPrint("B", "creating new service profile")
     book = MD_REF.getCurrentAccountBook()
     manualFIInfo = StreamTable()     # type: StreamTable
+
     manualFIInfo.put("obj_type",                                 "olsvc")
+
     manualFIInfo.put("access_type",                              "OFX")
-    manualFIInfo.put("app_id",                                   "QMOFX")
-    manualFIInfo.put("app_ver",                                  "2300")
+    manualFIInfo.put("app_id",                                   "QWIN")
+    manualFIInfo.put("app_ver",                                  "2700")
     manualFIInfo.put("bank_closing_avail",                       "0")
     manualFIInfo.put("bank_email_can_notify",                    "0")
-    manualFIInfo.put("bank_email_enabled",                       "0")
-    manualFIInfo.put("bootstrap_url",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("cc_closing_avail",                         "1")
-    manualFIInfo.put("date_avail_accts",                         "20210101120000")
-    manualFIInfo.put("fi_addr1",                                 "10750 McDermott Freeway")
+    manualFIInfo.put("bank_email_enabled",                       "1")
+
+    manualFIInfo.put("bank_xfr_can_mod_models",                  "0")
+    manualFIInfo.put("bank_xfr_can_mod_xfrs",                    "0")
+    manualFIInfo.put("bank_xfr_can_sched_recurring",             "0")
+    manualFIInfo.put("bank_xfr_can_sched_xfrs",                  "0")
+    manualFIInfo.put("bank_xfr_days_withdrawn",                  "0")
+    manualFIInfo.put("bank_xfr_default_days_to_pay",             "0")
+    manualFIInfo.put("bank_xfr_model_window",                    "0")
+    manualFIInfo.put("bank_xfr_needs_tan",                       "0")
+    manualFIInfo.put("bank_xfr_proc_end_time",                   "230000[0:GMT]")
+    manualFIInfo.put("bank_xfr_supports_dt_avail",               "0")
+
+    manualFIInfo.put("bootstrap_url",                            SECU_BOOTSTRAP)
+    manualFIInfo.put("cc_closing_avail",                         "0")
+    manualFIInfo.put("date_avail_accts",                         "20171128005611.653[0:GMT]")
+
+    manualFIInfo.put("email_mail_supported",                     "1")
+    manualFIInfo.put("email_supports_get_mime",                  "0")
+
+    manualFIInfo.put("fi_addr1",                                 "900 Wade Avenue")
     manualFIInfo.put("fi_addr2",                                 "")
     manualFIInfo.put("fi_addr3",                                 "")
-    manualFIInfo.put("fi_city",                                  "San Antonio")
+    manualFIInfo.put("fi_city",                                  "Raleigh")
     manualFIInfo.put("fi_country",                               "USA")
-    manualFIInfo.put("fi_cust_svc_phone",                        "877-820-8320")
-    manualFIInfo.put("fi_email",                                 "")
-    manualFIInfo.put("fi_id",                                    USAA_FI_ID)
-    manualFIInfo.put("fi_name",                                  USAA_PROFILE_NAME)
-    manualFIInfo.put("fi_org",                                   USAA_FI_ORG)
-    manualFIInfo.put("fi_state",                                 "TX")
-    manualFIInfo.put("fi_tech_svc_phone",                        "877-820-8320")
-    manualFIInfo.put("fi_url",                                   "www.usaa.com")
+    manualFIInfo.put("fi_cust_svc_phone",                        "8887328562")
+    manualFIInfo.put("fi_email",                                 "service@ncsecu.org")
+
+    manualFIInfo.put("fi_id",                                    SECU_FI_ID)
+    manualFIInfo.put("fi_name",                                  SECU_PROFILE_NAME)
+    manualFIInfo.put("fi_org",                                   SECU_FI_ORG)
+    manualFIInfo.put("fi_state",                                 "NC")
+
+    manualFIInfo.put("fi_tech_svc_phone",                        "")
+    manualFIInfo.put("fi_url",                                   "http://www.ncsecu.org")
     manualFIInfo.put("fi_url_is_redirect",                       "1")
-    manualFIInfo.put("fi_zip",                                   "78288")
+    manualFIInfo.put("fi_zip",                                   "27603")
+
     manualFIInfo.put("invst_dflt_broker_id",                     "")
+
     manualFIInfo.put("language_banking",                         "ENG")
     manualFIInfo.put("language_creditcard",                      "ENG")
     manualFIInfo.put("language_default",                         "ENG")
+    manualFIInfo.put("language_email",                           "ENG")
     manualFIInfo.put("language_fiprofile",                       "ENG")
     manualFIInfo.put("language_signup",                          "ENG")
-    manualFIInfo.put("last_fi_refresh",                          "1613781515886")
+    manualFIInfo.put("last_fi_refresh",                          "1612473805809")
+
     manualFIInfo.put("no_fi_refresh",                            "y")
-    manualFIInfo.put("ofx_version",                              "103")
-    manualFIInfo.put("ofxurl_banking",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("ofxurl_creditcard",                        "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("ofxurl_default",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("ofxurl_signup",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("realm_banking",                            "USAASignon")
-    manualFIInfo.put("realm_creditcard",                         "USAASignon")
-    manualFIInfo.put("realm_default",                            "USAASignon")
-    manualFIInfo.put("realm_fiprofile",                          "USAASignon")
-    manualFIInfo.put("realm_signup",                             "USAASignon")
+
+    manualFIInfo.put("ofx_version",                              "102")
+    manualFIInfo.put("ofxurl_banking",                           SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_creditcard",                        SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_default",                           SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_email",                             SECU_BOOTSTRAP)
+    manualFIInfo.put("ofxurl_signup",                            SECU_BOOTSTRAP)
+
+    manualFIInfo.put("realm_banking",                            "Realm1")
+    manualFIInfo.put("realm_creditcard",                         "Realm1")
+    manualFIInfo.put("realm_default",                            "Realm1")
+    manualFIInfo.put("realm_email",                              "Realm1")
+    manualFIInfo.put("realm_fiprofile",                          "Realm1")
+    manualFIInfo.put("realm_signup",                             "Realm1")
+
     manualFIInfo.put("rspnsfileerrors_banking",                  "1")
     manualFIInfo.put("rspnsfileerrors_creditcard",               "1")
     manualFIInfo.put("rspnsfileerrors_default",                  "1")
+    manualFIInfo.put("rspnsfileerrors_email",                    "1")
     manualFIInfo.put("rspnsfileerrors_fiprofile",                "1")
     manualFIInfo.put("rspnsfileerrors_signup",                   "1")
     manualFIInfo.put("securetransport_banking",                  "1")
     manualFIInfo.put("securetransport_creditcard",               "1")
     manualFIInfo.put("securetransport_default",                  "1")
+    manualFIInfo.put("securetransport_email",                    "1")
     manualFIInfo.put("securetransport_fiprofile",                "1")
     manualFIInfo.put("securetransport_signup",                   "1")
     manualFIInfo.put("security_banking",                         "NONE")
     manualFIInfo.put("security_creditcard",                      "NONE")
     manualFIInfo.put("security_default",                         "NONE")
+    manualFIInfo.put("security_email",                           "NONE")
     manualFIInfo.put("security_fiprofile",                       "NONE")
     manualFIInfo.put("security_signup",                          "NONE")
+
     manualFIInfo.put("signup_accts_avail",                       "1")
     manualFIInfo.put("signup_can_activate_acct",                 "0")
     manualFIInfo.put("signup_can_chg_user_info",                 "0")
     manualFIInfo.put("signup_can_preauth",                       "0")
-    manualFIInfo.put("signup_client_acct_num_req",               "1")
-    manualFIInfo.put("signup_via_client",                        "0")
-    manualFIInfo.put("signup_via_other",                         "1")
-    manualFIInfo.put("signup_via_other_msg",                     "Please contact the financial institution for the enrollment process.")
+    manualFIInfo.put("signup_client_acct_num_req",               "0")
+    manualFIInfo.put("signup_via_client",                        "1")
+    manualFIInfo.put("signup_via_other",                         "0")
+    manualFIInfo.put("signup_via_other_msg",                     "")
     manualFIInfo.put("signup_via_web",                           "0")
-    manualFIInfo.put("so_can_change_pin_USAASignon",             "1")
-    manualFIInfo.put("so_client_uid_req_USAASignon",             "1")
-    manualFIInfo.put("so_maxpasslen_USAASignon",                 "4")
-    manualFIInfo.put("so_minpasslen_USAASignon",                 "4")
-    manualFIInfo.put("so_must_chg_pin_first_USAASignon",         "0")
-    manualFIInfo.put("so_passchartype_USAASignon",               "NUMERICONLY")
-    manualFIInfo.put("so_passwd_case_sensitive_USAASignon",      "0")
-    manualFIInfo.put("so_passwd_spaces_USAASignon",              "0")
-    manualFIInfo.put("so_passwd_special_chars_USAASignon",       "0")
-    manualFIInfo.put("so_passwd_type_USAASignon",                "FIXED")
-    manualFIInfo.put("so_user_id_USAASignon",                    userID)
+
+    manualFIInfo.put("so_can_change_pin_Realm1",                 "1")
+    manualFIInfo.put("so_client_uid_req_Realm1",                 "0")   # THIS ONE IS THE CLIENT UUID!
+
+    manualFIInfo.put("so_maxpasslen_Realm1",                     "32")
+    manualFIInfo.put("so_minpasslen_Realm1",                     "6")
+    manualFIInfo.put("so_must_chg_pin_first_Realm1",             "0")
+    manualFIInfo.put("so_passchartype_Realm1",                   "ALPHAANDNUMERIC")
+    manualFIInfo.put("so_passwd_case_sensitive_Realm1",          "1")
+    manualFIInfo.put("so_passwd_spaces_Realm1",                  "0")
+    manualFIInfo.put("so_passwd_special_chars_Realm1",           "1")
+    manualFIInfo.put("so_passwd_type_Realm1",                    "FIXED")
+    manualFIInfo.put("so_user_id_Realm1",                        userID)
     if selectedBankAccount:
-        manualFIInfo.put("so_user_id_USAASignon::%s" %(my_getAccountKey(selectedBankAccount)), userID)
+        manualFIInfo.put("so_user_id_Realm1::%s" %(my_getAccountKey(selectedBankAccount)), userID)
     if selectedCCAccount:
-        manualFIInfo.put("so_user_id_USAASignon::%s" %(my_getAccountKey(selectedCCAccount)),   userID)
+        manualFIInfo.put("so_user_id_Realm1::%s" %(my_getAccountKey(selectedCCAccount)),   userID)
     manualFIInfo.put("syncmode_banking",                         "LITE")
-    manualFIInfo.put("syncmode_creditcard",                      "LITE")
-    manualFIInfo.put("syncmode_default",                         "LITE")
-    manualFIInfo.put("syncmode_fiprofile",                       "LITE")
-    manualFIInfo.put("syncmode_signup",                          "LITE")
+    manualFIInfo.put("syncmode_creditcard",                      "FULL")
+    manualFIInfo.put("syncmode_default",                         "FULL")
+    manualFIInfo.put("syncmode_email",                           "FULL")
+    manualFIInfo.put("syncmode_fiprofile",                       "FULL")
+    manualFIInfo.put("syncmode_signup",                          "FULL")
     # manualFIInfo.put("tik_fi_id",                                OLD_TIK_FI_ID)
-    manualFIInfo.put("user-agent",                               "InetClntApp/3.0")
-    manualFIInfo.put("uses_fi_tag",                              "y")
+
+    manualFIInfo.put("user-agent",                               "InetClntApp/3.0")  # This is the magic!
+
+    # manualFIInfo.put("use_ofx_certs",                            "y") # The original SECU profile had this - so not using...
+    # manualFIInfo.put("uses_fi_tag",                              "y") # The original SECU profile had this - so not using...
+
     manualFIInfo.put("version_banking",                          "1")
     manualFIInfo.put("version_creditcard",                       "1")
     manualFIInfo.put("version_default",                          "1")
+    manualFIInfo.put("version_email",                            "1")
     manualFIInfo.put("version_fiprofile",                        "1")
     manualFIInfo.put("version_signup",                           "1")
 
-    # manualFIInfo.put("always_send_date_range",                   "1")
-    # manualFIInfo.put("id",                                       "4f085ab1-6f10-42d9-8048-4431b7919d61")
-    # manualFIInfo.put("last_txn_id",                              "0-2f04b703_dd9df513-380")
+    # manualFIInfo.put("id",                                       "57554f9e-5728-4609-879a-f3dec0d213b8")
+    # manualFIInfo.put("last_txn_id",                              "0-cce586a8_dcd941e0-63")
 
     num = 0
     if selectedBankAccount:
         sNum = str(num)
-        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(bankID).zfill(10))
+        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(bankID).zfill(SECU_ACCT_LENGTH))
         manualFIInfo.put("available_accts.%s.account_type" %(sNum),           accountTypeOFX)
         manualFIInfo.put("available_accts.%s.branch_id" %(sNum),              "")
-        manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "USAA CLASSIC CHECKING")
+        manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "")
         manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
-        manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
-        manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
+        manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "1")
+        manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "1")
         manualFIInfo.put("available_accts.%s.is_active" %(sNum),              "1")
         manualFIInfo.put("available_accts.%s.is_avail" %(sNum),               "0")
         manualFIInfo.put("available_accts.%s.is_bank_acct" %(sNum),           "1")
@@ -2800,10 +2307,7 @@ Visit: %s (Author's site)
     if selectedCCAccount:
         sNum = str(num)
         manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(ccID))
-        if len(ccID) == 15:
-            manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature AMEX")
-        else:
-            manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature Visa")
+        manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "")
         manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
         manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
         manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
@@ -2833,8 +2337,8 @@ Visit: %s (Author's site)
         myPrint("B", ">> setting OFX Message type to '4'")
         selectedBankAccount.setOFXAccountMsgType(4)                     # noqa
 
-        myPrint("B", ">> setting OFX Account Number to: %s" %(str(bankID).zfill(10)))
-        selectedBankAccount.setOFXAccountNumber(str(bankID).zfill(10))  # noqa
+        myPrint("B", ">> setting OFX Account Number to: %s" %(str(bankID).zfill(SECU_ACCT_LENGTH)))
+        selectedBankAccount.setOFXAccountNumber(str(bankID).zfill(SECU_ACCT_LENGTH))  # noqa
 
         myPrint("B", ">> setting OFX Type to '%s'" %(accountTypeOFX))
         selectedBankAccount.setOFXAccountType(accountTypeOFX)           # noqa
@@ -2867,34 +2371,35 @@ Visit: %s (Author's site)
 
     ####################################################################################################################
 
-    myPrint("B", "Updating root with userID and uuid")
-    root = MD_REF.getRootAccount()
+    # myPrint("B", "Updating root with userID and default global uuid")
+    # root = MD_REF.getRootAccount()
+    #
+    # myPrint("B","... calling .setEditingMode() on root...")
+    # root.setEditingMode()
+    #
+    # uuid = root.getParameter(authKeyPrefix, createNewClientUID())
+    # # if lOverrideRootUUID:
+    # #     myPrint("B","Overriding Root's default UUID. Was: %s >> changing to >> %s" %(root.getParameter(authKeyPrefix, ""),uuid))
+    # #     root.setParameter(authKeyPrefix, uuid)
+    # #     # root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + "null",   uuid)         # noqa
+    # #
+    # rootKeys = list(root.getParameterKeys())
+    # for i in range(0,len(rootKeys)):
+    #     rk = rootKeys[i]
+    #     if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk or OLD_TIK_FI_ID in rk):
+    #         myPrint("B", "Deleting old authKey %s: %s" %(rk,root.getParameter(rk)))
+    #         root.setParameter(rk, None)
+    #     i+=1
+    #
+    # root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)
+    # root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)
+    # myPrint("B", "Root UserID and uuid updated...")
 
-    myPrint("B","... calling .setEditingMode() on root...")
-    root.setEditingMode()
-
-    if lOverrideRootUUID:
-        myPrint("B","Overriding Root's default UUID. Was: %s >> changing to >> %s" %(root.getParameter(authKeyPrefix, ""),uuid))
-        root.setParameter(authKeyPrefix, uuid)
-        # root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + "null",   uuid)         # noqa
-
-    rootKeys = list(root.getParameterKeys())
-    for i in range(0,len(rootKeys)):
-        rk = rootKeys[i]
-        if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk or OLD_TIK_FI_ID in rk):
-            myPrint("B", "Deleting old authKey %s: %s" %(rk,root.getParameter(rk)))
-            root.setParameter(rk, None)
-        i+=1
-
-    root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)          # noqa
-    root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)         # noqa
-    myPrint("B", "Root UserID and uuid updated...")
-
-    if lMultiAccountSetup:
-        root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID2,   uuid2)       # noqa
-        myPrint("B", "Root UserID TWO and uuid TWO primed - ready for Online Banking Setup...")
-
-    root.syncItem()
+    # if lMultiAccountSetup:
+    #     root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID2,   uuid2)
+    #     myPrint("B", "Root UserID TWO and uuid TWO primed - ready for Online Banking Setup...")
+    #
+    # root.syncItem()
     ####################################################################################################################
 
     myPrint("B", "accessing authentication keys")
@@ -2931,8 +2436,9 @@ Visit: %s (Author's site)
 
     myPrint("B", "\n>>REALMs configured:")
     realmsToCheck = service.getRealms()         # noqa
-    if "DEFAULT" not in realmsToCheck:
-        realmsToCheck.insert(0,"DEFAULT")       # noqa
+
+    # if "DEFAULT" not in realmsToCheck:
+    #     realmsToCheck.insert(0,"DEFAULT")       # noqa
 
     for realm in realmsToCheck:
         myPrint("B", "Realm: %s current User ID: %s" %(realm, service.getUserId(realm, None)))        # noqa
@@ -2945,8 +2451,8 @@ Visit: %s (Author's site)
 
             newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userID),URLEncoder.encode(password))
 
-            myPrint("B", "** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
-            service.cacheAuthentication(authKey, newAuthObj)        # noqa
+            # myPrint("B", "** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
+            # service.cacheAuthentication(authKey, newAuthObj)        # noqa
 
             authKey = "ofx:" + (realm + "::" + olacct[_ACCOUNT].getAccountKey())
             authObj = service.getCachedAuthentication(authKey)        # noqa
@@ -2958,73 +2464,8 @@ Visit: %s (Author's site)
 
     ####################################################################################################################
 
-    last_date_options = ["NO (FINISHED)", "YES - VIEW LAST TXN DOWNLOAD DATES"]
-    theResult = JOptionPane.showOptionDialog(None,
-                                             "SUCCESS! >> Now would you like to view your last txn download dates?",
-                                             "LAST DOWNLOAD DATES",
-                                             JOptionPane.YES_NO_OPTION,
-                                             JOptionPane.QUESTION_MESSAGE,
-                                             None,
-                                             last_date_options,
-                                             last_date_options[0])
-    if theResult > 0:
-
-        def MyGetDownloadedTxns(theAcct):       # Use my version to prevent creation of default record(s)
-
-            myID = theAcct.getParameter("id", None)
-            defaultTxnsListID = myID + ".oltxns"
-
-            if myID is not None and myID != "":
-                defaultTxnList = MD_REF.getCurrentAccount().getBook().getItemForID(defaultTxnsListID)   # type: SyncableItem
-                if defaultTxnList is not None and isinstance(defaultTxnList, OnlineTxnList):
-                    return defaultTxnList
-
-            txnsListID = theAcct.getParameter("ol_txns_list_id", None)
-            if txnsListID is None or txnsListID == "":
-                if myID is not None and myID != "":
-                    txnsListID = defaultTxnsListID
-
-            if txnsListID is not None and txnsListID != "":
-                txnsObj = MD_REF.getCurrentAccount().getBook().getItemForID(txnsListID)              # type: SyncableItem
-                if (txnsObj is not None and isinstance(txnsObj, OnlineTxnList)):
-                    return txnsObj
-
-            return None
-
-        accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(3))
-        accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
-
-        outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n"\
-                 "--------------------------------------------\n\n"\
-                 "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
-
-        for acct in accountsDL:
-            theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)
-            if theOnlineTxnRecord is None:
-                prettyLastTxnDate = "Never downloaded = 'Download all available dates'"
-            else:
-                theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
-                if theCurrentDate > 0:
-                    prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
-                else:
-                    prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates'"
-
-            outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
-
-        outputDates += "\nIf you have Moneydance Version 2021.1(build 2012+) then you can use the Toolbox extension if you want to change any of these dates....\n" \
-                       "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
-                       "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
-                       "%s\n\n" \
-                       "RESTART MONEYDANCE, THEN EDIT THE LAST TXN DOWNLOAD DATES BEFORE YOU DOWNLOAD ANYTHING\n" \
-                       "\n\n** PLEASE CLOSE THIS WINDOW AND RESTART MONEYDANCE **\n\n" \
-                       %(MYPYTHON_DOWNLOAD_URL)
-
-        outputDates += "\n<END>"
-        jif =QuickJFrame("LAST DOWNLOAD DATES", outputDates).show_the_frame()
-        myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
+    myPrint("B", "SUCCESS. Please RESTART Moneydance.")
 
     myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)
-
-    myPrint("B", "SUCCESS. Please RESTART Moneydance.")
 
     cleanup_actions()
