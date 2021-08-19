@@ -1885,6 +1885,91 @@ Visit: %s (Author's site)
             myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
         return
 
+    def printJTable(_callingClass=None, _theTitle=None, _theJTable=None):
+
+        # Possible future modification, leverage MDPrinter, and it's classes / methods to save/load preferences and create printers
+        try:
+            if _theJTable is None: return
+
+            metal_laf = "javax.swing.plaf.metal.MetalLookAndFeel"
+
+            printJTable = _theJTable
+            using_vaqua = False
+            if Platform.isOSX():
+                the_laf = UIManager.getLookAndFeel()
+                if "vaqua" in the_laf.getName().lower():                                                                # noqa
+                    using_vaqua = True
+                    myPrint("DB", "VAqua L&F Detected... Must switch JTable to something else for .print() to work....")
+                    UIManager.setLookAndFeel(metal_laf)     # Really don't like doing this....!
+                    printJTable = JTable()
+                    printJTable.setModel(_theJTable.getModel())
+                    UIManager.setLookAndFeel(the_laf)     # Switch back quick
+                    myPrint("DB","...quick switch of LAF to clone your JTable complete. LAF restored to:", UIManager.getLookAndFeel())
+
+            # _theJTable.setEditable(False)
+
+            # IntelliJ doesnt like the use of 'print' (as it's a keyword)
+            if "MD_REF" in globals():
+                usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+            elif "moneydance" in globals():
+                usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
+            else:
+                usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+
+            # theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
+            # theFontToUse = theFontToUse.deriveFont(float(usePrintFontSize))
+
+            myPrint("DB", "Creating new PrinterJob...")
+            printer_job = PrinterJob.getPrinterJob()
+
+            if GlobalVars.defaultPrintService is not None:
+                printer_job.setPrintService(GlobalVars.defaultPrintService)
+                myPrint("DB","Assigned remembered PrintService...: %s" %(printer_job.getPrintService()))
+
+            if GlobalVars.defaultPrinterAttributes is not None:
+                pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
+            else:
+                pAttrs = loadDefaultPrinterAttributes(None)
+
+            pAttrs.remove(attribute.standard.JobName)
+            pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), _theTitle), None))
+
+            if GlobalVars.defaultDPI != 72:
+                pAttrs.remove(attribute.standard.PrinterResolution)
+                pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
+
+            for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes before user dialog: %s:%s" %(atr.getName(), atr))
+
+            if not printer_job.printDialog(pAttrs):
+                myPrint("DB","User aborted the Print Dialog setup screen, so exiting...")
+                return
+
+            selectedPrintService = printer_job.getPrintService()
+            myPrint("DB", "User selected print service:", selectedPrintService)
+
+            thePageFormat = printer_job.getPageFormat(pAttrs)
+
+            # .setPrintable() seems to modify pAttrs & adds MediaPrintableArea. Do this before printDeducePrintableWidth()
+            header = MessageFormat(_theTitle)
+            footer = MessageFormat("- page {0} -")
+
+            # noinspection PyUnresolvedReferences
+            printer_job.setPrintable(printJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)
+
+            for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes **AFTER** user dialog (and setPrintable): %s:%s" %(atr.getName(), atr))
+
+            # avoiding Intellij errors
+            eval("printer_job.print(pAttrs)")
+            eval("printJTable.print()")
+
+            myPrint("DB", "Saving current print service:", printer_job.getPrintService())
+            GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
+            GlobalVars.defaultPrintService = printer_job.getPrintService()
+
+        except:
+            myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
+        return
+
     def pageSetup():
 
         myPrint("DB","Printer Page setup routines..:")
@@ -4435,7 +4520,10 @@ Visit: %s (Author's site)
 
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                            if event.getActionCommand() == "About":
+                            if event.getActionCommand().lower().startswith("page setup"):
+                                pageSetup()
+
+                            if event.getActionCommand().lower().startswith("about"):
                                 AboutThisScript(extract_data_frame_).go()
 
                             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -5504,6 +5592,14 @@ Visit: %s (Author's site)
                                 myPrint("D","In ", inspect.currentframe().f_code.co_name, "()")
                                 terminate_script()
 
+                        class PrintJTable(AbstractAction):
+                            def __init__(self, _table, _title):
+                                self._table = _table
+                                self._title = _title
+
+                            def actionPerformed(self, event):                                                               # noqa
+                                printJTable(_callingClass=None, _theJTable=self._table, _theTitle=self._title)
+
                         def createAndShowGUI(self):
                             global debug, extract_data_frame_, rawDataTable, rawFooterTable, lDisplayOnly, version_build, lSplitSecuritiesByAccount, _column_widths_SG2020
                             global lIncludeFutureBalances_SG2020
@@ -5540,8 +5636,9 @@ Visit: %s (Author's site)
                             shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
 
                             # Add standard CMD-W keystrokes etc to close window
-                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut),  "close-window")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
                             extract_data_frame_.getRootPane().getActionMap().put("close-window", self.CloseAction())
 
@@ -5551,6 +5648,8 @@ Visit: %s (Author's site)
                                 self.table = self.MyJTable(self.tableModel, False,False)  # Creates JTable() with special sorting too
                             else:
                                 self.table = self.MyJTable(self.tableModel, True,False)  # Creates JTable() with special sorting too
+
+                            extract_data_frame_.getRootPane().getActionMap().put("print-me", self.PrintJTable(self.table, "StockGlance2020"))
 
                             self.tableHeader = self.table.getTableHeader()                                                      # noqa
                             self.tableHeader.setReorderingAllowed(False)  # no more drag and drop columns, it didn't work (on the footer)
@@ -5729,15 +5828,34 @@ Visit: %s (Author's site)
                             else:
                                 save_useScreenMenuBar = "true"
 
+                            printButton = JButton("Print")
+                            printButton.setToolTipText("Prints the output displayed in this window to your printer")
+                            printButton.setOpaque(True)
+                            printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
+                            printButton.addActionListener(self.PrintJTable(self.table, "StockGlance2020"))
+
                             mb = JMenuBar()
                             menuH = JMenu("<html><B>ABOUT</b></html>")
 
                             menuItemA = JMenuItem("About")
                             menuItemA.setToolTipText("About...")
-                            menuItemA.addActionListener(DoTheMenu(menuH))
-                            menuItemA.setEnabled(True)
+                            menuItemA.addActionListener(DoTheMenu(menuH)); menuItemA.setEnabled(True)
                             menuH.add(menuItemA)
+
+                            menuItemPS = JMenuItem("Page Setup")
+                            menuItemPS.setToolTipText("Printer Page Setup...")
+                            menuItemPS.addActionListener(DoTheMenu(menuH)); menuItemPS.setEnabled(True)
+                            menuH.add(menuItemPS)
+
                             mb.add(menuH)
+
+                            mb.add(Box.createHorizontalGlue())
+                            mb.add(printButton)
+                            mb.add(Box.createRigidArea(Dimension(10, 0)))
+
+                            mb.add(Box.createHorizontalGlue())
+                            mb.add(printButton)
+                            mb.add(Box.createRigidArea(Dimension(10, 0)))
 
                             extract_data_frame_.setJMenuBar(mb)
 
@@ -6083,6 +6201,9 @@ Visit: %s (Author's site)
                             global extract_data_frame_, debug
 
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+                            if event.getActionCommand().lower().startswith("page setup"):
+                                pageSetup()
 
                             if event.getActionCommand().lower().startswith("refresh"):
                                 RefreshMenuAction().refresh()
@@ -6474,6 +6595,14 @@ Visit: %s (Author's site)
 
                             terminate_script()
 
+                    class PrintJTable(AbstractAction):
+                        def __init__(self, _table, _title):
+                            self._table = _table
+                            self._title = _title
+
+                        def actionPerformed(self, event):                                                               # noqa
+                            printJTable(_callingClass=None, _theJTable=self._table, _theTitle=self._title)
+
                     class WindowListener(WindowAdapter):
                         def __init__(self, theFrame):
                             self.theFrame = theFrame        # type: MyJFrame
@@ -6837,8 +6966,9 @@ Visit: %s (Author's site)
                             shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
 
                             # Add standard CMD-W keystrokes etc to close window
-                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut),  "close-window")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
                             extract_data_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
 
@@ -6854,15 +6984,25 @@ Visit: %s (Author's site)
                             else:
                                 save_useScreenMenuBar = "true"
 
+                            printButton = JButton("Print")
+                            printButton.setToolTipText("Prints the output displayed in this window to your printer")
+                            printButton.setOpaque(True)
+                            printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
+                            printButton.addActionListener(PrintJTable(table, "Extract Reminders"))
+
                             mb = JMenuBar()
 
                             menuO = JMenu("<html><B>OPTIONS</b></html>")
 
                             menuItemR = JMenuItem("Refresh Data/Default Sort")
                             menuItemR.setToolTipText("Refresh (re-extract) the data, revert to default sort  order....")
-                            menuItemR.addActionListener(DoTheMenu(menuO))
-                            menuItemR.setEnabled(True)
+                            menuItemR.addActionListener(DoTheMenu(menuO)); menuItemR.setEnabled(True)
                             menuO.add(menuItemR)
+
+                            menuItemPS = JMenuItem("Page Setup")
+                            menuItemPS.setToolTipText("Printer Page Setup....")
+                            menuItemPS.addActionListener(DoTheMenu(menuO)); menuItemPS.setEnabled(True)
+                            menuO.add(menuItemPS)
 
                             if not lDisplayOnly:
                                 menuItemE = JMenuItem("Extract to CSV")
@@ -6887,11 +7027,23 @@ Visit: %s (Author's site)
 
                             mb.add(menuH)
 
+                            mb.add(Box.createHorizontalGlue())
+                            mb.add(printButton)
+                            mb.add(Box.createRigidArea(Dimension(10, 0)))
+
+                            mb.add(Box.createHorizontalGlue())
+                            mb.add(printButton)
+                            mb.add(Box.createRigidArea(Dimension(10, 0)))
+
                             extract_data_frame_.setJMenuBar(mb)
 
                             if Platform.isOSX():
                                 System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
                                 System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
+
+                        # As the JTable is new each time, add this here....
+                        extract_data_frame_.getRootPane().getActionMap().remove("print-me")
+                        extract_data_frame_.getRootPane().getActionMap().put("print-me", PrintJTable(table, "Extract Reminders"))
 
                         table.getTableHeader().setReorderingAllowed(True)  # no more drag and drop columns, it didn't work (on the footer)
                         table.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
