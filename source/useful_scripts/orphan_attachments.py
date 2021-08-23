@@ -275,6 +275,7 @@ else:
         defaultPrintService = None
         defaultPrinterAttributes = None
         defaultPrintFontSize = None
+        defaultPrintLandscape = None
         defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
         def __init__(self): pass    # Leave empty
 
@@ -1549,7 +1550,10 @@ Visit: %s (Author's site)
 
         # Refer: https://docs.oracle.com/javase/7/docs/api/javax/print/attribute/standard/package-summary.html
         _pAttrs.add(attribute.standard.DialogTypeSelection.NATIVE)
-        _pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+        if GlobalVars.defaultPrintLandscape:
+            _pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+        else:
+            _pAttrs.add(attribute.standard.OrientationRequested.PORTRAIT)
         _pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
         _pAttrs.add(attribute.standard.JobSheets.NONE)
         _pAttrs.add(attribute.standard.Copies(1))
@@ -2150,6 +2154,7 @@ Visit: %s (Author's site)
 
         cleanup_references()
 
+    GlobalVars.defaultPrintLandscape = True
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################

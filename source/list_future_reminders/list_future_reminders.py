@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1010)
+# list_future_reminders.py (build: 1011)
 
 ###############################################################################
 # MIT License
@@ -40,6 +40,7 @@
 # build: 1009 - Small cosmetic tweaks to confirm to IK design standards
 # build: 1010 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
 # build: 1010 - Common code tweaks
+# build: 1011 - Added printing support
 
 # Displays Moneydance future reminders
 
@@ -49,7 +50,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1010"
+version_build = "1011"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -277,6 +278,7 @@ else:
 		defaultPrintService = None
 		defaultPrinterAttributes = None
 		defaultPrintFontSize = None
+		defaultPrintLandscape = None
 		defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
 		def __init__(self): pass    # Leave empty
 
@@ -293,7 +295,8 @@ else:
 	from java.lang import String, Number
 	from com.infinitekind.util import StringUtils
 	from com.moneydance.apps.md.controller import AppEventListener
-
+	exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
+	global Book
 	# >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
 	# >>> THIS SCRIPT'S GLOBALS ############################################################################################
@@ -1543,10 +1546,10 @@ Visit: %s (Author's site)
 		_BUFFER_PCT = 0.95
 
 		myPrint("DB", "PageFormat after user dialog: Portrait=%s Landscape=%s W: %sMM(%spts) H: %sMM(%spts) Paper: %s Paper W: %sMM(%spts) H: %sMM(%spts)"
-				%(_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT, _thePageFormat.getOrientation()==_thePageFormat.LANDSCAPE,
-				  pt2mm(_thePageFormat.getWidth()),_thePageFormat.getWidth(), pt2mm(_thePageFormat.getHeight()),_thePageFormat.getHeight(),
-				  _thePageFormat.getPaper(),
-				  pt2mm(_thePageFormat.getPaper().getWidth()), _thePageFormat.getPaper().getWidth(), pt2mm(_thePageFormat.getPaper().getHeight()), _thePageFormat.getPaper().getHeight()))
+						%(_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT, _thePageFormat.getOrientation()==_thePageFormat.LANDSCAPE,
+						pt2mm(_thePageFormat.getWidth()),_thePageFormat.getWidth(), pt2mm(_thePageFormat.getHeight()),_thePageFormat.getHeight(),
+						_thePageFormat.getPaper(),
+						pt2mm(_thePageFormat.getPaper().getWidth()), _thePageFormat.getPaper().getWidth(), pt2mm(_thePageFormat.getPaper().getHeight()), _thePageFormat.getPaper().getHeight()))
 
 		if _pAttrs.get(attribute.standard.MediaSizeName):
 			myPrint("DB", "Requested Media: %s" %(_pAttrs.get(attribute.standard.MediaSizeName)))
@@ -1556,9 +1559,9 @@ Visit: %s (Author's site)
 
 		mediaPA = _pAttrs.get(attribute.standard.MediaPrintableArea)
 		myPrint("DB", "MediaPrintableArea settings from Printer Attributes..: w%sMM h%sMM MediaPrintableArea: %s, getPrintableArea: %s "
-				% (mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM),
-				   mediaPA.getHeight(attribute.standard.MediaPrintableArea.MM),
-				   mediaPA, mediaPA.getPrintableArea(attribute.standard.MediaPrintableArea.MM)))
+						% (mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM),
+						mediaPA.getHeight(attribute.standard.MediaPrintableArea.MM),
+						mediaPA, mediaPA.getPrintableArea(attribute.standard.MediaPrintableArea.MM)))
 
 		if (_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT):
 			deducedWidthMM = mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM)
@@ -1584,7 +1587,10 @@ Visit: %s (Author's site)
 
 		# Refer: https://docs.oracle.com/javase/7/docs/api/javax/print/attribute/standard/package-summary.html
 		_pAttrs.add(attribute.standard.DialogTypeSelection.NATIVE)
-		_pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+		if GlobalVars.defaultPrintLandscape:
+			_pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+		else:
+			_pAttrs.add(attribute.standard.OrientationRequested.PORTRAIT)
 		_pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
 		_pAttrs.add(attribute.standard.JobSheets.NONE)
 		_pAttrs.add(attribute.standard.Copies(1))
@@ -2238,6 +2244,7 @@ Visit: %s (Author's site)
 
 		cleanup_references()
 
+	GlobalVars.defaultPrintLandscape = False
 	# END ALL CODE COPY HERE ###############################################################################################
 	# END ALL CODE COPY HERE ###############################################################################################
 	# END ALL CODE COPY HERE ###############################################################################################
@@ -2251,7 +2258,7 @@ Visit: %s (Author's site)
 		def run(self):                                                                                                      # noqa
 			global debug, list_future_reminders_frame_
 
-			myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+			myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
 			myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
 			# Create Application JFrame() so that all popups have correct Moneydance Icons etc
@@ -2284,6 +2291,10 @@ Visit: %s (Author's site)
 	
 			myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 	
+			# ##########################################################################################################
+			if event.getActionCommand().lower().startswith("page setup"):
+				pageSetup()
+
 			# ##########################################################################################################
 			if event.getActionCommand().lower().startswith("change look"):
 				days = myPopupAskForInput(list_future_reminders_frame_,
@@ -2366,6 +2377,111 @@ Visit: %s (Author's site)
 			dump_sys_error_to_md_console_and_errorlog()
 
 	try:
+
+		# Mirror code in extract_data.py (keep identical)
+		def printJTable(_theFrame, _theJTable, _theTitle, _secondJTable=None):
+
+			# Possible future modification, leverage MDPrinter, and it's classes / methods to save/load preferences and create printers
+			try:
+				if _theJTable is None or _theFrame is None: return
+
+				myPrint("DB", "Creating new PrinterJob...")
+				printer_job = PrinterJob.getPrinterJob()
+
+				if GlobalVars.defaultPrintService is not None:
+					printer_job.setPrintService(GlobalVars.defaultPrintService)
+					myPrint("DB","Assigned remembered PrintService...: %s" %(printer_job.getPrintService()))
+
+				if GlobalVars.defaultPrinterAttributes is not None:
+					pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
+				else:
+					pAttrs = loadDefaultPrinterAttributes(None)
+
+				pAttrs.remove(attribute.standard.JobName)
+				pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), _theTitle), None))
+
+				if GlobalVars.defaultDPI != 72:
+					pAttrs.remove(attribute.standard.PrinterResolution)
+					pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
+
+				if not printer_job.printDialog(pAttrs):
+					myPrint("DB","User aborted the Print Dialog setup screen, so exiting...")
+					return
+
+				selectedPrintService = printer_job.getPrintService()
+				myPrint("DB", "User selected print service:", selectedPrintService)
+
+				thePageFormat = printer_job.getPageFormat(pAttrs)
+
+				header = MessageFormat(_theTitle)
+				footer = MessageFormat("- page {0} -")
+
+				# NOTE: _ there is a bug in VAqua... The JTable.print() method doesn't work!!
+				vaqua_laf = "com.apple.laf.AquaLookAndFeel"                                                             # noqa
+				metal_laf = "javax.swing.plaf.metal.MetalLookAndFeel"
+
+				the_laf = None
+				using_vaqua = False
+				if Platform.isOSX():
+					the_laf = UIManager.getLookAndFeel()
+					if "vaqua" in the_laf.getName().lower():                                                            # noqa
+						using_vaqua = True
+						myPrint("B", "VAqua LAF Detected... Must switch the LAF for print to work (due to a Java Bug)....")
+
+						# Without this the JMenuBar gets messed up
+						save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
+						if save_useScreenMenuBar is None or save_useScreenMenuBar == "": save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
+						System.setProperty("apple.laf.useScreenMenuBar", "false")
+						System.setProperty("com.apple.macos.useScreenMenuBar", "false")
+
+						UIManager.setLookAndFeel(metal_laf)     # Really don't like doing this....!
+
+				try:
+					if using_vaqua:
+						myPrint("DB", "... Updating the JFrame()'s component tree to the temporary LAF....")
+						SwingUtilities.updateComponentTreeUI(_theFrame)
+
+
+					if _secondJTable is None:
+						printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+						eval("printer_job.print(pAttrs)")
+					else:
+						# java.awt.print.Book() won't work as it passes the book page number instead of the Printable's page number...
+						footer = MessageFormat("<the total/summary table is printed on the next page>")
+						printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+						eval("printer_job.print(pAttrs)")
+
+						header = MessageFormat(_theTitle+" (Total/Summary Table)")
+						footer = MessageFormat("<END>")
+
+						printer_job.setPrintable(_secondJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+						eval("printer_job.print(pAttrs)")
+
+				except:
+					myPrint("B", "ERROR: Printing routines failed?")
+					dump_sys_error_to_md_console_and_errorlog()
+					raise
+
+				finally:
+					if using_vaqua:
+						UIManager.setLookAndFeel(the_laf)     # Switch back quick
+						myPrint("B", "...quick switch of LAF to print complete. LAF restored to:", UIManager.getLookAndFeel())
+
+						myPrint("DB", "... Switching the JFrame()'s component tree back to VAqua....")
+						SwingUtilities.updateComponentTreeUI(_theFrame)
+
+						# Without this the JMenuBar gets screwed up
+						System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                             # noqa
+						System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)                       # noqa
+
+				myPrint("DB", "Saving current print service:", printer_job.getPrintService())
+				GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
+				GlobalVars.defaultPrintService = printer_job.getPrintService()
+
+			except:
+				myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
+			return
+
 		csvfilename = None
 
 		if decimalCharSep != "." and csvDelimiter == ",": csvDelimiter = ";"  # Override for EU countries or where decimal point is actually a comma...
@@ -3187,8 +3303,6 @@ Visit: %s (Author's site)
 						index = table.getValueAt(row, 0)
 						ShowEditForm(index)
 					myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-					return
-
 
 			ML = MouseListener()
 
@@ -3203,8 +3317,6 @@ Visit: %s (Author's site)
 					index = table.getValueAt(row, 0)
 					ShowEditForm(index)
 					myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-					return
-
 
 			class CloseAction(AbstractAction):
 
@@ -3213,11 +3325,16 @@ Visit: %s (Author's site)
 				def actionPerformed(self, event):
 					global list_future_reminders_frame_, debug
 					myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-
 					terminate_script()
 
-					return
+			class PrintJTable(AbstractAction):
+				def __init__(self, _frame, _table, _title):
+					self._frame = _frame
+					self._table = _table
+					self._title = _title
 
+				def actionPerformed(self, event):                                                               # noqa
+					printJTable(_theFrame=self._frame, _theJTable=self._table, _theTitle=self._title)
 
 			class ExtractMenuAction():
 				def __init__(self):
@@ -3477,6 +3594,7 @@ Visit: %s (Author's site)
 					# Add standard CMD-W keystrokes etc to close window
 					list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
 					list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+					list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
 					list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
 					list_future_reminders_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
 
@@ -3491,6 +3609,12 @@ Visit: %s (Author's site)
 						System.setProperty("com.apple.macos.useScreenMenuBar", "false")
 					else:
 						save_useScreenMenuBar = "true"
+
+					printButton = JButton("Print")
+					printButton.setToolTipText("Prints the output displayed in this window to your printer")
+					printButton.setOpaque(True)
+					printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
+					printButton.addActionListener(PrintJTable(list_future_reminders_frame_, table, "List Future Reminders"))
 
 					mb = JMenuBar()
 
@@ -3519,6 +3643,12 @@ Visit: %s (Author's site)
 					menuItemDEBUG.setToolTipText("Enables script to output debug information (internal technical stuff)")
 					menuItemDEBUG.setSelected(debug)
 					menuO.add(menuItemDEBUG)
+
+					menuItemPS = JMenuItem("Page Setup")
+					menuItemPS.setToolTipText("Printer Page Setup....")
+					menuItemPS.addActionListener(DoTheMenu(menuO))
+					menuItemPS.setEnabled(True)
+					menuO.add(menuItemPS)
 
 					menuItemE = JMenuItem("Close Window")
 					menuItemE.setToolTipText("Exit and close the window")
@@ -3551,11 +3681,19 @@ Visit: %s (Author's site)
 
 					# mb.add(Box.createRigidArea(Dimension(20, 0)))
 
+					mb.add(Box.createHorizontalGlue())
+					mb.add(printButton)
+					mb.add(Box.createRigidArea(Dimension(10, 0)))
+
 					list_future_reminders_frame_.setJMenuBar(mb)
 
 					if Platform.isOSX():
 						System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
 						System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
+
+				# As the JTable is new each time, add this here....
+				list_future_reminders_frame_.getRootPane().getActionMap().remove("print-me")
+				list_future_reminders_frame_.getRootPane().getActionMap().put("print-me", PrintJTable(list_future_reminders_frame_, table, "List Future Reminders"))
 
 				table.getTableHeader().setReorderingAllowed(True)  # no more drag and drop columns, it didn't work (on the footer)
 				table.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())

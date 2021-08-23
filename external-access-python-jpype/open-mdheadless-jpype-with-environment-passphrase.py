@@ -113,7 +113,7 @@ javafx="%s/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib" %(my_us
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing).
-md_version=" 2021.2 (3093)"
+md_version=" 2021.2 (3095)"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"

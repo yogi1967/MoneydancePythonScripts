@@ -77,6 +77,7 @@
 # build: 1013 - StockGlance2020 Enhanced rounding options with user parameters for mac decimal places rounding, and use current price (or latest price history price)
 # build: 1013 - Common code tweaks
 # build: 1014 - Trap ZeroDivisionError: when cost basis is zero. Also trap all errors with a user popup
+# build: 1014 - New print options for StockGlance2020 and Extract_Data
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -261,7 +262,7 @@ else:
     from javax.swing.text import PlainDocument
     from javax.swing.border import EmptyBorder
 
-    exec("from javax.print import attribute")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
+    exec("from javax.print import attribute")       # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     exec("from java.awt.print import PrinterJob")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     global attribute, PrinterJob
 
@@ -312,6 +313,7 @@ else:
         defaultPrintService = None
         defaultPrinterAttributes = None
         defaultPrintFontSize = None
+        defaultPrintLandscape = None
         defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
         def __init__(self): pass    # Leave empty
 
@@ -339,6 +341,8 @@ else:
     from java.lang import String, Number
     from com.moneydance.apps.md.controller import AppEventListener
     from com.infinitekind.util import StringUtils
+    exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
+    global Book
 
     # from extract_currency_history
     # <none>
@@ -1728,7 +1732,10 @@ Visit: %s (Author's site)
 
         # Refer: https://docs.oracle.com/javase/7/docs/api/javax/print/attribute/standard/package-summary.html
         _pAttrs.add(attribute.standard.DialogTypeSelection.NATIVE)
-        _pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+        if GlobalVars.defaultPrintLandscape:
+            _pAttrs.add(attribute.standard.OrientationRequested.LANDSCAPE)
+        else:
+            _pAttrs.add(attribute.standard.OrientationRequested.PORTRAIT)
         _pAttrs.add(attribute.standard.Chromaticity.MONOCHROME)
         _pAttrs.add(attribute.standard.JobSheets.NONE)
         _pAttrs.add(attribute.standard.Copies(1))
@@ -1876,91 +1883,6 @@ Visit: %s (Author's site)
             # avoiding Intellij errors
             eval("printJTextArea.print(header, footer, False, selectedPrintService, pAttrs, True)")
             del printJTextArea
-
-            myPrint("DB", "Saving current print service:", printer_job.getPrintService())
-            GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
-            GlobalVars.defaultPrintService = printer_job.getPrintService()
-
-        except:
-            myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
-        return
-
-    def printJTable(_callingClass=None, _theTitle=None, _theJTable=None):
-
-        # Possible future modification, leverage MDPrinter, and it's classes / methods to save/load preferences and create printers
-        try:
-            if _theJTable is None: return
-
-            metal_laf = "javax.swing.plaf.metal.MetalLookAndFeel"
-
-            printJTable = _theJTable
-            using_vaqua = False
-            if Platform.isOSX():
-                the_laf = UIManager.getLookAndFeel()
-                if "vaqua" in the_laf.getName().lower():                                                                # noqa
-                    using_vaqua = True
-                    myPrint("DB", "VAqua L&F Detected... Must switch JTable to something else for .print() to work....")
-                    UIManager.setLookAndFeel(metal_laf)     # Really don't like doing this....!
-                    printJTable = JTable()
-                    printJTable.setModel(_theJTable.getModel())
-                    UIManager.setLookAndFeel(the_laf)     # Switch back quick
-                    myPrint("DB","...quick switch of LAF to clone your JTable complete. LAF restored to:", UIManager.getLookAndFeel())
-
-            # _theJTable.setEditable(False)
-
-            # IntelliJ doesnt like the use of 'print' (as it's a keyword)
-            if "MD_REF" in globals():
-                usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
-            elif "moneydance" in globals():
-                usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
-            else:
-                usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
-
-            # theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
-            # theFontToUse = theFontToUse.deriveFont(float(usePrintFontSize))
-
-            myPrint("DB", "Creating new PrinterJob...")
-            printer_job = PrinterJob.getPrinterJob()
-
-            if GlobalVars.defaultPrintService is not None:
-                printer_job.setPrintService(GlobalVars.defaultPrintService)
-                myPrint("DB","Assigned remembered PrintService...: %s" %(printer_job.getPrintService()))
-
-            if GlobalVars.defaultPrinterAttributes is not None:
-                pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
-            else:
-                pAttrs = loadDefaultPrinterAttributes(None)
-
-            pAttrs.remove(attribute.standard.JobName)
-            pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), _theTitle), None))
-
-            if GlobalVars.defaultDPI != 72:
-                pAttrs.remove(attribute.standard.PrinterResolution)
-                pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
-
-            for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes before user dialog: %s:%s" %(atr.getName(), atr))
-
-            if not printer_job.printDialog(pAttrs):
-                myPrint("DB","User aborted the Print Dialog setup screen, so exiting...")
-                return
-
-            selectedPrintService = printer_job.getPrintService()
-            myPrint("DB", "User selected print service:", selectedPrintService)
-
-            thePageFormat = printer_job.getPageFormat(pAttrs)
-
-            # .setPrintable() seems to modify pAttrs & adds MediaPrintableArea. Do this before printDeducePrintableWidth()
-            header = MessageFormat(_theTitle)
-            footer = MessageFormat("- page {0} -")
-
-            # noinspection PyUnresolvedReferences
-            printer_job.setPrintable(printJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)
-
-            for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes **AFTER** user dialog (and setPrintable): %s:%s" %(atr.getName(), atr))
-
-            # avoiding Intellij errors
-            eval("printer_job.print(pAttrs)")
-            eval("printJTable.print()")
 
             myPrint("DB", "Saving current print service:", printer_job.getPrintService())
             GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
@@ -2638,6 +2560,7 @@ Visit: %s (Author's site)
 
         cleanup_references()
 
+    GlobalVars.defaultPrintLandscape = True
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
@@ -2679,6 +2602,110 @@ Visit: %s (Author's site)
         MainAppRunnable().run()
 
     try:
+
+        def printJTable(_theFrame, _theJTable, _theTitle, _secondJTable=None):
+
+            # Possible future modification, leverage MDPrinter, and it's classes / methods to save/load preferences and create printers
+            try:
+                if _theJTable is None or _theFrame is None: return
+
+                myPrint("DB", "Creating new PrinterJob...")
+                printer_job = PrinterJob.getPrinterJob()
+
+                if GlobalVars.defaultPrintService is not None:
+                    printer_job.setPrintService(GlobalVars.defaultPrintService)
+                    myPrint("DB","Assigned remembered PrintService...: %s" %(printer_job.getPrintService()))
+
+                if GlobalVars.defaultPrinterAttributes is not None:
+                    pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
+                else:
+                    pAttrs = loadDefaultPrinterAttributes(None)
+
+                pAttrs.remove(attribute.standard.JobName)
+                pAttrs.add(attribute.standard.JobName("%s: %s" %(myModuleID.capitalize(), _theTitle), None))
+
+                if GlobalVars.defaultDPI != 72:
+                    pAttrs.remove(attribute.standard.PrinterResolution)
+                    pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
+
+                if not printer_job.printDialog(pAttrs):
+                    myPrint("DB","User aborted the Print Dialog setup screen, so exiting...")
+                    return
+
+                selectedPrintService = printer_job.getPrintService()
+                myPrint("DB", "User selected print service:", selectedPrintService)
+
+                thePageFormat = printer_job.getPageFormat(pAttrs)
+
+                header = MessageFormat(_theTitle)
+                footer = MessageFormat("- page {0} -")
+
+                # NOTE: _ there is a bug in VAqua... The JTable.print() method doesn't work!!
+                vaqua_laf = "com.apple.laf.AquaLookAndFeel"                                                             # noqa
+                metal_laf = "javax.swing.plaf.metal.MetalLookAndFeel"
+
+                the_laf = None
+                using_vaqua = False
+                if Platform.isOSX():
+                    the_laf = UIManager.getLookAndFeel()
+                    if "vaqua" in the_laf.getName().lower():                                                            # noqa
+                        using_vaqua = True
+                        myPrint("B", "VAqua LAF Detected... Must switch the LAF for print to work (due to a Java Bug)....")
+
+                        # Without this the JMenuBar gets messed up
+                        save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
+                        if save_useScreenMenuBar is None or save_useScreenMenuBar == "": save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
+                        System.setProperty("apple.laf.useScreenMenuBar", "false")
+                        System.setProperty("com.apple.macos.useScreenMenuBar", "false")
+
+                        UIManager.setLookAndFeel(metal_laf)     # Really don't like doing this....!
+
+                try:
+                    if using_vaqua:
+                        myPrint("DB", "... Updating the JFrame()'s component tree to the temporary LAF....")
+                        SwingUtilities.updateComponentTreeUI(_theFrame)
+
+
+                    if _secondJTable is None:
+                        printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+                        eval("printer_job.print(pAttrs)")
+                    else:
+                        # java.awt.print.Book() won't work as it passes the book page number instead of the Printable's page number...
+                        footer = MessageFormat("<the total/summary table is printed on the next page>")
+                        printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+                        eval("printer_job.print(pAttrs)")
+
+                        header = MessageFormat(_theTitle+" (Total/Summary Table)")
+                        footer = MessageFormat("<END>")
+
+                        printer_job.setPrintable(_secondJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+                        eval("printer_job.print(pAttrs)")
+
+                except:
+                    myPrint("B", "ERROR: Printing routines failed?")
+                    dump_sys_error_to_md_console_and_errorlog()
+                    raise
+
+                finally:
+                    if using_vaqua:
+                        UIManager.setLookAndFeel(the_laf)     # Switch back quick
+                        myPrint("B", "...quick switch of LAF to print complete. LAF restored to:", UIManager.getLookAndFeel())
+
+                        myPrint("DB", "... Switching the JFrame()'s component tree back to VAqua....")
+                        SwingUtilities.updateComponentTreeUI(_theFrame)
+
+                        # Without this the JMenuBar gets screwed up
+                        System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                             # noqa
+                        System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)                       # noqa
+
+                myPrint("DB", "Saving current print service:", printer_job.getPrintService())
+                GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
+                GlobalVars.defaultPrintService = printer_job.getPrintService()
+
+            except:
+                myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
+            return
+
         csvfilename = None
 
         if decimalCharSep != "." and csvDelimiter == ",": csvDelimiter = ";"  # Override for EU countries or where decimal point is actually a comma...
@@ -5593,12 +5620,14 @@ Visit: %s (Author's site)
                                 terminate_script()
 
                         class PrintJTable(AbstractAction):
-                            def __init__(self, _table, _title):
+                            def __init__(self, _frame, _table, _title, _footerTable):
+                                self._frame = _frame
                                 self._table = _table
                                 self._title = _title
+                                self.footerTable = _footerTable
 
-                            def actionPerformed(self, event):                                                               # noqa
-                                printJTable(_callingClass=None, _theJTable=self._table, _theTitle=self._title)
+                            def actionPerformed(self, event):                                                           # noqa
+                                printJTable(_theFrame=self._frame, _theJTable=self._table, _theTitle=self._title, _secondJTable=self.footerTable)
 
                         def createAndShowGUI(self):
                             global debug, extract_data_frame_, rawDataTable, rawFooterTable, lDisplayOnly, version_build, lSplitSecuritiesByAccount, _column_widths_SG2020
@@ -5649,8 +5678,6 @@ Visit: %s (Author's site)
                             else:
                                 self.table = self.MyJTable(self.tableModel, True,False)  # Creates JTable() with special sorting too
 
-                            extract_data_frame_.getRootPane().getActionMap().put("print-me", self.PrintJTable(self.table, "StockGlance2020"))
-
                             self.tableHeader = self.table.getTableHeader()                                                      # noqa
                             self.tableHeader.setReorderingAllowed(False)  # no more drag and drop columns, it didn't work (on the footer)
                             self.table.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
@@ -5659,6 +5686,7 @@ Visit: %s (Author's site)
                             # Creates JTable() for footer - with disabled sorting too
                             self.footerTable = self.MyJTable(self.footerModel, False, True)                                      # noqa
 
+                            extract_data_frame_.getRootPane().getActionMap().put("print-me", self.PrintJTable(extract_data_frame_, self.table, "StockGlance2020", self.footerTable))
 
                             fontSize = self.table.getFont().getSize()+5
                             self.table.setRowHeight(fontSize)
@@ -5832,7 +5860,7 @@ Visit: %s (Author's site)
                             printButton.setToolTipText("Prints the output displayed in this window to your printer")
                             printButton.setOpaque(True)
                             printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
-                            printButton.addActionListener(self.PrintJTable(self.table, "StockGlance2020"))
+                            printButton.addActionListener(self.PrintJTable(extract_data_frame_, self.table, "StockGlance2020", self.footerTable))
 
                             mb = JMenuBar()
                             menuH = JMenu("<html><B>ABOUT</b></html>")
@@ -5848,10 +5876,6 @@ Visit: %s (Author's site)
                             menuH.add(menuItemPS)
 
                             mb.add(menuH)
-
-                            mb.add(Box.createHorizontalGlue())
-                            mb.add(printButton)
-                            mb.add(Box.createRigidArea(Dimension(10, 0)))
 
                             mb.add(Box.createHorizontalGlue())
                             mb.add(printButton)
@@ -6596,12 +6620,14 @@ Visit: %s (Author's site)
                             terminate_script()
 
                     class PrintJTable(AbstractAction):
-                        def __init__(self, _table, _title):
+                        def __init__(self, _frame, _table, _title):
+                            self._frame = _frame
                             self._table = _table
                             self._title = _title
 
                         def actionPerformed(self, event):                                                               # noqa
-                            printJTable(_callingClass=None, _theJTable=self._table, _theTitle=self._title)
+                            printJTable(_theFrame=self._frame, _theJTable=self._table, _theTitle=self._title)
+
 
                     class WindowListener(WindowAdapter):
                         def __init__(self, theFrame):
@@ -6988,7 +7014,7 @@ Visit: %s (Author's site)
                             printButton.setToolTipText("Prints the output displayed in this window to your printer")
                             printButton.setOpaque(True)
                             printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
-                            printButton.addActionListener(PrintJTable(table, "Extract Reminders"))
+                            printButton.addActionListener(PrintJTable(extract_data_frame_, table, "Extract Reminders"))
 
                             mb = JMenuBar()
 
@@ -7031,10 +7057,6 @@ Visit: %s (Author's site)
                             mb.add(printButton)
                             mb.add(Box.createRigidArea(Dimension(10, 0)))
 
-                            mb.add(Box.createHorizontalGlue())
-                            mb.add(printButton)
-                            mb.add(Box.createRigidArea(Dimension(10, 0)))
-
                             extract_data_frame_.setJMenuBar(mb)
 
                             if Platform.isOSX():
@@ -7043,7 +7065,7 @@ Visit: %s (Author's site)
 
                         # As the JTable is new each time, add this here....
                         extract_data_frame_.getRootPane().getActionMap().remove("print-me")
-                        extract_data_frame_.getRootPane().getActionMap().put("print-me", PrintJTable(table, "Extract Reminders"))
+                        extract_data_frame_.getRootPane().getActionMap().put("print-me", PrintJTable(extract_data_frame_, table, "Extract Reminders"))
 
                         table.getTableHeader().setReorderingAllowed(True)  # no more drag and drop columns, it didn't work (on the footer)
                         table.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
