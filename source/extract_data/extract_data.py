@@ -2603,7 +2603,10 @@ Visit: %s (Author's site)
 
     try:
         # Mirror code in list_future_reminders (ensure identical)
-        def printJTable(_theFrame, _theJTable, _theTitle, _secondJTable=None):  # todo - enable multi-page print for StockGlance double tables
+        def printJTable(_theFrame, _theJTable, _theTitle, _secondJTable=None):
+
+            # todo - enable print for StockGlance via Book() (to get one print job) - instead of two outputs
+            # refer: https://stackoverflow.com/questions/14775753/printing-multiple-jtables-as-one-job-book-object-only-prints-1st-table
 
             # Possible future modification, leverage MDPrinter, and it's classes / methods to save/load preferences and create printers
             try:
@@ -2671,7 +2674,7 @@ Visit: %s (Author's site)
                         eval("printer_job.print(pAttrs)")
                     else:
                         # java.awt.print.Book() won't work as it passes the book page number instead of the Printable's page number...
-                        footer = MessageFormat("<the total/summary table is printed on the next page>")
+                        footer = MessageFormat("<page {0} : continued on the next page>")
                         printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
                         eval("printer_job.print(pAttrs)")
 

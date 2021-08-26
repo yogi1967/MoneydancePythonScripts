@@ -1,5 +1,12 @@
 #!/bin/sh
 
+###############################################################################
+# Author:   Stuart Beesley - StuWareSoftSystems 2021
+# Purpose:  Build shell script (Mac) to build Python Extensions for Moneydance
+#
+# NOTE: The Moneydance extension .mxt file is really just a zip / jar file.....
+###############################################################################
+
 echo
 echo
 echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -8,10 +15,11 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "test" "my_networth" "total_selected_transactions")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "total_selected_transactions" "test")
 RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "total_selected_transactions")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth")
+BUNDLE_OWN_JAVA_LIST=("test")
 
 if [ "$1" = "" ]; then
   echo "@@@ NO PARAMETERS SUPPLIED."
@@ -47,6 +55,13 @@ for RESTRICT_CHECK in "${RESTRICT_SCRIPT_LIST[@]}"; do
   fi
 done
 
+BUNDLE_JAVA="NO"
+for BUNDLE_JAVA_CHECK in "${BUNDLE_OWN_JAVA_LIST[@]}"; do
+  if [ "${BUNDLE_JAVA_CHECK}" = "${EXTN_NAME}" ]; then
+    BUNDLE_JAVA="YES"
+  fi
+done
+
 REALLY_EXTENSION="YES"
 for NOT_EXTENSION_CHECK in "${NOT_REALLY_EXTENSION_LIST[@]}"; do
   if [ "${NOT_EXTENSION_CHECK}" = "${EXTN_NAME}" ]; then
@@ -61,12 +76,17 @@ for PUBLISH_ALL_CHECK in "${PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST[@]}"; do
   fi
 done
 
-echo "Module build for ${EXTN_NAME} running.... Restrict Script Publication=${RESTRICT_SCRIPT}... (Really an Extension=${REALLY_EXTENSION})... Publish all files=${PUBLISH_ALL_FILES}"
+echo "Module build for ${EXTN_NAME} running.... Restrict Script Publication=${RESTRICT_SCRIPT}... Bundle Own Java=${BUNDLE_JAVA}... (Really an Extension=${REALLY_EXTENSION})... Publish all files=${PUBLISH_ALL_FILES}"
 
 sMXT="s-${EXTN_NAME}.mxt"
 ZIP="./${EXTN_NAME}.zip"
 EXTN_DIR="./source/${EXTN_NAME}"
 MXT="${EXTN_DIR}/${EXTN_NAME}.mxt"
+
+JAVA_JAR="stuwaresoftsystems_commoncode.jar"
+#JAVA_PACKAGE_NAME="stuwaresoftsystems/code/CommonCode"
+JAVA_PACKAGE_NAME="StuWareSoftSystems_CommonCode"
+
 FM_DIR="com/moneydance/modules/features/${EXTN_NAME}"
 ZIP_COMMENT="StuWareSoftSystems: ${EXTN_NAME} Python Extension for Moneydance (by Stuart Beesley). Please see install-readme.txt"
 ZIP_COMMENT2="StuWareSoftSystems: A collection of ${EXTN_NAME} for Moneydance."
@@ -134,6 +154,58 @@ if ! test -f "./source/install-readme.txt"; then
   exit 2
 fi
 
+############# Check and recompile own Java code if needed ##############################################################
+if [ "${BUNDLE_JAVA}" = "YES" ]; then
+
+  echo "Bundle Java requested... Checking java, and class files, and compiling if needed...."
+
+  if ! test -f "./java_code/src/${JAVA_PACKAGE_NAME}.java"; then
+    echo "ERROR - ./java_code/src/${JAVA_PACKAGE_NAME}.java does not exist!"
+    exit 3
+  fi
+
+  if [ "./java_code/src/${JAVA_PACKAGE_NAME}.java" -nt "./java_code/compiled/${JAVA_PACKAGE_NAME}.class" ]; then
+    echo "Detected that own java file needs compiling into a .class file..."
+    javac -verbose -d "./java_code/compiled" "./java_code/src/${JAVA_PACKAGE_NAME}.java"
+    if [ $? -ne 0 ]; then
+      echo "*** javac compile failed..??"
+      exit 3
+    fi
+  else
+    echo "Own java class file does not need recompile.... skipping....."
+  fi
+
+  if ! test -f "./java_code/compiled/${JAVA_PACKAGE_NAME}.class"; then
+    echo "ERROR - ./java_code/compiled/${JAVA_PACKAGE_NAME}.class does not exist!"
+    exit 3
+  fi
+
+  # Create a stand-alone jar for stand-alone script usage....
+  if [ "./java_code/compiled/${JAVA_PACKAGE_NAME}.class" -nt "./java_code/compiled/${JAVA_JAR}" ]; then
+    echo "Detected that own jar file needs reassembling with the latest .class file..."
+    jar -v -c -f "./java_code/compiled/${JAVA_JAR}" -C "./java_code/src" "${JAVA_PACKAGE_NAME}.java"
+    if [ $? -ne 0 ]; then
+      echo "*** jar utility failed creating own jar (with source file): ${JAVA_JAR} ..??"
+      exit 3
+    fi
+    jar -v -u -f "./java_code/compiled/${JAVA_JAR}" -C "./java_code/compiled" "${JAVA_PACKAGE_NAME}.class"
+    if [ $? -ne 0 ]; then
+      echo "*** jar utility failed creating own jar (with class file): ${JAVA_JAR} ..??"
+      exit 3
+    fi
+  else
+    echo "Own java jar file does not need rebuilding.... skipping....."
+  fi
+
+  if ! test -f "./java_code/compiled/${JAVA_JAR}"; then
+    echo "ERROR - ./java_code/compiled/${JAVA_JAR} does not exist!"
+    exit 3
+  fi
+
+fi
+
+
+############## START OF EXTENSION BUILD ################################################################################
 rm -f "${MXT}"
 
 if [ "${REALLY_EXTENSION}" = "NO" ]; then
@@ -209,55 +281,71 @@ else
     exit 11
   fi
 
+  if [ "${BUNDLE_JAVA}" = "YES" ]; then
+    echo "Bundling own java source code, and class(es) into the extension mxt(jar) file..."
+
+    jar -v -u -f "${MXT}" -C "./java_code/src/" "${JAVA_PACKAGE_NAME}.java"
+    if [ $? -ne 0 ]; then
+      echo "*** jar utility failed bundling own Java source code..??"
+      exit 12
+    fi
+
+    jar -v -u -f "${MXT}" -C "./java_code/compiled" "${JAVA_PACKAGE_NAME}.class"
+    if [ $? -ne 0 ]; then
+      echo "*** jar utility failed bundling own Java code/class file..??"
+      exit 12
+    fi
+  fi
+
   echo "copying extadmin.jar..."
   cp "./moneydance-devkit-5.1 2/lib/extadmin.jar" .
   if [ $? -ne 0 ]; then
     echo "*** cp extadmin.jar Failed??"
-    exit 12
+    exit 13
   fi
 
   echo "copying moneydance-dev.jar..."
   cp "./moneydance-devkit-5.1 2/lib/moneydance-dev.jar" .
   if [ $? -ne 0 ]; then
     echo "*** cp moneydance-dev.jar Failed??"
-    exit 13
+    exit 14
   fi
 
   echo "copying priv_key..."
   cp "./moneydance-devkit-5.1 2/src/priv_key" .
   if [ $? -ne 0 ]; then
     echo "*** cp priv_key Failed??"
-    exit 14
+    exit 15
   fi
 
   echo "copying pub_key..."
   cp "./moneydance-devkit-5.1 2/src/pub_key" .
   if [ $? -ne 0 ]; then
     echo "*** cp pub_key Failed??"
-    exit 15
+    exit 16
   fi
 
   echo "Removing old signed mxts if they existed..."
   rm -f "${EXTN_DIR}/${sMXT}"
   rm -f "./${sMXT}"
 
-  echo "Executing java mxt  signing routines..."
+  echo "Executing java mxt signing routines..."
   java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}" <./build/extension_keyfile.
   if [ $? -ne 0 ]; then
     echo java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}"
     echo "*** Java self-signing of mxt package Failed??"
-    exit 16
+    exit 17
   fi
 
   if ! test -f "${sMXT}"; then
     echo "ERROR - self-signed ${sMXT} does not exist after java signing?"
-    exit 17
+    exit 18
   else
     echo "Adding comments to signed mxt..."
     zip -z "${sMXT}" <<<"${ZIP_COMMENT}"
     if [ $? -ne 0 ]; then
       echo "*** zip add comments to self-signed ${sMXT} Failed??"
-      exit 18
+      exit 19
     fi
   fi
 
@@ -280,7 +368,7 @@ else
   mv "${sMXT}" "${MXT}"
   if [ $? -ne 0 ]; then
     echo "*** mv of self-signed ${sMXT} to ${MXT} Failed??"
-    exit 19
+    exit 20
   fi
 
   if test -f "${MXT}"; then
@@ -292,8 +380,11 @@ else
   else
     echo "@@@@@@@@@@@@@@@@@"
     echo "PROBLEM CREATING ${MXT} ..."
-    exit 20
+    exit 21
   fi
+
+  echo "Removing temporary build directories (com/...)... should be empty...."
+  rm -r com
 
 fi
 
@@ -311,7 +402,7 @@ echo "Creating zip file with ${ZIP_THIS}..."
 zip -j -z "${ZIP}" "${ZIP_THIS}" <<<"${ZIP_COMMENT}"
 if [ $? -ne 0 ]; then
   echo "*** final zip of package to ${ZIP} Failed??"
-  exit 21
+  exit 22
 fi
 
 if [ "${REALLY_EXTENSION}" = "NO" ]; then
@@ -320,7 +411,7 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
   zip -j -c "${ZIP}" "${EXTN_DIR}"/*.py <<<"${ZIP_COMMENT2}"
   if [ $? -ne 0 ]; then
     echo "*** final zip of ${EXTN_NAME} package *.py Failed??"
-    exit 22
+    exit 23
   fi
 
   if test -f "${EXTN_DIR}"/*.pyi; then
@@ -328,7 +419,7 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
     zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
     if [ $? -ne 0 ]; then
       echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
-      exit 22
+      exit 24
     fi
   fi
 
@@ -336,7 +427,7 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
   zip -j "${ZIP}" "${EXTN_DIR}"/*.pdf
   if [ $? -ne 0 ]; then
     echo "*** final zip of ${EXTN_NAME} package *.pdf Failed??"
-    exit 23
+    exit 25
   fi
 
 else
@@ -345,7 +436,7 @@ else
   zip -j -c "${ZIP}" "${MXT}" <<<"${ZIP_COMMENT}"
   if [ $? -ne 0 ]; then
     echo "*** final zip of mxt into zip package Failed??"
-    exit 24
+    exit 26
   fi
 
   if [ "${RESTRICT_SCRIPT}" != "YES" ]; then
@@ -353,7 +444,7 @@ else
     zip -j "${ZIP}" "${EXTN_DIR}"/*.py
     if [ $? -ne 0 ]; then
       echo "*** final zip of *.py script(s) into zip package Failed??"
-      exit 25
+      exit 27
     fi
 
     if test -f "${EXTN_DIR}"/*.pyi; then
@@ -361,7 +452,7 @@ else
       zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
       if [ $? -ne 0 ]; then
         echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
-        exit 25
+        exit 28
       fi
     fi
 
@@ -374,7 +465,7 @@ else
     zip -j "${ZIP}" "${EXTN_DIR}"/*.dict
     if [ $? -ne 0 ]; then
       echo "*** final zip of *.dict script(s) into zip package Failed??"
-      exit 25
+      exit 29
     fi
   else
     echo "@@ Not including *.dict file(s) for ${EXTN_NAME} package...."
@@ -388,7 +479,7 @@ if [ "${EXTN_NAME}" != "extension_tester" ]; then
     zip -j "${ZIP}" "${EXTN_DIR}"/*.txt
     if [ $? -ne 0 ]; then
       echo "*** final zip of *.txt file(s) into zip package Failed??"
-      exit 26
+      exit 30
     fi
   else
     echo "No help *.txt file(s) to ZIP - skipping....."
@@ -404,5 +495,5 @@ if test -f "${ZIP}"; then
 else
   echo "@@@@@@@@@@@@@@@@@"
   echo "PROBLEM CREATING FINAL DISTRIBUTION ${ZIP} !"
-  exit 27
+  exit 31
 fi
