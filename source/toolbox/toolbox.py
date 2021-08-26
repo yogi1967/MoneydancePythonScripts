@@ -195,7 +195,7 @@
 # build: 1041 - Feature to convert TimeStamps to readable dates; Geekout, Diagnosis and manual edit mode for Currency/Security price_date parameter...
 # build: 1041 - Detect cached downloaded bank transactions (OnlineTxnList) at startup...
 # build: 1041 - Enhanced OFX Search data and service profile lists with linkage account key data et al...
-# build: 1041 - Noticed and fixed several JFileChooser file dialogs - since the VAqua LaF upgrade (2021.1) on Macs broke it...
+# build: 1041 - Fixed several JFileChooser file dialogs - since the VAqua LaF upgrade (2021.1) on Macs broke it...
 # build: 1041 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
 # build: 1041 - Enhanced / tweaked Fix relative currencies function (quite a lot ;-> )
 # build: 1041 - New feature - Move/Merge Investment Txns from one account into another >> 550+ lines of code for this neat little function!
@@ -2364,14 +2364,17 @@ Visit: %s (Author's site)
 
     def checkCurrencyRawRatesOK(theCurr):
 
-        checkRate = theCurr.getParameter("rate", None)
-        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
+        # Check of 'rate' disabled as this is a legacy field and I no longer try to fix it.. Not required.. Especially since 2021.2 onwards
+
+        # checkRate = theCurr.getParameter("rate", None)
+        # checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
+
+        # if checkRate is None or not isGoodRate(checkRateDouble):
+        #     myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
+        #     return False
+
         checkRRate = theCurr.getParameter("rrate", None)
         checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
-
-        if checkRate is None or not isGoodRate(checkRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
-            return False
 
         if checkRRate is None or not isGoodRate(checkRRateDouble):
             myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
@@ -6572,6 +6575,7 @@ Please update any that you use before proceeding....
                     if lFix:
                         lSyncNeeded = True
                         baseCurr.setEditingMode()
+                        baseCurr.setParameter(PARAM_RATE, 1.0)
                         baseCurr.setParameter(PARAM_RRATE, 1.0)
                         baseCurr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
@@ -6704,7 +6708,7 @@ Please update any that you use before proceeding....
                     rCurrByIDs = curr.getCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
 
                     get_rate = curr.getParameter(PARAM_RATE, None)
-                    # get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
+                    get_rateDbl = curr.getDoubleParameter(PARAM_RATE, 0.0)
 
                     get_rrate = curr.getParameter(PARAM_RRATE, None)
                     get_rrateDbl = curr.getDoubleParameter(PARAM_RRATE, 0.0)
@@ -6742,7 +6746,7 @@ Please update any that you use before proceeding....
                                 lSyncNeeded = True
                                 curr.setEditingMode()
                                 # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters)...
-                                # curr.setParameter(PARAM_RATE, newRate)
+                                if not isGoodRate(get_rateDbl): curr.setParameter(PARAM_RATE, newRate)
                                 curr.setParameter(PARAM_RRATE, newRate)
                                 # curr.setRate(newRate, baseCurr)
                                 curr.setCurrencyParameter(None, PARAM_REL_CURR_ID, PARAM_RELATIVE_TO_CURRID, None)
@@ -6753,7 +6757,7 @@ Please update any that you use before proceeding....
 
                         else:  # Relative to another currency....
 
-                            # newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
+                            newRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, baseCurr))  # Copied from the MD code.....
                             newRRate = 1.0 / Util.safeRate(CurrencyUtil.getUserRate(curr, rCurr))
 
                             txt = "@@ WARNING: '%s' ** Relative Curr is: '%s' ** legacy 'rate' is currently %s, whereas new relative 'rrate' is set to: %s. Should be new 'rrate': %s (inversed: %s)\n"\
@@ -6764,7 +6768,7 @@ Please update any that you use before proceeding....
                                 lSyncNeeded = True
                                 curr.setEditingMode()
                                 # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                                # curr.setParameter(PARAM_RATE, newRate)
+                                if not isGoodRate(get_rateDbl): curr.setParameter(PARAM_RATE, newRate)
                                 curr.setParameter(PARAM_RRATE, newRRate)
                                 # curr.setRate(newRRate, rCurr)
                                 txt = "@@SECURITY FIX APPLIED (reset new 'rrate') @@"
@@ -6895,7 +6899,7 @@ Please update any that you use before proceeding....
                         lSyncNeeded = True
                         curr.setEditingMode()
                         # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
-                        # curr.setParameter(PARAM_RATE, newRate)
+                        if not isGoodRate(get_rateDbl): curr.setParameter(PARAM_RATE, newRate)
                         curr.setParameter(PARAM_RRATE, newRate)
                         # curr.setRate(newRate, baseCurr)
                         txt = "@@CURRENCY FIX APPLIED (reset new 'rrate') @@"
@@ -20550,9 +20554,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
-                else:
-                    if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
-                        userFilters.add(labelFYI_curr_fix)
 
                 userFilters.add(user_inactivate_zero_bal_cats)
                 userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
@@ -20772,10 +20773,14 @@ Now you will have a text readable version of the file you can open in a text edi
                         userFilters.add(labelFYI_curr_fix)
 
                 userFilters.add(user_fix_curr_sec)
-                userFilters.add(user_edit_security_decimal_places)
-                userFilters.add(user_merge_duplicate_securities)
-                userFilters.add(user_autofix_price_date)
-                userFilters.add(user_fix_price_date)
+
+                # These are new features - better supported from 2021.2 onwards
+                if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
+                    userFilters.add(user_edit_security_decimal_places)
+                    userFilters.add(user_merge_duplicate_securities)
+                    userFilters.add(user_autofix_price_date)
+                    userFilters.add(user_fix_price_date)
+
                 userFilters.add(user_convert_stock_lot_FIFO)
                 userFilters.add(user_convert_stock_avg_cst_control)
                 userFilters.add(user_fix_nonlinked_security_records)
@@ -20802,29 +20807,37 @@ Now you will have a text readable version of the file you can open in a text edi
 
                         user_diag_curr_sec.setForeground(Color.BLUE)
 
-                        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
+                        if lAdvancedMode and not lAlertPopupShown:
 
-                            if lAdvancedMode and not lAlertPopupShown:
-
+                            if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
                                 MyPopUpDialogBox(toolbox_frame_,
                                                  "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
                                                  "You have some Currency / Security records which were created in an older version of Moneydance\n"
                                                  "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
                                                  "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
-                                                 "OR upgrade to Moneydance build %s onwards (as the code was fixed to cope with this data issue)\n"
+                                                 "OR BETTER >> Upgrade to Moneydance build %s onwards (as the MD code was fixed to deal with this data issue)\n"
                                                  "Menu items will remain disabled until you do this...." %(MD_RRATE_ISSUE_FIXED_BUILD),
                                                  lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
-                                lAlertPopupShown = True
+                            else:
+                                MyPopUpDialogBox(toolbox_frame_,
+                                                 "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
+                                                 "You have some Currency / Security records which have a data issue\n"
+                                                 "These need to be fixed before Toolbox can allow some options\n"
+                                                 "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
+                                                 "Menu items will remain disabled until you do this....",
+                                                 lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
 
-                            user_autofix_price_date.setEnabled(False)
-                            user_thin_price_history.setEnabled(False)
-                            user_fix_invalid_curr_sec.setEnabled(False)
-                            user_fix_invalid_price_history.setEnabled(False)
+                            lAlertPopupShown = True
 
-                            # Just disable if errors on Security records....
-                            if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
-                                user_edit_security_decimal_places.setEnabled(False)
-                                user_merge_duplicate_securities.setEnabled(False)
+                        user_autofix_price_date.setEnabled(False)
+                        user_thin_price_history.setEnabled(False)
+                        user_fix_invalid_curr_sec.setEnabled(False)
+                        user_fix_invalid_price_history.setEnabled(False)
+
+                        # Just disable if errors on Security records....
+                        if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
+                            user_edit_security_decimal_places.setEnabled(False)
+                            user_merge_duplicate_securities.setEnabled(False)
 
                     bg.clearSelection()
 
@@ -20994,7 +21007,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
 
-                userFilters.add(user_move_invest_txns)
+                # These are new features - better supported from 2021.2 onwards
+                if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
+                    userFilters.add(user_move_invest_txns)
+
                 userFilters.add(user_fix_non_hier_sec_acct_txns)
                 userFilters.add(user_fix_delete_one_sided_txns)
                 userFilters.add(user_reverse_txn_amounts)

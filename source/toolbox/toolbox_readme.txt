@@ -144,7 +144,7 @@ ALT-B - Basic Mode
         - Extract your Attachments (this decrypts and extracts your attachments to a directory of your choice) (export_all_attachments.py)
         - DIAGnostics - Analise your  attachments (and Detect Orphans)
 
-ALT-M - Advanced Mode
+ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
     - These first four buttons will appear only if they are necessary / possible in your system
         - FIX - Make me a Primary Dataset (convert from secondary dataset to enable Sync)) (convert_secondary_to_primary_data_set.py)
         - FIX - Create Dropbox Sync Folder (creates the missing .moneydancesync folder if missing from Dropbox)
@@ -182,9 +182,9 @@ ALT-M - Advanced Mode
         - FIX - Correct the Name of Root to match Dataset
     - MENU: Currency & Security tools:
         - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
-        - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).
-        - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol; dpc, RelCurr, Rate, Splits must match).
-        - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price/rate whilst fixing 'price_date'
+        - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly). >> 2021.2 onwards
+        - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).       >> 2021.2 onwards
+        - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price whilst fixing too..  >> 2021.2 onwards
         - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
         - FIX - Convert Stock to LOT Controlled and Allocate LOTs using FiFo method (MakeFifoCost.py)
         - FIX - Convert Stock to Average Cost Control (and wipe any LOT control records)
@@ -195,7 +195,7 @@ ALT-M - Advanced Mode
         - FIX - FORCE change an Account's Currency (use with care). (Does not update any transactions) (force_change_account_currency.py)
         - FIX - FORCE change ALL Account's currencies (use with care). (Does not update any transactions) (force_change_all_currencies.py)
     - MENU: Transactions tools
-        - Move/Merge Investment transactions from one account into another
+        - Move/Merge Investment transactions from one account into another.                                                         >> 2021.2 onwards
         - FIX - Non Hierarchical Security Account Txns (cross-linked securities) (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)
         - FIX - Delete One-Sided Txns (delete_invalid_txns.py)
         - FIX - Reverse Transaction Amounts between dates (reverse_txn_amounts.py)

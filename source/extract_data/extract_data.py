@@ -2602,8 +2602,8 @@ Visit: %s (Author's site)
         MainAppRunnable().run()
 
     try:
-
-        def printJTable(_theFrame, _theJTable, _theTitle, _secondJTable=None):
+        # Mirror code in list_future_reminders (ensure identical)
+        def printJTable(_theFrame, _theJTable, _theTitle, _secondJTable=None):  # todo - enable multi-page print for StockGlance double tables
 
             # Possible future modification, leverage MDPrinter, and it's classes / methods to save/load preferences and create printers
             try:
