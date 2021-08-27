@@ -242,6 +242,7 @@ else:
     import platform
     import csv
     import datetime
+    import traceback
 
     from org.python.core.util import FileUtil
 
@@ -583,21 +584,17 @@ Visit: %s (Author's site)
                 dump_sys_error_to_md_console_and_errorlog()
         return
 
-    def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):
+    def dump_sys_error_to_md_console_and_errorlog(lReturnText=False):
 
-        theText = ""
-        myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[0]))
-        myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[1]))
-        myPrint("B","Error on Script Line Number: %s" %(sys.exc_info()[2].tb_lineno))
-
-        if lReturnText:
-            theText += "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-            theText += "Unexpected error caught: %s\n" %(sys.exc_info()[0])
-            theText += "Unexpected error caught: %s\n" %(sys.exc_info()[1])
-            theText += "Error on Script Line Number: %s\n" %(sys.exc_info()[2].tb_lineno)
-            theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-            return theText
-
+        tb = traceback.format_exc()
+        trace = traceback.format_stack()
+        theText =  "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        theText += "@@ Unexpected error caught @@\n".upper()
+        theText += tb
+        for trace_line in trace: theText += trace_line
+        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        myPrint("B", theText)
+        if lReturnText: return theText
         return
 
     def pad(theText, theLength):
@@ -1669,7 +1666,7 @@ Visit: %s (Author's site)
         filename.dispose(); del filename
 
     try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: pass
+    except: GlobalVars.defaultPrintFontSize = 12
 
     ####################################################################################################################
     # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
@@ -1765,12 +1762,15 @@ Visit: %s (Author's site)
             printJTextArea.setBorder(EmptyBorder(0, 0, 0, 0))
 
             # IntelliJ doesnt like the use of 'print' (as it's a keyword)
-            if "MD_REF" in globals():
-                usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
-            elif "moneydance" in globals():
-                usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
-            else:
-                usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+            try:
+                if "MD_REF" in globals():
+                    usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+                elif "moneydance" in globals():
+                    usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
+                else:
+                    usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+            except:
+                usePrintFontSize = 12   # Font print did not exist before build 3036
 
             theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
             theFontToUse = theFontToUse.deriveFont(float(usePrintFontSize))
@@ -3043,7 +3043,7 @@ Visit: %s (Author's site)
                         return (DateUtil.firstDayInFiscalYear(todayInt), todayInt)
                     elif selectedOption ==  "last_fiscal_year":
                         return (DateUtil.decrementYear(DateUtil.firstDayInFiscalYear(todayInt)),
-                                         DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(todayInt)))
+                                DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(todayInt)))
                     elif selectedOption ==  "last_fiscal_quarter":
                         baseDate = DateUtil.incrementDate(todayInt, 0, -3, 0)
                         return (DateUtil.firstDayInFiscalQuarter(baseDate), DateUtil.lastDayInFiscalQuarter(baseDate))
@@ -3055,7 +3055,7 @@ Visit: %s (Author's site)
                         return (Util.firstDayInWeek(todayInt), Util.lastDayInWeek(todayInt))
                     elif selectedOption ==  "last_year":
                         return (Util.firstDayInYear(Util.decrementYear(todayInt)),
-                                         Util.lastDayInYear(Util.decrementYear(todayInt)))
+                                Util.lastDayInYear(Util.decrementYear(todayInt)))
                     elif selectedOption ==  "last_quarter":
                         baseDate = DateUtil.incrementDate(todayInt, 0, -3, 0)
                         return (DateUtil.firstDayInQuarter(baseDate), DateUtil.lastDayInQuarter(baseDate))
@@ -5791,7 +5791,7 @@ Visit: %s (Author's site)
                             width = min(cTotal + 20, screenSize.width)  # width of all elements
 
                             calcScrollPaneHeightRequired = (min(screenSize.height - 300, max(60, ((rowCount * rowHeight)
-                                                           + ((rowCount) * (interCellSpacing)) + headerHeight + insets.top + insets.bottom + scrollHeight.height))))
+                                                                                                  + ((rowCount) * (interCellSpacing)) + headerHeight + insets.top + insets.bottom + scrollHeight.height))))
 
                             if debug:
                                 myPrint("D", "ScreenSize: ", screenSize)
@@ -5825,7 +5825,7 @@ Visit: %s (Author's site)
                             finsets = self.footerScrollPane.getInsets()
                             fscrollHeight = self.footerScrollPane.getHorizontalScrollBar().getPreferredSize()
                             fcalcScrollPaneHeightRequired = min(250,
-                                 (((frowCount * frowHeight) + ((frowCount + 1) * finterCellSpacing) + fheaderHeight + finsets.top + finsets.bottom + fscrollHeight.height)))
+                                                                (((frowCount * frowHeight) + ((frowCount + 1) * finterCellSpacing) + fheaderHeight + finsets.top + finsets.bottom + fscrollHeight.height)))
                             # fcalcScrollPaneHeightRequired = ((((frowCount * frowHeight) + ((frowCount + 1) * finterCellSpacing) + fheaderHeight + finsets.top + finsets.bottom + fscrollHeight.height)))
 
                             if debug:
@@ -7386,11 +7386,11 @@ Visit: %s (Author's site)
                             validAccountList.add(0,dropDownAccount_EAR)
                         else:
                             validAccountList = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(),MyAcctFilter(_hideInactiveAccounts=hideInactiveAccounts,
-                                                                                                            _hideHiddenAccounts=hideHiddenAccounts,
-                                                                                                            _lAllAccounts=lAllAccounts,
-                                                                                                            _filterForAccounts=filterForAccounts,
-                                                                                                            _lAllCurrency=lAllCurrency,
-                                                                                                            _filterForCurrency=filterForCurrency))
+                                                                                                                                 _hideHiddenAccounts=hideHiddenAccounts,
+                                                                                                                                 _lAllAccounts=lAllAccounts,
+                                                                                                                                 _filterForAccounts=filterForAccounts,
+                                                                                                                                 _lAllCurrency=lAllCurrency,
+                                                                                                                                 _filterForCurrency=filterForCurrency))
 
                         if debug:
                             myPrint("DB","%s Accounts selected in filters" %len(validAccountList))
@@ -8411,15 +8411,15 @@ Visit: %s (Author's site)
                                                                                                  None))
 
                         validAccountList = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(),MyAcctFilter(hideInactiveAccounts,
-                                                                                                        lAllAccounts,
-                                                                                                        filterForAccounts,
-                                                                                                        hideHiddenAccounts,
-                                                                                                        hideHiddenSecurities,
-                                                                                                        lAllCurrency,
-                                                                                                        filterForCurrency,
-                                                                                                        lAllSecurity,
-                                                                                                        filterForSecurity,
-                                                                                                        None))
+                                                                                                                             lAllAccounts,
+                                                                                                                             filterForAccounts,
+                                                                                                                             hideHiddenAccounts,
+                                                                                                                             hideHiddenSecurities,
+                                                                                                                             lAllCurrency,
+                                                                                                                             filterForCurrency,
+                                                                                                                             lAllSecurity,
+                                                                                                                             filterForSecurity,
+                                                                                                                             None))
 
                         iCount = 0
                         iCountAttachmentsDownloaded = 0

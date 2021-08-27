@@ -207,6 +207,7 @@ else:
 	import platform
 	import csv
 	import datetime
+	import traceback
 
 	from org.python.core.util import FileUtil
 
@@ -246,12 +247,12 @@ else:
 	from java.io import BufferedReader, InputStreamReader
 	from java.nio.charset import Charset
 	if isinstance(None, (JDateField,CurrencyUtil,Reminder,ParentTxn,SplitTxn,TxnSearch, JComboBox, JCheckBox,
-						JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
-						JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
-						InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
-						AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
-						JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
-						WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread, SwingWorker)): pass
+						 JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
+						 JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
+						 InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
+						 AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
+						 JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
+						 WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread, SwingWorker)): pass
 	if codecs.BOM_UTF8 is not None: pass
 	if csv.QUOTE_ALL is not None: pass
 	if datetime.MINYEAR is not None: pass
@@ -438,21 +439,17 @@ Visit: %s (Author's site)
 				dump_sys_error_to_md_console_and_errorlog()
 		return
 
-	def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):
+	def dump_sys_error_to_md_console_and_errorlog(lReturnText=False):
 
-		theText = ""
-		myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[0]))
-		myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[1]))
-		myPrint("B","Error on Script Line Number: %s" %(sys.exc_info()[2].tb_lineno))
-
-		if lReturnText:
-			theText += "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-			theText += "Unexpected error caught: %s\n" %(sys.exc_info()[0])
-			theText += "Unexpected error caught: %s\n" %(sys.exc_info()[1])
-			theText += "Error on Script Line Number: %s\n" %(sys.exc_info()[2].tb_lineno)
-			theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-			return theText
-
+		tb = traceback.format_exc()
+		trace = traceback.format_stack()
+		theText =  "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+		theText += "@@ Unexpected error caught @@\n".upper()
+		theText += tb
+		for trace_line in trace: theText += trace_line
+		theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+		myPrint("B", theText)
+		if lReturnText: return theText
 		return
 
 	def pad(theText, theLength):
@@ -486,7 +483,7 @@ Visit: %s (Author's site)
 
 		try:
 			theFont = MD_REF.getUI().getFonts().code
-			# if debug: myPrint("B","Success setting Font set to Moneydance code: %s" %theFont)
+		# if debug: myPrint("B","Success setting Font set to Moneydance code: %s" %theFont)
 		except:
 			theFont = Font("monospaced", Font.PLAIN, 15)
 			if debug: myPrint("B","Failed to Font set to Moneydance code - So using: %s" %theFont)
@@ -612,10 +609,10 @@ Visit: %s (Author's site)
 
 	# Copied MD_REF.getUI().askQuestion
 	def myPopupAskQuestion(theParent=None,
-							theTitle="Question",
-							theQuestion="What?",
-							theOptionType=JOptionPane.YES_NO_OPTION,
-							theMessageType=JOptionPane.QUESTION_MESSAGE):
+						   theTitle="Question",
+						   theQuestion="What?",
+						   theOptionType=JOptionPane.YES_NO_OPTION,
+						   theMessageType=JOptionPane.QUESTION_MESSAGE):
 
 		icon_to_use = None
 		if theParent is None:
@@ -625,22 +622,22 @@ Visit: %s (Author's site)
 		# question = wrapLines(theQuestion)
 		question = theQuestion
 		result = JOptionPane.showConfirmDialog(theParent,
-												question,
-												theTitle,
-												theOptionType,
-												theMessageType,
-												icon_to_use)  # getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"))
+											   question,
+											   theTitle,
+											   theOptionType,
+											   theMessageType,
+											   icon_to_use)  # getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"))
 
 		return result == 0
 
 	# Copies Moneydance .askForQuestion
 	def myPopupAskForInput(theParent,
-							theTitle,
-							theFieldLabel,
-							theFieldDescription="",
-							defaultValue=None,
-							isPassword=False,
-							theMessageType=JOptionPane.INFORMATION_MESSAGE):
+						   theTitle,
+						   theFieldLabel,
+						   theFieldDescription="",
+						   defaultValue=None,
+						   isPassword=False,
+						   theMessageType=JOptionPane.INFORMATION_MESSAGE):
 
 		icon_to_use = None
 		if theParent is None:
@@ -665,11 +662,11 @@ Visit: %s (Author's site)
 		if theFieldDescription:
 			p.add(JTextPanel(theFieldDescription), GridC.getc(x, 1).field().colspan(x + 1))
 		if (JOptionPane.showConfirmDialog(theParent,
-											p,
-											theTitle,
-											JOptionPane.OK_CANCEL_OPTION,
-											theMessageType,
-											icon_to_use) == 0):
+										  p,
+										  theTitle,
+										  JOptionPane.OK_CANCEL_OPTION,
+										  theMessageType,
+										  icon_to_use) == 0):
 			return field.getText()
 		return None
 
@@ -1524,7 +1521,7 @@ Visit: %s (Author's site)
 		filename.dispose(); del filename
 
 	try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-	except: pass
+	except: GlobalVars.defaultPrintFontSize = 12
 
 	####################################################################################################################
 	# PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
@@ -1546,10 +1543,10 @@ Visit: %s (Author's site)
 		_BUFFER_PCT = 0.95
 
 		myPrint("DB", "PageFormat after user dialog: Portrait=%s Landscape=%s W: %sMM(%spts) H: %sMM(%spts) Paper: %s Paper W: %sMM(%spts) H: %sMM(%spts)"
-						%(_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT, _thePageFormat.getOrientation()==_thePageFormat.LANDSCAPE,
-						pt2mm(_thePageFormat.getWidth()),_thePageFormat.getWidth(), pt2mm(_thePageFormat.getHeight()),_thePageFormat.getHeight(),
-						_thePageFormat.getPaper(),
-						pt2mm(_thePageFormat.getPaper().getWidth()), _thePageFormat.getPaper().getWidth(), pt2mm(_thePageFormat.getPaper().getHeight()), _thePageFormat.getPaper().getHeight()))
+				%(_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT, _thePageFormat.getOrientation()==_thePageFormat.LANDSCAPE,
+				  pt2mm(_thePageFormat.getWidth()),_thePageFormat.getWidth(), pt2mm(_thePageFormat.getHeight()),_thePageFormat.getHeight(),
+				  _thePageFormat.getPaper(),
+				  pt2mm(_thePageFormat.getPaper().getWidth()), _thePageFormat.getPaper().getWidth(), pt2mm(_thePageFormat.getPaper().getHeight()), _thePageFormat.getPaper().getHeight()))
 
 		if _pAttrs.get(attribute.standard.MediaSizeName):
 			myPrint("DB", "Requested Media: %s" %(_pAttrs.get(attribute.standard.MediaSizeName)))
@@ -1559,9 +1556,9 @@ Visit: %s (Author's site)
 
 		mediaPA = _pAttrs.get(attribute.standard.MediaPrintableArea)
 		myPrint("DB", "MediaPrintableArea settings from Printer Attributes..: w%sMM h%sMM MediaPrintableArea: %s, getPrintableArea: %s "
-						% (mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM),
-						mediaPA.getHeight(attribute.standard.MediaPrintableArea.MM),
-						mediaPA, mediaPA.getPrintableArea(attribute.standard.MediaPrintableArea.MM)))
+				% (mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM),
+				   mediaPA.getHeight(attribute.standard.MediaPrintableArea.MM),
+				   mediaPA, mediaPA.getPrintableArea(attribute.standard.MediaPrintableArea.MM)))
 
 		if (_thePageFormat.getOrientation()==_thePageFormat.PORTRAIT):
 			deducedWidthMM = mediaPA.getWidth(attribute.standard.MediaPrintableArea.MM)
@@ -1620,12 +1617,15 @@ Visit: %s (Author's site)
 			printJTextArea.setBorder(EmptyBorder(0, 0, 0, 0))
 
 			# IntelliJ doesnt like the use of 'print' (as it's a keyword)
-			if "MD_REF" in globals():
-				usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
-			elif "moneydance" in globals():
-				usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
-			else:
-				usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+			try:
+				if "MD_REF" in globals():
+					usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+				elif "moneydance" in globals():
+					usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
+				else:
+					usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+			except:
+				usePrintFontSize = 12   # Font print did not exist before build 3036
 
 			theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
 			theFontToUse = theFontToUse.deriveFont(float(usePrintFontSize))
@@ -2281,16 +2281,16 @@ Visit: %s (Author's site)
 		MainAppRunnable().run()
 
 	class DoTheMenu(AbstractAction):
-	
+
 		def __init__(self, menu):
 			self.menu = menu
-	
+
 		def actionPerformed(self, event):																				# noqa
 			global list_future_reminders_frame_, debug
 			global _column_widths_LFR, daysToLookForward_LFR, saveStatusLabel
-	
+
 			myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-	
+
 			# ##########################################################################################################
 			if event.getActionCommand().lower().startswith("page setup"):
 				pageSetup()
@@ -2298,41 +2298,41 @@ Visit: %s (Author's site)
 			# ##########################################################################################################
 			if event.getActionCommand().lower().startswith("change look"):
 				days = myPopupAskForInput(list_future_reminders_frame_,
-											"LOOK FORWARD",
-											"DAYS:",
-											"Enter the number of days to look forward",
-											defaultValue=str(daysToLookForward_LFR))
-	
+										  "LOOK FORWARD",
+										  "DAYS:",
+										  "Enter the number of days to look forward",
+										  defaultValue=str(daysToLookForward_LFR))
+
 				if days is None or days == "" or not StringUtils.isInteger(days) or int(days) < 1 or int(days) > 365:
 					myPopupInformationBox(list_future_reminders_frame_,"ERROR - Days must be between 1-365 - no changes made....",theMessageType=JOptionPane.WARNING_MESSAGE)
 				else:
 					daysToLookForward_LFR = int(days)
 					myPrint("B","Days to look forward changed to %s" %(daysToLookForward_LFR))
-	
+
 					formatDate = DateUtil.incrementDate(DateUtil.getStrippedDateInt(),0,0,daysToLookForward_LFR)
 					formatDate = str(formatDate/10000).zfill(4) + "-" + str((formatDate/100)%100).zfill(2) + "-" + str(formatDate%100).zfill(2)
 					saveStatusLabel.setText("** Looking forward %s days  to %s **" %(daysToLookForward_LFR, formatDate))
-	
+
 					RefreshMenuAction().refresh()
-	
+
 			# ##########################################################################################################
 			if event.getActionCommand().lower().startswith("debug"):
 				debug = not debug
 				myPrint("B","DEBUG is now set to: %s" %(debug))
-	
+
 			# ##########################################################################################################
 			if event.getActionCommand().lower().startswith("reset"):
 				_column_widths_LFR = []
 				RefreshMenuAction().refresh()
-	
+
 			# ##########################################################################################################
 			if event.getActionCommand().lower().startswith("refresh"):
 				RefreshMenuAction().refresh()
-	
+
 			# ##########################################################################################################
 			if event.getActionCommand().lower().startswith("extract") or event.getActionCommand().lower().startswith("close"):
 				ExtractMenuAction().extract_or_close()
-	
+
 			# ##########################################################################################################
 			if event.getActionCommand() == "About":
 				AboutThisScript(list_future_reminders_frame_).go()
@@ -2365,7 +2365,7 @@ Visit: %s (Author's site)
 		except:
 			myPrint("B", "Error - failed to save parameters to pickle file...!")
 			dump_sys_error_to_md_console_and_errorlog()
-	
+
 		try:
 			# NOTE - .dispose() - The windowClosed event should set .isActiveInMoneydance False and .removeAppEventListener()
 			if not SwingUtilities.isEventDispatchThread():
@@ -2569,12 +2569,12 @@ Visit: %s (Author's site)
 
 			if debug:
 				myPrint("DB","Parameters Captured",
-					"User Date Format:", user_dateformat.getSelectedItem(),
-					"Reset Columns", user_selectResetColumns.isSelected(),
-					"Strip ASCII:", user_selectStripASCII.isSelected(),
-					"Write BOM to file:", user_selectBOM.isSelected(),
-					"Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
-					"CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
+						"User Date Format:", user_dateformat.getSelectedItem(),
+						"Reset Columns", user_selectResetColumns.isSelected(),
+						"Strip ASCII:", user_selectStripASCII.isSelected(),
+						"Write BOM to file:", user_selectBOM.isSelected(),
+						"Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
+						"CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
 			# endif
 
 			if user_dateformat.getSelectedItem() == "dd/mm/yyyy": userdateformat = "%d/%m/%Y"
@@ -2600,7 +2600,7 @@ Visit: %s (Author's site)
 				lDisplayOnly = True
 				myPopupInformationBox(None, "ERROR - The CSV file delimiter: %s ""cannot be the same as your decimal point character: %s. "
 											"Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, decimalCharSep),
-											"INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
+									  "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
 			lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
 
@@ -2762,46 +2762,46 @@ Visit: %s (Author's site)
 				myPrint("B", 'Success: read ', rems.size(), 'reminders')
 				print
 				csvheaderline = [
-								"Number#",
-								"NextDue",
-								# "ReminderType",
-								# "Frequency",
-								# "AutoCommitDays",
-								# "LastAcknowledged",
-								# "FirstDate",
-								# "EndDate",
-								"ReminderDescription",
-								"NetAmount"
-								# "TxfrType",
-								# "Account",
-								# "MainDescription",
-								# "Split#",
-								# "SplitAmount",
-								# "Category",
-								# "Description",
-								# "Memo"
+					"Number#",
+					"NextDue",
+					# "ReminderType",
+					# "Frequency",
+					# "AutoCommitDays",
+					# "LastAcknowledged",
+					# "FirstDate",
+					# "EndDate",
+					"ReminderDescription",
+					"NetAmount"
+					# "TxfrType",
+					# "Account",
+					# "MainDescription",
+					# "Split#",
+					# "SplitAmount",
+					# "Category",
+					# "Description",
+					# "Memo"
 				]
 
 				headerFormats = [
-									[Number,JLabel.CENTER],
-									[String,JLabel.CENTER],
-									# [String,JLabel.LEFT],
-									# [String,JLabel.LEFT],
-									# [String,JLabel.LEFT],
-									# [String,JLabel.CENTER],
-									# [String,JLabel.CENTER],
-									# [String,JLabel.CENTER],
-									[String,JLabel.LEFT],
-									[Number,JLabel.RIGHT]
-									# [String,JLabel.LEFT],
-									# [String,JLabel.LEFT],
-									# [String,JLabel.LEFT],
-									# [String,JLabel.CENTER],
-									# [Number,JLabel.RIGHT],
-									# [String,JLabel.LEFT],
-									# [String,JLabel.LEFT],
-									# [String,JLabel.LEFT]
-								]
+					[Number,JLabel.CENTER],
+					[String,JLabel.CENTER],
+					# [String,JLabel.LEFT],
+					# [String,JLabel.LEFT],
+					# [String,JLabel.LEFT],
+					# [String,JLabel.CENTER],
+					# [String,JLabel.CENTER],
+					# [String,JLabel.CENTER],
+					[String,JLabel.LEFT],
+					[Number,JLabel.RIGHT]
+					# [String,JLabel.LEFT],
+					# [String,JLabel.LEFT],
+					# [String,JLabel.LEFT],
+					# [String,JLabel.CENTER],
+					# [Number,JLabel.RIGHT],
+					# [String,JLabel.LEFT],
+					# [String,JLabel.LEFT],
+					# [String,JLabel.LEFT]
+				]
 
 				# Read each reminder and create a csv line for each in the csvlines array
 				csvlines = []  # Set up an empty array
@@ -3200,19 +3200,19 @@ Visit: %s (Author's site)
 							myPrint("B","@@ ERROR calling GenericWindowClosingRunnable to push  a WINDOW_CLOSING Event (via the Swing EDT) to %s.... :-< ** I'm getting out quick! **" %(self.myModuleID))
 						if not debug: myPrint("DB","Returning back to Moneydance after calling for %s to close...." %self.myModuleID)
 
-					# md:file:closing	The Moneydance file is being closed
-					# md:file:closed	The Moneydance file has closed
-					# md:file:opening	The Moneydance file is being opened
-					# md:file:opened	The Moneydance file has opened
-					# md:file:presave	The Moneydance file is about to be saved
-					# md:file:postsave	The Moneydance file has been saved
-					# md:app:exiting	Moneydance is shutting down
-					# md:account:select	An account has been selected by the user
-					# md:account:root	The root account has been selected
-					# md:graphreport	An embedded graph or report has been selected
-					# md:viewbudget	One of the budgets has been selected
-					# md:viewreminders	One of the reminders has been selected
-					# md:licenseupdated	The user has updated the license
+			# md:file:closing	The Moneydance file is being closed
+			# md:file:closed	The Moneydance file has closed
+			# md:file:opening	The Moneydance file is being opened
+			# md:file:opened	The Moneydance file has opened
+			# md:file:presave	The Moneydance file is about to be saved
+			# md:file:postsave	The Moneydance file has been saved
+			# md:app:exiting	Moneydance is shutting down
+			# md:account:select	An account has been selected by the user
+			# md:account:root	The root account has been selected
+			# md:graphreport	An embedded graph or report has been selected
+			# md:viewbudget	One of the budgets has been selected
+			# md:viewreminders	One of the reminders has been selected
+			# md:licenseupdated	The user has updated the license
 
 			class WindowListener(WindowAdapter):
 
@@ -3461,7 +3461,7 @@ Visit: %s (Author's site)
 							else:
 								return -1
 
-					# enddef
+				# enddef
 
 				def fixTheRowSorter(self):  # by default everything gets converted to strings. We need to fix this and code for my string number formats
 
@@ -3727,7 +3727,7 @@ Visit: %s (Author's site)
 				if ind == 0:
 					scrollpane = JScrollPane(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS)  # On first call, create the scrollpane
 					scrollpane.setBorder(CompoundBorder(MatteBorder(1, 1, 1, 1, Color.gray), EmptyBorder(0, 0, 0, 0)))
-					# scrollpane.setPreferredSize(Dimension(frame_width-20, frame_height-20	))
+				# scrollpane.setPreferredSize(Dimension(frame_width-20, frame_height-20	))
 
 				table.setPreferredScrollableViewportSize(Dimension(frame_width-20, frame_height-100))
 				#

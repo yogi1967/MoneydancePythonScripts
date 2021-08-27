@@ -219,7 +219,8 @@ Menu - HACKER MODE
     >> VERY TECHNICAL - DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING
     - Toggle other known DEBUG settings on (extra messages in Console)
     - Toggle all internal Moneydance DEBUG settings ON/OFF (same as viewing console)
-    - Extract (a single) File from within LocalStorage. Decrypts a LocalStorage file to TMP dir for viewing (file self destructs after MD restart)
+    - Extract a (single) file from within LocalStorage. Decrypts a LocalStorage file to TMP dir for viewing (file self destructs after MD restart)
+    - Peek at an encrypted file located in your Sync Folder.... Decrypts a Sync (e.g. Dropbox) file and shows it to you...
     - Import (a single) File back into LocalStorage. Encrypts a file of your choosing and puts it into LocalStorage/safe/TMP...
     - Allows User to Add/Change/Delete Settings/Prefs >> key/value in config.dict or LocalStorage() (./safe/settings)
     - Edit/Change/Delete an Object's Parameter keys (this can change data in your dataset/database directly)

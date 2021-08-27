@@ -215,7 +215,9 @@
 # build: 1041 - Added save output button to QuickJFrame() popup that displays output text, along with top and bottom buttons.....
 # build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button; also now copy tha path to clipboard too.
 # build: 1041 - Added print function to QuickJFrame(); also save and print to main diagnostics display
+# build: 1041 - Added feature - HACK: Peek at an encrypted file located in your Sync Folder...
 
+# todo - convert statusLabel over to GlobalVars.STATUS_LABEL and setDisplayStatus()
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix alert colours since VAqua....!?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -394,6 +396,7 @@ else:
     import platform
     import csv
     import datetime
+    import traceback
 
     from org.python.core.util import FileUtil
 
@@ -494,7 +497,11 @@ else:
     except:
         pass
 
+    from java.io import ByteArrayInputStream
+    from javax.crypto import BadPaddingException
+
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
+    from com.moneydance.apps.md.controller.sync import MDSyncCipher
     from com.moneydance.apps.md.controller import ModuleMetaData
     from com.moneydance.apps.md.controller import LocalStorageCipher
     from com.moneydance.apps.md.controller import Common
@@ -546,7 +553,7 @@ else:
     global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
     global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED
-    GlobalVars.statusLabel = None
+    GlobalVars.STATUS_LABEL = None
     DARK_GREEN = Color(0, 192, 0)                                                                                       # noqa
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lGeekOutModeEnabled_TB = False                                                                                      # noqa
@@ -634,7 +641,7 @@ Visit: %s (Author's site)
             while True:
                 line = bufr.readLine()
                 if line is not None:
-                    line += "\n"
+                    line += "\n"                    # todo - convert this to "\n".join(contents) - more efficient!
                     fileContents+=line
                     continue
                 break
@@ -686,21 +693,17 @@ Visit: %s (Author's site)
                 dump_sys_error_to_md_console_and_errorlog()
         return
 
-    def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):
+    def dump_sys_error_to_md_console_and_errorlog(lReturnText=False):
 
-        theText = ""
-        myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[0]))
-        myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[1]))
-        myPrint("B","Error on Script Line Number: %s" %(sys.exc_info()[2].tb_lineno))
-
-        if lReturnText:
-            theText += "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-            theText += "Unexpected error caught: %s\n" %(sys.exc_info()[0])
-            theText += "Unexpected error caught: %s\n" %(sys.exc_info()[1])
-            theText += "Error on Script Line Number: %s\n" %(sys.exc_info()[2].tb_lineno)
-            theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-            return theText
-
+        tb = traceback.format_exc()
+        trace = traceback.format_stack()
+        theText =  "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        theText += "@@ Unexpected error caught @@\n".upper()
+        theText += tb
+        for trace_line in trace: theText += trace_line
+        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        myPrint("B", theText)
+        if lReturnText: return theText
         return
 
     def pad(theText, theLength):
@@ -1772,7 +1775,7 @@ Visit: %s (Author's site)
         filename.dispose(); del filename
 
     try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: pass
+    except: GlobalVars.defaultPrintFontSize = 12
 
     ####################################################################################################################
     # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
@@ -1868,12 +1871,15 @@ Visit: %s (Author's site)
             printJTextArea.setBorder(EmptyBorder(0, 0, 0, 0))
 
             # IntelliJ doesnt like the use of 'print' (as it's a keyword)
-            if "MD_REF" in globals():
-                usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
-            elif "moneydance" in globals():
-                usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
-            else:
-                usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+            try:
+                if "MD_REF" in globals():
+                    usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+                elif "moneydance" in globals():
+                    usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
+                else:
+                    usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+            except:
+                usePrintFontSize = 12   # Font print did not exist before build 3036
 
             theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
             theFontToUse = theFontToUse.deriveFont(float(usePrintFontSize))
@@ -2477,6 +2483,21 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
+
+    def setDisplayStatus(_theStatus, _theColor="G"):
+        """Sets the Display / Status label on the main diagnostic display: G=Green, B=Blue, R=Red, DG=Dark Green"""
+
+        if GlobalVars.STATUS_LABEL is None or not isinstance(GlobalVars.STATUS_LABEL, JLabel): return
+
+        GlobalVars.STATUS_LABEL.setText((_theStatus).ljust(800, " "))
+
+        if _theColor is None or _theColor == "": _theColor = "G"
+        _theColor = _theColor.upper()
+        if _theColor == "R":    GlobalVars.STATUS_LABEL.setForeground(Color.RED)
+        elif _theColor == "B":  GlobalVars.STATUS_LABEL.setForeground(Color.BLUE)
+        elif _theColor == "DG": GlobalVars.STATUS_LABEL.setForeground(DARK_GREEN)
+        else:                   GlobalVars.STATUS_LABEL.setForeground(Color.GREEN)
+        return
 
     # noinspection PyBroadException
     def downloadStuWareSoftSystemsExtensions( what ):
@@ -19338,22 +19359,14 @@ Now you will have a text readable version of the file you can open in a text edi
         statusLabel.setForeground(Color.BLUE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
         return
 
-    def hacker_mode_decrypt_file(statusLabel):
-        global toolbox_frame_, debug, DARK_GREEN, lCopyAllToClipBoard_TB
-        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-
-        myPopupInformationBox(toolbox_frame_,"OK.. Please select an internal MD encrypted file from within the 'safe'. I will decrypt it and save it in the TMP directory of this current dataset (details will be in the console log)")
-
-        LS = MD_REF.getCurrentAccountBook().getLocalStorage()
-        attachmentFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
-
+    def file_chooser_wrapper(_methodTitle, _startingFolder, _dialogTitle, _proceedButtonText):
         # FileDialog causes some problems as it remembers the last directory - useless for this - we want this specific directory....!
         # JFileChooser has a non native LaF on Mac, but worked... But then VAQua broke it....
         # We get close by setting the ClientProperty(s) used below... But now I see that the files are hidden when located within the
         # MacOS: ~/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents location (oh well)
+
         useJFileChooser = True
 
         if Platform.isOSX():
@@ -19361,40 +19374,37 @@ Now you will have a text readable version of the file you can open in a text edi
             System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
             fileChooserOptions = ["JFileChooser() - Try this first... If your files are not visible, try FileDialog",
-                                  "FileDialog() - Works fine, but you may have to navigate to your 'safe' directory manually"]
+                                  "FileDialog() - Works fine, but you may have to navigate to your Sync folder manually"]
 
             selectedChooser = JOptionPane.showInputDialog(toolbox_frame_,
-                                                      "MacOSX - Select the method to select the file to decrypt",
-                                                      "HACKER: Extract/Decrypt File",
-                                                      JOptionPane.INFORMATION_MESSAGE,
-                                                      MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-                                                      fileChooserOptions,
-                                                      None)
+                                                          "MacOSX - Select the method to select the file to decrypt",
+                                                          _methodTitle,
+                                                          JOptionPane.INFORMATION_MESSAGE,
+                                                          MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                          fileChooserOptions,
+                                                          None)
 
             if selectedChooser and fileChooserOptions.index(selectedChooser) == 1:
-                myPrint("B","MacOSX - User chose FileDialog() for file selection")
+                myPrint("DB","MacOSX - User chose FileDialog() for file selection")
                 useJFileChooser = False
             else:
-                myPrint("B","MacOSX - defaulting to JFileChooser() for file selection")
-
-        # if useJFileChooser and Platform.isOSX():
-        #     myPopupInformationBox(toolbox_frame_,"NOTE: If your dataset is located within the default ~/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents location you will not be able to see the contents. Relocate it to a normal directory")
+                myPrint("DB","MacOSX - defaulting to JFileChooser() for file selection")
 
         encryptedFilename = fileDialog = returnvalue = None
 
         if useJFileChooser:
-            encryptedFilename = JFileChooser(attachmentFullPath)
+            encryptedFilename = JFileChooser(_startingFolder)
             if Platform.isOSX():
                 encryptedFilename.putClientProperty("JFileChooser.packageIsTraversable", True)
                 encryptedFilename.putClientProperty("JFileChooser.appBundleIsTraversable", True)
             encryptedFilename.setMultiSelectionEnabled(False)
             encryptedFilename.setFileSelectionMode(JFileChooser.FILES_ONLY)
-            encryptedFilename.setDialogTitle("Select Moneydance internal file to extract and copy to TMP directory")
-            encryptedFilename.setApproveButtonText("EXTRACT")
+            encryptedFilename.setDialogTitle(_dialogTitle)
+            encryptedFilename.setApproveButtonText(_proceedButtonText)
             returnvalue = encryptedFilename.showOpenDialog(toolbox_frame_)
         else:
-            fileDialog = FileDialog(toolbox_frame_, "Select Moneydance internal file to extract and copy to TMP directory")
-            fileDialog.setDirectory(attachmentFullPath)
+            fileDialog = FileDialog(toolbox_frame_, _dialogTitle)
+            fileDialog.setDirectory(_startingFolder)
             fileDialog.setMultipleMode(False)
             fileDialog.setMode(FileDialog.LOAD)
             fileDialog.setVisible(True)
@@ -19407,30 +19417,49 @@ Now you will have a text readable version of the file you can open in a text edi
             if (returnvalue != JFileChooser.APPROVE_OPTION
                     or encryptedFilename.getSelectedFile() is None
                     or encryptedFilename.getSelectedFile().getName() == ""):
-                statusLabel.setText(("No file selected to extract/decrypt/copy..!").ljust(800, " "))
-                statusLabel.setForeground(Color.BLUE)
-                return
+                txt = "%s: No file selected to extract!" %(_methodTitle)
+                GlobalVars.STATUS_LABEL.setText((txt).ljust(800, " ")); GlobalVars.STATUS_LABEL.setForeground(Color.BLUE)
+                myPopupInformationBox(toolbox_frame_, txt, _methodTitle, theMessageType=JOptionPane.WARNING_MESSAGE)
+                return None
 
             selectedFile = encryptedFilename.getSelectedFile().getCanonicalPath()   # type: str
         else:
             if (fileDialog.getFile() is None) or fileDialog.getFile() == "":
-                statusLabel.setText(("User chose to cancel or no file selected >>  So no extract will be performed...").ljust(800, " "))
-                statusLabel.setForeground(Color.RED)
-                myPopupInformationBox(toolbox_frame_,"User chose to cancel or no file selected >>  So no extract will be performed... ","EXTRACT FILE", theMessageType=JOptionPane.WARNING_MESSAGE)
-                return
+                txt = "%s: User chose to cancel or no file selected." %(_methodTitle)
+                GlobalVars.STATUS_LABEL.setText((txt).ljust(800, " ")); GlobalVars.STATUS_LABEL.setForeground(Color.RED)
+                myPopupInformationBox(toolbox_frame_, txt, _methodTitle, theMessageType=JOptionPane.WARNING_MESSAGE)
+                return None
 
             selectedFile = os.path.join(fileDialog.getDirectory(), fileDialog.getFile())
 
         if not os.path.exists(selectedFile) or not os.path.isfile(selectedFile):
-            statusLabel.setText(("Sorry, file selected to extract either does not exist or is not a file").ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_,"Sorry, file selected to extract either does not exist or is not a file >> So no extract will be performed... ","EXTRACT FILE", theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
+            txt = "%s: Sorry, file selected to extract either does not exist or is not a file?" %(_methodTitle)
+            GlobalVars.STATUS_LABEL.setText((txt).ljust(800, " ")); GlobalVars.STATUS_LABEL.setForeground(Color.RED)
+            myPopupInformationBox(toolbox_frame_,txt, _methodTitle, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return None
+
+        return selectedFile
+
+    def hacker_mode_decrypt_file():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "HACKER: EXTRACT/DECRYPT FROM LOCAL STORAGE"
+
+        myPopupInformationBox(toolbox_frame_,"Select an internal MD encrypted file from within the 'safe'. "
+                                             "I will decrypt and save it to TMP directory in this current dataset (details in console log)")
+
+        LS = MD_REF.getCurrentAccountBook().getLocalStorage()
+        attachmentFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
+
+        selectedFile = file_chooser_wrapper(_THIS_METHOD_NAME, attachmentFullPath, "Select Moneydance internal file to extract and copy to TMP directory", "EXTRACT")
+        if selectedFile is None: return
 
         searchForSafe = selectedFile.lower().find(".moneydance"+os.path.sep+"safe"+os.path.sep)
         if searchForSafe <= 0:
-            statusLabel.setText(("Sorry, file selected to extract must be within the MD Dataset 'safe'").ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
+            txt = "%s: file selected to extract must be within the MD Dataset 'safe'" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
         truncatedPath = selectedFile[searchForSafe+len(".moneydance"+os.path.sep+"safe"+os.path.sep):]
@@ -19447,21 +19476,147 @@ Now you will have a text readable version of the file you can open in a text edi
             helper = MD_REF.getPlatformHelper()
             helper.openDirectory(tmpDir)
         except:
-            myPrint("B", "HACKER MODE: SORRY - Failed to extract file %s (view console error log)" %selectedFile)
-            statusLabel.setText(("HACKER MODE: SORRY - Failed to extract file %s (view console error log)" %selectedFile).ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
+            dump_sys_error_to_md_console_and_errorlog()
+            txt = "SORRY - Failed to extract file %s (view console error log)" %(selectedFile)
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
         myPrint("B","User requested to extract file: %s from LocalStorage()/safe and copy to TMP dir... SUCCESS!" %(selectedFile))
 
-        statusLabel.setText(("HACKER MODE: File %s decrypted and copied to TMP dir" %selectedFile).ljust(800, " "))
-        statusLabel.setForeground(Color.BLUE)
+        txt = "HACKER MODE: File %s decrypted and copied to TMP dir" %(selectedFile)
+        setDisplayStatus(txt,"B")
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
         return
 
-    def hacker_mode_DEBUG(statusLabel, lForceON=False):
+    def hacker_mode_decrypt_file_from_sync():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "HACKER: EXTRACT/PEEK AT SYNC FILE"
+
+        lFailTest = False
+        KEY_TEST_FILE = "key_test"
+        FOLDER_VER = "v3"
+
+        passphrase = encryptedTestBytes = syncFolder = None
+        try:
+            passphrase = MD_REF.getUI().getCurrentAccounts().getSyncEncryptionPassword()
+            syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
+
+            encryptedTestBytes = IOUtils.readFully(syncFolder.readUnencrypted(KEY_TEST_FILE))
+            if encryptedTestBytes is None or len(encryptedTestBytes) <= 0:
+                myPrint("DB", "ERROR - The read of unencrypted data from Sync's 'key_test' returned None or zero bytes...")
+                lFailTest = True
+        except:
+            dump_sys_error_to_md_console_and_errorlog()
+            myPrint("DB", "ERROR - Failed to get your Sync Folder and read unencrypted data from 'key_test'...")
+            lFailTest = True
+
+        def canPasswordDecryptSyncData(_passphrase, the_encryptedTestBytes):
+            if (the_encryptedTestBytes is None or len(the_encryptedTestBytes) <= 0): return False
+            try:
+                decryptedBytes = MDSyncCipher.decryptBytes(the_encryptedTestBytes, _passphrase)
+                keyTestInfo = SyncRecord()
+                if (not keyTestInfo.readSet(ByteArrayInputStream(decryptedBytes))): return False
+                # Record starts with 12-digit random truncated UUID...
+                if keyTestInfo.getString("test", "monkeys") == "Hello, how are you?":
+                    myPrint("DB", "Success - I managed to decrypt your 'key_test' file from Sync Folders using your stored encryption passphrase..")
+                    return True
+
+            except BadPaddingException:
+                myPrint("DB", "ERROR - BadPaddingException: I could NOT decrypt your 'key_test' file from Sync Folders using your stored encryption passphrase..!")
+                return False
+
+            myPrint("DB", "ERROR - I could NOT decrypt your 'key_test' file from Sync Folders using your stored encryption passphrase..!")
+            return False
+
+        if lFailTest or not canPasswordDecryptSyncData(passphrase, encryptedTestBytes):
+            txt = "Sorry, I cannot find/test/decrypt your Sync 'key_file' (No Sync Folder, Bad Passphrase)? - Aborting!"
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+        del passphrase
+
+        syncFolderOnDisk = get_sync_folder()
+        if not syncFolderOnDisk:
+            txt = "Sorry, I cannot find your Sync folder? - Aborting!"
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        syncFolderOnDisk = os.path.join(syncFolderOnDisk, syncFolder.getSubpath())
+        myPrint("DB", "Sync folder is:", syncFolderOnDisk)
+
+        subs = syncFolder.listSubfolders(None)
+        if FOLDER_VER not in subs:
+            txt = "Sorry, I cannot find your '%s' Sync sub-folder? - Aborting!" %(FOLDER_VER)
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        myPopupInformationBox(toolbox_frame_, "Select a file from your Sync folder. I will decrypt it and show you the lines on screen... ")
+
+        selectedFile = file_chooser_wrapper(_THIS_METHOD_NAME, syncFolderOnDisk, "Select Moneydance Sync encrypted file to extract / peek..", "EXTRACT/PEEK")
+        if selectedFile is None: return
+
+        if not selectedFile.startswith(syncFolderOnDisk):
+            txt = "Sorry, Sync file selected to extract must be within your Sync folders'"
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        truncatedPath = selectedFile[len(syncFolderOnDisk):]
+        myPrint("DB", truncatedPath)
+
+        if "/attach/" in truncatedPath:
+            txt = "Sorry, I cannot show you attachments at this time..."
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        fail = False
+        readLines = None
+        try:
+            readLines = IOUtils.readlines(syncFolder.readFile(truncatedPath))
+        except:
+            fail = True
+            myPrint("DB","Failed to read/decrypt.. Will try unencrypted")
+
+        try:
+            if fail:
+                readLines = IOUtils.readlines(syncFolder.readUnencrypted(truncatedPath))
+                fail = False
+        except:
+            fail = True
+            myPrint("DB","Failed to read/unencrypted..")
+
+        if fail:
+            txt = "Sorry, I failed to read your file... Exiting..."
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        if readLines is None or len(readLines) < 1:
+            txt = "Sorry, your Sync file appears to be empty..? Exiting..."
+            setDisplayStatus(txt,"R")
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        len_lines = sum(len(line) for line in readLines)
+        buildString = "\n".join(readLines)
+
+        jif = QuickJFrame(_THIS_METHOD_NAME+"(%s lines, %s chars)" %(len(readLines),len_lines), buildString,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False)
+        del buildString
+        jif.show_the_frame()
+
+        txt = "HACKER MODE: File %s decrypted and shown to user" %(selectedFile)
+        setDisplayStatus(txt,"B")
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
+    def hacker_mode_DEBUG(lForceON=False):
         global toolbox_frame_, debug, DARK_GREEN, lCopyAllToClipBoard_TB
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -19486,8 +19641,8 @@ Now you will have a text readable version of the file you can open in a text edi
                                    200,"TOGGLE MONEYDANCE INTERNAL DEBUG",
                                    lCancelButton=True,OKButtonText="SET ALL to %s" %toggleText)
             if not ask.go():
-                statusLabel.setText(("HACKER MODE: NO CHANGES MADE TO DEBUG!").ljust(800, " "))
-                statusLabel.setForeground(Color.BLUE)
+                txt = "HACKER MODE: NO CHANGES MADE TO DEBUG!"
+                setDisplayStatus(txt,"B")
                 return
 
             myPrint("B","HACKER MODE: User requested to change all internal DEBUG modes to %s - setting these now...!" %(toggleText))
@@ -19511,8 +19666,8 @@ Now you will have a text readable version of the file you can open in a text edi
             myPrint("DB","Moneydance Debug turned ON (same as launching Console window)......")
             return
 
-        statusLabel.setText(("All Moneydance internal debug settings turned %s" %toggleText).ljust(800, " "))
-        statusLabel.setForeground(Color.BLUE)
+        txt = "All Moneydance internal debug settings turned %s" %(toggleText)
+        setDisplayStatus(txt,"B")
         myPopupInformationBox(toolbox_frame_,"All Moneydance internal debug settings turned %s" %toggleText,"TOGGLE MONEYDANCE INTERNAL DEBUG",JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -19937,7 +20092,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         return
 
                     if user_toggleMDDebug.isSelected():
-                        hacker_mode_DEBUG(self.statusLabel)
+                        hacker_mode_DEBUG()
 
                     if user_authenticationManagement.isSelected():
                         OFX_authentication_management(self.statusLabel)
@@ -21297,6 +21452,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_hacker_extract_from_storage.setToolTipText("This allows you to select & extract (decrypt) a file from inside LocalStorage (copied to TMP dir)..... FILE SELF DESTRUCTS AFTER RESTART")
                 user_hacker_extract_from_storage.setForeground(Color.RED)
 
+                user_hacker_extract_from_sync = JRadioButton("HACK: Peek at an encrypted file located in your Sync Folder...", False)
+                user_hacker_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
+                user_hacker_extract_from_sync.setForeground(Color.RED)
+
                 user_hacker_import_to_storage = JRadioButton("HACK: Import a File back into LocalStorage", False)
                 user_hacker_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
                 user_hacker_import_to_storage.setForeground(Color.RED)
@@ -21322,6 +21481,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_hacker_toggle_DEBUG)
                 bg.add(user_hacker_toggle_other_DEBUGs)
                 bg.add(user_hacker_extract_from_storage)
+                bg.add(user_hacker_extract_from_sync)
                 bg.add(user_hacker_import_to_storage)
                 bg.add(user_hacker_mode_edit_prefs)
                 bg.add(user_hacker_edit_param_keys)
@@ -21336,6 +21496,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_hacker_toggle_DEBUG)
                 userFilters.add(user_hacker_toggle_other_DEBUGs)
                 userFilters.add(user_hacker_extract_from_storage)
+                userFilters.add(user_hacker_extract_from_sync)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
                 userFilters.add(user_hacker_import_to_storage)
@@ -21367,13 +21528,17 @@ Now you will have a text readable version of the file you can open in a text edi
                     selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
                     if user_hacker_toggle_DEBUG.isSelected():
-                        hacker_mode_DEBUG(self.statusLabel)
+                        hacker_mode_DEBUG()
 
                     if user_hacker_toggle_other_DEBUGs.isSelected():
                         hacker_mode_other_DEBUG(self.statusLabel)
 
                     if user_hacker_extract_from_storage.isSelected():
-                        hacker_mode_decrypt_file(self.statusLabel)
+                        hacker_mode_decrypt_file()
+
+                    if user_hacker_extract_from_sync.isSelected():
+                        hacker_mode_decrypt_file_from_sync()
+                        return
 
                     if user_hacker_import_to_storage.isSelected():
                         hacker_mode_encrypt_file(self.statusLabel)
@@ -21865,7 +22030,7 @@ Now you will have a text readable version of the file you can open in a text edi
             global lAdvancedMode, lHackerMode, lAutoPruneInternalBackups_TB, MYPYTHON_DOWNLOAD_URL
 
             # ConsoleWindow.showConsoleWindow(MD_REF.getUI())
-            hacker_mode_DEBUG(None,lForceON=True)
+            hacker_mode_DEBUG(lForceON=True)
 
             screenSize = Toolkit.getDefaultToolkit().getScreenSize()
 
@@ -21888,6 +22053,8 @@ Now you will have a text readable version of the file you can open in a text edi
             displayString = buildDiagText()
             statusLabel = JLabel(("Infinite Kind (Moneydance) support tool >> DIAG STATUS: BASIC MODE RUNNING... - %s+I for Help (check out the Toolbox menu for more options/modes/features)"%MD_REF.getUI().ACCELERATOR_MASK_STR).ljust(800, " "), JLabel.LEFT)
             statusLabel.setForeground(DARK_GREEN)
+
+            GlobalVars.STATUS_LABEL = statusLabel   # Starting to convert to this over time, as I touch bits of code
 
             try:
                 if lCopyAllToClipBoard_TB:

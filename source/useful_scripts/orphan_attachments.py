@@ -203,6 +203,7 @@ else:
     import platform
     import csv
     import datetime
+    import traceback
 
     from org.python.core.util import FileUtil
 
@@ -401,21 +402,17 @@ Visit: %s (Author's site)
                 dump_sys_error_to_md_console_and_errorlog()
         return
 
-    def dump_sys_error_to_md_console_and_errorlog( lReturnText=False ):
+    def dump_sys_error_to_md_console_and_errorlog(lReturnText=False):
 
-        theText = ""
-        myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[0]))
-        myPrint("B","Unexpected error caught: %s" %(sys.exc_info()[1]))
-        myPrint("B","Error on Script Line Number: %s" %(sys.exc_info()[2].tb_lineno))
-
-        if lReturnText:
-            theText += "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-            theText += "Unexpected error caught: %s\n" %(sys.exc_info()[0])
-            theText += "Unexpected error caught: %s\n" %(sys.exc_info()[1])
-            theText += "Error on Script Line Number: %s\n" %(sys.exc_info()[2].tb_lineno)
-            theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-            return theText
-
+        tb = traceback.format_exc()
+        trace = traceback.format_stack()
+        theText =  "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        theText += "@@ Unexpected error caught @@\n".upper()
+        theText += tb
+        for trace_line in trace: theText += trace_line
+        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        myPrint("B", theText)
+        if lReturnText: return theText
         return
 
     def pad(theText, theLength):
@@ -1487,7 +1484,7 @@ Visit: %s (Author's site)
         filename.dispose(); del filename
 
     try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: pass
+    except: GlobalVars.defaultPrintFontSize = 12
 
     ####################################################################################################################
     # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
@@ -1583,12 +1580,15 @@ Visit: %s (Author's site)
             printJTextArea.setBorder(EmptyBorder(0, 0, 0, 0))
 
             # IntelliJ doesnt like the use of 'print' (as it's a keyword)
-            if "MD_REF" in globals():
-                usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
-            elif "moneydance" in globals():
-                usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
-            else:
-                usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+            try:
+                if "MD_REF" in globals():
+                    usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+                elif "moneydance" in globals():
+                    usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
+                else:
+                    usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
+            except:
+                usePrintFontSize = 12   # Font print did not exist before build 3036
 
             theFontToUse = getMonoFont()       # Need Monospaced font, but with the font set in MD preferences for print
             theFontToUse = theFontToUse.deriveFont(float(usePrintFontSize))
