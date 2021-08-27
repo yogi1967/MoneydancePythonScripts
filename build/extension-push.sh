@@ -141,6 +141,7 @@ fi
 
 rm -f "${PUSHDIR}/${MODULE}"/*.docx
 rm -f "${PUSHDIR}/${MODULE}"/*.mxt
+rm -f "${PUSHDIR}/${MODULE}"/*.pyi
 
 if [ "${MODULE}" = "toolbox" ]; then
   rm "${PUSHDIR}/${MODULE}/toolbox_version_requirements.dict"
