@@ -708,21 +708,20 @@ Visit: %s (Author's site)
         if lReturnText: return theText
         return
 
+    def safeStr(_theText): return ("%s" %(_theText))
+
     def pad(theText, theLength):
+        if not (isinstance(theText, unicode) or isinstance(theText, str)): theText = safeStr(theText)
         theText = theText[:theLength].ljust(theLength, u" ")
         return theText
 
     def rpad(theText, theLength):
-        if not (isinstance(theText, unicode) or isinstance(theText, str)):
-            theText = str(theText)
-
+        if not (isinstance(theText, unicode) or isinstance(theText, str)): theText = safeStr(theText)
         theText = theText[:theLength].rjust(theLength, u" ")
         return theText
 
     def cpad(theText, theLength):
-        if not (isinstance(theText, unicode) or isinstance(theText, str)):
-            theText = str(theText)
-
+        if not (isinstance(theText, unicode) or isinstance(theText, str)): theText = safeStr(theText)
         if len(theText)>=theLength: return theText[:theLength]
 
         padLength = int((theLength - len(theText)) / 2)
@@ -730,7 +729,6 @@ Visit: %s (Author's site)
         theText = ((" "*padLength)+theText+(" "*padLength))[:theLength]
 
         return theText
-
 
     myPrint("B", myScriptName, ": Python Script Initialising.......", "Build:", version_build)
 
@@ -1738,7 +1736,7 @@ Visit: %s (Author's site)
         if (copyToFile is None) or copyToFile == "":
             filename.dispose(); del filename
             return
-        elif not str(copyToFile).endswith(".txt"):
+        elif not safeStr(copyToFile).endswith(".txt"):
             myPopupInformationBox(_theFrame, "Sorry - please use a .txt file extension when saving output txt")
             filename.dispose(); del filename
             return
@@ -4413,16 +4411,16 @@ Visit: %s (Author's site)
                 if olacct[1] == service:
                     thisServiceMDAccountProxies.append(olacct)
 
-            OFX.append(pad("Service/Profile:".upper(),40)       + str(service))
+            OFX.append(pad("Service/Profile:".upper(),40)       + safeStr(service))
             OFX.append(pad("----------------",40))
-            OFX.append(pad(">>Moneydance TIK Service ID:",40)   + str(service.getTIKServiceID()))
-            OFX.append(pad(">>OFX Version:",40)                 + str(service.getOFXVersion()))
-            OFX.append(pad(">>Service Id:",40)                  + str(service.getServiceId()))
-            OFX.append(pad(">>Service Type:",40)                + str(service.getServiceType()))
-            OFX.append(pad(">>Realms:",40)                      + str(service.getRealms()))
-            OFX.append(pad(">>Bootstrap URL:",40)               + str(service.getBootstrapURL()))
+            OFX.append(pad(">>Moneydance TIK Service ID:",40)   + safeStr(service.getTIKServiceID()))
+            OFX.append(pad(">>OFX Version:",40)                 + safeStr(service.getOFXVersion()))
+            OFX.append(pad(">>Service Id:",40)                  + safeStr(service.getServiceId()))
+            OFX.append(pad(">>Service Type:",40)                + safeStr(service.getServiceType()))
+            OFX.append(pad(">>Realms:",40)                      + safeStr(service.getRealms()))
+            OFX.append(pad(">>Bootstrap URL:",40)               + safeStr(service.getBootstrapURL()))
 
-            OFX.append(pad(">>Needs FI Profile Check()?:",40)   + str(service.needsFIProfileCheck()))
+            OFX.append(pad(">>Needs FI Profile Check()?:",40)   + safeStr(service.needsFIProfileCheck()))
 
             OFX.append(pad("\n>>Accounts configured within bank profile:",120))
             if len(service.getAvailableAccounts())<1:
@@ -4463,12 +4461,12 @@ Visit: %s (Author's site)
             try:
                 p_getAuthenticationCachePrefix=service.getClass().getDeclaredMethod("getAuthenticationCachePrefix")
                 p_getAuthenticationCachePrefix.setAccessible(True)
-                OFX.append(pad("AuthenticationCachePrefix:",33) + str(p_getAuthenticationCachePrefix.invoke(service)))
+                OFX.append(pad("AuthenticationCachePrefix:",33) + safeStr(p_getAuthenticationCachePrefix.invoke(service)))
                 p_getAuthenticationCachePrefix.setAccessible(False)
 
                 p_getSessionCookiePrefix=service.getClass().getDeclaredMethod("getSessionCookiePrefix")
                 p_getSessionCookiePrefix.setAccessible(True)
-                OFX.append(pad("SessionCookiePrefix:",33    ) + str(p_getSessionCookiePrefix.invoke(service)))
+                OFX.append(pad("SessionCookiePrefix:",33    ) + safeStr(p_getSessionCookiePrefix.invoke(service)))
                 p_getSessionCookiePrefix.setAccessible(False)
             except:
                 pass
@@ -5081,7 +5079,7 @@ Visit: %s (Author's site)
             global toolbox_frame_, debug
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-            x = str(self.theFile)
+            x = safeStr(self.theFile)
             if not os.path.exists(x):
                 self.statusLabel.setText(("Sorry, the file does not seem to exist: " + x).ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
@@ -5115,7 +5113,7 @@ Visit: %s (Author's site)
                 filename.dispose()
                 del filename
                 return
-            elif not str(copyToFile).endswith(".txt"):
+            elif not safeStr(copyToFile).endswith(".txt"):
                 self.statusLabel.setText(("Sorry - please use a .txt file extension when copying  console log file").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
                 filename.dispose()
@@ -5137,18 +5135,18 @@ Visit: %s (Author's site)
             try:
                 toFile = File(filename.getDirectory(), filename.getFile())
                 IOUtils.copy(self.theFile, toFile)
-                myPrint("B", x + " copied to " + str(toFile))
+                myPrint("B", x + " copied to " + safeStr(toFile))
                 # noinspection PyTypeChecker
                 if os.path.exists(os.path.join(filename.getDirectory(), filename.getFile())):
                     play_the_money_sound()
-                    self.statusLabel.setText(("Console Log file save as requested to: " + str(toFile)).ljust(800, " "))
+                    self.statusLabel.setText(("Console Log file save as requested to: " + safeStr(toFile)).ljust(800, " "))
                     self.statusLabel.setForeground(Color.BLUE)
                 else:
-                    myPrint("B", "ERROR - failed to copy file" + x + " to " + str(filename.getFile()))
+                    myPrint("B", "ERROR - failed to copy file" + x + " to " + safeStr(filename.getFile()))
                     self.statusLabel.setText(("Sorry, failed to save console log file?!").ljust(800, " "))
                     self.statusLabel.setForeground(Color.RED)
             except:
-                myPrint("B", "ERROR - failed to copy file" + x + " to " + str(filename.getFile()))
+                myPrint("B", "ERROR - failed to copy file" + x + " to " + safeStr(filename.getFile()))
                 dump_sys_error_to_md_console_and_errorlog()
                 self.statusLabel.setText(("Sorry, failed to save console log file?!").ljust(800, " "))
                 self.statusLabel.setForeground(Color.RED)
@@ -5167,7 +5165,7 @@ Visit: %s (Author's site)
 
         params = []
         for key in sorted(myParameters.keys()):
-            params.append("Key: " + pad(str(key),50) + " Type: " + pad(str(type(myParameters[key])),20) + "Value: " + str(myParameters[key]) + "\n")
+            params.append("Key: " + pad(safeStr(key),50) + " Type: " + pad(safeStr(type(myParameters[key])),20) + "Value: " + safeStr(myParameters[key]) + "\n")
 
         params.append("\n<END>")
 
@@ -5365,7 +5363,7 @@ Visit: %s (Author's site)
 
         currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
 
-        currs = sorted(currs, key=lambda x: str(x.getName()).upper())
+        currs = sorted(currs, key=lambda x: safeStr(x.getName()).upper())
 
         output = "List Currency/Security (hidden) Decimal Places setting and related data:\n" \
                  " =======================================================================\n"
@@ -5394,7 +5392,7 @@ Visit: %s (Author's site)
                 output += pad(get_curr_sec_name(sec_curr),myLen) + "\tDPC: " + \
                           str(sec_curr.getDecimalPlaces()) + \
                           "\t" + \
-                          "Relative to: " + str(sec_curr.getRelativeCurrency())[:20].ljust(20, " ") + \
+                          "Relative to: " + safeStr(sec_curr.getRelativeCurrency())[:20].ljust(20, " ") + \
                           "\t" + \
                           "Current rate: " + str(foo)[:20].ljust(20, " ") + \
                           "\tRate dpc: " + str(priceDecimals)
@@ -10372,7 +10370,7 @@ Please update any that you use before proceeding....
             lViewExtensions=False
             lDisplayPickle=False
 
-            x = str(self.theFile)
+            x = safeStr(self.theFile)
 
             if x == "display_pickle()":
                 x = display_pickle()
@@ -10925,7 +10923,7 @@ now after saving the file, restart Moneydance
 
         # Now the Categories
         accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(4))    # This returns active and inactive accounts
-        accounts = sorted(accounts, key=lambda x: (x.getAccountType(), str(x.getFullAccountName()).upper()))
+        accounts = sorted(accounts, key=lambda x: (x.getAccountType(), safeStr(x.getFullAccountName()).upper()))
 
         categoriesToInactivate = {}
 
@@ -13129,8 +13127,8 @@ now after saving the file, restart Moneydance
                 System.setProperty("com.apple.macos.use-file-dialog-packages","true")  # In theory prevents access to app file structure (but doesnt seem to work)
                 System.setProperty("apple.awt.fileDialogForDirectories", "false")
 
-                if (fDialog.getDirectory() is None) or str(fDialog.getDirectory()) == "" or \
-                        (fDialog.getFile() is None) or str(fDialog.getFile()) == "":
+                if (fDialog.getDirectory() is None) or safeStr(fDialog.getDirectory()) == "" or \
+                        (fDialog.getFile() is None) or safeStr(fDialog.getFile()) == "":
                     myPrint("P", "User did not select Search Directory... Aborting")
                     lExit=True
                     fDialog.dispose()
@@ -13138,7 +13136,7 @@ now after saving the file, restart Moneydance
                     break
                 else:
                     # noinspection PyTypeChecker
-                    theDir = os.path.join(fDialog.getDirectory(),str(fDialog.getFile()))
+                    theDir = os.path.join(fDialog.getDirectory(),safeStr(fDialog.getFile()))
                     fDialog.dispose()
                     del fDialog
             else:
@@ -13279,7 +13277,7 @@ now after saving the file, restart Moneydance
             MyPopUpDialogBox(toolbox_frame_,
                              "NOTE: You already have Syncing disabled - Good!\n"
                              "There is a flaw in Moneydance Syncing as regards attachments when Syncing is ON\n"
-                             "Deleted attachments will keep re-apearing as they Syncronise from Sync/Dropbox/Secondary machines\n"
+                             "Deleted attachments will keep re-appearing as they Syncronise from Sync/Dropbox/Secondary machines\n"
                              "You have to disable Sync, manually delete your sync Folder/Data, then delete the Orphans (using this tool)\n"
                              "Then re-enable Sync, Wait for Sync to complete, then re-enable Sync on secondary devices...\n"
                              "<GOOD LUCK!>",
@@ -13559,7 +13557,7 @@ now after saving the file, restart Moneydance
                 try:
                     diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
                                  %(pad(repr(record[2]),12),
-                                   pad(str(record[1]),20),
+                                   pad(safeStr(record[1]),20),       # Avoid utf-8 issue!
                                    record[3],
                                    rpad(record[4]/100.0,10),
                                    validLocation)
