@@ -723,7 +723,6 @@ Visit: %s (Author's site)
     def cpad(theText, theLength):
         if not (isinstance(theText, unicode) or isinstance(theText, str)): theText = safeStr(theText)
         if len(theText)>=theLength: return theText[:theLength]
-
         padLength = int((theLength - len(theText)) / 2)
         theText = theText[:theLength]
         theText = ((" "*padLength)+theText+(" "*padLength))[:theLength]
@@ -9840,7 +9839,7 @@ Please update any that you use before proceeding....
                                         or selectedObject.getAccountType() == Account.AccountType.LOAN:
 
                                     if selectedObject.getInstitutionName():
-                                        output += "%s %s\n" % pad("Institution Name:",50),               selectedObject.getInstitutionName()
+                                        output += "%s %s\n" % (pad("Institution Name:",50),               selectedObject.getInstitutionName())
                                     if selectedObject.getInitialPrincipal():
                                         output += "%s %s\n" % (pad("Initial Principle:",50),             selectedObject.getInitialPrincipal())
                                     if selectedObject.getPermanentAPR():

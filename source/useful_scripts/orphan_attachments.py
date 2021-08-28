@@ -416,29 +416,26 @@ Visit: %s (Author's site)
         if lReturnText: return theText
         return
 
+    def safeStr(_theText): return ("%s" %(_theText))
+
     def pad(theText, theLength):
+        if not (isinstance(theText, unicode) or isinstance(theText, str)): theText = safeStr(theText)
         theText = theText[:theLength].ljust(theLength, u" ")
         return theText
 
     def rpad(theText, theLength):
-        if not (isinstance(theText, unicode) or isinstance(theText, str)):
-            theText = str(theText)
-
+        if not (isinstance(theText, unicode) or isinstance(theText, str)): theText = safeStr(theText)
         theText = theText[:theLength].rjust(theLength, u" ")
         return theText
 
     def cpad(theText, theLength):
-        if not (isinstance(theText, unicode) or isinstance(theText, str)):
-            theText = str(theText)
-
+        if not (isinstance(theText, unicode) or isinstance(theText, str)): theText = safeStr(theText)
         if len(theText)>=theLength: return theText[:theLength]
-
         padLength = int((theLength - len(theText)) / 2)
         theText = theText[:theLength]
         theText = ((" "*padLength)+theText+(" "*padLength))[:theLength]
 
         return theText
-
 
     myPrint("B", myScriptName, ": Python Script Initialising.......", "Build:", version_build)
 
@@ -2396,7 +2393,7 @@ Visit: %s (Author's site)
             try:
                 diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
                              %(pad(repr(record[2]),12),
-                               pad(str(record[1]),20),
+                               pad(safeStr(record[1]),20),       # Avoid utf-8 issue!
                                record[3],
                                rpad(record[4]/100.0,10),
                                validLocation)
