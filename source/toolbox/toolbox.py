@@ -13507,20 +13507,27 @@ now after saving the file, restart Moneydance
 
             myPrint("B",x)
             x="Base Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
-            myPrint("P",x)
+            myPrint("B",x)
             diagDisplay+=(x+"\n")
             lErrors=True
             orphanList=sorted(orphanList, key=lambda _x: (_x[2]), reverse=False)
+
             for theOrphanRecord in orphanList:
 
-                x="Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" %(rpad(round(theOrphanRecord[1]/(1000.0),1),6),
-                                                                                     pad(theOrphanRecord[2],19),
-                                                                                     theOrphanRecord[0])
-                diagDisplay+=(x+"\n")
-                myPrint("B", x)
+                try:
+                    x="Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" %(rpad(round(theOrphanRecord[1]/(1000.0),1),6),
+                                                                                         pad(theOrphanRecord[2],19),
+                                                                                         theOrphanRecord[0])
+                    diagDisplay+=(x+"\n")
+                    myPrint("B", x)
+                except:
+                    dump_sys_error_to_md_console_and_errorlog()
+                    myPrint("B", "@@ record causing issue was.....:")
+                    myPrint("B", theOrphanRecord)
+                    myPrint("B", "... will continue.....")
 
         if not lErrors:
-            x= "Congratulations! - No orphan attachments detected!".upper()
+            x = "Congratulations! - No orphan attachments detected!".upper()
             myPrint("B",x)
             diagDisplay+=(x+"\n")
             statusLabel.setText((x.upper()).ljust(800, " "))
