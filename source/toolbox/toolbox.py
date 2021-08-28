@@ -697,11 +697,12 @@ Visit: %s (Author's site)
 
         tb = traceback.format_exc()
         trace = traceback.format_stack()
-        theText =  "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-        theText += "@@ Unexpected error caught @@\n".upper()
+        theText =  ".\n" \
+                   "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n" \
+                   "@@@@@ Unexpected error caught!\n".upper()
         theText += tb
         for trace_line in trace: theText += trace_line
-        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
         myPrint("B", theText)
         if lReturnText: return theText
         return
@@ -2367,36 +2368,6 @@ Visit: %s (Author's site)
             return theRate
 
         return (1.0 / theRate)
-
-    def checkCurrencyRawRatesOK(theCurr):
-
-        # Check of 'rate' disabled as this is a legacy field and I no longer try to fix it.. Not required.. Especially since 2021.2 onwards
-
-        # checkRate = theCurr.getParameter("rate", None)
-        # checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
-
-        # if checkRate is None or not isGoodRate(checkRateDouble):
-        #     myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
-        #     return False
-
-        checkRRate = theCurr.getParameter("rrate", None)
-        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
-
-        if checkRRate is None or not isGoodRate(checkRRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        return True
-
-    def check_all_currency_raw_rates_ok(filterType=None):
-
-        _currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
-        for _curr in _currs:
-            if filterType and _curr.getCurrencyType() != filterType: continue
-            if not checkCurrencyRawRatesOK(_curr):
-                return False
-
-        return True
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -5625,6 +5596,36 @@ Visit: %s (Author's site)
         myPopupInformationBox(toolbox_frame_,_msg,"Edit current price hidden 'price_date' field",JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+    def checkCurrencyRawRatesOK(theCurr):
+
+        # Check of 'rate' disabled as this is a legacy field and I no longer try to fix it.. Not required.. Especially since 2021.2 onwards
+
+        # checkRate = theCurr.getParameter("rate", None)
+        # checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
+
+        # if checkRate is None or not isGoodRate(checkRateDouble):
+        #     myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
+        #     return False
+
+        checkRRate = theCurr.getParameter("rrate", None)
+        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
+
+        if checkRRate is None or not isGoodRate(checkRRateDouble):
+            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
+            return False
+
+        return True
+
+    def check_all_currency_raw_rates_ok(filterType=None):
+
+        _currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+        for _curr in _currs:
+            if filterType and _curr.getCurrencyType() != filterType: continue
+            if not checkCurrencyRawRatesOK(_curr):
+                return False
+
+        return True
 
     def list_security_currency_price_date(statusLabel, autofix=False, justProvideFilter=False):
         global toolbox_frame_, debug, DARK_GREEN
@@ -13306,8 +13307,7 @@ now after saving the file, restart Moneydance
 
             iTxnsScanned+=1
 
-            if not (_mdItem.hasAttachments() or len(_mdItem.getAttachmentKeys())>0):
-                continue
+            if not (_mdItem.hasAttachments() or len(_mdItem.getAttachmentKeys())>0): continue
 
             iTxnsWithAttachments+=1
             x="Found Record with %s Attachment(s): %s" %(len(_mdItem.getAttachmentKeys()),_mdItem)
@@ -13450,7 +13450,6 @@ now after saving the file, restart Moneydance
         msgStr+=(x+"\n")
         diagDisplay+=(x+"\n")
 
-
         myPrint("P","\n"*1)
 
         x="Attachment extensions found: %s" %len(typesFound)
@@ -13520,8 +13519,10 @@ now after saving the file, restart Moneydance
                                                                                          theOrphanRecord[0])
                     diagDisplay+=(x+"\n")
                     myPrint("B", x)
+
                 except:
-                    dump_sys_error_to_md_console_and_errorlog()
+                    diagDisplay += dump_sys_error_to_md_console_and_errorlog(True)
+                    diagDisplay += "REVIEW MD MENU>HELP>CONSOLE WINDOW FOR DETAILS\n\n"
                     myPrint("B", "@@ record causing issue was.....:")
                     myPrint("B", theOrphanRecord)
                     myPrint("B", "... will continue.....")
@@ -13543,18 +13544,27 @@ now after saving the file, restart Moneydance
             for validLocation in attachmentLocations:
                 locationRecord = attachmentLocations[validLocation]
                 record = attachmentList[locationRecord[2]]
-                diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
-                             %(pad(repr(record[2]),12),
-                               pad(str(record[1]),20),
-                               record[3],
-                               rpad(record[4]/100.0,10),
-                               validLocation)
+                try:
+                    diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
+                                 %(pad(repr(record[2]),12),
+                                   pad(str(record[1]),20),
+                                   record[3],
+                                   rpad(record[4]/100.0,10),
+                                   validLocation)
+
+                except:
+                    diagDisplay += dump_sys_error_to_md_console_and_errorlog(True)
+                    diagDisplay += "REVIEW MD MENU>HELP>CONSOLE WINDOW FOR DETAILS\n\n"
+                    myPrint("B", "@@ record causing issue was.....:")
+                    myPrint("B", locationRecord)
+                    myPrint("B", record)
+                    myPrint("B", "... will continue.....")
 
         diagDisplay+='\n<END>'
 
         scanningMsg.kill()
 
-        jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
         if iOrphans:
             theMsg = MyPopUpDialogBox(jif,
