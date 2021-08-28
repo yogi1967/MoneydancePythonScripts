@@ -378,7 +378,7 @@ Visit: %s (Author's site)
             while True:
                 line = bufr.readLine()
                 if line is not None:
-                    line += "\n"
+                    line += "\n"                   # not very efficient - should convert this to "\n".join() to contents
                     fileContents+=line
                     continue
                 break
@@ -434,11 +434,12 @@ Visit: %s (Author's site)
 
         tb = traceback.format_exc()
         trace = traceback.format_stack()
-        theText =  "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-        theText += "@@ Unexpected error caught @@\n".upper()
+        theText =  ".\n" \
+                   "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n" \
+                   "@@@@@ Unexpected error caught!\n".upper()
         theText += tb
         for trace_line in trace: theText += trace_line
-        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
         myPrint("B", theText)
         if lReturnText: return theText
         return
@@ -482,9 +483,9 @@ Visit: %s (Author's site)
         return theFont
 
     def getTheSetting(what):
-        x = MD_REF.getPreferences().getSetting(what, None)
-        if not x or x == u"": return None
-        return what + u": %s" %(x)
+        _x = MD_REF.getPreferences().getSetting(what, None)
+        if not _x or _x == u"": return None
+        return what + u": %s" %(_x)
 
     def get_home_dir():
         homeDir = None
@@ -643,15 +644,15 @@ Visit: %s (Author's site)
         else:
             field = JTextField(defaultText)
 
-        x = 0
+        _x = 0
         if theFieldLabel:
-            p.add(JLabel(theFieldLabel), GridC.getc(x, 0).east())
-            x+=1
+            p.add(JLabel(theFieldLabel), GridC.getc(_x, 0).east())
+            _x+=1
 
-        p.add(field, GridC.getc(x, 0).field())
-        p.add(Box.createHorizontalStrut(244), GridC.getc(x, 0))
+        p.add(field, GridC.getc(_x, 0).field())
+        p.add(Box.createHorizontalStrut(244), GridC.getc(_x, 0))
         if theFieldDescription:
-            p.add(JTextPanel(theFieldDescription), GridC.getc(x, 1).field().colspan(x + 1))
+            p.add(JTextPanel(theFieldDescription), GridC.getc(_x, 1).field().colspan(_x + 1))
         if (JOptionPane.showConfirmDialog(theParent,
                                           p,
                                           theTitle,
@@ -1829,7 +1830,6 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
                 printOutputFile(_callingClass=self.theCallingClass, _theTitle=self.theTitle, _theJText=self.theJText)
 
         class QuickJFramePageSetup(AbstractAction):
@@ -1849,7 +1849,6 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
                 saveOutputFile(self.callingFrame, "QUICKJFRAME", "toolbox_output.txt", self.theText)
 
         def show_the_frame(self):
@@ -1862,17 +1861,14 @@ Visit: %s (Author's site)
 
                 def run(self):                                                                                                      # noqa
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()
-
                     frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.9,0))))
                     frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.9,0))))
 
                     JFrame.setDefaultLookAndFeelDecorated(True)
-
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)" %(MD_REF.getUI().ACCELERATOR_MASK_STR))
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
-                    if not Platform.isOSX():
-                        jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                    if not Platform.isOSX(): jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
 
                     jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
                     jInternalFrame.setResizable(True)
@@ -1881,8 +1877,8 @@ Visit: %s (Author's site)
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W,  shortcut), "close-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F,  shortcut), "search-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "print-me")
 
                     theJText = JTextArea(self.callingClass.output)
                     theJText.setEditable(False)
@@ -2109,33 +2105,6 @@ Visit: %s (Author's site)
             return theRate
 
         return (1.0 / theRate)
-
-    def checkCurrencyRawRatesOK(theCurr):
-
-        checkRate = theCurr.getParameter("rate", None)
-        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
-        checkRRate = theCurr.getParameter("rrate", None)
-        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
-
-        if checkRate is None or not isGoodRate(checkRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        if checkRRate is None or not isGoodRate(checkRRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        return True
-
-    def check_all_currency_raw_rates_ok(filterType=None):
-
-        _currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
-        for _curr in _currs:
-            if filterType and _curr.getCurrencyType() != filterType: continue
-            if not checkCurrencyRawRatesOK(_curr):
-                return False
-
-        return True
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################

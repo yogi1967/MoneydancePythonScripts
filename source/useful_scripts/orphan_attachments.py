@@ -350,7 +350,7 @@ Visit: %s (Author's site)
             while True:
                 line = bufr.readLine()
                 if line is not None:
-                    line += "\n"
+                    line += "\n"                   # not very efficient - should convert this to "\n".join() to contents
                     fileContents+=line
                     continue
                 break
@@ -406,11 +406,12 @@ Visit: %s (Author's site)
 
         tb = traceback.format_exc()
         trace = traceback.format_stack()
-        theText =  "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
-        theText += "@@ Unexpected error caught @@\n".upper()
+        theText =  ".\n" \
+                   "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n" \
+                   "@@@@@ Unexpected error caught!\n".upper()
         theText += tb
         for trace_line in trace: theText += trace_line
-        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
+        theText += "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n"
         myPrint("B", theText)
         if lReturnText: return theText
         return
@@ -454,9 +455,9 @@ Visit: %s (Author's site)
         return theFont
 
     def getTheSetting(what):
-        x = MD_REF.getPreferences().getSetting(what, None)
-        if not x or x == u"": return None
-        return what + u": %s" %(x)
+        _x = MD_REF.getPreferences().getSetting(what, None)
+        if not _x or _x == u"": return None
+        return what + u": %s" %(_x)
 
     def get_home_dir():
         homeDir = None
@@ -615,15 +616,15 @@ Visit: %s (Author's site)
         else:
             field = JTextField(defaultText)
 
-        x = 0
+        _x = 0
         if theFieldLabel:
-            p.add(JLabel(theFieldLabel), GridC.getc(x, 0).east())
-            x+=1
+            p.add(JLabel(theFieldLabel), GridC.getc(_x, 0).east())
+            _x+=1
 
-        p.add(field, GridC.getc(x, 0).field())
-        p.add(Box.createHorizontalStrut(244), GridC.getc(x, 0))
+        p.add(field, GridC.getc(_x, 0).field())
+        p.add(Box.createHorizontalStrut(244), GridC.getc(_x, 0))
         if theFieldDescription:
-            p.add(JTextPanel(theFieldDescription), GridC.getc(x, 1).field().colspan(x + 1))
+            p.add(JTextPanel(theFieldDescription), GridC.getc(_x, 1).field().colspan(_x + 1))
         if (JOptionPane.showConfirmDialog(theParent,
                                           p,
                                           theTitle,
@@ -1801,7 +1802,6 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
                 printOutputFile(_callingClass=self.theCallingClass, _theTitle=self.theTitle, _theJText=self.theJText)
 
         class QuickJFramePageSetup(AbstractAction):
@@ -1821,7 +1821,6 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
                 saveOutputFile(self.callingFrame, "QUICKJFRAME", "toolbox_output.txt", self.theText)
 
         def show_the_frame(self):
@@ -1834,17 +1833,14 @@ Visit: %s (Author's site)
 
                 def run(self):                                                                                                      # noqa
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()
-
                     frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.9,0))))
                     frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.9,0))))
 
                     JFrame.setDefaultLookAndFeelDecorated(True)
-
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)" %(MD_REF.getUI().ACCELERATOR_MASK_STR))
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
-                    if not Platform.isOSX():
-                        jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                    if not Platform.isOSX(): jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
 
                     jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
                     jInternalFrame.setResizable(True)
@@ -1853,8 +1849,8 @@ Visit: %s (Author's site)
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W,  shortcut), "close-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F,  shortcut), "search-window")
+                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
                     jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-                    jInternalFrame.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "print-me")
 
                     theJText = JTextArea(self.callingClass.output)
                     theJText.setEditable(False)
@@ -2082,33 +2078,6 @@ Visit: %s (Author's site)
 
         return (1.0 / theRate)
 
-    def checkCurrencyRawRatesOK(theCurr):
-
-        checkRate = theCurr.getParameter("rate", None)
-        checkRateDouble = theCurr.getDoubleParameter("rate", 0.0)
-        checkRRate = theCurr.getParameter("rrate", None)
-        checkRRateDouble = theCurr.getDoubleParameter("rrate", 0.0)
-
-        if checkRate is None or not isGoodRate(checkRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        if checkRRate is None or not isGoodRate(checkRRateDouble):
-            myPrint("DB", "WARNING: checkCurrencyRawRatesOK() 'rrate' check failed on %s - checking stopped here" %(theCurr))
-            return False
-
-        return True
-
-    def check_all_currency_raw_rates_ok(filterType=None):
-
-        _currs = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
-        for _curr in _currs:
-            if filterType and _curr.getCurrencyType() != filterType: continue
-            if not checkCurrencyRawRatesOK(_curr):
-                return False
-
-        return True
-
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -2161,7 +2130,9 @@ Visit: %s (Author's site)
 
     MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
 
-    scanningMsg = MyPopUpDialogBox(None,"Please wait: searching Database and filesystem for attachments..",theTitle="ATTACHMENT(S) SEARCH", theWidth=100, lModal=False,OKButtonText="WAIT")
+    scanningMsg = MyPopUpDialogBox(None,"Please wait: searching Database and filesystem for attachments..",
+                                   theTitle="ATTACHMENT(S) SEARCH",
+                                   theWidth=100, lModal=False,OKButtonText="WAIT")
     scanningMsg.go()
 
     myPrint("P", "Scanning database for attachment data..")
@@ -2187,68 +2158,68 @@ Visit: %s (Author's site)
 
     txnSet = book.getTransactionSet()
     for _mdItem in txnSet.iterableTxns():
+
         iObjectsScanned+=1
 
         iTxnsScanned+=1
 
-        if not (_mdItem.hasAttachments() or len(_mdItem.getAttachmentKeys())>0):
-            continue
+        if not (_mdItem.hasAttachments() or len(_mdItem.getAttachmentKeys())>0): continue
 
         iTxnsWithAttachments+=1
-        miniMsg= "Found Record with %s Attachment(s): %s" % (len(_mdItem.getAttachmentKeys()), _mdItem)
-        myPrint("D", miniMsg)
-        if debug: diagDisplay+=(miniMsg + "\n")
+        x="Found Record with %s Attachment(s): %s" %(len(_mdItem.getAttachmentKeys()),_mdItem)
+        myPrint("D",x)
+        if debug: diagDisplay+=(x+"\n")
 
         if attachmentList.get(_mdItem.getUUID()):
             iDuplicateKeys += 1
-            miniMsg= "@@ Error %s already exists in my attachment list...!?" % _mdItem.getUUID()
-            myPrint("DB", miniMsg)
-            if debug: diagDisplay+=(miniMsg + "\n")
+            x="@@ Error %s already exists in my attachment list...!?" %_mdItem.getUUID()
+            myPrint("DB", x)
+            if debug: diagDisplay+=(x+"\n")
 
         attachmentList[_mdItem.getUUID()] = [
-                                            _mdItem.getUUID(),
-                                            _mdItem.getAccount().getAccountName(),
-                                            _mdItem.getAccount().getAccountType(),
-                                            _mdItem.getDateInt(),
-                                            _mdItem.getValue(),
-                                            _mdItem.getAttachmentKeys()
-                                            ]
-        miniMsg= "Attachment keys: %s" % _mdItem.getAttachmentKeys()
-        myPrint("D", miniMsg)
-        if debug: diagDisplay+=(miniMsg + "\n")
+            _mdItem.getUUID(),
+            _mdItem.getAccount().getAccountName(),
+            _mdItem.getAccount().getAccountType(),
+            _mdItem.getDateInt(),
+            _mdItem.getValue(),
+            _mdItem.getAttachmentKeys()
+        ]
+        x="Attachment keys: %s" %_mdItem.getAttachmentKeys()
+        myPrint("D",x)
+        if debug: diagDisplay+=(x+"\n")
 
         for _key in _mdItem.getAttachmentKeys():
             iAttachmentsFound+=1
             if attachmentLocations.get(_mdItem.getAttachmentTag(_key)):
                 iDuplicateKeys += 1
-                miniMsg= "@@ Error %s already exists in my attachment location list...!?" % _mdItem.getUUID()
+                x="@@ Error %s already exists in my attachment location list...!?" %_mdItem.getUUID()
                 myPrint("B", )
-                if debug: diagDisplay+=(miniMsg + "\n")
+                if debug: diagDisplay+=(x+"\n")
 
             attachmentLocations[_mdItem.getAttachmentTag(_key)] = [
-                                                                    _mdItem.getAttachmentTag(_key),
-                                                                    _key,
-                                                                    _mdItem.getUUID(),
-                                                                    LS.exists(_mdItem.getAttachmentTag(_key))
-                                                                    ]
+                _mdItem.getAttachmentTag(_key),
+                _key,
+                _mdItem.getUUID(),
+                LS.exists(_mdItem.getAttachmentTag(_key))
+            ]
             if not LS.exists(_mdItem.getAttachmentTag(_key)):
                 iAttachmentsNotInLS+=1
                 attachmentsNotInLS.append([
-                                            _mdItem.getUUID(),
-                                            _mdItem.getAccount().getAccountName(),
-                                            _mdItem.getAccount().getAccountType(),
-                                            _mdItem.getDateInt(),
-                                            _mdItem.getValue(),
-                                            _mdItem.getAttachmentKeys()
-                                            ])
+                    _mdItem.getUUID(),
+                    _mdItem.getAccount().getAccountName(),
+                    _mdItem.getAccount().getAccountType(),
+                    _mdItem.getDateInt(),
+                    _mdItem.getValue(),
+                    _mdItem.getAttachmentKeys()
+                ])
 
-                miniMsg= "@@ Error - Attachment for Txn DOES NOT EXIST! - Attachment tag: %s" % _mdItem.getAttachmentTag(_key)
-                myPrint("B", miniMsg)
-                diagDisplay+=(miniMsg + "\n")
+                x="@@ Error - Attachment for Txn DOES NOT EXIST! - Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
+                myPrint("B",x)
+                diagDisplay+=(x+"\n")
             else:
-                miniMsg= "Attachment tag: %s" % _mdItem.getAttachmentTag(_key)
-                myPrint("D", miniMsg)
-                if debug: diagDisplay+=(miniMsg + "\n")
+                x="Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
+                myPrint("D", x)
+                if debug: diagDisplay+=(x+"\n")
 
 
     # Now scan the file system for attachments
@@ -2274,9 +2245,9 @@ Visit: %s (Author's site)
                 iBytes = typesFound.get(theExtension)[2]
             typesFound[theExtension] = [theExtension, iCountExtensions+1, iBytes+byteSize ]
 
-            miniMsg= "Found Attachment File: %s" % theFile
-            myPrint("D", miniMsg)
-            if debug: diagDisplay+=(miniMsg + "\n")
+            x="Found Attachment File: %s" %theFile
+            myPrint("D", x)
+            if debug: diagDisplay+=(x+"\n")
 
     # Now match file system to the list from the database
     iOrphans=0
@@ -2289,13 +2260,13 @@ Visit: %s (Author's site)
         deriveTheBytes = fileDetails[1]
         deriveTheModified = fileDetails[2]
         if attachmentLocations.get(deriveTheKey.replace(os.path.sep,"/")):
-            miniMsg= "Attachment file system link found in Moneydance database"
-            myPrint("D", miniMsg)
-            if debug: diagDisplay+=(miniMsg + "\n")
+            x="Attachment file system link found in Moneydance database"
+            myPrint("D", x)
+            if debug: diagDisplay+=(x+"\n")
         else:
-            miniMsg= "Error: Attachment filesystem link missing in Moneydance database: %s" % deriveTheKey
-            myPrint("DB", miniMsg)
-            if debug: diagDisplay+=(miniMsg + "\n")
+            x="Error: Attachment filesystem link missing in Moneydance database: %s" %deriveTheKey
+            myPrint("DB", x)
+            if debug: diagDisplay+=(x+"\n")
             iOrphans+=1
             iOrphanBytes+=deriveTheBytes
             orphanList.append([deriveTheKey,deriveTheBytes, deriveTheModified])
@@ -2304,162 +2275,178 @@ Visit: %s (Author's site)
 
     myPrint("P","\n"*5)
 
-    miniMsg= "----------------------------------"
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n")
+    x="----------------------------------"
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n")
 
-    miniMsg = "Objects scanned: %s" % iObjectsScanned
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n")
+    x = "Objects scanned: %s" %iObjectsScanned
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n")
 
-    miniMsg= "Transactions scanned: %s" % iTxnsScanned
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n")
-    miniMsg= "Transactions with attachments: %s" % iTxnsWithAttachments
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n")
-    miniMsg= "Total Attachments referenced in Moneydance database (a txn may have multi-attachments): %s" % iAttachmentsFound
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n")
-    miniMsg= "Attachments missing from Local Storage: %s" % iAttachmentsNotInLS
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n")
-    miniMsg= "Total Attachments found in file system: %s (difference %s)" % (len(attachmentsRawListFound), len(attachmentsRawListFound) - iAttachmentsFound)
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n")
-
+    x="Transactions scanned: %s" %iTxnsScanned
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n")
+    x="Transactions with attachments: %s" %iTxnsWithAttachments
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n")
+    x="Total Attachments referenced in Moneydance database (a txn may have multi-attachments): %s" %iAttachmentsFound
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n")
+    x="Attachments missing from Local Storage: %s" %iAttachmentsNotInLS
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n")
+    x="Total Attachments found in file system: %s (difference %s)" %(len(attachmentsRawListFound),len(attachmentsRawListFound)-iAttachmentsFound)
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n")
 
     myPrint("P","\n"*1)
 
-    miniMsg= "Attachment extensions found: %s" % len(typesFound)
-    myPrint("B", miniMsg)
-    diagDisplay+=("\n" + miniMsg + "\n")
+    x="Attachment extensions found: %s" %len(typesFound)
+    myPrint("B", x)
+    diagDisplay+=("\n"+x+"\n")
 
     iTotalBytes = 0
     sortedExtensions = sorted(typesFound.values(), key=lambda _x: (_x[2]), reverse=True)
 
-    for miniMsg in sortedExtensions:
-        iTotalBytes+=miniMsg[2]
+    for x in sortedExtensions:
+        iTotalBytes+=x[2]
 
-        miniMsg= "Extension: %s Number: %s Size: %sMB" % (pad(miniMsg[0], 6), rpad(miniMsg[1], 12), rpad(round(miniMsg[2] / (1024.0 * 1024.0), 2), 12))
-        myPrint("B", miniMsg)
-        diagDisplay+=(miniMsg + "\n")
+        x="Extension: %s Number: %s Size: %sMB" %(pad(x[0],6),rpad(x[1],12),rpad(round(x[2]/(1000.0 * 1000.0),2),12))
+        myPrint("B", x)
+        diagDisplay+=(x+"\n")
 
-    miniMsg= "Attachments on disk are taking: %sMB" % (round(iTotalBytes / (1024.0 * 1024.0), 2))
-    myPrint("B", miniMsg)
-    diagDisplay+=(miniMsg + "\n")
-    msgStr+=(miniMsg + "\n")
-    miniMsg= "----------------------------------"
-    myPrint("B", miniMsg)
-    msgStr+=(miniMsg + "\n")
-    diagDisplay+=(miniMsg + "\n\n")
+    x="Attachments on disk are taking: %sMB" %(round(iTotalBytes/(1000.0 * 1000.0),2))
+    myPrint("B", x)
+    diagDisplay+=(x+"\n")
+    msgStr+=(x+"\n")
+    x="----------------------------------"
+    myPrint("B", x)
+    msgStr+=(x+"\n")
+    diagDisplay+=(x+"\n\n")
 
     lErrors=False
     if iAttachmentsNotInLS:
-        miniMsg = "@@ ERROR: You have %s missing attachment(s) referenced on Moneydance Txns!" % (iAttachmentsNotInLS)
-        msgStr+= miniMsg + "\n"
-        diagDisplay+=(miniMsg + "\n\n")
+        x = "@@ ERROR: You have %s missing attachment(s) referenced on Moneydance Txns!" %(iAttachmentsNotInLS)
+        msgStr+=x+"\n"
+        diagDisplay+=(x+"\n\n")
         myPrint("P","")
-        myPrint("B", miniMsg)
+        myPrint("B",x)
         lErrors=True
-
         attachmentsNotInLS=sorted(attachmentsNotInLS, key=lambda _x: (_x[3]), reverse=False)
         for theOrphanRecord in attachmentsNotInLS:
-            miniMsg= "Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" % (theOrphanRecord[1],
-                                                                                                                         theOrphanRecord[2],
-                                                                                                                         theOrphanRecord[3],
-                                                                                                                         theOrphanRecord[4],
-                                                                                                                         theOrphanRecord[5])
-            myPrint("B", miniMsg)
-            diagDisplay+=(miniMsg + "\n")
+            x="Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
+                                                                                                                 theOrphanRecord[2],
+                                                                                                                 theOrphanRecord[3],
+                                                                                                                 theOrphanRecord[4],
+                                                                                                                 theOrphanRecord[5])
+            myPrint("B", x)
+            diagDisplay+=(x+"\n")
         diagDisplay+="\n"
 
     if iOrphans:
-        miniMsg = "@@ ERROR: %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans, round(iOrphanBytes / (1024.0 * 1024.0), 2))
-        msgStr+= miniMsg + "\n"
-        diagDisplay+=(miniMsg + "\n\n")
+        x = "@@ ERROR: %s Orphan attachment(s) found, taking up %sMBs" %(iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2))
+        msgStr+=x+"\n"
+        diagDisplay+=(x+"\n\n")
         myPrint("P","")
-        myPrint("B", miniMsg)
-        miniMsg= "Base Attachment Directory is: %s" % os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe", "")
-        myPrint("P", miniMsg)
-        diagDisplay+=(miniMsg + "\n")
+
+        myPrint("B",x)
+        x="Base Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
+        myPrint("B",x)
+        diagDisplay+=(x+"\n")
         lErrors=True
         orphanList=sorted(orphanList, key=lambda _x: (_x[2]), reverse=False)
+
         for theOrphanRecord in orphanList:
 
-            miniMsg= "Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" % (rpad(round(theOrphanRecord[1] / (1024.0), 1), 6),
-                                                                                         pad(theOrphanRecord[2],19),
-                                                                                         theOrphanRecord[0])
-            diagDisplay+=(miniMsg + "\n")
-            myPrint("B", miniMsg)
+            try:
+                x="Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" %(rpad(round(theOrphanRecord[1]/(1000.0),1),6),
+                                                                                     pad(theOrphanRecord[2],19),
+                                                                                     theOrphanRecord[0])
+                diagDisplay+=(x+"\n")
+                myPrint("B", x)
+
+            except:
+                diagDisplay += dump_sys_error_to_md_console_and_errorlog(True)
+                diagDisplay += "REVIEW MD MENU>HELP>CONSOLE WINDOW FOR DETAILS\n\n"
+                myPrint("B", "@@ record causing issue was.....:")
+                myPrint("B", theOrphanRecord)
+                myPrint("B", "... will continue.....")
 
     if not lErrors:
-        miniMsg= "Congratulations! - No orphan attachments detected!".upper()
-        myPrint("B", miniMsg)
-        diagDisplay+=(miniMsg + "\n")
-
+        x = "Congratulations! - No orphan attachments detected!".upper()
+        myPrint("B",x)
+        diagDisplay+=(x+"\n")
 
     if iAttachmentsFound:
         diagDisplay+="\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
-        diagDisplay+="=======================================\n"
-        miniMsg= "\nBase Attachment Directory is: %s" % os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe", "")
-        diagDisplay+=(miniMsg + "\n-----------\n")
+        diagDisplay+=" ======================================\n"
+        x="\nBase Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
+        diagDisplay+=(x+"\n-----------\n")
 
         for validLocation in attachmentLocations:
             locationRecord = attachmentLocations[validLocation]
             record = attachmentList[locationRecord[2]]
-            diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
-                         %(pad(repr(record[2]),12),
-                           pad(str(record[1]),20),
-                           record[3],
-                           rpad(record[4]/100.0,10),
-                           validLocation)
+            try:
+                diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
+                             %(pad(repr(record[2]),12),
+                               pad(str(record[1]),20),
+                               record[3],
+                               rpad(record[4]/100.0,10),
+                               validLocation)
+
+            except:
+                diagDisplay += dump_sys_error_to_md_console_and_errorlog(True)
+                diagDisplay += "REVIEW MD MENU>HELP>CONSOLE WINDOW FOR DETAILS\n\n"
+                myPrint("B", "@@ record causing issue was.....:")
+                myPrint("B", locationRecord)
+                myPrint("B", record)
+                myPrint("B", "... will continue.....")
 
     diagDisplay+='\n<END>'
-    jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay).show_the_frame()
-
-    if iOrphans:
-        msg = MyPopUpDialogBox(jif,
-                               "You have %s Orphan attachment(s) found, taking up %sMBs" %(iOrphans,round(iOrphanBytes/(1024.0 * 1024.0),2)),
-                               msgStr+"CLICK TO VIEW ORPHANS, or CANCEL TO EXIT",
-                               200,"ORPHANED ATTACHMENTS",
-                               lCancelButton=True,
-                               OKButtonText="CLICK TO VIEW",
-                               lAlertLevel=1)
-    elif iAttachmentsNotInLS:
-        msg = MyPopUpDialogBox(jif,
-                               "You have %s missing attachment(s) referenced on Moneydance Txns!" %(iAttachmentsNotInLS),
-                               msgStr,
-                               200,"MISSING ATTACHMENTS",
-                               lCancelButton=False,
-                               OKButtonText="OK",
-                               lAlertLevel=1)
-
-    if lErrors:
-        MD_REF.getUI().setStatus(">> StuWareSoftSystems: %s - ERRORS DETECTED!" %(myScriptName),0)
-    else:
-        MD_REF.getUI().setStatus(">> StuWareSoftSystems " + miniMsg, 0)
-        msg = MyPopUpDialogBox(jif,
-                               miniMsg,
-                               msgStr,
-                               200,"ATTACHMENTS STATUS",
-                               lCancelButton=False,
-                               OKButtonText="OK",
-                               lAlertLevel=0)
-
-    myPrint("P","\n"*2)
 
     scanningMsg.kill()
 
+    jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay,copyToClipboard=True,lWrapText=False).show_the_frame()
+
     if iOrphans:
-        if msg.go():        # noqa
+        theMsg = MyPopUpDialogBox(jif,
+                               "You have %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2)),
+                                  msgStr +"CLICK TO VIEW ORPHANS, or CANCEL TO EXIT",
+                                  200,"ORPHANED ATTACHMENTS",
+                                  lCancelButton=True,
+                                  OKButtonText="CLICK TO VIEW",
+                                  lAlertLevel=1)
+    elif iAttachmentsNotInLS:
+        theMsg = MyPopUpDialogBox(jif,
+                               "You have %s missing attachment(s) referenced on Moneydance Txns!" % (iAttachmentsNotInLS),
+                                  msgStr,
+                                  200,"MISSING ATTACHMENTS",
+                                  lCancelButton=False,
+                                  OKButtonText="OK",
+                                  lAlertLevel=1)
+
+    if lErrors:
+        pass
+    else:
+        theMsg = MyPopUpDialogBox(jif,
+                                  x,
+                                  msgStr,
+                                  200,"ATTACHMENTS STATUS",
+                                  lCancelButton=False,
+                                  OKButtonText="OK",
+                                  lAlertLevel=0)
+
+    myPrint("P","\n"*2)
+
+    if iOrphans:
+        if theMsg.go():        # noqa
             while True:
                 selectedOrphan = JOptionPane.showInputDialog(jif,
                                                              "Select an Orphan to View",
@@ -2486,7 +2473,7 @@ Visit: %s (Author's site)
                     myPrint("B","Sorry, could not open attachment file....: %s" %selectedOrphan[0])     # noqa
 
     else:
-        msg.go()        # noqa
+        theMsg.go()        # noqa
 
     del attachmentList
     del attachmentLocations

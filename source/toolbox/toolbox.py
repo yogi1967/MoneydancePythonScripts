@@ -641,7 +641,7 @@ Visit: %s (Author's site)
             while True:
                 line = bufr.readLine()
                 if line is not None:
-                    line += "\n"                    # todo - convert this to "\n".join(contents) - more efficient!
+                    line += "\n"                   # not very efficient - should convert this to "\n".join() to contents
                     fileContents+=line
                     continue
                 break
@@ -746,9 +746,9 @@ Visit: %s (Author's site)
         return theFont
 
     def getTheSetting(what):
-        x = MD_REF.getPreferences().getSetting(what, None)
-        if not x or x == u"": return None
-        return what + u": %s" %(x)
+        _x = MD_REF.getPreferences().getSetting(what, None)
+        if not _x or _x == u"": return None
+        return what + u": %s" %(_x)
 
     def get_home_dir():
         homeDir = None
@@ -907,15 +907,15 @@ Visit: %s (Author's site)
         else:
             field = JTextField(defaultText)
 
-        x = 0
+        _x = 0
         if theFieldLabel:
-            p.add(JLabel(theFieldLabel), GridC.getc(x, 0).east())
-            x+=1
+            p.add(JLabel(theFieldLabel), GridC.getc(_x, 0).east())
+            _x+=1
 
-        p.add(field, GridC.getc(x, 0).field())
-        p.add(Box.createHorizontalStrut(244), GridC.getc(x, 0))
+        p.add(field, GridC.getc(_x, 0).field())
+        p.add(Box.createHorizontalStrut(244), GridC.getc(_x, 0))
         if theFieldDescription:
-            p.add(JTextPanel(theFieldDescription), GridC.getc(x, 1).field().colspan(x + 1))
+            p.add(JTextPanel(theFieldDescription), GridC.getc(_x, 1).field().colspan(_x + 1))
         if (JOptionPane.showConfirmDialog(theParent,
                                           p,
                                           theTitle,
@@ -20591,7 +20591,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.statusLabel.setText(("Find my %s datasets(s) found %s possible files/directories" %(theExtension,iFound)).ljust(800, " "))
                 self.statusLabel.setForeground(DARK_GREEN)
 
-                jif=QuickJFrame("LIST OF MONEYDANCE %s DATASETS FOUND" % theExtension, niceFileList, lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif=QuickJFrame("LIST OF MONEYDANCE %s DATASETS FOUND" % theExtension, niceFileList, lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
                 myPopupInformationBox(jif, "%s %s Datasets located...." %(iFound,theExtension), "DATASET SEARCH", JOptionPane.INFORMATION_MESSAGE)
 
@@ -21771,7 +21771,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 output+="<END>"
 
-                QuickJFrame("VIEW DATASET FILE ANALYSIS", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                QuickJFrame("VIEW DATASET FILE ANALYSIS", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
                 self.statusLabel.setText(("Your dataset contains %s files and is %sMB. %s non-core files were found consuming %sMB"
                                           %(countValidFiles,round((validSize/(1000.0*1000.0)),1),countNonValidFiles,round((nonValidSize/(1000.0*1000.0)),1))).ljust(800, " "))
