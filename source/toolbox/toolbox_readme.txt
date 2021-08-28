@@ -196,6 +196,7 @@ ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / secur
         - FIX - FORCE change ALL Account's currencies (use with care). (Does not update any transactions) (force_change_all_currencies.py)
     - MENU: Transactions tools
         - Move/Merge Investment transactions from one account into another.                                                         >> 2021.2 onwards
+        - FIX - Diagnose Attachments - DELETE Orphan attachments (allows you to delete Orphan attachments from Disk ** Syncing must be disabled **)
         - FIX - Non Hierarchical Security Account Txns (cross-linked securities) (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)
         - FIX - Delete One-Sided Txns (delete_invalid_txns.py)
         - FIX - Reverse Transaction Amounts between dates (reverse_txn_amounts.py)

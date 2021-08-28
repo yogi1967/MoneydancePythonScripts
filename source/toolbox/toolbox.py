@@ -216,6 +216,7 @@
 # build: 1041 - Fetch iCloud details if used, and added open sync location to open md folders button; also now copy tha path to clipboard too.
 # build: 1041 - Added print function to QuickJFrame(); also save and print to main diagnostics display
 # build: 1041 - Added feature - HACK: Peek at an encrypted file located in your Sync Folder...
+# build: 1041 - Added feature - Diagnose Attachments - DELETE Orphan attachments.
 
 # todo - convert statusLabel over to GlobalVars.STATUS_LABEL and setDisplayStatus()
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -9190,7 +9191,7 @@ Please update any that you use before proceeding....
                                                              None)
 
                 objects  = [selectedObject.obj]                                                                         # noqa
-                "HERE"
+
             else:
 
                 selectedObject = JOptionPane.showInputDialog(toolbox_frame_,
@@ -13268,11 +13269,22 @@ now after saving the file, restart Moneydance
 
         return
 
-    def diagnose_attachments(statusLabel):
-        global toolbox_frame_, debug, DARK_GREEN, lCopyAllToClipBoard_TB
+    def diagnose_attachments(lFix=False):
+
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
+
+        if lFix:
+            MyPopUpDialogBox(toolbox_frame_,
+                             "NOTE: You already have Syncing disabled - Good!\n"
+                             "There is a flaw in Moneydance Syncing as regards attachments when Syncing is ON\n"
+                             "Deleted attachments will keep re-apearing as they Syncronise from Sync/Dropbox/Secondary machines\n"
+                             "You have to disable Sync, manually delete your sync Folder/Data, then delete the Orphans (using this tool)\n"
+                             "Then re-enable Sync, Wait for Sync to complete, then re-enable Sync on secondary devices...\n"
+                             "<GOOD LUCK!>",
+                             theTitle="ATTACHMENT ANALYSIS & DELETION OF ORPHANS",
+                             theWidth=100, lModal=True,OKButtonText="ACKNOWLEDGE")
 
         scanningMsg = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching Database and filesystem for attachments..",
                                        theTitle="ATTACHMENT(S) SEARCH",
@@ -13379,7 +13391,7 @@ now after saving the file, restart Moneydance
                 theFile = os.path.join(root,name)[len(attachmentFullPath)-len(MD_REF.getCurrentAccountBook().getAttachmentsFolder()):]
                 byteSize = os.path.getsize(os.path.join(root,name))
                 modified = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime('%Y-%m-%d %H:%M:%S')
-                attachmentsRawListFound.append([theFile, byteSize, modified])
+                attachmentsRawListFound.append([theFile, byteSize, modified, os.path.join(root,name)])
                 theExtension = os.path.splitext(theFile)[1].lower()
 
                 iCountExtensions = 0
@@ -13403,6 +13415,7 @@ now after saving the file, restart Moneydance
             deriveTheKey = fileDetails[0]
             deriveTheBytes = fileDetails[1]
             deriveTheModified = fileDetails[2]
+            deriveRawPath = fileDetails[3]
             if attachmentLocations.get(deriveTheKey.replace(os.path.sep,"/")):
                 x="Attachment file system link found in Moneydance database"
                 myPrint("D", x)
@@ -13413,7 +13426,10 @@ now after saving the file, restart Moneydance
                 if debug: diagDisplay+=(x+"\n")
                 iOrphans+=1
                 iOrphanBytes+=deriveTheBytes
-                orphanList.append([deriveTheKey,deriveTheBytes, deriveTheModified])
+                if lFix:
+                    orphanList.append([deriveTheKey, deriveTheBytes, deriveTheModified, deriveRawPath])
+                else:
+                    orphanList.append([deriveTheKey, deriveTheBytes, deriveTheModified])
 
         msgStr=""
 
@@ -13482,8 +13498,7 @@ now after saving the file, restart Moneydance
             diagDisplay+=(x+"\n\n")
             myPrint("P","")
             myPrint("B",x)
-            statusLabel.setText((x.upper()).ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
+            setDisplayStatus(x.upper(),"R")
             lErrors=True
             attachmentsNotInLS=sorted(attachmentsNotInLS, key=lambda _x: (_x[3]), reverse=False)
             for theOrphanRecord in attachmentsNotInLS:
@@ -13501,8 +13516,7 @@ now after saving the file, restart Moneydance
             msgStr+=x+"\n"
             diagDisplay+=(x+"\n\n")
             myPrint("P","")
-            statusLabel.setText((x.upper()).ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
+            setDisplayStatus(x.upper(),"R")
 
             myPrint("B",x)
             x="Base Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
@@ -13531,9 +13545,7 @@ now after saving the file, restart Moneydance
             x = "Congratulations! - No orphan attachments detected!".upper()
             myPrint("B",x)
             diagDisplay+=(x+"\n")
-            statusLabel.setText((x.upper()).ljust(800, " "))
-            statusLabel.setForeground(Color.BLUE)
-
+            setDisplayStatus(x.upper(),"B")
 
         if iAttachmentsFound:
             diagDisplay+="\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
@@ -13560,20 +13572,29 @@ now after saving the file, restart Moneydance
                     myPrint("B", record)
                     myPrint("B", "... will continue.....")
 
-        diagDisplay+='\n<END>'
+        if not lFix or not iOrphans: diagDisplay+='\n<END>'
 
         scanningMsg.kill()
 
         jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
         if iOrphans:
-            theMsg = MyPopUpDialogBox(jif,
-                                   "You have %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2)),
-                                      msgStr +"CLICK TO VIEW ORPHANS, or CANCEL TO EXIT",
-                                      200,"ORPHANED ATTACHMENTS",
-                                      lCancelButton=True,
-                                      OKButtonText="CLICK TO VIEW",
-                                      lAlertLevel=1)
+            if lFix:
+                theMsg = MyPopUpDialogBox(jif,
+                                       "You have %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2)),
+                                          msgStr,
+                                          200,"ORPHANED ATTACHMENTS",
+                                          lCancelButton=False,
+                                          OKButtonText="OK",
+                                          lAlertLevel=1)
+            else:
+                theMsg = MyPopUpDialogBox(jif,
+                                       "You have %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2)),
+                                          msgStr +"CLICK TO VIEW ORPHANS, or CANCEL TO EXIT",
+                                          200,"ORPHANED ATTACHMENTS",
+                                          lCancelButton=True,
+                                          OKButtonText="CLICK TO VIEW",
+                                          lAlertLevel=1)
         elif iAttachmentsNotInLS:
             theMsg = MyPopUpDialogBox(jif,
                                    "You have %s missing attachment(s) referenced on Moneydance Txns!" % (iAttachmentsNotInLS),
@@ -13596,7 +13617,7 @@ now after saving the file, restart Moneydance
 
         myPrint("P","\n"*2)
 
-        if iOrphans:
+        if iOrphans and not lFix:
             if theMsg.go():        # noqa
                 while True:
                     selectedOrphan = JOptionPane.showInputDialog(jif,
@@ -13626,6 +13647,51 @@ now after saving the file, restart Moneydance
         else:
             theMsg.go()        # noqa
 
+        if lFix and not iOrphans:
+
+            myPopupInformationBox(jif, "YOU HAVE NO ORPHANS TO DELETE - NO ACTION TAKEN!")
+
+        elif lFix:
+
+            if confirm_backup_confirm_disclaimer(jif, GlobalVars.STATUS_LABEL, "ATTACHMENTS - DELETE ORPHANS",
+                                                     "Delete %s Orphan attachments from Disk?" %(iOrphans)):
+
+                myPrint("B", "USER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH DELETION OF %s Orphan attachments from disk." %(iOrphans))
+
+                jif.dispose()
+
+                diagDisplay += ("\n\n"
+                                "DELETING ORPHANS FROM DISK\n"
+                                " =========================\n")
+
+                for theOrphanRecord in orphanList:
+
+                    try:
+                        os.remove(theOrphanRecord[3])
+                        x="DELETED ORPHAN: %s" %(theOrphanRecord[3])
+                        myPrint("B",x)
+                        diagDisplay+=(x+"\n")
+                    except:
+                        x="@@ FAILED TO DELETE ORPHAN: %s" %(theOrphanRecord[3])
+                        myPrint("B",x)
+                        diagDisplay+=(x+"\n")
+
+                diagDisplay+=("\n<END>\n")
+                jif = QuickJFrame("ATTACHMENT ANALYSIS & ORPHAN DELETION",diagDisplay,lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lJumpToEnd=True).show_the_frame()
+                txt = "%s Orphan Attachments deleted from disk" %(iOrphans)
+                myPrint("B", txt)
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(jif, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+            else:
+                jif.dispose()
+                txt = "User declined disclaimer - no orphans deleted!"
+                myPrint("B",txt)
+                diagDisplay+=("\n"+txt+"\n"+"<END>\n")
+                setDisplayStatus(txt, "R")
+                jif = QuickJFrame("ATTACHMENT ANALYSIS & ORPHAN DELETION",diagDisplay,lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lJumpToEnd=True).show_the_frame()
+                myPopupInformationBox(jif, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+
+        del orphanList
         del attachmentList
         del attachmentLocations
         del typesFound
@@ -21127,6 +21193,15 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_diagnose_attachments = JRadioButton("DIAG: Diagnose Attachments and detect Orphans too", False)
                 user_diagnose_attachments.setToolTipText("This will analise your Attachments, show you the file storage consumed, and detect Orphans/issues")
 
+                syncFolder = None                                                                                       # noqa
+                try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
+                except: syncFolder = False
+
+                user_diagnose_fix_attachments = JRadioButton("FIX: Diagnose Attachments - DELETE Orphan attachments (** Syncing must be Disabled **)", False)
+                user_diagnose_fix_attachments.setToolTipText("This will analise your Attachments, detect Orphans/issues - AND ALLOW YOU TO DELETE THE ORPHAN ATTACHMENTS")
+                user_diagnose_fix_attachments.setEnabled(lAdvancedMode and syncFolder is None)
+                user_diagnose_fix_attachments.setForeground(Color.RED)
+
                 user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another", False)
                 user_move_invest_txns.setToolTipText("This allows you to move your investment transactions from one account into (merges with) another")
                 user_move_invest_txns.setEnabled(lAdvancedMode)
@@ -21161,6 +21236,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_view_txn_sort)
                 bg.add(user_extract_attachments)
                 bg.add(user_diagnose_attachments)
+                bg.add(user_diagnose_fix_attachments)
                 bg.add(user_move_invest_txns)
                 bg.add(user_fix_non_hier_sec_acct_txns)
                 bg.add(user_fix_delete_one_sided_txns)
@@ -21183,12 +21259,18 @@ Now you will have a text readable version of the file you can open in a text edi
                 if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
                     userFilters.add(user_move_invest_txns)
 
+                userFilters.add(user_diagnose_fix_attachments)
                 userFilters.add(user_fix_non_hier_sec_acct_txns)
                 userFilters.add(user_fix_delete_one_sided_txns)
                 userFilters.add(user_reverse_txn_amounts)
                 userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
 
                 while True:
+
+                    syncFolder = None                                                                                   # noqa
+                    try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
+                    except: syncFolder = False
+                    user_diagnose_fix_attachments.setEnabled(lAdvancedMode and syncFolder is None)
 
                     options = ["EXIT", "PROCEED"]
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
@@ -21213,7 +21295,11 @@ Now you will have a text readable version of the file you can open in a text edi
                         return
 
                     if user_diagnose_attachments.isSelected():
-                        diagnose_attachments(self.statusLabel)
+                        diagnose_attachments()
+                        return
+
+                    if user_diagnose_fix_attachments.isSelected():
+                        diagnose_attachments(lFix=True)
                         return
 
                     if user_move_invest_txns.isSelected():
