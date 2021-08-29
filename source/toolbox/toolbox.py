@@ -217,6 +217,7 @@
 # build: 1041 - Added print function to QuickJFrame(); also save and print to main diagnostics display
 # build: 1041 - Added feature - HACK: Peek at an encrypted file located in your Sync Folder...
 # build: 1041 - Added feature - Diagnose Attachments - DELETE Orphan attachments.
+# build: 1041 - Detect User's Locale (vs MD User Preferences for Locale).
 
 # todo - convert statusLabel over to GlobalVars.STATUS_LABEL and setDisplayStatus()
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -500,6 +501,7 @@ else:
 
     from java.io import ByteArrayInputStream
     from javax.crypto import BadPaddingException
+    from java.util import Locale
 
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller.sync import MDSyncCipher
@@ -3083,8 +3085,17 @@ Visit: %s (Author's site)
         textArray.append(u"System Locale Decimal Point: %s" %(getDecimalPoint(lGetPoint=True)) + u" Grouping Char: %s" %(getDecimalPoint(lGetGrouping=True)))
         if MD_REF.getUI().getPreferences().getSetting(u"decimal_character", u".") != getDecimalPoint(lGetPoint=True):
             textArray.append(u"NOTE - MD Decimal point is DIFFERENT to the Locale decimal point!!!")
-        textArray.append(u"Locale Country: %s" %(MD_REF.getUI().getPreferences().getSetting(u"locale.country", u"")))
-        textArray.append(u"Locale Language: %s" %(MD_REF.getUI().getPreferences().getSetting(u"locale.language", u"")))
+        textArray.append(u"MD User set Locale Country: %s" %(MD_REF.getUI().getPreferences().getSetting(u"locale.country", u"")))
+        textArray.append(u"MD User set Locale Language: %s" %(MD_REF.getUI().getPreferences().getSetting(u"locale.language", u"")))
+
+        loc = Locale.getDefault(); loc_c = loc.getCountry(); loc_l = loc.getLanguage()
+        # noinspection PyUnresolvedReferences
+        if (loc_c.lower() != MD_REF.getUI().getPreferences().getSetting(u"locale.country", u"_unknown_").lower()) \
+                or (loc_l.lower() != MD_REF.getUI().getPreferences().getSetting(u"locale.language", u"_unknown_").lower()):
+            textArray.append(u"NOTE - MD User set Locale details are different to System Locale details!!!")
+            textArray.append(u"(System Locale Country: %s)" %(loc_c))
+            textArray.append(u"(System Locale Language: %s)" %(loc_l))
+        del loc, loc_c, loc_l
 
         textArray.append(u"\nFOLDER / FILE LOCATIONS")
 
