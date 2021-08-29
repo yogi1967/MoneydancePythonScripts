@@ -17007,30 +17007,28 @@ now after saving the file, restart Moneydance
         myPrint(u"D", u"Exiting ", inspect.currentframe().f_code.co_name, u"()")
         return theMsg, displayMsg
 
-    def change_fonts(statusLabel):
-        global toolbox_frame_, debug
+    def change_fonts():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if float(MD_REF.getBuild()) < 3030:
-            myPrint("B", "Error - must be on Moneydance build 3030+ to change fonts!")
-            statusLabel.setText(("Error - must be on Moneydance build 3030+ to change fonts!").ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            txt = "Error - must be on Moneydance build 3030+ to change fonts! NO CHANGES MADE!"
+            myPrint("B", txt)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         myPrint("DB", "User requested to change Moneydance Default Fonts!")
 
         if not backup_config_dict():
-            statusLabel.setText("Error backing up config.dict preferences file before deletion - no changes made....".ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
-            myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            txt = "Error backing up config.dict preferences file before deletion - NO CHANGES MADE!"
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         prefs=MD_REF.getUI().getPreferences()
 
         systemFonts = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()
-        for installedFont in systemFonts:
-            myPrint("D","System OS Font %s is installed in your system..:" %installedFont)
+        for installedFont in systemFonts: myPrint("DB","System OS Font %s is installed in your system..:" %installedFont)
 
         # These are taken from MD Code - build 3034 - watch out they may change...!
         Mac_fonts_main =     ["SF Pro Display", "SF Display", "Helvetica Neue", "Helvetica", "Lucida Grande", "Dialog"]
@@ -17055,8 +17053,7 @@ now after saving the file, restart Moneydance
                 prefs.setSetting(checkFont,None)
                 myPrint("B","@@ Font setting %s in config.dict was set to 'null'. I have corrected this and deleted the setting.." %checkFont)
 
-        if lAnyFontChanges:
-            MD_REF.savePreferences()
+        if lAnyFontChanges: MD_REF.savePreferences()
 
         while True:
             if lExit: break
@@ -17104,8 +17101,7 @@ now after saving the file, restart Moneydance
                                                          _options,
                                                          None)
 
-            if not selectedOption:
-                break
+            if not selectedOption: break
 
             lMain = (_options.index(selectedOption) == 0 or _options.index(selectedOption) == 1)
             lMono = (_options.index(selectedOption) == 2 or _options.index(selectedOption) == 3)
@@ -17171,8 +17167,7 @@ now after saving the file, restart Moneydance
                         theFonts = all_fonts_print
                     else: raise(Exception("error"))
 
-                for x in theFonts:
-                    myPrint("D","Possible internal default fonts for your Platform...: %s" %x)
+                for x in theFonts: myPrint("DB","Possible internal default fonts for your Platform...: %s" %x)
 
                 _options=["CHOOSE FROM MD INTERNAL LIST", "CHOOSE FROM YOUR OS' SYSTEM INSTALLED"]
                 selectedOption = JOptionPane.showInputDialog(toolbox_frame_,
@@ -17206,19 +17201,26 @@ now after saving the file, restart Moneydance
                         myPopupInformationBox(toolbox_frame_, 'Config.dict: key: %s CHANGED to "%s"\nRESTART MD' %(theKey,selectedFont), "FONTS", JOptionPane.WARNING_MESSAGE)
                         continue
 
-                else:
-                    raise(Exception("error"))
+                else: raise(Exception("error"))
 
             continue
 
         if lAnyFontChanges:
-            statusLabel.setText("Moneydance Font Changes made as requested - PLEASE RESTART MONEYDANCE (PS - config.dict was backed up too)....".ljust(800, " "))
-            statusLabel.setForeground(Color.RED)
+
+            try:
+                MD_REF.getUI().getFonts().updateFonts()
+                txt = "MD Font Changes made (MD Fonts were also reinitialised) - YOU MIGHT NEED TO RESTART MONEYDANCE ANYWAY (config.dict was also backed up)...."
+            except:
+                txt = "MD Font Changes made (failed to reinitialise MD Fonts) - PLEASE RESTART MONEYDANCE (config.dict was also backed up)...."
+
+            myPrint("DB", txt)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
         else:
-            myPrint("D", "NO FONT ACTIONS TAKEN")
-            statusLabel.setText("NO FONT ACTIONS TAKEN! - no changes made....".ljust(800, " "))
-            statusLabel.setForeground(Color.BLUE)
-            myPopupInformationBox(toolbox_frame_, "NO FONT ACTIONS / CHANGES TAKEN !", "FONTS", JOptionPane.WARNING_MESSAGE)
+            txt = "NO FONT ACTIONS TAKEN! - NO CHANGES MADE...."
+            myPrint("D", txt)
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
@@ -21497,7 +21499,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         convert_timestamp_readable_date(self.statusLabel)
 
                     if user_change_moneydance_fonts.isSelected():
-                        change_fonts(self.statusLabel)
+                        change_fonts()
 
                     if user_delete_custom_theme_file.isSelected():
                         delete_theme_file(self.statusLabel)
