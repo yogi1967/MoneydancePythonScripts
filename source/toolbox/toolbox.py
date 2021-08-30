@@ -218,6 +218,7 @@
 # build: 1041 - Added feature - HACK: Peek at an encrypted file located in your Sync Folder...
 # build: 1041 - Added feature - Diagnose Attachments - DELETE Orphan attachments.
 # build: 1041 - Detect User's Locale (vs MD User Preferences for Locale).
+# build: 1041 - Added feature - HACK: Shrink Dataset
 
 # todo - convert statusLabel over to GlobalVars.STATUS_LABEL and setDisplayStatus()
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -2455,6 +2456,9 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
+    # Prevent usage later on... We use MD_REF
+    del moneydance
+
     def setDisplayStatus(_theStatus, _theColor="G"):
         """Sets the Display / Status label on the main diagnostic display: G=Green, B=Blue, R=Red, DG=Dark Green"""
 
@@ -2859,10 +2863,21 @@ Visit: %s (Author's site)
         del foundStrange
         return output
 
-    # noinspection PyBroadException
     def buildDiagText():
 
         textArray = []                                                                                                  # noqa
+
+        try:
+            loc = MD_REF.getUI().getPreferences().getLocale()
+            if loc is not None and \
+                    (loc.getLanguage() in (loc.CHINESE.getLanguage(), loc.JAPANESE.getLanguage(), loc.KOREAN.getLanguage(), loc.SIMPLIFIED_CHINESE.getLanguage(), loc.TRADITIONAL_CHINESE.getLanguage())
+                     or loc.getCountry() in (loc.CHINA.getCountry(), loc.JAPAN.getCountry(), loc.KOREA.getCountry(), loc.TAIWAN.getCountry()) ):
+                textArray.append(u"** if Toolbox outputs do not show your language's double-byte characters properly, then (Advanced Mode) General Tools, Set MD Fonts **\n"
+                                 u"** Change 'code' Font to a Monospaced Font that supports your character set **\n")
+        except:
+            myPrint("B","@@ ERROR: Failed to detect MD Locale..?")
+            dump_sys_error_to_md_console_and_errorlog()
+
         textArray.append(u"Moneydance Version / Build: %s" %(MD_REF.getVersion()) + u"  Build: %s" %(MD_REF.getBuild()))
         textArray.append(u"Moneydance Config file reports: %s" %MD_REF.getUI().getPreferences().getSetting(u"current_version", u""))
         textArray.append(u"Moneydance updater version to track: %s" %MD_REF.getUI().getPreferences().getSetting(u"updater.version_to_track",u""))
@@ -5585,7 +5600,7 @@ Visit: %s (Author's site)
                 statusLabel.setForeground(Color.RED)
                 return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, "CURRENCY/SECURITY - UPDATE 'price_date'","Update the current price hidden 'price_date' field to %s?" %(user_selectDateStart.getDateInt())):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,"CURRENCY/SECURITY - UPDATE 'price_date'","Update the current price hidden 'price_date' field to %s?" %(user_selectDateStart.getDateInt())):
             return
 
         newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
@@ -5906,7 +5921,7 @@ Visit: %s (Author's site)
                          theTitle="HIDDEN PRICE DATE FIELD AUTOFIX",
                          OKButtonText="NEXT STEP").go()
 
-        if not confirm_backup_confirm_disclaimer(jif, statusLabel,"AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELDS",
+        if not confirm_backup_confirm_disclaimer(jif, "AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELDS",
                                                  "EXECUTE AUTOFIX on %s CURRENCY/SECURITY HIDDEN 'PRICE_DATE' RECORDS?" %(len(currs_to_fix))):
             return
 
@@ -6544,7 +6559,7 @@ Please update any that you use before proceeding....
 
             del userFilters, bg1, bg2
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(), "EXECUTE '%s'?" %(_THIS_METHOD_NAME.upper())):
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(), "EXECUTE '%s'?" %(_THIS_METHOD_NAME.upper())):
                 return
 
             VERBOSE = user_VERBOSE.isSelected()
@@ -7254,22 +7269,23 @@ Please update any that you use before proceeding....
             dump_sys_error_to_md_console_and_errorlog()
 
 
-    def confirm_backup_confirm_disclaimer(theFrame, theStatusLabel, theTitleToDisplay, theAction):
+    def confirm_backup_confirm_disclaimer(theFrame, theTitleToDisplay, theAction):
 
         if not myPopupAskQuestion(theFrame,
                                   theTitle=theTitleToDisplay,
                                   theQuestion=theAction,
                                   theOptionType=JOptionPane.YES_NO_OPTION,
                                   theMessageType=JOptionPane.ERROR_MESSAGE):
-            theStatusLabel.setText(("'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction)).ljust(800, " "))
-            theStatusLabel.setForeground(Color.RED)
-            myPrint("B","'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction))
-            myPopupInformationBox(theFrame,"User did not accept to proceed - no changes made...","NO UPDATE",JOptionPane.ERROR_MESSAGE)
+
+            txt = "'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction)
+            setDisplayStatus(txt, "R")
+            myPrint("B", txt)
+            myPopupInformationBox(theFrame,"User did not agree to proceed - no changes made...","NO UPDATE",JOptionPane.ERROR_MESSAGE)
             return False
 
         if not myPopupAskBackup(theFrame, "Would you like to perform a backup before %s" %(theTitleToDisplay)):
-            theStatusLabel.setText(("'%s' - User chose to exit without the fix/update...."%(theTitleToDisplay)).ljust(800, " "))
-            theStatusLabel.setForeground(Color.RED)
+            txt = "'%s' - User chose to exit without the fix/update...."%(theTitleToDisplay)
+            setDisplayStatus(txt, "R")
             myPrint("B","'%s' User aborted at the backup prompt to '%s' - no changes made" %(theTitleToDisplay, theAction))
             myPopupInformationBox(theFrame,"User aborted at the backup prompt - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
             return False
@@ -7283,8 +7299,7 @@ Please update any that you use before proceeding....
                                         theMessageType=JOptionPane.ERROR_MESSAGE)
 
         if not disclaimer == 'IAGREE':
-            theStatusLabel.setText(("'%s' - User declined the disclaimer - no changes made...." %(theTitleToDisplay)).ljust(800, " "))
-            theStatusLabel.setForeground(Color.RED)
+            setDisplayStatus("'%s' - User declined the disclaimer - no changes made...." %(theTitleToDisplay), "R")
             myPrint("B","'%s' User did not say accept Disclaimer to '%s' - no changes made" %(theTitleToDisplay, theAction))
             myPopupInformationBox(theFrame,"User did not accept Disclaimer - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
             return False
@@ -7333,7 +7348,7 @@ Please update any that you use before proceeding....
             jif.dispose()       # already within the EDT
             return
 
-        if confirm_backup_confirm_disclaimer(jif,statusLabel,"CLEAR AUTHENTICATION FROM ONE SERVICE","Clear Authentication Password(s) for service:%s?" %(service)):
+        if confirm_backup_confirm_disclaimer(jif,"CLEAR AUTHENTICATION FROM ONE SERVICE","Clear Authentication Password(s) for service:%s?" %(service)):
             # noinspection PyUnresolvedReferences
             service.clearAuthenticationCache()
             LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
@@ -7375,7 +7390,7 @@ Please update any that you use before proceeding....
             jif.dispose()       # already within the EDT
             return
 
-        if confirm_backup_confirm_disclaimer(jif,statusLabel,"CLEAR ALL SERVICE(S)' AUTHENTICATION","Clear Authentication All Password(s) for **ALL** service(s)?"):
+        if confirm_backup_confirm_disclaimer(jif,"CLEAR ALL SERVICE(S)' AUTHENTICATION","Clear Authentication All Password(s) for **ALL** service(s)?"):
 
             MD_REF.getUI().getOnlineManager().clearAuthenticationCache()
             play_the_money_sound()
@@ -7581,7 +7596,7 @@ Please update any that you use before proceeding....
                     jif.dispose()       # already within the EDT
                     continue
 
-            if not confirm_backup_confirm_disclaimer(jif,statusLabel, "OFX USERID MANAGEMENT","OFX USERIDs %s?" %(do_what)):
+            if not confirm_backup_confirm_disclaimer(jif,"OFX USERID MANAGEMENT","OFX USERIDs %s?" %(do_what)):
                 jif.dispose()       # already within the EDT
                 return
 
@@ -7810,7 +7825,7 @@ Please update any that you use before proceeding....
 
             break   # Valid date
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, "OFX UPDATE OFXLastTxnUpdate","Update the OFXLastTxnUpdate field to %s?" %(user_selectDateStart.getDateInt())):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Update the OFXLastTxnUpdate field to %s?" %(user_selectDateStart.getDateInt())):
             return
 
         newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
@@ -7869,7 +7884,7 @@ Please update any that you use before proceeding....
             myPopupInformationBox(toolbox_frame_,"OFX PURGE OnlineTxnList OBJECTS. You have no cached Txns - no changes made....",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, "OFX PURGE OnlineTxnList OBJECTS","Purge/Clean all Cached OnlineTxnList Txns (very safe to run)?"):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX PURGE OnlineTxnList OBJECTS","Purge/Clean all Cached OnlineTxnList Txns (very safe to run)?"):
             return
 
         MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes....
@@ -8018,7 +8033,7 @@ Please update any that you use before proceeding....
         if lDeleteAllTxns: do_what="Delete all %s stored Txns within the record" %(saveTxnCount)
         if lDeleteRecord:  do_what="Delete the whole OnlineTxnList record"
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, "OFX DELETE HACK OnlineTxnList","%s?" %(do_what)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX DELETE HACK OnlineTxnList","%s?" %(do_what)):
             return
 
         if lDeleteRecord:
@@ -8225,7 +8240,7 @@ Please update any that you use before proceeding....
                 if not chgValue or len(chgValue.strip()) <1 or chgValue == selectedCookie: continue
                 chgValue = chgValue.strip()
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, "OFX BANK MANAGEMENT","OFX COOKIES %s?" %(do_what)):
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX BANK MANAGEMENT","OFX COOKIES %s?" %(do_what)):
                 continue
 
             if not backup_local_storage_settings():
@@ -8464,7 +8479,7 @@ Please update any that you use before proceeding....
                     return
                 myPrint("B", "FIX CUSIP - User selected to overwrite existing CUSIP data in Security: %s" %selectedSecurityMoveTo)
 
-        if confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"FIX CUSIP","Are you sure you want to change CUSIP data on security: %s?" %(selectedSecurity)):
+        if confirm_backup_confirm_disclaimer(toolbox_frame_,"FIX CUSIP","Are you sure you want to change CUSIP data on security: %s?" %(selectedSecurity)):
             if lReset:
                 selectedSecurity.setEditingMode()
                 for key in list(selectedSecurity.getParameterKeys()):
@@ -8615,7 +8630,7 @@ Please update any that you use before proceeding....
 
         service = service.obj       # noqa
 
-        if confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"DELETE BANK SERVICE","Delete Bank Service/Logon profile %s?" %(service)):
+        if confirm_backup_confirm_disclaimer(toolbox_frame_,"DELETE BANK SERVICE","Delete Bank Service/Logon profile %s?" %(service)):
             # noinspection PyUnresolvedReferences
             service.clearAuthenticationCache()
             # noinspection PyUnresolvedReferences
@@ -8649,7 +8664,7 @@ Please update any that you use before proceeding....
             statusLabel.setForeground(Color.RED)
             return
 
-        if confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"RESET BANKING LINK", "Forget OFX banking Import link for Acct: %s?" %(selectedAccount) ):
+        if confirm_backup_confirm_disclaimer(toolbox_frame_,"RESET BANKING LINK", "Forget OFX banking Import link for Acct: %s?" %(selectedAccount) ):
 
             selectedAccount.setEditingMode()                                                                # noqa
             selectedAccount.removeParameter("ofx_import_acct_num")                                          # noqa
@@ -10835,7 +10850,7 @@ now after saving the file, restart Moneydance
             if not selectedIncludeInNW: continue
 
             if not lPresentedBackupDisclaimer:
-                if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel, _THIS_METHOD_NAME.upper(), "Change this Account's shouldBeIncludedInNetWorth setting to '%s'?" %(selectedIncludeInNW)):
+                if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(), "Change this Account's shouldBeIncludedInNetWorth setting to '%s'?" %(selectedIncludeInNW)):
                     return
                 lPresentedBackupDisclaimer = True
 
@@ -11199,7 +11214,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(jif, "No Zero Balance Categories >> No fixes will be applied !", "ZERO BALANCE CATEGORIES", JOptionPane.INFORMATION_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(jif,statusLabel, "FIX - INACTIVATE ZERO BALANCE CATEGORIES", "Inactivate these %s Zero Balance Categories?" %(iCountForInactivation)):
+        if not confirm_backup_confirm_disclaimer(jif, "FIX - INACTIVATE ZERO BALANCE CATEGORIES", "Inactivate these %s Zero Balance Categories?" %(iCountForInactivation)):
             return
 
         # OK - so we are fixing...!
@@ -11300,7 +11315,7 @@ now after saving the file, restart Moneydance
 
         jif=QuickJFrame("VIEW ACCOUNT(s) WITH INVALID PARENT ACCOUNTS", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
-        if not confirm_backup_confirm_disclaimer(jif,statusLabel,"FIX ACCOUNT(S)' INVALID PARENTS","FIX %s Acct(s)'s Invalid Parent Accts?" %(iCountErrors)):
+        if not confirm_backup_confirm_disclaimer(jif, "FIX ACCOUNT(S)' INVALID PARENTS","FIX %s Acct(s)'s Invalid Parent Accts?" %(iCountErrors)):
             return
 
         jif.dispose()       # already within the EDT
@@ -11361,7 +11376,7 @@ now after saving the file, restart Moneydance
                          "Your Dataset ('book') name is: %s (this is the name that will be used)\nYour Root Account name is: %s" %(bookName,rootName),
                          theTitle="RENAME ROOT ACCOUNT").go()
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel, "RENAME ROOT ACCOUNT", "rename your Root Account to: %s?" %(bookName)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "RENAME ROOT ACCOUNT", "rename your Root Account to: %s?" %(bookName)):
             return
 
         myPrint("B", "User accepted disclaimer to reset Root Account Name. Proceeding.....")
@@ -11482,7 +11497,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel, "FORCE CHANGE TYPE", "FORCE CHANGE ACCOUNT %s TYPE to %s" %(selectedAccount.getFullAccountName(),selectedType)):    # noqa
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "FORCE CHANGE TYPE", "FORCE CHANGE ACCOUNT %s TYPE to %s" %(selectedAccount.getFullAccountName(),selectedType)):    # noqa
             return
 
         myPrint("B","@@ User requested to Force Change the Type of Account: %s from: %s to %s - APPLYING UPDATE NOW...."
@@ -11577,7 +11592,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel, "FORCE CHANGE ALL ACCOUNTS' CURRENCIES", "FORCE CHANGE ALL %s ACCOUNT's CURRENCIES TO %s?" %(len(accounts),selectedCurrency)):    # noqa
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "FORCE CHANGE ALL ACCOUNTS' CURRENCIES", "FORCE CHANGE ALL %s ACCOUNT's CURRENCIES TO %s?" %(len(accounts),selectedCurrency)):    # noqa
             return
 
         myPrint("B","@@ User requested to Force Change the Currency of ALL %s Accounts to %s - APPLYING UPDATE NOW...."
@@ -11674,7 +11689,7 @@ now after saving the file, restart Moneydance
         del ask
 
 
-        if not confirm_backup_confirm_disclaimer(jif, statusLabel, u"FIX INVALID RELATIVE CURR RATES", u"FIX %s INVALID RELATIVE CURRENCY RATES" %(iErrors)):
+        if not confirm_backup_confirm_disclaimer(jif, u"FIX INVALID RELATIVE CURR RATES", u"FIX %s INVALID RELATIVE CURRENCY RATES" %(iErrors)):
             return
 
         jif.dispose()       # already within the EDT
@@ -11783,7 +11798,7 @@ now after saving the file, restart Moneydance
             return
         del ask
 
-        if not confirm_backup_confirm_disclaimer(jif, statusLabel,
+        if not confirm_backup_confirm_disclaimer(jif,
                                                  "DELETE INVALID PRICE HISTORY RECORDS WITH 'WILD' RATES",
                                                  "DELETE %s INVALID PRICE HISTORY RECORDS" %(len(badSnaps))):
             return
@@ -11905,7 +11920,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel, "FORCE CHANGE CURRENCY", "FORCE CHANGE ACCOUNT %s CURRENCY" %(selectedAccount.getFullAccountName())):    # noqa
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "FORCE CHANGE CURRENCY", "FORCE CHANGE ACCOUNT %s CURRENCY" %(selectedAccount.getFullAccountName())):    # noqa
             return
 
         myPrint("B","@@ User requested to Force Change the Currency of Account: %s from: %s to %s - APPLYING UPDATE NOW...."
@@ -12018,7 +12033,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,"REVERSE TXN AMOUNTS - Sorry - no transactions found - NO CHANGES MADE",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel, "REVERSE ACCT TXN AMOUNTS", "ACCOUNT %s - REVERSE %s Txns' amounts between %s - %s?" %(selectedAccount,iTxnsFound,startDate,endDate)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "REVERSE ACCT TXN AMOUNTS", "ACCOUNT %s - REVERSE %s Txns' amounts between %s - %s?" %(selectedAccount,iTxnsFound,startDate,endDate)):
             return
 
         myPrint("B","@@ User requested to REVERSE the (%s) Txn Amounts on Account %s between %s to %s - APPLYING UPDATE NOW...." %(iTxnsFound, selectedAccount, startDate, endDate))
@@ -12157,7 +12172,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,"REVERSE TXN EXCHANGE RATES - Sorry - no transactions found (with fx) - NO CHANGES MADE",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel, "REVERSE ACCT TXN EXCHANGE RATES", "ACCOUNT %s - REVERSE %s Txns' exchange rates between %s - %s?" %(selectedAccount,iTxnsFound,startDate,endDate)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "REVERSE ACCT TXN EXCHANGE RATES", "ACCOUNT %s - REVERSE %s Txns' exchange rates between %s - %s?" %(selectedAccount,iTxnsFound,startDate,endDate)):
             return
 
         myPrint("B","@@ User requested to REVERSE the (%s) Txn Exchange Rates on Account %s between %s to %s - APPLYING UPDATE NOW...." %(iTxnsFound, selectedAccount, startDate, endDate))
@@ -12799,7 +12814,7 @@ now after saving the file, restart Moneydance
         if lDoNOTHING: raise Exception("ERROR: Why is lDoNOTHING set?")
 
         if not simulate:
-            if not confirm_backup_confirm_disclaimer(jif, statusLabel, "THIN PRICE HISTORY", "Thin Price History?"):
+            if not confirm_backup_confirm_disclaimer(jif, "THIN PRICE HISTORY", "Thin Price History?"):
                 return
 
         jif.dispose()       # already within the EDT
@@ -13661,7 +13676,7 @@ now after saving the file, restart Moneydance
 
         elif lFix:
 
-            if confirm_backup_confirm_disclaimer(jif, GlobalVars.STATUS_LABEL, "ATTACHMENTS - DELETE ORPHANS",
+            if confirm_backup_confirm_disclaimer(jif, "ATTACHMENTS - DELETE ORPHANS",
                                                      "Delete %s Orphan attachments from Disk?" %(iOrphans)):
 
                 myPrint("B", "USER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH DELETION OF %s Orphan attachments from disk." %(iOrphans))
@@ -13813,7 +13828,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,"DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
                                                  "Reassign Security '%s' to Security Master: '%s'?" %(selectedSecSubAcct, targetSecurity)):
             return
 
@@ -14106,7 +14121,7 @@ now after saving the file, restart Moneydance
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(),
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(),
                                                      "EXECUTE %s DECIMAL PLACE EDIT FROM %s to %s?" %(securityToEdit,securityToEdit.getDecimalPlaces(),newDecimal)):
                 return
 
@@ -15141,7 +15156,7 @@ now after saving the file, restart Moneydance
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(),
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(),
                                                      "EXECUTE MERGE OF SECURITY %s / %s?" %(tickerToMerge.getTicker(),tickerToMerge.getPrimarySecurity())):
                 return
 
@@ -15766,7 +15781,7 @@ now after saving the file, restart Moneydance
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel,_THIS_METHOD_NAME.upper(),
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(),
                                                      "EXECUTE MOVE FROM %s to %s?" %(sourceAccount,targetAccount)):
                 return
 
@@ -16256,7 +16271,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(jif,"You have %s errors to manually first first!" %(iCountUnfixable), "FIX: Investment Security Txns with Invalid Parent Accounts",JOptionPane.ERROR_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(jif,statusLabel,"FIX %s SECURITY TXNS INVALID PARENT ACCTS" %(iCountErrors),"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
+        if not confirm_backup_confirm_disclaimer(jif, "FIX %s SECURITY TXNS INVALID PARENT ACCTS" %(iCountErrors),"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
             return
 
         jif.dispose()       # already within the EDT
@@ -16373,7 +16388,7 @@ now after saving the file, restart Moneydance
         myPrint("J","You have %s one-sided transactions that can be deleted!!"%len(toDelete))
         myPopupInformationBox(jif, "You have %s one-sided transactions that can de deleted!!"%len(toDelete), "DELETE ONE-SIDE TXNS", JOptionPane.WARNING_MESSAGE)
 
-        if not confirm_backup_confirm_disclaimer(jif, statusLabel, "DELETE ONE-SIDED TRANSACTIONS", "delete %s one-sided transactions?" %(len(toDelete))):
+        if not confirm_backup_confirm_disclaimer(jif, "DELETE ONE-SIDED TRANSACTIONS", "delete %s one-sided transactions?" %(len(toDelete))):
             return
 
         MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
@@ -16466,7 +16481,7 @@ now after saving the file, restart Moneydance
                         and (Txn.Obj.getParameter("cost_basis", None) is not None)):
                     iErrors+=1
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"CONVERT ACCT/STOCK TO Avg Cst Ctrl","Convert %s to Avg Cst Control and wipe %s LOT records?" %(accountSec,iErrors)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "CONVERT ACCT/STOCK TO Avg Cst Ctrl","Convert %s to Avg Cst Control and wipe %s LOT records?" %(accountSec,iErrors)):
             return
 
         listWiped=""
@@ -16567,7 +16582,7 @@ now after saving the file, restart Moneydance
                          OKButtonText="I HAVE READ THIS",
                          lAlertLevel=1).go()
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"CONVERT STOCK FIFO","Convert %s to LOT control and assign FiFio?" %(accountSec)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "CONVERT STOCK FIFO","Convert %s to LOT control and assign FiFio?" %(accountSec)):
             return
 
         class SecurityObj:
@@ -18225,7 +18240,7 @@ Now you will have a text readable version of the file you can open in a text edi
         displayData+="\n<END>"
         jif = QuickJFrame("ORPHANED EXTENSIONS", displayData,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
-        if not confirm_backup_confirm_disclaimer(jif, statusLabel, "DELETE ORPHANED EXTENSIONS", "delete the Extension Orphans?"):
+        if not confirm_backup_confirm_disclaimer(jif, "DELETE ORPHANED EXTENSIONS", "delete the Extension Orphans?"):
             return
 
         extensionDir = Common.getFeatureModulesDirectory()
@@ -18644,7 +18659,7 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(theNewViewFrame,"NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(theNewViewFrame, statusLabel, "RESET WINDOW DISPLAY SETTINGS", "%s data?" %(resetWhat)):
+        if not confirm_backup_confirm_disclaimer(theNewViewFrame, "RESET WINDOW DISPLAY SETTINGS", "%s data?" %(resetWhat)):
             return
 
         if not backup_config_dict():
@@ -18692,7 +18707,7 @@ Now you will have a text readable version of the file you can open in a text edi
             statusLabel.setForeground(Color.RED)
             return
 
-        if confirm_backup_confirm_disclaimer(toolbox_frame_, statusLabel, "SUPPRESS DROPBOX WARNING", "Suppress 'Your data is stored in a shared folder' (Dropbox) message?"):
+        if confirm_backup_confirm_disclaimer(toolbox_frame_, "SUPPRESS DROPBOX WARNING", "Suppress 'Your data is stored in a shared folder' (Dropbox) message?"):
             suppressFile = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "suppress_file_in_dropbox_restriction.txt")
             if not os.path.exists(suppressFile):
                 try:
@@ -18725,7 +18740,7 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"SAVE TRUNK FILE","Execute Save Trunk File function?"):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "SAVE TRUNK FILE","Execute Save Trunk File function?"):
             return
 
         myPrint("B","HACKER MODE: 'SAVE TRUNK FILE': Calling saveTrunkFile() now at user request....")
@@ -18889,7 +18904,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPopupInformationBox(toolbox_frame_, "ERROR: Parameter value %s is NOT valid!" %(addValue), "HACKER: ADD TO %s" %(theObject), JOptionPane.ERROR_MESSAGE)
                     continue    # back to Hacker menu
 
-                if confirm_backup_confirm_disclaimer(toolbox_frame_,statusLabel,"HACKER MODE","ADD PARAMETER VALUE TO %s" %(theObject)):
+                if confirm_backup_confirm_disclaimer(toolbox_frame_, "HACKER MODE","ADD PARAMETER VALUE TO %s" %(theObject)):
 
                     theObject.setParameter(addKey,addValue)                                                             # noqa
                     if isinstance(theObject, SplitTxn):                                                                 # noqa
@@ -18929,7 +18944,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 else:
                     jif = QuickJFrame("REVIEW THE OBJECT's DATA BEFORE DELETION", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
-                if confirm_backup_confirm_disclaimer(jif,statusLabel,"HACKER: DELETE OBJECT","DELETE OBJECT %s" %(theObject)):
+                if confirm_backup_confirm_disclaimer(jif, "HACKER: DELETE OBJECT","DELETE OBJECT %s" %(theObject)):
 
                     if isinstance(theObject, SplitTxn):                                                                 # noqa
                         # This will delete the split only; thus we also must sync the parent
@@ -19004,7 +19019,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 if lChg:
                     confAction = "%s key: %s to new value: %s" %(text,selectedKey,chgValue)
 
-                if confirm_backup_confirm_disclaimer(jif,statusLabel,"HACKER: %s VALUE IN %s" %(text,theObject),confAction):
+                if confirm_backup_confirm_disclaimer(jif, "HACKER: %s VALUE IN %s" %(text,theObject),confAction):
 
                     if lDel:
                         theObject.setParameter(selectedKey,None)                                                        # noqa
@@ -19390,6 +19405,38 @@ Now you will have a text readable version of the file you can open in a text edi
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
+        return
+
+    def hacker_mode_shrink_dataset():
+        return
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if 1 == None: pass
+
+        _THIS_METHOD_NAME = "HACKER: SHRINK DATASET SIZE"
+
+        MyPopUpDialogBox(toolbox_frame_,
+                         "This function attempts to shrink your dataset size. It does NOT change your actual database (known as 'trunk')\n"
+                         "MD keeps log files for every change you have ever made. Typically these are .txn and .mdtxn files\n"
+                         "Whilst in theory they could be used to rebuild your database from an older start point, this has never been done to my knowledge.\n"
+                         "These files accumulate over time, and can be safely deleted. Toolbox can do this for you.\n"
+                         "NOTE: You will need to repeat this process on other Sync copies too...\n"
+                         "<GOOD LUCK>",
+                         theTitle=_THIS_METHOD_NAME,
+                         theWidth=100, lModal=True,OKButtonText="OK")
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Shrink Dataset by removing all prior change log files?"):
+            return
+
+        # current size? search txns
+        #
+        # save
+        # pause sync
+        # save trunk
+        # delete txns
+        #  calc size
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
     def hacker_mode_encrypt_file(statusLabel):
@@ -20251,7 +20298,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 # reset_sync_and_dropbox_settings.py
                 theKey = "migrated.netsync.dropbox.fileid"
 
-                if not confirm_backup_confirm_disclaimer(toolbox_frame_,self.statusLabel,"FIX DROPBOX ONE WAY SYNC","Fix Dropbox One-Way Syncing?"):
+                if not confirm_backup_confirm_disclaimer(toolbox_frame_, "FIX DROPBOX ONE WAY SYNC", "Fix Dropbox One-Way Syncing?"):
                     return
 
                 myPrint("B","FIX DROPBOX ONE WAY SYNC: Removing key '%s' from LocalStorage() at user request...." %(theKey))
@@ -21569,6 +21616,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_hacker_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
                 user_hacker_extract_from_sync.setForeground(Color.RED)
 
+                user_hacker_shrink_dataset = JRadioButton("HACK: Shrink Dataset size", False)
+                user_hacker_shrink_dataset.setToolTipText("This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...")
+                user_hacker_shrink_dataset.setForeground(Color.RED)
+
                 user_hacker_import_to_storage = JRadioButton("HACK: Import a File back into LocalStorage", False)
                 user_hacker_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
                 user_hacker_import_to_storage.setForeground(Color.RED)
@@ -21595,6 +21646,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_hacker_toggle_other_DEBUGs)
                 bg.add(user_hacker_extract_from_storage)
                 bg.add(user_hacker_extract_from_sync)
+                bg.add(user_hacker_shrink_dataset)
                 bg.add(user_hacker_import_to_storage)
                 bg.add(user_hacker_mode_edit_prefs)
                 bg.add(user_hacker_edit_param_keys)
@@ -21612,6 +21664,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_hacker_extract_from_sync)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                userFilters.add(user_hacker_shrink_dataset)
                 userFilters.add(user_hacker_import_to_storage)
                 userFilters.add(user_hacker_mode_edit_prefs)
                 userFilters.add(user_hacker_edit_param_keys)
@@ -21652,6 +21705,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_hacker_extract_from_sync.isSelected():
                         hacker_mode_decrypt_file_from_sync()
                         return
+
+                    if user_hacker_shrink_dataset.isSelected():
+                        hacker_mode_shrink_dataset()
 
                     if user_hacker_import_to_storage.isSelected():
                         hacker_mode_encrypt_file(self.statusLabel)
