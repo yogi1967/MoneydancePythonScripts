@@ -40,8 +40,9 @@
 # MD2021.2(3088): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
 #                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
 
-#unset md_passphrase
-export md_passphrase=XxX
+unset md_passphrase
+unset md_passphrase
+#export md_passphrase=XxX
 
 
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
