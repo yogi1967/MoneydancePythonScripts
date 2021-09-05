@@ -20021,7 +20021,7 @@ Now you will have a text readable version of the file you can open in a text edi
         totalFiles = len(targetOutFilesForDeletion) + len(targetInFilesForDeletion) + len(targetUploadBufferForDeletion) + len(targetArchiveFilesForDeletion)
 
         if totalFiles < 1:
-            txt = "Sorry, I found no files to purge...                "
+            txt = "Sorry. No files to purge found!"
             myPrint("B", "%s: %s" %(_THIS_METHOD_NAME, txt))
             setDisplayStatus("%s: %s" %(_THIS_METHOD_NAME, txt), "R")
             myPopupInformationBox(toolbox_frame_,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
