@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 13) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 14) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -63,6 +63,7 @@
 # build: 11 - Common code tweaks
 # build: 12 - Common code tweaks
 # build: 13 - Common code tweaks
+# build: 14 - Disable script for 2022.0(4040) onwards - new mapping table
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -70,7 +71,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "13"
+version_build = "14"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -317,8 +318,9 @@ else:
     from com.infinitekind.moneydance.model import OnlineTxnList
     from com.infinitekind.tiksync import SyncableItem
 
-    # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
+    # >>> THIS SCRIPT'S GLOBALS ########################################################################################
+    MD_MDPLUS_BUILD = 4040
+    # >>> END THIS SCRIPT'S GLOBALS ####################################################################################
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
@@ -2476,6 +2478,11 @@ Visit: %s (Author's site)
             if self.obj is None:
                 return "Invalid Acct Obj or None"
             return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
+
+    if float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD:
+        alert = "SORRY - THIS FIX SCRIPT HAS BEEN DISABLED FOR MD2022 ONWARDS DUE TO UNDERLYING TECHNICAL CHANGES..."
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
 
     if not myPopupAskQuestion(None, "BACKUP", "CREATE A NEW (CUSTOM) USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
         alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
