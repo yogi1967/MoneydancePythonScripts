@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 14) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 15) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -64,6 +64,7 @@
 # build: 12 - Common code tweaks
 # build: 13 - Common code tweaks
 # build: 14 - Disable script for 2022.0(4040) onwards - new mapping table
+# build: 15 - Fixing to deal with 4040+... Adding custom "tik_fi_id" as "md:custom-1295"
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -2409,6 +2410,27 @@ Visit: %s (Author's site)
 
     MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
 
+    def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD)
+
+    book = MD_REF.getCurrentAccountBook()
+
+    mappingObject = None
+
+    if isMDPlusEnabledBuild():
+        myPrint("B", "MD2022+ build detected.. Enabling new features....")
+        from com.infinitekind.moneydance.model import OnlineAccountMapping
+        mappingObject = book.getItemForID("online_acct_mapping")
+        if mappingObject is not None:
+            myPrint("B", "Online Account Mapping object found and reference stored....")
+        else:
+            myPrint("B", "No Online Account mapping object found...")
+
+    if not isMDPlusEnabledBuild() and book.getItemForID("online_acct_mapping") is not None:
+        alert = "MD version older than MD2022 detected, but you have an Online Account mapping object.. Have you downgraded? SORRY >> CANNOT PROCEED!"
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+
     def isUserEncryptionPassphraseSet():
 
         try:
@@ -2479,11 +2501,11 @@ Visit: %s (Author's site)
                 return "Invalid Acct Obj or None"
             return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
 
-    if float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD:
-        alert = "SORRY - THIS FIX SCRIPT HAS BEEN DISABLED FOR MD2022 ONWARDS DUE TO UNDERLYING TECHNICAL CHANGES..."
-        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-        raise Exception(alert)
-
+    # if isMDPlusEnabledBuild():
+    #     alert = "SORRY - THIS FIX SCRIPT HAS BEEN DISABLED FOR MD2022 ONWARDS DUE TO UNDERLYING TECHNICAL CHANGES..."
+    #     myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #     raise Exception(alert)
+    #
     if not myPopupAskQuestion(None, "BACKUP", "CREATE A NEW (CUSTOM) USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
         alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -2565,6 +2587,7 @@ Visit: %s (Author's site)
     USAA_FI_ORG = "USAA Federal Savings Bank"
     USAA_PROFILE_NAME = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
     OLD_TIK_FI_ID = "md:1295"
+    NEW_TIK_FI_ID = "md:custom-1295"
 
     authKeyPrefix = "ofx.client_uid"
 
@@ -2573,7 +2596,7 @@ Visit: %s (Author's site)
     ####################################################################################################################
     deleteServices = []
     for svc in serviceList:
-        if (svc.getTIKServiceID() == OLD_TIK_FI_ID
+        if (svc.getTIKServiceID() == OLD_TIK_FI_ID or svc.getTIKServiceID() == NEW_TIK_FI_ID
                 or svc.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
                 or "USAA" in svc.getFIOrg()
                 or "USAA" in svc.getFIName()):
@@ -2583,6 +2606,10 @@ Visit: %s (Author's site)
     root = MD_REF.getRootAccount()
     rootKeys = list(root.getParameterKeys())
     lRootNeedsSync = False
+
+    mappingKeys = None
+    if mappingObject is not None: mappingKeys = list(mappingObject.getParameterKeys())
+    lMappingNeedsSync = False
 
     if len(deleteServices) < 1:
         myPrint("B", "No USAA services / profile found to delete...")
@@ -2601,24 +2628,32 @@ Visit: %s (Author's site)
                         myPrint("B", "clearing service link flag from account %s (%s)" %(a,s))
                         a.setEditingMode()
                         a.setBankingFI(None)
+                        if isMDPlusEnabledBuild(): a.setOnlineIDForServiceID(s.getTIKServiceID(), None)
                         a.setBillPayFI(None)
                         a.syncItem()
                 myPrint("B", "Clearing authentication cache from %s" %s)
                 s.clearAuthenticationCache()
 
                 # Clean up root here - as with custom profiles the UUID sets stored instead of the TIK ID which can be identified later....
-                if s.getTIKServiceID() != OLD_TIK_FI_ID:  # Thus we presume it's our own custom profile
+                if s.getTIKServiceID() != OLD_TIK_FI_ID and s.getTIKServiceID() != NEW_TIK_FI_ID:  # Thus we presume it's our own custom profile, older script using uuid...
                     for i in range(0,len(rootKeys)):
                         rk = rootKeys[i]
                         if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
                             myPrint("B", "Deleting old authKey associated with this profile (from Root) %s: %s" %(rk,root.getParameter(rk)))
-
-                            if not lRootNeedsSync:
-                                myPrint("B",".. triggering .setEditingMode() on root...")
-                                root.setEditingMode()
-
+                            if not lRootNeedsSync: root.setEditingMode()
                             root.setParameter(rk, None)
                             lRootNeedsSync = True
+                        i+=1
+
+                if mappingObject is not None:
+                    myPrint("B", "Checking Online Account Mapping object for references to old profile...")
+                    for i in range(0, len(mappingKeys)):
+                        pk = mappingKeys[i]
+                        if pk.startswith("map.") and (OLD_TIK_FI_ID in pk or NEW_TIK_FI_ID in pk):
+                            myPrint("B", "Deleting old Account Mapping %s: %s" %(pk, mappingObject.getParameter(pk)))
+                            if not lMappingNeedsSync: mappingObject.setEditingMode()
+                            mappingObject.setParameter(pk, None)
+                            lMappingNeedsSync = True
                         i+=1
 
                 myPrint("B", "Deleting profile %s" %s)
@@ -2626,10 +2661,10 @@ Visit: %s (Author's site)
                 myPopupInformationBox(None,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
             del accounts
 
-    if lRootNeedsSync:
-        root.syncItem()
+    if lRootNeedsSync: root.syncItem()
+    if lMappingNeedsSync: mappingObject.syncItem()
 
-    del serviceList, deleteServices, lRootNeedsSync, rootKeys
+    del serviceList, deleteServices, lRootNeedsSync, rootKeys, mappingObject
 
 
     ####################################################################################################################
@@ -2648,7 +2683,7 @@ Visit: %s (Author's site)
 
     if len(invalidBankingLinks) or len(invalidBillPayLinks):
         if myPopupAskQuestion(None,
-                              "ACCOUNT TO DEAD SERVICE PROFILE LINKS",
+                              "ACCOUNT WITH DEAD SERVICE PROFILE LINKS",
                               "ALERT: I found %s Banking and %s BillPay links to 'dead' / missing Service / Connection profiles - Shall I remove these links?"
                               %(len(invalidBankingLinks),len(invalidBillPayLinks)),
                               theMessageType=JOptionPane.INFORMATION_MESSAGE):
@@ -2905,11 +2940,11 @@ Visit: %s (Author's site)
 
     ####################################################################################################################
 
-    myPrint("B", "creating new service profile")
-    book = MD_REF.getCurrentAccountBook()
+    myPrint("B", "Creating new Online Banking OFX Service Profile")
     manualFIInfo = StreamTable()     # type: StreamTable
     manualFIInfo.put("obj_type",                                 "olsvc")
     manualFIInfo.put("access_type",                              "OFX")
+    manualFIInfo.put("tik_fi_id",                                NEW_TIK_FI_ID)
     manualFIInfo.put("app_id",                                   "QMOFX")
     manualFIInfo.put("app_ver",                                  "2300")
     manualFIInfo.put("bank_closing_avail",                       "0")
@@ -2995,7 +3030,6 @@ Visit: %s (Author's site)
     manualFIInfo.put("syncmode_default",                         "LITE")
     manualFIInfo.put("syncmode_fiprofile",                       "LITE")
     manualFIInfo.put("syncmode_signup",                          "LITE")
-    # manualFIInfo.put("tik_fi_id",                                OLD_TIK_FI_ID)
     manualFIInfo.put("user-agent",                               "InetClntApp/3.0")
     manualFIInfo.put("uses_fi_tag",                              "y")
     manualFIInfo.put("version_banking",                          "1")
@@ -3049,6 +3083,23 @@ Visit: %s (Author's site)
     newService = OnlineService(book, manualFIInfo)
     newService.syncItem()
 
+    mappingObject = None
+    if isMDPlusEnabledBuild():
+        myPrint("B", "Grabbing reference to OnlineAccountMapping() with new service profile...")
+        mappingObject =  OnlineAccountMapping(book, newService)
+
+        if selectedBankAccount:
+            myPrint("B", ".. setting bank account %s into map for: %s" %(bankID, selectedBankAccount))
+            mappingObject.setMapping(str(bankID).zfill(10), selectedBankAccount)
+
+        if selectedCCAccount:
+            myPrint("B", ".. setting cc account %s into map for: %s" %(ccID, selectedCCAccount))
+            mappingObject.setMapping(str(ccID), selectedCCAccount)
+
+        mappingObject.syncItem()
+
+    del mappingObject
+
     ####################################################################################################################
 
     service = newService
@@ -3071,6 +3122,7 @@ Visit: %s (Author's site)
 
         myPrint("B", ">> Setting up the Banking Acct %s link to new bank service / profile %s" %(selectedBankAccount, newService))
         selectedBankAccount.setBankingFI(newService)                    # noqa
+        # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
 
         selectedBankAccount.syncItem()                                  # noqa
         selectedBankAccount.getDownloadedTxns()                         # noqa
@@ -3090,6 +3142,7 @@ Visit: %s (Author's site)
 
         myPrint("B", ">> Settings up the CC Acct %s link to new profile %s" %(selectedCCAccount, newService))
         selectedCCAccount.setBankingFI(newService)                      # noqa
+        # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
 
         selectedCCAccount.syncItem()                                    # noqa
         selectedCCAccount.getDownloadedTxns()                           # noqa
@@ -3100,7 +3153,6 @@ Visit: %s (Author's site)
     myPrint("B", "Updating root with userID and uuid")
     root = MD_REF.getRootAccount()
 
-    myPrint("B","... calling .setEditingMode() on root...")
     root.setEditingMode()
 
     if lOverrideRootUUID:
@@ -3111,17 +3163,17 @@ Visit: %s (Author's site)
     rootKeys = list(root.getParameterKeys())
     for i in range(0,len(rootKeys)):
         rk = rootKeys[i]
-        if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk or OLD_TIK_FI_ID in rk):
+        if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk or OLD_TIK_FI_ID in rk or NEW_TIK_FI_ID in rk):
             myPrint("B", "Deleting old authKey %s: %s" %(rk,root.getParameter(rk)))
             root.setParameter(rk, None)
         i+=1
 
-    root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)          # noqa
-    root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)         # noqa
+    root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)                           # noqa
+    root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)                           # noqa
     myPrint("B", "Root UserID and uuid updated...")
 
     if lMultiAccountSetup:
-        root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID2,   uuid2)       # noqa
+        root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID2,   uuid2)                     # noqa
         myPrint("B", "Root UserID TWO and uuid TWO primed - ready for Online Banking Setup...")
 
     root.syncItem()
