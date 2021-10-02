@@ -2675,11 +2675,11 @@ Visit: %s (Author's site)
     for a in accounts:
         if a.getBankingFI() is None and a.getParameter("olbfi", "") != "":
             invalidBankingLinks.append(a)
-            myPrint("B","... Found account %s with a banking link (to %s), but no service profile exists (thus dead)..." %(a,a.getParameter("olbfi", "")))
+            myPrint("B","... Found account '%s' with a banking link (to %s), but no service profile exists (thus dead)..." %(a,a.getParameter("olbfi", "")))
 
         if a.getBillPayFI() is None and a.getParameter("bpfi", "") != "":
             invalidBillPayLinks.append(a)
-            myPrint("B","... Found account %s with a BillPay link (to %s), but no service profile exists (thus dead)..." %(a,a.getParameter("bpfi", "")))
+            myPrint("B","... Found account '%s' with a BillPay link (to %s), but no service profile exists (thus dead)..." %(a,a.getParameter("bpfi", "")))
 
     if len(invalidBankingLinks) or len(invalidBillPayLinks):
         if myPopupAskQuestion(None,
