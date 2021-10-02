@@ -168,14 +168,18 @@ ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / secur
                 isExpanded, isMaximised settings (this does not reset Filters or Initial views)
     - MENU: Online (OFX) Banking Tools:
         - All basic mode settings plus:
-        - Forget OFX Banking Import Link (so that it asks you which account when importing ofx files) (remove_ofx_account_bindings.py)
+        - Forget OFX Banking Import Link (so it asks which account when importing ofx files) (remove_ofx_account_bindings.py) (MD versions < 2022)
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
+        - Cleanup missing Online Banking Links (NOTE: This is always called when running 'Delete OFX Banking Logon Profile / Service' above
         - Reset/Fix/Edit/Add CUSIP Banking Link. This is the link for downloaded securities.... (remove_ofx_security_bindings.py and change-security-cusip.py)
         - Update OFXLastTxnUpdate Last Download Date for Online Txns
         - Delete single cached OnlineTxnList record/Txns
         - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
         - OFX Cookie Management (some options also required Hacker mode)
         - OFX Authentication Management (some options also required Hacker mode)
+        - Export your Moneydance+ (Plaid) settings to a file (for 'transplant') - MD Version 2022 onwards. READONLY
+        - Import ('transplant') your Moneydance+ (Plaid) settings from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE.
+        - ZAP Dataset's Moneydance+ (Plaid) settings (also required Hacker mode) - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
     - MENU: Accounts & Categories tools
         - FIX - Inactivate all Categories with Zero Balance
         - FIX - Edit an Account's shouldBeIncludedInNetWorth() setting
