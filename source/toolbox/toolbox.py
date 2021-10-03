@@ -21412,7 +21412,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_importMDPlusProfile)
                     userFilters.add(user_zapMDPlusProfile)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters)
+                jsp = MyJScrollPaneForJOptionPane(userFilters,750,600)
 
                 while True:
                     options = ["EXIT", "PROCEED"]
@@ -22061,7 +22061,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_fix_accounts_parent)
                 userFilters.add(user_fix_root_account_name)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters)
+                jsp = MyJScrollPaneForJOptionPane(userFilters,600,300)
 
                 while True:
 
@@ -22289,7 +22289,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_force_change_accounts_currency)
                 userFilters.add(user_force_change_all_accounts_currency)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters)
+                jsp = MyJScrollPaneForJOptionPane(userFilters,1000,500)
 
                 while True:
 
@@ -22526,7 +22526,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_reverse_txn_amounts)
                 userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters)
+                jsp = MyJScrollPaneForJOptionPane(userFilters,700,300)
 
                 while True:
 
@@ -22699,7 +22699,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_delete_orphan_extensions)
                 userFilters.add(user_reset_window_display_settings)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters)
+                jsp = MyJScrollPaneForJOptionPane(userFilters,550,450)
 
                 while True:
 
@@ -22895,7 +22895,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 _PARAM_KEY = "netsync.sync_type"
                 storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters)
+                jsp = MyJScrollPaneForJOptionPane(userFilters,650,550)
 
                 while True:
 
