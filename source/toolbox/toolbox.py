@@ -229,6 +229,7 @@
 # build: 1042 - New features: ZAP, Export, Import your Moneydance+ license key/object. Updated Geekout mode for license object, and mappings enabled too
 # build: 1042 - Code updated with MD2022 Online Banking features / requirements...
 # build: 1042 - New features: Cleanup missing banking links (MD2022 too)
+# build: 1042 - Main menus enhanced to be scrollable...
 
 # todo - MD2022 build 4040 onwards. MD+ settings: Account for .getMappingStorage() (and also "ofx_import_acct_num" etc); Service: "md:plaid"; Trunk: "mod.misc:id=tik.mdplus-license&"
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -2723,6 +2724,19 @@ Visit: %s (Author's site)
 
     # Prevent usage later on... We use MD_REF
     del moneydance
+
+    class MyJScrollPaneForJOptionPane(JScrollPane):               # Allows a scrollable menu in JOptionPane
+        def __init__(self, _component, _max_w=800, _max_h=600):
+            super(JScrollPane, self).__init__(_component)
+            self.maxWidth = _max_w
+            self.maxHeight = _max_h
+            self.borders = 90
+            self.screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+
+        def getPreferredSize(self):
+            frame_width = int(round((toolbox_frame_.getSize().width - self.borders) *.9,0))
+            frame_height = int(round((toolbox_frame_.getSize().height - self.borders) *.9,0))
+            return Dimension(min(self.maxWidth, frame_width), min(self.maxHeight, frame_height))
 
     def getTheSetting(what, _padLength=0):
         _x = MD_REF.getPreferences().getSetting(what, None)
@@ -21398,10 +21412,12 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_importMDPlusProfile)
                     userFilters.add(user_zapMDPlusProfile)
 
+                jsp = MyJScrollPaneForJOptionPane(userFilters)
+
                 while True:
                     options = ["EXIT", "PROCEED"]
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               userFilters,
+                                                               jsp,
                                                                "Online Banking (OFX) Tools",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
@@ -22045,6 +22061,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_fix_accounts_parent)
                 userFilters.add(user_fix_root_account_name)
 
+                jsp = MyJScrollPaneForJOptionPane(userFilters)
+
                 while True:
 
                     bookName = MD_REF.getCurrentAccountBook().getName().strip()
@@ -22057,7 +22075,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     options = ["EXIT", "PROCEED"]
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               userFilters,
+                                                               jsp,
                                                                "Accounts / Categories Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
@@ -22271,6 +22289,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_force_change_accounts_currency)
                 userFilters.add(user_force_change_all_accounts_currency)
 
+                jsp = MyJScrollPaneForJOptionPane(userFilters)
 
                 while True:
 
@@ -22324,7 +22343,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     options = ["EXIT", "PROCEED"]
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               userFilters,
+                                                               jsp,
                                                                "Currency / Security Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
@@ -22507,6 +22526,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_reverse_txn_amounts)
                 userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
 
+                jsp = MyJScrollPaneForJOptionPane(userFilters)
+
                 while True:
 
                     syncFolder = None                                                                                   # noqa
@@ -22516,7 +22537,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     options = ["EXIT", "PROCEED"]
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               userFilters,
+                                                               jsp,
                                                                "Transaction(s) Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
@@ -22678,6 +22699,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_delete_orphan_extensions)
                 userFilters.add(user_reset_window_display_settings)
 
+                jsp = MyJScrollPaneForJOptionPane(userFilters)
+
                 while True:
 
                     grabProgramDir = find_the_program_install_dir()
@@ -22688,7 +22711,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     options = ["EXIT", "PROCEED"]
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               userFilters,
+                                                               jsp,
                                                                "General Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
@@ -22872,6 +22895,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 _PARAM_KEY = "netsync.sync_type"
                 storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
 
+                jsp = MyJScrollPaneForJOptionPane(userFilters)
+
                 while True:
 
                     lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
@@ -22883,7 +22908,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     options = ["EXIT", "PROCEED"]
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               userFilters,
+                                                               jsp,
                                                                "HACKER - Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
