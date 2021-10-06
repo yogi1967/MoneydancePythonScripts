@@ -2790,9 +2790,26 @@ Visit: %s (Author's site)
 
     def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD)
 
-    def  getMDPlusLicenseInfoForBook(_book):
-        _licenseObject = _book.getItemForID("tik.mdplus-license")	    # type: MoneydanceSyncableItem
+    if isMDPlusEnabledBuild():
+        # from com.moneydance.apps.md.controller import MDPlus
+        from com.infinitekind.moneydance.model import OnlineServiceLink
+
+    def  getMDPlusLicenseInfoForBook():
+        _licenseObject = MD_REF.getCurrentAccountBook().getItemForID("tik.mdplus-license")	    # type: MoneydanceSyncableItem
         return _licenseObject
+
+    def isMDPlusLicenseActivated():
+        if isMDPlusEnabledBuild():
+            _licenseObject = getMDPlusLicenseInfoForBook()
+            if _licenseObject is not None:
+                mdplus_email = _licenseObject.getParameter("mdplus.account_email", None)
+                mdplus_signup_status = _licenseObject.getParameter("signup_status", None)
+
+                # noinspection PyUnresolvedReferences
+                if (mdplus_email and len(mdplus_email) > 0
+                        and mdplus_signup_status and mdplus_signup_status.lower() == "activated"):
+                    return True
+        return False
 
     def calculateMoneydanceDatasetSize(_lReturnMBs=False):
         """Calculates and returns the size of the Moneydance dataset in bytes (or MBs when _lReturnMBs=True), and file count"""
@@ -3289,8 +3306,7 @@ Visit: %s (Author's site)
             textArray.append(u"%s%s (key version: %s, key status: %s, isUpgradeable: %s)"
                              %(x, licenseInfo.getLicenseKey(), licenseInfo.getKeyVersion(), licenseInfo.getStatus(), licenseInfo.isUpgradeable()))
 
-            book = MD_REF.getCurrentAccountBook()
-            licenseInfo = getMDPlusLicenseInfoForBook(book)     # type: MoneydanceSyncableItem
+            licenseInfo = getMDPlusLicenseInfoForBook()     # type: MoneydanceSyncableItem
 
             if licenseInfo is None:
                 textArray.append(u"Moneydance+ License: NOT FOUND...")
@@ -9089,7 +9105,6 @@ Please update any that you use before proceeding....
         _THIS_METHOD_NAME = "OFX Cleanup Missing Banking Links"
 
         if isMDPlusEnabledBuild():
-            from com.infinitekind.moneydance.model import OnlineServiceLink
             p_osl = OnlineServiceLink.getDeclaredConstructor([String, String, Account])                                 # noqa
             p_osl.setAccessible(True)
 
@@ -9187,8 +9202,7 @@ Please update any that you use before proceeding....
         _THIS_METHOD_NAME = "Export Moneydance+ (Plaid) settings to file"
         _TEST_KEY = "Confidential data: KEYTEST123$"
 
-        book = MD_REF.getCurrentAccountBook()
-        licenseObject = getMDPlusLicenseInfoForBook(book)
+        licenseObject = getMDPlusLicenseInfoForBook()
 
         if licenseObject is None:
             myPopupInformationBox(toolbox_frame_,"No Moneydance+ settings/profile found - NO EXPORT PERFORMED!",_THIS_METHOD_NAME.upper(),JOptionPane.ERROR_MESSAGE)
@@ -9312,7 +9326,7 @@ Please update any that you use before proceeding....
             return False
 
         book = MD_REF.getCurrentAccountBook()
-        licenseObject = getMDPlusLicenseInfoForBook(book)
+        licenseObject = getMDPlusLicenseInfoForBook()
 
         theTitle = "Select file to Import ('transplant') your Moneydance+ settings/profile from... (CANCEL=ABORT)"
         importFile = getFileFromFileChooser(toolbox_frame_,                                 # Parent frame or None
@@ -9450,12 +9464,33 @@ Please update any that you use before proceeding....
 
         _THIS_METHOD_NAME = "Zap Dataset's Moneydance+ (Plaid) settings"
 
-        book = MD_REF.getCurrentAccountBook()
-        licenseObject = getMDPlusLicenseInfoForBook(book)
+        licenseObject = getMDPlusLicenseInfoForBook()
 
         if licenseObject is None:
             myPopupInformationBox(toolbox_frame_,"NO Moneydance+ settings/profile found - NO CHANGES MADE!",_THIS_METHOD_NAME.upper(),JOptionPane.ERROR_MESSAGE)
             return False
+
+        if isMDPlusLicenseActivated():
+            ask = MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus="WARNING: Attempting to ZAP MD+ settings when Dataset status is ACTIVATED!?",
+                                 theTitle=_THIS_METHOD_NAME.upper(),
+                                 theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
+                                            "This dataset has an Activated MD+ License.\n"
+                                            "If you ZAP, then your Account linkages will still be stored on the IK/Plaid servers\n"
+                                            "You should use the standard MD screens/web page(s) to delink/de-activate this dataset (first)\n"
+                                            "However, if you have 'transplanted' your MD+ license to other datasets, then it's OK to do this.\n"
+                                            "NOTE: Running ZAP will not cause any harm, but you will have to setup MD+ / PLaid links again (in this dataset)\n"
+                                            "\n",
+                                 lCancelButton=True,
+                                 OKButtonText="I AGREE - PROCEED",
+                                 lAlertLevel=2)
+
+            if not ask.go():
+                txt = "User did not say yes to ZAP an Activated MD+ license - NO CHANGES MADE"
+                setDisplayStatus(txt, "B")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return False
+            del ask
 
         if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME.upper(),"ZAP this Dataset's Moneydance+ settings/profile (USE WITH CARE)?"):
             return False
@@ -9866,7 +9901,7 @@ Please update any that you use before proceeding....
                 else:
                     objects = [item]
             elif objWhat.index(selectedObjType) == _OBJMDPLUSLIC:
-                item = getMDPlusLicenseInfoForBook(MD_REF.getCurrentAccountBook())                        # type: MoneydanceSyncableItem
+                item = getMDPlusLicenseInfoForBook()                        # type: MoneydanceSyncableItem
                 if item is None:
                     txt = "%s: Sorry - You don't have a Moneydance+ license object to view..!" %(titleStr)
                     setDisplayStatus(txt, "R")
@@ -11082,7 +11117,7 @@ Please update any that you use before proceeding....
 
                 if lOFX:
                     output += "\n ========= Moneydance+ license object's PARAMETER KEYS (MD2022 onwards) =========\n"
-                    licenseObject = getMDPlusLicenseInfoForBook(MD_REF.getCurrentAccountBook())
+                    licenseObject = getMDPlusLicenseInfoForBook()
                     if licenseObject is None:
                         output += "<NO LICENSE OBJECT FOUND>\n"
                     else:
@@ -21445,9 +21480,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_importMDPlusProfile.setEnabled(lAdvancedMode and lHackerMode)
                 user_importMDPlusProfile.setForeground(Color.RED)
 
-                user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings", False)
+                user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings (when status not 'activated')", False)
                 user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
-                user_zapMDPlusProfile.setEnabled(lAdvancedMode and lHackerMode)
+                user_zapMDPlusProfile.setEnabled(lAdvancedMode and lHackerMode and (debug or not isMDPlusLicenseActivated()))
                 user_zapMDPlusProfile.setForeground(Color.RED)
 
                 labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced mode **")
@@ -21515,8 +21550,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 if isMDPlusEnabledBuild():
                     userFilters.add(user_exportMDPlusProfile)
                     userFilters.add(user_importMDPlusProfile)
-                    if debug:
-                        userFilters.add(user_zapMDPlusProfile)
+                    userFilters.add(user_zapMDPlusProfile)
 
                 jsp = MyJScrollPaneForJOptionPane(userFilters,750,600)
 
