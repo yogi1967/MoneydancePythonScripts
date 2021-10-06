@@ -229,7 +229,8 @@
 # build: 1042 - New features: ZAP, Export, Import your Moneydance+ license key/object. Updated Geekout mode for license object, and mappings enabled too
 # build: 1042 - Code updated with MD2022 Online Banking features / requirements...
 # build: 1042 - New features: Cleanup missing banking links (MD2022 too)
-# build: 1042 - Main menus enhanced to be scrollable...
+# build: 1042 - Main menus enhanced to be scrollable... Toolbox now quits MD where needed..... after fix.....
+# build: 1042 - New feature: Force reset Sync settings...
 
 # todo - MD2022 build 4040 onwards. MD+ settings: Account for .getMappingStorage() (and also "ofx_import_acct_num" etc); Service: "md:plaid"; Trunk: "mod.misc:id=tik.mdplus-license&"
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -523,7 +524,8 @@ else:
     from java.io import ByteArrayInputStream, OutputStream, InputStream
     from javax.crypto import BadPaddingException
     from java.util import Locale
-    # from java.nio.charset import StandardCharsets
+    from java.security import MessageDigest
+    from java.nio.charset import StandardCharsets
 
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller.sync import MDSyncCipher
@@ -606,7 +608,7 @@ else:
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
-    # COMMON CODE ################# VERSION 101 ########################################################################
+    # COMMON CODE ################# VERSION 102 ########################################################################
     # COMMON CODE ######################################################################################################
     i_am_an_extension_so_run_headless = False                                                                           # noqa
     try:
@@ -2273,7 +2275,7 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True):
+        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True, lQuitMDAfterClose=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
@@ -2281,6 +2283,33 @@ Visit: %s (Author's site)
             self.copyToClipboard = copyToClipboard
             self.lJumpToEnd = lJumpToEnd
             self.lWrapText = lWrapText
+            self.lQuitMDAfterClose = lQuitMDAfterClose
+
+        class QJFWindowListener(WindowAdapter):
+
+            def __init__(self, theFrame, lQuitMDAfterClose=False):
+                self.theFrame = theFrame
+                self.lQuitMDAfterClose = lQuitMDAfterClose
+                self.saveMD_REF = MD_REF
+
+            def windowClosing(self, WindowEvent):                                                                       # noqa
+                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+                myPrint("DB", "QuickJFrame() Frame shutting down.... Calling .dispose()")
+                self.theFrame.dispose()
+
+                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+            def windowClosed(self, WindowEvent):                                                                       # noqa
+                myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
+                myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
+
+                if self.lQuitMDAfterClose:
+                    myPrint("B", "Quit MD after Close triggered... Now quitting MD")
+                    self.saveMD_REF.getUI().exit()   # NOTE: This method should already detect whether MD is already shutting down.... (also, MD Shut down just kills extensions dead)
+                else:
+                    myPrint("DB", "FYI No Quit MD after Close triggered... So doing nothing")
 
         class CloseAction(AbstractAction):
 
@@ -2288,12 +2317,18 @@ Visit: %s (Author's site)
                 self.theFrame = theFrame
 
             def actionPerformed(self, event):
-                global debug
                 myPrint("D","in CloseAction(), Event: ", event)
                 myPrint("DB", "QuickJFrame() Frame shutting down....")
 
-                # Already within the EDT
-                self.theFrame.dispose()
+                try:
+                    if not SwingUtilities.isEventDispatchThread():
+                        SwingUtilities.invokeLater(GenericDisposeRunnable(self.theFrame))
+                    else:
+                        self.theFrame.dispose()
+                except:
+                    myPrint("B","Error. QuickJFrame dispose failed....?")
+                    dump_sys_error_to_md_console_and_errorlog()
+
 
         class ToggleWrap(AbstractAction):
 
@@ -2350,7 +2385,6 @@ Visit: %s (Author's site)
                 saveOutputFile(self.callingFrame, "QUICKJFRAME", "%s_output.txt" %(myModuleID), self.theText)
 
         def show_the_frame(self):
-            global debug
 
             class MyQuickJFrameRunnable(Runnable):
 
@@ -2363,12 +2397,15 @@ Visit: %s (Author's site)
                     frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.9,0))))
 
                     JFrame.setDefaultLookAndFeelDecorated(True)
-                    jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)" %(MD_REF.getUI().ACCELERATOR_MASK_STR))
+                    jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)%s"
+                                              %( MD_REF.getUI().ACCELERATOR_MASK_STR,
+                                                ("" if not self.callingClass.lQuitMDAfterClose else  " >> MD WILL QUIT AFTER VIEWING THIS <<")))
+
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
                     if not Platform.isOSX(): jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
 
-                    jInternalFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+                    jInternalFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
                     jInternalFrame.setResizable(True)
 
                     shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
@@ -2387,6 +2424,7 @@ Visit: %s (Author's site)
                     jInternalFrame.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAction(jInternalFrame))
                     jInternalFrame.getRootPane().getActionMap().put("search-window", SearchAction(jInternalFrame,theJText))
                     jInternalFrame.getRootPane().getActionMap().put("print-me", self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
+                    jInternalFrame.addWindowListener(self.callingClass.QJFWindowListener(jInternalFrame, self.callingClass.lQuitMDAfterClose))
 
                     internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
@@ -2738,6 +2776,12 @@ Visit: %s (Author's site)
             frame_height = int(round((toolbox_frame_.getSize().height - self.borders) *.9,0))
             return Dimension(min(self.maxWidth, frame_width), min(self.maxHeight, frame_height))
 
+    def getUserIDFromEmail(_emailAddress):
+        if (_emailAddress is None): return ""
+        digest = MessageDigest.getInstance("MD5")
+        digest.update(String(String(String(_emailAddress).toLowerCase(Locale.ROOT)).trim()).getBytes(StandardCharsets.UTF_8))
+        return StringUtils.encodeHex(digest.digest(), False)
+
     def getTheSetting(what, _padLength=0):
         _x = MD_REF.getPreferences().getSetting(what, None)
         if not _x or _x == u"": return None
@@ -2987,7 +3031,6 @@ Visit: %s (Author's site)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             MD_REF.getUI().exit()
-            return
 
     def find_other_datasets():
         output = ""
@@ -3261,11 +3304,14 @@ Visit: %s (Author's site)
                 mdplus_privKeyHex = licenseInfo.getParameter(u"mdplus.priv", None)
                 mdplus_pubKeyHex = licenseInfo.getParameter(u"mdplus.pub", None)
 
+                emailID = ("(Encoded Hex ID: %s)" %(getUserIDFromEmail(mdplus_email)) if debug else "")
+
                 if mdplus_email or mdplus_pend_email or mdplus_signup_status or mdplus_keyRegenDate or mdplus_refreshDate or mdplus_keypairCreated or mdplus_privKeyHex or mdplus_pubKeyHex:
                     textArray.append(u"")
                     textArray.append(u"Moneydance+ License information:")
-                    if mdplus_email:            textArray.append(u"Email:            %s" %(mdplus_email))
-                    if mdplus_pend_email:       textArray.append(u"Email pending:    %s" %(mdplus_pend_email))
+                    if mdplus_email:            textArray.append(u"Email:            %s %s" %(mdplus_email, emailID))
+                    if mdplus_email is None or mdplus_email == "":
+                        if mdplus_pend_email:       textArray.append(u"Email pending:    %s" %(mdplus_pend_email))
                     if mdplus_signup_status:    textArray.append(u"Signup status:    %s" %(mdplus_signup_status))
                     if mdplus_keyRegenDate:     textArray.append(u"MD+ date:         %s" %(get_time_stamp_as_nice_text(mdplus_keyRegenDate)))
                     if mdplus_refreshDate:      textArray.append(u"MD+ refresh date: %s" %(get_time_stamp_as_nice_text(mdplus_refreshDate)))
@@ -4844,6 +4890,22 @@ Visit: %s (Author's site)
                 if not iCountValidMapLinksFound: OFX.append("<NONE>")
             del mappingObject, iCountValidMapLinksFound
 
+            if service.getTIKServiceID() == "md:plaid":
+                tokens = MD_REF.getCurrentAccountBook().getLocalStorage().getSublist("access_tokens")
+                OFX.append(pad("\n>>Moneydance+ Access Tokens (local storage)...:",120))
+                if len(tokens) > 0:
+                    for token in tokens:
+                        for token_key in token:
+                            txtAppendTxt = ""
+                            if not debug:
+                                txtAppendTxt = "(Actual: '_payloadid', 'timestamp', 'token' values have been hidden for security reasons) >> Enable DEBUG to view...."
+                                if token_key != "item": continue
+                                OFX.append("Key: %s AccountRef: %s %s" %(token_key, token.get(token_key), txtAppendTxt))
+                            else:
+                                OFX.append("Key: %s Value: %s %s" %(token_key, token.get(token_key), txtAppendTxt))
+                else:
+                    OFX.append("<NONE>")
+                del tokens
 
             OFX.append(pad("\n>>Accounts configured within bank profile:",120))
             if len(service.getAvailableAccounts())<1:
@@ -6360,14 +6422,15 @@ Visit: %s (Author's site)
         output += txt
         output += "\n<END>\n"
 
-        jif = QuickJFrame("AUTOFIX SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("AUTOFIX SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output,
+                          copyToClipboard=lCopyAllToClipBoard_TB, lQuitMDAfterClose=True).show_the_frame()
 
         _msg = "AUTOFIX: %s records fixed" %(len(currs_to_fix))
         setDisplayStatus(_msg, "DG")
         play_the_money_sound()
         myPopupInformationBox(jif,_msg,"AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD")
 
-        myPopupInformationBox(jif,"PLEASE RESTART MONEYDANCE!",
+        myPopupInformationBox(jif,"RESTART OF MONEYDANCE REQUIRED - MD WILL QUIT AFTER VIEWING THIS OUTPUT",
                               "AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD",
                               theMessageType=JOptionPane.ERROR_MESSAGE)
 
@@ -7446,13 +7509,14 @@ Please update any that you use before proceeding....
         alertLevel = 0
         if iWarnings: alertLevel = 1
         if lNeedFixScript: alertLevel = 2
-        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+
+        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lQuitMDAfterClose=lFix).show_the_frame()
 
         setDisplayStatus(txt, statusColor)
         myPopupInformationBox(jif, txt, theTitle=_THIS_METHOD_NAME.upper(), theMessageType=msgType)
 
         if lFix:
-            myPopupInformationBox(jif,"PLEASE RESTART MONEYDANCE!", _THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(jif,"RESTART OF MONEYDANCE REQUIRED - MD WILL QUIT AFTER VIEWING THIS OUTPUT", _THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return output
@@ -8991,7 +9055,7 @@ Please update any that you use before proceeding....
         if service.getTIKServiceID() == "md:plaid":
             if not myPopupAskQuestion(toolbox_frame_,
                                   _THIS_METHOD_NAME.upper(),
-                                  "Are you REALLY SURE you want to DELETE the Moneydance+ profile? - You should normally never touch this!",
+                                  "Are you SURE you want to delete the Moneydance+ profile? - You should NOT normally touch this! (But it should recreate itself)",
                                   theMessageType=JOptionPane.ERROR_MESSAGE):
                 txt = "%s: User declined to delete the Moneydance+ profile (phew) - no changes made.." %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "B")
@@ -9379,7 +9443,6 @@ Please update any that you use before proceeding....
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         MD_REF.getUI().exit()
-        return True
 
     def zap_MDPlus_Profile():
 
@@ -9407,7 +9470,6 @@ Please update any that you use before proceeding....
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         MD_REF.getUI().exit()
-        return True
 
     def forgetOFXImportLink():
         global toolbox_frame_, debug
@@ -10170,7 +10232,6 @@ Please update any that you use before proceeding....
                     setDisplayStatus(txt, "R")
                     myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                     MD_REF.getUI().exit()
-                return
 
             iReferencesRemoved+=1
             filesToRemove.remove(selectedFile)
@@ -10860,7 +10921,10 @@ Please update any that you use before proceeding....
                         if lSearch:
                             if lKeys and not (searchWhat.lower() in theKey.lower()): continue
                             elif lKeyData and not (searchWhat.lower() in value.lower()): continue
-                        if theKey.lower() == "netsync.synckey": value = "<*****>"
+
+                        if not debug:
+                            if theKey.lower() == "netsync.synckey": value = "<*****> (hidden >> enable DEBUG to view)"
+
                         output += pad("Key:%s" %theKey,70)+" Value: %s\n" %(value.strip())
 
                     if selectedWhat == what[_ROOTKEYS]:
@@ -10880,13 +10944,17 @@ Please update any that you use before proceeding....
                         value = LS.get(theKey)    # NOTE: .get loses the underlying type and thus becomes a string
                         if lSync and "sync" not in theKey.lower(): continue
                         if lSync and "netsync.del_item" in theKey.lower(): continue
-                        if lOFX and not ("ofx" in theKey.lower() or "ol." in theKey.lower() or "olb." in theKey.lower()): continue
+                        if lOFX and not ("ofx" in theKey.lower() or "ol." in theKey.lower() or "olb." in theKey.lower() or "access_tokens" in theKey.lower()): continue
                         if lSizes and not check_for_window_display_data(theKey,value): continue
                         if lSearch:
                             if lKeys and not (searchWhat.lower() in theKey.lower()): continue
                             elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
-                        if theKey.lower() == "netsync.synckey": value = "<*****>"
+                        if not debug:
+                            if (theKey.lower() == "netsync.synckey"
+                                    or "._payloadid" in theKey.lower()
+                                    or ".token" in theKey.lower()):
+                                value = "<*****> (hidden >> enable DEBUG to view)"
 
                         splitKey = theKey.split('.')
                         if splitKey[0] != last:
@@ -10975,8 +11043,9 @@ Please update any that you use before proceeding....
                                 if lKeys and not (searchWhat.lower() in theKey.lower()): continue
                                 elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
-                            if theKey.lower() == "netsync.synckey": value = "<*****>"
-                            if theKey.lower() == "bank_account_number": value = "<*****>"
+                            if not debug:
+                                if theKey.lower() == "netsync.synckey": value = "<*****> (hidden >> enable DEBUG to view)"
+                                if theKey.lower() == "bank_account_number": value = "<*****> (hidden >> enable DEBUG to view)"
 
                             if lOFX and value.strip() == "": continue
 
@@ -12204,7 +12273,6 @@ now after saving the file, restart Moneydance
         myPopupInformationBox(toolbox_frame_,txt,"RENAME ROOT",JOptionPane.WARNING_MESSAGE)
 
         MD_REF.getUI().exit()
-        return
 
     # noinspection PyUnresolvedReferences
     def force_change_account_type():
@@ -12331,7 +12399,6 @@ now after saving the file, restart Moneydance
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
         MD_REF.getUI().exit()
-        return
 
     # noinspection PyUnresolvedReferences
     def force_change_all_accounts_currencies():
@@ -12434,7 +12501,6 @@ now after saving the file, restart Moneydance
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
         MD_REF.getUI().exit()
-        return
 
     def fix_invalid_relative_currency_rates():
         global toolbox_frame_, debug
@@ -12520,9 +12586,9 @@ now after saving the file, restart Moneydance
 
         output += "\n<END"
 
-        jif = QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES",output,copyToClipboard=lCopyAllToClipBoard_TB,lQuitMDAfterClose=True).show_the_frame()
 
-        txt = u"FIX INVALID RELATIVE CURRENCIES: %s Invalid Currency relative rates have been reset to 1.0 - PLEASE RESTART MD & REVIEW" %(iErrors)
+        txt = u"%s Invalid Currency relative rates reset to 1.0 - RESTART OF MONEYDANCE REQUIRED - MD WILL QUIT AFTER VIEWING THIS OUTPUT" %(iErrors)
         setDisplayStatus(txt, "R")
         play_the_money_sound()
         myPopupInformationBox(jif,txt, u"FIX INVALID RELATIVE CURRENCIES", theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -12742,7 +12808,6 @@ now after saving the file, restart Moneydance
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
         MD_REF.getUI().exit()
-        return
 
     def reverse_txn_amounts():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -13887,13 +13952,14 @@ now after saving the file, restart Moneydance
         setDisplayStatus(txt, "R")
         myPrint("B", txt)
 
-        jif = QuickJFrame("Price History Analysis", diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("Price History Analysis", diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB,
+                          lQuitMDAfterClose=(not simulate and lMustRestartAfterSnapChanges)).show_the_frame()
         if simulate:
             MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed" %(ThnPurgeTxt,x),"",200,"THIN/PRUNE PRICE HISTORY").go()
         else:
             if totalChangesMade > 0:
                 play_the_money_sound()
-                MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed %s changes - PLEASE RESTART MD NOW" %(ThnPurgeTxt,x,totalChangesMade),"",200,"THIN/PRUNE PRICE HISTORY").go()
+                MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed %s changes - RESTART OF MONEYDANCE REQUIRED - MD WILL QUIT AFTER VIEWING THIS OUTPUT" %(ThnPurgeTxt,x,totalChangesMade),"",200,"THIN/PRUNE PRICE HISTORY").go()
             else:
                 MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed - NO CHANGES NECESSARY / MADE" %(ThnPurgeTxt,x),"",200,"THIN/PRUNE PRICE HISTORY").go()
 
@@ -19441,10 +19507,10 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPrint("B","HACKER MODE: 'SUPPRESS DROPBOX WARNING': User requested to suppress the 'Your file is stored in a shared folder' (dropbox) warning....")
                     myPrint("B", "@@User accepted warnings and disclaimer about dataset damage and instructed Toolbox to create %s - EXECUTED" %(suppressFile))
                     play_the_money_sound()
-                    txt = "'SUPPRESS DROPBOX WARNING' - I have suppressed the 'Your file is stored in a shared folder' (dropbox) warning. RESTART MD!"
+                    txt = "'SUPPRESS DROPBOX WARNING' - Suppressed >> 'Your file is stored in a shared folder' (dropbox) warning. MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
                     setDisplayStatus(txt, "R")
                     myPopupInformationBox(toolbox_frame_,txt,"'SUPPRESS DROPBOX WARNING'",JOptionPane.ERROR_MESSAGE)
-                    return
+                    MD_REF.getUI().exit()
                 except:
                     myPrint("B","'SUPPRESS DROPBOX WARNING' - Error creating %s" %(suppressFile))
                     dump_sys_error_to_md_console_and_errorlog()
@@ -19469,7 +19535,7 @@ Now you will have a text readable version of the file you can open in a text edi
         MD_REF.getCurrentAccount().getBook().saveTrunkFile()
         play_the_money_sound()
 
-        txt = "%s: I have executed the Save Trunk File function. I suggest a restart of MD" %(_THIS_METHOD_NAME)
+        txt = "%s: Save Trunk Executed!" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "R")
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
 
@@ -21059,12 +21125,11 @@ Now you will have a text readable version of the file you can open in a text edi
         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()        # Flush local storage to safe/settings
 
         play_the_money_sound()
-        txt = "%s: Dataset DEMOTED to Secondary (non-Primary/Master) Node - RESTART MD!" %(_THIS_METHOD_NAME)
+        txt = "%s: Dataset DEMOTED to Secondary (non-Primary/Master) Node - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD" %(_THIS_METHOD_NAME)
         myPrint("B", txt); setDisplayStatus(txt, "R")
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
-        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
+        MD_REF.getUI().exit()
 
     def hackermode_force_sync_off():
         # the reverse of convert_secondary_to_primary_data_set
@@ -21097,12 +21162,56 @@ Now you will have a text readable version of the file you can open in a text edi
         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()        # Flush local storage to safe/settings
 
         play_the_money_sound()
-        txt = "Sync ('%s')has been force disabled/turned OFF - RESTART MD!" %(_PARAM_KEY)
+        txt = "Sync ('%s')has been force disabled/turned OFF - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD" %(_PARAM_KEY)
         myPrint("B", txt); setDisplayStatus(txt, "R")
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        MD_REF.getUI().exit()
 
-        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
+    def hackermode_force_reset_sync_settings():
+        # Resets all Sync settings, generates a new Sync ID, Turns Sync Off. You can turn it back on later....
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "HACK: FORCE RESET SYNC SETTINGS"
+
+        storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Force reset all Sync settings, generate new SyncID & disable Sync?"):
+            return
+
+        if not backup_local_storage_settings():
+            txt = "%s: ERROR making backup of LocalStorage() ./safe/settings - no changes made!" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        # Copied from: com.moneydance.apps.md.controller.AccountBookWrapper.resetSyncInfoIfNecessary()
+        storage.put("netsync.dropbox.fileid", UUID.randomUUID())
+        storage.remove("netsync.sync_type")
+        storage.remove("netsync.subpath")
+        storage.remove("netsync.dropbox_enabled")
+        storage.remove("netsync.synckey")
+        storage.remove("ext.netsync.settings")
+        storage.remove("netsync.guid")
+        storage.remove("migrated.netsync.dropbox.fileid")
+        storage.save()
+
+        root = MD_REF.getCurrentAccountBook().getRootAccount()
+        if root is not None:
+            root.removeParameter("netsync.dropbox.fileid")
+            root.removeParameter("netsync.sync_type")
+            root.removeParameter("netsync.subpath")
+            root.removeParameter("netsync.dropbox_enabled")
+            root.removeParameter("netsync.synckey")
+            root.removeParameter("ext.netsync.settings")
+            root.removeParameter("netsync.guid")
+            root.removeParameter("migrated.netsync.dropbox.fileid")
+
+        play_the_money_sound()
+        txt = "ALL SYNC SETTINGS HAVE BEEN RESET - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
+        myPrint("B", txt); setDisplayStatus(txt, "R")
+        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        MD_REF.getUI().exit()
 
     def checkForREADONLY():
 
@@ -21158,16 +21267,12 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.theFrame = theFrame        # type: MyJFrame
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
-                global debug
-
                 myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "DiagnosticDisplay() Frame shutting down....")
 
                 terminate_script()
 
             def windowClosed(self, WindowEvent):                                                                       # noqa
-                global debug
-
                 myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -21410,7 +21515,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 if isMDPlusEnabledBuild():
                     userFilters.add(user_exportMDPlusProfile)
                     userFilters.add(user_importMDPlusProfile)
-                    userFilters.add(user_zapMDPlusProfile)
+                    if debug:
+                        userFilters.add(user_zapMDPlusProfile)
 
                 jsp = MyJScrollPaneForJOptionPane(userFilters,750,600)
 
@@ -21545,12 +21651,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.myButton.setVisible(False)
                 self.myButton.setEnabled(False)
 
-                txt = "'FIX DROPBOX ONE WAY SYNC' - OK, I have executed reset Dropbox One-Way Sync. I suggest a restart of MD"
+                txt = "'FIX DROPBOX ONE WAY SYNC' - OK, I have executed reset Dropbox One-Way Sync. MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,"FIX DROPBOX ONE WAY SYNC",JOptionPane.WARNING_MESSAGE)
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
+                MD_REF.getUI().exit()
 
         class MakeDropBoxSyncFolder(AbstractAction):
 
@@ -22838,9 +22942,13 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_hacker_sync_push.setToolTipText("Push new Sync data (and rebuild remote copies). Use with extreme care! UPDATES YOUR DATASET")
                 user_hacker_sync_push.setForeground(Color.RED)
 
-                user_force_sync_off = JRadioButton("Force disable/turn Sync OFF", False)
+                user_force_sync_off = JRadioButton("Force DISABLE/turn Sync OFF", False)
                 user_force_sync_off.setToolTipText("This sets your Sync method to None - all other settings are preserved. You can turn it back on again later - UPDATES YOUR DATASET")
                 user_force_sync_off.setForeground(Color.RED)
+
+                user_force_reset_sync_settings = JRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False)
+                user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
+                user_force_reset_sync_settings.setForeground(Color.RED)
 
                 user_demote_primary_to_secondary = JRadioButton("HACK: DEMOTE Primary dataset back to a Secondary Node", False)
                 user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
@@ -22868,6 +22976,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_hacker_save_trunk)
                 bg.add(user_hacker_sync_push)
                 bg.add(user_force_sync_off)
+                bg.add(user_force_reset_sync_settings)
                 bg.add(user_demote_primary_to_secondary)
                 bg.add(user_hacker_suppress_dropbox_warning)
                 bg.clearSelection()
@@ -22887,6 +22996,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_hacker_delete_int_ext_files)
                 userFilters.add(user_hacker_save_trunk)
                 userFilters.add(user_force_sync_off)
+                userFilters.add(user_force_reset_sync_settings)
                 userFilters.add(user_demote_primary_to_secondary)
                 userFilters.add(user_hacker_sync_push)
                 userFilters.add(user_hacker_suppress_dropbox_warning)
@@ -22960,6 +23070,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_force_sync_off.isSelected():
                         hackermode_force_sync_off()
 
+                    if user_force_reset_sync_settings.isSelected():
+                        hackermode_force_reset_sync_settings()
+
                     if user_demote_primary_to_secondary.isSelected():
                         hacker_mode_demote_primary_to_secondary()
 
@@ -23015,11 +23128,11 @@ Now you will have a text readable version of the file you can open in a text edi
                         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()        # Flush local storage to safe/settings
 
                         play_the_money_sound()
-                        txt = "Dataset Promoted to Primary/Master Node/Dataset - PLEASE RESTART MD!"
+                        txt = "Dataset Promoted to Primary/Master Node/Dataset - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
                         setDisplayStatus(txt, "R")
                         myPrint("B", txt)
                         myPopupInformationBox(toolbox_frame_, txt, "PRIMARY DATASET", JOptionPane.WARNING_MESSAGE)
-                        return
+                        MD_REF.getUI().exit()
 
                 txt = "User did not say yes to Master Node promotion - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
