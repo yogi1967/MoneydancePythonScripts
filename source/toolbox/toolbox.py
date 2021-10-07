@@ -2788,6 +2788,16 @@ Visit: %s (Author's site)
         if _padLength < 1: return u"%s: %s" %(what, _x)
         return u"%s%s" %(pad("%s:" %(what),_padLength), _x)
 
+    def isToolboxUnlocked(lMessage=False):
+        try:
+            if os.path.exists(os.path.join(Common.getFeatureModulesDirectory().getCanonicalPath(),"toolbox.unlock")):
+                if lMessage: myPrint("B", "@@@ TOOLBOX UNLOCK DETECTED @@@")
+                return True
+        except: pass
+        return False
+
+    isToolboxUnlocked(True)
+
     def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD)
 
     if isMDPlusEnabledBuild():
@@ -3251,6 +3261,8 @@ Visit: %s (Author's site)
 
         textArray = []                                                                                                  # noqa
 
+        if isToolboxUnlocked(): textArray.append(u">>>>>>>>>> TOOLBOX UNLOCK MODE <<<<<<<<<<\n")
+
         x = getMonoFont()
         textArray.append(u"FONT USED FOR TOOLBOX OUTPUT/DISPLAY(can be changed): %s(%s)" %(x.getFontName(), x.getSize()))
         try:
@@ -3261,7 +3273,7 @@ Visit: %s (Author's site)
                 textArray.append(u"** if Toolbox display/outputs do not show your language's double-byte characters properly, then change to a Monospaced Font that supports your character set **")
                 textArray.append(u"** (Advanced Mode) General Tools, Set MD Fonts: Change 'code' Font (please only use Monospaced fonts for text alignment!) **")
         except:
-            myPrint("B","@@ ERROR: Failed to detect MD Locale..?")
+            myPrint("B",u"@@ ERROR: Failed to detect MD Locale..?")
             dump_sys_error_to_md_console_and_errorlog()
 
         textArray.append(u"")
@@ -3320,13 +3332,13 @@ Visit: %s (Author's site)
                 mdplus_privKeyHex = licenseInfo.getParameter(u"mdplus.priv", None)
                 mdplus_pubKeyHex = licenseInfo.getParameter(u"mdplus.pub", None)
 
-                emailID = ("(Encoded Hex ID: %s)" %(getUserIDFromEmail(mdplus_email)) if debug else "")
+                emailID = (u"(Encoded Hex ID: %s)" %(getUserIDFromEmail(mdplus_email)) if isToolboxUnlocked() else u"")
 
                 if mdplus_email or mdplus_pend_email or mdplus_signup_status or mdplus_keyRegenDate or mdplus_refreshDate or mdplus_keypairCreated or mdplus_privKeyHex or mdplus_pubKeyHex:
                     textArray.append(u"")
                     textArray.append(u"Moneydance+ License information:")
                     if mdplus_email:            textArray.append(u"Email:            %s %s" %(mdplus_email, emailID))
-                    if mdplus_email is None or mdplus_email == "":
+                    if mdplus_email is None or mdplus_email == u"":
                         if mdplus_pend_email:       textArray.append(u"Email pending:    %s" %(mdplus_pend_email))
                     if mdplus_signup_status:    textArray.append(u"Signup status:    %s" %(mdplus_signup_status))
                     if mdplus_keyRegenDate:     textArray.append(u"MD+ date:         %s" %(get_time_stamp_as_nice_text(mdplus_keyRegenDate)))
