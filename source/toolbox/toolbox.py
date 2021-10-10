@@ -596,7 +596,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4049                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4051                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -9318,6 +9318,11 @@ Please update any that you use before proceeding....
             if mdplus_pubKeyHex:
                 output += "MD+ Public Key (raw):    %s\n\n" %(mdplus_pubKeyHex)
                 output += "Dataset/license 'KeyID': %s\n" %(getKeyID(mdplus_pubKeyHex))
+
+            if mdplus_pubKeyHex and mdplus_email:
+                output += ("\nMD Check Key Status URL:\n" 
+                          "https://mdplus.infinitekind.com/tik/get_status/%s/%s\n\n"
+                           %(getUserIDFromEmail(mdplus_email), getKeyID(mdplus_pubKeyHex)))
 
             tokens = MD_REF.getCurrentAccountBook().getLocalStorage().getSublist("access_tokens")
             output += "\n>>Moneydance+ Access Tokens (local storage)...:\n"
