@@ -230,7 +230,7 @@
 # build: 1042 - Code updated with MD2022 Online Banking features / requirements...
 # build: 1042 - New features: Cleanup missing banking links (MD2022 too)
 # build: 1042 - Main menus enhanced to be scrollable... Toolbox now quits MD where needed..... after fix.....
-# build: 1042 - New feature: Force reset Sync settings...
+# build: 1042 - New feature: Force reset Sync settings...; changed edit lasttxndownloaddate for MD+ to reset which forces new MD popup prompt...
 
 # todo - MD2022 build 4040 onwards. MD+ settings: Account for .getMappingStorage() (and also "ofx_import_acct_num" etc); Service: "md:plaid"; Trunk: "mod.misc:id=tik.mdplus-license&"
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -597,7 +597,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4045                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4048                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -2776,12 +2776,6 @@ Visit: %s (Author's site)
             frame_height = int(round((toolbox_frame_.getSize().height - self.borders) *.9,0))
             return Dimension(min(self.maxWidth, frame_width), min(self.maxHeight, frame_height))
 
-    def getUserIDFromEmail(_emailAddress):
-        if (_emailAddress is None): return ""
-        digest = MessageDigest.getInstance("MD5")
-        digest.update(String(String(String(_emailAddress).toLowerCase(Locale.ROOT)).trim()).getBytes(StandardCharsets.UTF_8))
-        return StringUtils.encodeHex(digest.digest(), False)
-
     def getTheSetting(what, _padLength=0):
         _x = MD_REF.getPreferences().getSetting(what, None)
         if not _x or _x == u"": return None
@@ -2789,8 +2783,11 @@ Visit: %s (Author's site)
         return u"%s%s" %(pad("%s:" %(what),_padLength), _x)
 
     def isToolboxUnlocked(lMessage=False):
+        v = int(float(MD_REF.getVersion()))
+        b = int(float(MD_REF.getBuild()))
+        filename = "toolbox_%s_%s.unlock" %(v,b)
         try:
-            if os.path.exists(os.path.join(Common.getFeatureModulesDirectory().getCanonicalPath(),"toolbox.unlock")):
+            if os.path.exists(os.path.join(Common.getFeatureModulesDirectory().getCanonicalPath(),filename)):
                 if lMessage: myPrint("B", "@@@ TOOLBOX UNLOCK DETECTED @@@")
                 return True
         except: pass
@@ -2802,6 +2799,7 @@ Visit: %s (Author's site)
 
     if isMDPlusEnabledBuild():
         # from com.moneydance.apps.md.controller import MDPlus
+        # from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
         from com.infinitekind.moneydance.model import OnlineServiceLink
 
     def  getMDPlusLicenseInfoForBook():
@@ -3261,8 +3259,6 @@ Visit: %s (Author's site)
 
         textArray = []                                                                                                  # noqa
 
-        if isToolboxUnlocked(): textArray.append(u">>>>>>>>>> TOOLBOX UNLOCK MODE <<<<<<<<<<\n")
-
         x = getMonoFont()
         textArray.append(u"FONT USED FOR TOOLBOX OUTPUT/DISPLAY(can be changed): %s(%s)" %(x.getFontName(), x.getSize()))
         try:
@@ -3332,12 +3328,10 @@ Visit: %s (Author's site)
                 mdplus_privKeyHex = licenseInfo.getParameter(u"mdplus.priv", None)
                 mdplus_pubKeyHex = licenseInfo.getParameter(u"mdplus.pub", None)
 
-                emailID = (u"(Encoded Hex ID: %s)" %(getUserIDFromEmail(mdplus_email)) if isToolboxUnlocked() else u"")
-
                 if mdplus_email or mdplus_pend_email or mdplus_signup_status or mdplus_keyRegenDate or mdplus_refreshDate or mdplus_keypairCreated or mdplus_privKeyHex or mdplus_pubKeyHex:
                     textArray.append(u"")
                     textArray.append(u"Moneydance+ License information:")
-                    if mdplus_email:            textArray.append(u"Email:            %s %s" %(mdplus_email, emailID))
+                    if mdplus_email:            textArray.append(u"Email:            %s" %(mdplus_email))
                     if mdplus_email is None or mdplus_email == u"":
                         if mdplus_pend_email:       textArray.append(u"Email pending:    %s" %(mdplus_pend_email))
                     if mdplus_signup_status:    textArray.append(u"Signup status:    %s" %(mdplus_signup_status))
@@ -4635,7 +4629,10 @@ Visit: %s (Author's site)
                 if theCurrentDate > 0:
                     prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
                 else:
-                    prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates'"
+                    if isMDPlusEnabledBuild():
+                        prettyLastTxnDate = "IS SET TO ZERO (MD will prompt for start date)"
+                    else:
+                        prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates'"
 
             outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
 
@@ -4836,7 +4833,7 @@ Visit: %s (Author's site)
             return acct.getUUID()
         return str(acctNum)
 
-    def get_ofx_related_data():
+    def ofx_view_service_profile_data():
 
         _THIS_METHOD_NAME = "OFX: View your installed Bank / Service Profiles"
 
@@ -4869,6 +4866,9 @@ Visit: %s (Author's site)
             OFX.append("MD Cache Authentication ** DISABLED ** (either no user encryption key or store passwords = no..")
 
         OFX.append("")
+
+        if not isMDPlusEnabledBuild() and getPlaidService():
+            OFX.append("NOTE: Account linkages for MD+/Plaid Services may be incomplete as you are running an older version of Moneydance...!\n")
 
         OFX.append("MD Accounts enabled for OFX Downloads with linked Service / Bank logon profiles:")
         if len(listAccountMDProxies)<1:
@@ -4905,18 +4905,13 @@ Visit: %s (Author's site)
             OFX.append(pad(">>Needs FI Profile Check()?:",40)   + safeStr(service.needsFIProfileCheck()))
 
             mappingObject = None                                                                                        # noqa
-            iCountValidMapLinksFound = 0
             if isMDPlusEnabledBuild():
                 OFX.append(pad("\n>>MD2022+ Online Banking Mapping table entries...:",120))
                 mappingObject = MD_REF.getCurrentAccountBook().getItemForID("online_acct_mapping")
                 if mappingObject is not None:
-                    for mapkey in mappingObject.getParameterKeys():
-                        if mapkey.startswith("map."+service.getTIKServiceID()):
-                            mappedAccount = MD_REF.getCurrentAccountBook().getAccountByUUID(mappingObject.getParameter(mapkey))
-                            OFX.append("Key: %s Mapping link: %s (%s)" %(mapkey,mappingObject.getParameter(mapkey), ("Missing Account" if (mappedAccount is None) else mappedAccount.getFullAccountName())))
-                            iCountValidMapLinksFound+=1
-                if not iCountValidMapLinksFound: OFX.append("<NONE>")
-            del mappingObject, iCountValidMapLinksFound
+                    OFX.append(special_toMultilineHumanReadableString(mappingObject,lSkipSecrets=False,sFilterServiceID=service.getTIKServiceID()))
+                else: OFX.append("<NONE>")
+            del mappingObject
 
             if service.getTIKServiceID() == "md:plaid":
                 tokens = MD_REF.getCurrentAccountBook().getLocalStorage().getSublist("access_tokens")
@@ -4924,13 +4919,9 @@ Visit: %s (Author's site)
                 if len(tokens) > 0:
                     for token in tokens:
                         for token_key in token:
-                            txtAppendTxt = ""
-                            if not debug:
-                                txtAppendTxt = "(Actual: '_payloadid', 'timestamp', 'token' values have been hidden for security reasons) >> Enable DEBUG to view...."
-                                if token_key != "item": continue
-                                OFX.append("Key: %s AccountRef: %s %s" %(token_key, token.get(token_key), txtAppendTxt))
-                            else:
-                                OFX.append("Key: %s Value: %s %s" %(token_key, token.get(token_key), txtAppendTxt))
+                            txtAppendTxt = "(Confidential: '_payloadid', 'timestamp', 'token' values have been hidden for security reasons)"
+                            if token_key != "item": continue
+                            OFX.append("Key: %s AccountRef: %s %s" %(token_key, token.get(token_key), txtAppendTxt))
                 else:
                     OFX.append("<NONE>")
                 del tokens
@@ -5172,7 +5163,7 @@ Visit: %s (Author's site)
         OFX = "".join(OFX)
 
         # <WOW! Phew - we actually made it!>
-        QuickJFrame("VIEW INSTALLED SERVICE / BANK LOGON PROFILES",OFX,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        QuickJFrame("VIEW INSTALLED SERVICE / BANK LOGON PROFILES",OFX,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
         return
 
@@ -8243,56 +8234,69 @@ Please update any that you use before proceeding....
         if theCurrentDate > 0:
             theCurrentDatePretty = get_time_stamp_as_nice_text(theCurrentDate)
         else:
-            theCurrentDatePretty = "NOT SET"
+            if isMDPlusEnabledBuild():
+                theCurrentDatePretty = "NOT SET (MD will prompt you for start date)"
+            else:
+                theCurrentDatePretty = "NOT SET"
 
         myPopupInformationBox(toolbox_frame_,"OFXLastTxnUpdate is currently: %s (which means: %s)" %(theCurrentDate, theCurrentDatePretty))
 
-        labelUpdateDate = JLabel("Select the new OFXLastTxnUpdate download Date (enter as yyyy/mm/dd):")
-        user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
-        user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
+        if not isMDPlusEnabledBuild():
 
-        datePanel = JPanel(GridLayout(0, 1))
-        datePanel.add(labelUpdateDate)
-        datePanel.add(user_selectDateStart)
+            labelUpdateDate = JLabel("Select the new OFXLastTxnUpdate download Date (enter as yyyy/mm/dd):")
+            user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+            user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
 
-        options = ["Cancel", "OK"]
+            datePanel = JPanel(GridLayout(0, 1))
+            datePanel.add(labelUpdateDate)
+            datePanel.add(user_selectDateStart)
 
-        while True:
-            userAction = JOptionPane.showOptionDialog(toolbox_frame_,
-                                                      datePanel,
-                                                      "Select new Date for the OFXLastTxnUpdate field:",
-                                                      JOptionPane.OK_CANCEL_OPTION,
-                                                      JOptionPane.QUESTION_MESSAGE,
-                                                      None,
-                                                      options,
-                                                      options[0])
+            options = ["Cancel", "OK"]
 
-            if userAction != 1:
-                txt = "OFX: User cancelled entering a new OFXLastTxnUpdate date - exiting"
-                setDisplayStatus(txt, "R")
+            while True:
+                userAction = JOptionPane.showOptionDialog(toolbox_frame_,
+                                                          datePanel,
+                                                          "Select new Date for the OFXLastTxnUpdate field:",
+                                                          JOptionPane.OK_CANCEL_OPTION,
+                                                          JOptionPane.QUESTION_MESSAGE,
+                                                          None,
+                                                          options,
+                                                          options[0])
+
+                if userAction != 1:
+                    txt = "OFX: User cancelled entering a new OFXLastTxnUpdate date - exiting"
+                    setDisplayStatus(txt, "R")
+                    return
+
+                if user_selectDateStart.getDateInt() < 20150101 or user_selectDateStart.getDateInt() > DateUtil.getStrippedDateInt():
+                    txt = "OFX: User cancelled entering an invalid OFXLastTxnUpdate date..."
+                    setDisplayStatus(txt, "R")
+                    user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
+                    user_selectDateStart.setForeground(Color.RED)                                                           # noqa
+                    continue
+
+                break   # Valid date
+
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Update the OFXLastTxnUpdate field to %s?" %(user_selectDateStart.getDateInt())):
                 return
 
-            if user_selectDateStart.getDateInt() < 20150101 or user_selectDateStart.getDateInt() > DateUtil.getStrippedDateInt():
-                txt = "OFX: User cancelled entering an invalid OFXLastTxnUpdate date..."
-                setDisplayStatus(txt, "R")
-                user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
-                user_selectDateStart.setForeground(Color.RED)                                                           # noqa
-                continue
+            newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
+            newDateTxt = user_selectDateStart.getDateInt()
 
-            break   # Valid date
+        else:
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Update the OFXLastTxnUpdate field to %s?" %(user_selectDateStart.getDateInt())):
-            return
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Reset date so that MD Prompts you for start date?"):
+                return
 
-        newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
+            newDate = 0L
+            newDateTxt = "RESET SO MD PROMPTS FOR START DATE"
 
         theOnlineTxnRecord.obj.setOFXLastTxnUpdate(newDate)
         theOnlineTxnRecord.obj.syncItem()
 
         play_the_money_sound()
-        txt = "OFX HACK OFXLastTxnUpdate date for acct: %s successfully set to: %s (%s)" %(selectedAcct,newDate,user_selectDateStart.getDateInt())
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        txt = "OFX HACK OFXLastTxnUpdate date for acct: %s successfully set to: %s (%s)" %(selectedAcct,newDate,newDateTxt)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,"OFX UPDATE OFXLastTxnUpdate",JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -9063,6 +9067,7 @@ Please update any that you use before proceeding....
 
         newServiceList = []
         for sv in serviceList:
+            if not isToolboxUnlocked() and sv.getTIKServiceID() == "md:plaid": continue
             newServiceList.append(StoreService(sv))
 
         service = JOptionPane.showInputDialog(toolbox_frame_,
@@ -9191,21 +9196,154 @@ Please update any that you use before proceeding....
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
-    def special_toMultilineHumanReadableString(_object, lSkipSecrets=True):
+    class StoreMDPlusLinkages():
+
+        def __init__(self, _svc, _acct_ref, _map_key, _plaidID, _desc):
+            self._svc = _svc
+            self._acct_ref = _acct_ref
+            self._map_key = _map_key
+            self._plaidID = _plaidID
+            self._desc = _desc
+
+        def getPlaidID(self): return self._plaidID
+
+        def getDesc(self): return self._desc
+
+    def getPlaidService():
+        serviceList = MD_REF.getCurrentAccountBook().getOnlineInfo().getAllServices()
+        for service in serviceList:
+            if service.getTIKServiceID() == "md:plaid": return service
+        return None
+
+    def getAvailAccountsXRefDict():
+        """Searches all Online Banking profiles and builds a x-ref list of Accounts to Plaid Connection refs"""
+
+        mdplus_linkages = {}
+        if isMDPlusEnabledBuild():
+            service = getPlaidService()     # type: OnlineService
+            for availAccount in service.getAvailableAccounts():
+                mdplus_linkages[availAccount.getAccountNumber()] = StoreMDPlusLinkages(service,
+                                                                   availAccount.getAccountNumber(),
+                                                                   availAccount.getMappingKey(),
+                                                                   availAccount.getPlaidItemID(),
+                                                                   availAccount.getDescription())
+        return mdplus_linkages
+
+    def special_toMultilineHumanReadableString(_object, lSkipSecrets=True, sFilterServiceID=None):
         _output = ""
         if not _object: return _output
 
-        _output = "Object Parameter Keys:\n" \
-                  "----------------------\n"
+        if not sFilterServiceID:
+            _output = "Object Parameter Keys:\n" \
+                      "----------------------\n"
+
+        PLAID_MAP_KEY = "map.md:plaid:::"
+
+        acctXRefDict = getAvailAccountsXRefDict() if (_object.getParameter("id", None) == "online_acct_mapping") else {}
 
         hide_keys = ["mdplus.priv", "mdplus.pub"]
         for objectKey in sorted(_object.getParameterKeys()):
             _value = _object.getParameter(objectKey)
+
+            acctText = ""
+            acctXRef = ""
+
+            if sFilterServiceID and not objectKey.startswith("map.%s" %(sFilterServiceID)): continue
+
+            if objectKey.startswith("map."):
+                if isMDPlusEnabledBuild() and objectKey.startswith(PLAID_MAP_KEY):
+                    plaid_acct = objectKey[len(PLAID_MAP_KEY):].strip()
+                    acctLookup = acctXRefDict.get(plaid_acct)           # type: StoreMDPlusLinkages
+                    if acctLookup is not None:
+                        acctXRef = "(Plaid ref: %s, Desc: %s) " %(acctLookup.getPlaidID(), acctLookup.getDesc())
+                    else:
+                        acctXRef = "(Orphan) "
+
+                mappedAccount = MD_REF.getCurrentAccountBook().getAccountByUUID(_value)
+                acctText = "(%s)" %("Missing Account" if (mappedAccount is None) else mappedAccount.getFullAccountName())
+
             if lSkipSecrets:
                 if objectKey in hide_keys: _value = "****** hidden ****** (length: %s)" %(len(_value))
-            _output += "Key: %s Value: %s\n" %(objectKey, _value)
-        _output += "----------------------\n"
+            _output += "Key: %s %sValue: %s %s\n" %(objectKey, acctXRef, _value, acctText)
+
+        if not sFilterServiceID: _output += "----------------------\n"
         return _output
+
+    def getUserIDFromEmail(_emailAddress):
+        if (_emailAddress is None): return ""
+        digest = MessageDigest.getInstance("MD5")
+        digest.update(String(String(String(_emailAddress).toLowerCase(Locale.ROOT)).trim()).getBytes(StandardCharsets.UTF_8))
+        return StringUtils.encodeHex(digest.digest(), False)
+
+    def getKeyID(_pubKeyHex):
+        pubKeyBytes = StringUtils.decodeHex(_pubKeyHex)
+        digest = MessageDigest.getInstance("MD5")
+        digest.update(pubKeyBytes)
+        keyID = StringUtils.encodeHex(digest.digest(), False)
+        return keyID
+
+    def UNLOCKMDPlusDiagnostic():
+
+        if not isToolboxUnlocked(): return
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "UNLOCKED Moneydance+ Diagnostics"
+
+        output = "%s:\n %s\n\n" %(_THIS_METHOD_NAME, "-"*len(_THIS_METHOD_NAME))
+
+        licenseObject = getMDPlusLicenseInfoForBook()
+        if licenseObject is None:
+            output += "No Moneydance+ License Object found\n".upper()
+        else:
+            output += "Moneydance+ License Object found... Details:\n"
+
+            mdplus_email = licenseObject.getParameter("mdplus.account_email", None)                                     # noqa
+            mdplus_pend_email = licenseObject.getParameter("mdplus.pending_email", None)                                # noqa
+            mdplus_signup_status = licenseObject.getParameter("signup_status", None)                                    # noqa
+            mdplus_keyRegenDate = licenseObject.getLongParameter("mdplus.date", 0L)                                     # noqa
+            mdplus_refreshDate = licenseObject.getLongParameter("mdplus.refresh_date", 0L)                              # noqa
+            mdplus_keypairCreated = licenseObject.getLongParameter("mdplus.keypair_created", 0L)                        # noqa
+            mdplus_privKeyHex = licenseObject.getParameter("mdplus.priv", None)                                         # noqa
+            mdplus_pubKeyHex = licenseObject.getParameter("mdplus.pub", None)                                           # noqa
+
+            output += "Dataset's UUID:          %s\n" %(MD_REF.getCurrentAccountBook().getFileUUID())
+            output += "Email:                   %s\n" %(mdplus_email)
+            output += "Email's MD5 encoded hex: %s\n" %(getUserIDFromEmail(mdplus_email))
+            output += "Pending Email:           %s\n" %(mdplus_pend_email)
+            if mdplus_signup_status:    output += "Signup status:           %s\n" %(mdplus_signup_status)
+            if mdplus_keyRegenDate:     output += "MD+ date:                %s\n" %(get_time_stamp_as_nice_text(mdplus_keyRegenDate))
+            if mdplus_refreshDate:      output += "MD+ refresh date:        %s\n" %(get_time_stamp_as_nice_text(mdplus_refreshDate))
+            if mdplus_keypairCreated:   output += "MD+ keypair date:        %s\n" %(get_time_stamp_as_nice_text(mdplus_keypairCreated))
+            if mdplus_privKeyHex:       output += "MD+ Private Key (raw):   %s\n" %(mdplus_privKeyHex)
+            if mdplus_pubKeyHex:
+                output += "MD+ Public Key (raw):    %s\n\n" %(mdplus_pubKeyHex)
+                output += "Dataset/license 'KeyID': %s\n" %(getKeyID(mdplus_pubKeyHex))
+
+            tokens = MD_REF.getCurrentAccountBook().getLocalStorage().getSublist("access_tokens")
+            output += "\n>>Moneydance+ Access Tokens (local storage)...:\n"
+            if len(tokens) > 0:
+                for token in tokens:
+                    for token_key in token:
+                        output += "Key: %s Value: %s\n" %(token_key, token.get(token_key))
+            else:
+                output += "<NONE>\n"
+
+            output += "\n>>Account Mappings Object's PARAMETER KEYS (MD2022 onwards)\n"
+            mappingObject = MD_REF.getCurrentAccount().getBook().getItemForID("online_acct_mapping")
+            if mappingObject is None:
+                output += "<NO ACCOUNT MAPPING OBJECT FOUND>\n"
+            else:
+                output += special_toMultilineHumanReadableString(mappingObject, lSkipSecrets=False)
+
+        output += "\n<END>"
+        QuickJFrame(_THIS_METHOD_NAME.upper(),output,lAlertLevel=2,copyToClipboard=False,lWrapText=False).show_the_frame()
+
+        txt = "%s: CONFIDENTIAL Moneydance+ settings displayed... DO NOT SHARE THESE WITH ANYONE" %(_THIS_METHOD_NAME.upper())
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
 
     def export_MDPlus_Profile():
 
@@ -9488,9 +9626,10 @@ Please update any that you use before proceeding....
                                  theTitle=_THIS_METHOD_NAME.upper(),
                                  theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
                                             "This dataset has an Activated MD+ License.\n"
-                                            "If you ZAP, then your Account linkages will still be stored on the IK/Plaid servers\n"
-                                            "You should use the standard MD screens/web page(s) to delink/de-activate this dataset (first)\n"
-                                            "However, if you have 'transplanted' your MD+ license to other datasets, then it's OK to do this.\n"
+                                            "If you ZAP, then your Account linkages will still be stored on the IK/Plaid servers ('Zombies')\n"
+                                            "You should use the Online/Setup Moneydance+ menu to Disconnect this dataset's account links (first)\n"
+                                            "However, if you have 'transplanted' your MD+ license to other datasets, then it's OK to Zap...\n"
+                                            "         (as your account links will be accessible from the other dataset with the same MD+ license)\n"
                                             "NOTE: Running ZAP will not cause any harm, but you will have to setup MD+ / PLaid links again (in this dataset)\n"
                                             "\n",
                                  lCancelButton=True,
@@ -10998,10 +11137,9 @@ Please update any that you use before proceeding....
                             elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
                         if not debug:
-                            if (theKey.lower() == "netsync.synckey"
-                                    or "._payloadid" in theKey.lower()
-                                    or ".token" in theKey.lower()):
-                                value = "<*****> (hidden >> enable DEBUG to view)"
+                            if (theKey.lower() == "netsync.synckey"): value = "<*****> (hidden >> enable DEBUG to view)"
+
+                        if ("._payloadid" in theKey.lower() or ".token" in theKey.lower()): value = "<*****> (hidden)"
 
                         splitKey = theKey.split('.')
                         if splitKey[0] != last:
@@ -21416,6 +21554,11 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
+                user_UNLOCKMDPlusDiagnostic = JRadioButton("UNLOCKED - Moneydance+ Diagnostics (READONLY)", False)
+                user_UNLOCKMDPlusDiagnostic.setToolTipText("When Toolbox is unlocked, will display extra MD+ Diagnostics - DO NOT SHARE WITH OTHERS!")
+                user_UNLOCKMDPlusDiagnostic.setEnabled(isToolboxUnlocked())
+                user_UNLOCKMDPlusDiagnostic.setForeground(Color.ORANGE)
+
                 user_searchOFXData = JRadioButton("Search for stored OFX related data", False)
                 user_searchOFXData.setToolTipText("This searches for Online Banking (OFX) related setup information in most places...")
 
@@ -21492,9 +21635,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_importMDPlusProfile.setEnabled(lAdvancedMode and lHackerMode)
                 user_importMDPlusProfile.setForeground(Color.RED)
 
-                user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings (when status not 'activated')", False)
+                user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False)
                 user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
-                user_zapMDPlusProfile.setEnabled(lAdvancedMode and lHackerMode and (debug or not isMDPlusLicenseActivated()))
+                user_zapMDPlusProfile.setEnabled((lAdvancedMode and lHackerMode) and (not isMDPlusLicenseActivated() or isToolboxUnlocked()))
                 user_zapMDPlusProfile.setForeground(Color.RED)
 
                 labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced mode **")
@@ -21511,6 +21654,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_cleanupMissingOnlineBankingLinks)
                 bg.add(user_manageCUSIPLink)
                 bg.add(user_searchOFXData)
+                bg.add(user_UNLOCKMDPlusDiagnostic)
                 bg.add(user_viewInstalledBankProfiles)
                 bg.add(user_view_CUSIP_settings)
                 bg.add(user_viewOnlineTxnsPayeesPayments)
@@ -21530,6 +21674,10 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+
+                if isToolboxUnlocked():
+                    userFilters.add(user_UNLOCKMDPlusDiagnostic)
+
                 userFilters.add(user_searchOFXData)
                 userFilters.add(user_viewInstalledBankProfiles)
                 userFilters.add(user_viewListALLMDServices)
@@ -21610,6 +21758,10 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_toggleMDDebug.isSelected():
                         hacker_mode_DEBUG()
 
+                    if user_UNLOCKMDPlusDiagnostic.isSelected():
+                        UNLOCKMDPlusDiagnostic()
+                        return
+
                     if user_authenticationManagement.isSelected():
                         OFX_authentication_management()
 
@@ -21650,7 +21802,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         return
 
                     if user_viewInstalledBankProfiles.isSelected():
-                        get_ofx_related_data()
+                        ofx_view_service_profile_data()
                         txt = "OFX: Your installed Service / Bank logon profiles have been displayed...."
                         setDisplayStatus(txt, "B")
                         return
@@ -23598,8 +23750,11 @@ Now you will have a text readable version of the file you can open in a text edi
             frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.95,0))))
             frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.95,0))))
 
+            if isToolboxUnlocked(): _JFtitle = u">>>>>>>>>> UNLOCKED MODE <<<<<<<<<<"
+            else:                   _JFtitle = u"- Infinite Kind (co-authored by StuWareSoftSystems)..."
+
             JFrame.setDefaultLookAndFeelDecorated(True)
-            toolbox_frame_ = MyJFrame(u"Toolbox - Infinite Kind (co-authored by StuWareSoftSystems)...  (%s+I for Help) - DATASET: %s" % (MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
+            toolbox_frame_ = MyJFrame(u"Toolbox %s (%s+I for Help) - DATASET: %s" % (_JFtitle, MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
             toolbox_frame_.setName(u"%s_main" %myModuleID)
 
             if (not Platform.isOSX()):
