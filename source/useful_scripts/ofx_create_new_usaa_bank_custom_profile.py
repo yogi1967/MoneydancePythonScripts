@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 16) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 17) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -66,6 +66,7 @@
 # build: 14 - Disable script for 2022.0(4040) onwards - new mapping table
 # build: 15 - Fixing to deal with 4040+... Adding custom "tik_fi_id" as "md:custom-1295"
 # build: 16 - Updating common code - QuickJFrame()
+# build: 17 - Update message on view last download dates window
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -73,7 +74,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "16"
+version_build = "17"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -3325,7 +3326,7 @@ Visit: %s (Author's site)
                 if theCurrentDate > 0:
                     prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
                 else:
-                    prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates'"
+                    prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates' (if on MD2022 onwards, MD will prompt you for a start date)"
 
             outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
 
@@ -3338,7 +3339,7 @@ Visit: %s (Author's site)
                        %(MYPYTHON_DOWNLOAD_URL)
 
         outputDates += "\n<END>"
-        jif =QuickJFrame("LAST DOWNLOAD DATES", outputDates).show_the_frame()
+        jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
         myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
     myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)

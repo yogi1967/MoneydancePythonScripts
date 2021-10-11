@@ -231,6 +231,7 @@
 # build: 1042 - New features: Cleanup missing banking links (MD2022 too)
 # build: 1042 - Main menus enhanced to be scrollable... Toolbox now quits MD where needed..... after fix.....
 # build: 1042 - New feature: Force reset Sync settings...; changed edit lasttxndownloaddate for MD+ to reset which forces new MD popup prompt...
+# build: 1042 - Disable edit last txn download date if MD+ enabled build .....
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -502,7 +503,7 @@ else:
     from collections import OrderedDict
 
     from org.python.core import PySystemState
-    from java.util import Timer, TimerTask
+    from java.util import Timer, TimerTask, Locale, Map, HashMap
     from java.util.zip import ZipInputStream, ZipEntry
 
     # renamed in MD build 3067
@@ -518,13 +519,16 @@ else:
     except:
         pass
 
-    # from org.python.core import PyByteArray
-
     from java.io import ByteArrayInputStream, OutputStream, InputStream
-    from javax.crypto import BadPaddingException
-    from java.util import Locale
-    from java.security import MessageDigest
     from java.nio.charset import StandardCharsets
+
+    from java.security import MessageDigest, KeyFactory
+    from java.security.spec import PKCS8EncodedKeySpec, X509EncodedKeySpec, MGF1ParameterSpec
+
+    from javax.crypto import Cipher, BadPaddingException
+    from javax.crypto.spec import SecretKeySpec, OAEPParameterSpec, PSource
+
+    from com.google.gson import Gson
 
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller.sync import MDSyncCipher
@@ -596,7 +600,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4051                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4054                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -4914,7 +4918,7 @@ Visit: %s (Author's site)
 
             if service.getTIKServiceID() == "md:plaid":
                 tokens = MD_REF.getCurrentAccountBook().getLocalStorage().getSublist("access_tokens")
-                OFX.append(pad("\n>>Moneydance+ Access Tokens (local storage)...:",120))
+                OFX.append(pad("\n>>Moneydance+ Access Tokens (local storage 'access_tokens')...:",120))
                 if len(tokens) > 0:
                     for token in tokens:
                         for token_key in token:
@@ -4924,6 +4928,15 @@ Visit: %s (Author's site)
                 else:
                     OFX.append("<NONE>")
                 del tokens
+
+                mdp_cache = MD_REF.getCurrentAccountBook().getLocalStorage().getSubset("mdp_items")
+                OFX.append(pad("\n>>Moneydance+ Plaid Cache (local storage 'mdp_items')...:",120))
+                if len(mdp_cache) > 0:
+                    for cacheItem in mdp_cache:
+                        OFX.append("Key: %s Value: %s" %(cacheItem, mdp_cache.get(cacheItem)))
+                else:
+                    OFX.append("<NONE>")
+                del mdp_cache
 
             OFX.append(pad("\n>>Accounts configured within bank profile:",120))
             if len(service.getAvailableAccounts())<1:
@@ -9281,9 +9294,44 @@ Please update any that you use before proceeding....
         keyID = StringUtils.encodeHex(digest.digest(), False)
         return keyID
 
+    def getByteArray(syncObj, key):
+        result = String(syncObj.get(key))
+        return None if result is None else StringUtils.decodeHex(result)
+
+    def decodePrivKey(pubKeyHex, privKeyHex):
+        pubKeyBytes = StringUtils.decodeHex(pubKeyHex)
+        privKeyBytes = StringUtils.decodeHex(privKeyHex)
+        digest = MessageDigest.getInstance("MD5")
+        digest.update(pubKeyBytes)
+        kf = KeyFactory.getInstance("RSA")
+        privkey = kf.generatePrivate(PKCS8EncodedKeySpec(privKeyBytes))
+        pubkey = kf.generatePublic(X509EncodedKeySpec(pubKeyBytes))
+        if privkey is None or pubkey is None: return None, None
+        return pubkey, privkey
+
+    def decrypt(cipherText, pubkey, privkey):                                                                           # noqa
+        # noinspection PyUnresolvedReferences
+        ENCRYPTION_PARAM_SPEC = OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec("SHA-256"), PSource.PSpecified.DEFAULT)
+        if (FileUtils.byteArraysMatch(String("eparcel").getBytes(StandardCharsets.UTF_8), cipherText, 7)):
+            parcel = SyncRecord()
+            parcel.readSet(ByteArrayInputStream(cipherText))
+            if (not parcel.containsKey("key") or  not parcel.containsKey("payload")):                                   # noqa
+                return None  # Invalid encrypted parcel
+            cipher1 = Cipher.getInstance("RSA/ECB/OAEPPadding")
+            cipher1.init(2, privkey, ENCRYPTION_PARAM_SPEC)
+            decryptedKey = cipher1.doFinal(getByteArray(parcel, "key"))
+            originalKey = SecretKeySpec(decryptedKey, 0, len(decryptedKey), "AES")
+            aesCipher = Cipher.getInstance("AES")
+            aesCipher.init(2, originalKey)
+            return aesCipher.doFinal(getByteArray(parcel, "payload"))
+
+        cipher = Cipher.getInstance("RSA/ECB/OAEPPadding")
+        cipher.init(2, privkey, ENCRYPTION_PARAM_SPEC)
+        return cipher.doFinal(cipherText)
+
     def UNLOCKMDPlusDiagnostic():
 
-        if not isToolboxUnlocked(): return
+        if not isToolboxUnlocked() or not isMDPlusEnabledBuild(): return
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -9291,7 +9339,7 @@ Please update any that you use before proceeding....
 
         output = "%s:\n %s\n\n" %(_THIS_METHOD_NAME, "-"*len(_THIS_METHOD_NAME))
 
-        licenseObject = getMDPlusLicenseInfoForBook()
+        licenseObject = getMDPlusLicenseInfoForBook()               # Note: Builds prior to 2006 will return None anyway...
         if licenseObject is None:
             output += "No Moneydance+ License Object found\n".upper()
         else:
@@ -9319,19 +9367,85 @@ Please update any that you use before proceeding....
                 output += "MD+ Public Key (raw):    %s\n\n" %(mdplus_pubKeyHex)
                 output += "Dataset/license 'KeyID': %s\n" %(getKeyID(mdplus_pubKeyHex))
 
+            statusURL = None
             if mdplus_pubKeyHex and mdplus_email:
-                output += ("\nMD Check Key Status URL:\n" 
-                          "https://mdplus.infinitekind.com/tik/get_status/%s/%s\n\n"
-                           %(getUserIDFromEmail(mdplus_email), getKeyID(mdplus_pubKeyHex)))
+                statusURL = ("https://mdplus.infinitekind.com/tik/get_status/%s/%s"
+                             %(getUserIDFromEmail(mdplus_email), getKeyID(mdplus_pubKeyHex)))
+                output += "\nMD Check Key Status URL:\n%s\n\n" %(statusURL)
+
+            if statusURL:
+                output += "\nDATA DOWNLOADED FROM URL:\n"
+                pubkey = privkey = None                                                                                 # noqa
+                try:
+                    grabGson = Gson()
+                    url = URL(statusURL)
+                    inx = BufferedReader(InputStreamReader(url.openStream(), "UTF8"))
+                    status_outerJson = grabGson.fromJson(inx, Map); inx.close()                                         # type: HashMap
+
+                    for o in status_outerJson:
+                        output += "Key: %s: Value: %s\n" %(o, status_outerJson.get(o))                                  # noqa
+
+                    status = status_outerJson.getOrDefault("status", "none")                                            # noqa
+                    responseMsg = String.valueOf(status_outerJson.getOrDefault("message", ""))                          # noqa
+
+                    pubkey, privkey = decodePrivKey(mdplus_pubKeyHex, mdplus_privKeyHex)
+
+                    userInfo = SyncRecord()
+                    userDataObject = status_outerJson.get("user_data")                                                  # noqa
+                    userPayloadsJSON = HashMap() if userDataObject is None else userDataObject
+                    for payloadKey in userPayloadsJSON.keySet():
+                        cipherValue = StringUtils.decodeHex(String.valueOf(userPayloadsJSON.get(payloadKey)))
+                        try:
+                            accessTokenInfo = SyncRecord()
+                            accessTokenInfo.readSet(ByteArrayInputStream(decrypt(cipherValue, pubkey, privkey)))
+                            output += "'user_data' User Payload key: %s Decrypted value: %s\n" %(String.valueOf(payloadKey), accessTokenInfo)
+                        except:
+                            output += "'user_data' unable to decrypt user payload:       %s\n" % (payloadKey)
+
+                    keyDataObject = status_outerJson.get("key_data")                                                    # noqa
+                    keyPayloadsJSON = HashMap() if keyDataObject is None else keyDataObject
+                    for payloadKey in keyPayloadsJSON.keySet():
+                        cipherValue = StringUtils.decodeHex(String.valueOf(keyPayloadsJSON.get(payloadKey)))
+                        try:
+                            accessTokenInfo = SyncRecord()
+                            accessTokenInfo.readSet(ByteArrayInputStream(decrypt(cipherValue, pubkey, privkey)))
+                            output += "'key_data' Key Payload key: %s Decrypted value:   %s\n" %(String.valueOf(payloadKey), accessTokenInfo)
+                        except:
+                            output += "'key_data' unable to decrypt key payload:         %s\n" % (payloadKey)
+
+                    if status_outerJson.containsKey("encrypted"):                                                       # noqa
+                        ciphertext = StringUtils.decodeHex(String.valueOf(status_outerJson.get("encrypted")))           # noqa
+                        clearbytes = decrypt(ciphertext, pubkey, privkey)
+                        userInfo.readSet(ByteArrayInputStream(clearbytes))
+                        for ui in userInfo:
+                            output += "'encrypted'... Key: %s Value %s\n" %(ui, userInfo.get(ui))                       # noqa
+
+                    output += "<END OF URL DATA>\n\n"
+                except:
+                    output += "Error downloading, decrypting status data from IK URL...!?\n"
+                    output += dump_sys_error_to_md_console_and_errorlog(True)
+                    output += "<END OF URL DATA>\n\n"
+
+                finally:
+                    del pubkey, privkey
 
             tokens = MD_REF.getCurrentAccountBook().getLocalStorage().getSublist("access_tokens")
-            output += "\n>>Moneydance+ Access Tokens (local storage)...:\n"
+            output += "\n>>Moneydance+ Access Tokens (local storage 'access_tokens')...:\n"
             if len(tokens) > 0:
                 for token in tokens:
                     for token_key in token:
                         output += "Key: %s Value: %s\n" %(token_key, token.get(token_key))
             else:
                 output += "<NONE>\n"
+
+            mdp_cache = MD_REF.getCurrentAccountBook().getLocalStorage().getSubset("mdp_items")
+            output += "\n>>Moneydance+ Plaid Cache (local storage 'mdp_items')...:\n"
+            if len(mdp_cache) > 0:
+                for cacheItem in mdp_cache:
+                    output += "Key: %s Value: %s\n" %(cacheItem, mdp_cache.get(cacheItem))
+            else:
+                output += "<NONE>\n"
+            del mdp_cache
 
             output += "\n>>Account Mappings Object's PARAMETER KEYS (MD2022 onwards)\n"
             mappingObject = MD_REF.getCurrentAccount().getBook().getItemForID("online_acct_mapping")
@@ -9341,7 +9455,7 @@ Please update any that you use before proceeding....
                 output += special_toMultilineHumanReadableString(mappingObject, lSkipSecrets=False)
 
         output += "\n<END>"
-        QuickJFrame(_THIS_METHOD_NAME.upper(),output,lAlertLevel=2,copyToClipboard=False,lWrapText=False).show_the_frame()
+        QuickJFrame(_THIS_METHOD_NAME.upper(),output,lAlertLevel=1,copyToClipboard=False,lWrapText=False).show_the_frame()
 
         txt = "%s: CONFIDENTIAL Moneydance+ settings displayed... DO NOT SHARE THESE WITH ANYONE" %(_THIS_METHOD_NAME.upper())
         setDisplayStatus(txt, "R"); myPrint("B", txt)
@@ -11134,7 +11248,9 @@ Please update any that you use before proceeding....
                         value = LS.get(theKey)    # NOTE: .get loses the underlying type and thus becomes a string
                         if lSync and "sync" not in theKey.lower(): continue
                         if lSync and "netsync.del_item" in theKey.lower(): continue
-                        if lOFX and not ("ofx" in theKey.lower() or "ol." in theKey.lower() or "olb." in theKey.lower() or "access_tokens" in theKey.lower()): continue
+                        if lOFX and not ("ofx" in theKey.lower() or "ol." in theKey.lower() or "olb." in theKey.lower()
+                                         or "access_tokens" in theKey.lower() or "mdp_items" in theKey.lower()): continue
+
                         if lSizes and not check_for_window_display_data(theKey,value): continue
                         if lSearch:
                             if lKeys and not (searchWhat.lower() in theKey.lower()): continue
@@ -21560,7 +21676,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 user_UNLOCKMDPlusDiagnostic = JRadioButton("UNLOCKED - Moneydance+ Diagnostics (READONLY)", False)
                 user_UNLOCKMDPlusDiagnostic.setToolTipText("When Toolbox is unlocked, will display extra MD+ Diagnostics - DO NOT SHARE WITH OTHERS!")
-                user_UNLOCKMDPlusDiagnostic.setEnabled(isToolboxUnlocked())
+                user_UNLOCKMDPlusDiagnostic.setEnabled(isToolboxUnlocked() and isMDPlusEnabledBuild())
                 user_UNLOCKMDPlusDiagnostic.setForeground(Color.ORANGE)
 
                 user_searchOFXData = JRadioButton("Search for stored OFX related data", False)
@@ -21584,9 +21700,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_toggleMDDebug = JRadioButton("Toggle Moneydance Debug (ONLY use for debugging)", False)
                 user_toggleMDDebug.setToolTipText("This toggles Moneydance's internal DEBUG(s) on/off. When ON you get more messages in the Console Log (the same as opening console)")
 
-                user_forgetOFXBankingLink = JRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < 2022)", False)
+                user_forgetOFXBankingLink = JRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False)
                 user_forgetOFXBankingLink.setToolTipText("Force MD to forget OFX Banking Import link attributed to an Account. Moneydance will ask you to recreate the link on next import.. THIS CHANGES DATA! (remove_ofx_account_bindings.py)")
-                user_forgetOFXBankingLink.setEnabled(lAdvancedMode)
+                user_forgetOFXBankingLink.setEnabled(lAdvancedMode and not isMDPlusEnabledBuild())
                 user_forgetOFXBankingLink.setForeground(Color.RED)
 
                 user_manageCUSIPLink = JRadioButton("Reset/Fix/Edit/Add CUSIP Banking Link (remove_ofx_security_bindings.py)", False)
@@ -21594,9 +21710,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_manageCUSIPLink.setEnabled(lAdvancedMode)
                 user_manageCUSIPLink.setForeground(Color.RED)
 
-                user_updateOFXLastTxnUpdate = JRadioButton("Update the OFX Last Txn Update Date (Downloaded) field for an account", False)
+                user_updateOFXLastTxnUpdate = JRadioButton("Update the OFX Last Txn Update Date (Downloaded) field for an account (MD Versions < MD2022)", False)
                 user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download Txn date which is used to set the start date for Txn downloads - THIS CHANGES DATA!")
-                user_updateOFXLastTxnUpdate.setEnabled(lAdvancedMode)
+                user_updateOFXLastTxnUpdate.setEnabled(lAdvancedMode and not isMDPlusEnabledBuild())
                 user_updateOFXLastTxnUpdate.setForeground(Color.RED)
 
                 user_deleteOFXBankingLogonProfile = JRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False)
@@ -21695,9 +21811,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 if not lAdvancedMode:
                     userFilters.add(labelFYI2)
 
-                if not isMDPlusEnabledBuild():      # New mapping table introduced, and "ofx_import_acct_num" made semi-redundant
-                    userFilters.add(user_forgetOFXBankingLink)
-
+                userFilters.add(user_forgetOFXBankingLink)
                 userFilters.add(user_manageCUSIPLink)
                 userFilters.add(user_updateOFXLastTxnUpdate)
                 userFilters.add(user_deleteOFXBankingLogonProfile)
