@@ -538,7 +538,7 @@ else:
     from com.moneydance.apps.md.controller import BalanceType
     from com.moneydance.apps.md.controller.io import FileUtils, AccountBookUtil
     from com.moneydance.apps.md.controller import ModuleLoader
-    from java.awt import GraphicsEnvironment, Desktop
+    from java.awt import GraphicsEnvironment, Desktop, Event
 
     from com.infinitekind.util import StreamTable, StreamVector, IOUtils, StringUtils, CustomDateFormat
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
@@ -583,6 +583,9 @@ else:
     global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
     global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MDPLUS_BUILD
+
+    GlobalVars.TOOLBOX_UNLOCK = False
+
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lGeekOutModeEnabled_TB = False                                                                                      # noqa
     lIgnoreOutdatedExtensions_TB = False                                                                                # noqa
@@ -600,7 +603,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4054                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4055                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -2785,18 +2788,7 @@ Visit: %s (Author's site)
         if _padLength < 1: return u"%s: %s" %(what, _x)
         return u"%s%s" %(pad("%s:" %(what),_padLength), _x)
 
-    def isToolboxUnlocked(lMessage=False):
-        v = int(float(MD_REF.getVersion()))
-        b = int(float(MD_REF.getBuild()))
-        filename = "toolbox_%s_%s.unlock" %(v,b)
-        try:
-            if os.path.exists(os.path.join(Common.getFeatureModulesDirectory().getCanonicalPath(),filename)):
-                if lMessage: myPrint("B", "@@@ TOOLBOX UNLOCK DETECTED @@@")
-                return True
-        except: pass
-        return False
-
-    isToolboxUnlocked(True)
+    def isToolboxUnlocked(): return GlobalVars.TOOLBOX_UNLOCK
 
     def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD)
 
@@ -4892,6 +4884,8 @@ Visit: %s (Author's site)
                 if olacct[1] == service:
                     thisServiceMDAccountProxies.append(olacct)
 
+            OFX.append(" ================================================================================================================================================")
+            OFX.append(" ================================================================================================================================================")
             OFX.append(pad("Service/Profile:".upper(),40)       + safeStr(service))
             OFX.append(pad("----------------",40))
             OFX.append(pad(">>Moneydance TIK Service ID:",40)   + safeStr(service.getTIKServiceID()))
@@ -4946,19 +4940,20 @@ Visit: %s (Author's site)
                 for availAccount in service.getAvailableAccounts():
                     OFX.append(">> ACCOUNT: %s (%s) ('Key': %s)" %(availAccount.getDescription(),availAccount.getAccountNumber(),availAccount.getAccountKey()))
 
-                    try:
-                        # Rather than listing all methods by hand, just iterate and call them all.. I have checked they are all safe...
-                        meths = availAccount.getClass().getDeclaredMethods()
-                        for meth in meths:
-                            if not Modifier.isPublic(meth.getModifiers()): continue
-                            if meth.getName().lower().startswith("get") or meth.getName().lower().startswith("is") \
-                                    and meth.getParameterCount()<1:
-                                result = meth.invoke(availAccount)
-                                if result is not None:
-                                    OFX.append(" >> %s %s" %(pad(meth.getName(),40),result) )
-                        OFX.append("\n")
-                    except:
-                        pass
+                    if service.getTIKServiceID() != "md:plaid":         # Don't bother with MD+ as these are all empty anyway...
+                        try:
+                            # Rather than listing all methods by hand, just iterate and call them all.. I have checked they are all safe...
+                            meths = availAccount.getClass().getDeclaredMethods()
+                            for meth in meths:
+                                if not Modifier.isPublic(meth.getModifiers()): continue
+                                if meth.getName().lower().startswith("get") or meth.getName().lower().startswith("is") \
+                                        and meth.getParameterCount()<1:
+                                    result = meth.invoke(availAccount)
+                                    if result is not None:
+                                        OFX.append(" >> %s %s" %(pad(meth.getName(),40),result) )
+                            OFX.append("\n")
+                        except:
+                            pass
 
             OFX.append("")
 
@@ -4974,191 +4969,192 @@ Visit: %s (Author's site)
 
             OFX.append("")
 
-            try:
-                p_getAuthenticationCachePrefix=service.getClass().getDeclaredMethod("getAuthenticationCachePrefix")
-                p_getAuthenticationCachePrefix.setAccessible(True)
-                OFX.append(pad("AuthenticationCachePrefix:",33) + safeStr(p_getAuthenticationCachePrefix.invoke(service)))
-                p_getAuthenticationCachePrefix.setAccessible(False)
+            if service.getTIKServiceID() != "md:plaid":         # Don't bother with MD+ as these are all empty anyway...
+                try:
+                    p_getAuthenticationCachePrefix=service.getClass().getDeclaredMethod("getAuthenticationCachePrefix")
+                    p_getAuthenticationCachePrefix.setAccessible(True)
+                    OFX.append(pad("AuthenticationCachePrefix:",33) + safeStr(p_getAuthenticationCachePrefix.invoke(service)))
+                    p_getAuthenticationCachePrefix.setAccessible(False)
 
-                p_getSessionCookiePrefix=service.getClass().getDeclaredMethod("getSessionCookiePrefix")
-                p_getSessionCookiePrefix.setAccessible(True)
-                OFX.append(pad("SessionCookiePrefix:",33    ) + safeStr(p_getSessionCookiePrefix.invoke(service)))
-                p_getSessionCookiePrefix.setAccessible(False)
-            except:
-                pass
+                    p_getSessionCookiePrefix=service.getClass().getDeclaredMethod("getSessionCookiePrefix")
+                    p_getSessionCookiePrefix.setAccessible(True)
+                    OFX.append(pad("SessionCookiePrefix:",33    ) + safeStr(p_getSessionCookiePrefix.invoke(service)))
+                    p_getSessionCookiePrefix.setAccessible(False)
+                except:
+                    pass
 
-            OFX.append(pad("\n>>ROOT Data associated with service profile:",120))
-            authKeyPrefix = "ofx.client_uid"
-            root = MD_REF.getRootAccount()
-            iCount = 0
-            for rk in list(root.getParameterKeys()):
-                if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk):
-                    OFX.append("Root key: '%s' value: '%s'" %(rk,root.getParameter(rk)))
-                    iCount += 1
-            if not iCount: OFX.append("<NONE>")
-            del root, iCount, authKeyPrefix
+                OFX.append(pad("\n>>ROOT Data associated with service profile:",120))
+                authKeyPrefix = "ofx.client_uid"
+                root = MD_REF.getRootAccount()
+                iCount = 0
+                for rk in list(root.getParameterKeys()):
+                    if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk):
+                        OFX.append("Root key: '%s' value: '%s'" %(rk,root.getParameter(rk)))
+                        iCount += 1
+                if not iCount: OFX.append("<NONE>")
+                del root, iCount, authKeyPrefix
 
-            OFX.append(pad("\n>>REALMs configured:",120))
-            realmsToCheck = service.getRealms()
-            if "DEFAULT" not in realmsToCheck:
-                realmsToCheck.insert(0,"DEFAULT")
+                OFX.append(pad("\n>>REALMs configured:",120))
+                realmsToCheck = service.getRealms()
+                if "DEFAULT" not in realmsToCheck:
+                    realmsToCheck.insert(0,"DEFAULT")
 
-            for realm in realmsToCheck:
+                for realm in realmsToCheck:
 
-                realmUserID = service.getUserId(realm, None)
-                if realmUserID is not None and realmUserID != "":
-                    OFX.append("Realm: %s User ID: %s" %(realm, service.getUserId(realm, None)))
+                    realmUserID = service.getUserId(realm, None)
+                    if realmUserID is not None and realmUserID != "":
+                        OFX.append("Realm: %s User ID: %s" %(realm, service.getUserId(realm, None)))
 
-                for olacct in thisServiceMDAccountProxies:
+                    for olacct in thisServiceMDAccountProxies:
 
-                    userID=service.getUserId(realm, olacct[0])
-                    if userID is not None and userID != "":
-                        OFX.append("Realm: %s Account's UserID: %s" %(realm, userID))
+                        userID=service.getUserId(realm, olacct[0])
+                        if userID is not None and userID != "":
+                            OFX.append("Realm: %s Account's UserID: %s" %(realm, userID))
 
-                    if lCachePasswords:
-                        authKey = "ofx:" + realm
-                        authObj = service.getCachedAuthentication(authKey)
-                        if authObj is not None and authObj != "":
-                            OFX.append("Realm: %s Cached Authentication: %s" %(realm, authObj))
+                        if lCachePasswords:
+                            authKey = "ofx:" + realm
+                            authObj = service.getCachedAuthentication(authKey)
+                            if authObj is not None and authObj != "":
+                                OFX.append("Realm: %s Cached Authentication: %s" %(realm, authObj))
 
-                        authKey = "ofx:" + (realm + "::" + olacct[0].getAccountKey())
-                        authObj = service.getCachedAuthentication(authKey)
-                        if authObj is not None and authObj != "":
-                            OFX.append("Realm: %s Account Key: %s (Key: %s / AccNum: %s) Cached Authentication: %s" %(realm, olacct[0].getAccountKey(), olacct[0].getOFXAccountKey(), olacct[0].getOFXAccountNumber(), authObj))
+                            authKey = "ofx:" + (realm + "::" + olacct[0].getAccountKey())
+                            authObj = service.getCachedAuthentication(authKey)
+                            if authObj is not None and authObj != "":
+                                OFX.append("Realm: %s Account Key: %s (Key: %s / AccNum: %s) Cached Authentication: %s" %(realm, olacct[0].getAccountKey(), olacct[0].getOFXAccountKey(), olacct[0].getOFXAccountNumber(), authObj))
 
-                    if service.getSessionCookie(userID) is not None:
-                        OFX.append("Session Cookie: %s" %(service.getSessionCookie(userID)))
+                        if service.getSessionCookie(userID) is not None:
+                            OFX.append("Session Cookie: %s" %(service.getSessionCookie(userID)))
 
-            OFX.append("getFIId()                        %s" %(service.getFIId()                             ))
-            if service.getUpdatedFIId() != service.getFIId():
-                OFX.append("getUpdatedFIId()             %s" %(service.getUpdatedFIId()                      ))
-            OFX.append("getFIName()                      %s" %(service.getFIName()                           ))
-            OFX.append("getFIOrg()                       %s" %(service.getFIOrg()                            ))
-            if service.getUpdatedFIOrg() != service.getUpdatedFIOrg():
-                OFX.append("getUpdatedFIOrg()            %s" %(service.getUpdatedFIOrg()                     ))
-            OFX.append("usesFITag()                      %s" %(service.usesFITag()                           ))
-            OFX.append("usesPTTAcctIDField()             %s" %(service.usesPTTAcctIDField()                  ))
-            OFX.append("getFIUrl()                       %s" %(service.getFIUrl()                            ))
-            OFX.append("getFIUrlIsRedirect()             %s" %(service.getFIUrlIsRedirect()                  ))
+                OFX.append("getFIId()                        %s" %(service.getFIId()                             ))
+                if service.getUpdatedFIId() != service.getFIId():
+                    OFX.append("getUpdatedFIId()             %s" %(service.getUpdatedFIId()                      ))
+                OFX.append("getFIName()                      %s" %(service.getFIName()                           ))
+                OFX.append("getFIOrg()                       %s" %(service.getFIOrg()                            ))
+                if service.getUpdatedFIOrg() != service.getUpdatedFIOrg():
+                    OFX.append("getUpdatedFIOrg()            %s" %(service.getUpdatedFIOrg()                     ))
+                OFX.append("usesFITag()                      %s" %(service.usesFITag()                           ))
+                OFX.append("usesPTTAcctIDField()             %s" %(service.usesPTTAcctIDField()                  ))
+                OFX.append("getFIUrl()                       %s" %(service.getFIUrl()                            ))
+                OFX.append("getFIUrlIsRedirect()             %s" %(service.getFIUrlIsRedirect()                  ))
 
-            OFX.append("getIgnoreTxnsBeforeLastUpdate()  %s" %(service.getIgnoreTxnsBeforeLastUpdate()       ))
+                OFX.append("getIgnoreTxnsBeforeLastUpdate()  %s" %(service.getIgnoreTxnsBeforeLastUpdate()       ))
 
-            OFX.append("getTxnDownloadOverlap()          %s" %(service.getTxnDownloadOverlap()               ))
-            OFX.append("getDateAvailAcctsUpdated()       %s" %(service.getDateAvailAcctsUpdated()            ))
-            OFX.append("getAlwaysSendDateRange()         %s" %(service.getAlwaysSendDateRange()              ))
+                OFX.append("getTxnDownloadOverlap()          %s" %(service.getTxnDownloadOverlap()               ))
+                OFX.append("getDateAvailAcctsUpdated()       %s" %(service.getDateAvailAcctsUpdated()            ))
+                OFX.append("getAlwaysSendDateRange()         %s" %(service.getAlwaysSendDateRange()              ))
 
 
-            OFX.append("getUseProfileRequest()           %s" %(service.getUseProfileRequest()                ))
-            OFX.append("getUseClientSpecificUIDS()       %s" %(service.getUseClientSpecificUIDS()            ))
-            OFX.append("getUseFileUIDs()                 %s" %(service.getUseFileUIDs()                      ))
-            OFX.append("getUseBPFileUIDs()               %s" %(service.getUseBPFileUIDs()                    ))
-            OFX.append("useTerribleTLSV1Hack()           %s" %(service.useTerribleTLSV1Hack()                ))
-            OFX.append("getFIEmail()                     %s" %(service.getFIEmail()                          ))
-            OFX.append("getTechServicePhone()            %s" %(service.getTechServicePhone()                 ))
+                OFX.append("getUseProfileRequest()           %s" %(service.getUseProfileRequest()                ))
+                OFX.append("getUseClientSpecificUIDS()       %s" %(service.getUseClientSpecificUIDS()            ))
+                OFX.append("getUseFileUIDs()                 %s" %(service.getUseFileUIDs()                      ))
+                OFX.append("getUseBPFileUIDs()               %s" %(service.getUseBPFileUIDs()                    ))
+                OFX.append("useTerribleTLSV1Hack()           %s" %(service.useTerribleTLSV1Hack()                ))
+                OFX.append("getFIEmail()                     %s" %(service.getFIEmail()                          ))
+                OFX.append("getTechServicePhone()            %s" %(service.getTechServicePhone()                 ))
 
-            OFX.append("getInvstBrokerID()               %s" %(service.getInvstBrokerID()                    ))
+                OFX.append("getInvstBrokerID()               %s" %(service.getInvstBrokerID()                    ))
 
-            OFX.append("usesBillPayExtendedAcctTo()      %s" %(service.usesBillPayExtendedAcctTo()           ))
+                OFX.append("usesBillPayExtendedAcctTo()      %s" %(service.usesBillPayExtendedAcctTo()           ))
 
-            OFX.append("getServiceType()                 %s" %(service.getServiceType()                      ))
+                OFX.append("getServiceType()                 %s" %(service.getServiceType()                      ))
 
-            OFX.append("getUseShortDates()               %s" %(service.getUseShortDates()                    ))
-            OFX.append("shouldDecrementLastTxnDate()     %s" %(service.shouldDecrementLastTxnDate()          ))
+                OFX.append("getUseShortDates()               %s" %(service.getUseShortDates()                    ))
+                OFX.append("shouldDecrementLastTxnDate()     %s" %(service.shouldDecrementLastTxnDate()          ))
 
-            OFX.append("getSignupAcctsAvail()            %s" %(service.getSignupAcctsAvail()                 ))
-            OFX.append("getSignupCanActivateAcct()       %s" %(service.getSignupCanActivateAcct()            ))
-            OFX.append("getSignupCanChgUserInfo()        %s" %(service.getSignupCanChgUserInfo()             ))
-            OFX.append("getSignupCanPreauth()            %s" %(service.getSignupCanPreauth()                 ))
-            OFX.append("getSignupClientAcctNumReq()      %s" %(service.getSignupClientAcctNumReq()           ))
-            OFX.append("getSignupViaClient()             %s" %(service.getSignupViaClient()                  ))
-            OFX.append("getSignupViaOther()              %s" %(service.getSignupViaOther()                   ))
-            OFX.append("getSignupViaOtherMsg()           %s" %(service.getSignupViaOtherMsg()                ))
-            OFX.append("getSignupViaWeb()                %s" %(service.getSignupViaWeb()                     ))
-            OFX.append("getSignupViaWebUrl()             %s" %(service.getSignupViaWebUrl()                  ))
-            OFX.append("getStopChkCanUseDescription()    %s" %(service.getStopChkCanUseDescription()         ))
-            OFX.append("getStopChkCanUseRange()          %s" %(service.getStopChkCanUseRange()               ))
-            OFX.append("getStopChkFee()                  %s" %(service.getStopChkFee()                       ))
-            OFX.append("getStopChkProcessingDaysOff()    %s" %(service.getStopChkProcessingDaysOff()         ))
-            OFX.append("getStopChkProcessingEndTime()    %s" %(service.getStopChkProcessingEndTime()         ))
+                OFX.append("getSignupAcctsAvail()            %s" %(service.getSignupAcctsAvail()                 ))
+                OFX.append("getSignupCanActivateAcct()       %s" %(service.getSignupCanActivateAcct()            ))
+                OFX.append("getSignupCanChgUserInfo()        %s" %(service.getSignupCanChgUserInfo()             ))
+                OFX.append("getSignupCanPreauth()            %s" %(service.getSignupCanPreauth()                 ))
+                OFX.append("getSignupClientAcctNumReq()      %s" %(service.getSignupClientAcctNumReq()           ))
+                OFX.append("getSignupViaClient()             %s" %(service.getSignupViaClient()                  ))
+                OFX.append("getSignupViaOther()              %s" %(service.getSignupViaOther()                   ))
+                OFX.append("getSignupViaOtherMsg()           %s" %(service.getSignupViaOtherMsg()                ))
+                OFX.append("getSignupViaWeb()                %s" %(service.getSignupViaWeb()                     ))
+                OFX.append("getSignupViaWebUrl()             %s" %(service.getSignupViaWebUrl()                  ))
+                OFX.append("getStopChkCanUseDescription()    %s" %(service.getStopChkCanUseDescription()         ))
+                OFX.append("getStopChkCanUseRange()          %s" %(service.getStopChkCanUseRange()               ))
+                OFX.append("getStopChkFee()                  %s" %(service.getStopChkFee()                       ))
+                OFX.append("getStopChkProcessingDaysOff()    %s" %(service.getStopChkProcessingDaysOff()         ))
+                OFX.append("getStopChkProcessingEndTime()    %s" %(service.getStopChkProcessingEndTime()         ))
 
-            for x in service.getRealms():
-                OFX.append("getClientIDRequired(x)           %s" %(service.getClientIDRequired(x)             ))
-                OFX.append("getUserCanChangePIN(x)           %s" %(service.getUserCanChangePIN(x)             ))
-                OFX.append("getMaxPasswdLength(x)            %s" %(service.getMaxPasswdLength(x)              ))
-                OFX.append("getMinPasswdLength(x)            %s" %(service.getMinPasswdLength(x)              ))
-                OFX.append("getMustChngPINFirst(x)           %s" %(service.getMustChngPINFirst(x)             ))
-                OFX.append("getPasswdCanHaveSpaces(x)        %s" %(service.getPasswdCanHaveSpaces(x)          ))
-                OFX.append("getPasswdCanHaveSpecialChars(x)  %s" %(service.getPasswdCanHaveSpecialChars(x)    ))
-                OFX.append("getPasswdCaseSensitive(x)        %s" %(service.getPasswdCaseSensitive(x)          ))
-                OFX.append("getPasswdCharType(x)             %s" %(service.getPasswdCharType(x)               ))
-                OFX.append("getPasswdType(x)                 %s" %(service.getPasswdType(x)                   ))
+                for x in service.getRealms():
+                    OFX.append("getClientIDRequired(x)           %s" %(service.getClientIDRequired(x)             ))
+                    OFX.append("getUserCanChangePIN(x)           %s" %(service.getUserCanChangePIN(x)             ))
+                    OFX.append("getMaxPasswdLength(x)            %s" %(service.getMaxPasswdLength(x)              ))
+                    OFX.append("getMinPasswdLength(x)            %s" %(service.getMinPasswdLength(x)              ))
+                    OFX.append("getMustChngPINFirst(x)           %s" %(service.getMustChngPINFirst(x)             ))
+                    OFX.append("getPasswdCanHaveSpaces(x)        %s" %(service.getPasswdCanHaveSpaces(x)          ))
+                    OFX.append("getPasswdCanHaveSpecialChars(x)  %s" %(service.getPasswdCanHaveSpecialChars(x)    ))
+                    OFX.append("getPasswdCaseSensitive(x)        %s" %(service.getPasswdCaseSensitive(x)          ))
+                    OFX.append("getPasswdCharType(x)             %s" %(service.getPasswdCharType(x)               ))
+                    OFX.append("getPasswdType(x)                 %s" %(service.getPasswdType(x)                   ))
 
-            OFX.append("getDateUpdated()                 %s (%s)" %(service.getDateUpdated(), DateUtil.convertLongDateToInt(service.getDateUpdated())))
-            OFX.append("getLastTransactionID()           %s" %(service.getLastTransactionID()                  ))
-            OFX.append("getMaxFITIDLength()              %s" %(service.getMaxFITIDLength()                     ))
-            OFX.append("getInvalidAcctTypes()            %s" %(service.getInvalidAcctTypes()                   ))
+                OFX.append("getDateUpdated()                 %s (%s)" %(service.getDateUpdated(), DateUtil.convertLongDateToInt(service.getDateUpdated())))
+                OFX.append("getLastTransactionID()           %s" %(service.getLastTransactionID()                  ))
+                OFX.append("getMaxFITIDLength()              %s" %(service.getMaxFITIDLength()                     ))
+                OFX.append("getInvalidAcctTypes()            %s" %(service.getInvalidAcctTypes()                   ))
 
-            p_getMsgSetTag=service.getClass().getDeclaredMethod("getMsgSetTag",[Integer.TYPE])
-            p_getMsgSetTag.setAccessible(True)
+                p_getMsgSetTag=service.getClass().getDeclaredMethod("getMsgSetTag",[Integer.TYPE])
+                p_getMsgSetTag.setAccessible(True)
 
-            for msgType in (0,1,3,4,5,6,7,8,9,10,11,12):
-                if service.supportsMsgSet(msgType) or msgType==0:
-                    tag=p_getMsgSetTag.invoke(service,[msgType])
-                    OFX.append("---")
-                    OFX.append("  Supports Message Tag:            %s" %(tag))
-                    OFX.append("  getMsgSetLanguage(msgType)       %s" %(service.getMsgSetLanguage(msgType)             ))
-                    OFX.append("  getMsgSetRspnsFileErrors(msgType)%s" %(service.getMsgSetRspnsFileErrors(msgType)      ))
-                    OFX.append("  getMsgSetSecurity(msgType)       %s" %(service.getMsgSetSecurity(msgType)             ))
-                    OFX.append("  getMsgSetSignonRealm(msgType)    %s" %(service.getMsgSetSignonRealm(msgType)          ))
-                    OFX.append("  getMsgSetSyncMode(msgType)       %s" %(service.getMsgSetSyncMode(msgType)             ))
-                    OFX.append("  getMsgSetTransportSecure(msgType)%s" %(service.getMsgSetTransportSecure(msgType)      ))
-                    OFX.append("  getMsgSetURL(msgType)            %s" %(service.getMsgSetURL(msgType)                  ))
-                    OFX.append("  getMsgSetVersion(msgType)        %s" %(service.getMsgSetVersion(msgType)              ))
-            p_getMsgSetTag.setAccessible(False)
+                for msgType in (0,1,3,4,5,6,7,8,9,10,11,12):
+                    if service.supportsMsgSet(msgType) or msgType==0:
+                        tag=p_getMsgSetTag.invoke(service,[msgType])
+                        OFX.append("---")
+                        OFX.append("  Supports Message Tag:            %s" %(tag))
+                        OFX.append("  getMsgSetLanguage(msgType)       %s" %(service.getMsgSetLanguage(msgType)             ))
+                        OFX.append("  getMsgSetRspnsFileErrors(msgType)%s" %(service.getMsgSetRspnsFileErrors(msgType)      ))
+                        OFX.append("  getMsgSetSecurity(msgType)       %s" %(service.getMsgSetSecurity(msgType)             ))
+                        OFX.append("  getMsgSetSignonRealm(msgType)    %s" %(service.getMsgSetSignonRealm(msgType)          ))
+                        OFX.append("  getMsgSetSyncMode(msgType)       %s" %(service.getMsgSetSyncMode(msgType)             ))
+                        OFX.append("  getMsgSetTransportSecure(msgType)%s" %(service.getMsgSetTransportSecure(msgType)      ))
+                        OFX.append("  getMsgSetURL(msgType)            %s" %(service.getMsgSetURL(msgType)                  ))
+                        OFX.append("  getMsgSetVersion(msgType)        %s" %(service.getMsgSetVersion(msgType)              ))
+                p_getMsgSetTag.setAccessible(False)
 
-            OFX.append("---")
+                OFX.append("---")
 
-            OFX.append("getCreditCardClosingAvail()      %s" %(service.getCreditCardClosingAvail()           ))
-            OFX.append("getCustServicePhone()            %s" %(service.getCustServicePhone()                 ))
-            OFX.append("getBankClosingAvail()            %s" %(service.getBankClosingAvail()                 ))
-            OFX.append("getBankXfrCanModifyModels()      %s" %(service.getBankXfrCanModifyModels()           ))
-            OFX.append("getBankXfrCanModifyTransfers()   %s" %(service.getBankXfrCanModifyTransfers()        ))
-            OFX.append("getBankXfrCanScheduleRecurring() %s" %(service.getBankXfrCanScheduleRecurring()      ))
-            OFX.append("getBankXfrCanScheduleTransfers() %s" %(service.getBankXfrCanScheduleTransfers()      ))
-            OFX.append("getBankXfrDaysWithdrawn()        %s" %(service.getBankXfrDaysWithdrawn()             ))
-            OFX.append("getBankXfrDefaultDaysToPay()     %s" %(service.getBankXfrDefaultDaysToPay()          ))
-            OFX.append("getBankXfrModelWindow()          %s" %(service.getBankXfrModelWindow()               ))
-            OFX.append("getBankXfrNeedsTAN()             %s" %(service.getBankXfrNeedsTAN()                  ))
-            OFX.append("getBankXfrProcessingDaysOff()    %s" %(service.getBankXfrProcessingDaysOff()         ))
-            OFX.append("getBankXfrProcessingEndTime()    %s" %(service.getBankXfrProcessingEndTime()         ))
-            OFX.append("getBankXfrSupportsDTAvail()      %s" %(service.getBankXfrSupportsDTAvail()           ))
-            OFX.append("getBillPayCanAddPayee()          %s" %(service.getBillPayCanAddPayee()               ))
-            OFX.append("getBillPayCanModPayments()       %s" %(service.getBillPayCanModPayments()            ))
-            OFX.append("getBillPayDaysWithdrawn()        %s" %(service.getBillPayDaysWithdrawn()             ))
-            OFX.append("getBillPayDefaultDaysToPay()     %s" %(service.getBillPayDefaultDaysToPay()          ))
-            OFX.append("getBillPayHasExtendedPmt()       %s" %(service.getBillPayHasExtendedPmt()            ))
-            OFX.append("getBillPayNeedsTANPayee()        %s" %(service.getBillPayNeedsTANPayee()             ))
-            OFX.append("getBillPayNeedsTANPayment()      %s" %(service.getBillPayNeedsTANPayment()           ))
-            OFX.append("getBillPayPostProcessingWindow() %s" %(service.getBillPayPostProcessingWindow()      ))
-            OFX.append("getBillPayProcessingDaysOff()    %s" %(service.getBillPayProcessingDaysOff()         ))
-            OFX.append("getBillPayProcessingEndTime()    %s" %(service.getBillPayProcessingEndTime()         ))
-            OFX.append("getBillPaySupportsDifftFirstPmt()%s" %(service.getBillPaySupportsDifftFirstPmt()     ))
-            OFX.append("getBillPaySupportsDifftLastPmt() %s" %(service.getBillPaySupportsDifftLastPmt()      ))
-            OFX.append("getBillPaySupportsDtAvail()      %s" %(service.getBillPaySupportsDtAvail()           ))
-            OFX.append("getBillPaySupportsPmtByAddr()    %s" %(service.getBillPaySupportsPmtByAddr()         ))
-            OFX.append("getBillPaySupportsPmtByPayeeId() %s" %(service.getBillPaySupportsPmtByPayeeId()      ))
-            OFX.append("getBillPaySupportsPmtByXfr()     %s" %(service.getBillPaySupportsPmtByXfr()          ))
-            OFX.append("getBillPaySupportsStatusModRs()  %s" %(service.getBillPaySupportsStatusModRs()       ))
-            OFX.append("getBillPayXfrDaysWith()          %s" %(service.getBillPayXfrDaysWith()               ))
-            OFX.append("getBillPayXfrDefaultDaysToPay()  %s" %(service.getBillPayXfrDefaultDaysToPay()       ))
-            OFX.append("getEmailSupportsGeneric()        %s" %(service.getEmailSupportsGeneric()             ))
-            OFX.append("getEmailSupportsGetMime()        %s" %(service.getEmailSupportsGetMime()             ))
-            OFX.append("getInvstCanDownloadBalances()    %s" %(service.getInvstCanDownloadBalances()         ))
-            OFX.append("getInvstCanDownloadOOs()         %s" %(service.getInvstCanDownloadOOs()              ))
-            OFX.append("getInvstCanDownloadPositions()   %s" %(service.getInvstCanDownloadPositions()        ))
-            OFX.append("getInvstCanDownloadTxns()        %s" %(service.getInvstCanDownloadTxns()             ))
-            OFX.append("getInvstCanEmail()               %s" %(service.getInvstCanEmail()                    ))
-            OFX.append("getSecListCanDownloadSecurities()%s" %(service.getSecListCanDownloadSecurities()     ))
+                OFX.append("getCreditCardClosingAvail()      %s" %(service.getCreditCardClosingAvail()           ))
+                OFX.append("getCustServicePhone()            %s" %(service.getCustServicePhone()                 ))
+                OFX.append("getBankClosingAvail()            %s" %(service.getBankClosingAvail()                 ))
+                OFX.append("getBankXfrCanModifyModels()      %s" %(service.getBankXfrCanModifyModels()           ))
+                OFX.append("getBankXfrCanModifyTransfers()   %s" %(service.getBankXfrCanModifyTransfers()        ))
+                OFX.append("getBankXfrCanScheduleRecurring() %s" %(service.getBankXfrCanScheduleRecurring()      ))
+                OFX.append("getBankXfrCanScheduleTransfers() %s" %(service.getBankXfrCanScheduleTransfers()      ))
+                OFX.append("getBankXfrDaysWithdrawn()        %s" %(service.getBankXfrDaysWithdrawn()             ))
+                OFX.append("getBankXfrDefaultDaysToPay()     %s" %(service.getBankXfrDefaultDaysToPay()          ))
+                OFX.append("getBankXfrModelWindow()          %s" %(service.getBankXfrModelWindow()               ))
+                OFX.append("getBankXfrNeedsTAN()             %s" %(service.getBankXfrNeedsTAN()                  ))
+                OFX.append("getBankXfrProcessingDaysOff()    %s" %(service.getBankXfrProcessingDaysOff()         ))
+                OFX.append("getBankXfrProcessingEndTime()    %s" %(service.getBankXfrProcessingEndTime()         ))
+                OFX.append("getBankXfrSupportsDTAvail()      %s" %(service.getBankXfrSupportsDTAvail()           ))
+                OFX.append("getBillPayCanAddPayee()          %s" %(service.getBillPayCanAddPayee()               ))
+                OFX.append("getBillPayCanModPayments()       %s" %(service.getBillPayCanModPayments()            ))
+                OFX.append("getBillPayDaysWithdrawn()        %s" %(service.getBillPayDaysWithdrawn()             ))
+                OFX.append("getBillPayDefaultDaysToPay()     %s" %(service.getBillPayDefaultDaysToPay()          ))
+                OFX.append("getBillPayHasExtendedPmt()       %s" %(service.getBillPayHasExtendedPmt()            ))
+                OFX.append("getBillPayNeedsTANPayee()        %s" %(service.getBillPayNeedsTANPayee()             ))
+                OFX.append("getBillPayNeedsTANPayment()      %s" %(service.getBillPayNeedsTANPayment()           ))
+                OFX.append("getBillPayPostProcessingWindow() %s" %(service.getBillPayPostProcessingWindow()      ))
+                OFX.append("getBillPayProcessingDaysOff()    %s" %(service.getBillPayProcessingDaysOff()         ))
+                OFX.append("getBillPayProcessingEndTime()    %s" %(service.getBillPayProcessingEndTime()         ))
+                OFX.append("getBillPaySupportsDifftFirstPmt()%s" %(service.getBillPaySupportsDifftFirstPmt()     ))
+                OFX.append("getBillPaySupportsDifftLastPmt() %s" %(service.getBillPaySupportsDifftLastPmt()      ))
+                OFX.append("getBillPaySupportsDtAvail()      %s" %(service.getBillPaySupportsDtAvail()           ))
+                OFX.append("getBillPaySupportsPmtByAddr()    %s" %(service.getBillPaySupportsPmtByAddr()         ))
+                OFX.append("getBillPaySupportsPmtByPayeeId() %s" %(service.getBillPaySupportsPmtByPayeeId()      ))
+                OFX.append("getBillPaySupportsPmtByXfr()     %s" %(service.getBillPaySupportsPmtByXfr()          ))
+                OFX.append("getBillPaySupportsStatusModRs()  %s" %(service.getBillPaySupportsStatusModRs()       ))
+                OFX.append("getBillPayXfrDaysWith()          %s" %(service.getBillPayXfrDaysWith()               ))
+                OFX.append("getBillPayXfrDefaultDaysToPay()  %s" %(service.getBillPayXfrDefaultDaysToPay()       ))
+                OFX.append("getEmailSupportsGeneric()        %s" %(service.getEmailSupportsGeneric()             ))
+                OFX.append("getEmailSupportsGetMime()        %s" %(service.getEmailSupportsGetMime()             ))
+                OFX.append("getInvstCanDownloadBalances()    %s" %(service.getInvstCanDownloadBalances()         ))
+                OFX.append("getInvstCanDownloadOOs()         %s" %(service.getInvstCanDownloadOOs()              ))
+                OFX.append("getInvstCanDownloadPositions()   %s" %(service.getInvstCanDownloadPositions()        ))
+                OFX.append("getInvstCanDownloadTxns()        %s" %(service.getInvstCanDownloadTxns()             ))
+                OFX.append("getInvstCanEmail()               %s" %(service.getInvstCanEmail()                    ))
+                OFX.append("getSecListCanDownloadSecurities()%s" %(service.getSecListCanDownloadSecurities()     ))
 
             OFX.append("")
 
@@ -21662,6 +21658,35 @@ Now you will have a text readable version of the file you can open in a text edi
                 myPrint("DB",".. calling terminate_script()")
                 terminate_script()
 
+        class UnlockAction(AbstractAction):
+
+            def __init__(self, theFrame):
+                self.theFrame = theFrame
+                self.saveTitle = theFrame.getTitle()
+
+            def actionPerformed(self, event):                                                                           # noqa
+                myPrint("DB","In UnlockAction().", inspect.currentframe().f_code.co_name, "()")
+
+                if GlobalVars.TOOLBOX_UNLOCK:
+                    txt = "@@@ Toolbox is already Unlocked... ReLocking the (Tool)box! @@@"
+                    sColor = "B"
+                    GlobalVars.TOOLBOX_UNLOCK = False
+                    self.theFrame.setTitle(self.saveTitle)
+                else:
+                    v = int(float(MD_REF.getVersion())); b = int(float(MD_REF.getBuild())); c = v+b
+                    response = myPopupAskForInput(self.theFrame,"@@ UNLOCK TOOLBOX @@", "PASSWORD:", "Enter the password to unlock powerful features",
+                                          defaultValue=None,isPassword=True,theMessageType=JOptionPane.ERROR_MESSAGE)
+                    if response is not None and StringUtils.isInteger(response) and int(response) == c:
+                        txt = "@@@ Toolbox UNLOCKED @@@"
+                        sColor = "R"
+                        GlobalVars.TOOLBOX_UNLOCK = True
+                        self.theFrame.setTitle(u"Toolbox UNLOCKED (%s+I for Help) - DATASET: %s" % (MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
+                    else:
+                        txt = "@@@ Toolbox NOT Unlocked @@@"
+                        sColor = "B"
+                setDisplayStatus(txt, sColor); myPrint("B",txt)
+                return
+
         class OnlineBankingToolsButtonAction(AbstractAction):
 
             def __init__(self): pass
@@ -21702,7 +21727,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 user_forgetOFXBankingLink = JRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False)
                 user_forgetOFXBankingLink.setToolTipText("Force MD to forget OFX Banking Import link attributed to an Account. Moneydance will ask you to recreate the link on next import.. THIS CHANGES DATA! (remove_ofx_account_bindings.py)")
-                user_forgetOFXBankingLink.setEnabled(lAdvancedMode and not isMDPlusEnabledBuild())
+                user_forgetOFXBankingLink.setEnabled(lAdvancedMode and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
                 user_forgetOFXBankingLink.setForeground(Color.RED)
 
                 user_manageCUSIPLink = JRadioButton("Reset/Fix/Edit/Add CUSIP Banking Link (remove_ofx_security_bindings.py)", False)
@@ -21712,7 +21737,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 user_updateOFXLastTxnUpdate = JRadioButton("Update the OFX Last Txn Update Date (Downloaded) field for an account (MD Versions < MD2022)", False)
                 user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download Txn date which is used to set the start date for Txn downloads - THIS CHANGES DATA!")
-                user_updateOFXLastTxnUpdate.setEnabled(lAdvancedMode and not isMDPlusEnabledBuild())
+                user_updateOFXLastTxnUpdate.setEnabled(lAdvancedMode and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
                 user_updateOFXLastTxnUpdate.setForeground(Color.RED)
 
                 user_deleteOFXBankingLogonProfile = JRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False)
@@ -21830,10 +21855,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_importMDPlusProfile)
                     userFilters.add(user_zapMDPlusProfile)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters,750,600)
-
                 while True:
                     options = ["EXIT", "PROCEED"]
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,750,600)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "Online Banking (OFX) Tools",
@@ -22481,8 +22505,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_fix_accounts_parent)
                 userFilters.add(user_fix_root_account_name)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters,600,300)
-
                 while True:
 
                     bookName = MD_REF.getCurrentAccountBook().getName().strip()
@@ -22494,6 +22516,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,600,300)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "Accounts / Categories Diagnostics, Tools, Fixes",
@@ -22709,8 +22732,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_force_change_accounts_currency)
                 userFilters.add(user_force_change_all_accounts_currency)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters,1000,500)
-
                 while True:
 
                     user_fix_curr_sec.setEnabled(lAdvancedMode and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
@@ -22762,6 +22783,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,1000,500)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "Currency / Security Diagnostics, Tools, Fixes",
@@ -22946,8 +22968,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_reverse_txn_amounts)
                 userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters,700,300)
-
                 while True:
 
                     syncFolder = None                                                                                   # noqa
@@ -22956,6 +22976,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_diagnose_fix_attachments.setEnabled(lAdvancedMode and syncFolder is None)
 
                     options = ["EXIT", "PROCEED"]
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,700,300)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "Transaction(s) Diagnostics, Tools, Fixes",
@@ -23119,8 +23140,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_delete_orphan_extensions)
                 userFilters.add(user_reset_window_display_settings)
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters,550,450)
-
                 while True:
 
                     grabProgramDir = find_the_program_install_dir()
@@ -23130,6 +23149,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,550,450)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "General Diagnostics, Tools, Fixes",
@@ -23321,8 +23341,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 _PARAM_KEY = "netsync.sync_type"
                 storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
 
-                jsp = MyJScrollPaneForJOptionPane(userFilters,650,550)
-
                 while True:
 
                     lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
@@ -23333,6 +23351,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,650,550)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "HACKER - Diagnostics, Tools, Fixes",
@@ -23868,11 +23887,8 @@ Now you will have a text readable version of the file you can open in a text edi
             frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.95,0))))
             frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.95,0))))
 
-            if isToolboxUnlocked(): _JFtitle = u">>>>>>>>>> UNLOCKED MODE <<<<<<<<<<"
-            else:                   _JFtitle = u"- Infinite Kind (co-authored by StuWareSoftSystems)..."
-
             JFrame.setDefaultLookAndFeelDecorated(True)
-            toolbox_frame_ = MyJFrame(u"Toolbox %s (%s+I for Help) - DATASET: %s" % (_JFtitle, MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
+            toolbox_frame_ = MyJFrame(u"Toolbox - Infinite Kind (co-authored by StuWareSoftSystems)... (%s+I for Help) - DATASET: %s" % (MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
             toolbox_frame_.setName(u"%s_main" %myModuleID)
 
             if (not Platform.isOSX()):
@@ -23894,6 +23910,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 dump_sys_error_to_md_console_and_errorlog()
 
             shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+
+            toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, (shortcut | Event.SHIFT_MASK)), "unlock-window")   # So Plus on Mac...
+            toolbox_frame_.getRootPane().getActionMap().put("unlock-window", self.UnlockAction(toolbox_frame_))
 
             # Add standard CMD-W keystrokes etc to close window
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
