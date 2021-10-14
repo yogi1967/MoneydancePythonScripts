@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1042 - November 2020 thru July 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1043 - November 2020 thru July 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -232,6 +232,7 @@
 # build: 1042 - Main menus enhanced to be scrollable... Toolbox now quits MD where needed..... after fix.....
 # build: 1042 - New feature: Force reset Sync settings...; changed edit lasttxndownloaddate for MD+ to reset which forces new MD popup prompt...
 # build: 1042 - Disable edit last txn download date if MD+ enabled build .....
+# build: 1043 - Bug fixes on colors...; Common code fix lAlertLevel= on Mac/Dark Mode; added Dark detection and color fixes...
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -254,7 +255,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1042"
+version_build = "1043"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -614,7 +615,7 @@ else:
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
-    # COMMON CODE ################# VERSION 102 ########################################################################
+    # COMMON CODE ################# VERSION 103 ########################################################################
     # COMMON CODE ######################################################################################################
     i_am_an_extension_so_run_headless = False                                                                           # noqa
     try:
@@ -832,6 +833,41 @@ Visit: %s (Author's site)
     decimalCharSep = getDecimalPoint(lGetPoint=True)
     groupingCharSep = getDecimalPoint(lGetGrouping=True)
 
+    def isMacDarkModeDetected():
+        darkResponse = "LIGHT"
+        if Platform.isOSX():
+            try:
+                darkResponse = subprocess.check_output("defaults read -g AppleInterfaceStyle", shell=True)
+                darkResponse = darkResponse.strip().lower()
+            except: pass
+        return ("dark" in darkResponse)
+
+    def isMDThemeDark():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            try:
+                if currentTheme.isSystemDark(): return True
+            except: pass
+            if "dark" in currentTheme.getThemeID(): return True
+            if "darcula" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeDarcula():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "darcula" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeVAQua():
+        if Platform.isOSX():
+            try:
+                currentTheme = MD_REF.getUI().getCurrentTheme()
+                if ".vaqua" in safeStr(currentTheme.getClass()).lower(): return True
+            except: pass
+        return False
+
     # JOptionPane.DEFAULT_OPTION, JOptionPane.YES_NO_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.OK_CANCEL_OPTION
     # JOptionPane.ERROR_MESSAGE, JOptionPane.INFORMATION_MESSAGE, JOptionPane.WARNING_MESSAGE, JOptionPane.QUESTION_MESSAGE, JOptionPane.PLAIN_MESSAGE
 
@@ -967,6 +1003,8 @@ Visit: %s (Author's site)
             self.lResult = [None]
             if not self.theMessage.endswith("\n"): self.theMessage+="\n"
             if self.OKButtonText == "": self.OKButtonText="OK"
+            if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
+            if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
         class WindowListener(WindowAdapter):
 
@@ -1131,7 +1169,8 @@ Visit: %s (Author's site)
 
                     if self.callingClass.theStatus:
                         _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
-                        _label1.setForeground(Color.BLUE)
+                        if not isMDThemeDark() and not isMacDarkModeDetected():
+                            _label1.setForeground(Color.BLUE)
                         _popupPanel.add(_label1)
 
                     myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
@@ -1655,7 +1694,11 @@ Visit: %s (Author's site)
         if _theColor is None or _theColor == "": _theColor = "G"
         _theColor = _theColor.upper()
         if _theColor == "R":    GlobalVars.STATUS_LABEL.setForeground(Color.RED)
-        elif _theColor == "B":  GlobalVars.STATUS_LABEL.setForeground(Color.BLUE)
+        elif _theColor == "B":
+            if not isMDThemeDark() and not isMacDarkModeDetected():
+                GlobalVars.STATUS_LABEL.setForeground(Color.BLUE)
+            else:
+                GlobalVars.STATUS_LABEL.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
         elif _theColor == "DG": GlobalVars.STATUS_LABEL.setForeground(GlobalVars.DARK_GREEN)
         else:                   GlobalVars.STATUS_LABEL.setForeground(Color.GREEN)
         return
@@ -2290,6 +2333,8 @@ Visit: %s (Author's site)
             self.lJumpToEnd = lJumpToEnd
             self.lWrapText = lWrapText
             self.lQuitMDAfterClose = lQuitMDAfterClose
+            if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
+            if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
         class QJFWindowListener(WindowAdapter):
 
@@ -2445,41 +2490,51 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
+                    mfgtc = fgc = MD_REF.getUI().getColors().defaultTextForeground
+                    mbgtc = bgc = MD_REF.getUI().getColors().defaultBackground
+                    if (not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())\
+                            or (not isMacDarkModeDetected() and isMDThemeDarcula()):
+                        # Swap the colors round when text (not a button)
+                        mfgtc = MD_REF.getUI().getColors().defaultBackground
+                        mbgtc = MD_REF.getUI().getColors().defaultTextForeground
+                    opq = False
+
                     printButton = JButton("Print")
                     printButton.setToolTipText("Prints the output displayed in this window to your printer")
-                    printButton.setOpaque(True)
-                    printButton.setBackground(Color.WHITE); printButton.setForeground(Color.BLACK)
+                    printButton.setOpaque(opq)
+                    printButton.setBackground(bgc); printButton.setForeground(fgc)
                     printButton.addActionListener(self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
 
                     if GlobalVars.defaultPrinterAttributes is None:
                         printPageSetup = JButton("Page Setup")
                         printPageSetup.setToolTipText("Printer Page Setup")
-                        printPageSetup.setOpaque(True)
-                        printPageSetup.setBackground(Color.WHITE); printPageSetup.setForeground(Color.BLACK)
+                        printPageSetup.setOpaque(opq)
+                        printPageSetup.setBackground(bgc); printPageSetup.setForeground(fgc)
                         printPageSetup.addActionListener(self.callingClass.QuickJFramePageSetup())
 
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
-                    saveButton.setOpaque(True)
-                    saveButton.setBackground(Color.WHITE); saveButton.setForeground(Color.BLACK)
+                    saveButton.setOpaque(opq)
+                    saveButton.setBackground(bgc); saveButton.setForeground(fgc)
                     saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
 
                     wrapOption = JCheckBox("Wrap Contents (Screen & Print)", self.callingClass.lWrapText)
                     wrapOption.addActionListener(self.callingClass.ToggleWrap(self.callingClass, theJText))
+                    wrapOption.setForeground(mfgtc); wrapOption.setBackground(mbgtc)
 
                     topButton = JButton("Top")
-                    topButton.setOpaque(True)
-                    topButton.setBackground(Color.WHITE); topButton.setForeground(Color.BLACK)
+                    topButton.setOpaque(opq)
+                    topButton.setBackground(bgc); topButton.setForeground(fgc)
                     topButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lTop=True))
 
                     botButton = JButton("Bottom")
-                    botButton.setOpaque(True)
-                    botButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
+                    botButton.setOpaque(opq)
+                    botButton.setBackground(bgc); botButton.setForeground(fgc)
                     botButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lBottom=True))
 
                     closeButton = JButton("Close")
-                    closeButton.setOpaque(True)
-                    closeButton.setBackground(Color.WHITE); botButton.setForeground(Color.BLACK)
+                    closeButton.setOpaque(opq)
+                    closeButton.setBackground(bgc); closeButton.setForeground(fgc)
                     closeButton.addActionListener(self.callingClass.CloseAction(jInternalFrame))
 
                     if Platform.isOSX():
@@ -2596,15 +2651,15 @@ Visit: %s (Author's site)
                     aboutPanel.setPreferredSize(Dimension(1120, 525))
 
                     _label1 = JLabel(pad("Author: Stuart Beesley", 800))
-                    _label1.setForeground(Color.BLUE)
+                    if not isMDThemeDark() and not isMacDarkModeDetected(): _label1.setForeground(Color.BLUE)
                     aboutPanel.add(_label1)
 
                     _label2 = JLabel(pad("StuWareSoftSystems (2020-2021)", 800))
-                    _label2.setForeground(Color.BLUE)
+                    if not isMDThemeDark() and not isMacDarkModeDetected(): _label2.setForeground(Color.BLUE)
                     aboutPanel.add(_label2)
 
                     _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(myScriptName, version_build), 800))
-                    _label3.setForeground(Color.BLUE)
+                    if not isMDThemeDark() and not isMacDarkModeDetected(): _label3.setForeground(Color.BLUE)
                     aboutPanel.add(_label3)
 
                     displayString=scriptExit
@@ -2614,8 +2669,6 @@ Visit: %s (Author's site)
                     displayJText.setLineWrap(False)
                     displayJText.setWrapStyleWord(False)
                     displayJText.setMargin(Insets(8, 8, 8, 8))
-                    # displayJText.setBackground((mdGUI.getColors()).defaultBackground)
-                    # displayJText.setForeground((mdGUI.getColors()).defaultTextForeground)
 
                     aboutPanel.add(displayJText)
 
@@ -3474,7 +3527,15 @@ Visit: %s (Author's site)
             textArray.append(u"Sync WARNING: Dropbox sync will not work until you add the missing .moneydancesync folder - use advanced mode to fix!")
 
         textArray.append(u"\nTHEMES")
-        textArray.append(u"Your selected Theme: %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)))
+
+        try:  x = u"'%s' : %s" %(MD_REF.getUI().getCurrentTheme(),UIManager.getLookAndFeel())
+        except:  x = u"failed to get Theme details"
+
+        y = u"(DARK THEME)" if (isMDThemeDark()) else u""
+        z = u"(Mac Dark Mode detected)" if (Platform.isOSX() and isMacDarkModeDetected()) else u""
+
+        textArray.append(u"Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID), x, y, z))
+
         # noinspection PyUnresolvedReferences
         x = ThemeInfo.customThemeFile.getCanonicalPath()
         if not os.path.exists(x):
@@ -19288,8 +19349,8 @@ Now you will have a text readable version of the file you can open in a text edi
         getTimeStamp = myPopupAskForInput(toolbox_frame_,"CONVERT TIMESTAMP","TimeStamp:","Enter the TimeStamp (Milliseconds) to see the readable date")
 
         setDisplayStatus(" ", "DG")
-        if getTimeStamp is None or getTimeStamp == "" or int(getTimeStamp) < 1: return
 
+        if getTimeStamp is None or getTimeStamp == "" or not StringUtils.isInteger(getTimeStamp) or int(getTimeStamp) < 1: return
         readableStamp = get_time_stamp_as_nice_text(int(getTimeStamp))
 
         txt = "Convert Timestamp (%s): %s" %(getTimeStamp,readableStamp)
@@ -24090,9 +24151,19 @@ Now you will have a text readable version of the file you can open in a text edi
             else:
                 save_useScreenMenuBar = "true"
 
+            mfgtc = fgc = MD_REF.getUI().getColors().defaultTextForeground
+            mbgtc = bgc = MD_REF.getUI().getColors().defaultBackground
+            if (not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())\
+                    or (not isMacDarkModeDetected() and isMDThemeDarcula()):
+                # Swap the colors round when text (not a button)
+                mfgtc = MD_REF.getUI().getColors().defaultBackground
+                mbgtc = MD_REF.getUI().getColors().defaultTextForeground
+            opq = False
+
             mb = JMenuBar()
             menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
             menu1.setMnemonic(KeyEvent.VK_T)
+            menu1.setForeground(mfgtc); menu1.setBackground(mbgtc)
 
             menuItem0 = JMenuItem("Basic Mode")
             menuItem0.setMnemonic(KeyEvent.VK_B)
@@ -24166,6 +24237,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             menuH = JMenu("<html>HELP</html>")
             menuH.setMnemonic(KeyEvent.VK_I)
+            menuH.setForeground(mfgtc); menuH.setBackground(mbgtc)
 
             menuItemH = JMenuItem("Help")
             menuItemH.setMnemonic(KeyEvent.VK_I)
@@ -24195,27 +24267,28 @@ Now you will have a text readable version of the file you can open in a text edi
 
             btnConsole = JButton("Launch Console Window")
             btnConsole.setToolTipText("launches the Moneydance Console Window (and turns DEBUG on).. Useful for extra diagnostics!")
-            btnConsole.setOpaque(True)
-            btnConsole.setBackground(Color.WHITE)
-            btnConsole.setForeground(Color.BLACK)
+
+            btnConsole.setOpaque(opq)
+            btnConsole.setBackground(bgc)
+            btnConsole.setForeground(fgc)
 
             btnSaveConsole = JButton("Save Console Log")
             btnSaveConsole.setToolTipText("Copy/save the Console Error log file to a directory of your choosing..")
-            btnSaveConsole.setOpaque(True)
-            btnSaveConsole.setBackground(Color.WHITE)
-            btnSaveConsole.setForeground(Color.BLACK)
+            btnSaveConsole.setOpaque(opq)
+            btnSaveConsole.setBackground(bgc)
+            btnSaveConsole.setForeground(fgc)
 
             btnOpenMDFolder = JButton("Open MD Folder")
             btnOpenMDFolder.setToolTipText("Open the selected Moneydance (internal) folder in Explorer/Finder window (etc)")
-            btnOpenMDFolder.setOpaque(True)
-            btnOpenMDFolder.setBackground(Color.WHITE)
-            btnOpenMDFolder.setForeground(Color.BLACK)
+            btnOpenMDFolder.setOpaque(opq)
+            btnOpenMDFolder.setBackground(bgc)
+            btnOpenMDFolder.setForeground(fgc)
 
             btnCopyDiagnostics = JButton("Copy/Save/Print Diagnostics below")
             btnCopyDiagnostics.setToolTipText("Option to Copy the contents of the main diagnostics window (below) to the Clipboard.., or save to file, or print...")
-            btnCopyDiagnostics.setOpaque(True)
-            btnCopyDiagnostics.setBackground(Color.WHITE)
-            btnCopyDiagnostics.setForeground(Color.BLACK)
+            btnCopyDiagnostics.setOpaque(opq)
+            btnCopyDiagnostics.setBackground(bgc)
+            btnCopyDiagnostics.setForeground(fgc)
 
             mb.add(btnConsole)
             mb.add(Box.createRigidArea(Dimension(10, 0)))
