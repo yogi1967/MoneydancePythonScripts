@@ -233,6 +233,7 @@
 # build: 1042 - New feature: Force reset Sync settings...; changed edit lasttxndownloaddate for MD+ to reset which forces new MD popup prompt...
 # build: 1042 - Disable edit last txn download date if MD+ enabled build .....
 # build: 1043 - Bug fixes on colors...; Common code fix lAlertLevel= on Mac/Dark Mode; added Dark detection and color fixes...
+# build: 1043 - Enhanced cleanup missing banking links to detect/delete orphaned md+ connections
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -415,6 +416,7 @@ else:
     import csv
     import datetime
     import traceback
+    import subprocess
 
     from org.python.core.util import FileUtil
 
@@ -498,7 +500,6 @@ else:
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
     import re
     import fnmatch
-    import subprocess
     import time
     import shutil
     from collections import OrderedDict
@@ -604,7 +605,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4055                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4056                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -9190,12 +9191,17 @@ Please update any that you use before proceeding....
 
         _THIS_METHOD_NAME = "OFX Cleanup Missing Banking Links"
 
+        PLAID_MAP_KEY = "map.md:plaid:::"
+
+        mappingObject = None
         if isMDPlusEnabledBuild():
             p_osl = OnlineServiceLink.getDeclaredConstructor([String, String, Account])                                 # noqa
             p_osl.setAccessible(True)
+            mappingObject = MD_REF.getCurrentAccountBook().getItemForID("online_acct_mapping")
 
         ####################################################################################################################
         invalid_olblink_links = []      # New for MD2022 onwards
+        invalid_mapping_links = []      # New for MD2022 onwards
         invalidBankingLinks = []
         invalidBillPayLinks = []
 
@@ -9224,11 +9230,28 @@ Please update any that you use before proceeding....
 
         if isMDPlusEnabledBuild(): p_osl.setAccessible(False)
 
-        totalDead = len(invalidBankingLinks) + len(invalidBillPayLinks) + len(invalid_olblink_links)
-        myPrint("B", "%s: WARNING - %s dead banking links found!" %(_THIS_METHOD_NAME.upper(), totalDead))
+        if mappingObject is not None:
+            myPrint("B","Searching for Orphaned mapping links (MD2022 onwards) (general cleanup routine)....")
+
+            acctXRefDict = getAvailAccountsXRefDict()
+
+            for objectKey in mappingObject.getParameterKeys():
+                _value = mappingObject.getParameter(objectKey)
+
+                if objectKey.startswith("map."):
+                    if objectKey.startswith(PLAID_MAP_KEY):
+                        plaid_acct = objectKey[len(PLAID_MAP_KEY):].strip()
+                        acctLookup = acctXRefDict.get(plaid_acct)           # type: StoreMDPlusLinkages
+                        if acctLookup is None: invalid_mapping_links.append(objectKey)
+
+                    mappedAccount = MD_REF.getCurrentAccountBook().getAccountByUUID(_value)
+                    if mappedAccount is None: invalid_mapping_links.append(objectKey)
+
+        totalDead = len(invalidBankingLinks) + len(invalidBillPayLinks) + len(invalid_olblink_links) + len(invalid_mapping_links)
+        myPrint("B", "%s: WARNING - %s dead banking links (and/or orphaned mapping links) found!" %(_THIS_METHOD_NAME.upper(), totalDead))
 
         if totalDead < 1:
-            txt = "%s: CONGRATULATIONS - I found no Invalid Online Banking Links......." %(_THIS_METHOD_NAME)
+            txt = "%s: CONGRATULATIONS - I found no Invalid Online Banking Links / Orphaned Mapping links......." %(_THIS_METHOD_NAME)
             myPrint("B", txt)
             if not lAutoPurge:
                 setDisplayStatus(txt, "B")
@@ -9242,19 +9265,28 @@ Please update any that you use before proceeding....
             a.setBankingFI(None)
             a.syncItem()
             myPrint("B","...removed the dead link Banking link on account %s" %(a))
+
         for a in invalidBillPayLinks:
             a.setBillPayFI(None)
             a.syncItem()
             myPrint("B","...removed the dead link BillPay link on account %s" %(a))
+
         for alink in invalid_olblink_links:
             alink[0].setOnlineIDForServiceID(alink[1], None)
             alink[0].syncItem()
             myPrint("B","...removed the dead link 'olblink.' link on account %s" %(alink[0]))
 
-        del invalidBankingLinks, invalidBillPayLinks, invalid_olblink_links, accounts
+        if mappingObject is not None and len(invalid_mapping_links) > 0:
+            mappingObject.setEditingMode()
+            for maplink in invalid_mapping_links:
+                myPrint("B","...removed the orphaned mapping link: %s : %s" %(maplink, mappingObject.getParameter(maplink)))
+                mappingObject.setParameter(maplink, None)
+            mappingObject.syncItem()
+
+        del invalidBankingLinks, invalidBillPayLinks, invalid_olblink_links, accounts, invalid_mapping_links, mappingObject
         ####################################################################################################################
 
-        txt = "%s dead/missing Online Banking links successfully removed" %(totalDead)
+        txt = "%s dead/missing Online Banking links successfully removed (review console for details)" %(totalDead)
         myPrint("B", txt)
 
         if not lAutoPurge:
@@ -9769,6 +9801,10 @@ Please update any that you use before proceeding....
 
         licenseObject.syncItem()
         MD_REF.getUI().getMain().saveCurrentAccount()
+
+        # Clear the cache of tokens.... It will rebuild itself...
+        MD_REF.getCurrentAccountBook().getLocalStorage().removeSubset("mdp_items")
+        MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
 
         del importMDPlusData, licenseObject
 
@@ -13164,7 +13200,8 @@ now after saving the file, restart Moneydance
         root = MD_REF.getRootAccount()
         MD_REF.getCurrentAccount().getBook().notifyAccountModified(root)
 
-        txt = "The Account: %s has been changed to Curr: %s - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD & REVIEW" %(selectedAccount.getAccountName(),selectedAccount.getCurrencyType())
+        txt = "The Account: %s has been changed to Curr: %s - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD & REVIEW"\
+              %(selectedAccount.getAccountName(),selectedAccount.getCurrencyType())                                     # noqa
         setDisplayStatus(txt, "R")
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
