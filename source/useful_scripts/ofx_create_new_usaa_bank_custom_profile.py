@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 18) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 19) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -68,6 +68,7 @@
 # build: 16 - Updating common code - QuickJFrame()
 # build: 17 - Update message on view last download dates window
 # build: 18 - Common code tweaks
+# build: 19 - Tweak to Authentication Cache routine.... Fixed a bug (that didn't matter too much)...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -75,7 +76,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "18"
+version_build = "19"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -3167,7 +3168,7 @@ Visit: %s (Author's site)
     del sNum
 
     newService = OnlineService(book, manualFIInfo)
-    newService.setParameter(PARAMETER_KEY,True)
+    newService.setParameter(PARAMETER_KEY, "python fix script")
     newService.syncItem()
 
     mappingObjectClass = None
@@ -3303,29 +3304,36 @@ Visit: %s (Author's site)
     if "DEFAULT" not in realmsToCheck:
         realmsToCheck.insert(0,"DEFAULT")       # noqa
 
+    newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userID),URLEncoder.encode(password))
+
     for realm in realmsToCheck:
-        myPrint("B", "Realm: %s current User ID: %s" %(realm, service.getUserId(realm, None)))        # noqa
+
+        myPrint("B", "Realm: %s current User ID: %s" %(realm, service.getUserId(realm, None)))
+
+        authKey = "ofx:" + realm
+        authObj = service.getCachedAuthentication(authKey)
+        myPrint("B", "Realm: %s old Cached Authentication: %s" %(realm, authObj))
+        myPrint("B", "   >> ** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
+        service.cacheAuthentication(authKey, newAuthObj)
 
         for olacct in listAccountMDProxies:
 
-            authKey = "ofx:" + realm
-            authObj = service.getCachedAuthentication(authKey)                              # noqa
-            myPrint("B", "Realm: %s Cached Authentication: %s" %(realm, authObj))
-
-            newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userID),URLEncoder.encode(password))
-
-            myPrint("B", "** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
-            service.cacheAuthentication(authKey, newAuthObj)        # noqa
-
             authKey = "ofx:" + (realm + "::" + olacct[_ACCOUNT].getAccountKey())
-            authObj = service.getCachedAuthentication(authKey)        # noqa
-            myPrint("B", "Realm: %s Account Key: %s Cached Authentication: %s" %(realm, olacct[_ACCOUNT].getAccountKey(),authObj))
-            myPrint("B", "** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
-            service.cacheAuthentication(authKey, newAuthObj)        # noqa
+            authObj = service.getCachedAuthentication(authKey)
+            myPrint("B", "Realm: %s Account Key: %s old Cached Authentication: %s" %(realm, olacct[_ACCOUNT].getAccountKey(),authObj))
+            myPrint("B", "   >>** Setting new cached authentication from %s to: %s" %(authKey, newAuthObj))
+            service.cacheAuthentication(authKey, newAuthObj)
 
-            myPrint("B", "Realm: %s now UserID: %s" %(realm, userID))
+        myPrint("B", "Realm: %s now UserID: %s" %(realm, userID))
+        myPrint("B", "-------------------------")
 
     ####################################################################################################################
+    MD_REF.getCurrentAccount().getBook().getLocalStorage().save()  # Flush settings to disk before changes
+    ####################################################################################################################
+
+    myPrint("B","FINISHED UPDATES")
+    myPrint("B","----------------")
+
 
     last_date_options = ["NO (FINISHED)", "YES - VIEW LAST TXN DOWNLOAD DATES"]
     theResult = JOptionPane.showOptionDialog(None,

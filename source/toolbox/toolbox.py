@@ -3461,8 +3461,8 @@ Visit: %s (Author's site)
             x = u"***************"
         textArray.append(u"'Master' / Encryption Passphrase: %s" %x)
 
-        x = u"Encryption Store Online Banking (OFX) Passwords in File: %s" %(MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean(u"store_passwords", False))
-        if MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean(u"store_passwords", False):
+        x = u"Encryption Store Online Banking (OFX) Passwords in File: %s" %(isCachingPasswords())
+        if isCachingPasswords():
             textArray.append(x+u" (This means you are able to save your online banking passwords)")
         else:
             textArray.append(x+u"\n>>You cannot save online banking passwords until you set a 'Master' (encryption) password **AND** select 'Store Online Passwords in File'\n")
@@ -4600,18 +4600,18 @@ Visit: %s (Author's site)
         return theData
 
     def isUserEncryptionPassphraseSet():
-
         try:
             keyFile = File(MD_REF.getCurrentAccount().getBook().getRootFolder(), "key")
-
             keyInfo = SyncRecord()
             fin = FileInputStream(keyFile)
             keyInfo.readSet(fin)
             fin.close()
             return keyInfo.getBoolean("userpass", False)
-        except:
-            pass
+        except: pass
         return False
+
+    def isCachingPasswords():
+        return (isUserEncryptionPassphraseSet() and MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
 
     def getMDEncryptionKey():
 
@@ -4899,8 +4899,7 @@ Visit: %s (Author's site)
 
         OFX = []
 
-        lCachePasswords = \
-            (isUserEncryptionPassphraseSet() and MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
+        lCachePasswords = isCachingPasswords()
 
         # Build a list of Moneydance accounts that are enabled for download and have a service profile linked....
         listAccountMDProxies=[]
@@ -5074,16 +5073,18 @@ Visit: %s (Author's site)
                         if userID is not None and userID != "":
                             OFX.append("Realm: %s Account's UserID: %s" %(realm, userID))
 
-                        if lCachePasswords:
-                            authKey = "ofx:" + realm
-                            authObj = service.getCachedAuthentication(authKey)
-                            if authObj is not None and authObj != "":
-                                OFX.append("Realm: %s Cached Authentication: %s" %(realm, authObj))
+                        if not lCachePasswords:
+                            OFX.append("** NOTE: Any Cached Authentication Keys listed below will not be saved when you exit **")
 
-                            authKey = "ofx:" + (realm + "::" + olacct[0].getAccountKey())
-                            authObj = service.getCachedAuthentication(authKey)
-                            if authObj is not None and authObj != "":
-                                OFX.append("Realm: %s Account Key: %s (Key: %s / AccNum: %s) Cached Authentication: %s" %(realm, olacct[0].getAccountKey(), olacct[0].getOFXAccountKey(), olacct[0].getOFXAccountNumber(), authObj))
+                        authKey = "ofx:" + realm
+                        authObj = service.getCachedAuthentication(authKey)
+                        if authObj is not None and authObj != "":
+                            OFX.append("Realm: %s Cached Authentication: %s" %(realm, authObj))
+
+                        authKey = "ofx:" + (realm + "::" + olacct[0].getAccountKey())
+                        authObj = service.getCachedAuthentication(authKey)
+                        if authObj is not None and authObj != "":
+                            OFX.append("Realm: %s Account Key: %s (Key: %s / AccNum: %s) Cached Authentication: %s" %(realm, olacct[0].getAccountKey(), olacct[0].getOFXAccountKey(), olacct[0].getOFXAccountNumber(), authObj))
 
                         if service.getSessionCookie(userID) is not None:
                             OFX.append("Session Cookie: %s" %(service.getSessionCookie(userID)))
@@ -7834,33 +7835,45 @@ Please update any that you use before proceeding....
     def clearOneServiceAuthCache():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        authKeyPrefix = "_authentication."
-        output = "VIEW ALL EXISTING AUTHENTICATION KEYS\n" \
-                 " ====================================\n\n"
-        LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
-        keys=sorted(LS.keys())
-        for theKey in keys:
-            value = LS.get(theKey)    # NOTE: .get loses the underlying type and thus becomes a string
-            if not theKey.lower().startswith(authKeyPrefix): continue
-            output+="%s %s\n" %(pad(theKey,40),value)
+        output = "VIEW ALL CACHED AUTHENTICATION KEYS\n" \
+                 " ==================================\n\n"
+
+        lCachePasswords = isCachingPasswords()
+        _auth = getUpdatedAuthenticationKeys()      # type: SyncRecord
+        if len(_auth) > 0:
+            keys = sorted(_auth.keys())                                                                                 # noqa
+            for theKey in keys:
+                value = _auth.get(theKey)                                                                               # noqa
+                output += pad("Key:%s" %(theKey),40)+" Value: %s\n" %(value.strip())
+        else:
+            if not lCachePasswords: output += "** Your system is not setup to cache passwords... Cannot display this session's cache **\n"
+            output += "<NONE>\n"
+
         output+="\n<END>"
-        jif = QuickJFrame("VIEW ALL EXISTING AUTHENTICATION KEYS",output,lAlertLevel=2,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("VIEW ALL CACHED AUTHENTICATION KEYS",output,lAlertLevel=2,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
         serviceList = MD_REF.getCurrentAccountBook().getOnlineInfo().getAllServices()
+
+        newServiceList = []
+        for sv in serviceList:
+            if not isToolboxUnlocked() and sv.getTIKServiceID() == "md:plaid": continue
+            newServiceList.append(StoreService(sv))
 
         service = JOptionPane.showInputDialog(jif,
                                               "Select a service to delete",
                                               "CLEAR AUTHENTICATION FROM ONE SERVICE",
                                               JOptionPane.INFORMATION_MESSAGE,
                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-                                              serviceList.toArray(),
-                                              None)
+                                              newServiceList,
+                                              None)             # type: StoreService
 
         if not service:
             txt = "CLEAR AUTHENTICATION FROM ONE SERVICE - No Service was selected - no changes made.."
             setDisplayStatus(txt, "R")
             jif.dispose()       # already within the EDT
             return
+
+        service = service.obj                                                                                           # noqa
 
         if not backup_local_storage_settings():
             txt = "'CLEAR AUTHENTICATION FROM ONE SERVICE': ERROR making backup of LocalStorage() ./safe/settings - no changes made!"
@@ -7872,8 +7885,7 @@ Please update any that you use before proceeding....
         if confirm_backup_confirm_disclaimer(jif,"CLEAR AUTHENTICATION FROM ONE SERVICE","Clear Authentication Password(s) for service:%s?" %(service)):
             # noinspection PyUnresolvedReferences
             service.clearAuthenticationCache()
-            LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
-            LS.save()
+            MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
             play_the_money_sound()
             txt = "CLEAR AUTHENTICATION FROM ONE SERVICE - Password(s) for %s have been cleared" %(service)
             setDisplayStatus(txt, "R")
@@ -7890,15 +7902,20 @@ Please update any that you use before proceeding....
     def clearAllServicesAuthCache():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        authKeyPrefix = "_authentication."
-        output = "VIEW ALL EXISTING AUTHENTICATION KEYS\n" \
-                 " ====================================\n\n"
-        LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
-        keys=sorted(LS.keys())
-        for theKey in keys:
-            value = LS.get(theKey)    # NOTE: .get loses the underlying type and thus becomes a string
-            if not theKey.lower().startswith(authKeyPrefix): continue
-            output+="%s %s\n" %(pad(theKey,40),value)
+        output = "VIEW ALL CACHED AUTHENTICATION KEYS\n" \
+                 " ==================================\n\n"
+
+        lCachePasswords = isCachingPasswords()
+        _auth = getUpdatedAuthenticationKeys()      # type: SyncRecord
+        if len(_auth) > 0:
+            keys = sorted(_auth.keys())                                                                                 # noqa
+            for theKey in keys:
+                value = _auth.get(theKey)                                                                               # noqa
+                output += pad("Key:%s" %(theKey),40)+" Value: %s\n" %(value.strip())
+        else:
+            if not lCachePasswords: output += "** Your system is not setup to cache passwords... Cannot display this session's cache **\n"
+            output += "<NONE>\n"
+
         output+="\n<END>"
         jif = QuickJFrame("VIEW ALL EXISTING AUTHENTICATION KEYS",output,lAlertLevel=2,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
@@ -7912,6 +7929,7 @@ Please update any that you use before proceeding....
         if confirm_backup_confirm_disclaimer(jif,"CLEAR ALL SERVICE(S)' AUTHENTICATION","Clear Authentication All Password(s) for **ALL** service(s)?"):
 
             MD_REF.getUI().getOnlineManager().clearAuthenticationCache()
+            MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
             play_the_money_sound()
             txt = "CLEAR ALL SERVICE(S)' AUTHENTICATION - **ALL** Password(s) for ALL Services have been cleared"
             setDisplayStatus(txt, "R")
@@ -8623,8 +8641,7 @@ Please update any that you use before proceeding....
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
-        if not (isUserEncryptionPassphraseSet()
-                and MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False)):
+        if not isCachingPasswords():
             myPopupInformationBox(toolbox_frame_,"WARNING: Your system is not setup to cache/store Authentication details. I suggest you exit","Manage OFX Authentication",JOptionPane.ERROR_MESSAGE)
 
         user_clearOneServiceAuthCache =         JRadioButton("Clear the Authentication Cache (Passwords) for One Service / Bank Profile", False)
@@ -10759,6 +10776,28 @@ Please update any that you use before proceeding....
             # md:viewreminders	One of the reminders has been selected
             # md:licenseupdated	The user has updated the license
 
+    def getUpdatedAuthenticationKeys():
+
+        _storage = SyncRecord()
+        _authenticationCache = SyncRecord()
+
+        try:
+            LS = MD_REF.getCurrentAccount().getBook().getLocalStorage()
+            LS.save()
+
+            localFile = File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(),"safe","settings"))
+            if localFile.exists() and localFile.canRead():
+                inx = LS.openFileForReading("settings")
+                _storage.readSet(inx)
+                _authenticationCache = _storage.getSubset("_authentication")
+                inx.close()
+        except:
+            myPrint("B","@@@ ERROR Reading authentication cache from settings @@@")
+            dump_sys_error_to_md_console_and_errorlog()
+
+        del _storage
+        return _authenticationCache
+
     class GeekOutModeButtonAction(AbstractAction):
 
         def __init__(self, lOFX=False, EDIT_MODE=False):
@@ -11337,15 +11376,44 @@ Please update any that you use before proceeding....
                             if root.getLongParameter(convertTimeStamp, 0) > 0:
                                 output += "%s %s\n" % (pad("TIMESTAMP('%s'):" %(convertTimeStamp),70), get_time_stamp_as_nice_text(root.getLongParameter(convertTimeStamp, 0))  )
 
+
+                if selectedWhat == what[_BOOKKEYS] or lOFX or lSearch:  # Local Storage - authentication cache
+
+                    output += '\n ====== BOOK>LOCAL STORAGE KEYS - CACHED AUTHENTICATION ======\n'
+
+                    lCachePasswords = isCachingPasswords()
+
+                    _auth = getUpdatedAuthenticationKeys()      # type: SyncRecord
+                    if len(_auth) > 0:
+                        if not lCachePasswords: output += "** NOTE THESE WILL NOT BE SAVED/REMEMBERED WHEN YOU RESTART MD **\n"
+                        keys = sorted(_auth.keys())                                                                     # noqa
+                        for theKey in keys:
+                            value = _auth.get(theKey)                                                                   # noqa
+
+                            if lSearch:
+                                if lKeys and not (searchWhat.lower() in theKey.lower()): continue
+                                elif lKeyData and not (searchWhat.lower() in value.lower()): continue
+                            output += pad("Key:%s" %theKey,90)+" Value: %s\n" %(value.strip())
+                    else:
+                        if not lCachePasswords:
+                            output += "** Your system is not setup to cache passwords... Cannot display this session's cache **\n"
+                            output += "** Use Menu Online Banking (OFX) Tools > View installed Bank / Service Profiles to view specific cached items **\n"
+                        output += "<NONE>\n"
+
+
                 if selectedWhat == what[_BOOKKEYS] or lSync or lOFX or lSizes or lSearch:  # Local Storage
 
                     output += '\n ====== BOOK>LOCAL STORAGE KEYS ======\n'
+
                     LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
                     keys=sorted(LS.keys())
 
                     last = None
                     for theKey in keys:
                         value = LS.get(theKey)    # NOTE: .get loses the underlying type and thus becomes a string
+
+                        if theKey.startswith("_authentication"): continue
+
                         if lSync and "sync" not in theKey.lower(): continue
                         if lSync and "netsync.del_item" in theKey.lower(): continue
                         if lOFX and not ("ofx" in theKey.lower() or "ol." in theKey.lower() or "olb." in theKey.lower()
