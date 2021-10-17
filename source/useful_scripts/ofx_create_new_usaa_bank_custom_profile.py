@@ -2501,6 +2501,8 @@ Visit: %s (Author's site)
 
     def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD)
 
+    PARAMETER_KEY = "ofx_create_new_usaa_bank_custom_profile"
+
     book = MD_REF.getCurrentAccountBook()
 
     mappingObject = None
@@ -3165,24 +3167,25 @@ Visit: %s (Author's site)
     del sNum
 
     newService = OnlineService(book, manualFIInfo)
+    newService.setParameter(PARAMETER_KEY,True)
     newService.syncItem()
 
-    mappingObject = None
+    mappingObjectClass = None
     if isMDPlusEnabledBuild():
         myPrint("B", "Grabbing reference to OnlineAccountMapping() with new service profile...")
-        mappingObject =  OnlineAccountMapping(book, newService)
+        mappingObjectClass =  OnlineAccountMapping(book, newService)
 
         if selectedBankAccount:
             myPrint("B", ".. setting bank account %s into map for: %s" %(bankID, selectedBankAccount))
-            mappingObject.setMapping(str(bankID).zfill(10), selectedBankAccount)
+            mappingObjectClass.setMapping(str(bankID).zfill(10), selectedBankAccount)
 
         if selectedCCAccount:
             myPrint("B", ".. setting cc account %s into map for: %s" %(ccID, selectedCCAccount))
-            mappingObject.setMapping(str(ccID), selectedCCAccount)
+            mappingObjectClass.setMapping(str(ccID), selectedCCAccount)
 
-        mappingObject.syncItem()
+        mappingObjectClass.syncItem()
 
-    del mappingObject
+    del mappingObjectClass
 
     ####################################################################################################################
 

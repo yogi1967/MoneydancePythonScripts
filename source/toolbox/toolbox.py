@@ -233,8 +233,9 @@
 # build: 1042 - New feature: Force reset Sync settings...; changed edit lasttxndownloaddate for MD+ to reset which forces new MD popup prompt...
 # build: 1042 - Disable edit last txn download date if MD+ enabled build .....
 # build: 1043 - Bug fixes on colors...; Common code fix lAlertLevel= on Mac/Dark Mode; added Dark detection and color fixes...
-# build: 1043 - Enhanced cleanup missing banking links to detect/delete orphaned md+ connections
+# build: 1043 - Enhanced cleanup missing banking links to detect/delete orphaned md+ connections; tweak to GeekOut on OFX Data (Accounts)
 
+# todo - Restore and retain syncid settings....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -9238,14 +9239,20 @@ Please update any that you use before proceeding....
             for objectKey in mappingObject.getParameterKeys():
                 _value = mappingObject.getParameter(objectKey)
 
+                if objectKey.startswith("map.none") or _value == "_none_": continue
+
                 if objectKey.startswith("map."):
                     if objectKey.startswith(PLAID_MAP_KEY):
                         plaid_acct = objectKey[len(PLAID_MAP_KEY):].strip()
                         acctLookup = acctXRefDict.get(plaid_acct)           # type: StoreMDPlusLinkages
-                        if acctLookup is None: invalid_mapping_links.append(objectKey)
+                        if acctLookup is None:
+                            myPrint("B","...Found dead/orphaned MD+/Plaid mapping link ('%s' : '%s')" %(objectKey, _value))
+                            invalid_mapping_links.append(objectKey)
 
                     mappedAccount = MD_REF.getCurrentAccountBook().getAccountByUUID(_value)
-                    if mappedAccount is None: invalid_mapping_links.append(objectKey)
+                    if mappedAccount is None:
+                        myPrint("B","...Found orphaned mapping link ('%s' : '%s')" %(objectKey, _value))
+                        invalid_mapping_links.append(objectKey)
 
         totalDead = len(invalidBankingLinks) + len(invalidBillPayLinks) + len(invalid_olblink_links) + len(invalid_mapping_links)
         myPrint("B", "%s: WARNING - %s dead banking links (and/or orphaned mapping links) found!" %(_THIS_METHOD_NAME.upper(), totalDead))
@@ -11396,7 +11403,10 @@ Please update any that you use before proceeding....
                                     output += pad(">> (Account Key):",50)+safeStr(my_get_account_key(acct))+"\n"
 
                             getOnlineData = MyGetDownloadedTxns(acct)
-                            if getOnlineData is not None:
+                            if (getOnlineData is not None and
+                                    (getOnlineData.getParameter("ofx_last_txn_update", None) is not None
+                                            or getOnlineData.getParameter("ol.availbal", None) is not None
+                                            or getOnlineData.getParameter("ol.ledgerbal", None) is not None)):
                                 output += (">> OnlineTxnList data:\n")
                                 for _k in sorted(getOnlineData.getParameterKeys()):
                                     _v = getOnlineData.getParameter(_k)
