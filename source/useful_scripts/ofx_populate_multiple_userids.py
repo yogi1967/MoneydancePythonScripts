@@ -303,7 +303,7 @@ else:
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
-    # COMMON CODE ################# VERSION 103 ########################################################################
+    # COMMON CODE ################# VERSION 104 ########################################################################
     # COMMON CODE ######################################################################################################
     i_am_an_extension_so_run_headless = False                                                                           # noqa
     try:
@@ -857,8 +857,7 @@ Visit: %s (Author's site)
 
                     if self.callingClass.theStatus:
                         _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
-                        if not isMDThemeDark() and not isMacDarkModeDetected():
-                            _label1.setForeground(Color.BLUE)
+                        _label1.setForeground(getColorBlue())
                         _popupPanel.add(_label1)
 
                     myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
@@ -1372,23 +1371,27 @@ Visit: %s (Author's site)
             text = "Error in classPrinter(): %s: %s" %(className, theObject)
         return text
 
-    def setDisplayStatus(_theStatus, _theColor="G"):
+    def getColorBlue():
+        if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
+        return (MD_REF.getUI().getColors().defaultTextForeground)
+
+    def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
+
+    def getColorDarkGreen(): return (MD_REF.getUI().getColors().budgetHealthyColor)
+
+    def setDisplayStatus(_theStatus, _theColor=None):
         """Sets the Display / Status label on the main diagnostic display: G=Green, B=Blue, R=Red, DG=Dark Green"""
 
         if GlobalVars.STATUS_LABEL is None or not isinstance(GlobalVars.STATUS_LABEL, JLabel): return
 
         GlobalVars.STATUS_LABEL.setText((_theStatus).ljust(800, " "))
 
-        if _theColor is None or _theColor == "": _theColor = "G"
+        if _theColor is None or _theColor == "": _theColor = "X"
         _theColor = _theColor.upper()
-        if _theColor == "R":    GlobalVars.STATUS_LABEL.setForeground(Color.RED)
-        elif _theColor == "B":
-            if not isMDThemeDark() and not isMacDarkModeDetected():
-                GlobalVars.STATUS_LABEL.setForeground(Color.BLUE)
-            else:
-                GlobalVars.STATUS_LABEL.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
-        elif _theColor == "DG": GlobalVars.STATUS_LABEL.setForeground(GlobalVars.DARK_GREEN)
-        else:                   GlobalVars.STATUS_LABEL.setForeground(Color.GREEN)
+        if _theColor == "R":    GlobalVars.STATUS_LABEL.setForeground(getColorRed())
+        elif _theColor == "B":  GlobalVars.STATUS_LABEL.setForeground(getColorBlue())
+        elif _theColor == "DG": GlobalVars.STATUS_LABEL.setForeground(getColorDarkGreen())
+        else:                   GlobalVars.STATUS_LABEL.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
         return
 
     def setJFileChooserParameters(_jf, lReportOnly=False, lDefaults=False, lPackagesT=None, lApplicationsT=None, lOptionsButton=None, lNewFolderButton=None):
@@ -2135,7 +2138,7 @@ Visit: %s (Author's site)
                     frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.9,0))))
                     frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.9,0))))
 
-                    JFrame.setDefaultLookAndFeelDecorated(True)
+                    # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)%s"
                                               %( MD_REF.getUI().ACCELERATOR_MASK_STR,
                                                 ("" if not self.callingClass.lQuitMDAfterClose else  " >> MD WILL QUIT AFTER VIEWING THIS <<")))
@@ -2339,15 +2342,15 @@ Visit: %s (Author's site)
                     aboutPanel.setPreferredSize(Dimension(1120, 525))
 
                     _label1 = JLabel(pad("Author: Stuart Beesley", 800))
-                    if not isMDThemeDark() and not isMacDarkModeDetected(): _label1.setForeground(Color.BLUE)
+                    _label1.setForeground(getColorBlue())
                     aboutPanel.add(_label1)
 
                     _label2 = JLabel(pad("StuWareSoftSystems (2020-2021)", 800))
-                    if not isMDThemeDark() and not isMacDarkModeDetected(): _label2.setForeground(Color.BLUE)
+                    _label2.setForeground(getColorBlue())
                     aboutPanel.add(_label2)
 
                     _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(myScriptName, version_build), 800))
-                    if not isMDThemeDark() and not isMacDarkModeDetected(): _label3.setForeground(Color.BLUE)
+                    _label3.setForeground(getColorBlue())
                     aboutPanel.add(_label3)
 
                     displayString=scriptExit
