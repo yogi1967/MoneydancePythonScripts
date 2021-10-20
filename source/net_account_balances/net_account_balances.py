@@ -2688,6 +2688,10 @@ Visit: %s (Author's site)
 
             self.saveMyHomePageView = MyHomePageView(self)
 
+            if self.getMoneydanceUI():         # Only do this if the UI is loaded and dataset loaded...
+                myPrint("B","@@ Assuming an extension reinstall. Selecting Home Screen in preparation to receive new widget....")
+                selectHomeScreen()
+
             self.moneydanceContext.registerHomePageView(extension_object, self.saveMyHomePageView)
             myPrint("DB","@@ Registered extension_object as containing a Home Page View (Summary screen / Dashboard object) @@")
 
