@@ -3415,16 +3415,15 @@ Visit: %s (Author's site)
                        "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
                        "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
                        "%s\n\n" \
-                       "RESTART MONEYDANCE, THEN EDIT THE LAST TXN DOWNLOAD DATES BEFORE YOU DOWNLOAD ANYTHING\n" \
-                       "\n\n** PLEASE CLOSE THIS WINDOW AND RESTART MONEYDANCE **\n\n" \
+                       "YOU CAN EDIT THE LAST TXN DOWNLOAD DATE(s) BEFORE YOU DOWNLOAD ANYTHING\n" \
                        %(MYPYTHON_DOWNLOAD_URL)
 
         outputDates += "\n<END>"
         jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
         myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
-    myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)
+    myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT (and console)", theMessageType=JOptionPane.WARNING_MESSAGE)
 
-    myPrint("B", "SUCCESS. Please RESTART Moneydance.")
+    myPrint("B", "SUCCESS!")
 
     cleanup_actions()

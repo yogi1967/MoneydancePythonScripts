@@ -2553,26 +2553,23 @@ Visit: %s (Author's site)
             self.selectType = selectType
 
         def matches(self, acct):         # noqa
-            if self.selectType == 0:
-                # noinspection PyUnresolvedReferences
-                if not (acct.getAccountType() == Account.AccountType.BANK):
-                    return False
 
-            if self.selectType == 1:
-                # noinspection PyUnresolvedReferences
-                if not (acct.getAccountType() == Account.AccountType.CREDIT_CARD):
-                    return False
+            if self.selectType == 0 or self.selectType == 1: return False
 
             if self.selectType == 2:
                 # noinspection PyUnresolvedReferences
-                if not (acct.getAccountType() == Account.AccountType.BANK or acct.getAccountType() == Account.AccountType.CREDIT_CARD):
+                if not (acct.getAccountType() == Account.AccountType.BANK
+                        or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                        or acct.getAccountType() == Account.AccountType.INVESTMENT):
                     return False
                 else:
                     return True
 
             if self.selectType == 3:
                 # noinspection PyUnresolvedReferences
-                if not (acct.getAccountType() == Account.AccountType.BANK or acct.getAccountType() == Account.AccountType.CREDIT_CARD):
+                if not (acct.getAccountType() == Account.AccountType.BANK
+                        or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                        or acct.getAccountType() == Account.AccountType.INVESTMENT):
                     return False
 
             if self.selectType == 4: return True
@@ -2582,21 +2579,31 @@ Visit: %s (Author's site)
 
             return True
 
-    class StoreUserIDs():
+    class StoreUserID():
         def __init__(self, _userID, _password="NOT SET"):
-            self.userID = userID
+            self.userID = _userID.strip()
             self.password = _password
-            self.clientID = None
+            self.clientUID = None
             self.accounts = []
 
-        def setPassword(self, _password): self.password = _password
-        def setClientID(self, _clientID): self.clientID = _clientID
-        def setAccounts(self, _accounts): self.accounts = _accounts
+        @staticmethod
+        def findUserID(findUserID, listOfUserIDs):
+            # type: (str, [StoreUserID]) -> StoreUserID
+            """
+            Static Method to search a [list] of StoreUserID()
+            """
+            for userIDFromList in listOfUserIDs:
+                if findUserID.lower().strip() == userIDFromList.getUserID().lower().strip(): return userIDFromList
+            return None
 
-        def getUserID(self): return self.userID
-        def getPassword(self): return self.password
-        def getClientID(self): return self.clientID
-        def getAccounts(self): return self.accounts
+        def setPassword(self, _password):       self.password = _password
+        def setClientUID(self, _clientUID):     self.clientUID = _clientUID
+        def setAccounts(self, _accounts):       self.accounts = _accounts
+
+        def getUserID(self):    return self.userID
+        def getPassword(self):  return self.password
+        def getClientUID(self): return self.clientUID
+        def getAccounts(self):  return self.accounts
 
         def __str__(self): return "UserID: %s Password: <%s>" %(self.getUserID(), ("*"*len(self.getPassword())))
         def __repr__(self): return self.__str__()
@@ -2617,6 +2624,7 @@ Visit: %s (Author's site)
             self.OFXBankID = None
             self.OFXAccountNumber = None
             self.OFXAccountMsgType =  None
+            self.OFXBrokerID =  None
 
         def getAccount(self): return self.obj
 
@@ -2624,11 +2632,13 @@ Visit: %s (Author's site)
         def setOFXBankID(self, _bankID):      self.OFXBankID = _bankID
         def setOFXAccountNumber(self, _an):   self.OFXAccountNumber = _an
         def setOFXAccountMsgType(self, _amt): self.OFXAccountMsgType = _amt
+        def setOFXBrokerID(self, _bID):       self.OFXBrokerID = _bID
 
         def getOFXAccountType(self):    return self.OFXAccountType
         def getOFXBankID(self):         return self.OFXBankID
         def getOFXAccountNumber(self):  return self.OFXAccountNumber
         def getOFXAccountMsgType(self): return self.OFXAccountMsgType
+        def getOFXBrokerID(self):       return self.OFXBrokerID
 
         def __str__(self):
             if self.obj is None: return "Invalid Acct Obj or None"
@@ -2677,12 +2687,6 @@ Visit: %s (Author's site)
             frame_height = int(round((self.screenSize.height - self.borders) *.9,0))
             return Dimension(min(self.maxWidth, frame_width), min(self.maxHeight, frame_height))
 
-    if not myPopupAskQuestion(None, "BACKUP", "ADD USERIDs TO OFX PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made.")
-
-    if not myPopupAskQuestion(None, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("Disclaimer rejected - no changes made")
-
     ask = MyPopUpDialogBox(None, "This script will update an existing (working) OFX profile with multiple User IDs:",
                            "Get the latest useful_scripts.zip package from: %s \n"
                            "You have to select a WORKING profile, answer a series of questions, and enter your UserID/Password details\n\n"
@@ -2701,11 +2705,17 @@ Visit: %s (Author's site)
         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
+    if not myPopupAskQuestion(None, "BACKUP", "ADD USERIDs TO OFX PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
+        alert_and_exit("BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made.")
+
+    if not myPopupAskQuestion(None, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
+        alert_and_exit("Disclaimer rejected - no changes made")
+
     if not myPopupAskQuestion(None, "BILLPAY", "CONFIRM YOU ARE NOT USING BILLPAY ON THIS PROFILE (This will not work for BP)?", theMessageType=JOptionPane.WARNING_MESSAGE):
         alert_and_exit("Using BillPay so aborting (sorry) - no changes made")
 
-    if not myPopupAskQuestion(None, "INVESTMENTS", "CONFIRM YOU ARE NOT USING INVESTMENT ACCOUNTS ON THIS PROFILE (This will NOT work for Investments)?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("Using Investments so aborting (sorry) - no changes made")
+    # if not myPopupAskQuestion(None, "INVESTMENTS", "CONFIRM YOU ARE NOT USING INVESTMENT ACCOUNTS ON THIS PROFILE (This will NOT work for Investments)?", theMessageType=JOptionPane.WARNING_MESSAGE):
+    #     alert_and_exit("Using Investments so aborting (sorry) - no changes made")
 
     lCachePasswords = (isUserEncryptionPassphraseSet() and MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
     if not lCachePasswords:
@@ -2734,11 +2744,14 @@ Visit: %s (Author's site)
     OLD_TIK_FI_ID = "md:1295"
     NEW_TIK_FI_ID = "md:custom-1295"
 
+    lSelectedUSAA = False
+
     if (selectedService.getTIKServiceID() == OLD_TIK_FI_ID or selectedService.getTIKServiceID() == NEW_TIK_FI_ID
             or selectedService.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
             or "USAA" in selectedService.getFIOrg()
             or "USAA" in selectedService.getFIName()):
-        alert_and_exit("SORRY - NOT A GOOD IDEA TO PLAY WITH THE USAA PROFILE WITH THIS SCRIPT!")
+        lSelectedUSAA = True
+        myPrint("B","USAA Profile has been selected - will manage special client UUIDs....")
 
     myPrint("B", "OFX Service Profile selected: %s(%s)" %(selectedService, selectedService.getTIKServiceID()))
 
@@ -2748,10 +2761,12 @@ Visit: %s (Author's site)
         if acct.getBillPayFI() == selectedService: alert_and_exit("ERROR - BILLPAY LINK FOUND ON ACCT: %s - ABORTING" %(acct))
         if acct.getBankingFI() == selectedService:
             # noinspection PyUnresolvedReferences
-            if acct.getAccountType() == Account.AccountType.BANK or acct.getAccountType() == Account.AccountType.CREDIT_CARD:
+            if (acct.getAccountType() == Account.AccountType.BANK
+                    or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                    or acct.getAccountType() == Account.AccountType.INVESTMENT):
                 matchingAccts.append(acct)
             else:
-                alert_and_exit("ERROR: FOUND LINKED ACCT (%s) THAT IS NOT BANK OR CREDIT CARD - ABORTING" %(acct))
+                alert_and_exit("ERROR: FOUND LINKED ACCT (%s) THAT IS NOT BANK, CREDIT CARD OR INVESTMENT - ABORTING" %(acct))
 
     if len(matchingAccts) < 1:
         alert_and_exit("ERROR NO ACCOUNTS LINKED TO THIS OFX SERVICE PROFILE FOUND")
@@ -2770,14 +2785,13 @@ Visit: %s (Author's site)
 
     lOverrideRootUUID = False
     if selectedService.getClientIDRequired(theRealm):
-        if myPopupAskQuestion(None,"RESET DEFAULT CLIENT UUID", "Do you want to reset the master / default Client UUID [Optional]?"):
-            lOverrideRootUUID = True
-            myPrint("B", "User opted to generate a new Root Master/Default Client UUID.....")
+        if myPopupAskQuestion(None,"KEEP DATASET's DEFAULT CLIENT UUID [Normal Option]", "Do you want to keep this Dataset's default Client UUID? (YES=KEEP, NO=Reset/Regenerate[optional])?"):
+            myPrint("B", "User opted to keep this Dataset's / Root's current Master/Default Client UUID.....")
         else:
-            myPrint("B", "User opted to keep Root's current Master/Default Client UUID.....")
+            lOverrideRootUUID = True
+            myPrint("B", "User opted to generate a new Root Master/Default Client UUID for this Dataset.....")
     else:
         myPrint("B","This service profile does not require ClientUUIDs... skipping....")
-
 
     myPrint("B","Selecting Accounts to link to profile:")
     myPrint("B","--------------------------------------")
@@ -2880,7 +2894,7 @@ Visit: %s (Author's site)
         for acct in accountsToManage:
             myPrint("B","Validating Acct: %s" %(acct))
 
-            accountTypeOFX = routeID = bankID = None
+            accountTypeOFX = routeID = bankID = brokerID = None
 
             # noinspection PyUnresolvedReferences
             if acct.getAccountType() == Account.AccountType.BANK:
@@ -2907,7 +2921,7 @@ Visit: %s (Author's site)
 
                 routeID = acct.getOFXBankID()
                 if lReviewExistingOFXData or (lEnterMissingOFXData and routeID == ""):
-                    routID = myPopupAskForInput(None, "Routing - Account: %s" %(acct), "Routing", "Type/Paste your Routing Number - very carefully", routeID)
+                    routID = myPopupAskForInput(None, "Routing - Account: %s" %(acct), "Routing:", "Type/Paste your Routing Number - very carefully", routeID)
                     if not lEnterMissingOFXData and (routID is None or routID == ""):
                         routeID = None
                     elif routID is None or routID == "" or len(routID) < 6:
@@ -2916,25 +2930,46 @@ Visit: %s (Author's site)
                 else:
                     routeID = None
 
+            # noinspection PyUnresolvedReferences
+            if acct.getAccountType() == Account.AccountType.INVESTMENT:
+
+                brokerID = acct.getOFXBrokerID()
+                if lReviewExistingOFXData or (lEnterMissingOFXData and brokerID == ""):
+                    brokerID = myPopupAskForInput(None, "BrokerID - Account: %s" %(acct), "BrokerID:", "Type/Paste your BrokerID - very carefully", brokerID)
+                    if not lEnterMissingOFXData and (brokerID is None or brokerID == ""):
+                        brokerID = None
+                    elif brokerID is None or brokerID == "" or len(brokerID) < 4:
+                        alert_and_exit("ERROR - invalid BrokerID supplied for acct: %s - Aborting" %(acct))
+                    myPrint("B", "Account %s - BrokerID entered: %s" %(acct, brokerID))
+                else:
+                    brokerID = None
+
             bankID = acct.getOFXAccountNumber()
             if lReviewExistingOFXData or (lEnterMissingOFXData and bankID == ""):
-                bankID = myPopupAskForInput(None, "BankAccount - Acct: %s" %(acct), "Bank/CC Account", "Type/Paste your Bank Account / CC Number - very carefully", bankID)
+                bankID = myPopupAskForInput(None, "ACCOUNT: %s" %(acct), "Bank/CC/Investment Acct Number:", "Type/Paste your Account / CC Number - very carefully", bankID)
                 if not lEnterMissingOFXData and (bankID is None or bankID == ""):
                     bankID = None
                 elif bankID is None or bankID == "":
-                    alert_and_exit("ERROR - no bankID supplied for acct: %s - Aborting" %(acct))
-                myPrint("B", "Account %s - bankID entered: %s" %(acct, bankID))
+                    alert_and_exit("ERROR - no Account Number supplied for acct: %s - Aborting" %(acct))
+                myPrint("B", "Account %s - Entered Number: %s" %(acct, bankID))
             else:
                 bankID = None
 
-            if accountTypeOFX or routeID or bankID:
+            if accountTypeOFX or routeID or bankID or brokerID:
                 storeAcct = StoreAccountList(acct)
                 storeAcct.setOFXAccountType(accountTypeOFX)
                 storeAcct.setOFXBankID(routeID)
                 storeAcct.setOFXAccountNumber(bankID)
+                storeAcct.setOFXBrokerID(brokerID)
                 # noinspection PyUnresolvedReferences
-                storeAcct.setOFXAccountMsgType(4 if (acct.getAccountType() == Account.AccountType.BANK) else 5)
-
+                if acct.getAccountType() == Account.AccountType.BANK:
+                    storeAcct.setOFXAccountMsgType(4)
+                elif acct.getAccountType() == Account.AccountType.CREDIT_CARD:
+                    storeAcct.setOFXAccountMsgType(5)
+                elif acct.getAccountType() == Account.AccountType.INVESTMENT:
+                    storeAcct.setOFXAccountMsgType(6)
+                else:
+                    alert_and_exit("LOGIC ERROR: Found Bank Account Type: %s" %(acct.getAccountType()))
                 updateAccountOFXDataList.append(storeAcct)
 
         myPrint("B","Validation complete.... %s Accounts need to be updated" %(len(updateAccountOFXDataList)))
@@ -2958,6 +2993,31 @@ Visit: %s (Author's site)
 
     if lOFXNumbersFailedValidation: alert_and_exit("ERROR - NOT ALL YOUR ACCOUNTS HAVE AN ASSIGNED OFX NUMBER... CANNOT PROCEED..!")
     del lOFXNumbersFailedValidation, lFoundUpdateOFX
+
+    myPrint("B","Harvesting existing UserID details from root...:")
+    myPrint("B","------------------------------------------------")
+
+    authKeyPrefix = "ofx.client_uid"
+    specificAuthKeyPrefix = authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::"
+
+    root = MD_REF.getRootAccount()
+    rootKeys = list(root.getParameterKeys())
+
+    harvestedUserIDList = []
+
+    for i in range(0,len(rootKeys)):
+        rk = rootKeys[i]
+        if rk.startswith(specificAuthKeyPrefix):
+            rk_value = root.getParameter(rk)
+            myPrint("B", "... Harvested old authKey %s: ClientUID: %s" %(rk,rk_value))
+            harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
+            harvestedUID.setClientUID(rk_value)
+            harvestedUserIDList.append(harvestedUID)
+
+    if len(harvestedUserIDList) > 0:
+        myPrint("B","Harvested User and ClientUIDs...:")
+        for harvested in harvestedUserIDList:
+            myPrint("B","Harvested User: %s, ClientUID: %s" %(harvested.getUserID(), harvested.getClientUID()))
 
     myPrint("B","Gathering Default UserID details...:")
     myPrint("B","------------------------------------")
@@ -3009,7 +3069,7 @@ Visit: %s (Author's site)
             defaultEntry = "UserID%s" %(onUser+1)
 
             while True:
-                userID = myPopupAskForInput(None, "ENTER UserID", "UserID%s" %(onUser+1),
+                userID = myPopupAskForInput(None, "ENTER UserID", "UserID%s:" %(onUser+1),
                                             "Enter UserID%s (min length 4) carefully" %(onUser+1), defaultEntry)
                 myPrint("B", "userID%s entered: %s" %(onUser+1, userID))
                 if userID is None: alert_and_exit("ERROR - no userID%s supplied! Aborting" %(onUser+1))
@@ -3022,7 +3082,7 @@ Visit: %s (Author's site)
                     myPrint("B", "\n ** ERROR - no valid userID%s supplied - try again ** \n" %(onUser+1))
                     continue
                 break
-        userIDList.append(StoreUserIDs(userID))
+        userIDList.append(StoreUserID(userID))
         del defaultEntry, userID
 
     if len(userIDList) != howManyUsers:
@@ -3031,12 +3091,24 @@ Visit: %s (Author's site)
     if newDefaultUserID != userIDList[0].getUserID():
         alert_and_exit("LOGIC ERROR: NEW DEFAULT USERID %s DOES NOT MATCH userIDList[0] %s" %(newDefaultUserID, userIDList[0].getUserID()))
 
-    for userID in userIDList: myPrint("B", "UserID entered: %s" %(userID))
+    if lSelectedUSAA:
+        for findStoredUser in userIDList:
+            foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
+            if foundHarvestedStoredUser is not None:
+                if foundHarvestedStoredUser.getClientUID() is not None:
+                    findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
+                else:
+                    alert_and_exit("LOGIC ERROR: Found harvested UserID (%s) with no ClientUID?!" %(findStoredUser))
+    else:
+        myPrint("B","Skipping matching ClientUIDs into new UserID list as not updating a USAA profile...")
+    del harvestedUserIDList
+
+    for userID in userIDList: myPrint("B", "UserID entered: %s (Harvested ClientUID: %s)" %(userID, userID.getClientUID()))
 
     for onUser in range(0,len(userIDList)):
         defaultEntry = "%s:*****" %(onUser+1)
         while True:
-            password = myPopupAskForInput(None, "ENTER PASSWORD", "USERID%s:%s Password" %(onUser+1, userIDList[onUser].getUserID()),
+            password = myPopupAskForInput(None, "ENTER PASSWORD", "USERID%s:%s Password:" %(onUser+1, userIDList[onUser].getUserID()),
                                           "Type/Paste your Password%s (min length 4) very carefully" %(onUser+1), defaultEntry)
             myPrint("B", "User%s: %s : password entered: %s" %(onUser+1, userIDList[onUser].getUserID(), password))
             if password is None:
@@ -3049,10 +3121,31 @@ Visit: %s (Author's site)
         userIDList[onUser].setPassword(password)
         del defaultEntry, password
 
-    myPrint("B","Final list of resolved UserIDs and Passwords....")
+    if lSelectedUSAA:
+        for onUser in range(0,len(userIDList)):
+            if userIDList[onUser].getClientUID() is None:
+                defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+            else:
+                defaultEntry = userIDList[onUser].getClientUID()
+            while True:
+                uuid = myPopupAskForInput(None, "ENTER UUID", "USERID%s:%s ClientUID:" %(onUser+1, userIDList[onUser].getUserID()),
+                                              "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+                myPrint("B", "User%s: %s : ClientUID entered: %s" %(onUser+1, userIDList[onUser].getUserID(), uuid))
+                if uuid is None:
+                    alert_and_exit("ERROR - User: %s - no ClientUID %s supplied! Aborting" %(userIDList[onUser].getUserID(), onUser+1))
+                defaultEntry = uuid
+                if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+                        (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
+                    myPrint("B", "\n ** ERROR - no valid ClientUID for User%s (%s) supplied - try again ** \n" %(onUser+1,userIDList[onUser].getUserID()))
+                    continue
+                break
+            userIDList[onUser].setClientUID(uuid)
+            del defaultEntry, uuid
+
+    myPrint("B","Final list of resolved UserIDs, Passwords, and ClientUIDs (if required)....")
     for userID in userIDList:
         if userID.getPassword() == "NOT SET": alert_and_exit("LOGIC ERROR - PASSWORD NOT SET FOR: %s" %(userID))
-        myPrint("B", "UserID entered: %s (Password: %s)" %(userID.getPassword(),userID.getPassword()))
+        myPrint("B", "UserID entered: %s (Password: %s) (ClientUID: %s)" %(userID.getPassword(),userID.getPassword(),userID.getClientUID()))
 
     ####################################################################################################################
     ############################### MATCH USERIDs TO ACCOUNTS
@@ -3131,7 +3224,6 @@ Visit: %s (Author's site)
                     mappingObject.setEditingMode()
                     mappingObject.setParameter(pk, None)
                     lMappingNeedsSync = True
-                i+=1
             del mappingKeys
             if lMappingNeedsSync: mappingObject.syncItem()
     del mappingObject
@@ -3167,6 +3259,7 @@ Visit: %s (Author's site)
         if acct.getOFXAccountNumber():  acct.getAccount().setOFXAccountNumber(acct.getOFXAccountNumber())
         if acct.getOFXAccountType():    acct.getAccount().setOFXAccountType(acct.getOFXAccountType())
         if acct.getOFXAccountMsgType(): acct.getAccount().setOFXAccountMsgType(acct.getOFXAccountMsgType())
+        if acct.getOFXBrokerID():       acct.getAccount().setOFXBrokerID(acct.getOFXBrokerID())
         acct.getAccount().setBankingFI(selectedService)
         if isMDPlusEnabledBuild(): pass
         # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
@@ -3185,10 +3278,9 @@ Visit: %s (Author's site)
     ####################################################################################################################
     myPrint("B","Updating root...:")
     myPrint("B","-----------------")
-    authKeyPrefix = "ofx.client_uid"
 
     if selectedService.getClientIDRequired(theRealm) or lOverrideRootUUID:
-        myPrint("B", "ClientID required.... Setting up root with keys...")
+        myPrint("B", "ClientUID required.... Setting up root with keys...")
 
         root = MD_REF.getRootAccount()
         rootKeys = list(root.getParameterKeys())
@@ -3211,23 +3303,24 @@ Visit: %s (Author's site)
                 if rk.startswith(authKeyPrefix) and (selectedService.getTIKServiceID() in rk):
                     myPrint("B", "Deleting old authKey %s: %s" %(rk,root.getParameter(rk)))
                     root.setParameter(rk, None)
-                i+=1
 
             # Generate a new Client UUID for this profile's default and user1
-            theDefaultUUID = my_createNewClientUID()
+            if lSelectedUSAA: theDefaultUUID = userIDList[0].getClientUID()
+            else: theDefaultUUID = my_createNewClientUID()
 
-            root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
             root.setParameter(authKeyPrefix+"_default_user"+"::" + selectedService.getTIKServiceID(), newDefaultUserID)
+            root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
 
             for onUser in range(0,len(userIDList)):
-                myPrint("B", "Account / UserID%s Match: %s" %(onUser+1, userIDList[onUser].getUserID()))
+                myPrint("B", "Updating Root >> UserID%s (%s)" %(onUser+1, userIDList[onUser].getUserID()))
 
                 if onUser == 0:
-                    # User 1 keeps the same Client UUID as the Profile's default....
+                    # User 1 keeps the same Client UUID as this Profile's default....
                     whatClientID = theDefaultUUID
                 else:
                     # New Client UUID for all extra users
-                    whatClientID = my_createNewClientUID()
+                    if lSelectedUSAA: whatClientID = userIDList[onUser].getClientUID()
+                    else: whatClientID = my_createNewClientUID()
 
                 root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + userIDList[onUser].getUserID(), whatClientID)
 
@@ -3235,7 +3328,7 @@ Visit: %s (Author's site)
         myPrint("B", "Root UserIDs and UUIDs updated...")
         del theDefaultUUID
     else:
-        myPrint("B", "ClientID NOT required.... Skipping Root updates.....")
+        myPrint("B", "ClientUID NOT required.... Skipping Root updates.....")
     del lOverrideRootUUID
 
     ####################################################################################################################
@@ -3272,10 +3365,11 @@ Visit: %s (Author's site)
                     lChangedAvailableAccounts = True
                     info = OnlineAccountInfo()
                     info.setAccountNumber(acct.getOFXAccountNumber())
+                    info.setRoutingNumber(acct.getOFXBillPayBankID())
                     info.setAccountType(acct.getOFXAccountType())
                     info.setAccountMessageType(acct.getOFXAccountMsgType())
-                    # info.setDescription("inserted by %s" %(PARAMETER_KEY))
-                    info.setIsInvestmentAccount(False)
+                    info.setInvestmentBrokerID(acct.getOFXBrokerID())
+                    info.setIsInvestmentAccount(acct.getAccountType()==Account.AccountType.INVESTMENT)                  # noqa
                     info.setIsBankAccount(acct.getAccountType()==Account.AccountType.BANK)                              # noqa
                     info.setIsCCAccount(acct.getAccountType()==Account.AccountType.CREDIT_CARD)                         # noqa
                     updatedAccounts.add(info)
@@ -3403,16 +3497,15 @@ Visit: %s (Author's site)
                        "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
                        "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
                        "%s\n\n" \
-                       "RESTART MONEYDANCE, THEN EDIT THE LAST TXN DOWNLOAD DATES BEFORE YOU DOWNLOAD ANYTHING\n" \
-                       "\n\n** PLEASE CLOSE THIS WINDOW AND RESTART MONEYDANCE **\n\n" \
+                       "YOU CAN EDIT THE LAST TXN DOWNLOAD DATE(s) BEFORE YOU DOWNLOAD ANYTHING\n" \
                        %(MYPYTHON_DOWNLOAD_URL)
 
         outputDates += "\n<END>"
         jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
         myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
-    myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT - Then RESTART Moneydance.", theMessageType=JOptionPane.ERROR_MESSAGE)
+    myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT (and console)", theMessageType=JOptionPane.WARNING_MESSAGE)
 
-    myPrint("B", "SUCCESS. Please RESTART Moneydance.")
+    myPrint("B", "SUCCESS!")
 
     cleanup_actions()
