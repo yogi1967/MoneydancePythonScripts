@@ -234,6 +234,8 @@
 # build: 1042 - Disable edit last txn download date if MD+ enabled build .....
 # build: 1043 - Bug fixes on colors...; Common code fix lAlertLevel= on Mac/Dark Mode; added Dark detection and color fixes...
 # build: 1043 - Enhanced cleanup missing banking links to detect/delete orphaned md+ connections; tweak to GeekOut on OFX Data (Accounts)
+# build: 1043 - New feature: 'Restore an archive file, and RETAIN Sync settings ' (avoids wiping out Sync settings on restore)
+# build: 1043 - New feature: Fix iCloud Sync Crash (same as Fix Dropbox One-Way Crash)
 
 # todo - Restore and retain syncid settings....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -533,28 +535,23 @@ else:
 
     from com.google.gson import Gson
 
+    from com.moneydance.apps.md.controller import AccountBookWrapper, MDException, Util, AppEventListener
+
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller.sync import MDSyncCipher
-    from com.moneydance.apps.md.controller import ModuleMetaData
-    from com.moneydance.apps.md.controller import LocalStorageCipher
-    from com.moneydance.apps.md.controller import Common
-    from com.moneydance.apps.md.controller import BalanceType
+    from com.moneydance.apps.md.controller import ModuleLoader, ModuleMetaData, LocalStorageCipher, Common, BalanceType
     from com.moneydance.apps.md.controller.io import FileUtils, AccountBookUtil
-    from com.moneydance.apps.md.controller import ModuleLoader
     from java.awt import GraphicsEnvironment, Desktop, Event
 
     from com.infinitekind.util import StreamTable, StreamVector, IOUtils, StringUtils, CustomDateFormat
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
-    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields
+    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AccountBook
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
     from com.infinitekind.tiksync import SyncRecord
-    from com.moneydance.apps.md.controller import Util
     from com.infinitekind.tiksync import SyncableItem
 
     from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
     from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow
-
-    from com.moneydance.apps.md.controller import AppEventListener
 
     from com.moneydance.apps.md.view.gui import ConsoleWindow
     from com.infinitekind.tiksync import Syncer
@@ -2738,6 +2735,26 @@ Visit: %s (Author's site)
                 MD_REF.getUI().firstMainFrame.selectAccount(MD_REF.getRootAccount())
         except:
             myPrint("B","Error switching to Home Page Summary Screen")
+
+    def fireMDPreferencesUpdated():
+        """This triggers MD to firePreferencesUpdated().... Hopefully refreshing Home Screen Views too"""
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        class FPSRunnable(Runnable):
+            def __init__(self): pass
+
+            def run(self):
+                myPrint("DB",".. Inside FPSRunnable() - calling firePreferencesUpdated()...")
+                myPrint("B","Calling firePreferencesUpdated() to update Home Screen View")
+                MD_REF.getPreferences().firePreferencesUpdated()
+
+        if not SwingUtilities.isEventDispatchThread():
+            myPrint("DB",".. Not running within the EDT so calling via FPSRunnable()...")
+            SwingUtilities.invokeLater(FPSRunnable())
+        else:
+            myPrint("DB",".. Already running within the EDT so calling FPSRunnable() naked...")
+            FPSRunnable().run()
+        return
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -21694,6 +21711,163 @@ Now you will have a text readable version of the file you can open in a text edi
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
         MD_REF.getUI().exit()
 
+    def restore_archive_retain_sync_settings():
+        # com.moneydance.apps.md.view.gui.MoneydanceGUI.openFile(File)
+
+        _PARAM_KEY = "netsync.sync_type"
+        _NONE = "none"
+
+        _SYNC_KEYS = [  "netsync.dropbox.fileid",
+                        "netsync.sync_type",
+                        "netsync.subpath",
+                        "netsync.dropbox_enabled",
+                        "netsync.synckey",
+                        "ext.netsync.settings",
+                        "netsync.guid",
+                        "migrated.netsync.dropbox.fileid" ]
+
+        _THIS_METHOD_NAME = "RESTORE ARCHIVE (RETAIN SYNC SETTINGS)"
+
+        ask = MyPopUpDialogBox(None, "Allows you to restore a .moneydancearchive file and RETAIN Sync Settings",
+                               "The normal File/Restore from Backup option will wipe out your Sync settings\n"
+                               "... This means the restored dataset will not reconnect and pick up syncing where it was before\n"
+                               "... You would get a brand new Sync relationship and have to reconnect devices to this new Sync\n\n"
+                               "This feature allows you to retain your Sync settings, and it will then sync from the point of backup\n"
+                               "... NOTE: Whilst the settings are retained, Syncing will be left turned off...\n"
+                               "... So you must visit the File/Syncing menu and select the Sync option to continue...\n\n"
+                               "You might use this when you have txns in the Sync 'system' from another device, that you want applied to this dataset\n",
+                               250,"INSTRUCTIONS",
+                               lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+        if not ask.go():
+            txt = "Instructions rejected - no changes made"
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        theTitle = "Select archive file to restore and retain sync settings)"
+        archiveFilename = getFileFromFileChooser(toolbox_frame_,    # Parent frame or None
+                                                 get_home_dir(),    # Starting path
+                                                 None,              # Default Filename
+                                                 theTitle,          # Title
+                                                 False,             # Multi-file selection mode
+                                                 True,              # True for Open/Load, False for Save
+                                                 True,              # True = Files, else Dirs
+                                                 None,              # Load/Save button text, None for defaults
+                                                 "moneydancearchive",  # File filter (non Mac only). Example: "txt" or "qif"
+                                                 lAllowTraversePackages=False,
+                                                 lForceJFC=False,
+                                                 lForceFD=False,
+                                                 lAllowNewFolderButton=False,
+                                                 lAllowOptionsButton=True)
+
+        if archiveFilename is None or archiveFilename == "":
+            txt = "%s: User chose to cancel or no file selected >>  So no Restore will be performed... " %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        if not archiveFilename.endswith(".moneydancearchive"):
+            txt = "%s: ERROR - Must select a file with '.moneydancearchive' extension - No Restore will be performed... " %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        fileToOpen = File(archiveFilename)
+        baseFilename = StringUtils.stripExtension(fileToOpen.getName())
+
+        tmpFolder = IOUtils.createTempFolder()
+        myPrint("DB","Temp folder: %s" %(tmpFolder.getCanonicalPath()))
+
+        IOUtils.openZip(fileToOpen, tmpFolder.getAbsolutePath())
+        myPrint("DB","Zip file opened....")
+
+        class MyFilenameFilter(FilenameFilter):
+            def accept(self, _dir, name): return String(name).endsWith(".moneydance")
+
+        zipContents = tmpFolder.list(MyFilenameFilter())
+        if (zipContents is None or len(zipContents) <= 0):
+            txt = "%s: ERROR: Archive (zip) appears empty? So no Restore will be performed... " %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        tmpMDFile = File(tmpFolder, zipContents[0])
+        newBookFile = AccountBook.getUnusedFileNameWithBase(AccountBookUtil.DEFAULT_FOLDER_CONTAINER, baseFilename)
+        myPrint("B","Archive to restore: %s" %(fileToOpen.getCanonicalPath()))
+        myPrint("B","New Name:           %s" %(newBookFile.getCanonicalPath()))
+
+        if not myPopupAskQuestion(toolbox_frame_,_THIS_METHOD_NAME, "CONFIRM you want to proceed to restore archive and retain Sync settings?"):
+            txt = "%s: User DECLINED TO PROCEED - no action taken" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        if not tmpMDFile.renameTo(newBookFile):
+            try: IOUtils.copyFolder(tmpMDFile, newBookFile)
+            except:
+                txt = "%s: ERROR: copy/move of tmp folder failed (review console)... " %(_THIS_METHOD_NAME)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                dump_sys_error_to_md_console_and_errorlog()
+                myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
+
+        archiveWrapper = AccountBookWrapper.wrapperForFolder(newBookFile)
+        if archiveWrapper is None:
+            try: IOUtils.deleteFolder(newBookFile)
+            except: dump_sys_error_to_md_console_and_errorlog()
+            txt = "%s: ERROR: Failed to set AccountBookWrapper.wrapperForFolder on restored file... " %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        passwordCallback = MD_REF.getUI().getSecretKeyCallback(archiveWrapper)
+
+        iLoop = 0
+        lFailed = True
+        while True:
+            iLoop += 1
+            if iLoop > 3: break
+            try:
+                if archiveWrapper.loadLocalStorage(passwordCallback): lFailed = False
+                break
+            except MDException as mde:
+                if mde.getCode() == 1004:
+                    MD_REF.getUI().showErrorMessage("The password you have entered is invalid.  Please try again.")
+                    continue
+                else:
+                    dump_sys_error_to_md_console_and_errorlog()
+                    break
+            except:
+                dump_sys_error_to_md_console_and_errorlog()
+                break
+
+        if lFailed:
+            try: IOUtils.deleteFolder(newBookFile)
+            except: dump_sys_error_to_md_console_and_errorlog()
+            txt = "%s: ERROR: Failed to load local storage for restored dataset... " %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        archiveBook = archiveWrapper.getBook()
+        storage = archiveBook.getLocalStorage()
+        saveSyncSetting = storage.getString(_PARAM_KEY, _NONE)
+
+        myPrint("B", "All Sync Keys in Restored Dataset..:")
+        for sKey in _SYNC_KEYS: myPrint("B", "Key %s  Value: '%s'" %(pad(sKey,40), storage.getString(sKey, "NOT SET")))
+        myPrint("B", "<END OF SYNC KEYS>")
+
+        myPrint("B", "@@@ Setting Sync in restored dataset to %s" %(_NONE))
+        storage.put(_PARAM_KEY, _NONE)
+        storage.put("_toolbox", "Restored & preserved Sync settings (type was: %s)...." %(saveSyncSetting))
+        archiveBook.getLocalStorage().save()
+
+        myPopupInformationBox(toolbox_frame_,"SUCCESS! ABOUT TO OPEN THE RESTORED DATASET (You need to manually set Sync to: '%s'" %(saveSyncSetting),_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
+        myPrint("B","Opening restored Dataset: %s" %(newBookFile.getCanonicalPath()))
+        txt = "%s: SUCCESS: Dataset restored, open manually (and change Sync Method to: %s)" %(_THIS_METHOD_NAME, saveSyncSetting)
+        setDisplayStatus(txt, "B"); myPrint("B", txt)
+        MD_REF.getUI().openFile(newBookFile)    # This will trigger Toolbox to close too....
+
     def checkForREADONLY():
 
         checkDropbox = tell_me_if_dropbox_folder_exists()
@@ -22146,8 +22320,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
         class FixDropboxOneWaySyncButtonAction(AbstractAction):
 
-            def __init__(self, myButton):
+            def __init__(self, myButton, _iCloud=False):
                 self.myButton = myButton
+                self.iCloud = _iCloud
 
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
@@ -22156,10 +22331,13 @@ Now you will have a text readable version of the file you can open in a text edi
                 # reset_sync_and_dropbox_settings.py
                 theKey = "migrated.netsync.dropbox.fileid"
 
-                if not confirm_backup_confirm_disclaimer(toolbox_frame_, "FIX DROPBOX ONE WAY SYNC", "Fix Dropbox One-Way Syncing?"):
+                titleText = "FIX ICLOUD SYNC CRASH"  if self.iCloud else "FIX DROPBOX ONE WAY SYNC"
+                question  = "Fix iCloud Sync Crash?" if self.iCloud else "Fix Dropbox One-Way Syncing?"
+
+                if not confirm_backup_confirm_disclaimer(toolbox_frame_, titleText, question):
                     return
 
-                myPrint("B","FIX DROPBOX ONE WAY SYNC: Removing key '%s' from LocalStorage() at user request...." %(theKey))
+                myPrint("B","%s: Removing key '%s' from LocalStorage() at user request...." %(titleText, theKey))
 
                 LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
                 LS.remove(theKey)
@@ -22171,9 +22349,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.myButton.setVisible(False)
                 self.myButton.setEnabled(False)
 
-                txt = "'FIX DROPBOX ONE WAY SYNC' - OK, I have executed reset Dropbox One-Way Sync. MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(toolbox_frame_,txt,"FIX DROPBOX ONE WAY SYNC",JOptionPane.WARNING_MESSAGE)
+                txt = "%s: Completed. MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD" %(titleText)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                myPopupInformationBox(toolbox_frame_,txt,titleText,JOptionPane.WARNING_MESSAGE)
                 MD_REF.getUI().exit()
 
         class MakeDropBoxSyncFolder(AbstractAction):
@@ -23466,6 +23644,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
                 user_force_reset_sync_settings.setForeground(getColorRed())
 
+                user_restore_archive_retain_sync_settings = JRadioButton("Restore an archive file, and RETAIN Sync settings (USE WITH CARE, CAN CHANGE SYNC DATA)", False)
+                user_restore_archive_retain_sync_settings.setToolTipText("Restores a .moneydancearchive file, RETAINS Sync settings (but turns Sync off - you can then manually turn it back on again")
+                user_restore_archive_retain_sync_settings.setForeground(getColorRed())
+
                 user_demote_primary_to_secondary = JRadioButton("HACK: DEMOTE Primary dataset back to a Secondary Node", False)
                 user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
                 user_demote_primary_to_secondary.setEnabled(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
@@ -23493,6 +23675,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_hacker_sync_push)
                 bg.add(user_force_sync_off)
                 bg.add(user_force_reset_sync_settings)
+                bg.add(user_restore_archive_retain_sync_settings)
                 bg.add(user_demote_primary_to_secondary)
                 bg.add(user_hacker_suppress_dropbox_warning)
                 bg.clearSelection()
@@ -23513,6 +23696,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_hacker_save_trunk)
                 userFilters.add(user_force_sync_off)
                 userFilters.add(user_force_reset_sync_settings)
+                userFilters.add(user_restore_archive_retain_sync_settings)
                 userFilters.add(user_demote_primary_to_secondary)
                 userFilters.add(user_hacker_sync_push)
                 userFilters.add(user_hacker_suppress_dropbox_warning)
@@ -23531,7 +23715,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,650,550)
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,850,550)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "HACKER - Diagnostics, Tools, Fixes",
@@ -23587,6 +23771,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_force_reset_sync_settings.isSelected():
                         hackermode_force_reset_sync_settings()
+
+                    if user_restore_archive_retain_sync_settings.isSelected():
+                        restore_archive_retain_sync_settings()
 
                     if user_demote_primary_to_secondary.isSelected():
                         hacker_mode_demote_primary_to_secondary()
@@ -24171,9 +24358,18 @@ Now you will have a text readable version of the file you can open in a text edi
                 FixDropboxOneWaySync_button.setToolTipText("This removes the key 'migrated.netsync.dropbox.fileid' to fix Dropbox One-way Syncing (reset_sync_and_dropbox_settings.py)")
                 FixDropboxOneWaySync_button.setBackground(Color.ORANGE)
                 FixDropboxOneWaySync_button.setForeground(Color.WHITE)
-                FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button))
+                FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button, _iCloud=False))
                 FixDropboxOneWaySync_button.setVisible(False)
                 displayPanel.add(FixDropboxOneWaySync_button)
+
+            if MD_REF.getCurrentAccount().getBook().getLocalStorage().getStr("migrated.netsync.dropbox.fileid", None):
+                Fix_iCloud_Sync_button = JButton("<html><center><B>FIX: Fix iCloud<BR>Sync Crash</B></center></html>")
+                Fix_iCloud_Sync_button.setToolTipText("This removes the key 'migrated.netsync.dropbox.fileid' to fix iCloud Sync crash (reset_sync_and_dropbox_settings.py)")
+                Fix_iCloud_Sync_button.setBackground(Color.ORANGE)
+                Fix_iCloud_Sync_button.setForeground(Color.WHITE)
+                Fix_iCloud_Sync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(Fix_iCloud_Sync_button, _iCloud=True))
+                Fix_iCloud_Sync_button.setVisible(False)
+                displayPanel.add(Fix_iCloud_Sync_button)
             # end of instant fix buttons
 
             analiseDatasetSize_button = JButton("<html><center>Analyse Dataset<BR>Objs, Size & Files</center></html>")

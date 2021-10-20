@@ -2451,6 +2451,26 @@ Visit: %s (Author's site)
         except:
             myPrint("B","Error switching to Home Page Summary Screen")
 
+    def fireMDPreferencesUpdated():
+        """This triggers MD to firePreferencesUpdated().... Hopefully refreshing Home Screen Views too"""
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        class FPSRunnable(Runnable):
+            def __init__(self): pass
+
+            def run(self):
+                myPrint("DB",".. Inside FPSRunnable() - calling firePreferencesUpdated()...")
+                myPrint("B","Calling firePreferencesUpdated() to update Home Screen View")
+                MD_REF.getPreferences().firePreferencesUpdated()
+
+        if not SwingUtilities.isEventDispatchThread():
+            myPrint("DB",".. Not running within the EDT so calling via FPSRunnable()...")
+            SwingUtilities.invokeLater(FPSRunnable())
+        else:
+            myPrint("DB",".. Already running within the EDT so calling FPSRunnable() naked...")
+            FPSRunnable().run()
+        return
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################

@@ -2458,14 +2458,38 @@ Visit: %s (Author's site)
         except:
             myPrint("B","Error switching to Home Page Summary Screen")
 
+    def fireMDPreferencesUpdated():
+        """This triggers MD to firePreferencesUpdated().... Hopefully refreshing Home Screen Views too"""
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        class FPSRunnable(Runnable):
+            def __init__(self): pass
+
+            def run(self):
+                myPrint("DB",".. Inside FPSRunnable() - calling firePreferencesUpdated()...")
+                myPrint("B","Calling firePreferencesUpdated() to update Home Screen View")
+                MD_REF.getPreferences().firePreferencesUpdated()
+
+        if not SwingUtilities.isEventDispatchThread():
+            myPrint("DB",".. Not running within the EDT so calling via FPSRunnable()...")
+            SwingUtilities.invokeLater(FPSRunnable())
+        else:
+            myPrint("DB",".. Already running within the EDT so calling FPSRunnable() naked...")
+            FPSRunnable().run()
+        return
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # COPY >> END
 
+
+
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
+
+
     def load_StuWareSoftSystems_parameters_into_memory():
         global debug, myParameters, lPickle_version_warning, version_build
 
@@ -2669,9 +2693,9 @@ Visit: %s (Author's site)
 
             # If the UI is loaded, then probably a re-install... Refresh the UI with a new window....
             if self.getMoneydanceUI():         # Only do this if the UI is loaded and dataset loaded...
-                myPrint("B","@@ Assuming an extension reinstall. Loading a new Dashboard to refresh the view....")
-                moneydance_ui.selectAccountNewWindow(self.moneydanceContext.getCurrentAccountBook().getRootAccount())
-
+                myPrint("B","@@ Assuming an extension reinstall. Reloading the Dashboard to refresh the view....")
+                # moneydance_ui.selectAccountNewWindow(self.moneydanceContext.getCurrentAccountBook().getRootAccount())
+                fireMDPreferencesUpdated()
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "##########################################################################################")
 
@@ -3005,7 +3029,6 @@ Visit: %s (Author's site)
                 super(DefaultListCellRenderer, self).__init__()                                                         # noqa
 
             def getListCellRendererComponent(self, thelist, value, index, isSelected, cellHasFocus):
-                lightLightGray = Color(0xDCDCDC)
                 c = super(NetAccountBalancesExtension.MyJListRenderer, self).getListCellRendererComponent(thelist, value, index, isSelected, cellHasFocus) # noqa
                 # c.setBackground(self.getBackground() if index % 2 == 0 else lightLightGray)
 
