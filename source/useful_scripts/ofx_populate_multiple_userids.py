@@ -2647,6 +2647,29 @@ Visit: %s (Author's site)
         def __repr__(self):
             return self.__str__()
 
+    def getUpdatedAuthenticationKeys():
+
+        _storage = SyncRecord()
+        _authenticationCache = SyncRecord()
+
+        try:
+            LS = MD_REF.getCurrentAccount().getBook().getLocalStorage()
+            LS.save()
+
+            localFile = File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(),"safe","settings"))
+            if localFile.exists() and localFile.canRead():
+                inx = LS.openFileForReading("settings")
+                _storage.readSet(inx)
+                _authenticationCache = _storage.getSubset("_authentication")
+                inx.close()
+        except:
+            myPrint("B","@@@ ERROR Reading authentication cache from settings @@@")
+            dump_sys_error_to_md_console_and_errorlog()
+
+        del _storage
+        return _authenticationCache
+
+
     class MyJListRenderer(DefaultListCellRenderer):
 
         def __init__(self):
@@ -2755,6 +2778,8 @@ Visit: %s (Author's site)
 
     myPrint("B", "OFX Service Profile selected: %s(%s)" %(selectedService, selectedService.getTIKServiceID()))
 
+    myPrint("B","")
+
     matchingAccts = []
     accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(4))
     for acct in accounts:
@@ -2774,6 +2799,8 @@ Visit: %s (Author's site)
     myPrint("B", "Found %s Accounts linked to this OFX Service Profile" %(len(matchingAccts)))
     for acct in matchingAccts: myPrint("B","... Account: %s" %(acct.getFullAccountName()))
 
+    myPrint("B","")
+
     realms = selectedService.getRealms()
     if len(realms) < 1: alert_and_exit("ERROR NO REALMS WITHIN THIS OFX SERVICE PROFILE FOUND")
 
@@ -2782,6 +2809,8 @@ Visit: %s (Author's site)
     theRealm = realms[0]    # Take the first one...
 
     if len(realms) > 1: alert_and_exit("ERROR MORE THAN 1 REALMS WITHIN THIS OFX SERVICE PROFILE FOUND - LOGIC NOT PROGRAMMED >> SORRY :-<")
+
+    myPrint("B","")
 
     lOverrideRootUUID = False
     if selectedService.getClientIDRequired(theRealm):
@@ -2792,6 +2821,8 @@ Visit: %s (Author's site)
             myPrint("B", "User opted to generate a new Root Master/Default Client UUID for this Dataset.....")
     else:
         myPrint("B","This service profile does not require ClientUUIDs... skipping....")
+
+    myPrint("B","")
 
     myPrint("B","Selecting Accounts to link to profile:")
     myPrint("B","--------------------------------------")
@@ -2849,6 +2880,8 @@ Visit: %s (Author's site)
 
     if len(selectedAccountsList) < 1: alert_and_exit("ERROR NO ACCOUNTS SELECTED")
 
+    myPrint("B","")
+
     accountsToManage = []
 
     delinkAccounts = []
@@ -2876,6 +2909,7 @@ Visit: %s (Author's site)
     del selectedAccountsList, matchingAccts
 
 
+    myPrint("B","")
 
     ####################################################################################################################
     # Validate OFX Setup on Accounts selected for linking
@@ -2994,6 +3028,8 @@ Visit: %s (Author's site)
     if lOFXNumbersFailedValidation: alert_and_exit("ERROR - NOT ALL YOUR ACCOUNTS HAVE AN ASSIGNED OFX NUMBER... CANNOT PROCEED..!")
     del lOFXNumbersFailedValidation, lFoundUpdateOFX
 
+    myPrint("B","")
+
     myPrint("B","Harvesting existing UserID details from root...:")
     myPrint("B","------------------------------------------------")
 
@@ -3018,6 +3054,28 @@ Visit: %s (Author's site)
         myPrint("B","Harvested User and ClientUIDs...:")
         for harvested in harvestedUserIDList:
             myPrint("B","Harvested User: %s, ClientUID: %s" %(harvested.getUserID(), harvested.getClientUID()))
+
+    myPrint("B","")
+
+    myPrint("B","Harvesting existing UserIDs from service profile:...:")
+    myPrint("B","-----------------------------------------------------")
+    for pKey in selectedService.getParameterKeys():
+        if pKey.startswith("so_user_id"):
+            myPrint("B", "Existing User: %s" %(selectedService.getParameter(pKey)))
+
+    myPrint("B","")
+
+    if isUserEncryptionPassphraseSet():
+        myPrint("B","Harvesting Existing UserIDs/Passwords from authentication cache:...:")
+        myPrint("B","--------------------------------------------------------------------")
+        authKeys = getUpdatedAuthenticationKeys()
+        if len(authKeys) > 0:
+            for theAuthKey in sorted(authKeys.keys()):                                                                  # noqa
+                if (selectedService.getFIOrg() + "--" + selectedService.getFIId() + "--") in theAuthKey:
+                    myPrint("B", "Existing AuthCache Entry: %s" %(authKeys.get(theAuthKey)))                            # noqa
+        del authKeys
+
+        myPrint("B","")
 
     myPrint("B","Gathering Default UserID details...:")
     myPrint("B","------------------------------------")
@@ -3045,8 +3103,12 @@ Visit: %s (Author's site)
     newDefaultUserID = userID
     del defaultEntry, userID
 
+    myPrint("B","")
+
     myPrint("B", "@@ Client ID for Realm: %s required flag: %s" %(theRealm, selectedService.getClientIDRequired(theRealm)))
     myPrint("B","--------------------------------------")
+
+    myPrint("B","")
 
     myPrint("B","Gathering new UserID and Passwords...:")
     myPrint("B","--------------------------------------")
@@ -3091,6 +3153,8 @@ Visit: %s (Author's site)
     if newDefaultUserID != userIDList[0].getUserID():
         alert_and_exit("LOGIC ERROR: NEW DEFAULT USERID %s DOES NOT MATCH userIDList[0] %s" %(newDefaultUserID, userIDList[0].getUserID()))
 
+    myPrint("B","")
+
     if lSelectedUSAA:
         for findStoredUser in userIDList:
             foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
@@ -3104,6 +3168,8 @@ Visit: %s (Author's site)
     del harvestedUserIDList
 
     for userID in userIDList: myPrint("B", "UserID entered: %s (Harvested ClientUID: %s)" %(userID, userID.getClientUID()))
+
+    myPrint("B","")
 
     for onUser in range(0,len(userIDList)):
         defaultEntry = "%s:*****" %(onUser+1)
@@ -3120,6 +3186,8 @@ Visit: %s (Author's site)
             break
         userIDList[onUser].setPassword(password)
         del defaultEntry, password
+
+    myPrint("B","")
 
     if lSelectedUSAA:
         for onUser in range(0,len(userIDList)):
@@ -3142,10 +3210,14 @@ Visit: %s (Author's site)
             userIDList[onUser].setClientUID(uuid)
             del defaultEntry, uuid
 
+    myPrint("B","")
+
     myPrint("B","Final list of resolved UserIDs, Passwords, and ClientUIDs (if required)....")
     for userID in userIDList:
         if userID.getPassword() == "NOT SET": alert_and_exit("LOGIC ERROR - PASSWORD NOT SET FOR: %s" %(userID))
         myPrint("B", "UserID entered: %s (Password: %s) (ClientUID: %s)" %(userID.getPassword(),userID.getPassword(),userID.getClientUID()))
+
+    myPrint("B","")
 
     ####################################################################################################################
     ############################### MATCH USERIDs TO ACCOUNTS
@@ -3190,6 +3262,8 @@ Visit: %s (Author's site)
 
     del listOfAccountsForUserID
     ####################################################################################################################
+    myPrint("B","")
+
     myPrint("B","Sanity check...:")
     myPrint("B","----------------")
 
@@ -3204,9 +3278,13 @@ Visit: %s (Author's site)
     if not myPopupAskQuestion(None,"PROCEED WITH OFX PROFILE CHANGES", "Proceed with changes?"):
         alert_and_exit("USER DECLINED TO PROCEED WITH OFX PROFILE CHANGES")
 
+    myPrint("B","")
+    myPrint("B","")
+
     # ... and WE ARE OFF AND RUNNING......
     myPrint("B", "PROCEEDING WITH OFX PROFILE UPDATES:")
 
+    myPrint("B","")
 
     myPrint("B","Removing existing profile links from mapping object - will rebuild the table...:")
     myPrint("B","--------------------------------------------------------------------------------")
@@ -3235,6 +3313,7 @@ Visit: %s (Author's site)
         mappingObjectClass =  OnlineAccountMapping(book, selectedService)
 
     ####################################################################################################################
+    myPrint("B","")
     myPrint("B","De-linking accounts, updating OFX data, linking new accounts...:")
     myPrint("B","----------------------------------------------------------------")
 
@@ -3251,6 +3330,8 @@ Visit: %s (Author's site)
         acct.syncItem()
     del delinkAccounts
 
+    myPrint("B","")
+
     if len(updateAccountOFXDataList): myPrint("B","UPDATING ACCOUNTS WITH OFX DATA..:")
     for acct in updateAccountOFXDataList:
         myPrint("B","...Updating acct: %s" %(acct.getAccount()))
@@ -3266,6 +3347,8 @@ Visit: %s (Author's site)
         acct.getAccount().syncItem()
     del updateAccountOFXDataList
 
+    myPrint("B","")
+
     if len(linkNewAccounts): myPrint("B","CREATING NEW LINKS FOR ACCOUNTS..:")
     for acct in linkNewAccounts:
         myPrint("B","...Creating new OFX link for acct: %s" %(acct))
@@ -3276,6 +3359,8 @@ Visit: %s (Author's site)
     del linkNewAccounts
 
     ####################################################################################################################
+    myPrint("B","")
+
     myPrint("B","Updating root...:")
     myPrint("B","-----------------")
 
@@ -3332,6 +3417,8 @@ Visit: %s (Author's site)
     del lOverrideRootUUID
 
     ####################################################################################################################
+
+    myPrint("B","")
 
     myPrint("B","Updating Service Profile with updated UserIDs....:")
     myPrint("B","--------------------------------------------------")
@@ -3392,6 +3479,8 @@ Visit: %s (Author's site)
 
     ####################################################################################################################
 
+    myPrint("B","")
+
     myPrint("B", "accessing / updating authentication keys...:")
     myPrint("B", "--------------------------------------------")
 
@@ -3435,8 +3524,10 @@ Visit: %s (Author's site)
     MD_REF.getCurrentAccount().getBook().getLocalStorage().save()  # Flush settings to disk before changes
     ####################################################################################################################
 
+    myPrint("B","")
     myPrint("B","FINISHED UPDATES")
     myPrint("B","----------------")
+    myPrint("B","")
 
     ####################################################################################################################
 
@@ -3507,5 +3598,6 @@ Visit: %s (Author's site)
     myPopupInformationBox(None, "SUCCESS. REVIEW OUTPUT (and console)", theMessageType=JOptionPane.WARNING_MESSAGE)
 
     myPrint("B", "SUCCESS!")
+    myPrint("B","")
 
     cleanup_actions()
