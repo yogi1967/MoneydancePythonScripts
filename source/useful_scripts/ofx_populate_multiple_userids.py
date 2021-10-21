@@ -2712,7 +2712,9 @@ Visit: %s (Author's site)
 
     ask = MyPopUpDialogBox(None, "This script will update an existing (working) OFX profile with multiple User IDs:",
                            "Get the latest useful_scripts.zip package from: %s \n"
-                           "You have to select a WORKING profile, answer a series of questions, and enter your UserID/Password details\n\n"
+                           "You have to select a WORKING profile, answer a series of questions, and enter your UserID/Password details\n"
+                           "..A working profile that has been successfully used on all of your accounts will be the best....\n\n"
+                           "NOTE: This script will largely ignore BillPay.. If it's there it will 'gloss over it'....\n\n"
                            "If your Bank requires a (hidden) machine specific Client UUID, then script generates a new one (per user)\n"
                            "... This may mean you have to re-approve access for each user (review email / Bank's online security centre)\n"
                            "You can also generate a new Default Client UUID for all other Profiles that use a default (OPTIONAL)\n"
@@ -2734,8 +2736,10 @@ Visit: %s (Author's site)
     if not myPopupAskQuestion(None, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
         alert_and_exit("Disclaimer rejected - no changes made")
 
-    if not myPopupAskQuestion(None, "BILLPAY", "CONFIRM YOU ARE NOT USING BILLPAY ON THIS PROFILE (This will not work for BP)?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("Using BillPay so aborting (sorry) - no changes made")
+    lIgnoreBillPay = True
+    if not lIgnoreBillPay:
+        if not myPopupAskQuestion(None, "BILLPAY", "CONFIRM YOU ARE NOT USING BILLPAY ON THIS PROFILE (This will not work for BP)?", theMessageType=JOptionPane.WARNING_MESSAGE):
+            alert_and_exit("Using BillPay so aborting (sorry) - no changes made")
 
     # if not myPopupAskQuestion(None, "INVESTMENTS", "CONFIRM YOU ARE NOT USING INVESTMENT ACCOUNTS ON THIS PROFILE (This will NOT work for Investments)?", theMessageType=JOptionPane.WARNING_MESSAGE):
     #     alert_and_exit("Using Investments so aborting (sorry) - no changes made")
@@ -2783,7 +2787,11 @@ Visit: %s (Author's site)
     matchingAccts = []
     accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(4))
     for acct in accounts:
-        if acct.getBillPayFI() == selectedService: alert_and_exit("ERROR - BILLPAY LINK FOUND ON ACCT: %s - ABORTING" %(acct))
+        if acct.getBillPayFI() == selectedService:
+            if not lIgnoreBillPay:
+                alert_and_exit("ERROR - BILLPAY LINK FOUND ON ACCT: %s - ABORTING" %(acct))
+            else:
+                myPrint("B", "Ignoring BillPay link found on account: %s" %(acct))
         if acct.getBankingFI() == selectedService:
             # noinspection PyUnresolvedReferences
             if (acct.getAccountType() == Account.AccountType.BANK
@@ -2794,7 +2802,13 @@ Visit: %s (Author's site)
                 alert_and_exit("ERROR: FOUND LINKED ACCT (%s) THAT IS NOT BANK, CREDIT CARD OR INVESTMENT - ABORTING" %(acct))
 
     if len(matchingAccts) < 1:
-        alert_and_exit("ERROR NO ACCOUNTS LINKED TO THIS OFX SERVICE PROFILE FOUND")
+        myPrint("B", "WARNING! No Accounts are already linked to this profile? Are you sure this is a good profile?")
+        if myPopupAskQuestion(None,"NO ACCOUNTS LINKED >> FORCE LINK ACCOUNT", "Would you like to try and force link an account to this profile?"):
+            myPrint("B","@@@ FORCE LINKING ACCOUNTS INTO THIS PROFILE..!! @@")
+        else:
+            alert_and_exit("ERROR NO ACCOUNTS LINKED TO THIS OFX SERVICE PROFILE FOUND")
+
+    myPrint("B","")
 
     myPrint("B", "Found %s Accounts linked to this OFX Service Profile" %(len(matchingAccts)))
     for acct in matchingAccts: myPrint("B","... Account: %s" %(acct.getFullAccountName()))
@@ -2832,8 +2846,9 @@ Visit: %s (Author's site)
     getAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), MyAcctFilter(2))
     getAccounts = sorted(getAccounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
     for acct in getAccounts:
-        if acct.getBillPayFI() == selectedService: alert_and_exit("LOGIC ERROR: PARSING getAccounts() - FOUND BILLPAY")
+        if not lIgnoreBillPay and acct.getBillPayFI() == selectedService: alert_and_exit("LOGIC ERROR: PARSING getAccounts() - FOUND BILLPAY")
         elif acct.getBankingFI() == selectedService: pass
+        elif acct.getBillPayFI() == selectedService: pass
         elif acct.getBankingFI() is not None or acct.getBillPayFI() is not None: continue
         elif acct.getAccountOrParentIsInactive(): continue
         elif acct.getHideOnHomePage() and acct.getBalance() == 0: continue
@@ -2855,7 +2870,7 @@ Visit: %s (Author's site)
             preSelectList.append(jlstIndex)
         jlstIndex += 1
     jlst.setSelectedIndices(preSelectList)
-    jlst.ensureIndexIsVisible(preSelectList[0])
+    if len(matchingAccts) > 0: jlst.ensureIndexIsVisible(preSelectList[0])
     del preSelectList, listOfAccountsForJList
 
     jsp = MyJScrollPaneForJOptionPane(jlst,750,600)
@@ -2907,7 +2922,6 @@ Visit: %s (Author's site)
                 alert_and_exit("ERROR - USER DOES NOT WANT TO LINK: %s" %(acct))
         accountsToManage.append(acct)
     del selectedAccountsList, matchingAccts
-
 
     myPrint("B","")
 
@@ -3275,8 +3289,7 @@ Visit: %s (Author's site)
     del iCheckAccountNumber
 
     # This is it folks.... Shall we go for it?
-    if not myPopupAskQuestion(None,"PROCEED WITH OFX PROFILE CHANGES", "Proceed with changes?"):
-        alert_and_exit("USER DECLINED TO PROCEED WITH OFX PROFILE CHANGES")
+    if not myPopupAskQuestion(None,"PROCEED WITH OFX PROFILE CHANGES", "Proceed with changes?"): alert_and_exit("USER DECLINED TO PROCEED WITH OFX PROFILE CHANGES")
 
     myPrint("B","")
     myPrint("B","")
