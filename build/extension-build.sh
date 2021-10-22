@@ -247,6 +247,17 @@ else
     echo "No *.pyi stub file(s) to ZIP - skipping....."
   fi
 
+  echo "Zipping PREVIEW MARKER file into mxt..."
+  if test -f "${EXTN_DIR}"/_PREVIEW_BUILD_; then
+    zip -j "${MXT}" "${EXTN_DIR}"/_PREVIEW_BUILD_
+    if [ $? -ne 0 ]; then
+      echo "*** zip _PREVIEW_BUILD_ Failed??"
+      exit 8
+    fi
+  else
+    echo "No PREVIEW MARKER file to ZIP - skipping....."
+  fi
+
   echo "Zipping *.txt into mxt..."
   if test -f "${EXTN_DIR}"/*.txt; then
     zip -j "${MXT}" "${EXTN_DIR}"/*.txt
