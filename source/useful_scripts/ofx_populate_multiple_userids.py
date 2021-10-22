@@ -2614,6 +2614,30 @@ Visit: %s (Author's site)
             if _service.getTIKServiceID() == "md:plaid": return _service
         return None
 
+    def getMsgSetTag(messageType):
+        # com.infinitekind.moneydance.model.OnlineService.getMsgSetTag(int)
+        if messageType == 1:    return "fiprofile"
+        elif messageType == 3:  return "signup"
+        elif messageType == 4:  return "banking"
+        elif messageType == 5:  return "creditcard"
+        elif messageType == 6:  return "investment"
+        elif messageType == 7:  return "interbankxfr"
+        elif messageType == 8:  return "wirexfr"
+        elif messageType == 9:  return "billpay"
+        elif messageType == 10: return "email"
+        elif messageType == 11:  return "seclist"
+        elif messageType == 12:  return "billdir"
+        return "default"
+
+    def getAccountMsgType(_theAccount):
+        # type: (Account) -> int
+
+        # noinspection PyUnresolvedReferences
+        if _theAccount.getAccountType() == Account.AccountType.BANK:            return 4
+        elif _theAccount.getAccountType() == Account.AccountType.CREDIT_CARD:   return 5
+        elif _theAccount.getAccountType() == Account.AccountType.INVESTMENT:    return 6
+        alert_and_exit("LOGIC ERROR: Found Bank Account Type: %s" %(_theAccount.getAccountType()))
+
     class StoreAccountList():
         def __init__(self, obj):
             if isinstance(obj,Account):
@@ -3010,14 +3034,7 @@ Visit: %s (Author's site)
                 storeAcct.setOFXAccountNumber(bankID)
                 storeAcct.setOFXBrokerID(brokerID)
                 # noinspection PyUnresolvedReferences
-                if acct.getAccountType() == Account.AccountType.BANK:
-                    storeAcct.setOFXAccountMsgType(4)
-                elif acct.getAccountType() == Account.AccountType.CREDIT_CARD:
-                    storeAcct.setOFXAccountMsgType(5)
-                elif acct.getAccountType() == Account.AccountType.INVESTMENT:
-                    storeAcct.setOFXAccountMsgType(6)
-                else:
-                    alert_and_exit("LOGIC ERROR: Found Bank Account Type: %s" %(acct.getAccountType()))
+                storeAcct.setOFXAccountMsgType(getAccountMsgType(acct))
                 updateAccountOFXDataList.append(storeAcct)
 
         myPrint("B","Validation complete.... %s Accounts need to be updated" %(len(updateAccountOFXDataList)))
@@ -3041,6 +3058,10 @@ Visit: %s (Author's site)
 
     if lOFXNumbersFailedValidation: alert_and_exit("ERROR - NOT ALL YOUR ACCOUNTS HAVE AN ASSIGNED OFX NUMBER... CANNOT PROCEED..!")
     del lOFXNumbersFailedValidation, lFoundUpdateOFX
+
+    myPrint("B","")
+    myPrint("B", "@@ Client ID for Realm: %s required flag: %s" %(theRealm, selectedService.getClientIDRequired(theRealm)))
+    myPrint("B","--------------------------------------")
 
     myPrint("B","")
 
@@ -3091,6 +3112,17 @@ Visit: %s (Author's site)
 
         myPrint("B","")
 
+
+    howManyUsers = 0
+    userResponse = myPopupAskForInput(None, "OFX USERID MANAGEMENT", "Total number of UserIDs:", "How many UserIDs (in Total, including default) do you want to setup/manage?",defaultValue=howManyUsers)
+    if userResponse is None or not StringUtils.isInteger(userResponse) or int(userResponse) < 1 or int(userResponse) > 7:
+        alert_and_exit("ERROR: INVALID TOTAL NUMBER OF USERIDs TO MANAGE ENTERED (range 1-7)")
+    howManyUsers = int(userResponse)
+    myPrint("B", "Total UserIDs to Manage: %s" %(howManyUsers))
+
+    if howManyUsers > len(accountsToManage): alert_and_exit("ERROR - YOU HAVE SPECIFIED MORE TOTAL USERIDs THAN ACCOUNTS?!")
+
+
     myPrint("B","Gathering Default UserID details...:")
     myPrint("B","------------------------------------")
 
@@ -3119,22 +3151,8 @@ Visit: %s (Author's site)
 
     myPrint("B","")
 
-    myPrint("B", "@@ Client ID for Realm: %s required flag: %s" %(theRealm, selectedService.getClientIDRequired(theRealm)))
-    myPrint("B","--------------------------------------")
-
-    myPrint("B","")
-
     myPrint("B","Gathering new UserID and Passwords...:")
     myPrint("B","--------------------------------------")
-
-    howManyUsers = 0
-    userResponse = myPopupAskForInput(None, "OFX USERID MANAGEMENT", "Total number of UserIDs:", "How many UserIDs (in Total, including default) do you want to setup/manage?",defaultValue=howManyUsers)
-    if userResponse is None or not StringUtils.isInteger(userResponse) or int(userResponse) < 1 or int(userResponse) > 5:
-        alert_and_exit("ERROR: INVALID TOTAL NUMBER OF USERIDs TO MANAGE ENTERED (range 1-5)")
-    howManyUsers = int(userResponse)
-    myPrint("B", "Total UserIDs to Manage: %s" %(howManyUsers))
-
-    if howManyUsers > len(accountsToManage): alert_and_exit("ERROR - YOU HAVE SPECIFIED MORE TOTAL USERIDs THAN ACCOUNTS?!")
 
     userIDList = []
     for onUser in range(0,howManyUsers):
@@ -3459,6 +3477,9 @@ Visit: %s (Author's site)
                 for onlineAcct in updatedAccounts:
                     if onlineAcct.getAccountNumber() == acct.getOFXAccountNumber():
                         myPrint("B", "...Found online account: %s in .getAvailableAccounts() - skipping the add..." %(acct.getOFXAccountNumber()))
+                        # if not selectedService.supportsMsgSet(acct.getOFXAccountMsgType()):
+                        #     myPrint("B", "...... supportsMsgSet(%s) failed.... forcing this on....." %(selectedService.supportsMsgSet(acct.getOFXAccountMsgType())))
+                        #     selectedService.setMsgSetVersion(acct.getOFXAccountMsgType(), 1)
                         lFound = True
                 if not lFound:
                     myPrint("B", "...Adding account: %s to .getAvailableAccounts()" %(acct.getOFXAccountNumber()))
@@ -3472,6 +3493,8 @@ Visit: %s (Author's site)
                     info.setIsInvestmentAccount(acct.getAccountType()==Account.AccountType.INVESTMENT)                  # noqa
                     info.setIsBankAccount(acct.getAccountType()==Account.AccountType.BANK)                              # noqa
                     info.setIsCCAccount(acct.getAccountType()==Account.AccountType.CREDIT_CARD)                         # noqa
+                    # if not selectedService.supportsMsgSet(acct.getOFXAccountMsgType()):
+                    #     selectedService.setMsgSetVersion(acct.getOFXAccountMsgType(), 1)
                     updatedAccounts.add(info)
                     del info
                 del lFound
