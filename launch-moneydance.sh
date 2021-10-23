@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: 7th April 2021)
+# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: October 2021)
 # Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
@@ -8,7 +8,7 @@
 
 # NOTE:   You can also just run the 'code-signed app' by launching the following from Terminal (which is a simpler approach):
 #         "/Applications/Moneydance.app/Contents/MacOS/Moneydance"                [-d] [-v] [... etc]
-#         "/Applications/Moneydance 2021.2 (3089).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
+#         "/Applications/Moneydance 2022.1 (4058).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
 
 # THIS IS WRITTEN FOR MacOS Terminal(zsh). Adjust accordingly...!
 
@@ -40,14 +40,24 @@
 # MD2021.2(3088): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
 #                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
 
+# shellcheck disable=SC2121
+set md_passphrase=x
 unset md_passphrase
 unset md_passphrase
-#export md_passphrase=XxX
+export md_passphrase=x
 
+# set to "" for standard app install name (I add the version and build to the app name when installing)
+#md_version=""
+md_version=" 2022.1 (4058)"
 
-# Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
+USE_JAVA17="YES"
+
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
+# Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
 
+# NOTE:   MD2022.1(4058) Introduced Java 17
+# https://download2.gluonhq.com/openjfx/17.0.1/openjfx-17.0.1_osx-x64_bin-sdk.zip
+# https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17%2B35/OpenJDK17-jdk_x64_mac_hotspot_17_35.pkg
 # Edit the necessary install locations for JDK and JavaFX below
 
 # Edit the necessary settings and your folder locations below
@@ -89,17 +99,19 @@ echo "My user path: ${my_user_path}"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
-export JAVA_HOME="${my_user_path}/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home"
+if [ "${USE_JAVA17}" = "YES" ]; then
+  export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib"
+else
+  export JAVA_HOME="${my_user_path}/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home"
+  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
+fi
+
 export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
 
 # JavaFX directory
-javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
-
-# set to "" for standard app install name (I add the version and build to the app name when installing)
-#md_version=""
-md_version=" 2022.0 (4045)"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"

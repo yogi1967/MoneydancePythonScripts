@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 19) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 20) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -69,6 +69,7 @@
 # build: 17 - Update message on view last download dates window
 # build: 18 - Common code tweaks
 # build: 19 - Tweak to Authentication Cache routine.... Fixed a bug (that didn't matter too much)...
+# build: 20 - Now linked to official MD fis profile...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -76,7 +77,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "19"
+version_build = "20"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -3050,6 +3051,22 @@ Visit: %s (Author's site)
 
     ####################################################################################################################
 
+    # MD FIS Profile....
+    # {
+    #   "access_type" = "OFX"
+    #   "app_id" = "QMOFX"
+    #   "app_ver" = "2300"
+    #   "bootstrap_url" = "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx"
+    #   "fi_id" = "67811"
+    #   "fi_name" = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
+    #   "fi_org" = "USAA Federal Savings Bank"
+    #   "id" = "md:custom-1295"
+    #   "uses_fi_tag" = "y"
+    #   "user-agent" = "InetClntApp/3.0"
+    #   "no_fi_refresh" = "y"
+    #   "ofx_version" = "103"
+    # }
+
     myPrint("B", "Creating new Online Banking OFX Service Profile")
     manualFIInfo = StreamTable()     # type: StreamTable
     manualFIInfo.put("obj_type",                                 "olsvc")
@@ -3084,7 +3101,6 @@ Visit: %s (Author's site)
     manualFIInfo.put("language_default",                         "ENG")
     manualFIInfo.put("language_fiprofile",                       "ENG")
     manualFIInfo.put("language_signup",                          "ENG")
-    manualFIInfo.put("last_fi_refresh",                          "1613781515886")
     manualFIInfo.put("no_fi_refresh",                            "y")
     manualFIInfo.put("ofx_version",                              "103")
     manualFIInfo.put("ofxurl_banking",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
