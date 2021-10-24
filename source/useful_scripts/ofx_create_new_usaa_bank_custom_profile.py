@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 20) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 21) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -70,6 +70,7 @@
 # build: 18 - Common code tweaks
 # build: 19 - Tweak to Authentication Cache routine.... Fixed a bug (that didn't matter too much)...
 # build: 20 - Now linked to official MD fis profile...
+# build: 21 - Harvest and offer existing UserID / ClientUID
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -77,7 +78,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "20"
+version_build = "21"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -2617,15 +2618,56 @@ Visit: %s (Author's site)
                 return "Invalid Acct Obj or None"
             return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
 
-    if not myPopupAskQuestion(None, "BACKUP", "CREATE A NEW (CUSTOM) USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
-        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-        raise Exception(alert)
+    class StoreUserID():
+        def __init__(self, _userID, _password="NOT SET"):
+            self.userID = _userID.strip()
+            self.password = _password
+            self.clientUID = None
+            self.accounts = []
 
-    if not myPopupAskQuestion(None, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert = "Disclaimer rejected - no changes made"
-        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-        raise Exception(alert)
+        @staticmethod
+        def findUserID(findUserID, listOfUserIDs):
+            # type: (str, [StoreUserID]) -> StoreUserID
+            """
+            Static Method to search a [list] of StoreUserID()
+            """
+            for userIDFromList in listOfUserIDs:
+                if findUserID.lower().strip() == userIDFromList.getUserID().lower().strip(): return userIDFromList
+            return None
+
+        def setPassword(self, _password):       self.password = _password
+        def setClientUID(self, _clientUID):     self.clientUID = _clientUID
+        def setAccounts(self, _accounts):       self.accounts = _accounts
+
+        def getUserID(self):    return self.userID
+        def getPassword(self):  return self.password
+        def getClientUID(self): return self.clientUID
+        def getAccounts(self):  return self.accounts
+
+        def __str__(self): return "UserID: %s Password: <%s>" %(self.getUserID(), ("*"*len(self.getPassword())))
+        def __repr__(self): return self.__str__()
+
+    def getUpdatedAuthenticationKeys():
+
+        _storage = SyncRecord()
+        _authenticationCache = SyncRecord()
+
+        try:
+            LS = MD_REF.getCurrentAccount().getBook().getLocalStorage()
+            LS.save()
+
+            localFile = File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(),"safe","settings"))
+            if localFile.exists() and localFile.canRead():
+                inx = LS.openFileForReading("settings")
+                _storage.readSet(inx)
+                _authenticationCache = _storage.getSubset("_authentication")
+                inx.close()
+        except:
+            myPrint("B","@@@ ERROR Reading authentication cache from settings @@@")
+            dump_sys_error_to_md_console_and_errorlog()
+
+        del _storage
+        return _authenticationCache
 
     ask = MyPopUpDialogBox(None, "This script will delete your existing USAA bank profile(s) and CREATE A BRAND NEW CUSTOM USAA PROFILE:",
                            "Get the latest useful_scripts.zip package from: %s \n"
@@ -2642,11 +2684,22 @@ Visit: %s (Author's site)
                            "- Do you know your Bank Account Number(s) (10-digits) and routing Number (9-digits - usually '314074269')?\n"
                            "- Do you know the DIFFERENT Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
                            "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
+                           "NOTE: You can now use the 'ofx_populate_multiple_userids.py' script afterwards to update/edit (multiple) UserIDs/Passwords\n"
                            "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL),
                            250,"KNOWLEDGE",
                            lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
     if not ask.go():
         alert = "Knowledge rejected - no changes made"
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+    if not myPopupAskQuestion(None, "BACKUP", "CREATE A NEW (CUSTOM) USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
+        alert = "BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made."
+        myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+        raise Exception(alert)
+
+    if not myPopupAskQuestion(None, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
+        alert = "Disclaimer rejected - no changes made"
         myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
         raise Exception(alert)
 
@@ -2699,6 +2752,7 @@ Visit: %s (Author's site)
     USAA_PROFILE_NAME = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
     OLD_TIK_FI_ID = "md:1295"
     NEW_TIK_FI_ID = "md:custom-1295"
+    USAA_REALM = "USAASignon"
 
     authKeyPrefix = "ofx.client_uid"
 
@@ -2721,6 +2775,76 @@ Visit: %s (Author's site)
     mappingKeys = None
     if mappingObject is not None: mappingKeys = list(mappingObject.getParameterKeys())
     lMappingNeedsSync = False
+
+
+    # ###################################################################################################################
+
+    authKeyPrefix = "ofx.client_uid"
+    specificAuthKeyPrefix = authKeyPrefix+"::" + NEW_TIK_FI_ID + "::"
+
+    harvestedUserIDList = []
+    harvestedDefaultUserID = None
+
+    myPrint("B","Harvesting existing UserID details from root...:")
+    myPrint("B","------------------------------------------------")
+
+    harvestedService = None
+    if len(deleteServices) == 1:
+        harvestedService = deleteServices[0]        # type: OnlineService
+        specificAuthKeyPrefix = authKeyPrefix+"::" + harvestedService.getTIKServiceID() + "::"
+
+    for i in range(0,len(rootKeys)):
+        rk = rootKeys[i]
+        if rk.startswith(specificAuthKeyPrefix):
+            rk_value = root.getParameter(rk)
+            harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
+            if harvestedUID.getUserID() != "null":
+                myPrint("B", "... Harvested old authKey %s: ClientUID: %s" %(rk,rk_value))
+                harvestedUID.setClientUID(rk_value)
+                harvestedUserIDList.append(harvestedUID)
+
+    if len(harvestedUserIDList) > 0:
+        myPrint("B","Harvested User and ClientUIDs...:")
+        for harvested in harvestedUserIDList:
+            myPrint("B","Harvested User: %s, ClientUID: %s" %(harvested.getUserID(), harvested.getClientUID()))
+    else:
+        myPrint("B","No existing UserID / ClientUIDs found to harvest...")
+
+    myPrint("B","")
+
+    if len(deleteServices) == 1:
+
+        myPrint("B","Harvesting Default UserID details...:")
+        myPrint("B","------------------------------------")
+
+        harvestedDefaultUserID = harvestedService.getUserId(USAA_REALM, None)
+        if harvestedDefaultUserID == "": harvestedDefaultUserID = None
+        myPrint("B", "Harvested default UserID: %s" % ("<NONE>" if (harvestedDefaultUserID is None) else harvestedDefaultUserID))
+
+        myPrint("B","")
+
+        myPrint("B","Harvesting existing UserIDs from service profile:...:")
+        myPrint("B","-----------------------------------------------------")
+        for pKey in harvestedService.getParameterKeys():
+            if pKey.startswith("so_user_id"):
+                myPrint("B", "Existing User: %s" %(harvestedService.getParameter(pKey)))
+
+        myPrint("B","")
+
+        if isUserEncryptionPassphraseSet():
+            myPrint("B","Harvesting Existing UserIDs/Passwords from authentication cache:...:")
+            myPrint("B","--------------------------------------------------------------------")
+            authKeys = getUpdatedAuthenticationKeys()
+            if len(authKeys) > 0:
+                for theAuthKey in sorted(authKeys.keys()):                                                                  # noqa
+                    if (harvestedService.getFIOrg() + "--" + harvestedService.getFIId() + "--") in theAuthKey:
+                        myPrint("B", "Existing AuthCache Entry: %s" %(authKeys.get(theAuthKey)))                            # noqa
+            del authKeys
+
+            myPrint("B","")
+
+    del harvestedService
+    # ###################################################################################################################
 
     if len(deleteServices) < 1:
         myPrint("B", "No USAA services / profile found to delete...")
@@ -2913,25 +3037,14 @@ Visit: %s (Author's site)
 
     ####################################################################################################################
 
-    dummy = "12345678-1111-1111-1111-123456789012"
+    if harvestedDefaultUserID is not None and harvestedDefaultUserID != "":
+        defaultEntry = harvestedDefaultUserID
+    elif len(harvestedUserIDList) > 0:
+        defaultEntry = harvestedUserIDList[0].getUserID()
+    else:
+        defaultEntry = "UserID"
+    del harvestedDefaultUserID
 
-    defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
-    while True:
-        uuid = myPopupAskForInput(None, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
-        myPrint("B", "UUID entered: %s" %uuid)
-        if uuid is None:
-            alert = "ERROR - No uuid entered! Aborting"
-            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-            raise Exception(alert)
-        defaultEntry = uuid
-        if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
-                (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
-            myPrint("B", "\n ** ERROR - no valid uuid supplied - try again ** \n")
-            continue
-        break
-    del defaultEntry
-
-    defaultEntry = "UserID"
     while True:
         userID = myPopupAskForInput(None, "UserID", "UserID", "Type/Paste your UserID (min length 8) very carefully", defaultEntry)
         myPrint("B", "userID entered: %s" %userID)
@@ -2957,6 +3070,44 @@ Visit: %s (Author's site)
         defaultEntry = password
         if password is None or password == "" or password == "*****" or len(password) < 6:
             myPrint("B", "\n ** ERROR - no password supplied - try again ** \n")
+            continue
+        break
+    del defaultEntry
+
+    findStoredUser = StoreUserID(userID)
+    if len(harvestedUserIDList) > 0:
+        foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
+        if foundHarvestedStoredUser is not None:
+            if foundHarvestedStoredUser.getClientUID() is not None:
+                findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
+            else:
+                alert = "LOGIC ERROR: Found harvested UserID (%s) with no ClientUID?! Aborting" %(findStoredUser)
+                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                raise Exception(alert)
+        del foundHarvestedStoredUser
+        myPrint("B", "UserID entered: %s (Harvested ClientUID: %s)" %(userID, findStoredUser.getClientUID()))
+    else:
+        myPrint("B","Skipping matching ClientUID1 into UserID1 as did not harvest any UserIDs from USAA profile...")
+
+    myPrint("B","")
+
+    if findStoredUser.getClientUID() is not None:
+        defaultEntry = findStoredUser.getClientUID()
+    else:
+        defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+    del findStoredUser
+
+    while True:
+        uuid = myPopupAskForInput(None, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+        myPrint("B", "UUID entered: %s" %uuid)
+        if uuid is None:
+            alert = "ERROR - No uuid entered! Aborting"
+            myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
+        defaultEntry = uuid
+        if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+                (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
+            myPrint("B", "\n ** ERROR - no valid uuid supplied - try again ** \n")
             continue
         break
     del defaultEntry
@@ -3018,7 +3169,44 @@ Visit: %s (Author's site)
     ####################################################################################################################
 
     if lMultiAccountSetup:
-        defaultEntry = uuid
+
+        defaultEntry = "UserID2"
+        while True:
+            userID2 = myPopupAskForInput(None, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
+            myPrint("B", "UserID2 entered: %s" %userID2)
+            if userID2 is None:
+                alert = "ERROR - no UserID2 supplied! Aborting"
+                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                raise Exception(alert)
+            defaultEntry = userID2
+            if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
+                myPrint("B", "\n ** ERROR - no valid UserID2 supplied - try again ** \n")
+                continue
+            break
+        del defaultEntry
+
+        findStoredUser = StoreUserID(userID2)
+        if len(harvestedUserIDList) > 0:
+            foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
+            if foundHarvestedStoredUser is not None:
+                if foundHarvestedStoredUser.getClientUID() is not None:
+                    findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
+                else:
+                    alert = "LOGIC ERROR: Found harvested UserID2 (%s) with no ClientUID?! Aborting" %(findStoredUser)
+                    myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+                    raise Exception(alert)
+            del foundHarvestedStoredUser
+            myPrint("B", "UserID2 entered: %s (Harvested ClientUID2: %s)" %(userID, findStoredUser.getClientUID()))
+        else:
+            myPrint("B","Skipping matching ClientUID2 into UserID2 as did not harvest any UserIDs from USAA profile...")
+        del harvestedUserIDList
+
+        if findStoredUser.getClientUID() is not None:
+            defaultEntry = findStoredUser.getClientUID()
+        else:
+            defaultEntry = uuid
+        del findStoredUser
+
         while True:
             uuid2 = myPopupAskForInput(None, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
             myPrint("B", "UUID2 entered: %s" %uuid2)
@@ -3034,24 +3222,11 @@ Visit: %s (Author's site)
             break
         del defaultEntry
 
-        defaultEntry = "UserID2"
-        while True:
-            userID2 = myPopupAskForInput(None, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
-            myPrint("B", "userID2 entered: %s" %userID2)
-            if userID2 is None:
-                alert = "ERROR - no userID2 supplied! Aborting"
-                myPopupInformationBox(None, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-                raise Exception(alert)
-            defaultEntry = userID2
-            if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
-                myPrint("B", "\n ** ERROR - no valid userID2 supplied - try again ** \n")
-                continue
-            break
-        del defaultEntry
-
     ####################################################################################################################
 
-    # MD FIS Profile....
+    # ##########################################
+    # NEW MD FIS Profile as of 24th Oct 2021....
+    # ##########################################
     # {
     #   "access_type" = "OFX"
     #   "app_id" = "QMOFX"

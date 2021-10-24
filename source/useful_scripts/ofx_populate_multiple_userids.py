@@ -3080,10 +3080,11 @@ Visit: %s (Author's site)
         rk = rootKeys[i]
         if rk.startswith(specificAuthKeyPrefix):
             rk_value = root.getParameter(rk)
-            myPrint("B", "... Harvested old authKey %s: ClientUID: %s" %(rk,rk_value))
             harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
-            harvestedUID.setClientUID(rk_value)
-            harvestedUserIDList.append(harvestedUID)
+            if harvestedUID.getUserID() != "null":
+                myPrint("B", "... Harvested old authKey %s: ClientUID: %s" %(rk,rk_value))
+                harvestedUID.setClientUID(rk_value)
+                harvestedUserIDList.append(harvestedUID)
 
     if len(harvestedUserIDList) > 0:
         myPrint("B","Harvested User and ClientUIDs...:")
@@ -3425,7 +3426,7 @@ Visit: %s (Author's site)
             else: theDefaultUUID = my_createNewClientUID()
 
             root.setParameter(authKeyPrefix+"_default_user"+"::" + selectedService.getTIKServiceID(), newDefaultUserID)
-            root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
+            # root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
 
             for onUser in range(0,len(userIDList)):
                 myPrint("B", "Updating Root >> UserID%s (%s)" %(onUser+1, userIDList[onUser].getUserID()))
