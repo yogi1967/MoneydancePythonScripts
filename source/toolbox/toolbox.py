@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1043 - November 2020 thru July 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1044 - November 2020 thru July 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -237,6 +237,7 @@
 # build: 1043 - New feature: 'Restore an archive file, and RETAIN Sync settings ' (avoids wiping out Sync settings on restore)
 # build: 1043 - New feature: Fix iCloud Sync Crash (same as Fix Dropbox One-Way Crash)
 # build: 1043 - Tweaked OFX Authentication menu... Added change OFX Password feature
+# build: 1044 - Enhanced OFX Authentication Menu. Added option to prime USAA UserID/ClientUID...; tweaked open md folder, for open system locations to work
 
 # todo - Restore and retain syncid settings....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -260,7 +261,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1043"
+version_build = "1044"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -7873,8 +7874,9 @@ Please update any that you use before proceeding....
         serviceList = MD_REF.getCurrentAccountBook().getOnlineInfo().getAllServices()
         newServiceList = []
         for sv in serviceList:
-            if lIncludePlaidWhenUnlocked:
-                if not isToolboxUnlocked() and sv.getTIKServiceID() == "md:plaid": continue
+            if sv.getTIKServiceID() == "md:plaid":
+                if not lIncludePlaidWhenUnlocked:   continue
+                if not isToolboxUnlocked():         continue
             newServiceList.append(StoreService(sv))
 
         service = JOptionPane.showInputDialog(_theFrame,
@@ -7890,6 +7892,35 @@ Please update any that you use before proceeding....
             setDisplayStatus(txt, "R"); myPrint("B", txt)
             return None
         return service.getService()
+
+    class StoreUserID():
+        def __init__(self, _userID, _password="NOT SET"):
+            self.userID = _userID.strip()
+            self.password = _password
+            self.clientUID = None
+            self.accounts = []
+
+        @staticmethod
+        def findUserID(findUserID, listOfUserIDs):
+            # type: (str, [StoreUserID]) -> StoreUserID
+            """
+            Static Method to search a [list] of StoreUserID()
+            """
+            for userIDFromList in listOfUserIDs:
+                if findUserID.lower().strip() == userIDFromList.getUserID().lower().strip(): return userIDFromList
+            return None
+
+        def setPassword(self, _password):       self.password = _password
+        def setClientUID(self, _clientUID):     self.clientUID = _clientUID
+        def setAccounts(self, _accounts):       self.accounts = _accounts
+
+        def getUserID(self):    return self.userID
+        def getPassword(self):  return self.password
+        def getClientUID(self): return self.clientUID
+        def getAccounts(self):  return self.accounts
+
+        def __str__(self): return "UserID: %s Password: <%s>" %(self.getUserID(), ("*"*len(self.getPassword())))
+        def __repr__(self): return self.__str__()
 
 
     def clearOneServiceAuthCache():
@@ -8118,6 +8149,127 @@ Please update any that you use before proceeding....
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
+    def manuallyPrimeRootUserIDClientIDs():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "Manually 'prime' Root UserIDs/ClientUIDs".upper()
+
+        NEW_TIK_FI_ID = "md:custom-1295"    # as of 23rd Oct, the 'official' custom profile ID
+
+        authKeyPrefix="ofx.client_uid"
+        specificAuthKeyPrefix = authKeyPrefix+"::" + NEW_TIK_FI_ID + "::"
+        defaultUserPrefix = authKeyPrefix+"_default_user"+"::" + NEW_TIK_FI_ID
+
+        root = MD_REF.getCurrentAccount().getBook().getRootAccount()
+        rootKeys = list(sorted(root.getParameterKeys()))
+
+        output = "LIST OF OFX USAA USERIDs/ClientUIDs STORED ON THE ROOT ACCOUNT\n" \
+                 " =============================================================\n\n"
+
+        harvestedDefaultUserID = None
+        harvestedUserIDList = []
+        for i in range(0,len(rootKeys)):
+            rk = rootKeys[i]
+            rk_value = root.getParameter(rk)
+            if rk.startswith(specificAuthKeyPrefix):
+                harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
+                if harvestedUID.getUserID() != "null":
+                    output+="Harvested existing authKey %s: ClientUID: %s\n" %(rk,rk_value)
+                    harvestedUID.setClientUID(rk_value)
+                    harvestedUserIDList.append(harvestedUID)
+            elif rk.startswith(defaultUserPrefix):
+                output+="Harvested existing Default UserID: %s\n" %(rk_value)
+                harvestedDefaultUserID = rk_value
+
+        if len(harvestedUserIDList)<1: output+="\n<NONE PRE-EXISTING>\n"
+
+        output += "\n<END>"
+
+        jif = QuickJFrame("REVIEW EXISTING USAA USERIDs/ClientUIDs (stored on ROOT) BEFORE CHANGES",output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+
+        defaultEntry = "UserID"
+        while True:
+            userID = myPopupAskForInput(jif, "PRIME USERID/CLIENTUID SUPPLIED BY USAA", "UserID", "Type/Paste the UserID to prime very carefully (this will overwrite existing)", defaultEntry)
+            myPrint("DB", "userID entered: %s" %userID)
+            if userID is None:
+                txt = "ERROR - No userID supplied to prime! Aborting"
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                myPopupInformationBox(jif,txt, _THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
+                jif.dispose()
+                return
+            defaultEntry = userID
+            if userID is None or userID == "" or userID == "UserID" or len(userID)<4:
+                myPrint("DB", "\n ** ERROR - No valid UserID supplied to prime - try again ** \n")
+                continue
+            break
+        del defaultEntry
+
+        findStoredUser = StoreUserID(userID)
+        if len(harvestedUserIDList) > 0:
+            foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
+            if foundHarvestedStoredUser is not None:
+                if foundHarvestedStoredUser.getClientUID() is not None:
+                    findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
+                else:
+                    raise Exception("LOGIC ERROR: Found harvested UserID (%s) with no ClientUID?! Aborting" %(findStoredUser))
+            del foundHarvestedStoredUser
+            myPrint("DB", "UserID entered: %s (Harvested ClientUID: %s)" %(userID, findStoredUser.getClientUID()))
+        else:
+            myPrint("DB","Skipping matching ClientUID into UserID as did not harvest any UserIDs from USAA root record(s)...")
+
+        myPrint("B","")
+
+        if findStoredUser.getClientUID() is not None:
+            defaultEntry = findStoredUser.getClientUID()
+        else:
+            defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+        del findStoredUser
+
+        while True:
+            uuid = myPopupAskForInput(jif, "PRIME CLIENT UUID FOR USERID: %s (SUPPLIED BY USAA)" %(userID), "PRIME UUID", "Paste USAA's Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+            myPrint("DB", "UUID entered: %s" %uuid)
+            if uuid is None:
+                txt = "ERROR - No uuid entered! Aborting"
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                myPopupInformationBox(jif,txt, _THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
+                jif.dispose()
+                return
+            defaultEntry = uuid
+            if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+                    (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
+                myPrint("DB", "\n ** ERROR - no valid uuid supplied - try again ** \n")
+                continue
+            break
+        del defaultEntry
+
+        lSetDefaultUserID = False
+        if myPopupAskQuestion(jif,_THIS_METHOD_NAME, "Do you want to make UserID: %s the DEFAULT (current default: %s)" %(userID, harvestedDefaultUserID)):
+            myPrint("DB","UserID: %s will be primed as the default in root (replacing: %s as default)" %(userID, harvestedDefaultUserID))
+            lSetDefaultUserID = True
+
+        if not confirm_backup_confirm_disclaimer(jif,_THIS_METHOD_NAME,"Prime UserID: %s with ClientUID: %s?" %(userID, uuid)):
+            txt = "%s: User did not agree to proceed with changes - no changes made!" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            jif.dispose()
+            return
+
+        root.setEditingMode()
+        root.setParameter(specificAuthKeyPrefix+userID, uuid)
+
+        if lSetDefaultUserID:
+            root.setParameter(defaultUserPrefix, userID)
+        root.syncItem()
+
+        play_the_money_sound()
+        txt = "%s: UserID: %s ClientUID primed to: %s (Default: %s)" %(_THIS_METHOD_NAME, userID, uuid, lSetDefaultUserID)
+        setDisplayStatus(txt, "B"); myPrint("B", txt)
+        myPopupInformationBox(jif,txt, _THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
+        jif.dispose()
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
     def check_OFX_USERID_Key_valid(test_str):
         pattern = r'[^a-zA-Z0-9-_.:]'
         if re.search(pattern, test_str):
@@ -8142,7 +8294,6 @@ Please update any that you use before proceeding....
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         userIDKeyPrefix="ofx.client_uid"
-
         root = MD_REF.getCurrentAccount().getBook().getRootAccount()
 
         _DELETEONE  = 0
@@ -8821,14 +8972,10 @@ Please update any that you use before proceeding....
 
         user_clearOneServiceAuthCache =         JRadioButton("Clear the Authentication Cache (Passwords) for One Service / Bank Profile", False)
         user_clearAllServicesAuthCache =        JRadioButton("Clear ALL Authentication Cache (Passwords)", False)
-        user_editSetupMultipleUserIDs =         JRadioButton("Edit/Setup (multiple) UserIDs / Passwords", False)
-        user_editStoredOFXPasswords =           JRadioButton("Edit stored passwords within a working OFX Profile (Only in ADV+Hacker mode)", False)
-        user_editStoredOFXPasswords.setEnabled(isUserEncryptionPassphraseSet() and lHackerMode)
-        user_editStoredOFXPasswords.setForeground(getColorRed())
-
-        user_manualEditOfRootUserIDs =              JRadioButton("Manual Edit of Stored Root UserIDs/ClientUIDs (Only in ADV+Hacker mode)", False)
-        user_manualEditOfRootUserIDs.setEnabled(lHackerMode)
-        user_manualEditOfRootUserIDs.setForeground(getColorRed())
+        user_editSetupMultipleUserIDs =         JRadioButton("Edit/Setup (multiple) UserIDs / Passwords (informs you about a special script)", False)
+        user_editStoredOFXPasswords =           JRadioButton("Edit stored authentication passwords linked to a working OFX Profile", False)
+        user_manuallyPrimeRootUserIDClientIDs = JRadioButton("USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
+        user_manualEditOfRootUserIDs =          JRadioButton("Manual Edit of stored Root UserIDs/ClientUIDs", False)
 
         userFilters = JPanel(GridLayout(0, 1))
 
@@ -8837,6 +8984,7 @@ Please update any that you use before proceeding....
         bg.add(user_clearAllServicesAuthCache)
         bg.add(user_editSetupMultipleUserIDs)
         bg.add(user_editStoredOFXPasswords)
+        bg.add(user_manuallyPrimeRootUserIDClientIDs)
         bg.add(user_manualEditOfRootUserIDs)
         bg.clearSelection()
 
@@ -8844,6 +8992,7 @@ Please update any that you use before proceeding....
         userFilters.add(user_clearAllServicesAuthCache)
         userFilters.add(user_editSetupMultipleUserIDs)
         userFilters.add(user_editStoredOFXPasswords)
+        userFilters.add(user_manuallyPrimeRootUserIDClientIDs)
         userFilters.add(user_manualEditOfRootUserIDs)
 
         while True:
@@ -8880,6 +9029,9 @@ Please update any that you use before proceeding....
 
             if user_editStoredOFXPasswords.isSelected():
                 editStoredOFXPasswords()
+
+            if user_manuallyPrimeRootUserIDClientIDs.isSelected():
+                manuallyPrimeRootUserIDClientIDs()
 
             if user_manualEditOfRootUserIDs.isSelected():
                 manualEditOfRootUserIDs()
@@ -18385,7 +18537,7 @@ now after saving the file, restart Moneydance
 
             locations = [
                 "Show Preferences (config.dict) Folder",
-                "Show custom themes Folder",
+                "Show Custom themes Folder",
                 "Show Console (error) log Folder",
                 "Show Contents of your current Dataset Folder",
                 "Show Extensions Folder",
@@ -18432,11 +18584,14 @@ now after saving the file, restart Moneydance
                 setDisplayStatus(txt, "R")
                 return
 
-            if Platform.isOSX() and int(MD_REF.getBuild()) >= MD_ICLOUD_ENABLED \
-                    and grabSyncFolder and "iCloud~com~infinitekind~moneydancesync" in locationsDirs[locations.index(selectedFolder)].getCanonicalPath():
-                txt = "iCloud Sync Folder location: %s (copied to clipboard)" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath())
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(toolbox_frame_,"Permissions: Cannot open location: %s" %(locationsDirs[locations.index(selectedFolder)].getCanonicalPath()))
+            thePathString = locationsDirs[locations.index(selectedFolder)].getCanonicalPath()   # type: str
+
+            if (Platform.isOSX() and grabSyncFolder and
+                    ("iCloud~com~infinitekind~moneydancesync" in thePathString or "dropbox" in thePathString.lower())):
+                # Bypass system security preventing access to certain folders....
+                openResponse = subprocess.check_output('open "%s"' %(thePathString), shell=True)                        # noqa
+                txt = "Sync Folder location: %s (copied to clipboard) & opened" %(thePathString)
+                setDisplayStatus(txt, "B")
             else:
                 helper.openDirectory(locationsDirs[locations.index(selectedFolder)])
                 txt = "Folder %s opened..: %s  (path copied to clipboard)" %(selectedFolder, locationsDirs[locations.index(selectedFolder)])
@@ -22268,8 +22423,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_cleanupMissingOnlineBankingLinks.setEnabled(lAdvancedMode)
                 user_cleanupMissingOnlineBankingLinks.setForeground(getColorRed())
 
-                user_authenticationManagement = JRadioButton("OFX Authentication Management", False)
-                user_authenticationManagement.setToolTipText("Brings up the sub menu. Allows you to clear your authentication cache (single or all) and edit user IDs. THIS CAN CHANGE DATA!")
+                user_authenticationManagement = JRadioButton("OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)", False)
+                user_authenticationManagement.setToolTipText("Brings up the sub menu. Allows you to clear your authentication cache (single or all) and edit user IDs/ClientUIDs. THIS CAN CHANGE DATA!")
                 user_authenticationManagement.setEnabled(lAdvancedMode)
                 user_authenticationManagement.setForeground(getColorRed())
 

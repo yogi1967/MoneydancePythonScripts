@@ -176,7 +176,7 @@ ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / secur
         - Delete single cached OnlineTxnList record/Txns
         - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
         - OFX Cookie Management (some options also required Hacker mode)
-        - OFX Authentication Management (some options also required Hacker mode)
+        - OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)
         - Export your Moneydance+ (Plaid) settings to a file (for 'transplant') - MD Version 2022 onwards. READONLY
         - Import ('transplant') your Moneydance+ (Plaid) settings from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE.
         - ZAP Dataset's Moneydance+ (Plaid) settings (also required Hacker mode) - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
