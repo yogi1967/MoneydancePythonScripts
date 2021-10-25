@@ -8149,6 +8149,13 @@ Please update any that you use before proceeding....
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
+    def my_createNewClientUID():
+        # com.moneydance.apps.md.view.gui.DefaultOnlineUIProxy.createNewClientUID()
+        _uid = UUID.randomUUID().toString()
+        _uid = StringUtils.replaceAll(_uid, "-", "").strip()
+        if len(_uid) > 32: _uid = String(_uid).substring(0, 32)
+        return _uid
+
     def manuallyPrimeRootUserIDClientIDs():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -8260,6 +8267,15 @@ Please update any that you use before proceeding....
         if lSetDefaultUserID:
             root.setParameter(defaultUserPrefix, userID)
             root.setParameter(specificAuthKeyPrefix+"null", uuid)
+
+        lOverrideRootUUID = False
+        theDefaultUUID = root.getParameter(authKeyPrefix, "")
+        if lOverrideRootUUID or theDefaultUUID == "":
+            theDefaultUUID = my_createNewClientUID()
+            myPrint("B","Overriding Root's default UUID. Was: '%s' >> changing to >> '%s'" %(root.getParameter(authKeyPrefix, ""),theDefaultUUID))
+            root.setParameter(authKeyPrefix, theDefaultUUID)
+        del theDefaultUUID, lOverrideRootUUID
+
         root.syncItem()
 
         play_the_money_sound()
