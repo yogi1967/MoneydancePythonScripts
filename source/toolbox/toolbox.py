@@ -8173,8 +8173,8 @@ Please update any that you use before proceeding....
             rk_value = root.getParameter(rk)
             if rk.startswith(specificAuthKeyPrefix):
                 harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
+                output+="Harvested existing authKey %s: ClientUID: %s\n" %(rk,rk_value)
                 if harvestedUID.getUserID() != "null":
-                    output+="Harvested existing authKey %s: ClientUID: %s\n" %(rk,rk_value)
                     harvestedUID.setClientUID(rk_value)
                     harvestedUserIDList.append(harvestedUID)
             elif rk.startswith(defaultUserPrefix):
@@ -8259,6 +8259,7 @@ Please update any that you use before proceeding....
 
         if lSetDefaultUserID:
             root.setParameter(defaultUserPrefix, userID)
+            root.setParameter(specificAuthKeyPrefix+"null", uuid)
         root.syncItem()
 
         play_the_money_sound()

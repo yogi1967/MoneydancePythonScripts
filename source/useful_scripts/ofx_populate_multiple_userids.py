@@ -3422,11 +3422,13 @@ Visit: %s (Author's site)
                     root.setParameter(rk, None)
 
             # Generate a new Client UUID for this profile's default and user1
-            if lSelectedUSAA: theDefaultUUID = userIDList[0].getClientUID()
-            else: theDefaultUUID = my_createNewClientUID()
+            if lSelectedUSAA:
+                theDefaultUUID = userIDList[0].getClientUID()
+            else:
+                theDefaultUUID = my_createNewClientUID()
 
             root.setParameter(authKeyPrefix+"_default_user"+"::" + selectedService.getTIKServiceID(), newDefaultUserID)
-            # root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
+            root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
 
             for onUser in range(0,len(userIDList)):
                 myPrint("B", "Updating Root >> UserID%s (%s)" %(onUser+1, userIDList[onUser].getUserID()))

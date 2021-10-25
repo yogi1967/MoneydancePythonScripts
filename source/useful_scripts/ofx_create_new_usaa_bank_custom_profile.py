@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 21) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 23) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -71,6 +71,8 @@
 # build: 19 - Tweak to Authentication Cache routine.... Fixed a bug (that didn't matter too much)...
 # build: 20 - Now linked to official MD fis profile...
 # build: 21 - Harvest and offer existing UserID / ClientUID
+# build: 22 - Add "null" UserID back to root
+# build: 23 - Tweaks, and change realm from 'USAASignon' to 'default'
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -78,7 +80,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "21"
+version_build = "23"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -325,6 +327,9 @@ else:
     from java.net import URLEncoder
     from com.infinitekind.moneydance.model import OnlineTxnList
     from com.infinitekind.tiksync import SyncableItem
+    from java.util import UUID
+    from com.infinitekind.util import StringUtils
+    from java.lang import String
 
     # >>> THIS SCRIPT'S GLOBALS ########################################################################################
     MD_MDPLUS_BUILD = 4040
@@ -2568,6 +2573,12 @@ Visit: %s (Author's site)
             return acct.getUUID()
         return str(acctNum)
 
+    def my_createNewClientUID():
+        _uid = UUID.randomUUID().toString()
+        _uid = StringUtils.replaceAll(_uid, "-", "").strip()
+        if len(_uid) > 32: _uid = String(_uid).substring(0, 32)
+        return _uid
+
     class MyAcctFilter(AcctFilter):
 
         def __init__(self, selectType=0):
@@ -2712,7 +2723,6 @@ Visit: %s (Author's site)
         myPrint("B", "Proceeding even though system is not set up for passwords")
 
 
-    lOverrideRootUUID = False
     lMultiAccountSetup = False
 
     prime_options = ["NO (Skip this)", "YES - PRIME SECOND ACCOUNT"]
@@ -2727,21 +2737,6 @@ Visit: %s (Author's site)
     if theResult > 0:
         lMultiAccountSetup = True
         myPrint("B","Will setup multi-accounts too.... ")
-
-        # prime_options = ["NO (Skip this)","YES - SET GLOBAL DEFAULT ROOT UUID"]
-        # theResult = JOptionPane.showOptionDialog(None,
-        #                                          "Do you also wish to override Root's (global) default UUID with the one you specify?",
-        #                                          "OVERRIDE ROOT DEFAULT UUID",
-        #                                          JOptionPane.YES_NO_OPTION,
-        #                                          JOptionPane.QUESTION_MESSAGE,
-        #                                          None,
-        #                                          prime_options,
-        #                                          prime_options[0])
-        # if theResult > 0:
-        #     lOverrideRootUUID = True
-        #     myPrint("B","Will also override Root UUID too.... ")
-        # else:
-        #     myPrint("B","User declined NOT to prime the global Root Default UUID...")
     else:
         myPrint("B","User selected NOT to prime for multiple-accounts...")
 
@@ -2752,7 +2747,9 @@ Visit: %s (Author's site)
     USAA_PROFILE_NAME = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
     OLD_TIK_FI_ID = "md:1295"
     NEW_TIK_FI_ID = "md:custom-1295"
-    USAA_REALM = "USAASignon"
+
+    # USAA_REALM = "USAASignon"
+    USAA_REALM = "default"
 
     authKeyPrefix = "ofx.client_uid"
 
@@ -2798,8 +2795,8 @@ Visit: %s (Author's site)
         if rk.startswith(specificAuthKeyPrefix):
             rk_value = root.getParameter(rk)
             harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
+            myPrint("B", "... Harvested old authKey %s: ClientUID: %s" %(rk,rk_value))
             if harvestedUID.getUserID() != "null":
-                myPrint("B", "... Harvested old authKey %s: ClientUID: %s" %(rk,rk_value))
                 harvestedUID.setClientUID(rk_value)
                 harvestedUserIDList.append(harvestedUID)
 
@@ -3236,11 +3233,14 @@ Visit: %s (Author's site)
     #   "fi_name" = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
     #   "fi_org" = "USAA Federal Savings Bank"
     #   "id" = "md:custom-1295"
-    #   "uses_fi_tag" = "y"
-    #   "user-agent" = "InetClntApp/3.0"
-    #   "no_fi_refresh" = "y"
     #   "ofx_version" = "103"
+    #   "so_client_uid_req_DEFAULT" = "y"
+    #   "so_client_uid_req_USAASignon" = "y"
+    #   "so_client_uid_req_default" = "y"
+    #   "user-agent" = "InetClntApp/3.0"
+    #   "uses_fi_tag" = "y"
     # }
+
 
     myPrint("B", "Creating new Online Banking OFX Service Profile")
     manualFIInfo = StreamTable()     # type: StreamTable
@@ -3249,25 +3249,31 @@ Visit: %s (Author's site)
     manualFIInfo.put("tik_fi_id",                                NEW_TIK_FI_ID)
     manualFIInfo.put("app_id",                                   "QMOFX")
     manualFIInfo.put("app_ver",                                  "2300")
+
+    manualFIInfo.put("so_client_uid_req_USAASignon",             "1")
+    manualFIInfo.put("so_client_uid_req_DEFAULT",                "1")
+    manualFIInfo.put("so_client_uid_req_default",                "1")
+
+    # manualFIInfo.put("no_fi_refresh",                            "y")
+    # manualFIInfo.put("use_profile_req",                          "n")
+
     manualFIInfo.put("bank_closing_avail",                       "0")
     manualFIInfo.put("bank_email_can_notify",                    "0")
     manualFIInfo.put("bank_email_enabled",                       "0")
     manualFIInfo.put("bootstrap_url",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
     manualFIInfo.put("cc_closing_avail",                         "1")
     manualFIInfo.put("date_avail_accts",                         "20210101120000")
-    manualFIInfo.put("fi_addr1",                                 "10750 McDermott Freeway")
-    manualFIInfo.put("fi_addr2",                                 "")
-    manualFIInfo.put("fi_addr3",                                 "")
+    manualFIInfo.put("fi_addr1",                                 "9800 Fredericksburg Rd")
     manualFIInfo.put("fi_city",                                  "San Antonio")
     manualFIInfo.put("fi_country",                               "USA")
-    manualFIInfo.put("fi_cust_svc_phone",                        "877-820-8320")
-    manualFIInfo.put("fi_email",                                 "")
+    manualFIInfo.put("fi_cust_svc_phone",                        "1-877-632-3002")
+    manualFIInfo.put("fi_email",                                 "2")
     manualFIInfo.put("fi_id",                                    USAA_FI_ID)
     manualFIInfo.put("fi_name",                                  USAA_PROFILE_NAME)
     manualFIInfo.put("fi_org",                                   USAA_FI_ORG)
     manualFIInfo.put("fi_state",                                 "TX")
-    manualFIInfo.put("fi_tech_svc_phone",                        "877-820-8320")
-    manualFIInfo.put("fi_url",                                   "www.usaa.com")
+    manualFIInfo.put("fi_tech_svc_phone",                        "1-877-632-3002")
+    manualFIInfo.put("fi_url",                                   "https://www.usaa.com")
     manualFIInfo.put("fi_url_is_redirect",                       "1")
     manualFIInfo.put("fi_zip",                                   "78288")
     manualFIInfo.put("invst_dflt_broker_id",                     "")
@@ -3276,17 +3282,17 @@ Visit: %s (Author's site)
     manualFIInfo.put("language_default",                         "ENG")
     manualFIInfo.put("language_fiprofile",                       "ENG")
     manualFIInfo.put("language_signup",                          "ENG")
-    manualFIInfo.put("no_fi_refresh",                            "y")
     manualFIInfo.put("ofx_version",                              "103")
     manualFIInfo.put("ofxurl_banking",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
     manualFIInfo.put("ofxurl_creditcard",                        "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
     manualFIInfo.put("ofxurl_default",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
     manualFIInfo.put("ofxurl_signup",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("realm_banking",                            "USAASignon")
-    manualFIInfo.put("realm_creditcard",                         "USAASignon")
-    manualFIInfo.put("realm_default",                            "USAASignon")
-    manualFIInfo.put("realm_fiprofile",                          "USAASignon")
-    manualFIInfo.put("realm_signup",                             "USAASignon")
+    manualFIInfo.put("ofxurl_fiprofile",                         "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
+    manualFIInfo.put("realm_banking",                            USAA_REALM)
+    manualFIInfo.put("realm_creditcard",                         USAA_REALM)
+    manualFIInfo.put("realm_default",                            USAA_REALM)
+    manualFIInfo.put("realm_fiprofile",                          USAA_REALM)
+    manualFIInfo.put("realm_signup",                             USAA_REALM)
     manualFIInfo.put("rspnsfileerrors_banking",                  "1")
     manualFIInfo.put("rspnsfileerrors_creditcard",               "1")
     manualFIInfo.put("rspnsfileerrors_default",                  "1")
@@ -3308,24 +3314,24 @@ Visit: %s (Author's site)
     manualFIInfo.put("signup_can_preauth",                       "0")
     manualFIInfo.put("signup_client_acct_num_req",               "1")
     manualFIInfo.put("signup_via_client",                        "0")
-    manualFIInfo.put("signup_via_other",                         "1")
-    manualFIInfo.put("signup_via_other_msg",                     "Please contact the financial institution for the enrollment process.")
-    manualFIInfo.put("signup_via_web",                           "0")
-    manualFIInfo.put("so_can_change_pin_USAASignon",             "1")
-    manualFIInfo.put("so_client_uid_req_USAASignon",             "1")
-    manualFIInfo.put("so_maxpasslen_USAASignon",                 "4")
-    manualFIInfo.put("so_minpasslen_USAASignon",                 "4")
-    manualFIInfo.put("so_must_chg_pin_first_USAASignon",         "0")
-    manualFIInfo.put("so_passchartype_USAASignon",               "NUMERICONLY")
-    manualFIInfo.put("so_passwd_case_sensitive_USAASignon",      "0")
-    manualFIInfo.put("so_passwd_spaces_USAASignon",              "0")
-    manualFIInfo.put("so_passwd_special_chars_USAASignon",       "0")
-    manualFIInfo.put("so_passwd_type_USAASignon",                "FIXED")
-    manualFIInfo.put("so_user_id_USAASignon",                    userID)
+    manualFIInfo.put("signup_via_other",                         "0")
+    # manualFIInfo.put("signup_via_other_msg",                     "Please contact the financial institution for the enrollment process.")
+    manualFIInfo.put("signup_via_web",                           "1")
+    manualFIInfo.put("signup_via_web_url",                       "https://www.usaa.com/inet/ent_logon/Logon")
+    manualFIInfo.put("so_can_change_pin_%s" %(USAA_REALM),       "1")
+    manualFIInfo.put("so_maxpasslen_%s" %(USAA_REALM),           "15")
+    manualFIInfo.put("so_minpasslen_%s" %(USAA_REALM),           "5")
+    manualFIInfo.put("so_must_chg_pin_first_%s" %(USAA_REALM),   "0")
+    manualFIInfo.put("so_passchartype_%s" %(USAA_REALM),         "NUMERICONLY")
+    manualFIInfo.put("so_passwd_case_sensitive_%s" %(USAA_REALM),"1")
+    manualFIInfo.put("so_passwd_spaces_%s" %(USAA_REALM),        "0")
+    manualFIInfo.put("so_passwd_special_chars_%s" %(USAA_REALM), "0")
+    manualFIInfo.put("so_passwd_type_%s" %(USAA_REALM),          "FIXED")
+    manualFIInfo.put("so_user_id_%s" %(USAA_REALM),              userID)
     if selectedBankAccount:
-        manualFIInfo.put("so_user_id_USAASignon::%s" %(my_getAccountKey(selectedBankAccount)), userID)
+        manualFIInfo.put("so_user_id_%s::%s" %(USAA_REALM, my_getAccountKey(selectedBankAccount)), userID)
     if selectedCCAccount:
-        manualFIInfo.put("so_user_id_USAASignon::%s" %(my_getAccountKey(selectedCCAccount)),   userID)
+        manualFIInfo.put("so_user_id_%s::%s" %(USAA_REALM, my_getAccountKey(selectedCCAccount)),   userID)
     manualFIInfo.put("syncmode_banking",                         "LITE")
     manualFIInfo.put("syncmode_creditcard",                      "LITE")
     manualFIInfo.put("syncmode_default",                         "LITE")
@@ -3457,10 +3463,14 @@ Visit: %s (Author's site)
 
     root.setEditingMode()
 
-    if lOverrideRootUUID:
-        myPrint("B","Overriding Root's default UUID. Was: %s >> changing to >> %s" %(root.getParameter(authKeyPrefix, ""),uuid))
-        root.setParameter(authKeyPrefix, uuid)
-        # root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + "null",   uuid)         # noqa
+    lOverrideRootUUID = False
+
+    theDefaultUUID = root.getParameter(authKeyPrefix, "")
+    if lOverrideRootUUID or theDefaultUUID == "":
+        theDefaultUUID = my_createNewClientUID()
+        myPrint("B","Overriding Root's default UUID. Was: '%s' >> changing to >> '%s'" %(root.getParameter(authKeyPrefix, ""),theDefaultUUID))
+        root.setParameter(authKeyPrefix, theDefaultUUID)
+    del theDefaultUUID, lOverrideRootUUID
 
     rootKeys = list(root.getParameterKeys())
     for i in range(0,len(rootKeys)):
@@ -3471,6 +3481,7 @@ Visit: %s (Author's site)
         i+=1
 
     root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)                           # noqa
+    root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + "null",   uuid)                           # noqa
     root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)                           # noqa
     myPrint("B", "Root UserID and uuid updated...")
 
