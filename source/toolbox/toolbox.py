@@ -238,6 +238,7 @@
 # build: 1043 - New feature: Fix iCloud Sync Crash (same as Fix Dropbox One-Way Crash)
 # build: 1043 - Tweaked OFX Authentication menu... Added change OFX Password feature
 # build: 1044 - Enhanced OFX Authentication Menu. Added option to prime USAA UserID/ClientUID...; tweaked open md folder, for open system locations to work
+# build: 1044 - Added execution of ofx_populate_multiple_userids.py script...
 
 # todo - Restore and retain syncid settings....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -507,6 +508,7 @@ else:
     import fnmatch
     import time
     import shutil
+    import threading
     from collections import OrderedDict
 
     from org.python.core import PySystemState
@@ -588,6 +590,7 @@ else:
     global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MDPLUS_BUILD
 
     GlobalVars.TOOLBOX_UNLOCK = False
+    GlobalVars.SCRIPT_RUNNING_LOCK = threading.Lock()
 
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lGeekOutModeEnabled_TB = False                                                                                      # noqa
@@ -8539,6 +8542,67 @@ Please update any that you use before proceeding....
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
+    def editSetupMultipleUserIDs():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "Manually 'prime' Root UserIDs/ClientUIDs".upper()
+
+        ask = MyPopUpDialogBox(toolbox_frame_,
+                         "This is a special process that will run a script",
+                         "You do not need to leave Toolbox....",
+                         theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
+
+        if not ask.go():
+            txt = "%s: User abandoned script execution" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return False
+
+        if GlobalVars.SCRIPT_RUNNING_LOCK.locked():
+            txt = "%s: Sorry - a script is already running with an active Lock" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return False
+
+        with GlobalVars.SCRIPT_RUNNING_LOCK:
+            myPrint("B","**********************************************************")
+            myPrint("B","**********************************************************")
+            myPrint("B","**********************************************************")
+            scriptToRun = "ofx_populate_multiple_userids.py"
+            py = MD_REF.getPythonInterpreter()
+            py.set("toolbox", "_is_running_this_")
+            # py.getSystemState().setClassLoader(MD_EXTENSION_LOADER)
+            # py.set("moneydance_extension_loader", MD_EXTENSION_LOADER)
+
+            class ScriptRunnable(Runnable):
+
+                def __init__(self, _context, _python, _scriptStream, _scriptToRun):
+                    self.context = _context
+                    self.python = _python
+                    self.scriptStream = _scriptStream
+                    self.scriptToRun = _scriptToRun
+
+                def run(self):  # NOTE: This will not start in the EDT (the same as Moneybot Console)
+                    myPrint("B","..About to execfile(%s)" %(self.scriptToRun))
+                    self.python.execfile(self.scriptStream,"Toolbox:Executing_Script_%s" %(self.scriptToRun))
+                    myPrint("DB", "....I am back from script, within the special Thread().....")
+                    self.scriptStream.close()
+                    self.context.resetPythonInterpreter(self.python)
+
+            scriptStream = MD_EXTENSION_LOADER.getResourceAsStream("/%s" %(scriptToRun))
+
+            t = Thread(ScriptRunnable(MD_REF, py, scriptStream, scriptToRun))
+            t.start()
+
+            myPrint("DB", ".... post calling Thread().....")
+
+            del py, t
+            myPrint("B","**********************************************************")
+            myPrint("B","**********************************************************")
+            myPrint("B","**********************************************************")
+
+        return True
+
     class StoreAccountList():
         def __init__(self, obj):
             if isinstance(obj,Account):
@@ -8989,7 +9053,7 @@ Please update any that you use before proceeding....
 
         user_clearOneServiceAuthCache =         JRadioButton("Clear the Authentication Cache (Passwords) for One Service / Bank Profile", False)
         user_clearAllServicesAuthCache =        JRadioButton("Clear ALL Authentication Cache (Passwords)", False)
-        user_editSetupMultipleUserIDs =         JRadioButton("Edit/Setup (multiple) UserIDs / Passwords (informs you about a special script)", False)
+        user_editSetupMultipleUserIDs =         JRadioButton("Edit/Setup (multiple) UserIDs / Passwords (executes a special script)", False)
         user_editStoredOFXPasswords =           JRadioButton("Edit stored authentication passwords linked to a working OFX Profile", False)
         user_manuallyPrimeRootUserIDClientIDs = JRadioButton("USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
         user_manualEditOfRootUserIDs =          JRadioButton("Manual Edit of stored Root UserIDs/ClientUIDs", False)
@@ -9025,7 +9089,7 @@ Please update any that you use before proceeding....
             if userAction != 1:
                 txt = "Online Banking (OFX) AUTHENTICATION MANAGEMENT - No changes made....."
                 setDisplayStatus(txt, "B")
-                return
+                return False
 
             if user_clearOneServiceAuthCache.isSelected():
                 clearOneServiceAuthCache()
@@ -9034,15 +9098,8 @@ Please update any that you use before proceeding....
                 clearAllServicesAuthCache()
 
             if user_editSetupMultipleUserIDs.isSelected():
-                MyPopUpDialogBox(toolbox_frame_,
-                                 "This is a special process - you will need to run a script (not within Toolbox)",
-                                 "Download the useful_scripts package (zip) from Author's site:\n"
-                                 "%s\n"
-                                 "Unzip and extract 'ofx_populate_multiple_userids.py'\n"
-                                 "Menu: MD>Window>Show MoneyBot Console'\n"
-                                 "Open and then Run the script....\n"
-                                 %(MYPYTHON_DOWNLOAD_URL),
-                                 theTitle="Edit/Setup (multiple) UserIDs / Passwords").go()
+                if editSetupMultipleUserIDs():
+                    return True
 
             if user_editStoredOFXPasswords.isSelected():
                 editStoredOFXPasswords()
@@ -22595,7 +22652,8 @@ Now you will have a text readable version of the file you can open in a text edi
                         return
 
                     if user_authenticationManagement.isSelected():
-                        OFX_authentication_management()
+                        if OFX_authentication_management():
+                            return
 
                     if user_exportMDPlusProfile.isSelected():
                         export_MDPlus_Profile()
