@@ -8602,21 +8602,22 @@ Please update any that you use before proceeding....
 
         scriptToRun = "ofx_populate_multiple_userids.py"
 
-        ask = MyPopUpDialogBox(toolbox_frame_,
-                         "This is a special process that will run a script",
-                         "You do not need to leave Toolbox....\n"
-                         "Script: %s" %(scriptToRun),
-                         theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
+        # ask = MyPopUpDialogBox(toolbox_frame_,
+        #                  "This is a special process that will run a script",
+        #                  "You do not need to leave Toolbox....\n"
+        #                  "Script: %s" %(scriptToRun),
+        #                  theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
+        #
+        # if not ask.go():
+        #     txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
+        #     setDisplayStatus(txt, "B"); myPrint("B", txt)
+        #     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+        #     return False
 
-        if not ask.go():
-            txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
-            setDisplayStatus(txt, "B"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute the script: %s?" %(scriptToRun)):
             return False
 
-        if scriptRunner(scriptToRun, _THIS_METHOD_NAME): return True
-
-        return False
+        return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
 
     def createUSAAProfile():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -8625,21 +8626,22 @@ Please update any that you use before proceeding....
 
         scriptToRun = "ofx_create_new_usaa_bank_custom_profile.py"
 
-        ask = MyPopUpDialogBox(toolbox_frame_,
-                         "This is a special process that will run a script",
-                         "You do not need to leave Toolbox....\n"
-                         "Script: %s" %(scriptToRun),
-                         theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
+        # ask = MyPopUpDialogBox(toolbox_frame_,
+        #                  "This is a special process that will run a script",
+        #                  "You do not need to leave Toolbox....\n"
+        #                  "Script: %s" %(scriptToRun),
+        #                  theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
+        #
+        # if not ask.go():
+        #     txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
+        #     setDisplayStatus(txt, "B"); myPrint("B", txt)
+        #     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+        #     return False
 
-        if not ask.go():
-            txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
-            setDisplayStatus(txt, "B"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute the script: %s?" %(scriptToRun)):
             return False
 
-        if scriptRunner(scriptToRun, _THIS_METHOD_NAME): return True
-
-        return False
+        return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
 
     class StoreAccountList():
         def __init__(self, obj):
@@ -9089,12 +9091,23 @@ Please update any that you use before proceeding....
         if not isCachingPasswords():
             myPopupInformationBox(toolbox_frame_,"WARNING: Your system is not setup to cache/store Authentication details!","Manage OFX Authentication",JOptionPane.ERROR_MESSAGE)
 
-        user_clearOneServiceAuthCache =         JRadioButton("Clear the Authentication Cache (Passwords) for One Service / Bank Profile", False)
-        user_clearAllServicesAuthCache =        JRadioButton("Clear ALL Authentication Cache (Passwords)", False)
-        user_editSetupMultipleUserIDs =         JRadioButton("Edit/Setup (multiple) UserIDs / Passwords (executes a special script)", False)
-        user_editStoredOFXPasswords =           JRadioButton("Edit stored authentication passwords linked to a working OFX Profile", False)
+        user_clearOneServiceAuthCache = JRadioButton("Clear the Authentication Cache (Passwords) for One Service / Bank Profile", False)
+        user_clearOneServiceAuthCache.setToolTipText("Clears all remembered passwords for the OFX Service profile you select - THIS WILL CHANGE DATA!")
+
+        user_clearAllServicesAuthCache = JRadioButton("Clear ALL Authentication Cache (Passwords)", False)
+        user_clearAllServicesAuthCache.setToolTipText("Clears all remembered passwords for all OFX Service profiles - THIS WILL CHANGE DATA!")
+
+        user_editSetupMultipleUserIDs = JRadioButton("Edit/Setup (multiple) UserIDs / Passwords (executes a special script)", False)
+        user_editSetupMultipleUserIDs.setToolTipText("Allows setup of multiple UserIDs/Passwords on an OFX service profile - executes: ofx_populate_multiple_userids.py")
+
+        user_editStoredOFXPasswords = JRadioButton("Edit stored authentication passwords linked to a working OFX Profile", False)
+        user_editStoredOFXPasswords.setToolTipText("Manual edit of remembered OFX passwords linked to an OFX profile...")
+
         user_manuallyPrimeRootUserIDClientIDs = JRadioButton("USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
-        user_manualEditOfRootUserIDs =          JRadioButton("Manual Edit of stored Root UserIDs/ClientUIDs", False)
+        user_manuallyPrimeRootUserIDClientIDs.setToolTipText("USAA Only: Allows you to 'prime' / overwrite stored UserIDs/ClientUIDs for USSA")
+
+        user_manualEditOfRootUserIDs = JRadioButton("Manual Edit of stored Root UserIDs/ClientUIDs", False)
+        user_manualEditOfRootUserIDs.setToolTipText("Manual edit of any stored UserID/ClientUID raw record (from root account)")
 
         userFilters = JPanel(GridLayout(0, 1))
 

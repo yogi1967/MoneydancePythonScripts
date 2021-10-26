@@ -2825,476 +2825,94 @@ Visit: %s (Author's site)
 
     if isinstance(selectedService,OnlineService): pass
 
-    USAA_FI_ID = "67811"
-    USAA_FI_ORG = "USAA Federal Savings Bank"
-    OLD_TIK_FI_ID = "md:1295"
-    NEW_TIK_FI_ID = "md:custom-1295"
+    try:
 
-    lSelectedUSAA = False
+        USAA_FI_ID = "67811"
+        USAA_FI_ORG = "USAA Federal Savings Bank"
+        OLD_TIK_FI_ID = "md:1295"
+        NEW_TIK_FI_ID = "md:custom-1295"
 
-    if (selectedService.getTIKServiceID() == OLD_TIK_FI_ID or selectedService.getTIKServiceID() == NEW_TIK_FI_ID
-            or selectedService.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
-            or "USAA" in selectedService.getFIOrg()
-            or "USAA" in selectedService.getFIName()):
-        lSelectedUSAA = True
-        theOutput += "USAA Profile has been selected - will manage special client UUIDs....\n"
+        lSelectedUSAA = False
 
-    theOutput += "OFX Service Profile selected: %s(%s)\n\n" %(selectedService, selectedService.getTIKServiceID())
+        if (selectedService.getTIKServiceID() == OLD_TIK_FI_ID or selectedService.getTIKServiceID() == NEW_TIK_FI_ID
+                or selectedService.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
+                or "USAA" in selectedService.getFIOrg()
+                or "USAA" in selectedService.getFIName()):
+            lSelectedUSAA = True
+            theOutput += "USAA Profile has been selected - will manage special client UUIDs....\n"
 
-    matchingAccts = []
-    accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(4))
-    for acct in accounts:
-        if acct.getBillPayFI() == selectedService:
-            if not lIgnoreBillPay:
-                alert_and_exit("ERROR - BILLPAY LINK FOUND ON ACCT: %s - ABORTING" %(acct))
-            else:
-                theOutput += "Ignoring BillPay link found on account: %s\n" %(acct)
-        if acct.getBankingFI() == selectedService:
-            # noinspection PyUnresolvedReferences
-            if (acct.getAccountType() == Account.AccountType.BANK
-                    or acct.getAccountType() == Account.AccountType.CREDIT_CARD
-                    or acct.getAccountType() == Account.AccountType.INVESTMENT):
-                matchingAccts.append(acct)
-            else:
-                alert_and_exit("ERROR: FOUND LINKED ACCT (%s) THAT IS NOT BANK, CREDIT CARD OR INVESTMENT - ABORTING" %(acct))
+        theOutput += "OFX Service Profile selected: %s(%s)\n\n" %(selectedService, selectedService.getTIKServiceID())
 
-    if len(matchingAccts) < 1:
-        theOutput += "WARNING! No Accounts are already linked to this profile? Are you sure this is a good profile?\n"
-        if myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"NO ACCOUNTS LINKED >> FORCE LINK ACCOUNT", "Would you like to try and force link an account to this profile?"):
-            theOutput += "@@@ FORCE LINKING ACCOUNTS INTO THIS PROFILE..!! @@\n"
-        else:
-            alert_and_exit("ERROR NO ACCOUNTS LINKED TO THIS OFX SERVICE PROFILE FOUND")
-
-    theOutput += "\n"
-
-    theOutput += "Found %s Accounts linked to this OFX Service Profile\n" %(len(matchingAccts))
-    for acct in matchingAccts: theOutput += "... Account: %s\n" %(acct.getFullAccountName())
-
-    theOutput += "\n"
-
-    realms = selectedService.getRealms()
-    if len(realms) < 1: alert_and_exit("ERROR NO REALMS WITHIN THIS OFX SERVICE PROFILE FOUND")
-
-    theOutput += "Found %s Realms within this OFX Service Profile\n" %(len(realms))
-    for realm in realms: theOutput += "... Realm: %s\n" %(realm)
-    theRealm = realms[0]    # Take the first one...
-
-    if len(realms) > 1: alert_and_exit("ERROR MORE THAN 1 REALMS WITHIN THIS OFX SERVICE PROFILE FOUND - LOGIC NOT PROGRAMMED >> SORRY :-<")
-
-    theOutput += "\n"
-
-    lOverrideRootUUID = False
-    if selectedService.getClientIDRequired(theRealm):
-        if myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"KEEP DATASET's DEFAULT CLIENT UUID [Normal Option]", "Do you want to keep this Dataset's default Client UUID? (YES=KEEP, NO=Reset/Regenerate[optional])?"):
-            theOutput += "User opted to keep this Dataset's / Root's current Master/Default Client UUID.....\n"
-        else:
-            lOverrideRootUUID = True
-            theOutput += "User opted to generate a new Root Master/Default Client UUID for this Dataset.....\n"
-    else:
-        theOutput += "This service profile does not require ClientUUIDs... skipping....\n"
-
-    theOutput += "\n"
-
-    theOutput += "Selecting Accounts to link to profile:\n"
-    theOutput += "--------------------------------------\n"
-
-    listOfAccountsForJList = []
-
-    getAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), MyAcctFilter(2))
-    getAccounts = sorted(getAccounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
-    for acct in getAccounts:
-        if not lIgnoreBillPay and acct.getBillPayFI() == selectedService: alert_and_exit("LOGIC ERROR: PARSING getAccounts() - FOUND BILLPAY")
-        elif acct.getBankingFI() == selectedService: pass
-        elif acct.getBillPayFI() == selectedService: pass
-        elif acct.getBankingFI() is not None or acct.getBillPayFI() is not None: continue
-        elif acct.getAccountOrParentIsInactive(): continue
-        elif acct.getHideOnHomePage() and acct.getBalance() == 0: continue
-        listOfAccountsForJList.append(StoreAccountList(acct))
-    del getAccounts
-
-    jlst = JList([])
-    jlst.setBackground(MD_REF.getUI().getColors().listBackground)
-    jlst.setCellRenderer( MyJListRenderer() )
-    jlst.setFixedCellHeight(jlst.getFixedCellHeight()+30)
-    jlst.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-    jlst.setSelectionModel(MyDefaultListSelectionModel())
-    jlst.setListData(listOfAccountsForJList)
-
-    jlstIndex = 0
-    preSelectList = []
-    for acctObj in listOfAccountsForJList:
-        if acctObj.obj in matchingAccts:
-            preSelectList.append(jlstIndex)
-        jlstIndex += 1
-    jlst.setSelectedIndices(preSelectList)
-    if len(matchingAccts) > 0: jlst.ensureIndexIsVisible(preSelectList[0])
-    del preSelectList, listOfAccountsForJList
-
-    jsp = MyJScrollPaneForJOptionPane(jlst,750,600)
-
-    options = ["EXIT", "PROCEED"]
-    userAction = (JOptionPane.showOptionDialog(ofx_populate_multiple_userids_frame_,
-                                               jsp,
-                                               "OFX MANAGE USERIDs - CAREFULLY SELECT THE ACCOUNTS TO LINK/MANAGE",
-                                               JOptionPane.OK_CANCEL_OPTION,
-                                               JOptionPane.QUESTION_MESSAGE,
-                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-                                               options, options[0]))
-    if userAction != 1:
-        alert_and_exit("OFX ACCOUNT SELECTION ABORTED")
-    del jsp, userAction
-
-    selectedAccountsList = []
-    for selectedAccount in jlst.getSelectedValuesList():
-        theOutput += "...account %s selected...\n" %(selectedAccount.obj)
-        selectedAccountsList.append(selectedAccount.obj)
-    del jlst
-
-    if len(selectedAccountsList) < 1: alert_and_exit("ERROR NO ACCOUNTS SELECTED")
-
-    theOutput += "\n"
-
-    accountsToManage = []
-
-    delinkAccounts = []
-    for acct in matchingAccts:
-        if acct not in selectedAccountsList:
-            if myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "ACCT SELECTED FOR DE-LINK",
-                                  "Are you sure you want to de-link Account %s from OFX Service Profile?" %(acct)):
-                theOutput += "Will DE-LINK Account: %s from OFX Service Profile\n" %(acct)
-                delinkAccounts.append(acct)
-            else:
-                alert_and_exit("ERROR - USER DOES NOT WANT TO DE-LINK: %s" %(acct))
-
-    linkNewAccounts = []
-    for acct in selectedAccountsList:
-        if acct in matchingAccts:
-            theOutput += "No action on Account %s as already linked and still selected\n" %(acct)
-        else:
-            if myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "ACCT SELECTED FOR NEW LINK",
-                                  "Are you sure you want to LINK Account %s to OFX Service Profile?" %(acct)):
-                theOutput += "Will LINK Account: %s to OFX Service Profile\n" %(acct)
-                linkNewAccounts.append(acct)
-            else:
-                alert_and_exit("ERROR - USER DOES NOT WANT TO LINK: %s" %(acct))
-        accountsToManage.append(acct)
-    del selectedAccountsList, matchingAccts
-
-    theOutput += "\n"
-
-    ####################################################################################################################
-    # Validate OFX Setup on Accounts selected for linking
-
-    theOutput += "Account OFX Data Validation / Correction...:\n"
-    theOutput += "--------------------------------------------\n"
-
-    OFX_ACCOUNT_TYPES = ["CHECKING", "SAVINGS", "MONEYMRKT", "CREDITLINE"]
-
-    updateAccountOFXDataList = []
-
-    lReviewExistingOFXData = myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"REVIEW EXISTING OFX DATA BY ACCOUNT", "Would you like to review existing OFX data by account (advanced)?")
-    lEnterMissingOFXData = myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"VALIDATE OFX DATA BY ACCOUNT", "Would you like to enter missing OFX data by account (advanced)?")
-
-    if lReviewExistingOFXData or lEnterMissingOFXData:
-        for acct in accountsToManage:
-            theOutput += "Validating Acct: %s\n" %(acct)
-
-            accountTypeOFX = routeID = bankID = brokerID = None
-
-            # noinspection PyUnresolvedReferences
-            if acct.getAccountType() == Account.AccountType.BANK:
-
-                accountTypeOFX = acct.getOFXAccountType()
-                if lReviewExistingOFXData or (lEnterMissingOFXData and accountTypeOFX == ""):
-                    theOutput += "Account: %s account type is currently %s\n" %(acct, accountTypeOFX)
-                    accountTypeOFX = (OFX_ACCOUNT_TYPES[0] if (acct.getOFXAccountType() == "") else accountTypeOFX)
-
-                    accountTypeOFX = JOptionPane.showInputDialog(ofx_populate_multiple_userids_frame_,
-                                                                 "Carefully select the type for this account",
-                                                                 "ACCOUNT TYPE FOR ACCOUNT: %s" %(acct),
-                                                                 JOptionPane.INFORMATION_MESSAGE,
-                                                                 MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-                                                                 OFX_ACCOUNT_TYPES,
-                                                                 accountTypeOFX)
-                    if not lEnterMissingOFXData and not accountTypeOFX:
-                        accountTypeOFX = None
-                    elif not accountTypeOFX:
-                        alert_and_exit("ERROR - NO ACCOUNT TYPE SELECTED FOR: %s - Aborting" %(acct))
-                    theOutput += "Account %s - selected type: %s\n" %(acct,accountTypeOFX)
+        matchingAccts = []
+        accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(4))
+        for acct in accounts:
+            if acct.getBillPayFI() == selectedService:
+                if not lIgnoreBillPay:
+                    alert_and_exit("ERROR - BILLPAY LINK FOUND ON ACCT: %s - ABORTING" %(acct))
                 else:
-                    accountTypeOFX = None
-
-                routeID = acct.getOFXBankID()
-                if lReviewExistingOFXData or (lEnterMissingOFXData and routeID == ""):
-                    routeID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "Routing - Account: %s" % (acct), "Routing:", "Type/Paste your Routing Number - very carefully", routeID)
-                    if not lEnterMissingOFXData and (routeID is None or routeID == ""):
-                        routeID = None
-                    elif routeID is None or routeID == "" or len(routeID) < 6:
-                        alert_and_exit("ERROR - invalid Routing supplied for acct: %s - Aborting" %(acct))
-                    theOutput += "Account %s - routeID entered: %s\n" %(acct, routeID)
-                else:
-                    routeID = None
-
-            # noinspection PyUnresolvedReferences
-            if acct.getAccountType() == Account.AccountType.INVESTMENT:
-
-                brokerID = acct.getOFXBrokerID()
-                if lReviewExistingOFXData or (lEnterMissingOFXData and brokerID == ""):
-                    brokerID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "BrokerID - Account: %s" %(acct), "BrokerID:", "Type/Paste your BrokerID - very carefully", brokerID)
-                    if not lEnterMissingOFXData and (brokerID is None or brokerID == ""):
-                        brokerID = None
-                    elif brokerID is None or brokerID == "" or len(brokerID) < 4:
-                        alert_and_exit("ERROR - invalid BrokerID supplied for acct: %s - Aborting" %(acct))
-                    theOutput += "Account %s - BrokerID entered: %s\n" %(acct, brokerID)
-                else:
-                    brokerID = None
-
-            bankID = acct.getOFXAccountNumber()
-            if lReviewExistingOFXData or (lEnterMissingOFXData and bankID == ""):
-                bankID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ACCOUNT: %s" %(acct), "Bank/CC/Investment Acct Number:", "Type/Paste your Account / CC Number - very carefully", bankID)
-                if not lEnterMissingOFXData and (bankID is None or bankID == ""):
-                    bankID = None
-                elif bankID is None or bankID == "":
-                    alert_and_exit("ERROR - no Account Number supplied for acct: %s - Aborting" %(acct))
-                theOutput += "Account %s - Entered Number: %s\n" %(acct, bankID)
-            else:
-                bankID = None
-
-            if accountTypeOFX or routeID or bankID or brokerID:
-                storeAcct = StoreAccountList(acct)
-                storeAcct.setOFXAccountType(accountTypeOFX)
-                storeAcct.setOFXBankID(routeID)
-                storeAcct.setOFXAccountNumber(bankID)
-                storeAcct.setOFXBrokerID(brokerID)
+                    theOutput += "Ignoring BillPay link found on account: %s\n" %(acct)
+            if acct.getBankingFI() == selectedService:
                 # noinspection PyUnresolvedReferences
-                storeAcct.setOFXAccountMsgType(getAccountMsgType(acct))
-                updateAccountOFXDataList.append(storeAcct)
+                if (acct.getAccountType() == Account.AccountType.BANK
+                        or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                        or acct.getAccountType() == Account.AccountType.INVESTMENT):
+                    matchingAccts.append(acct)
+                else:
+                    alert_and_exit("ERROR: FOUND LINKED ACCT (%s) THAT IS NOT BANK, CREDIT CARD OR INVESTMENT - ABORTING" %(acct))
 
-        theOutput += "Validation complete.... %s Accounts need to be updated\n" %(len(updateAccountOFXDataList))
-
-    lOFXNumbersFailedValidation = lFoundUpdateOFX = False
-    for acct in accountsToManage:
-        for storedAcct in updateAccountOFXDataList:
-            if storedAcct.getAccount() == acct:
-                if storedAcct.getOFXAccountNumber() is None or storedAcct.getOFXAccountNumber() == "":
-                    lOFXNumbersFailedValidation = True
-                lFoundUpdateOFX = True
-                break
-        if not lFoundUpdateOFX:
-            if acct.getOFXAccountNumber() != "":
-                continue
-            lOFXNumbersFailedValidation = True
-        if lOFXNumbersFailedValidation:
-            theOutput += "...ERROR - ACCOUNT: %s HAS NO OFX ACCOUNT NUMBER\n" %(acct)
-            break
-        lFoundUpdateOFX = False
-
-    if lOFXNumbersFailedValidation: alert_and_exit("ERROR - NOT ALL YOUR ACCOUNTS HAVE AN ASSIGNED OFX NUMBER... CANNOT PROCEED..!")
-    del lOFXNumbersFailedValidation, lFoundUpdateOFX
-
-    theOutput += "\n"
-    theOutput += "@@ Client ID for Realm: %s required flag: %s\n" %(theRealm, selectedService.getClientIDRequired(theRealm))
-    theOutput += "--------------------------------------\n"
-
-    theOutput += "\n"
-
-    theOutput += "Harvesting existing UserID details from root...:\n"
-    theOutput += "------------------------------------------------\n"
-
-    authKeyPrefix = "ofx.client_uid"
-    specificAuthKeyPrefix = authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::"
-
-    root = MD_REF.getRootAccount()
-    rootKeys = list(root.getParameterKeys())
-
-    harvestedUserIDList = []
-
-    for i in range(0,len(rootKeys)):
-        rk = rootKeys[i]
-        if rk.startswith(specificAuthKeyPrefix):
-            rk_value = root.getParameter(rk)
-            harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
-            if harvestedUID.getUserID() != "null":
-                theOutput += "... Harvested old authKey %s: ClientUID: %s\n" %(rk,rk_value)
-                harvestedUID.setClientUID(rk_value)
-                harvestedUserIDList.append(harvestedUID)
-
-    if len(harvestedUserIDList) > 0:
-        theOutput += "Harvested User and ClientUIDs...:\n"
-        for harvested in harvestedUserIDList:
-            theOutput += "Harvested User: %s, ClientUID: %s\n" %(harvested.getUserID(), harvested.getClientUID())
-
-    theOutput += "\n"
-
-    theOutput += "Harvesting existing UserIDs from service profile:...:\n"
-    theOutput += "-----------------------------------------------------\n"
-    for pKey in selectedService.getParameterKeys():
-        if pKey.startswith("so_user_id"):
-            theOutput += "Existing User: %s\n" %(selectedService.getParameter(pKey))
-
-    theOutput += "\n"
-
-    if isUserEncryptionPassphraseSet():
-        theOutput += "Harvesting Existing UserIDs/Passwords from authentication cache:...:\n"
-        theOutput += "--------------------------------------------------------------------\n"
-        authKeys = getUpdatedAuthenticationKeys()
-        if len(authKeys) > 0:
-            for theAuthKey in sorted(authKeys.keys()):                                                                  # noqa
-                if (selectedService.getFIOrg() + "--" + selectedService.getFIId() + "--") in theAuthKey:
-                    theOutput += "Existing AuthCache Entry: %s\n" %(authKeys.get(theAuthKey))                              # noqa
-        del authKeys
+        if len(matchingAccts) < 1:
+            theOutput += "WARNING! No Accounts are already linked to this profile? Are you sure this is a good profile?\n"
+            if myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"NO ACCOUNTS LINKED >> FORCE LINK ACCOUNT", "Would you like to try and force link an account to this profile?"):
+                theOutput += "@@@ FORCE LINKING ACCOUNTS INTO THIS PROFILE..!! @@\n"
+            else:
+                alert_and_exit("ERROR NO ACCOUNTS LINKED TO THIS OFX SERVICE PROFILE FOUND")
 
         theOutput += "\n"
 
+        theOutput += "Found %s Accounts linked to this OFX Service Profile\n" %(len(matchingAccts))
+        for acct in matchingAccts: theOutput += "... Account: %s\n" %(acct.getFullAccountName())
 
-    howManyUsers = 0
-    userResponse = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "OFX USERID MANAGEMENT", "Total number of UserIDs:", "How many UserIDs (in Total, including default) do you want to setup/manage?",defaultValue=howManyUsers)
-    if userResponse is None or not StringUtils.isInteger(userResponse) or int(userResponse) < 1 or int(userResponse) > 7:
-        alert_and_exit("ERROR: INVALID TOTAL NUMBER OF USERIDs TO MANAGE ENTERED (range 1-7)")
-    howManyUsers = int(userResponse)
-    theOutput += "Total UserIDs to Manage: %s\n" %(howManyUsers)
+        theOutput += "\n"
 
-    if howManyUsers > len(accountsToManage):
-        alert_and_exit("ERROR - YOU HAVE SPECIFIED MORE TOTAL USERIDs THAN ACCOUNTS?!")
+        realms = selectedService.getRealms()
+        if len(realms) < 1: alert_and_exit("ERROR NO REALMS WITHIN THIS OFX SERVICE PROFILE FOUND")
 
+        theOutput += "Found %s Realms within this OFX Service Profile\n" %(len(realms))
+        for realm in realms: theOutput += "... Realm: %s\n" %(realm)
+        theRealm = realms[0]    # Take the first one...
 
-    theOutput += "Gathering Default UserID details...:\n"
-    theOutput += "------------------------------------\n"
+        if len(realms) > 1: alert_and_exit("ERROR MORE THAN 1 REALMS WITHIN THIS OFX SERVICE PROFILE FOUND - LOGIC NOT PROGRAMMED >> SORRY :-<")
 
-    oldDefaultUserID = selectedService.getUserId(theRealm, None)
-    if oldDefaultUserID is None: oldDefaultUserID = ""
-    theOutput += "Default UserID: %s\n" %("<NONE>" if (oldDefaultUserID == "") else oldDefaultUserID)
+        theOutput += "\n"
 
-    defaultEntry = oldDefaultUserID
-    while True:
-        userID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "DEFAULT UserID", "DEFAULT UserID (User1)", "Edit DEFAULT UserID (carefully) or leave unchanged (Will become User 1 too)", defaultEntry)
-        theOutput += "userID entered: %s\n" %userID
-        if userID is None:
-            alert_and_exit("ERROR - No DEFAULT userID supplied! Aborting")
-        defaultEntry = userID
-        if userID is None or userID == "" or userID == "UserID" or len(userID)<4:
-            theOutput += "\n ** ERROR - No valid DEFAULT userID supplied - try again ** \n"
-            continue
-        break
-
-    if oldDefaultUserID == userID:
-        theOutput += "Default UserID (also User1) (%s) will NOT be changed\n" % (oldDefaultUserID)
-    else:
-        theOutput += "Default UserID (also User1) (%s) will be changed to: %s\n" % (oldDefaultUserID, userID)
-    newDefaultUserID = userID
-    del defaultEntry, userID
-
-    theOutput += "\n"
-
-    theOutput += "Gathering new UserID and Passwords...:\n"
-    theOutput += "--------------------------------------\n"
-
-    userIDList = []
-    for onUser in range(0,howManyUsers):
-
-        if onUser == 0:
-            defaultEntry = userID = newDefaultUserID
-        else:
-            defaultEntry = "UserID%s" %(onUser+1)
-
-            while True:
-                userID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ENTER UserID", "UserID%s:" %(onUser+1),
-                                            "Enter UserID%s (min length 4) carefully" %(onUser+1), defaultEntry)
-                theOutput += "userID%s entered: %s\n" %(onUser+1, userID)
-                if userID is None: alert_and_exit("ERROR - no userID%s supplied! Aborting" %(onUser+1))
-                defaultEntry = userID
-                for uid in userIDList:
-                    if uid.getUserID() == userID:
-                        theOutput += "\n ** ERROR - DUPLICATE userID%s supplied - try again ** \n" %(onUser+1)
-                        continue
-                if userID is None or userID == "" or userID == ("UserID%s" %(onUser+1)) or len(userID)<4:
-                    theOutput += "\n ** ERROR - no valid userID%s supplied - try again ** \n" %(onUser+1)
-                    continue
-                break
-        userIDList.append(StoreUserID(userID))
-        del defaultEntry, userID
-
-    if len(userIDList) != howManyUsers:
-        alert_and_exit("LOGIC ERROR: NUMBER OF USERIDs ENTERED (%s) DOES NOT MATCH (%s)" %(len(userIDList), howManyUsers))
-
-    if newDefaultUserID != userIDList[0].getUserID():
-        alert_and_exit("LOGIC ERROR: NEW DEFAULT USERID %s DOES NOT MATCH userIDList[0] %s" %(newDefaultUserID, userIDList[0].getUserID()))
-
-    theOutput += "\n"
-
-    if lSelectedUSAA:
-        for findStoredUser in userIDList:
-            foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
-            if foundHarvestedStoredUser is not None:
-                if foundHarvestedStoredUser.getClientUID() is not None:
-                    findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
-                else:
-                    alert_and_exit("LOGIC ERROR: Found harvested UserID (%s) with no ClientUID?!" %(findStoredUser))
-    else:
-        theOutput += "Skipping matching ClientUIDs into new UserID list as not updating a USAA profile...\n"
-    del harvestedUserIDList
-
-    for userID in userIDList: theOutput += "UserID entered: %s (Harvested ClientUID: %s)\n" %(userID, userID.getClientUID())
-
-    theOutput += "\n"
-
-    for onUser in range(0,len(userIDList)):
-        defaultEntry = "%s:*****" %(onUser+1)
-        while True:
-            password = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ENTER PASSWORD", "USERID%s:%s Password:" %(onUser+1, userIDList[onUser].getUserID()),
-                                          "Type/Paste your Password%s (min length 4) very carefully" %(onUser+1), defaultEntry)
-            theOutput += "User%s: %s : password entered: %s\n" %(onUser+1, userIDList[onUser].getUserID(), password)
-            if password is None:
-                alert_and_exit("ERROR - User: %s - no password %s supplied! Aborting" %(userIDList[onUser].getUserID(), onUser+1))
-            defaultEntry = password
-            if password is None or password == "" or password == ("%s:*****" %(onUser+1)) or len(password) < 4:
-                theOutput += "\n ** ERROR - User: %s - no password %s supplied - try again ** \n" %(userIDList[onUser].getUserID(), onUser+1)
-                continue
-            break
-        userIDList[onUser].setPassword(password)
-        del defaultEntry, password
-
-    theOutput += "\n"
-
-    if lSelectedUSAA:
-        for onUser in range(0,len(userIDList)):
-            if userIDList[onUser].getClientUID() is None:
-                defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+        lOverrideRootUUID = False
+        if selectedService.getClientIDRequired(theRealm):
+            if myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"KEEP DATASET's DEFAULT CLIENT UUID [Normal Option]", "Do you want to keep this Dataset's default Client UUID? (YES=KEEP, NO=Reset/Regenerate[optional])?"):
+                theOutput += "User opted to keep this Dataset's / Root's current Master/Default Client UUID.....\n"
             else:
-                defaultEntry = userIDList[onUser].getClientUID()
-            while True:
-                uuid = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ENTER UUID", "USERID%s:%s ClientUID:" %(onUser+1, userIDList[onUser].getUserID()),
-                                              "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
-                theOutput += "User%s: %s : ClientUID entered: %s\n" %(onUser+1, userIDList[onUser].getUserID(), uuid)
-                if uuid is None:
-                    alert_and_exit("ERROR - User: %s - no ClientUID %s supplied! Aborting" %(userIDList[onUser].getUserID(), onUser+1))
-                defaultEntry = uuid
-                if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
-                        (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
-                    theOutput += "\n ** ERROR - no valid ClientUID for User%s (%s) supplied - try again ** \n" %(onUser+1,userIDList[onUser].getUserID())
-                    continue
-                break
-            userIDList[onUser].setClientUID(uuid)
-            del defaultEntry, uuid
+                lOverrideRootUUID = True
+                theOutput += "User opted to generate a new Root Master/Default Client UUID for this Dataset.....\n"
+        else:
+            theOutput += "This service profile does not require ClientUUIDs... skipping....\n"
 
-    theOutput += "\n"
+        theOutput += "\n"
 
-    theOutput += "Final list of resolved UserIDs, Passwords, and ClientUIDs (if required)....\n"
-    for userID in userIDList:
-        if userID.getPassword() == "NOT SET": alert_and_exit("LOGIC ERROR - PASSWORD NOT SET FOR: %s" %(userID))
-        theOutput += "UserID entered: %s (Password: %s) (ClientUID: %s)\n" %(userID.getPassword(),userID.getPassword(),userID.getClientUID())
+        theOutput += "Selecting Accounts to link to profile:\n"
+        theOutput += "--------------------------------------\n"
 
-    theOutput += "\n"
+        listOfAccountsForJList = []
 
-    ####################################################################################################################
-    ############################### MATCH USERIDs TO ACCOUNTS
-    theOutput += "Matching UserIDs to Accounts...:\n"
-    theOutput += "--------------------------------\n"
-    listOfAccountsForUserID = []
-    for acct in accountsToManage: listOfAccountsForUserID.append(StoreAccountList(acct))
-
-    for onUser in range(0,len(userIDList)):
-        theOutput += "Account / UserID%s Match: %s\n" %(onUser+1, userIDList[onUser].getUserID())
+        getAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), MyAcctFilter(2))
+        getAccounts = sorted(getAccounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+        for acct in getAccounts:
+            if not lIgnoreBillPay and acct.getBillPayFI() == selectedService: alert_and_exit("LOGIC ERROR: PARSING getAccounts() - FOUND BILLPAY")
+            elif acct.getBankingFI() == selectedService: pass
+            elif acct.getBillPayFI() == selectedService: pass
+            elif acct.getBankingFI() is not None or acct.getBillPayFI() is not None: continue
+            elif acct.getAccountOrParentIsInactive(): continue
+            elif acct.getHideOnHomePage() and acct.getBalance() == 0: continue
+            listOfAccountsForJList.append(StoreAccountList(acct))
+        del getAccounts
 
         jlst = JList([])
         jlst.setBackground(MD_REF.getUI().getColors().listBackground)
@@ -3302,378 +2920,768 @@ Visit: %s (Author's site)
         jlst.setFixedCellHeight(jlst.getFixedCellHeight()+30)
         jlst.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
         jlst.setSelectionModel(MyDefaultListSelectionModel())
-        jlst.setListData(listOfAccountsForUserID)
+        jlst.setListData(listOfAccountsForJList)
+
+        jlstIndex = 0
+        preSelectList = []
+        for acctObj in listOfAccountsForJList:
+            if acctObj.obj in matchingAccts:
+                preSelectList.append(jlstIndex)
+            jlstIndex += 1
+        jlst.setSelectedIndices(preSelectList)
+        if len(matchingAccts) > 0: jlst.ensureIndexIsVisible(preSelectList[0])
+        del preSelectList, listOfAccountsForJList
 
         jsp = MyJScrollPaneForJOptionPane(jlst,750,600)
 
         options = ["EXIT", "PROCEED"]
         userAction = (JOptionPane.showOptionDialog(ofx_populate_multiple_userids_frame_,
                                                    jsp,
-                                                   "SELECT THE ACCOUNT(S) TO LINK TO USERID%s: %s" %(onUser+1, userIDList[onUser].getUserID()),
+                                                   "OFX MANAGE USERIDs - CAREFULLY SELECT THE ACCOUNTS TO LINK/MANAGE",
                                                    JOptionPane.OK_CANCEL_OPTION,
                                                    JOptionPane.QUESTION_MESSAGE,
                                                    MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                    options, options[0]))
-        if userAction != 1: alert_and_exit("OFX ACCOUNT / USER MATCH SELECTION ABORTED")
+        if userAction != 1:
+            alert_and_exit("OFX ACCOUNT SELECTION ABORTED")
         del jsp, userAction
 
         selectedAccountsList = []
         for selectedAccount in jlst.getSelectedValuesList():
-            theOutput += "...account %s selected for match to UserID: %s\n" %(selectedAccount.obj, userIDList[onUser].getUserID())
-            selectedAccountsList.append(selectedAccount.getAccount())
-            listOfAccountsForUserID.remove(selectedAccount)
+            theOutput += "...account %s selected...\n" %(selectedAccount.obj)
+            selectedAccountsList.append(selectedAccount.obj)
         del jlst
-        if len(selectedAccountsList) < 1: alert_and_exit("ERROR NO ACCOUNTS SELECTED TO MATCH TO USERID%s: %s" %(onUser+1, userIDList[onUser].getUserID()))
-        userIDList[onUser].setAccounts(selectedAccountsList)
-        del selectedAccountsList
 
-    del listOfAccountsForUserID
-    ####################################################################################################################
-    theOutput += "\n"
+        if len(selectedAccountsList) < 1: alert_and_exit("ERROR NO ACCOUNTS SELECTED")
 
-    theOutput += "Sanity check...:\n"
-    theOutput += "----------------\n"
+        theOutput += "\n"
 
-    # Sanity check!
-    iCheckAccountNumber = 0
-    for onUser in range(0,len(userIDList)): iCheckAccountNumber += len(userIDList[onUser].getAccounts())
-    if len(accountsToManage) != iCheckAccountNumber:
-        alert_and_exit("LOGIC ERROR: accountsToManage(%s) <> total of UserID.getAccounts() (%s)!? - exiting without changes" %(len(accountsToManage), iCheckAccountNumber))
-    del iCheckAccountNumber
+        accountsToManage = []
 
-    # This is it folks.... Shall we go for it?
-    if not myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"PROCEED WITH OFX PROFILE CHANGES", "Proceed with changes?"):
-        alert_and_exit("USER DECLINED TO PROCEED WITH OFX PROFILE CHANGES")
+        delinkAccounts = []
+        for acct in matchingAccts:
+            if acct not in selectedAccountsList:
+                if myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "ACCT SELECTED FOR DE-LINK",
+                                      "Are you sure you want to de-link Account %s from OFX Service Profile?" %(acct)):
+                    theOutput += "Will DE-LINK Account: %s from OFX Service Profile\n" %(acct)
+                    delinkAccounts.append(acct)
+                else:
+                    alert_and_exit("ERROR - USER DOES NOT WANT TO DE-LINK: %s" %(acct))
 
-    theOutput += "\n\n"
+        linkNewAccounts = []
+        for acct in selectedAccountsList:
+            if acct in matchingAccts:
+                theOutput += "No action on Account %s as already linked and still selected\n" %(acct)
+            else:
+                if myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "ACCT SELECTED FOR NEW LINK",
+                                      "Are you sure you want to LINK Account %s to OFX Service Profile?" %(acct)):
+                    theOutput += "Will LINK Account: %s to OFX Service Profile\n" %(acct)
+                    linkNewAccounts.append(acct)
+                else:
+                    alert_and_exit("ERROR - USER DOES NOT WANT TO LINK: %s" %(acct))
+            accountsToManage.append(acct)
+        del selectedAccountsList, matchingAccts
 
-    # ... and WE ARE OFF AND RUNNING......
-    theOutput += "PROCEEDING WITH OFX PROFILE UPDATES:\n"
+        theOutput += "\n"
 
-    theOutput += "\n"
+        ####################################################################################################################
+        # Validate OFX Setup on Accounts selected for linking
 
-    theOutput += "Removing existing profile links from mapping object - will rebuild the table...:\n"
-    theOutput += "--------------------------------------------------------------------------------\n"
+        theOutput += "Account OFX Data Validation / Correction...:\n"
+        theOutput += "--------------------------------------------\n"
 
-    lMappingNeedsSync = False
-    mappingObject = None
-    if isMDPlusEnabledBuild():
-        mappingObject = book.getItemForID("online_acct_mapping")
-        if mappingObject is not None:
-            mappingKeys = list(mappingObject.getParameterKeys())
-            for i in range(0, len(mappingKeys)):
-                pk = mappingKeys[i]
-                if pk.startswith("map.") and (selectedService.getTIKServiceID() in pk):
-                    theOutput += "Deleting old Account Mapping %s: %s\n" %(pk, mappingObject.getParameter(pk))
-                    mappingObject.setEditingMode()
-                    mappingObject.setParameter(pk, None)
-                    lMappingNeedsSync = True
-            del mappingKeys
-            if lMappingNeedsSync: mappingObject.syncItem()
-    del mappingObject
+        OFX_ACCOUNT_TYPES = ["CHECKING", "SAVINGS", "MONEYMRKT", "CREDITLINE"]
 
-    lMappingNeedsSync = False
-    mappingObjectClass = None
-    if isMDPlusEnabledBuild():
-        theOutput += "Grabbing reference to OnlineAccountMapping() with selected service profile...\n"
-        mappingObjectClass =  OnlineAccountMapping(book, selectedService)
+        updateAccountOFXDataList = []
 
-    ####################################################################################################################
-    theOutput += "\n"
-    theOutput += "De-linking accounts, updating OFX data, linking new accounts...:\n"
-    theOutput += "----------------------------------------------------------------\n"
+        lReviewExistingOFXData = myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"REVIEW EXISTING OFX DATA BY ACCOUNT", "Would you like to review existing OFX data by account (advanced)?")
+        lEnterMissingOFXData = myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"VALIDATE OFX DATA BY ACCOUNT", "Would you like to enter missing OFX data by account (advanced)?")
 
-    if len(delinkAccounts): myPrint("B","DE-LINKING ACCOUNTS..:")
-    for acct in delinkAccounts:
-        theOutput += "...De-linking acct: %s\n" %(acct)
-        acct.setBankingFI(None)
-        if isMDPlusEnabledBuild():
-            acct.setOnlineIDForServiceID(selectedService.getTIKServiceID(), None)
-            # if mappingObjectClass is not None:
-            #     mappingObjectClass.setMapping(acct.getOFXAccountNumber(), None)
-            #     mappingObjectClass.setMapping(acct.getOFXAccountNumber(), None)
-            #     lMappingNeedsSync = True
-        acct.syncItem()
-    del delinkAccounts
+        if lReviewExistingOFXData or lEnterMissingOFXData:
+            for acct in accountsToManage:
+                theOutput += "Validating Acct: %s\n" %(acct)
 
-    theOutput += "\n"
+                accountTypeOFX = routeID = bankID = brokerID = None
 
-    if len(updateAccountOFXDataList): theOutput += "UPDATING ACCOUNTS WITH OFX DATA..:\n"
-    for acct in updateAccountOFXDataList:
-        theOutput += "...Updating acct: %s\n" %(acct.getAccount())
-        acct.getAccount().setEditingMode()
-        if acct.getOFXBankID():         acct.getAccount().setOFXBankID(acct.getOFXBankID())
-        if acct.getOFXAccountNumber():  acct.getAccount().setOFXAccountNumber(acct.getOFXAccountNumber())
-        if acct.getOFXAccountType():    acct.getAccount().setOFXAccountType(acct.getOFXAccountType())
-        if acct.getOFXAccountMsgType(): acct.getAccount().setOFXAccountMsgType(acct.getOFXAccountMsgType())
-        if acct.getOFXBrokerID():       acct.getAccount().setOFXBrokerID(acct.getOFXBrokerID())
-        acct.getAccount().setBankingFI(selectedService)
-        if isMDPlusEnabledBuild(): pass
-        # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
-        acct.getAccount().syncItem()
-    del updateAccountOFXDataList
+                # noinspection PyUnresolvedReferences
+                if acct.getAccountType() == Account.AccountType.BANK:
 
-    theOutput += "\n"
+                    accountTypeOFX = acct.getOFXAccountType()
+                    if lReviewExistingOFXData or (lEnterMissingOFXData and accountTypeOFX == ""):
+                        theOutput += "Account: %s account type is currently %s\n" %(acct, accountTypeOFX)
+                        accountTypeOFX = (OFX_ACCOUNT_TYPES[0] if (acct.getOFXAccountType() == "") else accountTypeOFX)
 
-    if len(linkNewAccounts): theOutput += "CREATING NEW LINKS FOR ACCOUNTS..:\n"
-    for acct in linkNewAccounts:
-        theOutput += "...Creating new OFX link for acct: %s\n" %(acct)
-        acct.setBankingFI(selectedService)
-        if isMDPlusEnabledBuild(): pass
-        # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
-        acct.syncItem()
-    del linkNewAccounts
+                        accountTypeOFX = JOptionPane.showInputDialog(ofx_populate_multiple_userids_frame_,
+                                                                     "Carefully select the type for this account",
+                                                                     "ACCOUNT TYPE FOR ACCOUNT: %s" %(acct),
+                                                                     JOptionPane.INFORMATION_MESSAGE,
+                                                                     MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                                     OFX_ACCOUNT_TYPES,
+                                                                     accountTypeOFX)
+                        if not lEnterMissingOFXData and not accountTypeOFX:
+                            accountTypeOFX = None
+                        elif not accountTypeOFX:
+                            alert_and_exit("ERROR - NO ACCOUNT TYPE SELECTED FOR: %s - Aborting" %(acct))
+                        theOutput += "Account %s - selected type: %s\n" %(acct,accountTypeOFX)
+                    else:
+                        accountTypeOFX = None
 
-    ####################################################################################################################
-    theOutput += "\n"
+                    routeID = acct.getOFXBankID()
+                    if lReviewExistingOFXData or (lEnterMissingOFXData and routeID == ""):
+                        routeID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "Routing - Account: %s" % (acct), "Routing:", "Type/Paste your Routing Number - very carefully", routeID)
+                        if not lEnterMissingOFXData and (routeID is None or routeID == ""):
+                            routeID = None
+                        elif routeID is None or routeID == "" or len(routeID) < 6:
+                            alert_and_exit("ERROR - invalid Routing supplied for acct: %s - Aborting" %(acct))
+                        theOutput += "Account %s - routeID entered: %s\n" %(acct, routeID)
+                    else:
+                        routeID = None
 
-    theOutput += "Updating root...:\n"
-    theOutput += "-----------------\n"
+                # noinspection PyUnresolvedReferences
+                if acct.getAccountType() == Account.AccountType.INVESTMENT:
 
-    if selectedService.getClientIDRequired(theRealm) or lOverrideRootUUID:
-        theOutput += "ClientUID required.... Setting up root with keys...\n"
+                    brokerID = acct.getOFXBrokerID()
+                    if lReviewExistingOFXData or (lEnterMissingOFXData and brokerID == ""):
+                        brokerID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "BrokerID - Account: %s" %(acct), "BrokerID:", "Type/Paste your BrokerID - very carefully", brokerID)
+                        if not lEnterMissingOFXData and (brokerID is None or brokerID == ""):
+                            brokerID = None
+                        elif brokerID is None or brokerID == "" or len(brokerID) < 4:
+                            alert_and_exit("ERROR - invalid BrokerID supplied for acct: %s - Aborting" %(acct))
+                        theOutput += "Account %s - BrokerID entered: %s\n" %(acct, brokerID)
+                    else:
+                        brokerID = None
+
+                bankID = acct.getOFXAccountNumber()
+                if lReviewExistingOFXData or (lEnterMissingOFXData and bankID == ""):
+                    bankID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ACCOUNT: %s" %(acct), "Bank/CC/Investment Acct Number:", "Type/Paste your Account / CC Number - very carefully", bankID)
+                    if not lEnterMissingOFXData and (bankID is None or bankID == ""):
+                        bankID = None
+                    elif bankID is None or bankID == "":
+                        alert_and_exit("ERROR - no Account Number supplied for acct: %s - Aborting" %(acct))
+                    theOutput += "Account %s - Entered Number: %s\n" %(acct, bankID)
+                else:
+                    bankID = None
+
+                if accountTypeOFX or routeID or bankID or brokerID:
+                    storeAcct = StoreAccountList(acct)
+                    storeAcct.setOFXAccountType(accountTypeOFX)
+                    storeAcct.setOFXBankID(routeID)
+                    storeAcct.setOFXAccountNumber(bankID)
+                    storeAcct.setOFXBrokerID(brokerID)
+                    # noinspection PyUnresolvedReferences
+                    storeAcct.setOFXAccountMsgType(getAccountMsgType(acct))
+                    updateAccountOFXDataList.append(storeAcct)
+
+            theOutput += "Validation complete.... %s Accounts need to be updated\n" %(len(updateAccountOFXDataList))
+
+        lOFXNumbersFailedValidation = lFoundUpdateOFX = False
+        for acct in accountsToManage:
+            for storedAcct in updateAccountOFXDataList:
+                if storedAcct.getAccount() == acct:
+                    if storedAcct.getOFXAccountNumber() is None or storedAcct.getOFXAccountNumber() == "":
+                        lOFXNumbersFailedValidation = True
+                    lFoundUpdateOFX = True
+                    break
+            if not lFoundUpdateOFX:
+                if acct.getOFXAccountNumber() != "":
+                    continue
+                lOFXNumbersFailedValidation = True
+            if lOFXNumbersFailedValidation:
+                theOutput += "...ERROR - ACCOUNT: %s HAS NO OFX ACCOUNT NUMBER\n" %(acct)
+                break
+            lFoundUpdateOFX = False
+
+        if lOFXNumbersFailedValidation: alert_and_exit("ERROR - NOT ALL YOUR ACCOUNTS HAVE AN ASSIGNED OFX NUMBER... CANNOT PROCEED..!")
+        del lOFXNumbersFailedValidation, lFoundUpdateOFX
+
+        theOutput += "\n"
+        theOutput += "@@ Client ID for Realm: %s required flag: %s\n" %(theRealm, selectedService.getClientIDRequired(theRealm))
+        theOutput += "--------------------------------------\n"
+
+        theOutput += "\n"
+
+        theOutput += "Harvesting existing UserID details from root...:\n"
+        theOutput += "------------------------------------------------\n"
+
+        authKeyPrefix = "ofx.client_uid"
+        specificAuthKeyPrefix = authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::"
 
         root = MD_REF.getRootAccount()
         rootKeys = list(root.getParameterKeys())
 
-        root.setEditingMode()
+        harvestedUserIDList = []
 
-        # This sets the Dataset Client UUID in Root - the default for all OFX scripts that need it.. (unless specifically set by profile/user)
-        theDefaultUUID = root.getParameter(authKeyPrefix, "")
-        if lOverrideRootUUID or theDefaultUUID == "":
-            theDefaultUUID = my_createNewClientUID()
-            theOutput += "Overriding Root's default UUID. Was: %s >> changing to >> %s\n" %(root.getParameter(authKeyPrefix, None), theDefaultUUID)
-            root.setParameter(authKeyPrefix, theDefaultUUID)
+        for i in range(0,len(rootKeys)):
+            rk = rootKeys[i]
+            if rk.startswith(specificAuthKeyPrefix):
+                rk_value = root.getParameter(rk)
+                harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
+                if harvestedUID.getUserID() != "null":
+                    theOutput += "... Harvested old authKey %s: ClientUID: %s\n" %(rk,rk_value)
+                    harvestedUID.setClientUID(rk_value)
+                    harvestedUserIDList.append(harvestedUID)
 
-        if selectedService.getClientIDRequired(theRealm):
+        if len(harvestedUserIDList) > 0:
+            theOutput += "Harvested User and ClientUIDs...:\n"
+            for harvested in harvestedUserIDList:
+                theOutput += "Harvested User: %s, ClientUID: %s\n" %(harvested.getUserID(), harvested.getClientUID())
 
-            # Delete all existing root keys for this specific profile
-            rootKeys = list(root.getParameterKeys())
-            for i in range(0,len(rootKeys)):
-                rk = rootKeys[i]
-                if rk.startswith(authKeyPrefix) and (selectedService.getTIKServiceID() in rk):
-                    theOutput += "Deleting old authKey %s: %s\n" %(rk,root.getParameter(rk))
-                    root.setParameter(rk, None)
+        theOutput += "\n"
 
-            # Generate a new Client UUID for this profile's default and user1
-            if lSelectedUSAA:
-                theDefaultUUID = userIDList[0].getClientUID()
+        theOutput += "Harvesting existing UserIDs from service profile:...:\n"
+        theOutput += "-----------------------------------------------------\n"
+        for pKey in selectedService.getParameterKeys():
+            if pKey.startswith("so_user_id"):
+                theOutput += "Existing User: %s\n" %(selectedService.getParameter(pKey))
+
+        theOutput += "\n"
+
+        if isUserEncryptionPassphraseSet():
+            theOutput += "Harvesting Existing UserIDs/Passwords from authentication cache:...:\n"
+            theOutput += "--------------------------------------------------------------------\n"
+            authKeys = getUpdatedAuthenticationKeys()
+            if len(authKeys) > 0:
+                for theAuthKey in sorted(authKeys.keys()):                                                                  # noqa
+                    if (selectedService.getFIOrg() + "--" + selectedService.getFIId() + "--") in theAuthKey:
+                        theOutput += "Existing AuthCache Entry: %s\n" %(authKeys.get(theAuthKey))                              # noqa
+            del authKeys
+
+            theOutput += "\n"
+
+
+        howManyUsers = 0
+        userResponse = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "OFX USERID MANAGEMENT", "Total number of UserIDs:", "How many UserIDs (in Total, including default) do you want to setup/manage?",defaultValue=howManyUsers)
+        if userResponse is None or not StringUtils.isInteger(userResponse) or int(userResponse) < 1 or int(userResponse) > 7:
+            alert_and_exit("ERROR: INVALID TOTAL NUMBER OF USERIDs TO MANAGE ENTERED (range 1-7)")
+        howManyUsers = int(userResponse)
+        theOutput += "Total UserIDs to Manage: %s\n" %(howManyUsers)
+
+        if howManyUsers > len(accountsToManage):
+            alert_and_exit("ERROR - YOU HAVE SPECIFIED MORE TOTAL USERIDs THAN ACCOUNTS?!")
+
+
+        theOutput += "Gathering Default UserID details...:\n"
+        theOutput += "------------------------------------\n"
+
+        oldDefaultUserID = selectedService.getUserId(theRealm, None)
+        if oldDefaultUserID is None: oldDefaultUserID = ""
+        theOutput += "Default UserID: %s\n" %("<NONE>" if (oldDefaultUserID == "") else oldDefaultUserID)
+
+        defaultEntry = oldDefaultUserID
+        while True:
+            userID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "DEFAULT UserID", "DEFAULT UserID (User1)", "Edit DEFAULT UserID (carefully) or leave unchanged (Will become User 1 too)", defaultEntry)
+            theOutput += "userID entered: %s\n" %userID
+            if userID is None:
+                alert_and_exit("ERROR - No DEFAULT userID supplied! Aborting")
+            defaultEntry = userID
+            if userID is None or userID == "" or userID == "UserID" or len(userID)<4:
+                theOutput += "\n ** ERROR - No valid DEFAULT userID supplied - try again ** \n"
+                continue
+            break
+
+        if oldDefaultUserID == userID:
+            theOutput += "Default UserID (also User1) (%s) will NOT be changed\n" % (oldDefaultUserID)
+        else:
+            theOutput += "Default UserID (also User1) (%s) will be changed to: %s\n" % (oldDefaultUserID, userID)
+        newDefaultUserID = userID
+        del defaultEntry, userID
+
+        theOutput += "\n"
+
+        theOutput += "Gathering new UserID and Passwords...:\n"
+        theOutput += "--------------------------------------\n"
+
+        userIDList = []
+        for onUser in range(0,howManyUsers):
+
+            if onUser == 0:
+                defaultEntry = userID = newDefaultUserID
             else:
-                theDefaultUUID = my_createNewClientUID()
+                defaultEntry = "UserID%s" %(onUser+1)
 
-            root.setParameter(authKeyPrefix+"_default_user"+"::" + selectedService.getTIKServiceID(), newDefaultUserID)
-            root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
+                while True:
+                    userID = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ENTER UserID", "UserID%s:" %(onUser+1),
+                                                "Enter UserID%s (min length 4) carefully" %(onUser+1), defaultEntry)
+                    theOutput += "userID%s entered: %s\n" %(onUser+1, userID)
+                    if userID is None: alert_and_exit("ERROR - no userID%s supplied! Aborting" %(onUser+1))
+                    defaultEntry = userID
+                    for uid in userIDList:
+                        if uid.getUserID() == userID:
+                            theOutput += "\n ** ERROR - DUPLICATE userID%s supplied - try again ** \n" %(onUser+1)
+                            continue
+                    if userID is None or userID == "" or userID == ("UserID%s" %(onUser+1)) or len(userID)<4:
+                        theOutput += "\n ** ERROR - no valid userID%s supplied - try again ** \n" %(onUser+1)
+                        continue
+                    break
+            userIDList.append(StoreUserID(userID))
+            del defaultEntry, userID
 
+        if len(userIDList) != howManyUsers:
+            alert_and_exit("LOGIC ERROR: NUMBER OF USERIDs ENTERED (%s) DOES NOT MATCH (%s)" %(len(userIDList), howManyUsers))
+
+        if newDefaultUserID != userIDList[0].getUserID():
+            alert_and_exit("LOGIC ERROR: NEW DEFAULT USERID %s DOES NOT MATCH userIDList[0] %s" %(newDefaultUserID, userIDList[0].getUserID()))
+
+        theOutput += "\n"
+
+        if lSelectedUSAA:
+            for findStoredUser in userIDList:
+                foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
+                if foundHarvestedStoredUser is not None:
+                    if foundHarvestedStoredUser.getClientUID() is not None:
+                        findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
+                    else:
+                        alert_and_exit("LOGIC ERROR: Found harvested UserID (%s) with no ClientUID?!" %(findStoredUser))
+        else:
+            theOutput += "Skipping matching ClientUIDs into new UserID list as not updating a USAA profile...\n"
+        del harvestedUserIDList
+
+        for userID in userIDList: theOutput += "UserID entered: %s (Harvested ClientUID: %s)\n" %(userID, userID.getClientUID())
+
+        theOutput += "\n"
+
+        for onUser in range(0,len(userIDList)):
+            defaultEntry = "%s:*****" %(onUser+1)
+            while True:
+                password = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ENTER PASSWORD", "USERID%s:%s Password:" %(onUser+1, userIDList[onUser].getUserID()),
+                                              "Type/Paste your Password%s (min length 4) very carefully" %(onUser+1), defaultEntry)
+                theOutput += "User%s: %s : password entered: %s\n" %(onUser+1, userIDList[onUser].getUserID(), password)
+                if password is None:
+                    alert_and_exit("ERROR - User: %s - no password %s supplied! Aborting" %(userIDList[onUser].getUserID(), onUser+1))
+                defaultEntry = password
+                if password is None or password == "" or password == ("%s:*****" %(onUser+1)) or len(password) < 4:
+                    theOutput += "\n ** ERROR - User: %s - no password %s supplied - try again ** \n" %(userIDList[onUser].getUserID(), onUser+1)
+                    continue
+                break
+            userIDList[onUser].setPassword(password)
+            del defaultEntry, password
+
+        theOutput += "\n"
+
+        if lSelectedUSAA:
             for onUser in range(0,len(userIDList)):
-                theOutput += "Updating Root >> UserID%s (%s)\n" %(onUser+1, userIDList[onUser].getUserID())
-
-                if onUser == 0:
-                    # User 1 keeps the same Client UUID as this Profile's default....
-                    whatClientID = theDefaultUUID
+                if userIDList[onUser].getClientUID() is None:
+                    defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
                 else:
-                    # New Client UUID for all extra users
-                    if lSelectedUSAA: whatClientID = userIDList[onUser].getClientUID()
-                    else: whatClientID = my_createNewClientUID()
+                    defaultEntry = userIDList[onUser].getClientUID()
+                while True:
+                    uuid = myPopupAskForInput(ofx_populate_multiple_userids_frame_, "ENTER UUID", "USERID%s:%s ClientUID:" %(onUser+1, userIDList[onUser].getUserID()),
+                                                  "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+                    theOutput += "User%s: %s : ClientUID entered: %s\n" %(onUser+1, userIDList[onUser].getUserID(), uuid)
+                    if uuid is None:
+                        alert_and_exit("ERROR - User: %s - no ClientUID %s supplied! Aborting" %(userIDList[onUser].getUserID(), onUser+1))
+                    defaultEntry = uuid
+                    if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+                            (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
+                        theOutput += "\n ** ERROR - no valid ClientUID for User%s (%s) supplied - try again ** \n" %(onUser+1,userIDList[onUser].getUserID())
+                        continue
+                    break
+                userIDList[onUser].setClientUID(uuid)
+                del defaultEntry, uuid
 
-                root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + userIDList[onUser].getUserID(), whatClientID)
+        theOutput += "\n"
 
-        root.syncItem()
-        theOutput += "Root UserIDs and UUIDs updated...\n"
-        del theDefaultUUID
-    else:
-        theOutput += "ClientUID NOT required.... Skipping Root updates.....\n"
-    del lOverrideRootUUID
+        theOutput += "Final list of resolved UserIDs, Passwords, and ClientUIDs (if required)....\n"
+        for userID in userIDList:
+            if userID.getPassword() == "NOT SET": alert_and_exit("LOGIC ERROR - PASSWORD NOT SET FOR: %s" %(userID))
+            theOutput += "UserID entered: %s (Password: %s) (ClientUID: %s)\n" %(userID.getPassword(),userID.getPassword(),userID.getClientUID())
 
-    ####################################################################################################################
+        theOutput += "\n"
 
-    theOutput += "\n"
+        ####################################################################################################################
+        ############################### MATCH USERIDs TO ACCOUNTS
+        theOutput += "Matching UserIDs to Accounts...:\n"
+        theOutput += "--------------------------------\n"
+        listOfAccountsForUserID = []
+        for acct in accountsToManage: listOfAccountsForUserID.append(StoreAccountList(acct))
 
-    theOutput += "Updating Service Profile with updated UserIDs....:\n"
-    theOutput += "--------------------------------------------------\n"
+        for onUser in range(0,len(userIDList)):
+            theOutput += "Account / UserID%s Match: %s\n" %(onUser+1, userIDList[onUser].getUserID())
 
-    selectedService.setEditingMode()
+            jlst = JList([])
+            jlst.setBackground(MD_REF.getUI().getColors().listBackground)
+            jlst.setCellRenderer( MyJListRenderer() )
+            jlst.setFixedCellHeight(jlst.getFixedCellHeight()+30)
+            jlst.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+            jlst.setSelectionModel(MyDefaultListSelectionModel())
+            jlst.setListData(listOfAccountsForUserID)
 
-    selectedService.setUserId(theRealm, None, newDefaultUserID)
-    del oldDefaultUserID, newDefaultUserID
+            jsp = MyJScrollPaneForJOptionPane(jlst,750,600)
 
-    selectedService.setParameter(PARAMETER_KEY,"python fix script")
+            options = ["EXIT", "PROCEED"]
+            userAction = (JOptionPane.showOptionDialog(ofx_populate_multiple_userids_frame_,
+                                                       jsp,
+                                                       "SELECT THE ACCOUNT(S) TO LINK TO USERID%s: %s" %(onUser+1, userIDList[onUser].getUserID()),
+                                                       JOptionPane.OK_CANCEL_OPTION,
+                                                       JOptionPane.QUESTION_MESSAGE,
+                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       options, options[0]))
+            if userAction != 1: alert_and_exit("OFX ACCOUNT / USER MATCH SELECTION ABORTED")
+            del jsp, userAction
 
-    lChangedAvailableAccounts = False
-    updatedAccounts = selectedService.getAvailableAccounts()
+            selectedAccountsList = []
+            for selectedAccount in jlst.getSelectedValuesList():
+                theOutput += "...account %s selected for match to UserID: %s\n" %(selectedAccount.obj, userIDList[onUser].getUserID())
+                selectedAccountsList.append(selectedAccount.getAccount())
+                listOfAccountsForUserID.remove(selectedAccount)
+            del jlst
+            if len(selectedAccountsList) < 1: alert_and_exit("ERROR NO ACCOUNTS SELECTED TO MATCH TO USERID%s: %s" %(onUser+1, userIDList[onUser].getUserID()))
+            userIDList[onUser].setAccounts(selectedAccountsList)
+            del selectedAccountsList
 
-    for onUser in range(0,len(userIDList)):
-        theOutput += "... Adding UserID: %s\n" %(userIDList[onUser].getUserID())
-        actualIDNumber = onUser+1
-        for acct in userIDList[onUser].getAccounts():
-            theOutput += "...... On Account: %s (%s)\n" %(acct, acct.getOFXAccountNumber())
+        del listOfAccountsForUserID
+        ####################################################################################################################
+        theOutput += "\n"
 
-            selectedService.setParameter("so_user_id_%s::%s" %(theRealm, my_getAccountKey(acct)), userIDList[onUser].getUserID())
+        theOutput += "Sanity check...:\n"
+        theOutput += "----------------\n"
 
-            if acct.getOFXAccountNumber() != "":
-                lFound = False
-                for onlineAcct in updatedAccounts:
-                    if onlineAcct.getAccountNumber() == acct.getOFXAccountNumber():
-                        theOutput += "...Found online account: %s in .getAvailableAccounts() - skipping the add...\n" %(acct.getOFXAccountNumber())
+        # Sanity check!
+        iCheckAccountNumber = 0
+        for onUser in range(0,len(userIDList)): iCheckAccountNumber += len(userIDList[onUser].getAccounts())
+        if len(accountsToManage) != iCheckAccountNumber:
+            alert_and_exit("LOGIC ERROR: accountsToManage(%s) <> total of UserID.getAccounts() (%s)!? - exiting without changes" %(len(accountsToManage), iCheckAccountNumber))
+        del iCheckAccountNumber
+
+        # This is it folks.... Shall we go for it?
+        if not myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"PROCEED WITH OFX PROFILE CHANGES", "Proceed with changes?"):
+            alert_and_exit("USER DECLINED TO PROCEED WITH OFX PROFILE CHANGES")
+
+        theOutput += "\n\n"
+
+        # ... and WE ARE OFF AND RUNNING......
+        theOutput += "PROCEEDING WITH OFX PROFILE UPDATES:\n"
+
+        theOutput += "\n"
+
+        theOutput += "Removing existing profile links from mapping object - will rebuild the table...:\n"
+        theOutput += "--------------------------------------------------------------------------------\n"
+
+        lMappingNeedsSync = False
+        mappingObject = None
+        if isMDPlusEnabledBuild():
+            mappingObject = book.getItemForID("online_acct_mapping")
+            if mappingObject is not None:
+                mappingKeys = list(mappingObject.getParameterKeys())
+                for i in range(0, len(mappingKeys)):
+                    pk = mappingKeys[i]
+                    if pk.startswith("map.") and (selectedService.getTIKServiceID() in pk):
+                        theOutput += "Deleting old Account Mapping %s: %s\n" %(pk, mappingObject.getParameter(pk))
+                        mappingObject.setEditingMode()
+                        mappingObject.setParameter(pk, None)
+                        lMappingNeedsSync = True
+                del mappingKeys
+                if lMappingNeedsSync: mappingObject.syncItem()
+        del mappingObject
+
+        lMappingNeedsSync = False
+        mappingObjectClass = None
+        if isMDPlusEnabledBuild():
+            theOutput += "Grabbing reference to OnlineAccountMapping() with selected service profile...\n"
+            mappingObjectClass =  OnlineAccountMapping(book, selectedService)
+
+        ####################################################################################################################
+        theOutput += "\n"
+        theOutput += "De-linking accounts, updating OFX data, linking new accounts...:\n"
+        theOutput += "----------------------------------------------------------------\n"
+
+        if len(delinkAccounts): myPrint("B","DE-LINKING ACCOUNTS..:")
+        for acct in delinkAccounts:
+            theOutput += "...De-linking acct: %s\n" %(acct)
+            acct.setBankingFI(None)
+            if isMDPlusEnabledBuild():
+                acct.setOnlineIDForServiceID(selectedService.getTIKServiceID(), None)
+                # if mappingObjectClass is not None:
+                #     mappingObjectClass.setMapping(acct.getOFXAccountNumber(), None)
+                #     mappingObjectClass.setMapping(acct.getOFXAccountNumber(), None)
+                #     lMappingNeedsSync = True
+            acct.syncItem()
+        del delinkAccounts
+
+        theOutput += "\n"
+
+        if len(updateAccountOFXDataList): theOutput += "UPDATING ACCOUNTS WITH OFX DATA..:\n"
+        for acct in updateAccountOFXDataList:
+            theOutput += "...Updating acct: %s\n" %(acct.getAccount())
+            acct.getAccount().setEditingMode()
+            if acct.getOFXBankID():         acct.getAccount().setOFXBankID(acct.getOFXBankID())
+            if acct.getOFXAccountNumber():  acct.getAccount().setOFXAccountNumber(acct.getOFXAccountNumber())
+            if acct.getOFXAccountType():    acct.getAccount().setOFXAccountType(acct.getOFXAccountType())
+            if acct.getOFXAccountMsgType(): acct.getAccount().setOFXAccountMsgType(acct.getOFXAccountMsgType())
+            if acct.getOFXBrokerID():       acct.getAccount().setOFXBrokerID(acct.getOFXBrokerID())
+            acct.getAccount().setBankingFI(selectedService)
+            if isMDPlusEnabledBuild():
+                if acct.getOFXAccountNumber():
+                    acct.getAccount().setOnlineIDForServiceID(selectedService.getTIKServiceID(),acct.getOFXAccountNumber())
+            acct.getAccount().syncItem()
+        del updateAccountOFXDataList
+
+        theOutput += "\n"
+
+        if len(linkNewAccounts): theOutput += "CREATING NEW LINKS FOR ACCOUNTS..:\n"
+        for acct in linkNewAccounts:
+            theOutput += "...Creating new OFX link for acct: %s\n" %(acct)
+            acct.setBankingFI(selectedService)
+            if isMDPlusEnabledBuild():
+                acct.setOnlineIDForServiceID(selectedService.getTIKServiceID(),acct.getOFXAccountNumber())
+            acct.syncItem()
+        del linkNewAccounts
+
+        ####################################################################################################################
+        theOutput += "\n"
+
+        theOutput += "Updating root...:\n"
+        theOutput += "-----------------\n"
+
+        if selectedService.getClientIDRequired(theRealm) or lOverrideRootUUID:
+            theOutput += "ClientUID required.... Setting up root with keys...\n"
+
+            root = MD_REF.getRootAccount()
+            rootKeys = list(root.getParameterKeys())
+
+            root.setEditingMode()
+
+            # This sets the Dataset Client UUID in Root - the default for all OFX scripts that need it.. (unless specifically set by profile/user)
+            theDefaultUUID = root.getParameter(authKeyPrefix, "")
+            if lOverrideRootUUID or theDefaultUUID == "":
+                theDefaultUUID = my_createNewClientUID()
+                theOutput += "Overriding Root's default UUID. Was: %s >> changing to >> %s\n" %(root.getParameter(authKeyPrefix, None), theDefaultUUID)
+                root.setParameter(authKeyPrefix, theDefaultUUID)
+
+            if selectedService.getClientIDRequired(theRealm):
+
+                # Delete all existing root keys for this specific profile
+                rootKeys = list(root.getParameterKeys())
+                for i in range(0,len(rootKeys)):
+                    rk = rootKeys[i]
+                    if rk.startswith(authKeyPrefix) and (selectedService.getTIKServiceID() in rk):
+                        theOutput += "Deleting old authKey %s: %s\n" %(rk,root.getParameter(rk))
+                        root.setParameter(rk, None)
+
+                # Generate a new Client UUID for this profile's default and user1
+                if lSelectedUSAA:
+                    theDefaultUUID = userIDList[0].getClientUID()
+                else:
+                    theDefaultUUID = my_createNewClientUID()
+
+                root.setParameter(authKeyPrefix+"_default_user"+"::" + selectedService.getTIKServiceID(), newDefaultUserID)
+                root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + "null",   theDefaultUUID)
+
+                for onUser in range(0,len(userIDList)):
+                    theOutput += "Updating Root >> UserID%s (%s)\n" %(onUser+1, userIDList[onUser].getUserID())
+
+                    if onUser == 0:
+                        # User 1 keeps the same Client UUID as this Profile's default....
+                        whatClientID = theDefaultUUID
+                    else:
+                        # New Client UUID for all extra users
+                        if lSelectedUSAA: whatClientID = userIDList[onUser].getClientUID()
+                        else: whatClientID = my_createNewClientUID()
+
+                    root.setParameter(authKeyPrefix+"::" + selectedService.getTIKServiceID() + "::" + userIDList[onUser].getUserID(), whatClientID)
+
+            root.syncItem()
+            theOutput += "Root UserIDs and UUIDs updated...\n"
+            del theDefaultUUID
+        else:
+            theOutput += "ClientUID NOT required.... Skipping Root updates.....\n"
+        del lOverrideRootUUID
+
+        ####################################################################################################################
+
+        theOutput += "\n"
+
+        theOutput += "Updating Service Profile with updated UserIDs....:\n"
+        theOutput += "--------------------------------------------------\n"
+
+        selectedService.setEditingMode()
+
+        selectedService.setUserId(theRealm, None, newDefaultUserID)
+        del oldDefaultUserID, newDefaultUserID
+
+        selectedService.setParameter(PARAMETER_KEY,"python fix script")
+
+        lChangedAvailableAccounts = False
+        updatedAccounts = selectedService.getAvailableAccounts()
+
+        for onUser in range(0,len(userIDList)):
+            theOutput += "... Adding UserID: %s\n" %(userIDList[onUser].getUserID())
+            actualIDNumber = onUser+1
+            for acct in userIDList[onUser].getAccounts():
+                theOutput += "...... On Account: %s (%s)\n" %(acct, acct.getOFXAccountNumber())
+
+                selectedService.setParameter("so_user_id_%s::%s" %(theRealm, my_getAccountKey(acct)), userIDList[onUser].getUserID())
+
+                if acct.getOFXAccountNumber() != "":
+                    lFound = False
+                    for onlineAcct in updatedAccounts:
+                        if onlineAcct.getAccountNumber() == acct.getOFXAccountNumber():
+                            theOutput += "...Found online account: %s in .getAvailableAccounts() - skipping the add...\n" %(acct.getOFXAccountNumber())
+                            # if not selectedService.supportsMsgSet(acct.getOFXAccountMsgType()):
+                            #     myPrint("B", "...... supportsMsgSet(%s) failed.... forcing this on....." %(selectedService.supportsMsgSet(acct.getOFXAccountMsgType())))
+                            #     selectedService.setMsgSetVersion(acct.getOFXAccountMsgType(), 1)
+                            lFound = True
+                    if not lFound:
+                        theOutput += "...Adding account: %s to .getAvailableAccounts()\n" %(acct.getOFXAccountNumber())
+                        lChangedAvailableAccounts = True
+                        info = OnlineAccountInfo()
+                        info.setAccountNumber(acct.getOFXAccountNumber())
+                        info.setRoutingNumber(acct.getOFXBillPayBankID())
+                        info.setAccountType(acct.getOFXAccountType())
+                        info.setAccountMessageType(acct.getOFXAccountMsgType())
+                        info.setInvestmentBrokerID(acct.getOFXBrokerID())
+                        info.setIsInvestmentAccount(acct.getAccountType()==Account.AccountType.INVESTMENT)                  # noqa
+                        info.setIsBankAccount(acct.getAccountType()==Account.AccountType.BANK)                              # noqa
+                        info.setIsCCAccount(acct.getAccountType()==Account.AccountType.CREDIT_CARD)                         # noqa
                         # if not selectedService.supportsMsgSet(acct.getOFXAccountMsgType()):
-                        #     myPrint("B", "...... supportsMsgSet(%s) failed.... forcing this on....." %(selectedService.supportsMsgSet(acct.getOFXAccountMsgType())))
                         #     selectedService.setMsgSetVersion(acct.getOFXAccountMsgType(), 1)
-                        lFound = True
-                if not lFound:
-                    theOutput += "...Adding account: %s to .getAvailableAccounts()\n" %(acct.getOFXAccountNumber())
-                    lChangedAvailableAccounts = True
-                    info = OnlineAccountInfo()
-                    info.setAccountNumber(acct.getOFXAccountNumber())
-                    info.setRoutingNumber(acct.getOFXBillPayBankID())
-                    info.setAccountType(acct.getOFXAccountType())
-                    info.setAccountMessageType(acct.getOFXAccountMsgType())
-                    info.setInvestmentBrokerID(acct.getOFXBrokerID())
-                    info.setIsInvestmentAccount(acct.getAccountType()==Account.AccountType.INVESTMENT)                  # noqa
-                    info.setIsBankAccount(acct.getAccountType()==Account.AccountType.BANK)                              # noqa
-                    info.setIsCCAccount(acct.getAccountType()==Account.AccountType.CREDIT_CARD)                         # noqa
-                    # if not selectedService.supportsMsgSet(acct.getOFXAccountMsgType()):
-                    #     selectedService.setMsgSetVersion(acct.getOFXAccountMsgType(), 1)
-                    updatedAccounts.add(info)
-                    del info
-                del lFound
+                        updatedAccounts.add(info)
+                        del info
+                    del lFound
 
-            if isMDPlusEnabledBuild() and mappingObjectClass is not None and acct.getOFXAccountNumber() != "":
-                mappingObjectClass.setMapping(acct.getOFXAccountNumber(), acct)
-                lMappingNeedsSync = True
+                if isMDPlusEnabledBuild() and mappingObjectClass is not None and acct.getOFXAccountNumber() != "":
+                    mappingObjectClass.setMapping(acct.getOFXAccountNumber(), acct)
+                    lMappingNeedsSync = True
 
-    if lChangedAvailableAccounts:
-        selectedService.setAvailableAccounts(updatedAccounts)
+        if lChangedAvailableAccounts:
+            selectedService.setAvailableAccounts(updatedAccounts)
 
-    theOutput += "... Saving updated OFX Profile...\n"
-    selectedService.syncItem()
+        theOutput += "... Saving updated OFX Profile...\n"
+        selectedService.syncItem()
 
-    if lMappingNeedsSync:
-        mappingObjectClass.syncItem()
-    del lMappingNeedsSync, mappingObjectClass
+        if lMappingNeedsSync:
+            mappingObjectClass.syncItem()
+        del lMappingNeedsSync, mappingObjectClass
 
-    ####################################################################################################################
+        ####################################################################################################################
 
-    theOutput += "\n"
+        theOutput += "\n"
 
-    theOutput += "accessing / updating authentication keys...:\n"
-    theOutput += "--------------------------------------------\n"
+        theOutput += "accessing / updating authentication keys...:\n"
+        theOutput += "--------------------------------------------\n"
 
-    _ACCOUNT = 0
-    _SERVICE = 1
-    _ISBILLPAY = 2
+        _ACCOUNT = 0
+        _SERVICE = 1
+        _ISBILLPAY = 2
 
-    # theOutput += "\n>>REALMs configured:\n"
-    # realmsToCheck = selectedService.getRealms()
-    # if "DEFAULT" not in realmsToCheck:
-    #     realmsToCheck.insert(0,"DEFAULT")
+        # theOutput += "\n>>REALMs configured:\n"
+        # realmsToCheck = selectedService.getRealms()
+        # if "DEFAULT" not in realmsToCheck:
+        #     realmsToCheck.insert(0,"DEFAULT")
 
-    theOutput += "Clearing authentication cache from %s\n" %(selectedService)
-    selectedService.clearAuthenticationCache()
+        theOutput += "Clearing authentication cache from %s\n" %(selectedService)
+        selectedService.clearAuthenticationCache()
 
-    for onUser in range(0,len(userIDList)):
+        for onUser in range(0,len(userIDList)):
 
-        theOutput += ">> Setting up cached authentication for user %s\n" %(userIDList[onUser].getUserID())
+            theOutput += ">> Setting up cached authentication for user %s\n" %(userIDList[onUser].getUserID())
 
-        newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userIDList[onUser].getUserID()),URLEncoder.encode(userIDList[onUser].getPassword()))
+            newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userIDList[onUser].getUserID()),URLEncoder.encode(userIDList[onUser].getPassword()))
 
-        if onUser == 0:
-            authKey = "ofx:" + theRealm
-            authObj = selectedService.getCachedAuthentication(authKey)
-            theOutput += ".. Realm: %s old Cached Authentication: %s\n" %(theRealm, authObj)
-            theOutput += "   >> ** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj)
-            selectedService.cacheAuthentication(authKey, newAuthObj)
+            if onUser == 0:
+                authKey = "ofx:" + theRealm
+                authObj = selectedService.getCachedAuthentication(authKey)
+                theOutput += ".. Realm: %s old Cached Authentication: %s\n" %(theRealm, authObj)
+                theOutput += "   >> ** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj)
+                selectedService.cacheAuthentication(authKey, newAuthObj)
 
-        listAccountMDProxies = []
-        for acct in userIDList[onUser].getAccounts():
-            listAccountMDProxies.append([MDAccountProxy(acct, False),selectedService,False])
+            listAccountMDProxies = []
+            for acct in userIDList[onUser].getAccounts():
+                listAccountMDProxies.append([MDAccountProxy(acct, False),selectedService,False])
 
-        for olacct in listAccountMDProxies:
-            authKey = "ofx:" + (theRealm + "::" + olacct[_ACCOUNT].getAccountKey())
-            authObj = selectedService.getCachedAuthentication(authKey)
-            theOutput += "   ... Realm: %s Account Key: %s old Cached Authentication: %s\n" %(theRealm, olacct[_ACCOUNT].getAccountKey(),authObj)
-            theOutput += "         >> ** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj)
-            selectedService.cacheAuthentication(authKey, newAuthObj)
+            for olacct in listAccountMDProxies:
+                authKey = "ofx:" + (theRealm + "::" + olacct[_ACCOUNT].getAccountKey())
+                authObj = selectedService.getCachedAuthentication(authKey)
+                theOutput += "   ... Realm: %s Account Key: %s old Cached Authentication: %s\n" %(theRealm, olacct[_ACCOUNT].getAccountKey(),authObj)
+                theOutput += "         >> ** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj)
+                selectedService.cacheAuthentication(authKey, newAuthObj)
 
-    ####################################################################################################################
-    MD_REF.getCurrentAccount().getBook().getLocalStorage().save()  # Flush settings to disk before changes
-    ####################################################################################################################
+        ####################################################################################################################
+        MD_REF.getCurrentAccount().getBook().getLocalStorage().save()  # Flush settings to disk before changes
+        ####################################################################################################################
 
-    theOutput += "\n"
-    theOutput += "FINISHED UPDATES\n"
-    theOutput += "----------------\n"
-    theOutput += "\n"
+        theOutput += "\n"
+        theOutput += "FINISHED UPDATES\n"
+        theOutput += "----------------\n"
+        theOutput += "\n"
 
-    ####################################################################################################################
+        ####################################################################################################################
 
-    last_date_options = ["NO (FINISHED)", "YES - VIEW LAST TXN DOWNLOAD DATES"]
-    theResult = JOptionPane.showOptionDialog(ofx_populate_multiple_userids_frame_,
-                                             "SUCCESS! >> Now would you like to view your last txn download dates?",
-                                             "LAST DOWNLOAD DATES",
-                                             JOptionPane.YES_NO_OPTION,
-                                             JOptionPane.QUESTION_MESSAGE,
-                                             None,
-                                             last_date_options,
-                                             last_date_options[0])
-    if theResult > 0:
+        last_date_options = ["NO (FINISHED)", "YES - VIEW LAST TXN DOWNLOAD DATES"]
+        theResult = JOptionPane.showOptionDialog(ofx_populate_multiple_userids_frame_,
+                                                 "SUCCESS! >> Now would you like to view your last txn download dates?",
+                                                 "LAST DOWNLOAD DATES",
+                                                 JOptionPane.YES_NO_OPTION,
+                                                 JOptionPane.QUESTION_MESSAGE,
+                                                 None,
+                                                 last_date_options,
+                                                 last_date_options[0])
+        if theResult > 0:
 
-        def MyGetDownloadedTxns(theAcct):       # Use my version to prevent creation of default record(s)
+            def MyGetDownloadedTxns(theAcct):       # Use my version to prevent creation of default record(s)
 
-            myID = theAcct.getParameter("id", None)
-            defaultTxnsListID = myID + ".oltxns"
+                myID = theAcct.getParameter("id", None)
+                defaultTxnsListID = myID + ".oltxns"
 
-            if myID is not None and myID != "":
-                defaultTxnList = MD_REF.getCurrentAccount().getBook().getItemForID(defaultTxnsListID)   # type: SyncableItem
-                if defaultTxnList is not None and isinstance(defaultTxnList, OnlineTxnList):
-                    return defaultTxnList
-
-            txnsListID = theAcct.getParameter("ol_txns_list_id", None)
-            if txnsListID is None or txnsListID == "":
                 if myID is not None and myID != "":
-                    txnsListID = defaultTxnsListID
+                    defaultTxnList = MD_REF.getCurrentAccount().getBook().getItemForID(defaultTxnsListID)   # type: SyncableItem
+                    if defaultTxnList is not None and isinstance(defaultTxnList, OnlineTxnList):
+                        return defaultTxnList
 
-            if txnsListID is not None and txnsListID != "":
-                txnsObj = MD_REF.getCurrentAccount().getBook().getItemForID(txnsListID)              # type: SyncableItem
-                if (txnsObj is not None and isinstance(txnsObj, OnlineTxnList)):
-                    return txnsObj
+                txnsListID = theAcct.getParameter("ol_txns_list_id", None)
+                if txnsListID is None or txnsListID == "":
+                    if myID is not None and myID != "":
+                        txnsListID = defaultTxnsListID
 
-            return None
+                if txnsListID is not None and txnsListID != "":
+                    txnsObj = MD_REF.getCurrentAccount().getBook().getItemForID(txnsListID)              # type: SyncableItem
+                    if (txnsObj is not None and isinstance(txnsObj, OnlineTxnList)):
+                        return txnsObj
 
-        accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(3))
-        accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+                return None
 
-        outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n"\
-                 "--------------------------------------------\n\n"\
-                 "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
+            accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(3))
+            accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
 
-        for acct in accountsDL:
-            theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)
-            if theOnlineTxnRecord is None:
-                prettyLastTxnDate = "Never downloaded = 'Download all available dates'"
-            else:
-                theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
-                if theCurrentDate > 0:
-                    prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
+            outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n"\
+                     "--------------------------------------------\n\n"\
+                     "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
+
+            for acct in accountsDL:
+                theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)
+                if theOnlineTxnRecord is None:
+                    prettyLastTxnDate = "Never downloaded = 'Download all available dates'"
                 else:
-                    prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates' (if on MD2022 onwards, MD will prompt you for a start date)"
+                    theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
+                    if theCurrentDate > 0:
+                        prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
+                    else:
+                        prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates' (if on MD2022 onwards, MD will prompt you for a start date)"
 
-            outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
+                outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
 
-        outputDates += "\nIf you have Moneydance Version 2021.1(build 2012+) then you can use the Toolbox extension if you want to change any of these dates....\n" \
-                       "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
-                       "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
-                       "%s\n\n" \
-                       "YOU CAN EDIT THE LAST TXN DOWNLOAD DATE(s) BEFORE YOU DOWNLOAD ANYTHING\n" \
-                       %(MYPYTHON_DOWNLOAD_URL)
+            outputDates += "\nIf you have Moneydance Version 2021.1(build 2012+) then you can use the Toolbox extension if you want to change any of these dates....\n" \
+                           "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
+                           "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
+                           "%s\n\n" \
+                           "YOU CAN EDIT THE LAST TXN DOWNLOAD DATE(s) BEFORE YOU DOWNLOAD ANYTHING\n" \
+                           %(MYPYTHON_DOWNLOAD_URL)
 
-        outputDates += "\n<END>"
-        jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
-        myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            outputDates += "\n<END>"
+            jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
+            myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
-    theOutput += "SUCCESS!\n"
-    theOutput += "\n<END>\n"
+        theOutput += "SUCCESS!\n"
+        theOutput += "\n<END>\n"
 
-    myPrint("B", "@@@ %s: Script successfully completed all updates (review output log on screen) @@@", myModuleID.upper())
+        myPrint("B", "@@@ %s: Script successfully completed all updates (review output log on screen) @@@", myModuleID.upper())
 
-    jif2 = QuickJFrame(myModuleID.upper(),theOutput,copyToClipboard=True,lWrapText=False,lJumpToEnd=True).show_the_frame()
-    myPopupInformationBox(jif2, "SUCCESS. REVIEW OUTPUT (and console)", theMessageType=JOptionPane.WARNING_MESSAGE)
+        jif2 = QuickJFrame(myModuleID.upper(),theOutput,copyToClipboard=True,lWrapText=False,lJumpToEnd=True).show_the_frame()
+        myPopupInformationBox(jif2, "SUCCESS. REVIEW OUTPUT (and console)", theMessageType=JOptionPane.WARNING_MESSAGE)
+
+    except:
+        theOutput += dump_sys_error_to_md_console_and_errorlog(True)
+        jif3 = QuickJFrame(myModuleID.upper(),theOutput,copyToClipboard=True,lWrapText=False,lJumpToEnd=True).show_the_frame()
+        myPopupInformationBox(jif3, "ERROR. SCRIPT CRASHED - REVIEW OUTPUT (and console)", theMessageType=JOptionPane.ERROR_MESSAGE)
 
     cleanup_actions()

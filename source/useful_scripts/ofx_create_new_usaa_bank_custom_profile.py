@@ -2756,883 +2756,890 @@ Visit: %s (Author's site)
         theOutput += ("Proceeding even though system is not set up for passwords\n")
 
 
-    lMultiAccountSetup = False
+    try:
 
-    prime_options = ["NO (Skip this)", "YES - PRIME SECOND ACCOUNT"]
-    theResult = JOptionPane.showOptionDialog(ofx_create_new_usaa_bank_profile_frame_,
-                                          "Do you have multiple DIFFERENT credentials where you wish to 'prime' the default UUID into (Root's) profile?",
-                                          "MULTI-ACCOUNTS",
-                                             JOptionPane.YES_NO_OPTION,
-                                             JOptionPane.QUESTION_MESSAGE,
-                                             None,
-                                             prime_options,
-                                             prime_options[0])
-    if theResult > 0:
-        lMultiAccountSetup = True
-        theOutput += ("Will setup multi-accounts too....\n")
-    else:
-        theOutput += ("User selected NOT to prime for multiple-accounts...\n")
+        lMultiAccountSetup = False
 
-    serviceList = MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices()  # type: [OnlineService]
+        prime_options = ["NO (Skip this)", "YES - PRIME SECOND ACCOUNT"]
+        theResult = JOptionPane.showOptionDialog(ofx_create_new_usaa_bank_profile_frame_,
+                                              "Do you have multiple DIFFERENT credentials where you wish to 'prime' the default UUID into (Root's) profile?",
+                                              "MULTI-ACCOUNTS",
+                                                 JOptionPane.YES_NO_OPTION,
+                                                 JOptionPane.QUESTION_MESSAGE,
+                                                 None,
+                                                 prime_options,
+                                                 prime_options[0])
+        if theResult > 0:
+            lMultiAccountSetup = True
+            theOutput += ("Will setup multi-accounts too....\n")
+        else:
+            theOutput += ("User selected NOT to prime for multiple-accounts...\n")
 
-    USAA_FI_ID = "67811"
-    USAA_FI_ORG = "USAA Federal Savings Bank"
-    USAA_PROFILE_NAME = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
-    OLD_TIK_FI_ID = "md:1295"
-    NEW_TIK_FI_ID = "md:custom-1295"
+        serviceList = MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices()  # type: [OnlineService]
 
-    # USAA_REALM = "USAASignon"
-    USAA_REALM = "default"
+        USAA_FI_ID = "67811"
+        USAA_FI_ORG = "USAA Federal Savings Bank"
+        USAA_PROFILE_NAME = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
+        OLD_TIK_FI_ID = "md:1295"
+        NEW_TIK_FI_ID = "md:custom-1295"
 
-    authKeyPrefix = "ofx.client_uid"
+        # USAA_REALM = "USAASignon"
+        USAA_REALM = "default"
 
-    SECU_ACCOUNT_TYPES = ["CHECKING", "SAVINGS", "MONEYMRKT"]
+        authKeyPrefix = "ofx.client_uid"
 
-    ####################################################################################################################
-    deleteServices = []
-    for svc in serviceList:
-        if (svc.getTIKServiceID() == OLD_TIK_FI_ID or svc.getTIKServiceID() == NEW_TIK_FI_ID
-                or svc.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
-                or "USAA" in svc.getFIOrg()
-                or "USAA" in svc.getFIName()):
-            theOutput += ("Found USAA service - to delete: %s\n" %(svc))
-            deleteServices.append(svc)
+        SECU_ACCOUNT_TYPES = ["CHECKING", "SAVINGS", "MONEYMRKT"]
 
-    root = MD_REF.getRootAccount()
-    rootKeys = list(root.getParameterKeys())
-    lRootNeedsSync = False
+        ####################################################################################################################
+        deleteServices = []
+        for svc in serviceList:
+            if (svc.getTIKServiceID() == OLD_TIK_FI_ID or svc.getTIKServiceID() == NEW_TIK_FI_ID
+                    or svc.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
+                    or "USAA" in svc.getFIOrg()
+                    or "USAA" in svc.getFIName()):
+                theOutput += ("Found USAA service - to delete: %s\n" %(svc))
+                deleteServices.append(svc)
 
-    mappingKeys = None
-    if mappingObject is not None: mappingKeys = list(mappingObject.getParameterKeys())
-    lMappingNeedsSync = False
+        root = MD_REF.getRootAccount()
+        rootKeys = list(root.getParameterKeys())
+        lRootNeedsSync = False
+
+        mappingKeys = None
+        if mappingObject is not None: mappingKeys = list(mappingObject.getParameterKeys())
+        lMappingNeedsSync = False
 
 
-    # ###################################################################################################################
+        # ###################################################################################################################
 
-    authKeyPrefix = "ofx.client_uid"
-    specificAuthKeyPrefix = authKeyPrefix+"::" + NEW_TIK_FI_ID + "::"
+        authKeyPrefix = "ofx.client_uid"
+        specificAuthKeyPrefix = authKeyPrefix+"::" + NEW_TIK_FI_ID + "::"
 
-    harvestedUserIDList = []
-    harvestedDefaultUserID = None
+        harvestedUserIDList = []
+        harvestedDefaultUserID = None
 
-    theOutput += ("Harvesting existing UserID details from root...:\n")
-    theOutput += ("------------------------------------------------\n")
+        theOutput += ("Harvesting existing UserID details from root...:\n")
+        theOutput += ("------------------------------------------------\n")
 
-    harvestedService = None
-    if len(deleteServices) == 1:
-        harvestedService = deleteServices[0]        # type: OnlineService
-        specificAuthKeyPrefix = authKeyPrefix+"::" + harvestedService.getTIKServiceID() + "::"
+        harvestedService = None
+        if len(deleteServices) == 1:
+            harvestedService = deleteServices[0]        # type: OnlineService
+            specificAuthKeyPrefix = authKeyPrefix+"::" + harvestedService.getTIKServiceID() + "::"
 
-    for i in range(0,len(rootKeys)):
-        rk = rootKeys[i]
-        if rk.startswith(specificAuthKeyPrefix):
-            rk_value = root.getParameter(rk)
-            harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
-            theOutput += ("... Harvested old authKey %s: ClientUID: %s\n" %(rk,rk_value))
-            if harvestedUID.getUserID() != "null":
-                harvestedUID.setClientUID(rk_value)
-                harvestedUserIDList.append(harvestedUID)
+        for i in range(0,len(rootKeys)):
+            rk = rootKeys[i]
+            if rk.startswith(specificAuthKeyPrefix):
+                rk_value = root.getParameter(rk)
+                harvestedUID = StoreUserID(rk[len(specificAuthKeyPrefix):])
+                theOutput += ("... Harvested old authKey %s: ClientUID: %s\n" %(rk,rk_value))
+                if harvestedUID.getUserID() != "null":
+                    harvestedUID.setClientUID(rk_value)
+                    harvestedUserIDList.append(harvestedUID)
 
-    if len(harvestedUserIDList) > 0:
-        theOutput += ("Harvested User and ClientUIDs...:\n")
-        for harvested in harvestedUserIDList:
-            theOutput += ("Harvested User: %s, ClientUID: %s\n" %(harvested.getUserID(), harvested.getClientUID()))
-    else:
-        theOutput += ("No existing UserID / ClientUIDs found to harvest...\n")
-
-    theOutput += "\n"
-
-    if len(deleteServices) == 1:
-
-        theOutput += ("Harvesting Default UserID details...:\n")
-        theOutput += ("------------------------------------\n")
-
-        harvestedDefaultUserID = harvestedService.getUserId(USAA_REALM, None)
-        if harvestedDefaultUserID == "": harvestedDefaultUserID = None
-        theOutput += ("Harvested default UserID: %s\n" %("<NONE>" if (harvestedDefaultUserID is None) else harvestedDefaultUserID))
+        if len(harvestedUserIDList) > 0:
+            theOutput += ("Harvested User and ClientUIDs...:\n")
+            for harvested in harvestedUserIDList:
+                theOutput += ("Harvested User: %s, ClientUID: %s\n" %(harvested.getUserID(), harvested.getClientUID()))
+        else:
+            theOutput += ("No existing UserID / ClientUIDs found to harvest...\n")
 
         theOutput += "\n"
 
-        theOutput += ("Harvesting existing UserIDs from service profile:...:\n")
-        theOutput += ("-----------------------------------------------------\n")
-        for pKey in harvestedService.getParameterKeys():
-            if pKey.startswith("so_user_id"):
-                theOutput += ("Existing User: %s\n" %(harvestedService.getParameter(pKey)))
+        if len(deleteServices) == 1:
 
-        theOutput += "\n"
+            theOutput += ("Harvesting Default UserID details...:\n")
+            theOutput += ("------------------------------------\n")
 
-        if isUserEncryptionPassphraseSet():
-            theOutput += ("Harvesting Existing UserIDs/Passwords from authentication cache:...:\n")
-            theOutput += ("--------------------------------------------------------------------\n")
-            authKeys = getUpdatedAuthenticationKeys()
-            if len(authKeys) > 0:
-                for theAuthKey in sorted(authKeys.keys()):                                                                  # noqa
-                    if (harvestedService.getFIOrg() + "--" + harvestedService.getFIId() + "--") in theAuthKey:
-                        theOutput += ("Existing AuthCache Entry: %s\n" %(authKeys.get(theAuthKey)))                            # noqa
-            del authKeys
+            harvestedDefaultUserID = harvestedService.getUserId(USAA_REALM, None)
+            if harvestedDefaultUserID == "": harvestedDefaultUserID = None
+            theOutput += ("Harvested default UserID: %s\n" %("<NONE>" if (harvestedDefaultUserID is None) else harvestedDefaultUserID))
 
             theOutput += "\n"
 
-    del harvestedService
-    # ###################################################################################################################
+            theOutput += ("Harvesting existing UserIDs from service profile:...:\n")
+            theOutput += ("-----------------------------------------------------\n")
+            for pKey in harvestedService.getParameterKeys():
+                if pKey.startswith("so_user_id"):
+                    theOutput += ("Existing User: %s\n" %(harvestedService.getParameter(pKey)))
 
-    if len(deleteServices) < 1:
-        theOutput += ("No USAA services / profile found to delete...\n")
-    else:
-        if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DELETE OLD SERVICES", "OK TO DELETE %s OLD USAA SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
-            alert_and_exit("ERROR - User declined to delete %s old USAA service profiles - no changes made" %(len(deleteServices)))
+            theOutput += "\n"
+
+            if isUserEncryptionPassphraseSet():
+                theOutput += ("Harvesting Existing UserIDs/Passwords from authentication cache:...:\n")
+                theOutput += ("--------------------------------------------------------------------\n")
+                authKeys = getUpdatedAuthenticationKeys()
+                if len(authKeys) > 0:
+                    for theAuthKey in sorted(authKeys.keys()):                                                                  # noqa
+                        if (harvestedService.getFIOrg() + "--" + harvestedService.getFIId() + "--") in theAuthKey:
+                            theOutput += ("Existing AuthCache Entry: %s\n" %(authKeys.get(theAuthKey)))                            # noqa
+                del authKeys
+
+                theOutput += "\n"
+
+        del harvestedService
+        # ###################################################################################################################
+
+        if len(deleteServices) < 1:
+            theOutput += ("No USAA services / profile found to delete...\n")
         else:
-            accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
-            for s in deleteServices:
-                iCount = 0
-                for a in accounts:
-                    if a.getBankingFI() == s or a.getBillPayFI() == s:
-                        iCount+=1
-                        theOutput += ("Clearing service link flag from account %s (%s)\n" %(a,s))
-                        a.setEditingMode()
-                        a.setBankingFI(None)
-                        if isMDPlusEnabledBuild(): a.setOnlineIDForServiceID(s.getTIKServiceID(), None)
-                        a.setBillPayFI(None)
-                        a.syncItem()
-                theOutput += ("Clearing authentication cache from %s\n" %s)
-                s.clearAuthenticationCache()
-
-                # Clean up root here - as with custom profiles the UUID sets stored instead of the TIK ID which can be identified later....
-                if s.getTIKServiceID() != OLD_TIK_FI_ID and s.getTIKServiceID() != NEW_TIK_FI_ID:  # Thus we presume it's our own custom profile, older script using uuid...
-                    for i in range(0,len(rootKeys)):
-                        rk = rootKeys[i]
-                        if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
-                            theOutput += ("Deleting old authKey associated with this profile (from Root) %s: %s\n" %(rk,root.getParameter(rk)))
-                            if not lRootNeedsSync: root.setEditingMode()
-                            root.setParameter(rk, None)
-                            lRootNeedsSync = True
-                        i+=1
-
-                if mappingObject is not None:
-                    theOutput += ("Checking Online Account Mapping object for references to old profile...\n")
-                    for i in range(0, len(mappingKeys)):
-                        pk = mappingKeys[i]
-                        if pk.startswith("map.") and (OLD_TIK_FI_ID in pk or NEW_TIK_FI_ID in pk):
-                            theOutput += ("Deleting old Account Mapping %s: %s\n" %(pk, mappingObject.getParameter(pk)))
-                            if not lMappingNeedsSync: mappingObject.setEditingMode()
-                            mappingObject.setParameter(pk, None)
-                            lMappingNeedsSync = True
-                        i+=1
-
-                theOutput += ("Deleting profile %s\n" %s)
-                s.deleteItem()
-                myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
-            del accounts
-
-    if lRootNeedsSync: root.syncItem()
-    if lMappingNeedsSync: mappingObject.syncItem()
-
-    del serviceList, deleteServices, lRootNeedsSync, rootKeys, mappingObject
-
-
-    ####################################################################################################################
-    invalidBankingLinks = []
-    invalidBillPayLinks = []
-    theOutput += ("Searching for Account banking / Bill Pay links with no profile (just a general cleanup routine)....\n")
-    accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
-    for a in accounts:
-        if a.getBankingFI() is None and a.getParameter("olbfi", "") != "":
-            invalidBankingLinks.append(a)
-            theOutput += ("... Found account '%s' with a banking link (to %s), but no service profile exists (thus dead)...\n" %(a,a.getParameter("olbfi", "")))
-
-        if a.getBillPayFI() is None and a.getParameter("bpfi", "") != "":
-            invalidBillPayLinks.append(a)
-            theOutput += ("... Found account '%s' with a BillPay link (to %s), but no service profile exists (thus dead)...\n" %(a,a.getParameter("bpfi", "")))
-
-    if len(invalidBankingLinks) or len(invalidBillPayLinks):
-        if myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_,
-                              "ACCOUNT WITH DEAD SERVICE PROFILE LINKS",
-                              "ALERT: I found %s Banking and %s BillPay links to 'dead' / missing Service / Connection profiles - Shall I remove these links?"
-                              %(len(invalidBankingLinks),len(invalidBillPayLinks)),
-                              theMessageType=JOptionPane.INFORMATION_MESSAGE):
-            for a in invalidBankingLinks:
-                a.setBankingFI(None)
-                a.syncItem()
-                theOutput += ("...removed the dead link Banking link on account %s\n" %(a))
-            for a in invalidBillPayLinks:
-                a.setBillPayFI(None)
-                a.syncItem()
-                theOutput += ("...removed the dead link BillPay link on account %s\n" %(a))
-
-    del invalidBankingLinks, invalidBillPayLinks, accounts
-    ####################################################################################################################
-
-    selectedBankAccount = selectedCCAccount = None
-
-    accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(0))
-    accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
-    bankAccounts = []
-    for acct in accounts:
-        bankAccounts.append(StoreAccountList(acct))
-
-    if len(bankAccounts):
-        saveOK = UIManager.get("OptionPane.okButtonText")
-        saveCancel = UIManager.get("OptionPane.cancelButtonText")
-        UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
-        UIManager.put("OptionPane.cancelButtonText", "NO BANK ACCOUNT")
-
-        selectedBankAccount = JOptionPane.showInputDialog(ofx_create_new_usaa_bank_profile_frame_,
-                                                          "Select the Bank account to link",
-                                                          "Select Bank account",
-                                                          JOptionPane.WARNING_MESSAGE,
-                                                          None,
-                                                          bankAccounts,
-                                                          None)     # type: StoreAccountList
-        UIManager.put("OptionPane.okButtonText", saveOK)
-        UIManager.put("OptionPane.cancelButtonText", saveCancel)
-    else:
-        selectedBankAccount = None
-
-    if not selectedBankAccount:
-        theOutput += ("no bank account selected\n")
-        accountTypeOFX = None
-    else:
-        selectedBankAccount = selectedBankAccount.obj                                                                   # noqa
-        if isinstance(selectedBankAccount, Account): pass
-        if selectedBankAccount.getAccountType() != Account.AccountType.BANK:                                            # noqa
-            alert_and_exit("ERROR BANK ACCOUNT INVALID TYPE SELECTED")
-        theOutput += ("selected bank account %s\n" %selectedBankAccount)
-
-
-        defaultAccountType = selectedBankAccount.getOFXAccountType()                                                   # noqa
-        if defaultAccountType is None or defaultAccountType == "" or defaultAccountType not in SECU_ACCOUNT_TYPES:
-            theOutput += ("Account: %s account type is currently %s - defaulting to %s\n"
-                    % (selectedBankAccount, defaultAccountType, SECU_ACCOUNT_TYPES[0]))
-            defaultAccountType = SECU_ACCOUNT_TYPES[0]
-
-        accountTypeOFX = JOptionPane.showInputDialog(ofx_create_new_usaa_bank_profile_frame_,
-                                                     "Carefully select the type for this account: %s" % (selectedBankAccount),
-                                                     "ACCOUNT TYPE",
-                                                     JOptionPane.INFORMATION_MESSAGE,
-                                                     MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
-                                                     SECU_ACCOUNT_TYPES,
-                                                     defaultAccountType)
-
-        if not accountTypeOFX:
-            alert_and_exit("ERROR - NO ACCOUNT TYPE SELECTED")
-        del defaultAccountType
-        theOutput += ("Account %s - selected type: %s\n" %(selectedBankAccount,accountTypeOFX))
-
-
-    # CREDIT CARD
-    accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(1))
-    accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
-    ccAccounts = []
-    for acct in accounts:
-        ccAccounts.append(StoreAccountList(acct))
-
-    if len(ccAccounts):
-        saveOK = UIManager.get("OptionPane.okButtonText")
-        saveCancel = UIManager.get("OptionPane.cancelButtonText")
-        UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
-        UIManager.put("OptionPane.cancelButtonText", "NO CC ACCOUNT")
-
-        selectedCCAccount = JOptionPane.showInputDialog(ofx_create_new_usaa_bank_profile_frame_,
-                                                        "Select the CC account to link",
-                                                        "Select CC account",
-                                                        JOptionPane.WARNING_MESSAGE,
-                                                        None,
-                                                        ccAccounts,
-                                                        None)     # type: StoreAccountList
-
-        UIManager.put("OptionPane.okButtonText", saveOK)
-        UIManager.put("OptionPane.cancelButtonText", saveCancel)
-    else:
-        selectedCCAccount = None
-
-    if not selectedCCAccount:
-        theOutput += ("no CC account selected\n")
-    else:
-        selectedCCAccount = selectedCCAccount.obj                                                                       # noqa
-        if isinstance(selectedCCAccount, Account): pass
-        if selectedCCAccount.getAccountType() != Account.AccountType.CREDIT_CARD:                                       # noqa
-            alert_and_exit("ERROR CC ACCOUNT INVALID TYPE SELECTED")
-        theOutput += ("selected CC account %s\n" %selectedCCAccount)
-
-    if not selectedBankAccount and not selectedCCAccount:
-        alert_and_exit("ERROR - You must select Bank and or CC account(s)")
-
-    ####################################################################################################################
-
-    if harvestedDefaultUserID is not None and harvestedDefaultUserID != "":
-        defaultEntry = harvestedDefaultUserID
-    elif len(harvestedUserIDList) > 0:
-        defaultEntry = harvestedUserIDList[0].getUserID()
-    else:
-        defaultEntry = "UserID"
-    del harvestedDefaultUserID
-
-    while True:
-        userID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UserID", "UserID", "Type/Paste your UserID (min length 8) very carefully", defaultEntry)
-        theOutput += ("userID entered: %s\n" %userID)
-        if userID is None:
-            alert_and_exit("ERROR - no userID supplied! Aborting")
-        defaultEntry = userID
-        if userID is None or userID == "" or userID == "UserID" or len(userID)<8:
-            theOutput += ("\n ** ERROR - no valid userID supplied - try again ** \n")
-            continue
-        break
-    del defaultEntry
-
-    defaultEntry = "*****"
-    while True:
-        password = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "password", "password", "Type/Paste your Password (min length 6) very carefully", defaultEntry)
-        theOutput += ("password entered: %s\n" %password)
-        if password is None:
-            alert_and_exit("ERROR - no password supplied! Aborting")
-        defaultEntry = password
-        if password is None or password == "" or password == "*****" or len(password) < 6:
-            theOutput += ("\n ** ERROR - no password supplied - try again ** \n")
-            continue
-        break
-    del defaultEntry
-
-    findStoredUser = StoreUserID(userID)
-    if len(harvestedUserIDList) > 0:
-        foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
-        if foundHarvestedStoredUser is not None:
-            if foundHarvestedStoredUser.getClientUID() is not None:
-                findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
+            if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DELETE OLD SERVICES", "OK TO DELETE %s OLD USAA SERVICES (I WILL DO THIS FIRST)?" % (len(deleteServices)), theMessageType=JOptionPane.ERROR_MESSAGE):
+                alert_and_exit("ERROR - User declined to delete %s old USAA service profiles - no changes made" %(len(deleteServices)))
             else:
-                alert_and_exit("LOGIC ERROR: Found harvested UserID (%s) with no ClientUID?! Aborting" %(findStoredUser))
-        del foundHarvestedStoredUser
-        theOutput += ("UserID entered: %s (Harvested ClientUID: %s)\n" %(userID, findStoredUser.getClientUID()))
-    else:
-        theOutput += ("Skipping matching ClientUID1 into UserID1 as did not harvest any UserIDs from USAA profile...\n")
+                accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
+                for s in deleteServices:
+                    iCount = 0
+                    for a in accounts:
+                        if a.getBankingFI() == s or a.getBillPayFI() == s:
+                            iCount+=1
+                            theOutput += ("Clearing service link flag from account %s (%s)\n" %(a,s))
+                            a.setEditingMode()
+                            a.setBankingFI(None)
+                            if isMDPlusEnabledBuild(): a.setOnlineIDForServiceID(s.getTIKServiceID(), None)
+                            a.setBillPayFI(None)
+                            a.syncItem()
+                    theOutput += ("Clearing authentication cache from %s\n" %s)
+                    s.clearAuthenticationCache()
 
-    theOutput += "\n"
+                    # Clean up root here - as with custom profiles the UUID sets stored instead of the TIK ID which can be identified later....
+                    if s.getTIKServiceID() != OLD_TIK_FI_ID and s.getTIKServiceID() != NEW_TIK_FI_ID:  # Thus we presume it's our own custom profile, older script using uuid...
+                        for i in range(0,len(rootKeys)):
+                            rk = rootKeys[i]
+                            if rk.startswith(authKeyPrefix) and (s.getTIKServiceID() in rk):
+                                theOutput += ("Deleting old authKey associated with this profile (from Root) %s: %s\n" %(rk,root.getParameter(rk)))
+                                if not lRootNeedsSync: root.setEditingMode()
+                                root.setParameter(rk, None)
+                                lRootNeedsSync = True
+                            i+=1
 
-    if findStoredUser.getClientUID() is not None:
-        defaultEntry = findStoredUser.getClientUID()
-    else:
-        defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
-    del findStoredUser
+                    if mappingObject is not None:
+                        theOutput += ("Checking Online Account Mapping object for references to old profile...\n")
+                        for i in range(0, len(mappingKeys)):
+                            pk = mappingKeys[i]
+                            if pk.startswith("map.") and (OLD_TIK_FI_ID in pk or NEW_TIK_FI_ID in pk):
+                                theOutput += ("Deleting old Account Mapping %s: %s\n" %(pk, mappingObject.getParameter(pk)))
+                                if not lMappingNeedsSync: mappingObject.setEditingMode()
+                                mappingObject.setParameter(pk, None)
+                                lMappingNeedsSync = True
+                            i+=1
 
-    while True:
-        uuid = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
-        theOutput += ("UUID entered: %s\n" %uuid)
-        if uuid is None:
-            alert_and_exit("ERROR - No uuid entered! Aborting")
-        defaultEntry = uuid
-        if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
-                (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
-            theOutput += ("\n ** ERROR - no valid uuid supplied - try again ** \n")
-            continue
-        break
-    del defaultEntry
+                    theOutput += ("Deleting profile %s\n" %s)
+                    s.deleteItem()
+                    myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_,"I have deleted Bank logon profile / service: %s and forgotten associated credentials (%s accounts were de-linked)" %(s,iCount))
+                del accounts
 
-    bankID = routID = None
-    route = bankAccount = None
+        if lRootNeedsSync: root.syncItem()
+        if lMappingNeedsSync: mappingObject.syncItem()
 
-    if selectedBankAccount:
-        bankAccount = selectedBankAccount.getBankAccountNumber()        # noqa
-        bankID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "BankAccount", "BankAccount", "Type/Paste your Bank Account Number - very carefully", bankAccount)
-        if bankID is None or bankID == "":
-            alert_and_exit("ERROR - no bankID supplied - Aborting")
-        theOutput += ("existing bank account:   %s\n" %bankAccount)
-        theOutput += ("bankID entered:          %s\n" %bankID)
+        del serviceList, deleteServices, lRootNeedsSync, rootKeys, mappingObject
 
-        route = selectedBankAccount.getOFXBankID()                      # noqa
-        if route == "" or len(route) != 9:
-            route = "314074269"
-        routID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '314074269')- very carefully", route)
-        if routID is None or routID == "" or len(routID) != 9:
-            alert_and_exit("ERROR - invalid Routing supplied - Aborting")
-        theOutput += ("existing routing number: %s\n" %route)
-        theOutput += ("routID entered:          %s\n" %routID)
 
-    ccID = ccAccount = None
+        ####################################################################################################################
+        invalidBankingLinks = []
+        invalidBillPayLinks = []
+        theOutput += ("Searching for Account banking / Bill Pay links with no profile (just a general cleanup routine)....\n")
+        accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
+        for a in accounts:
+            if a.getBankingFI() is None and a.getParameter("olbfi", "") != "":
+                invalidBankingLinks.append(a)
+                theOutput += ("... Found account '%s' with a banking link (to %s), but no service profile exists (thus dead)...\n" %(a,a.getParameter("olbfi", "")))
 
-    if selectedCCAccount:
-        while True:
-            ccAccount = selectedCCAccount.getBankAccountNumber()        # noqa
-            ccID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 16) very carefully", ccAccount)
-            theOutput += ("existing CC number:      %s\n" %ccAccount)
-            theOutput += ("ccID entered:            %s\n" %ccID)
-            if ccID is None:
-                alert_and_exit("ERROR - no valid ccID supplied - aborting")
-            if ccID is None or ccID == "" or len(ccID) < 15 or len(ccID) > 16:
-                theOutput += ("\n ** ERROR - no valid ccID supplied! Please try again (Number should be 15 or 16 digits) ** \n")
-                continue
-            break
+            if a.getBillPayFI() is None and a.getParameter("bpfi", "") != "":
+                invalidBillPayLinks.append(a)
+                theOutput += ("... Found account '%s' with a BillPay link (to %s), but no service profile exists (thus dead)...\n" %(a,a.getParameter("bpfi", "")))
 
-        if ccID == ccAccount:
-            if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
-                alert_and_exit("ERROR - User aborted on keeping the CC the same")
+        if len(invalidBankingLinks) or len(invalidBillPayLinks):
+            if myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_,
+                                  "ACCOUNT WITH DEAD SERVICE PROFILE LINKS",
+                                  "ALERT: I found %s Banking and %s BillPay links to 'dead' / missing Service / Connection profiles - Shall I remove these links?"
+                                  %(len(invalidBankingLinks),len(invalidBillPayLinks)),
+                                  theMessageType=JOptionPane.INFORMATION_MESSAGE):
+                for a in invalidBankingLinks:
+                    a.setBankingFI(None)
+                    a.syncItem()
+                    theOutput += ("...removed the dead link Banking link on account %s\n" %(a))
+                for a in invalidBillPayLinks:
+                    a.setBillPayFI(None)
+                    a.syncItem()
+                    theOutput += ("...removed the dead link BillPay link on account %s\n" %(a))
+
+        del invalidBankingLinks, invalidBillPayLinks, accounts
+        ####################################################################################################################
+
+        selectedBankAccount = selectedCCAccount = None
+
+        accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(0))
+        accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+        bankAccounts = []
+        for acct in accounts:
+            bankAccounts.append(StoreAccountList(acct))
+
+        if len(bankAccounts):
+            saveOK = UIManager.get("OptionPane.okButtonText")
+            saveCancel = UIManager.get("OptionPane.cancelButtonText")
+            UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
+            UIManager.put("OptionPane.cancelButtonText", "NO BANK ACCOUNT")
+
+            selectedBankAccount = JOptionPane.showInputDialog(ofx_create_new_usaa_bank_profile_frame_,
+                                                              "Select the Bank account to link",
+                                                              "Select Bank account",
+                                                              JOptionPane.WARNING_MESSAGE,
+                                                              None,
+                                                              bankAccounts,
+                                                              None)     # type: StoreAccountList
+            UIManager.put("OptionPane.okButtonText", saveOK)
+            UIManager.put("OptionPane.cancelButtonText", saveCancel)
         else:
-            if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
-                alert_and_exit("ERROR - User aborted on CC change")
+            selectedBankAccount = None
 
-    del ccAccount, route, bankAccount
+        if not selectedBankAccount:
+            theOutput += ("no bank account selected\n")
+            accountTypeOFX = None
+        else:
+            selectedBankAccount = selectedBankAccount.obj                                                                   # noqa
+            if isinstance(selectedBankAccount, Account): pass
+            if selectedBankAccount.getAccountType() != Account.AccountType.BANK:                                            # noqa
+                alert_and_exit("ERROR BANK ACCOUNT INVALID TYPE SELECTED")
+            theOutput += ("selected bank account %s\n" %selectedBankAccount)
 
-    ####################################################################################################################
 
-    if lMultiAccountSetup:
+            defaultAccountType = selectedBankAccount.getOFXAccountType()                                                   # noqa
+            if defaultAccountType is None or defaultAccountType == "" or defaultAccountType not in SECU_ACCOUNT_TYPES:
+                theOutput += ("Account: %s account type is currently %s - defaulting to %s\n"
+                        % (selectedBankAccount, defaultAccountType, SECU_ACCOUNT_TYPES[0]))
+                defaultAccountType = SECU_ACCOUNT_TYPES[0]
 
-        defaultEntry = "UserID2"
+            accountTypeOFX = JOptionPane.showInputDialog(ofx_create_new_usaa_bank_profile_frame_,
+                                                         "Carefully select the type for this account: %s" % (selectedBankAccount),
+                                                         "ACCOUNT TYPE",
+                                                         JOptionPane.INFORMATION_MESSAGE,
+                                                         MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                         SECU_ACCOUNT_TYPES,
+                                                         defaultAccountType)
+
+            if not accountTypeOFX:
+                alert_and_exit("ERROR - NO ACCOUNT TYPE SELECTED")
+            del defaultAccountType
+            theOutput += ("Account %s - selected type: %s\n" %(selectedBankAccount,accountTypeOFX))
+
+
+        # CREDIT CARD
+        accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(1))
+        accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+        ccAccounts = []
+        for acct in accounts:
+            ccAccounts.append(StoreAccountList(acct))
+
+        if len(ccAccounts):
+            saveOK = UIManager.get("OptionPane.okButtonText")
+            saveCancel = UIManager.get("OptionPane.cancelButtonText")
+            UIManager.put("OptionPane.okButtonText", "SELECT & PROCEED")
+            UIManager.put("OptionPane.cancelButtonText", "NO CC ACCOUNT")
+
+            selectedCCAccount = JOptionPane.showInputDialog(ofx_create_new_usaa_bank_profile_frame_,
+                                                            "Select the CC account to link",
+                                                            "Select CC account",
+                                                            JOptionPane.WARNING_MESSAGE,
+                                                            None,
+                                                            ccAccounts,
+                                                            None)     # type: StoreAccountList
+
+            UIManager.put("OptionPane.okButtonText", saveOK)
+            UIManager.put("OptionPane.cancelButtonText", saveCancel)
+        else:
+            selectedCCAccount = None
+
+        if not selectedCCAccount:
+            theOutput += ("no CC account selected\n")
+        else:
+            selectedCCAccount = selectedCCAccount.obj                                                                       # noqa
+            if isinstance(selectedCCAccount, Account): pass
+            if selectedCCAccount.getAccountType() != Account.AccountType.CREDIT_CARD:                                       # noqa
+                alert_and_exit("ERROR CC ACCOUNT INVALID TYPE SELECTED")
+            theOutput += ("selected CC account %s\n" %selectedCCAccount)
+
+        if not selectedBankAccount and not selectedCCAccount:
+            alert_and_exit("ERROR - You must select Bank and or CC account(s)")
+
+        ####################################################################################################################
+
+        if harvestedDefaultUserID is not None and harvestedDefaultUserID != "":
+            defaultEntry = harvestedDefaultUserID
+        elif len(harvestedUserIDList) > 0:
+            defaultEntry = harvestedUserIDList[0].getUserID()
+        else:
+            defaultEntry = "UserID"
+        del harvestedDefaultUserID
+
         while True:
-            userID2 = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
-            theOutput += ("UserID2 entered: %s\n" %userID2)
-            if userID2 is None:
-                alert_and_exit("ERROR - no UserID2 supplied! Aborting")
-            defaultEntry = userID2
-            if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
-                theOutput += ("\n ** ERROR - no valid UserID2 supplied - try again ** \n")
+            userID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UserID", "UserID", "Type/Paste your UserID (min length 8) very carefully", defaultEntry)
+            theOutput += ("userID entered: %s\n" %userID)
+            if userID is None:
+                alert_and_exit("ERROR - no userID supplied! Aborting")
+            defaultEntry = userID
+            if userID is None or userID == "" or userID == "UserID" or len(userID)<8:
+                theOutput += ("\n ** ERROR - no valid userID supplied - try again ** \n")
                 continue
             break
         del defaultEntry
 
-        findStoredUser = StoreUserID(userID2)
+        defaultEntry = "*****"
+        while True:
+            password = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "password", "password", "Type/Paste your Password (min length 6) very carefully", defaultEntry)
+            theOutput += ("password entered: %s\n" %password)
+            if password is None:
+                alert_and_exit("ERROR - no password supplied! Aborting")
+            defaultEntry = password
+            if password is None or password == "" or password == "*****" or len(password) < 6:
+                theOutput += ("\n ** ERROR - no password supplied - try again ** \n")
+                continue
+            break
+        del defaultEntry
+
+        findStoredUser = StoreUserID(userID)
         if len(harvestedUserIDList) > 0:
             foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
             if foundHarvestedStoredUser is not None:
                 if foundHarvestedStoredUser.getClientUID() is not None:
                     findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
                 else:
-                    alert_and_exit("LOGIC ERROR: Found harvested UserID2 (%s) with no ClientUID?! Aborting" %(findStoredUser))
+                    alert_and_exit("LOGIC ERROR: Found harvested UserID (%s) with no ClientUID?! Aborting" %(findStoredUser))
             del foundHarvestedStoredUser
-            theOutput += ("UserID2 entered: %s (Harvested ClientUID2: %s)\n" %(userID, findStoredUser.getClientUID()))
+            theOutput += ("UserID entered: %s (Harvested ClientUID: %s)\n" %(userID, findStoredUser.getClientUID()))
         else:
-            theOutput += ("Skipping matching ClientUID2 into UserID2 as did not harvest any UserIDs from USAA profile...\n")
-        del harvestedUserIDList
+            theOutput += ("Skipping matching ClientUID1 into UserID1 as did not harvest any UserIDs from USAA profile...\n")
+
+        theOutput += "\n"
 
         if findStoredUser.getClientUID() is not None:
             defaultEntry = findStoredUser.getClientUID()
         else:
-            defaultEntry = uuid
+            defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
         del findStoredUser
 
         while True:
-            uuid2 = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
-            theOutput += ("UUID2 entered: %s\n" %uuid2)
-            if uuid2 is None:
-                alert_and_exit("ERROR - No uuid2 entered! Aborting")
-            defaultEntry = uuid2
-            if (uuid2 is None or uuid2 == "" or len(uuid2) != 36 or uuid2 == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
-                    (str(uuid2)[8]+str(uuid2)[13]+str(uuid2)[18]+str(uuid2)[23]) != "----"):
-                theOutput += ("\n ** ERROR - no valid uuid2 supplied - try again ** \n")
+            uuid = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UUID", "UUID", "Paste the Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+            theOutput += ("UUID entered: %s\n" %uuid)
+            if uuid is None:
+                alert_and_exit("ERROR - No uuid entered! Aborting")
+            defaultEntry = uuid
+            if (uuid is None or uuid == "" or len(uuid) != 36 or uuid == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+                    (str(uuid)[8]+str(uuid)[13]+str(uuid)[18]+str(uuid)[23]) != "----"):
+                theOutput += ("\n ** ERROR - no valid uuid supplied - try again ** \n")
                 continue
             break
         del defaultEntry
 
-    ####################################################################################################################
-
-    # ##########################################
-    # NEW MD FIS Profile as of 24th Oct 2021....
-    # ##########################################
-    # {
-    #   "access_type" = "OFX"
-    #   "app_id" = "QMOFX"
-    #   "app_ver" = "2300"
-    #   "bootstrap_url" = "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx"
-    #   "fi_id" = "67811"
-    #   "fi_name" = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
-    #   "fi_org" = "USAA Federal Savings Bank"
-    #   "id" = "md:custom-1295"
-    #   "ofx_version" = "103"
-    #   "so_client_uid_req_DEFAULT" = "y"
-    #   "so_client_uid_req_USAASignon" = "y"
-    #   "so_client_uid_req_default" = "y"
-    #   "user-agent" = "InetClntApp/3.0"
-    #   "uses_fi_tag" = "y"
-    # }
-
-
-    theOutput += ("Creating new Online Banking OFX Service Profile\n")
-    manualFIInfo = StreamTable()     # type: StreamTable
-    manualFIInfo.put("obj_type",                                 "olsvc")
-    manualFIInfo.put("access_type",                              "OFX")
-    manualFIInfo.put("tik_fi_id",                                NEW_TIK_FI_ID)
-    manualFIInfo.put("app_id",                                   "QMOFX")
-    manualFIInfo.put("app_ver",                                  "2300")
-    manualFIInfo.put("ofx_version",                              "103")
-    manualFIInfo.put("bootstrap_url",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("fi_id",                                    USAA_FI_ID)
-    manualFIInfo.put("fi_name",                                  USAA_PROFILE_NAME)
-    manualFIInfo.put("fi_org",                                   USAA_FI_ORG)
-    manualFIInfo.put("user-agent",                               "InetClntApp/3.0")
-    manualFIInfo.put("uses_fi_tag",                              "y")
-
-    manualFIInfo.put("so_client_uid_req_USAASignon",             "1")   # probably legacy
-    manualFIInfo.put("so_client_uid_req_DEFAULT",                "1")   # probably not required
-    manualFIInfo.put("so_client_uid_req_default",                "1")   # Now given during the profile response
-
-    # manualFIInfo.put("no_fi_refresh",                            "y")
-    # manualFIInfo.put("use_profile_req",                          "n")
-
-    manualFIInfo.put("bank_closing_avail",                       "0")
-    manualFIInfo.put("bank_email_can_notify",                    "0")
-    manualFIInfo.put("bank_email_enabled",                       "0")
-    manualFIInfo.put("cc_closing_avail",                         "1")
-    manualFIInfo.put("date_avail_accts",                         "20210101120000")
-    manualFIInfo.put("fi_addr1",                                 "9800 Fredericksburg Rd")
-    manualFIInfo.put("fi_city",                                  "San Antonio")
-    manualFIInfo.put("fi_country",                               "USA")
-    manualFIInfo.put("fi_cust_svc_phone",                        "1-877-632-3002")
-    manualFIInfo.put("fi_email",                                 "2")
-    manualFIInfo.put("fi_state",                                 "TX")
-    manualFIInfo.put("fi_tech_svc_phone",                        "1-877-632-3002")
-    manualFIInfo.put("fi_url",                                   "https://www.usaa.com")
-    manualFIInfo.put("fi_url_is_redirect",                       "1")
-    manualFIInfo.put("fi_zip",                                   "78288")
-    manualFIInfo.put("invst_dflt_broker_id",                     "")
-    manualFIInfo.put("language_banking",                         "ENG")
-    manualFIInfo.put("language_creditcard",                      "ENG")
-    manualFIInfo.put("language_default",                         "ENG")
-    manualFIInfo.put("language_fiprofile",                       "ENG")
-    manualFIInfo.put("language_signup",                          "ENG")
-    manualFIInfo.put("ofxurl_banking",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("ofxurl_creditcard",                        "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("ofxurl_default",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("ofxurl_signup",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("ofxurl_fiprofile",                         "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
-    manualFIInfo.put("realm_banking",                            USAA_REALM)
-    manualFIInfo.put("realm_creditcard",                         USAA_REALM)
-    manualFIInfo.put("realm_default",                            USAA_REALM)
-    manualFIInfo.put("realm_fiprofile",                          USAA_REALM)
-    manualFIInfo.put("realm_signup",                             USAA_REALM)
-    manualFIInfo.put("rspnsfileerrors_banking",                  "1")
-    manualFIInfo.put("rspnsfileerrors_creditcard",               "1")
-    manualFIInfo.put("rspnsfileerrors_default",                  "1")
-    manualFIInfo.put("rspnsfileerrors_fiprofile",                "1")
-    manualFIInfo.put("rspnsfileerrors_signup",                   "1")
-    manualFIInfo.put("securetransport_banking",                  "1")
-    manualFIInfo.put("securetransport_creditcard",               "1")
-    manualFIInfo.put("securetransport_default",                  "1")
-    manualFIInfo.put("securetransport_fiprofile",                "1")
-    manualFIInfo.put("securetransport_signup",                   "1")
-    manualFIInfo.put("security_banking",                         "NONE")
-    manualFIInfo.put("security_creditcard",                      "NONE")
-    manualFIInfo.put("security_default",                         "NONE")
-    manualFIInfo.put("security_fiprofile",                       "NONE")
-    manualFIInfo.put("security_signup",                          "NONE")
-    manualFIInfo.put("signup_accts_avail",                       "1")
-    manualFIInfo.put("signup_can_activate_acct",                 "0")
-    manualFIInfo.put("signup_can_chg_user_info",                 "0")
-    manualFIInfo.put("signup_can_preauth",                       "0")
-    manualFIInfo.put("signup_client_acct_num_req",               "1")
-    manualFIInfo.put("signup_via_client",                        "0")
-    manualFIInfo.put("signup_via_other",                         "0")
-    # manualFIInfo.put("signup_via_other_msg",                     "Please contact the financial institution for the enrollment process.")
-    manualFIInfo.put("signup_via_web",                           "1")
-    manualFIInfo.put("signup_via_web_url",                       "https://www.usaa.com/inet/ent_logon/Logon")
-    manualFIInfo.put("so_can_change_pin_%s" %(USAA_REALM),       "1")
-    manualFIInfo.put("so_maxpasslen_%s" %(USAA_REALM),           "15")
-    manualFIInfo.put("so_minpasslen_%s" %(USAA_REALM),           "5")
-    manualFIInfo.put("so_must_chg_pin_first_%s" %(USAA_REALM),   "0")
-    manualFIInfo.put("so_passchartype_%s" %(USAA_REALM),         "NUMERICONLY")
-    manualFIInfo.put("so_passwd_case_sensitive_%s" %(USAA_REALM),"1")
-    manualFIInfo.put("so_passwd_spaces_%s" %(USAA_REALM),        "0")
-    manualFIInfo.put("so_passwd_special_chars_%s" %(USAA_REALM), "0")
-    manualFIInfo.put("so_passwd_type_%s" %(USAA_REALM),          "FIXED")
-    manualFIInfo.put("so_user_id_%s" %(USAA_REALM),              userID)
-    if selectedBankAccount:
-        manualFIInfo.put("so_user_id_%s::%s" %(USAA_REALM, my_getAccountKey(selectedBankAccount)), userID)
-    if selectedCCAccount:
-        manualFIInfo.put("so_user_id_%s::%s" %(USAA_REALM, my_getAccountKey(selectedCCAccount)),   userID)
-    manualFIInfo.put("syncmode_banking",                         "LITE")
-    manualFIInfo.put("syncmode_creditcard",                      "LITE")
-    manualFIInfo.put("syncmode_default",                         "LITE")
-    manualFIInfo.put("syncmode_fiprofile",                       "LITE")
-    manualFIInfo.put("syncmode_signup",                          "LITE")
-    manualFIInfo.put("version_banking",                          "1")
-    manualFIInfo.put("version_creditcard",                       "1")
-    manualFIInfo.put("version_default",                          "1")
-    manualFIInfo.put("version_fiprofile",                        "1")
-    manualFIInfo.put("version_signup",                           "1")
-
-    # manualFIInfo.put("always_send_date_range",                   "1")
-    # manualFIInfo.put("id",                                       "4f085ab1-6f10-42d9-8048-4431b7919d61")
-    # manualFIInfo.put("last_txn_id",                              "0-2f04b703_dd9df513-380")
-
-    num = 0
-    if selectedBankAccount:
-        sNum = str(num)
-        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(bankID).zfill(10))
-        manualFIInfo.put("available_accts.%s.account_type" %(sNum),           accountTypeOFX)
-        manualFIInfo.put("available_accts.%s.branch_id" %(sNum),              "")
-        manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "USAA CLASSIC CHECKING")
-        manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
-        manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
-        manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
-        manualFIInfo.put("available_accts.%s.is_active" %(sNum),              "1")
-        manualFIInfo.put("available_accts.%s.is_avail" %(sNum),               "0")
-        manualFIInfo.put("available_accts.%s.is_bank_acct" %(sNum),           "1")
-        manualFIInfo.put("available_accts.%s.is_pending" %(sNum),             "0")
-        manualFIInfo.put("available_accts.%s.msg_type" %(sNum),               "4")
-        manualFIInfo.put("available_accts.%s.phone" %(sNum),                  "")
-        manualFIInfo.put("available_accts.%s.routing_num" %(sNum),            routID)
-        num += 1
-
-    if selectedCCAccount:
-        sNum = str(num)
-        manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(ccID))
-        if len(ccID) == 15:
-            manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature AMEX")
-        else:
-            manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature Visa")
-        manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
-        manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
-        manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
-        manualFIInfo.put("available_accts.%s.is_active" %(sNum),              "1")
-        manualFIInfo.put("available_accts.%s.is_avail" %(sNum),               "0")
-        manualFIInfo.put("available_accts.%s.is_cc_acct" %(sNum),             "1")
-        manualFIInfo.put("available_accts.%s.is_pending" %(sNum),             "0")
-        manualFIInfo.put("available_accts.%s.msg_type" %(sNum),               "5")
-        manualFIInfo.put("available_accts.%s.phone" %(sNum),                  "")
-
-    del sNum
-
-    newService = OnlineService(book, manualFIInfo)
-    newService.setParameter(PARAMETER_KEY, "python fix script")
-    newService.syncItem()
-
-    mappingObjectClass = None
-    if isMDPlusEnabledBuild():
-        theOutput += ("Grabbing reference to OnlineAccountMapping() with new service profile...\n")
-        mappingObjectClass =  OnlineAccountMapping(book, newService)
+        bankID = routID = None
+        route = bankAccount = None
 
         if selectedBankAccount:
-            theOutput += (".. setting bank account %s into map for: %s\n" %(bankID, selectedBankAccount))
-            mappingObjectClass.setMapping(str(bankID).zfill(10), selectedBankAccount)
+            bankAccount = selectedBankAccount.getBankAccountNumber()        # noqa
+            bankID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "BankAccount", "BankAccount", "Type/Paste your Bank Account Number - very carefully", bankAccount)
+            if bankID is None or bankID == "":
+                alert_and_exit("ERROR - no bankID supplied - Aborting")
+            theOutput += ("existing bank account:   %s\n" %bankAccount)
+            theOutput += ("bankID entered:          %s\n" %bankID)
+
+            route = selectedBankAccount.getOFXBankID()                      # noqa
+            if route == "" or len(route) != 9:
+                route = "314074269"
+            routID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "Routing", "Routing", "Type/Paste your Routing Number (9 digits - usually '314074269')- very carefully", route)
+            if routID is None or routID == "" or len(routID) != 9:
+                alert_and_exit("ERROR - invalid Routing supplied - Aborting")
+            theOutput += ("existing routing number: %s\n" %route)
+            theOutput += ("routID entered:          %s\n" %routID)
+
+        ccID = ccAccount = None
 
         if selectedCCAccount:
-            theOutput += (".. setting cc account %s into map for: %s\n" %(ccID, selectedCCAccount))
-            mappingObjectClass.setMapping(str(ccID), selectedCCAccount)
+            while True:
+                ccAccount = selectedCCAccount.getBankAccountNumber()        # noqa
+                ccID = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "CC_Account", "CC_Account", "Type/Paste the CC Number that the bank uses for connection (length 16) very carefully", ccAccount)
+                theOutput += ("existing CC number:      %s\n" %ccAccount)
+                theOutput += ("ccID entered:            %s\n" %ccID)
+                if ccID is None:
+                    alert_and_exit("ERROR - no valid ccID supplied - aborting")
+                if ccID is None or ccID == "" or len(ccID) < 15 or len(ccID) > 16:
+                    theOutput += ("\n ** ERROR - no valid ccID supplied! Please try again (Number should be 15 or 16 digits) ** \n")
+                    continue
+                break
 
-        mappingObjectClass.syncItem()
+            if ccID == ccAccount:
+                if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Keep CC Number", "Confirm you want use the same CC %s for connection?" % ccID, theMessageType=JOptionPane.WARNING_MESSAGE):
+                    alert_and_exit("ERROR - User aborted on keeping the CC the same")
+            else:
+                if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "Change CC number", "Confirm you want to set a new CC as %s for connection?" % ccID, theMessageType=JOptionPane.ERROR_MESSAGE):
+                    alert_and_exit("ERROR - User aborted on CC change")
 
-    del mappingObjectClass
+        del ccAccount, route, bankAccount
 
-    ####################################################################################################################
+        ####################################################################################################################
 
-    service = newService
+        if lMultiAccountSetup:
 
-    if selectedBankAccount:
-        theOutput += ("Setting up account %s for OFX\n" %(selectedBankAccount))
-        theOutput += (">> saving OFX bank account number: %s and OFX route: %s\n" %(bankID, routID))
-        selectedBankAccount.setEditingMode()                            # noqa
-        selectedBankAccount.setBankAccountNumber(bankID)                # noqa
-        selectedBankAccount.setOFXBankID(routID)                        # noqa
+            defaultEntry = "UserID2"
+            while True:
+                userID2 = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UserID2", "UserID2", "Type/Paste your SECOND UserID (min length 8) very carefully", defaultEntry)
+                theOutput += ("UserID2 entered: %s\n" %userID2)
+                if userID2 is None:
+                    alert_and_exit("ERROR - no UserID2 supplied! Aborting")
+                defaultEntry = userID2
+                if userID2 is None or userID2 == "" or userID2 == "UserID2" or len(userID2)<8:
+                    theOutput += ("\n ** ERROR - no valid UserID2 supplied - try again ** \n")
+                    continue
+                break
+            del defaultEntry
 
-        theOutput += (">> setting OFX Message type to '4'\n")
-        selectedBankAccount.setOFXAccountMsgType(4)                     # noqa
+            findStoredUser = StoreUserID(userID2)
+            if len(harvestedUserIDList) > 0:
+                foundHarvestedStoredUser = StoreUserID.findUserID(findStoredUser.getUserID(),harvestedUserIDList)    # type: StoreUserID
+                if foundHarvestedStoredUser is not None:
+                    if foundHarvestedStoredUser.getClientUID() is not None:
+                        findStoredUser.setClientUID(foundHarvestedStoredUser.getClientUID())
+                    else:
+                        alert_and_exit("LOGIC ERROR: Found harvested UserID2 (%s) with no ClientUID?! Aborting" %(findStoredUser))
+                del foundHarvestedStoredUser
+                theOutput += ("UserID2 entered: %s (Harvested ClientUID2: %s)\n" %(userID, findStoredUser.getClientUID()))
+            else:
+                theOutput += ("Skipping matching ClientUID2 into UserID2 as did not harvest any UserIDs from USAA profile...\n")
+            del harvestedUserIDList
 
-        theOutput += (">> setting OFX Account Number to: %s\n" %(str(bankID).zfill(10)))
-        selectedBankAccount.setOFXAccountNumber(str(bankID).zfill(10))  # noqa
+            if findStoredUser.getClientUID() is not None:
+                defaultEntry = findStoredUser.getClientUID()
+            else:
+                defaultEntry = uuid
+            del findStoredUser
 
-        theOutput += (">> setting OFX Type to '%s'\n" %(accountTypeOFX))
-        selectedBankAccount.setOFXAccountType(accountTypeOFX)           # noqa
+            while True:
+                uuid2 = myPopupAskForInput(ofx_create_new_usaa_bank_profile_frame_, "UUID 2", "UUID 2", "Paste your SECOND Bank Supplied UUID 36 digits 8-4-4-4-12 very carefully (or keep the same)", defaultEntry)
+                theOutput += ("UUID2 entered: %s\n" %uuid2)
+                if uuid2 is None:
+                    alert_and_exit("ERROR - No uuid2 entered! Aborting")
+                defaultEntry = uuid2
+                if (uuid2 is None or uuid2 == "" or len(uuid2) != 36 or uuid2 == "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn" or
+                        (str(uuid2)[8]+str(uuid2)[13]+str(uuid2)[18]+str(uuid2)[23]) != "----"):
+                    theOutput += ("\n ** ERROR - no valid uuid2 supplied - try again ** \n")
+                    continue
+                break
+            del defaultEntry
 
-        theOutput += (">> Setting up the Banking Acct %s link to new bank service / profile %s\n" %(selectedBankAccount, newService))
-        selectedBankAccount.setBankingFI(newService)                    # noqa
-        # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
+        ####################################################################################################################
+
+        # ##########################################
+        # NEW MD FIS Profile as of 24th Oct 2021....
+        # ##########################################
+        # {
+        #   "access_type" = "OFX"
+        #   "app_id" = "QMOFX"
+        #   "app_ver" = "2300"
+        #   "bootstrap_url" = "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx"
+        #   "fi_id" = "67811"
+        #   "fi_name" = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
+        #   "fi_org" = "USAA Federal Savings Bank"
+        #   "id" = "md:custom-1295"
+        #   "ofx_version" = "103"
+        #   "so_client_uid_req_DEFAULT" = "y"
+        #   "so_client_uid_req_USAASignon" = "y"
+        #   "so_client_uid_req_default" = "y"
+        #   "user-agent" = "InetClntApp/3.0"
+        #   "uses_fi_tag" = "y"
+        # }
+
+
+        theOutput += ("Creating new Online Banking OFX Service Profile\n")
+        manualFIInfo = StreamTable()     # type: StreamTable
+        manualFIInfo.put("obj_type",                                 "olsvc")
+        manualFIInfo.put("access_type",                              "OFX")
+        manualFIInfo.put("tik_fi_id",                                NEW_TIK_FI_ID)
+        manualFIInfo.put("app_id",                                   "QMOFX")
+        manualFIInfo.put("app_ver",                                  "2300")
+        manualFIInfo.put("ofx_version",                              "103")
+        manualFIInfo.put("bootstrap_url",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
+        manualFIInfo.put("fi_id",                                    USAA_FI_ID)
+        manualFIInfo.put("fi_name",                                  USAA_PROFILE_NAME)
+        manualFIInfo.put("fi_org",                                   USAA_FI_ORG)
+        manualFIInfo.put("user-agent",                               "InetClntApp/3.0")
+        manualFIInfo.put("uses_fi_tag",                              "y")
+
+        manualFIInfo.put("so_client_uid_req_USAASignon",             "1")   # probably legacy
+        manualFIInfo.put("so_client_uid_req_DEFAULT",                "1")   # probably not required
+        manualFIInfo.put("so_client_uid_req_default",                "1")   # Now given during the profile response
+
+        # manualFIInfo.put("no_fi_refresh",                            "y")
+        # manualFIInfo.put("use_profile_req",                          "n")
+
+        manualFIInfo.put("bank_closing_avail",                       "0")
+        manualFIInfo.put("bank_email_can_notify",                    "0")
+        manualFIInfo.put("bank_email_enabled",                       "0")
+        manualFIInfo.put("cc_closing_avail",                         "1")
+        manualFIInfo.put("date_avail_accts",                         "20210101120000")
+        manualFIInfo.put("fi_addr1",                                 "9800 Fredericksburg Rd")
+        manualFIInfo.put("fi_city",                                  "San Antonio")
+        manualFIInfo.put("fi_country",                               "USA")
+        manualFIInfo.put("fi_cust_svc_phone",                        "1-877-632-3002")
+        manualFIInfo.put("fi_email",                                 "2")
+        manualFIInfo.put("fi_state",                                 "TX")
+        manualFIInfo.put("fi_tech_svc_phone",                        "1-877-632-3002")
+        manualFIInfo.put("fi_url",                                   "https://www.usaa.com")
+        manualFIInfo.put("fi_url_is_redirect",                       "1")
+        manualFIInfo.put("fi_zip",                                   "78288")
+        manualFIInfo.put("invst_dflt_broker_id",                     "")
+        manualFIInfo.put("language_banking",                         "ENG")
+        manualFIInfo.put("language_creditcard",                      "ENG")
+        manualFIInfo.put("language_default",                         "ENG")
+        manualFIInfo.put("language_fiprofile",                       "ENG")
+        manualFIInfo.put("language_signup",                          "ENG")
+        manualFIInfo.put("ofxurl_banking",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
+        manualFIInfo.put("ofxurl_creditcard",                        "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
+        manualFIInfo.put("ofxurl_default",                           "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
+        manualFIInfo.put("ofxurl_signup",                            "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
+        manualFIInfo.put("ofxurl_fiprofile",                         "https://df3cx-services.1fsapi.com/casm/usaa/access.ofx")
+        manualFIInfo.put("realm_banking",                            USAA_REALM)
+        manualFIInfo.put("realm_creditcard",                         USAA_REALM)
+        manualFIInfo.put("realm_default",                            USAA_REALM)
+        manualFIInfo.put("realm_fiprofile",                          USAA_REALM)
+        manualFIInfo.put("realm_signup",                             USAA_REALM)
+        manualFIInfo.put("rspnsfileerrors_banking",                  "1")
+        manualFIInfo.put("rspnsfileerrors_creditcard",               "1")
+        manualFIInfo.put("rspnsfileerrors_default",                  "1")
+        manualFIInfo.put("rspnsfileerrors_fiprofile",                "1")
+        manualFIInfo.put("rspnsfileerrors_signup",                   "1")
+        manualFIInfo.put("securetransport_banking",                  "1")
+        manualFIInfo.put("securetransport_creditcard",               "1")
+        manualFIInfo.put("securetransport_default",                  "1")
+        manualFIInfo.put("securetransport_fiprofile",                "1")
+        manualFIInfo.put("securetransport_signup",                   "1")
+        manualFIInfo.put("security_banking",                         "NONE")
+        manualFIInfo.put("security_creditcard",                      "NONE")
+        manualFIInfo.put("security_default",                         "NONE")
+        manualFIInfo.put("security_fiprofile",                       "NONE")
+        manualFIInfo.put("security_signup",                          "NONE")
+        manualFIInfo.put("signup_accts_avail",                       "1")
+        manualFIInfo.put("signup_can_activate_acct",                 "0")
+        manualFIInfo.put("signup_can_chg_user_info",                 "0")
+        manualFIInfo.put("signup_can_preauth",                       "0")
+        manualFIInfo.put("signup_client_acct_num_req",               "1")
+        manualFIInfo.put("signup_via_client",                        "0")
+        manualFIInfo.put("signup_via_other",                         "0")
+        # manualFIInfo.put("signup_via_other_msg",                     "Please contact the financial institution for the enrollment process.")
+        manualFIInfo.put("signup_via_web",                           "1")
+        manualFIInfo.put("signup_via_web_url",                       "https://www.usaa.com/inet/ent_logon/Logon")
+        manualFIInfo.put("so_can_change_pin_%s" %(USAA_REALM),       "1")
+        manualFIInfo.put("so_maxpasslen_%s" %(USAA_REALM),           "15")
+        manualFIInfo.put("so_minpasslen_%s" %(USAA_REALM),           "5")
+        manualFIInfo.put("so_must_chg_pin_first_%s" %(USAA_REALM),   "0")
+        manualFIInfo.put("so_passchartype_%s" %(USAA_REALM),         "NUMERICONLY")
+        manualFIInfo.put("so_passwd_case_sensitive_%s" %(USAA_REALM),"1")
+        manualFIInfo.put("so_passwd_spaces_%s" %(USAA_REALM),        "0")
+        manualFIInfo.put("so_passwd_special_chars_%s" %(USAA_REALM), "0")
+        manualFIInfo.put("so_passwd_type_%s" %(USAA_REALM),          "FIXED")
+        manualFIInfo.put("so_user_id_%s" %(USAA_REALM),              userID)
+        if selectedBankAccount:
+            manualFIInfo.put("so_user_id_%s::%s" %(USAA_REALM, my_getAccountKey(selectedBankAccount)), userID)
+        if selectedCCAccount:
+            manualFIInfo.put("so_user_id_%s::%s" %(USAA_REALM, my_getAccountKey(selectedCCAccount)),   userID)
+        manualFIInfo.put("syncmode_banking",                         "LITE")
+        manualFIInfo.put("syncmode_creditcard",                      "LITE")
+        manualFIInfo.put("syncmode_default",                         "LITE")
+        manualFIInfo.put("syncmode_fiprofile",                       "LITE")
+        manualFIInfo.put("syncmode_signup",                          "LITE")
+        manualFIInfo.put("version_banking",                          "1")
+        manualFIInfo.put("version_creditcard",                       "1")
+        manualFIInfo.put("version_default",                          "1")
+        manualFIInfo.put("version_fiprofile",                        "1")
+        manualFIInfo.put("version_signup",                           "1")
+
+        # manualFIInfo.put("always_send_date_range",                   "1")
+        # manualFIInfo.put("id",                                       "4f085ab1-6f10-42d9-8048-4431b7919d61")
+        # manualFIInfo.put("last_txn_id",                              "0-2f04b703_dd9df513-380")
+
+        num = 0
+        if selectedBankAccount:
+            sNum = str(num)
+            manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(bankID).zfill(10))
+            manualFIInfo.put("available_accts.%s.account_type" %(sNum),           accountTypeOFX)
+            manualFIInfo.put("available_accts.%s.branch_id" %(sNum),              "")
+            manualFIInfo.put("available_accts.%s.desc" %(sNum),                   "USAA CLASSIC CHECKING")
+            manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
+            manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
+            manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
+            manualFIInfo.put("available_accts.%s.is_active" %(sNum),              "1")
+            manualFIInfo.put("available_accts.%s.is_avail" %(sNum),               "0")
+            manualFIInfo.put("available_accts.%s.is_bank_acct" %(sNum),           "1")
+            manualFIInfo.put("available_accts.%s.is_pending" %(sNum),             "0")
+            manualFIInfo.put("available_accts.%s.msg_type" %(sNum),               "4")
+            manualFIInfo.put("available_accts.%s.phone" %(sNum),                  "")
+            manualFIInfo.put("available_accts.%s.routing_num" %(sNum),            routID)
+            num += 1
+
+        if selectedCCAccount:
+            sNum = str(num)
+            manualFIInfo.put("available_accts.%s.account_num" %(sNum),            str(ccID))
+            if len(ccID) == 15:
+                manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature AMEX")
+            else:
+                manualFIInfo.put("available_accts.%s.desc" %(sNum),               "Signature Visa")
+            manualFIInfo.put("available_accts.%s.has_txn_dl" %(sNum),             "1")
+            manualFIInfo.put("available_accts.%s.has_xfr_from" %(sNum),           "0")
+            manualFIInfo.put("available_accts.%s.has_xfr_to" %(sNum),             "0")
+            manualFIInfo.put("available_accts.%s.is_active" %(sNum),              "1")
+            manualFIInfo.put("available_accts.%s.is_avail" %(sNum),               "0")
+            manualFIInfo.put("available_accts.%s.is_cc_acct" %(sNum),             "1")
+            manualFIInfo.put("available_accts.%s.is_pending" %(sNum),             "0")
+            manualFIInfo.put("available_accts.%s.msg_type" %(sNum),               "5")
+            manualFIInfo.put("available_accts.%s.phone" %(sNum),                  "")
+
+        del sNum
+
+        newService = OnlineService(book, manualFIInfo)
+        newService.setParameter(PARAMETER_KEY, "python fix script")
+        newService.syncItem()
+
+        mappingObjectClass = None
         if isMDPlusEnabledBuild():
-            selectedBankAccount.setOnlineIDForServiceID(newService.getTIKServiceID(), str(bankID).zfill(10))
+            theOutput += ("Grabbing reference to OnlineAccountMapping() with new service profile...\n")
+            mappingObjectClass =  OnlineAccountMapping(book, newService)
 
-        selectedBankAccount.syncItem()                                  # noqa
-        selectedBankAccount.getDownloadedTxns()                         # noqa
-        theOutput += "\n"
+            if selectedBankAccount:
+                theOutput += (".. setting bank account %s into map for: %s\n" %(bankID, selectedBankAccount))
+                mappingObjectClass.setMapping(str(bankID).zfill(10), selectedBankAccount)
 
-    if selectedCCAccount:
-        theOutput += ("Setting up CC Account %s for OFX\n" %(selectedCCAccount))
-        theOutput += (">> saving OFX CC account number %s\n" %(ccID))
-        selectedCCAccount.setEditingMode()                              # noqa
-        selectedCCAccount.setBankAccountNumber(str(ccID))               # noqa
+            if selectedCCAccount:
+                theOutput += (".. setting cc account %s into map for: %s\n" %(ccID, selectedCCAccount))
+                mappingObjectClass.setMapping(str(ccID), selectedCCAccount)
 
-        # theOutput += (">> setting OFX Type to 'CREDITCARD'\n")
-        # selectedBankAccount.setOFXAccountType("CREDITCARD")           # noqa
+            mappingObjectClass.syncItem()
 
-        theOutput += (">> setting OFX Message type to '5'\n")
-        selectedCCAccount.setOFXAccountMsgType(5)                       # noqa
+        del mappingObjectClass
 
-        theOutput += (">> Settings up the CC Acct %s link to new profile %s\n" %(selectedCCAccount, newService))
-        selectedCCAccount.setBankingFI(newService)                      # noqa
-        # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
-        if isMDPlusEnabledBuild():
-            selectedCCAccount.setOnlineIDForServiceID(newService.getTIKServiceID(), str(ccID))
+        ####################################################################################################################
 
-        selectedCCAccount.syncItem()                                    # noqa
-        selectedCCAccount.getDownloadedTxns()                           # noqa
-        print
+        service = newService
 
-    ####################################################################################################################
+        if selectedBankAccount:
+            theOutput += ("Setting up account %s for OFX\n" %(selectedBankAccount))
+            theOutput += (">> saving OFX bank account number: %s and OFX route: %s\n" %(bankID, routID))
+            selectedBankAccount.setEditingMode()                            # noqa
+            selectedBankAccount.setBankAccountNumber(bankID)                # noqa
+            selectedBankAccount.setOFXBankID(routID)                        # noqa
 
-    theOutput += ("Updating root with userID and uuid\n")
-    root = MD_REF.getRootAccount()
+            theOutput += (">> setting OFX Message type to '4'\n")
+            selectedBankAccount.setOFXAccountMsgType(4)                     # noqa
 
-    root.setEditingMode()
+            theOutput += (">> setting OFX Account Number to: %s\n" %(str(bankID).zfill(10)))
+            selectedBankAccount.setOFXAccountNumber(str(bankID).zfill(10))  # noqa
 
-    lOverrideRootUUID = False
+            theOutput += (">> setting OFX Type to '%s'\n" %(accountTypeOFX))
+            selectedBankAccount.setOFXAccountType(accountTypeOFX)           # noqa
 
-    theDefaultUUID = root.getParameter(authKeyPrefix, "")
-    if lOverrideRootUUID or theDefaultUUID == "":
-        theDefaultUUID = my_createNewClientUID()
-        theOutput += ("Overriding Root's default UUID. Was: '%s' >> changing to >> '%s'\n" %(root.getParameter(authKeyPrefix, ""),theDefaultUUID))
-        root.setParameter(authKeyPrefix, theDefaultUUID)
-    del theDefaultUUID, lOverrideRootUUID
+            theOutput += (">> Setting up the Banking Acct %s link to new bank service / profile %s\n" %(selectedBankAccount, newService))
+            selectedBankAccount.setBankingFI(newService)                    # noqa
+            # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
+            if isMDPlusEnabledBuild():
+                selectedBankAccount.setOnlineIDForServiceID(newService.getTIKServiceID(), str(bankID).zfill(10))
 
-    rootKeys = list(root.getParameterKeys())
-    for i in range(0,len(rootKeys)):
-        rk = rootKeys[i]
-        if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk or OLD_TIK_FI_ID in rk or NEW_TIK_FI_ID in rk):
-            theOutput += ("Deleting old authKey %s: %s\n" %(rk,root.getParameter(rk)))
-            root.setParameter(rk, None)
-        i+=1
+            selectedBankAccount.syncItem()                                  # noqa
+            selectedBankAccount.getDownloadedTxns()                         # noqa
+            theOutput += "\n"
 
-    root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)                           # noqa
-    root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + "null",   uuid)                           # noqa
-    root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)                           # noqa
-    theOutput += ("Root UserID and uuid updated...\n")
+        if selectedCCAccount:
+            theOutput += ("Setting up CC Account %s for OFX\n" %(selectedCCAccount))
+            theOutput += (">> saving OFX CC account number %s\n" %(ccID))
+            selectedCCAccount.setEditingMode()                              # noqa
+            selectedCCAccount.setBankAccountNumber(str(ccID))               # noqa
 
-    if lMultiAccountSetup:
-        root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID2,   uuid2)                     # noqa
-        theOutput += ("Root UserID TWO and uuid TWO primed - ready for Online Banking Setup...\n")
+            # theOutput += (">> setting OFX Type to 'CREDITCARD'\n")
+            # selectedBankAccount.setOFXAccountType("CREDITCARD")           # noqa
 
-    root.syncItem()
-    ####################################################################################################################
+            theOutput += (">> setting OFX Message type to '5'\n")
+            selectedCCAccount.setOFXAccountMsgType(5)                       # noqa
 
-    theOutput += ("accessing authentication keys\n")
+            theOutput += (">> Settings up the CC Acct %s link to new profile %s\n" %(selectedCCAccount, newService))
+            selectedCCAccount.setBankingFI(newService)                      # noqa
+            # MD2022 - can use setOnlineIDForServiceID() but for this, the old method should be OK...
+            if isMDPlusEnabledBuild():
+                selectedCCAccount.setOnlineIDForServiceID(newService.getTIKServiceID(), str(ccID))
 
-    _ACCOUNT = 0
-    _SERVICE = 1
-    _ISBILLPAY = 2
+            selectedCCAccount.syncItem()                                    # noqa
+            selectedCCAccount.getDownloadedTxns()                           # noqa
+            print
 
-    check = 0
-    whichAccounts = []
-    if selectedBankAccount:
-        check += 1
-        whichAccounts.append(selectedBankAccount)
-    if selectedCCAccount:
-        check += 1
-        whichAccounts.append(selectedCCAccount)
+        ####################################################################################################################
 
-    listAccountMDProxies=[]
-    for acctObj in whichAccounts:
-        acct = acctObj                                 # type: Account
-        svcBank = acct.getBankingFI()                  # noqa
-        svcBPay = acct.getBillPayFI()                  # noqa
-        if svcBank is not None:
-            theOutput += (" - Found/Saved Banking Acct: %s\n" %acct)
-            listAccountMDProxies.append([MDAccountProxy(acct, False),svcBank,False])
-        if svcBPay is not None:
-            theOutput += (" - Found/Saved Bill Pay Acct: %s\n" %acct)
-            listAccountMDProxies.append([MDAccountProxy(acct, True),svcBPay,True])
+        theOutput += ("Updating root with userID and uuid\n")
+        root = MD_REF.getRootAccount()
 
-    if len(listAccountMDProxies) != check:
-        alert_and_exit("LOGIC ERROR: listAccountMDProxies != %s - Some changes have been made - review log....." %check)
+        root.setEditingMode()
 
-    theOutput += ("\n>>REALMs configured:\n")
-    realmsToCheck = service.getRealms()         # noqa
-    if "DEFAULT" not in realmsToCheck:
-        realmsToCheck.insert(0,"DEFAULT")       # noqa
+        lOverrideRootUUID = False
 
-    newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userID),URLEncoder.encode(password))
+        theDefaultUUID = root.getParameter(authKeyPrefix, "")
+        if lOverrideRootUUID or theDefaultUUID == "":
+            theDefaultUUID = my_createNewClientUID()
+            theOutput += ("Overriding Root's default UUID. Was: '%s' >> changing to >> '%s'\n" %(root.getParameter(authKeyPrefix, ""),theDefaultUUID))
+            root.setParameter(authKeyPrefix, theDefaultUUID)
+        del theDefaultUUID, lOverrideRootUUID
 
-    for realm in realmsToCheck:
+        rootKeys = list(root.getParameterKeys())
+        for i in range(0,len(rootKeys)):
+            rk = rootKeys[i]
+            if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk or OLD_TIK_FI_ID in rk or NEW_TIK_FI_ID in rk):
+                theOutput += ("Deleting old authKey %s: %s\n" %(rk,root.getParameter(rk)))
+                root.setParameter(rk, None)
+            i+=1
 
-        theOutput += ("Realm: %s current User ID: %s\n" %(realm, service.getUserId(realm, None)))
+        root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID,   uuid)                           # noqa
+        root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + "null",   uuid)                           # noqa
+        root.setParameter(authKeyPrefix+"_default_user"+"::" + service.getTIKServiceID(), userID)                           # noqa
+        theOutput += ("Root UserID and uuid updated...\n")
 
-        authKey = "ofx:" + realm
-        authObj = service.getCachedAuthentication(authKey)
-        theOutput += ("Realm: %s old Cached Authentication: %s\n" %(realm, authObj))
-        theOutput += ("   >> ** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj))
-        service.cacheAuthentication(authKey, newAuthObj)
+        if lMultiAccountSetup:
+            root.setParameter(authKeyPrefix+"::" + service.getTIKServiceID() + "::" + userID2,   uuid2)                     # noqa
+            theOutput += ("Root UserID TWO and uuid TWO primed - ready for Online Banking Setup...\n")
 
-        for olacct in listAccountMDProxies:
+        root.syncItem()
+        ####################################################################################################################
 
-            authKey = "ofx:" + (realm + "::" + olacct[_ACCOUNT].getAccountKey())
+        theOutput += ("accessing authentication keys\n")
+
+        _ACCOUNT = 0
+        _SERVICE = 1
+        _ISBILLPAY = 2
+
+        check = 0
+        whichAccounts = []
+        if selectedBankAccount:
+            check += 1
+            whichAccounts.append(selectedBankAccount)
+        if selectedCCAccount:
+            check += 1
+            whichAccounts.append(selectedCCAccount)
+
+        listAccountMDProxies=[]
+        for acctObj in whichAccounts:
+            acct = acctObj                                 # type: Account
+            svcBank = acct.getBankingFI()                  # noqa
+            svcBPay = acct.getBillPayFI()                  # noqa
+            if svcBank is not None:
+                theOutput += (" - Found/Saved Banking Acct: %s\n" %acct)
+                listAccountMDProxies.append([MDAccountProxy(acct, False),svcBank,False])
+            if svcBPay is not None:
+                theOutput += (" - Found/Saved Bill Pay Acct: %s\n" %acct)
+                listAccountMDProxies.append([MDAccountProxy(acct, True),svcBPay,True])
+
+        if len(listAccountMDProxies) != check:
+            alert_and_exit("LOGIC ERROR: listAccountMDProxies != %s - Some changes have been made - review log....." %check)
+
+        theOutput += ("\n>>REALMs configured:\n")
+        realmsToCheck = service.getRealms()         # noqa
+        if "DEFAULT" not in realmsToCheck:
+            realmsToCheck.insert(0,"DEFAULT")       # noqa
+
+        newAuthObj = "type=0&userid=%s&pass=%s&extra=" %(URLEncoder.encode(userID),URLEncoder.encode(password))
+
+        for realm in realmsToCheck:
+
+            theOutput += ("Realm: %s current User ID: %s\n" %(realm, service.getUserId(realm, None)))
+
+            authKey = "ofx:" + realm
             authObj = service.getCachedAuthentication(authKey)
-            theOutput += ("Realm: %s Account Key: %s old Cached Authentication: %s\n" %(realm, olacct[_ACCOUNT].getAccountKey(),authObj))
-            theOutput += ("   >>** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj))
+            theOutput += ("Realm: %s old Cached Authentication: %s\n" %(realm, authObj))
+            theOutput += ("   >> ** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj))
             service.cacheAuthentication(authKey, newAuthObj)
 
-        theOutput += ("Realm: %s now UserID: %s\n" %(realm, userID))
-        theOutput += ("-------------------------\n")
+            for olacct in listAccountMDProxies:
 
-    ####################################################################################################################
-    MD_REF.getCurrentAccount().getBook().getLocalStorage().save()  # Flush settings to disk before changes
-    ####################################################################################################################
+                authKey = "ofx:" + (realm + "::" + olacct[_ACCOUNT].getAccountKey())
+                authObj = service.getCachedAuthentication(authKey)
+                theOutput += ("Realm: %s Account Key: %s old Cached Authentication: %s\n" %(realm, olacct[_ACCOUNT].getAccountKey(),authObj))
+                theOutput += ("   >>** Setting new cached authentication from %s to: %s\n" %(authKey, newAuthObj))
+                service.cacheAuthentication(authKey, newAuthObj)
 
-    theOutput += ("FINISHED UPDATES\n")
-    theOutput += ("----------------\n")
+            theOutput += ("Realm: %s now UserID: %s\n" %(realm, userID))
+            theOutput += ("-------------------------\n")
+
+        ####################################################################################################################
+        MD_REF.getCurrentAccount().getBook().getLocalStorage().save()  # Flush settings to disk before changes
+        ####################################################################################################################
+
+        theOutput += ("FINISHED UPDATES\n")
+        theOutput += ("----------------\n")
 
 
-    last_date_options = ["NO (FINISHED)", "YES - VIEW LAST TXN DOWNLOAD DATES"]
-    theResult = JOptionPane.showOptionDialog(ofx_create_new_usaa_bank_profile_frame_,
-                                             "SUCCESS! >> Now would you like to view your last txn download dates?",
-                                             "LAST DOWNLOAD DATES",
-                                             JOptionPane.YES_NO_OPTION,
-                                             JOptionPane.QUESTION_MESSAGE,
-                                             None,
-                                             last_date_options,
-                                             last_date_options[0])
-    if theResult > 0:
+        last_date_options = ["NO (FINISHED)", "YES - VIEW LAST TXN DOWNLOAD DATES"]
+        theResult = JOptionPane.showOptionDialog(ofx_create_new_usaa_bank_profile_frame_,
+                                                 "SUCCESS! >> Now would you like to view your last txn download dates?",
+                                                 "LAST DOWNLOAD DATES",
+                                                 JOptionPane.YES_NO_OPTION,
+                                                 JOptionPane.QUESTION_MESSAGE,
+                                                 None,
+                                                 last_date_options,
+                                                 last_date_options[0])
+        if theResult > 0:
 
-        def MyGetDownloadedTxns(theAcct):       # Use my version to prevent creation of default record(s)
+            def MyGetDownloadedTxns(theAcct):       # Use my version to prevent creation of default record(s)
 
-            myID = theAcct.getParameter("id", None)
-            defaultTxnsListID = myID + ".oltxns"
+                myID = theAcct.getParameter("id", None)
+                defaultTxnsListID = myID + ".oltxns"
 
-            if myID is not None and myID != "":
-                defaultTxnList = MD_REF.getCurrentAccount().getBook().getItemForID(defaultTxnsListID)   # type: SyncableItem
-                if defaultTxnList is not None and isinstance(defaultTxnList, OnlineTxnList):
-                    return defaultTxnList
-
-            txnsListID = theAcct.getParameter("ol_txns_list_id", None)
-            if txnsListID is None or txnsListID == "":
                 if myID is not None and myID != "":
-                    txnsListID = defaultTxnsListID
+                    defaultTxnList = MD_REF.getCurrentAccount().getBook().getItemForID(defaultTxnsListID)   # type: SyncableItem
+                    if defaultTxnList is not None and isinstance(defaultTxnList, OnlineTxnList):
+                        return defaultTxnList
 
-            if txnsListID is not None and txnsListID != "":
-                txnsObj = MD_REF.getCurrentAccount().getBook().getItemForID(txnsListID)              # type: SyncableItem
-                if (txnsObj is not None and isinstance(txnsObj, OnlineTxnList)):
-                    return txnsObj
+                txnsListID = theAcct.getParameter("ol_txns_list_id", None)
+                if txnsListID is None or txnsListID == "":
+                    if myID is not None and myID != "":
+                        txnsListID = defaultTxnsListID
 
-            return None
+                if txnsListID is not None and txnsListID != "":
+                    txnsObj = MD_REF.getCurrentAccount().getBook().getItemForID(txnsListID)              # type: SyncableItem
+                    if (txnsObj is not None and isinstance(txnsObj, OnlineTxnList)):
+                        return txnsObj
 
-        accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(3))
-        accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+                return None
 
-        outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n"\
-                 "--------------------------------------------\n\n"\
-                 "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
+            accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(3))
+            accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
 
-        for acct in accountsDL:
-            theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)
-            if theOnlineTxnRecord is None:
-                prettyLastTxnDate = "Never downloaded = 'Download all available dates'"
-            else:
-                theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
-                if theCurrentDate > 0:
-                    prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
+            outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n"\
+                     "--------------------------------------------\n\n"\
+                     "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
+
+            for acct in accountsDL:
+                theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)
+                if theOnlineTxnRecord is None:
+                    prettyLastTxnDate = "Never downloaded = 'Download all available dates'"
                 else:
-                    prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates' (if on MD2022 onwards, MD will prompt you for a start date)"
+                    theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
+                    if theCurrentDate > 0:
+                        prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
+                    else:
+                        prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates' (if on MD2022 onwards, MD will prompt you for a start date)"
 
-            outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
+                outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
 
-        outputDates += "\nIf you have Moneydance Version 2021.1(build 2012+) then you can use the Toolbox extension if you want to change any of these dates....\n" \
-                       "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
-                       "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
-                       "%s\n\n" \
-                       "YOU CAN EDIT THE LAST TXN DOWNLOAD DATE(s) BEFORE YOU DOWNLOAD ANYTHING\n" \
-                       %(MYPYTHON_DOWNLOAD_URL)
+            outputDates += "\nIf you have Moneydance Version 2021.1(build 2012+) then you can use the Toolbox extension if you want to change any of these dates....\n" \
+                           "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
+                           "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
+                           "%s\n\n" \
+                           "YOU CAN EDIT THE LAST TXN DOWNLOAD DATE(s) BEFORE YOU DOWNLOAD ANYTHING\n" \
+                           %(MYPYTHON_DOWNLOAD_URL)
 
-        outputDates += "\n<END>"
-        jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
-        myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            outputDates += "\n<END>"
+            jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
+            myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
-    theOutput += "SUCCESS!\n"
-    theOutput += "\n<END>\n"
+        theOutput += "SUCCESS!\n"
+        theOutput += "\n<END>\n"
 
-    myPrint("B", "@@@ %s: Script successfully completed all updates (review output log on screen) @@@", myModuleID.upper())
+        myPrint("B", "@@@ %s: Script successfully completed all updates (review output log on screen) @@@", myModuleID.upper())
 
-    jif2 = QuickJFrame(myModuleID.upper(),theOutput,copyToClipboard=True,lWrapText=False,lJumpToEnd=True).show_the_frame()
-    myPopupInformationBox(jif2, "SUCCESS. REVIEW OUTPUT (and console)", theMessageType=JOptionPane.WARNING_MESSAGE)
+        jif2 = QuickJFrame(myModuleID.upper(),theOutput,copyToClipboard=True,lWrapText=False,lJumpToEnd=True).show_the_frame()
+        myPopupInformationBox(jif2, "SUCCESS. REVIEW OUTPUT (and console)", theMessageType=JOptionPane.WARNING_MESSAGE)
+
+    except:
+        theOutput += dump_sys_error_to_md_console_and_errorlog(True)
+        jif3 = QuickJFrame(myModuleID.upper(),theOutput,copyToClipboard=True,lWrapText=False,lJumpToEnd=True).show_the_frame()
+        myPopupInformationBox(jif3, "ERROR. SCRIPT CRASHED - REVIEW OUTPUT (and console)", theMessageType=JOptionPane.ERROR_MESSAGE)
 
     cleanup_actions()
