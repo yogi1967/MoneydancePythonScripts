@@ -239,6 +239,7 @@
 # build: 1043 - Tweaked OFX Authentication menu... Added change OFX Password feature
 # build: 1044 - Enhanced OFX Authentication Menu. Added option to prime USAA UserID/ClientUID...; tweaked open md folder, for open system locations to work
 # build: 1044 - Added execution of ofx_populate_multiple_userids.py script...
+# build: 1044 - Added execution of ofx_create_new_usaa_bank_custom_profile.py script...
 
 # todo - Restore and retain syncid settings....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
@@ -8542,24 +8543,16 @@ Please update any that you use before proceeding....
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
-    def editSetupMultipleUserIDs():
-        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+    def scriptRunner(_runThisScript, _method):
 
-        _THIS_METHOD_NAME = "Manually 'prime' Root UserIDs/ClientUIDs".upper()
-
-        ask = MyPopUpDialogBox(toolbox_frame_,
-                         "This is a special process that will run a script",
-                         "You do not need to leave Toolbox....",
-                         theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
-
-        if not ask.go():
-            txt = "%s: User abandoned script execution" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "B"); myPrint("B", txt)
+        if MD_EXTENSION_LOADER is None:
+            txt = "%s: Sorry - You must be running Toolbox as an extension to run this extra script...." %(_method)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return False
 
         if GlobalVars.SCRIPT_RUNNING_LOCK.locked():
-            txt = "%s: Sorry - a script is already running with an active Lock" %(_THIS_METHOD_NAME)
+            txt = "%s: Sorry - a script is already running with an active Lock" %(_method)
             setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return False
@@ -8568,9 +8561,8 @@ Please update any that you use before proceeding....
             myPrint("B","**********************************************************")
             myPrint("B","**********************************************************")
             myPrint("B","**********************************************************")
-            scriptToRun = "ofx_populate_multiple_userids.py"
             py = MD_REF.getPythonInterpreter()
-            py.set("toolbox", "_is_running_this_")
+            py.set("toolbox_script_runner", _runThisScript)
             # py.getSystemState().setClassLoader(MD_EXTENSION_LOADER)
             # py.set("moneydance_extension_loader", MD_EXTENSION_LOADER)
 
@@ -8589,9 +8581,9 @@ Please update any that you use before proceeding....
                     self.scriptStream.close()
                     self.context.resetPythonInterpreter(self.python)
 
-            scriptStream = MD_EXTENSION_LOADER.getResourceAsStream("/%s" %(scriptToRun))
+            scriptStream = MD_EXTENSION_LOADER.getResourceAsStream("/%s" %(_runThisScript))
 
-            t = Thread(ScriptRunnable(MD_REF, py, scriptStream, scriptToRun))
+            t = Thread(ScriptRunnable(MD_REF, py, scriptStream, _runThisScript))
             t.start()
 
             myPrint("DB", ".... post calling Thread().....")
@@ -8602,6 +8594,52 @@ Please update any that you use before proceeding....
             myPrint("B","**********************************************************")
 
         return True
+
+    def editSetupMultipleUserIDs():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "Manually 'prime' Root UserIDs/ClientUIDs".upper()
+
+        scriptToRun = "ofx_populate_multiple_userids.py"
+
+        ask = MyPopUpDialogBox(toolbox_frame_,
+                         "This is a special process that will run a script",
+                         "You do not need to leave Toolbox....\n"
+                         "Script: %s" %(scriptToRun),
+                         theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
+
+        if not ask.go():
+            txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return False
+
+        if scriptRunner(scriptToRun, _THIS_METHOD_NAME): return True
+
+        return False
+
+    def createUSAAProfile():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "Create USAA OFX Profile".upper()
+
+        scriptToRun = "ofx_create_new_usaa_bank_custom_profile.py"
+
+        ask = MyPopUpDialogBox(toolbox_frame_,
+                         "This is a special process that will run a script",
+                         "You do not need to leave Toolbox....\n"
+                         "Script: %s" %(scriptToRun),
+                         theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
+
+        if not ask.go():
+            txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return False
+
+        if scriptRunner(scriptToRun, _THIS_METHOD_NAME): return True
+
+        return False
 
     class StoreAccountList():
         def __init__(self, obj):
@@ -11867,6 +11905,9 @@ Please update any that you use before proceeding....
                             #     # Sean advised that always take the first item (there are duplicates in the list, but it is sorted)
                             #     output += pad(">> Banking Services first candidate:",50)+safeStr(acct.getBankingServices()[0].getService())+"\n"
                             #
+                            if acct.getOFXAccountNumber() is not None and acct.getOFXAccountNumber() != "":
+                                output += pad(">> OFX Account Number:",50)+safeStr(acct.getOFXAccountNumber())+"\n"
+
                             if acct.getBankingFI() is not None:
                                 output += pad(">> Bank Service/Logon profile:",50)+safeStr(acct.getBankingFI())+"\n"
                                 if my_get_account_key(acct):
@@ -22512,6 +22553,11 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_deleteALLOnlineTxns.setEnabled(lAdvancedMode)
                 user_deleteALLOnlineTxns.setForeground(getColorRed())
 
+                user_createUSAAProfile = JRadioButton("USAA Only: Executes the special script to create a working USAA OFX Profile", False)
+                user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
+                user_createUSAAProfile.setEnabled(lAdvancedMode)
+                user_createUSAAProfile.setForeground(getColorRed())
+
                 user_cookieManagement = JRadioButton("OFX Cookie Management (Hacker Mode only)", False)
                 user_cookieManagement.setToolTipText("Brings up the sub menu. Allows you to manage your OFX cookies - Advanced + Hacker Mode only. THIS CAN CHANGE DATA!")
                 user_cookieManagement.setEnabled(lAdvancedMode and lHackerMode)
@@ -22558,6 +22604,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_authenticationManagement)
                 bg.add(user_deleteOnlineTxns)
                 bg.add(user_deleteALLOnlineTxns)
+                bg.add(user_createUSAAProfile)
                 bg.add(user_updateOFXLastTxnUpdate)
                 bg.add(user_viewListALLMDServices)
                 # bg.add(user_toggleOFXDebug)
@@ -22591,6 +22638,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_authenticationManagement)
                 userFilters.add(user_deleteOnlineTxns)
                 userFilters.add(user_deleteALLOnlineTxns)
+                userFilters.add(user_createUSAAProfile)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("---- ADVANCED + HACKER MODE ONLY  -----"))
                 if not lAdvancedMode or not lHackerMode:
@@ -22652,8 +22700,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         return
 
                     if user_authenticationManagement.isSelected():
-                        if OFX_authentication_management():
-                            return
+                        if OFX_authentication_management(): return
 
                     if user_exportMDPlusProfile.isSelected():
                         export_MDPlus_Profile()
@@ -22703,6 +22750,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_deleteALLOnlineTxns.isSelected():
                         OFX_delete_ALL_saved_online_txns()
                         return
+
+                    if user_createUSAAProfile.isSelected():
+                        if createUSAAProfile(): return
 
                     if user_updateOFXLastTxnUpdate.isSelected():
                         OFX_update_OFXLastTxnUpdate()

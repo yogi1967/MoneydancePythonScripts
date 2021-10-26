@@ -107,10 +107,22 @@ else
   fi
 fi
 
+echo "Removing all existing files from target directory..."
+rm -f "${PUSHDIR}/${MODULE}"/*.*
+
 cp "./source/${MODULE}"/* "${PUSHDIR}/${MODULE}/."
 if [ $? -ne 0 ]; then
   echo "*** cp ./source/${MODULE}/* Failed??"
   exit 11
+fi
+
+if [ "${MODULE}" = "toolbox" ]; then
+  echo "Copy extra scripts for Toolbox..."
+  cp "./source/useful_scripts"/ofx_*.py "${PUSHDIR}/${MODULE}/."
+  if [ $? -ne 0 ]; then
+    echo "*** cp extra scripts ofx*.py failed??"
+    exit 5
+  fi
 fi
 
 if [ "${BUNDLE_JAVA}" = "YES" ]; then

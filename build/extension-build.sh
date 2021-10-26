@@ -81,6 +81,7 @@ echo "Module build for ${EXTN_NAME} running.... Restrict Script Publication=${RE
 sMXT="s-${EXTN_NAME}.mxt"
 ZIP="./${EXTN_NAME}.zip"
 EXTN_DIR="./source/${EXTN_NAME}"
+USEFUL_SCRIPTS_DIR="./source/useful_scripts"
 MXT="${EXTN_DIR}/${EXTN_NAME}.mxt"
 
 JAVA_JAR="stuwaresoftsystems_commoncode.jar"
@@ -214,11 +215,20 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
 
 else
 
-  echo "Checking / creating ${FM_DIR} if needed..."
+  if [ "${EXTN_NAME}" = "toolbox" ]; then
+    echo "Copy extra scripts for Toolbox..."
+    cp ${USEFUL_SCRIPTS_DIR}/ofx_*.py "${EXTN_DIR}"/.
+    if [ $? -ne 0 ]; then
+      echo "*** cp extra scripts ofx*.py failed??"
+      exit 5
+    fi
+  fi
+
+  echo "Checking / creating ${FM_DIR} dir if needed..."
   mkdir -v -p "${FM_DIR}"
   if [ $? -ne 0 ]; then
-    echo "*** MKDIR Failed??"
-    exit 5
+    echo "*** MKDIR ${FM_DIR} dir failed??"
+    exit 6
   fi
 
   echo "Copy meta_info.dict..."
@@ -334,6 +344,15 @@ else
   if [ $? -ne 0 ]; then
     echo "*** cp pub_key Failed??"
     exit 16
+  fi
+
+  if [ "${EXTN_NAME}" = "toolbox" ]; then
+    echo "Remove extra scripts compiked into Toolbox..."
+    rm "${EXTN_DIR}"/ofx_*.py
+    if [ $? -ne 0 ]; then
+      echo "*** rm extra scripts ofx*.py failed??"
+      exit 5
+    fi
   fi
 
   echo "Removing old signed mxts if they existed..."
