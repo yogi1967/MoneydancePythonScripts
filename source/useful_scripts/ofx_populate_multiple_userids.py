@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_populate_multiple_userids.py (build 3) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_populate_multiple_userids.py (build 4) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # This script allows you to add multiple UserIDs to a working OFX profile
 
@@ -36,6 +36,7 @@
 # build: 1 - Initial preview release..... Based upon ofx_create_new_usaa_bank_profile.py (now deprecated)
 # build: 2 - Enhanced to run within Toolbox
 # build: 3 - Enhanced further to run within Toolbox
+# build: 4 - Tweaks - allow when downgraded from MD2022; manually update mapping table if on MD2021 or lower....
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -43,7 +44,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_populate_multiple_userids"
-version_build = "3"
+version_build = "4"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -2544,15 +2545,12 @@ Visit: %s (Author's site)
     if isMDPlusEnabledBuild():
         myPrint("B", "MD2022+ build detected.. Enabling new features....")
         from com.infinitekind.moneydance.model import OnlineAccountMapping
-        if book.getItemForID("online_acct_mapping") is not None:
-            myPrint("B", "Online Account Mapping object found and reference stored....")
-        else:
-            myPrint("B", "No Online Account mapping object found...")
 
     if not isMDPlusEnabledBuild() and book.getItemForID("online_acct_mapping") is not None:
-        alert = "MD version older than MD2022 detected, but you have an Online Account mapping object.. Have you downgraded? SORRY >> CANNOT PROCEED!"
-        myPopupInformationBox(ofx_populate_multiple_userids_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-        raise Exception(alert)
+        if not myPopupAskQuestion(ofx_populate_multiple_userids_frame_,"OFX: POPULATE MULTIPLE USERIDs - WARNING","MD version older than MD2022 detected, but you already have MD2022 format Data (a downgrade?).... Proceed anyway?"):
+            alert = "MD version older than MD2022 detected, but you have an Online Account mapping object.. Have you downgraded? USER DECIDED NOT TO PROCEED!"
+            myPopupInformationBox(ofx_populate_multiple_userids_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
 
     def isUserEncryptionPassphraseSet():
 
@@ -2775,34 +2773,57 @@ Visit: %s (Author's site)
                 " ===================================================\n\n"
     theOutput += "Build %s of script\n\n" %(version_build)
 
+    lRunningFromToolbox = False
     if "toolbox_script_runner" in globals():
         global toolbox_script_runner
         myPrint("B","Toolbox script runner detected: %s (build: %s)" %(toolbox_script_runner, version_build))
         theOutput += "\n** Running from within the Toolbox extension **\n\n"
+        lRunningFromToolbox = True
 
-    ask = MyPopUpDialogBox(ofx_populate_multiple_userids_frame_, "This script will update an existing (working) OFX profile with multiple User IDs:",
-                           "Get the latest useful_scripts.zip package from: %s \n"
-                           "You have to select a WORKING profile, answer a series of questions, and enter your UserID/Password details\n"
-                           "..A working profile that has been successfully used on all of your accounts will be the best....\n\n"
-                           "NOTE: This script will largely ignore BillPay.. If it's there it will 'gloss over it'....\n\n"
-                           "If your Bank requires a (hidden) machine specific Client UUID, then script generates a new one (per user)\n"
-                           "... This may mean you have to re-approve access for each user (review email / Bank's online security centre)\n"
-                           "You can also generate a new Default Client UUID for all other Profiles that use a default (OPTIONAL)\n"
-                           "NOTE: User1 is always your default UserID too... Enter the total number of Users you need.\n"
-                           "You can review the existing (hidden) OFX data, and edit it if you wish (very carefully) [OPTIONAL]\n"
-                           "You can also enter missing key data... But you will need to know your Bank's reference for your Account Number\n"
-                           "Toolbox extension > Online Banking (OFX) Menu > View installed bank / service profiles might help you here...."
-                           %(MYPYTHON_DOWNLOAD_URL),
-                           250,"KNOWLEDGE",
-                           lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+    if isMDPlusEnabledBuild() and float(MD_REF.getBuild()) < 4059:
+        alert_and_exit("WARNING: You need to upgrade to at least version MD2022.1(4059) for USAA Connections to work properly! - No changes made!")
+
+    if not lRunningFromToolbox:
+        ask = MyPopUpDialogBox(ofx_populate_multiple_userids_frame_, "This script will update an existing (working) OFX profile with multiple User IDs:",
+                               "Get the latest useful_scripts.zip package from: %s \n"
+                               "You have to select a WORKING profile, answer a series of questions, and enter your UserID/Password details\n"
+                               "..A working profile that has been successfully used on all of your accounts will be the best....\n\n"
+                               "NOTE: This script will largely ignore BillPay.. If it's there it will 'gloss over it'....\n\n"
+                               "If your Bank requires a (hidden) machine specific Client UUID, then script generates a new one (per user)\n"
+                               "... This may mean you have to re-approve access for each user (review email / Bank's online security centre)\n"
+                               "You can also generate a new Default Client UUID for all other Profiles that use a default (OPTIONAL)\n"
+                               "NOTE: User1 is always your default UserID too... Enter the total number of Users you need.\n"
+                               "You can review the existing (hidden) OFX data, and edit it if you wish (very carefully) [OPTIONAL]\n"
+                               "You can also enter missing key data... You will need to know your Bank's reference for your Account Number\n"
+                               "Toolbox extension > Online Banking (OFX) Menu > View installed bank / service profiles might help you here...."
+                               %(MYPYTHON_DOWNLOAD_URL),
+                               250,"KNOWLEDGE",
+                               lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+    else:
+        ask = MyPopUpDialogBox(ofx_populate_multiple_userids_frame_, "This script will update an existing (working) OFX profile with multiple User IDs:",
+                               "Get the latest Toolbox extension from: %s\n"
+                               "You have to select a WORKING profile, answer a series of questions, and enter your UserID/Password details\n"
+                               "..A working profile that has been successfully used on all of your accounts will be the best....\n\n"
+                               "NOTE: This script will largely ignore BillPay.. If it's there it will 'gloss over it'....\n\n"
+                               "If your Bank requires a (hidden) machine specific Client UUID, then script generates a new one (per user)\n"
+                               "... This may mean you have to re-approve access for each user (review email / Bank's online security centre)\n"
+                               "You can also generate a new Default Client UUID for all other Profiles that use a default (OPTIONAL)\n"
+                               "NOTE: User1 is always your default UserID too... Enter the total number of Users you need.\n"
+                               "You can review the existing (hidden) OFX data, and edit it if you wish (very carefully) [OPTIONAL]\n"
+                               "You can also enter missing key data... You will need to know your Bank's reference for your Account Number\n"
+                               "Toolbox extension > Online Banking (OFX) Menu > View installed bank / service profiles might help you here...."
+                               %(MYPYTHON_DOWNLOAD_URL),
+                               250,"KNOWLEDGE",
+                               lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
     if not ask.go():
         alert_and_exit("Knowledge rejected - no changes made")
 
-    if not myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "BACKUP", "ADD USERIDs TO OFX PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made.")
+    if not lRunningFromToolbox:
+        if not myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "BACKUP", "ADD USERIDs TO OFX PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
+            alert_and_exit("BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made.")
 
-    if not myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("Disclaimer rejected - no changes made")
+        if not myPopupAskQuestion(ofx_populate_multiple_userids_frame_, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
+            alert_and_exit("Disclaimer rejected - no changes made")
 
     lIgnoreBillPay = True
     if not lIgnoreBillPay:
@@ -3367,27 +3388,32 @@ Visit: %s (Author's site)
         theOutput += "--------------------------------------------------------------------------------\n"
 
         lMappingNeedsSync = False
-        mappingObject = None
-        if isMDPlusEnabledBuild():
-            mappingObject = book.getItemForID("online_acct_mapping")
-            if mappingObject is not None:
-                mappingKeys = list(mappingObject.getParameterKeys())
-                for i in range(0, len(mappingKeys)):
-                    pk = mappingKeys[i]
-                    if pk.startswith("map.") and (selectedService.getTIKServiceID() in pk):
-                        theOutput += "Deleting old Account Mapping %s: %s\n" %(pk, mappingObject.getParameter(pk))
-                        mappingObject.setEditingMode()
-                        mappingObject.setParameter(pk, None)
-                        lMappingNeedsSync = True
-                del mappingKeys
-                if lMappingNeedsSync: mappingObject.syncItem()
+        mappingObject = book.getItemForID("online_acct_mapping")
+        if mappingObject is not None:
+            mappingKeys = list(mappingObject.getParameterKeys())
+            for i in range(0, len(mappingKeys)):
+                pk = mappingKeys[i]
+                if pk.startswith("map.") and (selectedService.getTIKServiceID() in pk):
+                    theOutput += "Deleting old Account Mapping %s: %s\n" %(pk, mappingObject.getParameter(pk))
+                    mappingObject.setEditingMode()
+                    mappingObject.setParameter(pk, None)
+                    lMappingNeedsSync = True
+            del mappingKeys
+            if lMappingNeedsSync: mappingObject.syncItem()
         del mappingObject
 
-        lMappingNeedsSync = False
+        mappingObject = None
+        lManualMappingNeedsSync = False
+
         mappingObjectClass = None
+        lMappingNeedsSync = False
+
         if isMDPlusEnabledBuild():
             theOutput += "Grabbing reference to OnlineAccountMapping() with selected service profile...\n"
             mappingObjectClass =  OnlineAccountMapping(book, selectedService)
+        else:
+            theOutput += "Grabbing manual reference to MD2022 mapping object (if it exists)...\n"
+            mappingObject = book.getItemForID("online_acct_mapping")
 
         ####################################################################################################################
         theOutput += "\n"
@@ -3400,10 +3426,6 @@ Visit: %s (Author's site)
             acct.setBankingFI(None)
             if isMDPlusEnabledBuild():
                 acct.setOnlineIDForServiceID(selectedService.getTIKServiceID(), None)
-                # if mappingObjectClass is not None:
-                #     mappingObjectClass.setMapping(acct.getOFXAccountNumber(), None)
-                #     mappingObjectClass.setMapping(acct.getOFXAccountNumber(), None)
-                #     lMappingNeedsSync = True
             acct.syncItem()
         del delinkAccounts
 
@@ -3513,6 +3535,8 @@ Visit: %s (Author's site)
         lChangedAvailableAccounts = False
         updatedAccounts = selectedService.getAvailableAccounts()
 
+        validateListOnlineAccounts = []
+
         for onUser in range(0,len(userIDList)):
             theOutput += "... Adding UserID: %s\n" %(userIDList[onUser].getUserID())
             actualIDNumber = onUser+1
@@ -3523,6 +3547,7 @@ Visit: %s (Author's site)
 
                 if acct.getOFXAccountNumber() != "":
                     lFound = False
+                    validateListOnlineAccounts.append(acct.getOFXAccountNumber())
                     for onlineAcct in updatedAccounts:
                         if onlineAcct.getAccountNumber() == acct.getOFXAccountNumber():
                             theOutput += "...Found online account: %s in .getAvailableAccounts() - skipping the add...\n" %(acct.getOFXAccountNumber())
@@ -3549,8 +3574,24 @@ Visit: %s (Author's site)
                     del lFound
 
                 if isMDPlusEnabledBuild() and mappingObjectClass is not None and acct.getOFXAccountNumber() != "":
+                    theOutput += (".. setting bank account %s into MD2022 map for: %s\n" %(acct.getOFXAccountNumber(), acct))
                     mappingObjectClass.setMapping(acct.getOFXAccountNumber(), acct)
                     lMappingNeedsSync = True
+
+                elif not isMDPlusEnabledBuild() and mappingObject is not None and acct.getOFXAccountNumber() != "":
+                    mapPrefix = "map." + selectedService.getTIKServiceID() + ":::"
+                    theOutput += (".. manually setting bank account %s into MD2022 map for: %s\n" %(acct.getOFXAccountNumber(), acct))
+                    mappingObject.setAccountParameter(None, mapPrefix + acct.getOFXAccountNumber(), acct)
+                    lManualMappingNeedsSync = True
+
+        theOutput += ("\nScanning available accounts, removing orphans......\n")
+        for iSearchOnlineAccounts in reversed(range(0, len(updatedAccounts))):
+            onlineAcct  = updatedAccounts[iSearchOnlineAccounts]
+            if onlineAcct.getAccountNumber() not in validateListOnlineAccounts:
+                theOutput += ("... removed orphan acct: '%s' from available accounts\n" %(onlineAcct.getAccountNumber()))
+                updatedAccounts.remove(iSearchOnlineAccounts)
+                lChangedAvailableAccounts = True
+        del validateListOnlineAccounts
 
         if lChangedAvailableAccounts:
             selectedService.setAvailableAccounts(updatedAccounts)
@@ -3558,9 +3599,9 @@ Visit: %s (Author's site)
         theOutput += "... Saving updated OFX Profile...\n"
         selectedService.syncItem()
 
-        if lMappingNeedsSync:
-            mappingObjectClass.syncItem()
-        del lMappingNeedsSync, mappingObjectClass
+        if lMappingNeedsSync: mappingObjectClass.syncItem()
+        if lManualMappingNeedsSync: mappingObject.syncItem()
+        del lMappingNeedsSync, mappingObjectClass, lManualMappingNeedsSync, mappingObject
 
         ####################################################################################################################
 
@@ -3653,8 +3694,8 @@ Visit: %s (Author's site)
             accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
 
             outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n"\
-                     "--------------------------------------------\n\n"\
-                     "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
+                          "--------------------------------------------\n\n"\
+                          "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
 
             for acct in accountsDL:
                 theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)

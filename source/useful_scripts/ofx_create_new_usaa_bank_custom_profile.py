@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_create_new_usaa_bank_custom_profile.py (build 24) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_create_new_usaa_bank_custom_profile.py (build 25) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 # https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf
@@ -74,6 +74,7 @@
 # build: 22 - Add "null" UserID back to root
 # build: 23 - Tweaks, and change realm from 'USAASignon' to 'default'
 # build: 24 - Enhanced to run via Toolbox
+# build: 25 - Tweaks - allow when downgraded from MD2022; manually update mapping table if on MD2021 or lower....
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -81,7 +82,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_create_new_usaa_bank_profile_custom"
-version_build = "24"
+version_build = "25"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -2577,18 +2578,20 @@ Visit: %s (Author's site)
     mappingObject = None
 
     if isMDPlusEnabledBuild():
-        myPrint("B", "MD2022+ build detected.. Enabling new features....")
+        myPrint("B", "MD2022+ build detected.. Enabling new features...")
         from com.infinitekind.moneydance.model import OnlineAccountMapping
-        mappingObject = book.getItemForID("online_acct_mapping")
-        if mappingObject is not None:
-            myPrint("B", "Online Account Mapping object found and reference stored....")
-        else:
-            myPrint("B", "No Online Account mapping object found...")
+
+    mappingObject = book.getItemForID("online_acct_mapping")
+    if mappingObject is not None:
+        myPrint("B", "Online Account Mapping object found and reference stored....")
+    else:
+        myPrint("B", "No Online Account mapping object found...")
 
     if not isMDPlusEnabledBuild() and book.getItemForID("online_acct_mapping") is not None:
-        alert = "MD version older than MD2022 detected, but you have an Online Account mapping object.. Have you downgraded? SORRY >> CANNOT PROCEED!"
-        myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
-        raise Exception(alert)
+        if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_,"USAA: Custom profile: WARNING","MD version older than MD2022 detected, but you already have MD2022 format Data (a downgrade?).... Proceed anyway?"):
+            alert = "MD version older than MD2022 detected, but you have an Online Account mapping object.. Have you downgraded? USER DECIDED NOT TO PROCEED!"
+            myPopupInformationBox(ofx_create_new_usaa_bank_profile_frame_, alert, theMessageType=JOptionPane.ERROR_MESSAGE)
+            raise Exception(alert)
 
     def isUserEncryptionPassphraseSet():
 
@@ -2725,45 +2728,70 @@ Visit: %s (Author's site)
                 " =============================================================\n\n"
     theOutput += "Build %s of script\n\n" %(version_build)
 
+    lRunningFromToolbox = False
     if "toolbox_script_runner" in globals():
         global toolbox_script_runner
         myPrint("B","Toolbox script runner detected: %s (build: %s)" %(toolbox_script_runner, version_build))
         theOutput += "\n** Running from within the Toolbox extension **\n\n"
+        lRunningFromToolbox = True
 
-    ask = MyPopUpDialogBox(ofx_create_new_usaa_bank_profile_frame_, "This script will delete your existing USAA bank profile(s) and CREATE A BRAND NEW CUSTOM USAA PROFILE:",
-                           "Get the latest useful_scripts.zip package from: %s \n"
-                           "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
-                           "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
-                           "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
-                           "It will also allow you to 'prime' a second additional set of credentials for setup later [optional]\n\n"
-                           "> You login to USAA at https://www.usaa.com/accessid to get your 'Quicken user' credentials.\n"
-                           "> This is also where you find your clientUid (UUID) hidden within the browser url (BEFORE you click approve Quicken access)\n\n"
-                           "This script will ask you for many numbers. You must know them:\n"
-                           "- Do you know your new Bank Supplied UUID (36 digits 8-4-4-4-12)?\n"
-                           "- Do you know your Bank supplied UserID (min length 8)?\n"
-                           "- Do you know your new Password (min length 6) - no longer a PIN?\n"
-                           "- Do you know your Bank Account Number(s) (10-digits) and routing Number (9-digits - usually '314074269')?\n"
-                           "- Do you know the DIFFERENT Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
-                           "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
-                           "NOTE: You can now use the 'ofx_populate_multiple_userids.py' script afterwards to update/edit (multiple) UserIDs/Passwords\n"
-                           "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL),
-                           250,"KNOWLEDGE",
-                           lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+    if isMDPlusEnabledBuild() and float(MD_REF.getBuild()) < 4059:
+        alert_and_exit("WARNING: You need to upgrade to at least version MD2022.1(4059) for USAA Connections to work properly! - No changes made!")
+
+    if not lRunningFromToolbox:
+        ask = MyPopUpDialogBox(ofx_create_new_usaa_bank_profile_frame_, "This script will delete your existing USAA bank profile(s) and CREATE A BRAND NEW CUSTOM USAA PROFILE:",
+                               "Get the latest useful_scripts.zip package from: %s \n"
+                               "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
+                               "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
+                               "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
+                               "> You login to USAA at https://www.usaa.com/accessid to get your 'Quicken user' credentials.\n"
+                               "> This is also where you find your clientUid (UUID) hidden within the browser url (BEFORE you click approve Quicken access)\n\n"
+                               "This script will ask you for many numbers. You must know them:\n"
+                               "- Do you know your new Bank Supplied UUID (36 digits 8-4-4-4-12)?\n"
+                               "- Do you know your Bank supplied UserID (min length 8)?\n"
+                               "- Do you know your new Password (min length 6) - no longer a PIN?\n"
+                               "- Do you know your Bank Account Number(s) (10-digits) and routing Number (9-digits - usually '314074269')?\n"
+                               "- Do you know the DIFFERENT Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
+                               "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
+                               "NOTE: You can now use the 'ofx_populate_multiple_userids.py' script afterwards to update/edit (multiple) UserIDs/Passwords\n"
+                               "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL),
+                               250,"KNOWLEDGE",
+                               lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+    else:
+        ask = MyPopUpDialogBox(ofx_create_new_usaa_bank_profile_frame_, "This script will delete your existing USAA bank profile(s) and CREATE A BRAND NEW CUSTOM USAA PROFILE:",
+                               "Get the latest Toolbox extension from: %s\n"
+                               "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
+                               "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
+                               "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
+                               "> You login to USAA at https://www.usaa.com/accessid to get your 'Quicken user' credentials.\n"
+                               "> This is also where you find your clientUid (UUID) hidden within the browser url (BEFORE you click approve Quicken access)\n\n"
+                               "This script will ask you for many numbers. You must know them:\n"
+                               "- Do you know your new Bank Supplied UUID (36 digits 8-4-4-4-12)?\n"
+                               "- Do you know your Bank supplied UserID (min length 8)?\n"
+                               "- Do you know your new Password (min length 6) - no longer a PIN?\n"
+                               "- Do you know your Bank Account Number(s) (10-digits) and routing Number (9-digits - usually '314074269')?\n"
+                               "- Do you know the DIFFERENT Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
+                               "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
+                               "NOTE: You can now use Toolbox afterwards (OFX Authentication Menu) to update/edit (multiple) UserIDs/Passwords\n"
+                               "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL),
+                               250,"KNOWLEDGE",
+                               lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+
     if not ask.go():
         alert_and_exit("Knowledge rejected - no changes made")
 
-    if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "BACKUP", "CREATE A NEW (CUSTOM) USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made.")
+    if not lRunningFromToolbox:
+        if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "BACKUP", "CREATE A NEW (CUSTOM) USAA PROFILE >> HAVE YOU DONE A GOOD BACKUP FIRST?", theMessageType=JOptionPane.WARNING_MESSAGE):
+            alert_and_exit("BACKUP FIRST! PLEASE USE FILE>EXPORT BACKUP then come back!! - No changes made.")
 
-    if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
-        alert_and_exit("Disclaimer rejected - no changes made")
+        if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_, "DISCLAIMER", "DO YOU ACCEPT YOU RUN THIS AT YOUR OWN RISK?", theMessageType=JOptionPane.WARNING_MESSAGE):
+            alert_and_exit("Disclaimer rejected - no changes made")
 
     lCachePasswords = (isUserEncryptionPassphraseSet() and MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage().getBoolean("store_passwords", False))
     if not lCachePasswords:
         if not myPopupAskQuestion(ofx_create_new_usaa_bank_profile_frame_,"STORE PASSWORDS","Your system is not set up to save/store passwords. Do you want to continue?",theMessageType=JOptionPane.ERROR_MESSAGE):
             alert_and_exit("Please set up Master password and select store passwords first - then try again - no changes made")
         theOutput += ("Proceeding even though system is not set up for passwords\n")
-
 
     try:
 
@@ -3403,7 +3431,9 @@ Visit: %s (Author's site)
         newService.setParameter(PARAMETER_KEY, "python fix script")
         newService.syncItem()
 
+        mappingObject = book.getItemForID("online_acct_mapping")
         mappingObjectClass = None
+
         if isMDPlusEnabledBuild():
             theOutput += ("Grabbing reference to OnlineAccountMapping() with new service profile...\n")
             mappingObjectClass =  OnlineAccountMapping(book, newService)
@@ -3418,7 +3448,23 @@ Visit: %s (Author's site)
 
             mappingObjectClass.syncItem()
 
-        del mappingObjectClass
+        elif mappingObject is not None:
+
+            mapPrefix = "map." + newService.getTIKServiceID() + ":::"
+
+            theOutput += ("Grabbing reference to MD2022 mapping table the hard way as you are on MD2021 or lower...\n")
+            if selectedBankAccount:
+                theOutput += (".. manually setting bank account %s into MD2022 map for: %s\n" %(bankID, selectedBankAccount))
+                mappingObject.setAccountParameter(None, mapPrefix + str(bankID).zfill(10), selectedBankAccount)
+
+            if selectedCCAccount:
+                theOutput += (".. manually setting cc account %s into MD2022 map for: %s\n" %(ccID, selectedCCAccount))
+                mappingObject.setAccountParameter(None, mapPrefix + str(ccID), selectedCCAccount)
+
+            mappingObject.syncItem()
+            del mapPrefix
+
+        del mappingObjectClass, mappingObject
 
         ####################################################################################################################
 
@@ -3611,8 +3657,8 @@ Visit: %s (Author's site)
             accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
 
             outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n"\
-                     "--------------------------------------------\n\n"\
-                     "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
+                          "--------------------------------------------\n\n"\
+                          "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
 
             for acct in accountsDL:
                 theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)

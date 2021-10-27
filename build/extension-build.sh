@@ -527,3 +527,17 @@ else
   echo "PROBLEM CREATING FINAL DISTRIBUTION ${ZIP} !"
   exit 31
 fi
+
+if [ "${EXTN_NAME}" = "useful_scripts" ]; then
+
+  if [ "${USEFUL_SCRIPTS_DIR}/"ofx_populate_multiple_userids.py -nt ./source/toolbox/toolbox.mxt ]; then
+    echo "@@@ WARNING >> Detected that ofx_populate_multiple_userids.py is newer than toolbox.mxt! Please rebuild toolbox..."
+    read -p "Press any key to continue..."
+  fi
+
+  if [ "${USEFUL_SCRIPTS_DIR}/"ofx_create_new_usaa_bank_custom_profile.py -nt ./source/toolbox/toolbox.mxt ]; then
+    echo "@@@ WARNING >> Detected that ofx_create_new_usaa_bank_custom_profile.py is newer than toolbox.mxt! Please rebuild toolbox..."
+    read -p "Press any key to continue..."
+  fi
+
+fi

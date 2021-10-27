@@ -8168,10 +8168,16 @@ Please update any that you use before proceeding....
         if len(_uid) > 32: _uid = String(_uid).substring(0, 32)
         return _uid
 
-    def manuallyPrimeRootUserIDClientIDs():
+    def manuallyPrimeUSAARootUserIDClientIDs():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         _THIS_METHOD_NAME = "Manually 'prime' Root UserIDs/ClientUIDs".upper()
+
+        if isMDPlusEnabledBuild() and float(MD_REF.getBuild()) < 4059:
+            txt = ("WARNING: You need to upgrade to at least version MD2022.1(4059) for USAA Connections to work properly! - No changes made!")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,txt, _THIS_METHOD_NAME,JOptionPane.ERROR_MESSAGE)
+            return
 
         NEW_TIK_FI_ID = "md:custom-1295"    # as of 23rd Oct, the 'official' custom profile ID
 
@@ -9111,9 +9117,6 @@ Please update any that you use before proceeding....
         user_editStoredOFXPasswords = JRadioButton("Edit stored authentication passwords linked to a working OFX Profile", False)
         user_editStoredOFXPasswords.setToolTipText("Manual edit of remembered OFX passwords linked to an OFX profile...")
 
-        user_manuallyPrimeRootUserIDClientIDs = JRadioButton("USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
-        user_manuallyPrimeRootUserIDClientIDs.setToolTipText("USAA Only: Allows you to 'prime' / overwrite stored UserIDs/ClientUIDs for USSA")
-
         user_manualEditOfRootUserIDs = JRadioButton("Manual Edit of stored Root UserIDs/ClientUIDs", False)
         user_manualEditOfRootUserIDs.setToolTipText("Manual edit of any stored UserID/ClientUID raw record (from root account)")
 
@@ -9124,7 +9127,6 @@ Please update any that you use before proceeding....
         bg.add(user_clearAllServicesAuthCache)
         bg.add(user_editSetupMultipleUserIDs)
         bg.add(user_editStoredOFXPasswords)
-        bg.add(user_manuallyPrimeRootUserIDClientIDs)
         bg.add(user_manualEditOfRootUserIDs)
         bg.clearSelection()
 
@@ -9132,7 +9134,6 @@ Please update any that you use before proceeding....
         userFilters.add(user_clearAllServicesAuthCache)
         userFilters.add(user_editSetupMultipleUserIDs)
         userFilters.add(user_editStoredOFXPasswords)
-        userFilters.add(user_manuallyPrimeRootUserIDClientIDs)
         userFilters.add(user_manualEditOfRootUserIDs)
 
         while True:
@@ -9162,9 +9163,6 @@ Please update any that you use before proceeding....
 
             if user_editStoredOFXPasswords.isSelected():
                 editStoredOFXPasswords()
-
-            if user_manuallyPrimeRootUserIDClientIDs.isSelected():
-                manuallyPrimeRootUserIDClientIDs()
 
             if user_manualEditOfRootUserIDs.isSelected():
                 manualEditOfRootUserIDs()
@@ -22574,11 +22572,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_deleteALLOnlineTxns.setEnabled(lAdvancedMode)
                 user_deleteALLOnlineTxns.setForeground(getColorRed())
 
-                user_createUSAAProfile = JRadioButton("USAA Only: Executes the special script to create a working USAA OFX Profile", False)
-                user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
-                user_createUSAAProfile.setEnabled(lAdvancedMode)
-                user_createUSAAProfile.setForeground(getColorRed())
-
                 user_cookieManagement = JRadioButton("OFX Cookie Management (Hacker Mode only)", False)
                 user_cookieManagement.setToolTipText("Brings up the sub menu. Allows you to manage your OFX cookies - Advanced + Hacker Mode only. THIS CAN CHANGE DATA!")
                 user_cookieManagement.setEnabled(lAdvancedMode and lHackerMode)
@@ -22598,6 +22591,16 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
                 user_zapMDPlusProfile.setEnabled((lAdvancedMode and lHackerMode) and (not isMDPlusLicenseActivated() or isToolboxUnlocked()))
                 user_zapMDPlusProfile.setForeground(getColorRed())
+
+                user_manuallyPrimeUSAARootUserIDClientIDs = JRadioButton("USAA ONLY: (NEW METHOD) Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
+                user_manuallyPrimeUSAARootUserIDClientIDs.setToolTipText("USAA Only: Allows you to 'prime' / overwrite stored UserIDs/ClientUIDs for USSA")
+                user_manuallyPrimeUSAARootUserIDClientIDs.setEnabled(lAdvancedMode)
+                user_manuallyPrimeUSAARootUserIDClientIDs.setForeground(getColorRed())
+
+                user_createUSAAProfile = JRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False)
+                user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
+                user_createUSAAProfile.setEnabled(lAdvancedMode)
+                user_createUSAAProfile.setForeground(getColorRed())
 
                 labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced mode **")
                 labelFYI2.setForeground(getColorRed())
@@ -22625,6 +22628,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_authenticationManagement)
                 bg.add(user_deleteOnlineTxns)
                 bg.add(user_deleteALLOnlineTxns)
+                bg.add(user_manuallyPrimeUSAARootUserIDClientIDs)
                 bg.add(user_createUSAAProfile)
                 bg.add(user_updateOFXLastTxnUpdate)
                 bg.add(user_viewListALLMDServices)
@@ -22659,7 +22663,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_authenticationManagement)
                 userFilters.add(user_deleteOnlineTxns)
                 userFilters.add(user_deleteALLOnlineTxns)
-                userFilters.add(user_createUSAAProfile)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("---- ADVANCED + HACKER MODE ONLY  -----"))
                 if not lAdvancedMode or not lHackerMode:
@@ -22670,6 +22673,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_exportMDPlusProfile)
                     userFilters.add(user_importMDPlusProfile)
                     userFilters.add(user_zapMDPlusProfile)
+
+                userFilters.add(JLabel(" "))
+                userFilters.add(JLabel("---- USAA ONLY  -----"))
+                userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
+                userFilters.add(user_createUSAAProfile)
 
                 while True:
                     options = ["EXIT", "PROCEED"]
@@ -22771,6 +22779,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_deleteALLOnlineTxns.isSelected():
                         OFX_delete_ALL_saved_online_txns()
                         return
+
+                    if user_manuallyPrimeUSAARootUserIDClientIDs.isSelected():
+                        manuallyPrimeUSAARootUserIDClientIDs()
 
                     if user_createUSAAProfile.isSelected():
                         if createUSAAProfile(): return
