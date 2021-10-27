@@ -8171,7 +8171,7 @@ Please update any that you use before proceeding....
     def manuallyPrimeUSAARootUserIDClientIDs():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        _THIS_METHOD_NAME = "Manually 'prime' Root UserIDs/ClientUIDs".upper()
+        _THIS_METHOD_NAME = "USAA: Manually 'prime' Root UserIDs/ClientUIDs".upper()
 
         if isMDPlusEnabledBuild() and float(MD_REF.getBuild()) < 4059:
             txt = ("WARNING: You need to upgrade to at least version MD2022.1(4059) for USAA Connections to work properly! - No changes made!")
@@ -8612,7 +8612,7 @@ Please update any that you use before proceeding....
     def editSetupMultipleUserIDs():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        _THIS_METHOD_NAME = "Manually 'prime' Root UserIDs/ClientUIDs".upper()
+        _THIS_METHOD_NAME = "Edit/Setup (multiple) UserIDs / Passwords".upper()
 
         scriptToRun = "ofx_populate_multiple_userids.py"
 
