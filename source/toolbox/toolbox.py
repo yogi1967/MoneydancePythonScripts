@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1044 - November 2020 thru July 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1044 - November 2020 thru Oct 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -240,13 +240,12 @@
 # build: 1044 - Enhanced OFX Authentication Menu. Added option to prime USAA UserID/ClientUID...; tweaked open md folder, for open system locations to work
 # build: 1044 - Added execution of ofx_populate_multiple_userids.py script...
 # build: 1044 - Added execution of ofx_create_new_usaa_bank_custom_profile.py script...
+# build: 1044 - Tweaks for new Dark Flat theme in build 4059
 
-# todo - Restore and retain syncid settings....
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - Known  issue  on Linux: Any drag to  resize main window, causes width to maximise. No issue on Mac or Windows..
-# todo - OFX: Generic and specific UUID; set/edit UserID
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
@@ -852,17 +851,26 @@ Visit: %s (Author's site)
         try:
             currentTheme = MD_REF.getUI().getCurrentTheme()
             try:
-                if currentTheme.isSystemDark(): return True
+                if currentTheme.isSystemDark(): return True     # NOTE: Only VAQua has isSystemDark()
             except: pass
-            if "dark" in currentTheme.getThemeID(): return True
-            if "darcula" in currentTheme.getThemeID(): return True
+            if "dark" in currentTheme.getThemeID().lower(): return True
+            if isMDThemeFlatDark(): return True
+            if isMDThemeDarcula(): return True
         except: pass
         return False
 
     def isMDThemeDarcula():
         try:
             currentTheme = MD_REF.getUI().getCurrentTheme()
+            if isMDThemeFlatDark(): return False                    # Flat Dark pretends to be Darcula!
             if "darcula" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeFlatDark():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "flat dark" in currentTheme.toString().lower(): return True
         except: pass
         return False
 
