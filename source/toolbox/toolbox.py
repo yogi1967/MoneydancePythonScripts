@@ -241,6 +241,7 @@
 # build: 1044 - Added execution of ofx_populate_multiple_userids.py script...
 # build: 1044 - Added execution of ofx_create_new_usaa_bank_custom_profile.py script...
 # build: 1044 - Tweaks for new Dark Flat theme in build 4059
+# build: 1044 - Fix 'FIX - Non Hierarchical Security Account Txns' for None Account issue... (this is where User force removed a Security from Investment Account)
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -15635,8 +15636,8 @@ now after saving the file, restart Moneydance
 
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
-        if detect_non_hier_sec_acct_txns() > 0:
-            txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -16197,8 +16198,8 @@ now after saving the file, restart Moneydance
         today = Calendar.getInstance()                                                                                  # noqa
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
-        if detect_non_hier_sec_acct_txns() > 0:
-            txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -17298,8 +17299,8 @@ now after saving the file, restart Moneydance
         PARAMETER_KEY = "toolbox_txn_merge"
         today = Calendar.getInstance()                                                                                  # noqa
 
-        if detect_non_hier_sec_acct_txns() > 0:
-            txt = "%s: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -17946,7 +17947,10 @@ now after saving the file, restart Moneydance
         return
 
     def fix_non_hier_sec_acct_txns():
-        global toolbox_frame_, debug
+
+        _THIS_METHOD_NAME = "FIX: Non-Hierarchical Security Acct Txn".upper()
+
+        PARAMETER_KEY = "toolbox_fix_non_hier_sec_acct_txns"
 
         # fix_non-hierarchical_security_account_txns.py
         # (replaces fix_investment_txns_to_wrong_security.py)
@@ -17959,116 +17963,200 @@ now after saving the file, restart Moneydance
         output = "FIX Investment Transactions where Security's Account is not linked properly to the Parent Txn's Acct:\n" \
                  " =====================================================================================================\n\n"
 
-        txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
-        txns = txnSet.iterableTxns()
-        fields = InvestFields()
+        try:
+            txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
+            txns = txnSet.iterableTxns()
+            fields = InvestFields()
 
-        def review_security_accounts(FIX_MODE=False):
+            iOrphans = 0
+            txt = "Scanning for Security Orphans...:"
+            output += "\n%s\n" %(txt); myPrint("B",txt)
+            for _txn in txns:
+                if not isinstance(_txn, ParentTxn): continue   # only work with parent transactions
+                _acct = _txn.getAccount()
+                if _acct.getAccountType() != Account.AccountType.INVESTMENT: continue                                    # noqa
+                fields.setFieldStatus(_txn)
 
-            count_the_errors = 0
-            count_unfixable_yet = 0
-            errors_fixed = 0
-            text = ""
-            for txn in txns:
-                if txn.getParentTxn() != txn: continue   # only work with parent transactions
+                if fields.hasSecurity and fields.security is None:
+                    iOrphans += 1
+                    txt = "ERROR: Txn for 'Orphaned' Security %s found within Investment Account %s! (Have you force removed a Security with linked TXNs?\n" \
+                          "txn:\n%s\n" %(fields.security, _acct, _txn.getSyncInfo().toMultilineHumanReadableString())
+                    output += "\n%s\n" %(txt); myPrint("B",txt)
 
-                acct = txn.getAccount()
-                # noinspection PyUnresolvedReferences
-                if acct.getAccountType() != Account.AccountType.INVESTMENT: continue
+            if iOrphans:
+                txt = "ERROR: %s investment txn(s) with 'Orphaned'securities detected (probably User Force Removal of Security from Investment Account)" %(iOrphans)
+                output += "\n%s\n" %(txt); myPrint("B",txt)
+                output += "\n<ABORTED>"
+                setDisplayStatus(txt, "R")
+                jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+                MyPopUpDialogBox(jif,txt,
+                                 "It's highly likely that you have clicked 'Actions' > 'Remove Security' from an Investment Account..\n"
+                                 ".. and that this Security had linked Transactions... You would have been warned and asked to respond 'yes'\n"
+                                 ".. this will have deleted Buy/Sell TXNs and partially removed the Security from other TXNs like buy/Sell/Xfr etc\n"
+                                 ".. these are now illogical and damaged records.... The data is lost and not recoverable. Toolbox CANNOT REPAIR!\n"
+                                 ">> You will need to restore, and or manually edit and repair the TXNs with your own knowledge of what was lost...",
+                                 theTitle=_THIS_METHOD_NAME,OKButtonText="ACKNOWLEDGED",lAlertLevel=1).go()
+                return
 
-                # at this point we are only dealing with investment parent txns
-                fields.setFieldStatus(txn)
+            else:
+                txt = ">> No investment txn(s) with Orphaned securities were detected - phew!"
+                output += "\n%s\n" %(txt); myPrint("B",txt)
 
-                if fields.hasSecurity and not acct.isAncestorOf(fields.security):
-                    count_the_errors += 1
-                    txnTxt = txn.toMultilineString().replace(";",";\n")
-                    text+=("Must fix txn %s\n"
-                           "%s\n"
-                           " > in %s with sec acct %s\n" %(fields.txnType, txnTxt, acct, fields.security.getFullAccountName()))
-                    # This fix assumes that the split / security bit should sit within the txn's parent account. It seeks for the same
-                    # security in this account and reattaches it.
+            output += "\n\n"
 
-                    # Alternatively you could txn.setAccount() to be the split security's parent account
-                    # e.g. txn.setAccount(fields.security.getParentAccount())
+            def review_security_accounts(_txns, FIX_MODE=False):
 
-                    secCurr = fields.security.getCurrencyType()
-                    correctSecAcct = None
-                    for subacct in AccountUtil.getAccountIterator(acct):
-                        if subacct.getCurrencyType() == secCurr:
-                            correctSecAcct = subacct
-                            break
-                    if correctSecAcct:
-                        if FIX_MODE:
-                            errors_fixed += 1
-                            text+=(" -> ASSIGNING txn to %s\n" %(correctSecAcct.getFullAccountName()))
-                            fields.security = correctSecAcct
-                            fields.storeFields(txn)
-                            txn.syncItem()
-                        else:
-                            text+=(" -> need to assign txn to %s\n" %(correctSecAcct.getFullAccountName()))
-                    else:
-                        count_unfixable_yet += 1
-                        text+=(" !!! You need to manually create a security sub-account by adding the security %s to the investment account %s\n" %(secCurr.getName(), acct.getFullAccountName()))
+                count_the_errors = 0
+                count_unfixable_yet = 0
+                errors_fixed = 0
+                text = ""
+                for txn in _txns:
+                    if txn.getParentTxn() != txn: continue   # only work with parent transactions
 
-            return text, count_the_errors, count_unfixable_yet, errors_fixed
+                    acct = txn.getAccount()
+                    # noinspection PyUnresolvedReferences
+                    if acct.getAccountType() != Account.AccountType.INVESTMENT: continue
 
-        x, iCountErrors, iCountUnfixable, iErrorsFixed = review_security_accounts(False)
-        output += x
+                    # at this point we are only dealing with investment parent txns
+                    fields.setFieldStatus(txn)
 
-        output += "\n\nYou have %s errors, with %s needing manual fixes first... I have fixed %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
+                    if fields.hasSecurity and not acct.isAncestorOf(fields.security):
+                        count_the_errors += 1
+                        txnTxt = txn.toMultilineString().replace(";",";\n")
+                        text+=("Must fix txn %s\n"
+                               "%s\n"
+                               " > in %s with sec acct %s\n" %(fields.txnType, txnTxt, acct, fields.security.getFullAccountName()))
+                        # This fix assumes that the split / security bit should sit within the txn's parent account. It seeks for the same
+                        # security in this account and reattaches it.
 
-        if iCountErrors<1:
-            txt = "FIX: Investment Security Txns with Invalid Parent Accounts - CONGRATULATIONS - I found no Invalid txns......."
-            setDisplayStatus(txt, "B")
-            myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt)
-            return
+                        # Alternatively you could txn.setAccount() to be the split security's parent account
+                        # e.g. txn.setAccount(fields.security.getParentAccount())
 
-        myPrint("B","FIX: Investment Security Txns with Invalid Parent Accounts' - found %s errors... with %s needing manual fixes" %(iCountErrors, iCountUnfixable))
+                        secCurr = fields.security.getCurrencyType()
+                        correctSecAcct = None
+                        for subacct in AccountUtil.getAccountIterator(acct):
+                            if subacct.getCurrencyType() == secCurr:
+                                correctSecAcct = subacct
+                                break
 
-        jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                        if not correctSecAcct:
+                            if FIX_MODE:
+                                _txt = ".. Security sub-acct '%s' not found within this Investment account '%s' - so manually creating/adding..." %(secCurr.getName(), acct)
+                                text += "%s\n" %(_txt); myPrint("B",_txt)
 
-        if iCountUnfixable>0:
-            txt = "'FIX: Investment Security Txns with Invalid Parent Accounts' - You have %s errors to manually first first!" %(iCountUnfixable)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
-            myPopupInformationBox(jif,"You have %s errors to manually first first!" %(iCountUnfixable), "FIX: Investment Security Txns with Invalid Parent Accounts",JOptionPane.ERROR_MESSAGE)
-            return
+                                # need to create the Security sub-account in this Investment Account....
+                                newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(), Account.AccountType.SECURITY, acct)   # noqa
+                                newSecurityAcct.setEditingMode()
+                                newSecurityAcct.getUUID()
+                                newSecurityAcct.setAccountName(fields.security.getAccountName())
+                                newSecurityAcct.setCurrencyType(fields.security.getCurrencyType())
+                                newSecurityAcct.setStartBalance(0)
 
-        if not confirm_backup_confirm_disclaimer(jif, "FIX %s SECURITY TXNS INVALID PARENT ACCTS" %(iCountErrors),"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
-            return
+                                newSecurityAcct.setUsesAverageCost(fields.security.getUsesAverageCost())
+                                newSecurityAcct.setBroker(fields.security.getBroker())
+                                newSecurityAcct.setBrokerPhone(fields.security.getBrokerPhone())
+                                newSecurityAcct.setAPR(fields.security.getAPR())
+                                newSecurityAcct.setBondType(fields.security.getBondType())
+                                newSecurityAcct.setComment(fields.security.getComment())
+                                newSecurityAcct.setCompounding(fields.security.getCompounding())
+                                newSecurityAcct.setFaceValue(fields.security.getFaceValue())
+                                newSecurityAcct.setMaturity(fields.security.getMaturity())
+                                newSecurityAcct.setMonth(fields.security.getMonth())
+                                newSecurityAcct.setNumYears(fields.security.getNumYears())
+                                newSecurityAcct.setPut(fields.security.getPut())
+                                newSecurityAcct.setOptionPrice(fields.security.getOptionPrice())
+                                newSecurityAcct.setDividend(fields.security.getDividend())
+                                newSecurityAcct.setExchange(fields.security.getExchange())
+                                newSecurityAcct.setSecurityType(fields.security.getSecurityType())
+                                newSecurityAcct.setSecuritySubType(fields.security.getSecuritySubType())
+                                newSecurityAcct.setStrikePrice(fields.security.getStrikePrice())
 
-        jif.dispose()       # already within the EDT
-        myPrint("B", "User accepted disclaimer to FIX Investment Security Txns with Invalid Parent Accounts. Proceeding.....")
+                                for param in ["hide","hide_on_hp","ol.haspendingtxns", "ol.new_txn_count"]:
+                                    newSecurityAcct.setParameter(param, fields.security.getParameter(param))
 
-        output += "\n\nRUNNING FIX ON SECURITY TXNS TO RE-LINK PARENT ACCOUNTS\n" \
-                  "------------------------------------------------------------\n\n"
+                                newSecurityAcct.setParameter(PARAMETER_KEY,True)
+                                newSecurityAcct.syncItem()
 
-        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the move/changes..
-        MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
-        MD_REF.getUI().setSuspendRefresh(True)
+                                correctSecAcct = newSecurityAcct
+                            else:
+                                text+=(" -> will need to auto-create/add Security and then assign txn to %s\n" %(acct))
 
-        x, iCountErrors, iCountUnfixable, iErrorsFixed = review_security_accounts(FIX_MODE=True)
+                        if correctSecAcct:
+                            if FIX_MODE:
+                                errors_fixed += 1
+                                text+=(" -> ASSIGNING txn to %s\n" %(correctSecAcct.getFullAccountName()))
+                                fields.security = correctSecAcct
+                                fields.storeFields(txn)
+                                txn.syncItem()
+                            else:
+                                text+=(" -> need to assign txn to %s\n" %(correctSecAcct.getFullAccountName()))
 
-        MD_REF.getUI().getMain().saveCurrentAccount()
-        MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
-        MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+                del _txns
+                return text, count_the_errors, count_unfixable_yet, errors_fixed
 
-        output += x
-        output += "\n\nYou had %s errors, with %s needing manual fixes first... I HAVE FIXED %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
-        output += "\n<END>"
+            x, iCountErrors, iCountUnfixable, iErrorsFixed = review_security_accounts(txns, FIX_MODE=False)
+            output += x
 
-        play_the_money_sound()
-        txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts" %(iErrorsFixed)
-        setDisplayStatus(txt, "DG")
-        myPrint("B", txt)
-        jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-        myPopupInformationBox(jif,txt, "FIX Investment Security Txns with Invalid Parent Accounts", JOptionPane.WARNING_MESSAGE)
+            output += "\n\nYou have %s errors, with %s needing manual fixes first... I have fixed %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
+
+            if iCountErrors<1:
+                txt = "%s: CONGRATULATIONS - I found no Invalid txns......." %(_THIS_METHOD_NAME)
+                setDisplayStatus(txt, "B"); myPrint("B", txt)
+                myPopupInformationBox(toolbox_frame_,txt)
+                return
+
+            myPrint("B","%s: found %s errors... with %s needing manual fixes" %(_THIS_METHOD_NAME, iCountErrors, iCountUnfixable))
+
+            jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+            if iCountUnfixable>0:
+                txt = "%s: You have %s errors to manually first first!" %(_THIS_METHOD_NAME, iCountUnfixable)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                myPopupInformationBox(jif,"You have %s errors to manually first first!" %(iCountUnfixable), _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
+                return
+
+            if not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME,"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
+                return
+
+            jif.dispose()       # already within the EDT
+            myPrint("B", "User accepted disclaimer to FIX Investment Security Txns with Invalid Parent Accounts. Proceeding.....")
+
+            output += "\n\nRUNNING FIX ON SECURITY TXNS TO RE-LINK PARENT ACCOUNTS\n" \
+                      "------------------------------------------------------------\n\n"
+
+            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the move/changes..
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
+            MD_REF.getUI().setSuspendRefresh(True)
+
+            x, iCountErrors, iCountUnfixable, iErrorsFixed = review_security_accounts(txns, FIX_MODE=True)
+            del txns, txnSet
+
+            MD_REF.getUI().getMain().saveCurrentAccount()
+            MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
+            MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
+
+            output += x
+            output += "\n\nYou had %s errors, with %s needing manual fixes first... I HAVE FIXED %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
+            output += "\n<END>"
+
+            play_the_money_sound()
+            txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts" %(iErrorsFixed)
+            setDisplayStatus(txt, "DG"); myPrint("B", txt)
+            jif = QuickJFrame(_THIS_METHOD_NAME, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+
+        except:
+            output += dump_sys_error_to_md_console_and_errorlog(True)
+            txt = "%s: ERROR - Script has crashed. Review screen and console!" %(_THIS_METHOD_NAME)
+            output += txt + "\n"
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            jif = QuickJFrame(_THIS_METHOD_NAME, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
-    def detect_non_hier_sec_acct_txns():
+    def detect_non_hier_sec_acct_or_orphan_txns():
 
         txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
         txns = txnSet.iterableTxns()
@@ -18078,29 +18166,26 @@ now after saving the file, restart Moneydance
 
         for txn in txns:
 
-            if not isinstance(txn, ParentTxn):
-                continue   # only work with parent transactions
+            if not isinstance(txn, ParentTxn): continue   # only work with parent transactions
 
             acct = txn.getAccount()
 
             # noinspection PyUnresolvedReferences
-            if acct.getAccountType() != Account.AccountType.INVESTMENT:
-                continue
+            if acct.getAccountType() != Account.AccountType.INVESTMENT: continue
 
             # at this point we are only dealing with investment parent txns
             fields.setFieldStatus(txn)
 
             if fields.hasSecurity and not acct.isAncestorOf(fields.security):
                 count_the_errors += 1
-                myPrint("B", "ERROR: Txn for Security %s found within Investment Account %s that is cross linked to another account!\n"
-                             "txn: %s\n" %(fields.security, acct, txn.getSyncInfo().toMultilineHumanReadableString()))
-
+                myPrint("B", "ERROR: Txn for Security %s found within Investment Account %s that is cross linked to another account (or Security is orphaned)!\n"
+                             "txn:\n%s\n" %(fields.security, acct, txn.getSyncInfo().toMultilineHumanReadableString()))
         del txnSet, txns
 
         if count_the_errors:
-            myPrint("DB", "ERROR: %s investment txns with cross-linked securities detected" %(count_the_errors))
+            myPrint("B", "ERROR: %s investment txn(s) with cross-linked securities detected" %(count_the_errors))
         else:
-            myPrint("DB", "NOTE: No investment txns with cross-linked securities were detected - phew!")
+            myPrint("DB", "NOTE: No investment txn(s) with cross-linked securities were detected - phew!")
 
         return count_the_errors
 
@@ -18181,8 +18266,8 @@ now after saving the file, restart Moneydance
 
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
-        if detect_non_hier_sec_acct_txns() > 0:
-            txt = "CONVERT ACCT/STOCK TO Avg Cst Ctrl: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            txt = "CONVERT ACCT/STOCK TO Avg Cst Ctrl: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -18282,8 +18367,8 @@ now after saving the file, restart Moneydance
 
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
-        if detect_non_hier_sec_acct_txns() > 0:
-            txt = "CONVERT ACCT/STOCK TO LOT/FIFO: ERROR - Cross-linked security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            txt = "CONVERT ACCT/STOCK TO LOT/FIFO: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -23743,7 +23828,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_move_invest_txns.setEnabled(lAdvancedMode)
                 user_move_invest_txns.setForeground(getColorRed())
 
-                user_fix_non_hier_sec_acct_txns = JRadioButton("FIX: Non-Hierarchical Security Acct Txns (fix_non-hierarchical_security_account_txns.py)", False)
+                user_fix_non_hier_sec_acct_txns = JRadioButton("FIX: Non-Hierarchical Security Acct Txns (& detect Orphans) (fix_non-hierarchical_security_account_txns.py)", False)
                 user_fix_non_hier_sec_acct_txns.setToolTipText("This reviews your Investment Security Txns and fixes where the Account reference is cross-linked and incorrect (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)")
                 user_fix_non_hier_sec_acct_txns.setEnabled(lAdvancedMode)
                 user_fix_non_hier_sec_acct_txns.setForeground(getColorRed())
