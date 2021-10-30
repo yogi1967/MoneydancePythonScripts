@@ -8,7 +8,7 @@
 
 # NOTE:   You can also just run the 'code-signed app' by launching the following from Terminal (which is a simpler approach):
 #         "/Applications/Moneydance.app/Contents/MacOS/Moneydance"                [-d] [-v] [... etc]
-#         "/Applications/Moneydance 2022.1 (4058).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
+#         "/Applications/Moneydance 2022.2 (4060).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
 
 # THIS IS WRITTEN FOR MacOS Terminal(zsh). Adjust accordingly...!
 
@@ -48,7 +48,7 @@ export md_passphrase=x
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2022.1 (4058)"
+md_version=" 2022.2 (4060)"
 
 USE_JAVA17="YES"
 
