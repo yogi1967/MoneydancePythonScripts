@@ -1,14 +1,14 @@
 {
-    "last_updated" = "20211023"
+    "last_updated" = "20211030"
     "disable_all" = "n"
     "builds" = (
                     {
-                    "build" = "1043"
+                    "build" = "1044"
                     "disable" = "n"
-                    "news" = "Enabling MD2022 (with Moneydance+)"
+                    "news" = "Enabling MD2022 (with Moneydance+); USAA Fixes; Darcula fixes"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4059"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4060"
                     "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
                     "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -16,12 +16,20 @@
                     "MYPYTHON_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
                     }
                     {
+                    "build" = "1043"
+                    "disable" = "n"
+                    "news" = "Enabling MD2022 (with Moneydance+)"
+                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4060"
+                    }
+                    {
                     "build" = "1042"
                     "disable" = "n"
                     "news" = "Enabling MD2022 (with Moneydance+)"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.1"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4059"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.2"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4060"
                     }
                     {
                     "build" = "1041"
