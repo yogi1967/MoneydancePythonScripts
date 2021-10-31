@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1016 - August 2021 - Stuart Beesley
+# extract_data.py - build: 1017 - August 2021 - Stuart Beesley
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -80,6 +80,7 @@
 # build: 1014 - New print options for StockGlance2020 and Extract_Data
 # build: 1015 - Common code tweaks; fixed colors for Dark themese and to be more MD 'compatible'
 # build: 1016 - Common code tweaks; Flat Dark Theme
+# build: 1017 - SG2020: Fix print to PDF to make 2 parts to avoid overwriting the same pdf file....
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -87,7 +88,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1016"
+version_build = "1017"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -2974,7 +2975,23 @@ Visit: %s (Author's site)
                     return
 
                 selectedPrintService = printer_job.getPrintService()
-                myPrint("DB", "User selected print service:", selectedPrintService)
+
+                toFile = pAttrs.containsKey(attribute.standard.Destination)
+
+                # noinspection PyUnusedLocal
+                printURI = printFile = printFilePath = printFileSplit = None
+                if toFile:
+                    printURI = pAttrs.get(attribute.standard.Destination).getURI()
+                    myPrint("B", "User has selected to print to destination: %s (may be split into two files/parts)" %(printURI))
+                    if printURI.getScheme().lower().startswith("file"):
+                        printFile = File(printURI)
+                        printFilePath = printFile.getCanonicalPath()
+                        printFileSplit = list(os.path.splitext(printFilePath))
+                        if printFileSplit[0].endswith("."): printFileSplit[0] = printFileSplit[0][:-1]                  # noqa
+                    else:
+                        toFile = False
+                else:
+                    myPrint("DB", "User selected print service:", selectedPrintService)
 
                 thePageFormat = printer_job.getPageFormat(pAttrs)
 
@@ -3006,25 +3023,38 @@ Visit: %s (Author's site)
                         myPrint("DB", "... Updating the JFrame()'s component tree to the temporary LAF....")
                         SwingUtilities.updateComponentTreeUI(_theFrame)
 
-
                     if _secondJTable is None:
-                        printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+                        printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)        # noqa
                         eval("printer_job.print(pAttrs)")
                     else:
+
                         # java.awt.print.Book() won't work as it passes the book page number instead of the Printable's page number...
                         footer = MessageFormat("<page {0} : continued on the next page>")
-                        printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
+                        if toFile:
+                            pAttrs.remove(attribute.standard.Destination)
+                            newPath = printFileSplit[0]+"_part1" + printFileSplit[1]
+                            myPrint("DB","Print to file (main section) changed to %s" %(newPath))
+                            pAttrs.add(attribute.standard.Destination(File(newPath).toURI()))
+                        printer_job.setPrintable(_theJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)        # noqa
                         eval("printer_job.print(pAttrs)")
+                        # for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes after .print()1: %s:%s" %(atr.getName(), atr))
 
                         header = MessageFormat(_theTitle+" (Total/Summary Table)")
                         footer = MessageFormat("<END>")
 
+                        if toFile:
+                            pAttrs.remove(attribute.standard.Destination)
+                            newPath = printFileSplit[0]+"_part2" + printFileSplit[1]
+                            myPrint("DB","Print to file (summary table) changed to %s" %(newPath))
+                            pAttrs.add(attribute.standard.Destination(File(newPath).toURI()))
                         printer_job.setPrintable(_secondJTable.getPrintable(JTable.PrintMode.FIT_WIDTH, header, footer), thePageFormat)    # noqa
                         eval("printer_job.print(pAttrs)")
+                        # for atr in pAttrs.toArray(): myPrint("DB", "Printer attributes after .print()2: %s:%s" %(atr.getName(), atr))
 
                 except:
                     myPrint("B", "ERROR: Printing routines failed?")
                     dump_sys_error_to_md_console_and_errorlog()
+                    toFile = False                                                                                      # noqa
                     raise
 
                 finally:
@@ -3036,16 +3066,24 @@ Visit: %s (Author's site)
                         SwingUtilities.updateComponentTreeUI(_theFrame)
 
                         # Without this the JMenuBar gets screwed up
-                        System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                             # noqa
-                        System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)                       # noqa
+                        System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)                         # noqa
+                        System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)                   # noqa
+
+                while pAttrs.containsKey(attribute.standard.JobName): pAttrs.remove(attribute.standard.JobName)
+                while pAttrs.containsKey(attribute.standard.Destination): pAttrs.remove(attribute.standard.Destination)
 
                 myPrint("DB", "Saving current print service:", printer_job.getPrintService())
                 GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
                 GlobalVars.defaultPrintService = printer_job.getPrintService()
 
+                if toFile: myPopupInformationBox(_theFrame,"NOTE: Output destination changed: '_part1' & '_part2' appended to filename")
+
             except:
                 myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
+
             return
+
+
 
         csvfilename = None
 
