@@ -3,6 +3,9 @@
 
 """Example script accessing moneydance data in 'headless' mode using jpype
 
+NOTE: Currently this script fails with "Exception in thread "AWT-EventQueue-0" java.util.ConcurrentModificationException" on .setCurrentBook()
+      Please use xxx-with-passphrase, or preferably use my jython versions which all work fine....
+
 NOTE:  Works with an encryption passphrase from MD2021.2(3088) onwards as this allows you to set the passphrase into
        an environment variable: md_passphrase=  or  md_passphrase_[filename in lowercase format]=
 
@@ -59,7 +62,7 @@ NOTE:
 import sys                                                                                                              # noqa
 
 ################### `set these variables ##########################################
-mdDataFolder = "/Users/xxx/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
+mdDataFolder = "/Users/Stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/TEST_HEADLESS_LAUNCH.moneydance"
 MD_PATH = "../Moneydance_jars/"       # include moneydance.jar and mdpython.jar
 ################### `set these variables ##########################################
 
@@ -102,14 +105,20 @@ for f in os.listdir(MD_PATH):
 join_jars = ":".join(listFiles)
 print("join_jars\n%s" %(join_jars))
 
-my_user_path = "/Users/xxx"
+my_user_path = "/Users/Stu"
+
+# NOTE: As of MD2022(build: 4058), you should upgrade to Java17 and javafx17. Prior to this, Java15
+USE_JAVA17 = "YES"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
-JAVA_HOME="%s/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home" %(my_user_path)
+if USE_JAVA17 == "YES":
+    JAVA_HOME = "/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+    javafx = "%s/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib" %(my_user_path)
+else:
+    JAVA_HOME = "%s/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home" %(my_user_path)
+    javafx = "%s/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib" %(my_user_path)
 
-# JavaFX directory
-javafx="%s/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib" %(my_user_path)
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing).
@@ -126,6 +135,10 @@ use_sandbox="-DSandboxEnabled=true"
 # NOTE: I set '-Dinstall4j.exeDir=x' to help my Toolbox extension - this is not needed
 
 console_file="%s/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/errlog.txt" %(my_user_path)
+
+# NOTE: Probably need machelper2 as well somehow
+#       machelper2="/Applications/Moneydance${md_version}.app/Contents/PlugIns/vm.jdk/Contents/Home/lib"
+#       -J-Djava.library.path="${macos}:${machelper2}" \
 
 java_args = []
 # java_args.append("-Xdock:icon=%s" %(md_icon))
@@ -177,8 +190,8 @@ print("Importing useful Moneydance Classes...")
 from com.moneydance.apps.md.controller import AccountBookWrapper
 from com.infinitekind.moneydance.model import ParentTxn
 from com.infinitekind.moneydance.model import CurrencyType
+from com.infinitekind.moneydance.model import Account
 # from com.infinitekind.moneydance.model import AccountBook
-# from com.infinitekind.moneydance.model import Account
 # from com.infinitekind.moneydance.model import TxnSet
 # from com.infinitekind.moneydance.model import AbstractTxn
 # from com.infinitekind.moneydance.model import SplitTxn
@@ -213,7 +226,10 @@ mdMain.initializeApp()
 # Now get the 'wrapper' etc
 print("@@@now get AccountBookWrapper, accountBook, and rootAccount")
 wrapper = AccountBookWrapper.wrapperForFolder(mdFileJava)  # type: AccountBookWrapper
+
+print("@@@now get call setCurrentBook()")
 mdMain.setCurrentBook(wrapper)
+print("...>>back from setCurrentBook()")
 
 accountBook = wrapper.getBook()
 print(accountBook)
@@ -235,6 +251,9 @@ print("There are {0:d} transactions in the AccountBook".format(transactionCount)
 
 accountCount = int(root_account.getSubAccounts().size())
 print("There are {0:d} sub-accounts in the rootAccount".format(accountCount))
+
+for acct in root_account.getSubAccounts():
+    if acct.getAccountType() == Account.AccountType.BANK: print("Found bank account: %s" %(acct))                       # noqa
 
 print("printing details on last 10 parent transactions...")
 parent_txns = [x for x in txnSet.iterableTxns() if isinstance(x, ParentTxn)]

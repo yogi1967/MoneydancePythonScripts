@@ -54,7 +54,7 @@ NOTE:
 """
 
 # ################## `set these default variables or use command line arguments ##########################################
-mdDataFolder = "/Users/xxx/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
+mdDataFolder = "/Users/Stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/TEST_HEADLESS_LAUNCH.moneydance"
 # ################## `set these variables ################################################################################
 
 import sys
@@ -80,7 +80,7 @@ envs = findEnvironmentPassphrases()
 if envs:
     print("Current passphrase environment variables set..:")
     for k, v in envs: print("Key:%s Passphrase: %s" %(k,v))
-    print()
+    print("")
 else:
     print("No passphrases detected in environment\n")
 
@@ -96,7 +96,7 @@ from com.moneydance.apps.md.controller import Main
 from com.moneydance.apps.md.controller import AccountBookWrapper
 
 print("Importing useful Moneydance Classes...")
-from com.infinitekind.moneydance.model import ParentTxn, CurrencyType
+from com.infinitekind.moneydance.model import ParentTxn, CurrencyType, Account
 # from com.infinitekind.moneydance.model import AccountBook, Account, MoneydanceSyncableItem, TxnSet, TxnUtil, AbstractTxn, SplitTxn, CurrencySnapshot, CurrencyTable, CurrencyUtil
 
 print("Importing useful Java Classes...")
@@ -113,6 +113,7 @@ last_modded_long = mdFileJava.lastModified()
 print("data folder last modified: %s" %(last_modded_long))
 
 theMain = Main()
+theMain.main(["-d", "-v"])
 theMain.DEBUG = True
 theMain.initializeApp()
 # theMain.startApplication()
@@ -137,6 +138,9 @@ print("There are {0:d} transactions in the AccountBook".format(transactionCount)
 
 accountCount = int(root_account.getSubAccounts().size())
 print("There are {0:d} sub-accounts in the rootAccount".format(accountCount))
+
+for acct in root_account.getSubAccounts():
+    if acct.getAccountType() == Account.AccountType.BANK: print("Found bank account: %s" %(acct))                       # noqa
 
 print("printing details on last 10 parent transactions...")
 parent_txns = [x for x in txnSet.iterableTxns() if isinstance(x, ParentTxn)]

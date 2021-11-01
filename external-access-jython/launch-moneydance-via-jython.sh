@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - April 2021 (last updated: 14th April 2021)
+# Co-Author Stuart Beesley - StuWareSoftSystems - April 2021 (last updated: 1st Nov 2021)
 
 # Shell script: launch-moneydance-via-jython.sh
 # Make sure you 'chmod +x launch-moneydance-via-jython.sh' to make script executable
@@ -32,20 +32,27 @@
 
 # MD2021.2(3088): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
 #                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
+export md_passphrase=secret
+#unset md_passphrase
+#unset md_passphrase
+#export md_passphrase_filename=secret
 
 
-unset md_passphrase
-unset md_passphrase
-export md_passphrase=xxx
-#export md_passphrase_filename=xxx
+# NOTE: As of MD2022(build: 4058), you should upgrade to Java17 and javafx17. Prior to this, Java15
+USE_JAVA17="YES"
 
-
-# Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
-# Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
+# set to "" for standard app install name (I add the version and build to the app name when installing).
+#md_version=""
+md_version=" 2022.2 (4060)"
 
 # Edit the necessary install locations for JDK and JavaFX below
 
-# Edit the necessary settings and your folder locations below
+# Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
+# Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
+
+# NOTE:   MD2022.1(4058) Introduced Java 17
+# https://download2.gluonhq.com/openjfx/17.0.1/openjfx-17.0.1_osx-x64_bin-sdk.zip
+# https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17%2B35/OpenJDK17-jdk_x64_mac_hotspot_17_35.pkg
 
 clear
 echo
@@ -84,23 +91,22 @@ echo "My user path: ${my_user_path}"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
-export JAVA_HOME="${my_user_path}/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home"
+if [ "${USE_JAVA17}" = "YES" ]; then
+  export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib"
+else
+  export JAVA_HOME="${my_user_path}/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home"
+  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
+fi
+
 export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
 
 jython=jython
-
 export JYTHON_HOME="${my_user_path}/jython2.7.2"
 #export JYTHONPATH=?
 
-# JavaFX directory
-javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
-
-# set to "" for standard app install name (I add the version and build to the app name when installing).
-#md_version=""
-md_version=" 2021.2 (3095)"
-
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
@@ -123,6 +129,7 @@ use_sandbox="-DSandboxEnabled=true"
 
 # Redirect output to the Moneydance console window...
 mkdir -v -p "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance"
+# shellcheck disable=SC2034
 console_file="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/errlog.txt"
 ${java} --version
 
@@ -163,10 +170,9 @@ ${jython} \
   -J-Xmx2G \
   -J-Ddummyarg1=arg1 \
   -J-Ddummyarg2=arg2 \
-  $*
+  $* &>"$console_file"
 
-
-#open "$console_file"
+open "$console_file"
 
 echo "changing tabbing mode to fullscreen"
 defaults write -g AppleWindowTabbingMode -string fullscreen

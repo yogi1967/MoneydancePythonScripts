@@ -60,11 +60,10 @@ NOTE:
 
 ################### `set these variables ##########################################
 lUsePassphrase = True
-myEncryptionPassphrase = u"bob"
-mdDataFolder = "/Users/xxx/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/XXX.moneydance"
+myEncryptionPassphrase = u"secret"
+mdDataFolder = "/Users/Stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/TEST_HEADLESS_LAUNCH.moneydance"
 MD_PATH = "../Moneydance_jars/"       # include moneydance.jar and mdpython.jar
 ################### `set these variables ##########################################
-
 
 # from datetime import datetime, date
 import os
@@ -101,8 +100,8 @@ print("Importing useful Moneydance Classes...")
 from com.moneydance.apps.md.controller import AccountBookWrapper
 from com.infinitekind.moneydance.model import ParentTxn
 from com.infinitekind.moneydance.model import CurrencyType
+from com.infinitekind.moneydance.model import Account
 # from com.infinitekind.moneydance.model import AccountBook
-# from com.infinitekind.moneydance.model import Account
 # from com.infinitekind.moneydance.model import TxnSet
 # from com.infinitekind.moneydance.model import AbstractTxn
 # from com.infinitekind.moneydance.model import SplitTxn
@@ -174,6 +173,9 @@ print("There are {0:d} transactions in the AccountBook".format(transactionCount)
 accountCount = int(root_account.getSubAccounts().size())
 print("There are {0:d} sub-accounts in the rootAccount".format(accountCount))
 
+for acct in root_account.getSubAccounts():
+    if acct.getAccountType() == Account.AccountType.BANK: print("Found bank account: %s" %(acct))                       # noqa
+
 print("printing details on last 10 parent transactions...")
 parent_txns = [x for x in txnSet.iterableTxns() if isinstance(x, ParentTxn)]
 ii=0
@@ -210,8 +212,8 @@ print("Finished peeking at data....")
 print("Calling saveCurrentAccount()")
 mdMain.saveCurrentAccount()
 
-print("Calling shutdown()")
-mdMain.shutdown()
+# print("Calling shutdown()")
+# mdMain.shutdown()
 
 print("Shutting down the JVM...")
 # noinspection PyUnresolvedReferences

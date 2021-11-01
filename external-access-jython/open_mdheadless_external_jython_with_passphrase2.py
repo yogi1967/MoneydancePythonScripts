@@ -88,8 +88,8 @@ from com.moneydance.apps.md.view.gui import MoneydanceGUI
 print("Importing useful Moneydance Classes...")
 from com.infinitekind.moneydance.model import ParentTxn
 from com.infinitekind.moneydance.model import CurrencyType
+from com.infinitekind.moneydance.model import Account
 # from com.infinitekind.moneydance.model import AccountBook
-# from com.infinitekind.moneydance.model import Account
 # from com.infinitekind.moneydance.model import TxnSet
 # from com.infinitekind.moneydance.model import AbstractTxn
 # from com.infinitekind.moneydance.model import SplitTxn
@@ -180,6 +180,7 @@ class MdMainNoGui(Main):
 ###################################################################
 # Fire up Moneydance and initialize key stuff...
 theMain = MdMainNoGui(mdFileJava, debug=True)
+theMain.main(["-v"])
 
 
 ###################################################################
@@ -202,6 +203,9 @@ print("There are {0:d} transactions in the AccountBook".format(transactionCount)
 
 accountCount = int(root_account.getSubAccounts().size())
 print("There are {0:d} sub-accounts in the rootAccount".format(accountCount))
+
+for acct in root_account.getSubAccounts():
+    if acct.getAccountType() == Account.AccountType.BANK: print("Found bank account: %s" %(acct))                       # noqa
 
 print("printing details on last 10 parent transactions...")
 parent_txns = [x for x in txnSet.iterableTxns() if isinstance(x, ParentTxn)]
