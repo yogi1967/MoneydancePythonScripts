@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1044 - November 2020 thru Oct 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1045 - November 2020 thru Oct 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
@@ -242,6 +242,8 @@
 # build: 1044 - Added execution of ofx_create_new_usaa_bank_custom_profile.py script...
 # build: 1044 - Tweaks for new Dark Flat theme in build 4059
 # build: 1044 - Fix 'FIX - Non Hierarchical Security Account Txns' for None Account issue... (this is where User force removed a Security from Investment Account)
+# build: 1045 - Enhanced search option (CMD-F) so that text field gets focus....
+# build: 1045 - Enhanced 'Prime' USAA ClientUID function to allow deletion of old USAA profile(s)
 
 # todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -263,7 +265,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1044"
+version_build = "1045"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -451,6 +453,7 @@ else:
 
     from java.awt.datatransfer import StringSelection
     from javax.swing.text import DefaultHighlighter
+    from javax.swing.event import AncestorListener
 
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets
@@ -609,8 +612,8 @@ else:
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.1                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4059                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.2                                                                          # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4060                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -1929,6 +1932,21 @@ Visit: %s (Author's site)
         myPrint("DB","...File/path exists..: %s" %(os.path.exists(_theFile)))
         return _theFile
 
+    class RequestFocusListener(AncestorListener):
+        """Add this Listener to a JTextField by using .addAncestorListener(RequestFocusListener()) before calling JOptionPane.showOptionDialog()"""
+
+        def __init__(self, removeListener=True):
+            self.removeListener = removeListener
+
+        def ancestorAdded(self, e):
+            component = e.getComponent()
+            component.requestFocusInWindow()
+            component.selectAll()
+            if (self.removeListener): component.removeAncestorListener(self)
+
+        def ancestorMoved(self, e): pass
+        def ancestorRemoved(self, e): pass
+
     class SearchAction(AbstractAction):
 
         def __init__(self, theFrame, searchJText):
@@ -1947,6 +1965,8 @@ Visit: %s (Author's site)
             tf = JTextField(self.lastSearch,20)
             p.add(lbl)
             p.add(tf)
+
+            tf.addAncestorListener(RequestFocusListener())
 
             _search_options = [ "Next", "Previous", "Cancel" ]
 
@@ -8180,6 +8200,10 @@ Please update any that you use before proceeding....
             myPopupInformationBox(toolbox_frame_,txt, _THIS_METHOD_NAME,JOptionPane.ERROR_MESSAGE)
             return
 
+        USAA_FI_ID = "67811"
+        USAA_FI_ORG = "USAA Federal Savings Bank"
+        OLD_TIK_FI_ID = "md:1295"
+
         NEW_TIK_FI_ID = "md:custom-1295"    # as of 23rd Oct, the 'official' custom profile ID
 
         authKeyPrefix="ofx.client_uid"
@@ -8279,6 +8303,30 @@ Please update any that you use before proceeding....
             myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             jif.dispose()
             return
+
+        ####################################################################################################################
+        serviceList = MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices()  # type: [OnlineService]
+
+        deleteServices = []
+        for svc in serviceList:
+            if (svc.getTIKServiceID() == OLD_TIK_FI_ID or svc.getTIKServiceID() == NEW_TIK_FI_ID
+                    or svc.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
+                    or "USAA" in svc.getFIOrg()
+                    or "USAA" in svc.getFIName()):
+                myPrint("DB", "Found USAA service - to potentially delete: %s" %(svc))
+                deleteServices.append(svc)
+
+        if len(deleteServices):
+            if myPopupAskQuestion(jif, "DELETE EXISTING USAA SERVICES", "DELETE %s EXISTING USAA SERVICE PROFILES TOO [optional]?" % (len(deleteServices)), theMessageType=JOptionPane.WARNING_MESSAGE):
+                for service in deleteServices:
+                    service.clearAuthenticationCache()
+                    service.deleteItem()
+                    myPrint("B","Deleted existing USAA service profile: %s" %(service))
+                MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
+                cleanupMissingOnlineBankingLinks(lAutoPurge=True)
+
+        del serviceList, deleteServices
+        ####################################################################################################################
 
         root.setEditingMode()
         root.setParameter(specificAuthKeyPrefix+userID, uuid)
@@ -12671,7 +12719,7 @@ now after saving the file, restart Moneydance
             if not selectedIncludeInNW: continue
 
             if not lPresentedBackupDisclaimer:
-                if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(), "Change this Account's shouldBeIncludedInNetWorth setting to '%s'?" %(selectedIncludeInNW)):
+                if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(), "Change 'include in NW' to '%s'?" %(selectedIncludeInNW)):
                     return
                 lPresentedBackupDisclaimer = True
 
