@@ -2757,11 +2757,15 @@ Visit: %s (Author's site)
     if isMDPlusEnabledBuild() and float(MD_REF.getBuild()) < 4059:
         alert_and_exit("WARNING: You need to upgrade to at least version MD2022.1(4059) for USAA Connections to work properly! - No changes made!")
 
+    pdfURL = "https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf"
+    try: Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(pdfURL), None)
+    except: pass
+
     if not lRunningFromToolbox:
         ask = MyPopUpDialogBox(ofx_create_new_usaa_bank_profile_frame_, "This script will delete your existing USAA bank profile(s) and CREATE A BRAND NEW CUSTOM USAA PROFILE:",
                                "Get the latest useful_scripts.zip package from: %s \n"
-                               "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
-                               "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
+                               "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf (url has been copied to clipboad)\n"
+                               "Latest: %s\n\n"
                                "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
                                "> You login to USAA at https://www.usaa.com/accessid to get your 'Quicken user' credentials.\n"
                                "> This is also where you find your clientUid (UUID) hidden within the browser url (BEFORE you click approve Quicken access)\n\n"
@@ -2773,14 +2777,14 @@ Visit: %s (Author's site)
                                "- Do you know the DIFFERENT Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
                                "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
                                "NOTE: You can now use the 'ofx_populate_multiple_userids.py' script afterwards to update/edit (multiple) UserIDs/Passwords\n"
-                               "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL),
+                               "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL, pdfURL),
                                250,"KNOWLEDGE",
                                lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
     else:
         ask = MyPopUpDialogBox(ofx_create_new_usaa_bank_profile_frame_, "This script will delete your existing USAA bank profile(s) and CREATE A BRAND NEW CUSTOM USAA PROFILE:",
                                "Get the latest Toolbox extension from: %s\n"
-                               "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n"
-                               "Latest: https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf\n\n"
+                               "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf (url has been copied to clipboad)\n"
+                               "Latest: %s\n\n"
                                "This script configure one bank account & up to one credit card [optional]. You can add more later using standard Moneydance online menu\n"
                                "> You login to USAA at https://www.usaa.com/accessid to get your 'Quicken user' credentials.\n"
                                "> This is also where you find your clientUid (UUID) hidden within the browser url (BEFORE you click approve Quicken access)\n\n"
@@ -2792,7 +2796,7 @@ Visit: %s (Author's site)
                                "- Do you know the DIFFERENT Credit Card number that the bank will accept? (This may not apply, just try your current one first)\n"
                                "- Do you know which Accounts in Moneydance to select and link to this new profile?\n"
                                "NOTE: You can now use Toolbox afterwards (OFX Authentication Menu) to update/edit (multiple) UserIDs/Passwords\n"
-                               "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL),
+                               "IF NOT, STOP AND GATHER ALL INFORMATION" %(MYPYTHON_DOWNLOAD_URL, pdfURL),
                                250,"KNOWLEDGE",
                                lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
 

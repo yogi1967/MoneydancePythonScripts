@@ -8203,6 +8203,7 @@ Please update any that you use before proceeding....
         USAA_FI_ID = "67811"
         USAA_FI_ORG = "USAA Federal Savings Bank"
         OLD_TIK_FI_ID = "md:1295"
+        USAA_PROFILE_NAME = "USAA Custom Profile (ofx_create_new_usaa_bank_profile_custom.py)"
 
         NEW_TIK_FI_ID = "md:custom-1295"    # as of 23rd Oct, the 'official' custom profile ID
 
@@ -8213,8 +8214,17 @@ Please update any that you use before proceeding....
         root = MD_REF.getCurrentAccount().getBook().getRootAccount()
         rootKeys = list(sorted(root.getParameterKeys()))
 
-        output = "LIST OF OFX USAA USERIDs/ClientUIDs STORED ON THE ROOT ACCOUNT\n" \
-                 " =============================================================\n\n"
+        pdfURL = "https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/useful_scripts/ofx_create_new_usaa_bank_custom_profile.pdf"
+        try: Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(pdfURL), None)
+        except: pass
+
+        output = "INSTRUCTIONS:\n" \
+                 "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n" \
+                 "Latest: %s\n" \
+                 "(url has been copied to the clipboad)\n\n\n" %(pdfURL)
+
+        output += "LIST OF OFX USAA USERIDs/ClientUIDs STORED ON THE ROOT ACCOUNT\n" \
+                  " =============================================================\n\n"
 
         harvestedDefaultUserID = None
         harvestedUserIDList = []
@@ -8237,7 +8247,7 @@ Please update any that you use before proceeding....
 
         jif = QuickJFrame("REVIEW EXISTING USAA USERIDs/ClientUIDs (stored on ROOT) BEFORE CHANGES",output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
-        defaultEntry = "UserID"
+        defaultEntry = ""
         while True:
             userID = myPopupAskForInput(jif, "PRIME USERID/CLIENTUID SUPPLIED BY USAA", "UserID", "Type/Paste the UserID to prime very carefully (this will overwrite existing)", defaultEntry)
             myPrint("DB", "userID entered: %s" %userID)
@@ -8272,11 +8282,15 @@ Please update any that you use before proceeding....
         if findStoredUser.getClientUID() is not None:
             defaultEntry = findStoredUser.getClientUID()
         else:
-            defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+            # defaultEntry = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+            defaultEntry = ""
         del findStoredUser
 
         while True:
-            uuid = myPopupAskForInput(jif, "PRIME CLIENT UUID FOR USERID: %s (SUPPLIED BY USAA)" %(userID), "PRIME UUID", "Paste USAA's Supplied UUID 36 digits 8-4-4-4-12 very carefully", defaultEntry)
+            uuid = myPopupAskForInput(jif, "PRIME CLIENT UUID FOR USERID: %s (SUPPLIED BY USAA)" %(userID),
+                                      "PRIME UUID",
+                                      "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+                                      " (Paste your USAA UUID 36 digits 8-4-4-4-12 carefully)", defaultEntry)
             myPrint("DB", "UUID entered: %s" %uuid)
             if uuid is None:
                 txt = "ERROR - No uuid entered! Aborting"
@@ -8309,19 +8323,20 @@ Please update any that you use before proceeding....
 
         deleteServices = []
         for svc in serviceList:
-            if (svc.getTIKServiceID() == OLD_TIK_FI_ID or svc.getTIKServiceID() == NEW_TIK_FI_ID
+            if svc.getTIKServiceID() == NEW_TIK_FI_ID: continue     # Skip deleting the new custom profile as that will refresh anyway
+            if (svc.getTIKServiceID() == OLD_TIK_FI_ID
                     or svc.getServiceId() == ":%s:%s" %(USAA_FI_ORG, USAA_FI_ID)
                     or "USAA" in svc.getFIOrg()
                     or "USAA" in svc.getFIName()):
-                myPrint("DB", "Found USAA service - to potentially delete: %s" %(svc))
+                myPrint("DB", "Found old USAA service - to potentially delete: %s" %(svc))
                 deleteServices.append(svc)
 
         if len(deleteServices):
-            if myPopupAskQuestion(jif, "DELETE EXISTING USAA SERVICES", "DELETE %s EXISTING USAA SERVICE PROFILES TOO [optional]?" % (len(deleteServices)), theMessageType=JOptionPane.WARNING_MESSAGE):
+            if myPopupAskQuestion(jif, "DELETE EXISTING OLD USAA SERVICE PROFILES", "DELETE %s EXISTING (old) USAA SERVICE PROFILES TOO [optional]?" % (len(deleteServices)), theMessageType=JOptionPane.WARNING_MESSAGE):
                 for service in deleteServices:
                     service.clearAuthenticationCache()
                     service.deleteItem()
-                    myPrint("B","Deleted existing USAA service profile: %s" %(service))
+                    myPrint("B","Deleted existing (old) USAA service profile: %s" %(service))
                 MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
                 cleanupMissingOnlineBankingLinks(lAutoPurge=True)
 
@@ -8346,9 +8361,16 @@ Please update any that you use before proceeding....
         root.syncItem()
 
         play_the_money_sound()
-        txt = "%s: UserID: %s ClientUID primed to: %s (Default: %s)" %(_THIS_METHOD_NAME, userID, uuid, lSetDefaultUserID)
+        txt = "SUCCESS! UserID: %s >> ClientUID primed to: %s (Default: %s)" %(userID, uuid, lSetDefaultUserID)
         setDisplayStatus(txt, "B"); myPrint("B", txt)
-        myPopupInformationBox(jif,txt, _THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
+        MyPopUpDialogBox(jif,
+                         txt,
+                         "Please now return to Moneydance and use Menu: Online>Set up Online Banking\n"
+                         "at the select financial institution selection window, please select:\n"
+                         "%s" %(USAA_PROFILE_NAME),
+                         theTitle=_THIS_METHOD_NAME,
+                         OKButtonText="SUCCESS").go()
+
         jif.dispose()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
