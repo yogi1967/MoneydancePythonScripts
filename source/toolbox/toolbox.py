@@ -984,6 +984,7 @@ Visit: %s (Author's site)
             field = JPasswordField(defaultText)
         else:
             field = JTextField(defaultText)
+        field.addAncestorListener(RequestFocusListener())
 
         _x = 0
         if theFieldLabel:
@@ -2905,7 +2906,7 @@ Visit: %s (Author's site)
             try:
                 stream = MD_EXTENSION_LOADER.getResourceAsStream("/_PREVIEW_BUILD_")
                 if stream is not None:
-                    myPrint("B", "@@ PREVIEW BUILD DETECTED @@")
+                    myPrint("B", "@@ PREVIEW BUILD (%s) DETECTED @@" %(version_build))
                     stream.close()
                     return True
             except: pass
@@ -3377,7 +3378,7 @@ Visit: %s (Author's site)
 
         textArray = []                                                                                                  # noqa
 
-        if isPreviewBuild(): textArray.append(u"*** PREVIEW BUILD DETECTED ***\n")
+        if isPreviewBuild(): textArray.append(u"*** PREVIEW BUILD (%s) DETECTED ***\n" %(version_build))
 
         x = getMonoFont()
         textArray.append(u"FONT USED FOR TOOLBOX OUTPUT/DISPLAY(can be changed): %s(%s)" %(x.getFontName(), x.getSize()))
