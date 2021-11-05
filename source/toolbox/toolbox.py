@@ -8290,7 +8290,7 @@ Please update any that you use before proceeding....
         while True:
             uuid = myPopupAskForInput(jif, "PRIME CLIENT UUID FOR USERID: %s (SUPPLIED BY USAA)" %(userID),
                                       "PRIME UUID",
-                                      "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+                                      "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn\n"
                                       " (Paste your USAA UUID 36 digits 8-4-4-4-12 carefully)", defaultEntry)
             myPrint("DB", "UUID entered: %s" %uuid)
             if uuid is None:
@@ -8370,6 +8370,7 @@ Please update any that you use before proceeding....
                          "at the select financial institution selection window, please select:\n"
                          "%s" %(USAA_PROFILE_NAME),
                          theTitle=_THIS_METHOD_NAME,
+                         theWidth=125,
                          OKButtonText="SUCCESS").go()
 
         jif.dispose()
