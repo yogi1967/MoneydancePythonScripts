@@ -244,8 +244,9 @@
 # build: 1044 - Fix 'FIX - Non Hierarchical Security Account Txns' for None Account issue... (this is where User force removed a Security from Investment Account)
 # build: 1045 - Enhanced search option (CMD-F) so that text field gets focus....
 # build: 1045 - Enhanced 'Prime' USAA ClientUID function to allow deletion of old USAA profile(s)
+# build: 1045 - Enhanced decrypt file from local storage... Catch BadPadding Exception and continue....
 
-# todo - MD Menubar inherits Toolbox buttons (top right) when switching account whilst using Darcula Theme
+# todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - Known  issue  on Linux: Any drag to  resize main window, causes width to maximise. No issue on Mac or Windows..
@@ -21945,17 +21946,25 @@ Now you will have a text readable version of the file you can open in a text edi
 
         truncatedPath = selectedFile[searchForSafe+len(".moneydance"+os.path.sep+"safe"+os.path.sep):]
 
+        tmpDir = File(MD_REF.getCurrentAccount().getBook().getRootFolder(), "tmp")
+        tmpDir.mkdirs()
+        copyFileName = File(selectedFile).getName()
+        tmpFile = File.createTempFile(str(System.currentTimeMillis() % 10000L), "-"+copyFileName, tmpDir)
+        tmpFile.deleteOnExit()
+        fout = FileOutputStream(tmpFile)
+
+        lCaughtError = False
+
         try:
-            tmpDir = File(MD_REF.getCurrentAccount().getBook().getRootFolder(), "tmp")
-            tmpDir.mkdirs()
-            copyFileName = (File(selectedFile)).getName()
-            tmpFile = File.createTempFile(str(System.currentTimeMillis() % 10000L), "-"+copyFileName, tmpDir)
-            tmpFile.deleteOnExit()
-            fout = FileOutputStream(tmpFile)
             LS.readFile(truncatedPath, fout)
-            fout.close()
-            helper = MD_REF.getPlatformHelper()
-            helper.openDirectory(tmpDir)
+
+        except IOException as ioe:
+            cause = ioe.getCause()
+            if cause is not None and cause.getClass().getName().endswith("BadPaddingException"):
+                lCaughtError = True
+            else:
+                raise
+
         except:
             dump_sys_error_to_md_console_and_errorlog()
             txt = "SORRY - Failed to extract file %s (view console error log)" %(selectedFile)
@@ -21963,11 +21972,26 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
-        myPrint("B","User requested to extract file: %s from LocalStorage()/safe and copy to TMP dir... SUCCESS!" %(selectedFile))
+        finally:
+            if fout is not None:
+                fout.close()
 
-        txt = "HACKER MODE: File %s decrypted and copied to TMP dir" %(selectedFile)
-        setDisplayStatus(txt,"B")
-        myPopupInformationBox(toolbox_frame_, txt)
+        if lCaughtError:
+            txt = "@@ WARNING: txn file '%s' may have been corrupted. Skipping the remainder, it may be best to delete it >> ERROR(BadPaddingException)!" %(selectedFile)
+            myPrint("B",txt)
+            txt = "ERROR: BadPaddingException - Most of file %s decrypted & copied to TMP dir (CONSIDER DELETING FILE!)" %(selectedFile)
+            txtColor = "R"
+            msgType = JOptionPane.ERROR_MESSAGE
+        else:
+            myPrint("B","User requested to extract file: %s from LocalStorage()/safe and copy to TMP dir... SUCCESS!" %(selectedFile))
+            txt = "HACKER MODE: File %s decrypted and copied to TMP dir" %(selectedFile)
+            txtColor = "B"
+            msgType = JOptionPane.INFORMATION_MESSAGE
+
+        setDisplayStatus(txt,txtColor)
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=msgType)
+
+        MD_REF.getPlatformHelper().openDirectory(tmpDir)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return

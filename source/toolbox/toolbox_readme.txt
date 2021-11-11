@@ -79,7 +79,7 @@ NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND
 
 Toolbox uses the the internal MD 'code' font for display and outputs. Typically a Monospaced font so text columns align.
 >> If your language's double-byte characters do not display properly, then change in advanced mode; General Tools>Set MD Fonts
->> Change 'code' font. Please only use a fixed-width Monospaced sol that column alignments are maintained (but your choice).
+>> Change 'code' font. Please only use a fixed-width Monospaced so that column alignments are maintained (but your choice).
 
 Features:
 - Main window shows various diagnostic data and MD Preferences
