@@ -21979,12 +21979,12 @@ Now you will have a text readable version of the file you can open in a text edi
         if lCaughtError:
             txt = "@@ WARNING: txn file '%s' may have been corrupted. Skipping the remainder, it may be best to delete it >> ERROR(BadPaddingException)!" %(selectedFile)
             myPrint("B",txt)
-            txt = "ERROR: BadPaddingException - Most of file %s decrypted & copied to TMP dir (CONSIDER DELETING FILE!)" %(selectedFile)
+            txt = "ERROR: BadPaddingException - Most of file decrypted & copied to TMP dir (CONSIDER DELETING FILE!):'%s'" %(selectedFile)
             txtColor = "R"
             msgType = JOptionPane.ERROR_MESSAGE
         else:
             myPrint("B","User requested to extract file: %s from LocalStorage()/safe and copy to TMP dir... SUCCESS!" %(selectedFile))
-            txt = "HACKER MODE: File %s decrypted and copied to TMP dir" %(selectedFile)
+            txt = "HACKER MODE: File decrypted and copied to TMP dir: '%s'" %(selectedFile)
             txtColor = "B"
             msgType = JOptionPane.INFORMATION_MESSAGE
 
@@ -24368,6 +24368,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_demote_primary_to_secondary.setEnabled(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
                     user_hacker_sync_push.setEnabled(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
                     user_force_sync_off.setEnabled(not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE))
+                    user_hacker_extract_from_sync.setEnabled(MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None)
+
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
