@@ -245,6 +245,7 @@
 # build: 1045 - Enhanced search option (CMD-F) so that text field gets focus....
 # build: 1045 - Enhanced 'Prime' USAA ClientUID function to allow deletion of old USAA profile(s)
 # build: 1045 - Enhanced decrypt file from local storage... Catch BadPadding Exception and continue....
+# build: 1045 - Fix to editStoredOFXPasswords() was pre-pending the key prefix when it was already there.....
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -8171,8 +8172,8 @@ Please update any that you use before proceeding....
 
         authObj.setNewPassword(newPassword)
 
-        MD_REF.getCurrentAccount().getBook().getLocalStorage()
-        service.cacheAuthentication(selectedAuthKeyRecord.theKey, authObj.getNewEncodedAuthObj().toCacheString())
+        MD_REF.getCurrentAccount().getBook().getLocalStorage().cacheAuthentication(selectedAuthKeyRecord.theKey, authObj.getNewEncodedAuthObj().toCacheString())
+        # service.cacheAuthentication(selectedAuthKeyRecord.theKey, authObj.getNewEncodedAuthObj().toCacheString())
 
         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
         play_the_money_sound()
