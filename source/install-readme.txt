@@ -54,6 +54,8 @@ net_account_balances:                   Homepage / summary screen widget. Displa
 
 total_selected_transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
+categories_super_window:                Clones MD Menu> Tools>Categories and adds a Quick Search box/capability
+
 extension_tester:                       Demo extension/scripts for coders wanting to build Moneydance Python extensions
 
 useful_scripts: A zip collection of ad-hoc scripts for specific tasks. Just unzip and select the script you want. Includes:
