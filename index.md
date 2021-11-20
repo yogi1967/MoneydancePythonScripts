@@ -54,7 +54,7 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Net Account Balances**: Puts a small 'widget' on the Home Page. Displays the total of selected account balances.
 NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView widget
 
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances_2.zip">**Net Account Balances (instance2)**: Puts a small 'widget' on the Home Page. Displays the total of selected account balances (2nd instance).
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances2.zip">**Net Account Balances (instance2)**: Puts a small 'widget' on the Home Page. Displays the total of selected account balances (2nd instance).
 
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/total_selected_transactions.zip">**^^Total Selected Transactions**: Allows you to select register txns and with one click show a popup sum-total of the txn amounts selected.
 
