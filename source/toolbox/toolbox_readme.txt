@@ -172,7 +172,7 @@ ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / secur
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
         - Cleanup missing Online Banking Links (NOTE: This is always called when running 'Delete OFX Banking Logon Profile / Service' above
         - Reset/Fix/Edit/Add CUSIP Banking Link. This is the link for downloaded securities.... (remove_ofx_security_bindings.py and change-security-cusip.py)
-        - Update OFXLastTxnUpdate Last Download Date for Online Txns (MD versions < 2022 - otherwise use Online menu, Setup Online Banking, Reset Sync Date)
+        - Update OFXLastTxnUpdate Last Download Date for Online Txns (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
         - Delete single cached OnlineTxnList record/Txns
         - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
         - OFX Cookie Management (some options also required Hacker mode)

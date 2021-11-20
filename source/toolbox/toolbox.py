@@ -246,7 +246,7 @@
 # build: 1045 - Enhanced 'Prime' USAA ClientUID function to allow deletion of old USAA profile(s)
 # build: 1045 - Enhanced decrypt file from local storage... Catch BadPadding Exception and continue....
 # build: 1045 - Fix to editStoredOFXPasswords() was pre-pending the key prefix when it was already there.....
-# build: 1045 - Common code tweak - destroyOldFrames() - add a "_" for cloned instances
+# build: 1045 - Common code tweak - destroyOldFrames() - add a "_" for cloned instances; re-enable
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -22725,9 +22725,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_manageCUSIPLink.setEnabled(lAdvancedMode)
                 user_manageCUSIPLink.setForeground(getColorRed())
 
-                user_updateOFXLastTxnUpdate = JRadioButton("Update the OFX Last Txn Update Date (Downloaded) field for an account (MD Versions < MD2022)", False)
+                user_updateOFXLastTxnUpdate = JRadioButton("Update the OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False)
                 user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download Txn date which is used to set the start date for Txn downloads - THIS CHANGES DATA!")
-                user_updateOFXLastTxnUpdate.setEnabled(lAdvancedMode and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
+                # user_updateOFXLastTxnUpdate.setEnabled(lAdvancedMode and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
+                user_updateOFXLastTxnUpdate.setEnabled(lAdvancedMode)
                 user_updateOFXLastTxnUpdate.setForeground(getColorRed())
 
                 user_deleteOFXBankingLogonProfile = JRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False)

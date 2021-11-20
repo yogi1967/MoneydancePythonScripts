@@ -48,7 +48,7 @@ export md_passphrase=x
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2022.2 (4060)"
+md_version=" 2022.3 (4061)"
 
 USE_JAVA17="YES"
 
