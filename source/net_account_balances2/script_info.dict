@@ -2,7 +2,7 @@
   "actions" = (
     {
       "type" = "initializer"
-      "script_file" = "net_account_balances_2.py"
+      "script_file" = "net_account_balances2.py"
     }
   )
 }

@@ -1,5 +1,5 @@
 {
-  "id" = "net_account_balances_2"
+  "id" = "net_account_balances2"
   "extension_type" = "python"
   "vendor" = "Stuart Beesley - StuWareSoftSystems"
   "module_build" = "1007"

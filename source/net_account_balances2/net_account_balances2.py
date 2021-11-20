@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances_2.py build: 1007 - July 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances2.py build: 1007 - July 2021 - Stuart Beesley - StuWareSoftSystems
 
 # INSTANCE 2 - clone of the original 
 
@@ -68,7 +68,7 @@
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
 # SET THESE LINES
-myModuleID = u"net_account_balances_2"
+myModuleID = u"net_account_balances2"
 version_build = "1007"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
@@ -77,7 +77,7 @@ if u"debug" in globals():
     global debug
 else:
     debug = False
-global net_account_balances_2_frame_
+global net_account_balances2_frame_
 # SET LINES ABOVE ^^^^
 
 # COPY >> START
@@ -157,9 +157,9 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(net_account_balances_2_frame_, MyJFrame)        # EDIT THIS
-            and net_account_balances_2_frame_.isActiveInMoneydance):       # EDIT THIS
-        frameToResurrect = net_account_balances_2_frame_                   # EDIT THIS
+            and isinstance(net_account_balances2_frame_, MyJFrame)        # EDIT THIS
+            and net_account_balances2_frame_.isActiveInMoneydance):       # EDIT THIS
+        frameToResurrect = net_account_balances2_frame_                   # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
@@ -333,7 +333,7 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    global net_account_balances_2_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+    global net_account_balances2_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
     extn_param_listAccountUUIDs_NAB = []                                                                              # noqa
     extn_param_balanceType_NAB = 0                                                                                    # noqa
     extn_param_widget_display_name_NAB = ""                                                                           # noqa
@@ -2526,14 +2526,14 @@ Visit: %s (Author's site)
         global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-        global net_account_balances_2_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+        global net_account_balances2_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
 
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
 
         if myParameters is None: myParameters = {}
 
-        if myParameters.get("net_account_balances_2_extension") is not None: net_account_balances_2_extension = myParameters.get("net_account_balances_2_extension")
+        if myParameters.get("net_account_balances2_extension") is not None: net_account_balances2_extension = myParameters.get("net_account_balances2_extension")
         if myParameters.get("extn_param_listAccountUUIDs_NAB") is not None: extn_param_listAccountUUIDs_NAB = myParameters.get("extn_param_listAccountUUIDs_NAB")
         if myParameters.get("extn_param_balanceType_NAB") is not None: extn_param_balanceType_NAB = myParameters.get("extn_param_balanceType_NAB")
         if myParameters.get("extn_param_widget_display_name_NAB") is not None: extn_param_widget_display_name_NAB = myParameters.get("extn_param_widget_display_name_NAB")
@@ -2547,7 +2547,7 @@ Visit: %s (Author's site)
         global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-        global net_account_balances_2_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+        global net_account_balances2_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
 
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
@@ -2556,7 +2556,7 @@ Visit: %s (Author's site)
 
         if myParameters is None: myParameters = {}
 
-        myParameters["net_account_balances_2_extension"] = version_build
+        myParameters["net_account_balances2_extension"] = version_build
         myParameters["extn_param_listAccountUUIDs_NAB"] = extn_param_listAccountUUIDs_NAB
         myParameters["extn_param_balanceType_NAB"] = extn_param_balanceType_NAB
         myParameters["extn_param_widget_display_name_NAB"] = extn_param_widget_display_name_NAB
@@ -3165,7 +3165,7 @@ Visit: %s (Author's site)
             return True
 
         def build_main_frame(self):
-            global net_account_balances_2_frame_
+            global net_account_balances2_frame_
 
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -3179,7 +3179,7 @@ Visit: %s (Author's site)
                     self.callingClass = callingClass
 
                 def run(self):                                                                                                        # noqa
-                    global net_account_balances_2_frame_
+                    global net_account_balances2_frame_
 
                     myPrint("DB", "Creating main JFrame for application...")
 
@@ -3189,8 +3189,8 @@ Visit: %s (Author's site)
 
                     # Called from getMoneydanceUI() so assume the Moneydance GUI is loaded...
                     # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
-                    net_account_balances_2_frame_ = MyJFrame(u"Net Account Balances (instance2): Configure Home Page View widget's settings")
-                    self.callingClass.theFrame = net_account_balances_2_frame_
+                    net_account_balances2_frame_ = MyJFrame(u"Net Account Balances (instance2): Configure Home Page View widget's settings")
+                    self.callingClass.theFrame = net_account_balances2_frame_
                     self.callingClass.theFrame.setName(u"%s_main" %(self.callingClass.myModuleID))
 
                     self.callingClass.theFrame.isActiveInMoneydance = True
