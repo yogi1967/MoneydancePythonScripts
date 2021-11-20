@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1007 - July 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1008 - July 2021 - Stuart Beesley - StuWareSoftSystems
 
 ###############################################################################
 # This extension creates a Moneydance Home Page View >> a little widget on the Home / Summary Screen dashboard
@@ -60,6 +60,7 @@
 # Build: 1005 - Common code tweaks; Tweaked colors for Dark themes and to be more MD 'compatible'
 # Build: 1006 - Common code tweaks; Flat Dark Theme
 # Build: 1007 - Common code tweaks
+# Build: 1008 - Common code tweaks; tweaked to allow clone instance
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -67,7 +68,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1007"
+version_build = "1008"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -1396,7 +1397,7 @@ Visit: %s (Author's site)
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
-            if fr.getName().lower().startswith(moduleName):
+            if fr.getName().lower().startswith(moduleName+"_"):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False

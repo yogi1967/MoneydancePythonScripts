@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# ofx_populate_multiple_userids.py (build 5) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# ofx_populate_multiple_userids.py (build 6) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # This script allows you to add multiple UserIDs to a working OFX profile
 
@@ -38,6 +38,7 @@
 # build: 3 - Enhanced further to run within Toolbox
 # build: 4 - Tweaks - allow when downgraded from MD2022; manually update mapping table if on MD2021 or lower....
 # build: 5 - Common code tweaks
+# build: 6 - Common code tweaks
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -45,7 +46,7 @@
 
 # SET THESE LINES
 myModuleID = u"ofx_populate_multiple_userids"
-version_build = "5"
+version_build = "6"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1364,7 +1365,7 @@ Visit: %s (Author's site)
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
-            if fr.getName().lower().startswith(moduleName):
+            if fr.getName().lower().startswith(moduleName+"_"):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1014)
+# list_future_reminders.py (build: 1015)
 
 ###############################################################################
 # MIT License
@@ -44,6 +44,7 @@
 # build: 1012 - Common code tweaks; Tweaked colors for Dark themes and to be more MD 'compatible'
 # build: 1013 - Common code tweaks; Flat Dark Theme
 # build: 1014 - Common code tweaks
+# build: 1015 - Common code tweaks
 
 # Displays Moneydance future reminders
 
@@ -53,7 +54,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1014"
+version_build = "1015"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1392,7 +1393,7 @@ Visit: %s (Author's site)
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
-            if fr.getName().lower().startswith(moduleName):
+            if fr.getName().lower().startswith(moduleName+"_"):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False

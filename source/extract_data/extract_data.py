@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1018 - August 2021 - Stuart Beesley
+# extract_data.py - build: 1019 - August 2021 - Stuart Beesley
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -82,6 +82,7 @@
 # build: 1016 - Common code tweaks; Flat Dark Theme
 # build: 1017 - SG2020: Fix print to PDF to make 2 parts to avoid overwriting the same pdf file....
 # build: 1018 - Common code tweaks
+# build: 1019 - Common code tweaks
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -89,7 +90,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1018"
+version_build = "1019"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1538,7 +1539,7 @@ Visit: %s (Author's site)
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
-            if fr.getName().lower().startswith(moduleName):
+            if fr.getName().lower().startswith(moduleName+"_"):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# import_categories.py (build 5) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# import_categories.py (build 6) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 #
@@ -52,6 +52,7 @@
 # build: 3 - Common code tweaks
 # build: 4 - Common code tweaks; use file chooser wrapper
 # build: 5 - Common code tweaks
+# build: 6 - Common code tweaks
 
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -60,7 +61,7 @@
 
 # SET THESE LINES
 myModuleID = u"import_categories"
-version_build = "5"
+version_build = "6"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1364,7 +1365,7 @@ Visit: %s (Author's site)
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
-            if fr.getName().lower().startswith(moduleName):
+            if fr.getName().lower().startswith(moduleName+"_"):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False

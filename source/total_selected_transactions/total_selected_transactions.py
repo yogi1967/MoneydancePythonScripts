@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# total_selected_transactions.py build: 1005 - August 2021 - Stuart Beesley StuWareSoftSystems
+# total_selected_transactions.py build: 1006 - August 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -35,6 +35,7 @@
 # build: 1003 - Common code tweaks
 # build: 1004 - Common code tweaks; Flat Dark
 # build: 1005 - Common code tweaks
+# build: 1006 - Common code tweaks
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -45,7 +46,7 @@
 
 # SET THESE LINES
 myModuleID = u"total_selected_transactions"
-version_build = "1005"
+version_build = "1006"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -1355,7 +1356,7 @@ Visit: %s (Author's site)
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
-            if fr.getName().lower().startswith(moduleName):
+            if fr.getName().lower().startswith(moduleName+"_"):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False

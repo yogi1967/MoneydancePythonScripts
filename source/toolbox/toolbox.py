@@ -246,6 +246,7 @@
 # build: 1045 - Enhanced 'Prime' USAA ClientUID function to allow deletion of old USAA profile(s)
 # build: 1045 - Enhanced decrypt file from local storage... Catch BadPadding Exception and continue....
 # build: 1045 - Fix to editStoredOFXPasswords() was pre-pending the key prefix when it was already there.....
+# build: 1045 - Common code tweak - destroyOldFrames() - add a "_" for cloned instances
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -1682,7 +1683,7 @@ Visit: %s (Author's site)
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
-            if fr.getName().lower().startswith(moduleName):
+            if fr.getName().lower().startswith(moduleName+"_"):
                 myPrint("DB","Found old frame %s and active status is: %s" %(fr.getName(),fr.isActiveInMoneydance))
                 try:
                     fr.isActiveInMoneydance = False
