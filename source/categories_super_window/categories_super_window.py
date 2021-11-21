@@ -2616,7 +2616,7 @@ Visit: %s (Author's site)
         def huntPanelWithButtons(_component, _level):
             for comp in _component.getComponents():
                 myPrint("DB", "."*_level, comp, type(comp))
-                if isinstance(comp, JButton): return _component
+                if isinstance(_component, JPanel) and isinstance(comp, JButton): return _component
                 _foundComp = huntPanelWithButtons(comp, _level+1)
                 if _foundComp is not None: return _foundComp
 
@@ -2639,6 +2639,7 @@ Visit: %s (Author's site)
                 theControlPanel = huntPanelWithButtons(catWin, 0)
                 if theControlPanel is not None:
                     myPrint("DB", "@@ FOUND CONTROL PANEL @@", theControlPanel, type(theControlPanel))
+                    # theControlPanel.add(mySearchField,GridC.getc().xy(0,1).colspan(2).insets(0,10,0,5))
                     theControlPanel.add(mySearchField,GridC.getc().xy(0,1).insets(0,10,0,5))
                     theControlPanel.validate()
                     categories_super_window_frame_.setVisible(True)

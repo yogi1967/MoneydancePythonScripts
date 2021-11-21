@@ -41,10 +41,10 @@
 #                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
 
 # shellcheck disable=SC2121
-set md_passphrase=x
-unset md_passphrase
-unset md_passphrase
-export md_passphrase=x
+#unset md_passphrase
+#unset md_passphrase
+#set md_passphrase=x
+#export md_passphrase=x
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
