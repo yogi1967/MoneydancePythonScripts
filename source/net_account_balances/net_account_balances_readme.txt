@@ -26,4 +26,6 @@ This extension creates a Moneydance Home Page View >> a little widget on the Hom
 - Any non base currency accounts are converted back to your base currency
 - NOTE: This does not use recursive balance totalling, it simply uses the selected accounts' balance...
 
+- As of Nov 2021 this extension allows you to select how many instances you require and configure each instance / row
+
 Thanks for reading..... ;->

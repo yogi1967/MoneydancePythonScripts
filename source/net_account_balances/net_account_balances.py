@@ -17,6 +17,8 @@
 # Any non base currency accounts are converted back to your base currency
 # NOTE: This does not use recursive balance totalling, it simply uses the selected accounts' balance...
 
+# As of Nov 2021 this extension allows you to select how many instances you require and configure each instance / row
+
 ###############################################################################
 # MIT License
 #
@@ -60,7 +62,7 @@
 # Build: 1005 - Common code tweaks; Tweaked colors for Dark themes and to be more MD 'compatible'
 # Build: 1006 - Common code tweaks; Flat Dark Theme
 # Build: 1007 - Common code tweaks
-# Build: 1008 - Common code tweaks; tweaked to allow clone instance
+# Build: 1008 - Common code tweaks; Multi-instance version
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -332,10 +334,21 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    global __net_account_balances_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
-    extn_param_listAccountUUIDs_NAB = []                                                                              # noqa
-    extn_param_balanceType_NAB = 0                                                                                    # noqa
-    extn_param_widget_display_name_NAB = ""                                                                           # noqa
+    global __net_account_balances_extension
+    global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+    global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_instances_NAB
+
+    # Old version parameters - will be migrated and deleted (if they exist)
+    extn_param_listAccountUUIDs_NAB = None                                                                              # noqa
+    extn_param_balanceType_NAB = None                                                                                   # noqa
+    extn_param_widget_display_name_NAB = None                                                                           # noqa
+
+    # New multi-instance variables
+    extn_param_NEW_listAccountUUIDs_NAB = [[]]                                                                          # noqa
+    extn_param_NEW_balanceType_NAB = [0]                                                                                # noqa
+    extn_param_NEW_widget_display_name_NAB = [""]                                                                       # noqa
+    extn_param_NEW_instances_NAB = 1                                                                                    # noqa
+
     DEFAULT_WIDGET_NAME = "Net Account Balances:"
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
@@ -2525,7 +2538,9 @@ Visit: %s (Author's site)
         global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-        global __net_account_balances_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+        global __net_account_balances_extension
+        global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+        global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_instances_NAB
 
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
@@ -2533,9 +2548,15 @@ Visit: %s (Author's site)
         if myParameters is None: myParameters = {}
 
         if myParameters.get("__net_account_balances_extension") is not None: __net_account_balances_extension = myParameters.get("__net_account_balances_extension")
+
         if myParameters.get("extn_param_listAccountUUIDs_NAB") is not None: extn_param_listAccountUUIDs_NAB = myParameters.get("extn_param_listAccountUUIDs_NAB")
         if myParameters.get("extn_param_balanceType_NAB") is not None: extn_param_balanceType_NAB = myParameters.get("extn_param_balanceType_NAB")
         if myParameters.get("extn_param_widget_display_name_NAB") is not None: extn_param_widget_display_name_NAB = myParameters.get("extn_param_widget_display_name_NAB")
+
+        if myParameters.get("extn_param_NEW_listAccountUUIDs_NAB") is not None: extn_param_NEW_listAccountUUIDs_NAB = myParameters.get("extn_param_NEW_listAccountUUIDs_NAB")
+        if myParameters.get("extn_param_NEW_balanceType_NAB") is not None: extn_param_NEW_balanceType_NAB = myParameters.get("extn_param_NEW_balanceType_NAB")
+        if myParameters.get("extn_param_NEW_widget_display_name_NAB") is not None: extn_param_NEW_widget_display_name_NAB = myParameters.get("extn_param_NEW_widget_display_name_NAB")
+        if myParameters.get("extn_param_NEW_instances_NAB") is not None: extn_param_NEW_instances_NAB = myParameters.get("extn_param_NEW_instances_NAB")
 
         myPrint("DB","myParameters{} set into memory (as variables).....")
 
@@ -2546,7 +2567,9 @@ Visit: %s (Author's site)
         global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-        global __net_account_balances_extension, extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+        global __net_account_balances_extension
+        global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+        global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_instances_NAB
 
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
@@ -2556,9 +2579,17 @@ Visit: %s (Author's site)
         if myParameters is None: myParameters = {}
 
         myParameters["__net_account_balances_extension"] = version_build
-        myParameters["extn_param_listAccountUUIDs_NAB"] = extn_param_listAccountUUIDs_NAB
-        myParameters["extn_param_balanceType_NAB"] = extn_param_balanceType_NAB
-        myParameters["extn_param_widget_display_name_NAB"] = extn_param_widget_display_name_NAB
+
+        # Purge old parameters
+        myParameters.pop("extn_param_listAccountUUIDs_NAB")
+        myParameters.pop("extn_param_balanceType_NAB")
+        myParameters.pop("extn_param_widget_display_name_NAB")
+
+        # Save newer multi-instance parameters
+        myParameters["extn_param_NEW_listAccountUUIDs_NAB"] = extn_param_NEW_listAccountUUIDs_NAB
+        myParameters["extn_param_NEW_balanceType_NAB"] = extn_param_NEW_balanceType_NAB
+        myParameters["extn_param_NEW_widget_display_name_NAB"] = extn_param_NEW_widget_display_name_NAB
+        myParameters["extn_param_NEW_instances_NAB"] = extn_param_NEW_instances_NAB
 
         myPrint("DB","variables dumped from memory back into myParameters{}.....")
 
@@ -2598,8 +2629,7 @@ Visit: %s (Author's site)
 
     class MyAcctFilter(AcctFilter):
 
-        def __init__(self):
-            pass
+        def __init__(self): pass
 
         # noinspection PyMethodMayBeStatic
         def matches(self, acct):
@@ -2631,14 +2661,13 @@ Visit: %s (Author's site)
                 return "Invalid Acct Obj or None"
             return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
 
-        def __repr__(self):
-            return self.__str__()
+        def __repr__(self): return self.__str__()
 
     def sendMessage(extensionID, theMessage):
         myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
         # replicating moneydance.showURL("moneydance:fmodule:net_account_balances:myCommand_here?thisIsMyParameter")
 
-        frs = getMyJFrame( extensionID )
+        frs = getMyJFrame(extensionID)
         if frs:
             myPrint("DB", "... found frame: %s - requesting .invoke(%s)" %(frs, theMessage))
             return frs.MoneydanceAppListener.invoke("%s:customevent:%s" %(extensionID,theMessage))
@@ -2646,12 +2675,13 @@ Visit: %s (Author's site)
             myPrint("DB",".. Sorry - did not find my application (JFrame) to send message....")
         return
 
+
+
     myPrint("B","HomePageView widget / extension is now running...")
 
     class NetAccountBalancesExtension(FeatureModule):
 
         def __init__(self):  # This is the class' own initialise, just to set up variables
-            global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB, debug
             # super(FeatureModule, self).__init__()                                                                       # noqa
 
             self.myModuleID = myModuleID
@@ -2683,9 +2713,10 @@ Visit: %s (Author's site)
             self.saveMyHomePageView = None
             self.helpFile = "<NONE>"
 
-            self.savedAccountListUUIDs = []
-            self.savedBalanceType = 0
-            self.savedWidgetName = DEFAULT_WIDGET_NAME
+            self.savedAccountListUUIDs = [[]]
+            self.savedBalanceType = [0]
+            self.savedWidgetName = [DEFAULT_WIDGET_NAME]
+            self.savedInstances = 1
 
             self.menuItemDEBUG = None
             self.mainMenuBar= None
@@ -2741,7 +2772,7 @@ Visit: %s (Author's site)
                 self.callingClass = callingClass
 
             def actionPerformed(self, event):                                                                           # noqa
-                global debug
+
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", ".. main application frame being disposed (will shut down application)....")
@@ -2758,7 +2789,7 @@ Visit: %s (Author's site)
                 self.callingClass = callingClass
 
             def actionPerformed(self, event):                                                                           # noqa
-                global debug
+
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB","Setting MyJFrame to invisible....")
@@ -2775,7 +2806,7 @@ Visit: %s (Author's site)
                 self.callingClass = callingClass
 
             def actionPerformed(self, event):                                                                           # noqa
-                global debug
+
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -2790,7 +2821,7 @@ Visit: %s (Author's site)
 
             # noinspection PyMethodMayBeStatic
             def windowActivated(self, WindowEvent):                                                                     # noqa
-                global debug
+
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, WindowEvent))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -2910,7 +2941,6 @@ Visit: %s (Author's site)
 
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
-                global debug
 
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, WindowEvent))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -2956,7 +2986,8 @@ Visit: %s (Author's site)
                 self.callingClass = callingClass
 
             def actionPerformed(self, event):
-                global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB, debug
+                global debug    # Keep this here as we change debug further down
+                global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_instances_NAB
 
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -2983,9 +3014,10 @@ Visit: %s (Author's site)
                     if self.callingClass.savedWidgetName.strip() == "":
                         self.callingClass.savedWidgetName =  DEFAULT_WIDGET_NAME
 
-                    extn_param_listAccountUUIDs_NAB = self.callingClass.savedAccountListUUIDs
-                    extn_param_balanceType_NAB = self.callingClass.savedBalanceType
-                    extn_param_widget_display_name_NAB = self.callingClass.savedWidgetName
+                    extn_param_NEW_listAccountUUIDs_NAB = self.callingClass.savedAccountListUUIDs
+                    extn_param_NEW_balanceType_NAB = self.callingClass.savedBalanceType
+                    extn_param_NEW_widget_display_name_NAB = self.callingClass.savedWidgetName
+                    extn_param_NEW_instances_NAB = self.callingClass.savedInstances
 
                     self.callingClass.configPanelOpen = False
                     self.callingClass.theFrame.setVisible(False)    # Listener, so already on Swing EDT
@@ -2997,7 +3029,6 @@ Visit: %s (Author's site)
 
                         # noinspection PyMethodMayBeStatic
                         def run(self):
-                            global debug
 
                             myPrint("DB","Inside %s MyRefreshRunnable.... About call HomePageView .refresh()\n" %(self.callingClass.myModuleID))
                             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -3074,6 +3105,7 @@ Visit: %s (Author's site)
 
         def load_saved_parameters(self):
             global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
+            global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_instances_NAB
 
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -3083,14 +3115,36 @@ Visit: %s (Author's site)
                 if not self.parametersLoaded:
                     if self.moneydanceContext.getCurrentAccountBook() is not None:
                         self.configPanelOpen = False
-                        extn_param_listAccountUUIDs_NAB = []                      # Loading will overwrite if file exists.. Otherwise we want []
-                        extn_param_balanceType_NAB = 0                            # Loading will overwrite if file exists.. Otherwise we want 0
-                        extn_param_widget_display_name_NAB = DEFAULT_WIDGET_NAME  # Loading will overwrite if file exists.. Otherwise we want this default name
+
+                        extn_param_NEW_listAccountUUIDs_NAB = [[]]                      # Loading will overwrite if saved, else pre-load defaults
+                        extn_param_NEW_balanceType_NAB = [0]                            # Loading will overwrite if saved, else pre-load defaults
+                        extn_param_NEW_widget_display_name_NAB = [DEFAULT_WIDGET_NAME]  # Loading will overwrite if saved, else pre-load defaults
+                        extn_param_NEW_instances_NAB = 1                                # Loading will overwrite if saved, else pre-load defaults
+
                         get_StuWareSoftSystems_parameters_from_file(myFile="%s_extension.dict" %(self.myModuleID))
+
+                        # Migrate parameters from old to new multi-instance....
+                        if ((extn_param_listAccountUUIDs_NAB is not None and len(extn_param_listAccountUUIDs_NAB) > 0)
+                                and (len(extn_param_NEW_listAccountUUIDs_NAB[0]) < 1 and extn_param_NEW_instances_NAB == 1)):
+                            myPrint("B","MIGRATING OLD PARAMETERS TO NEW MULTI-INSTANCE PARAMETERS")
+
+                            extn_param_NEW_listAccountUUIDs_NAB = [extn_param_listAccountUUIDs_NAB]
+                            extn_param_NEW_balanceType_NAB = [extn_param_balanceType_NAB]
+                            extn_param_NEW_widget_display_name_NAB = [extn_param_widget_display_name_NAB]
+                            extn_param_NEW_instances_NAB = 1
+
+                            extn_param_listAccountUUIDs_NAB = None
+                            extn_param_balanceType_NAB = None
+                            extn_param_widget_display_name_NAB = None
+
+                        else:
+                            myPrint("DB","No migration of (old) parameters to new multi-instance parameters performed....")
+
                         self.parametersLoaded = True
-                        self.savedAccountListUUIDs = extn_param_listAccountUUIDs_NAB
-                        self.savedBalanceType = extn_param_balanceType_NAB
-                        self.savedWidgetName = extn_param_widget_display_name_NAB
+                        self.savedAccountListUUIDs = extn_param_NEW_listAccountUUIDs_NAB
+                        self.savedBalanceType = extn_param_NEW_balanceType_NAB
+                        self.savedWidgetName = extn_param_NEW_widget_display_name_NAB
+                        self.savedInstances = extn_param_NEW_instances_NAB
 
         # method getName() must exist as the interface demands it.....
         def getName(self):      # noqa
@@ -3100,8 +3154,7 @@ Visit: %s (Author's site)
         def __str__(self):
             return u"%s (Extension)" %(self.myModuleID.capitalize())
 
-        def __repr__(self):
-            return self.__str__()
+        def __repr__(self): return self.__str__()
 
         def getMyself(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -3215,7 +3268,6 @@ Visit: %s (Author's site)
                                 self.removeSelectionInterval(start, end)
                             else:
                                 self.addSelectionInterval(start, end)
-
 
                     self.callingClass.jlst = JList([])
                     self.callingClass.jlst.setBackground((self.callingClass.moneydanceContext.getUI().getColors()).listBackground)
@@ -3393,7 +3445,6 @@ Visit: %s (Author's site)
             result = self.handle_event(eventString, True)
 
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
             return result
 
         def getMoneydanceUI(self):
@@ -3611,7 +3662,6 @@ Visit: %s (Author's site)
 
                 # noinspection PyMethodMayBeStatic
                 def run(self):
-                    global debug
                     myPrint("DB","Inside CreateViewPanelRunnable().... Calling creating ViewPanel..")
                     self.callingClass.view = self.callingClass.ViewPanel(book, self.callingClass)
 
@@ -3668,8 +3718,6 @@ Visit: %s (Author's site)
 
                 # noinspection PyMethodMayBeStatic
                 def run(self):
-                    global debug
-
                     myPrint("DB","Inside GUIRunnable.... Calling .reallyRefresh()..")
                     self.callingClass.reallyRefresh()
 
@@ -3679,87 +3727,101 @@ Visit: %s (Author's site)
 
                 if self.callingClass.is_unloaded:
                     myPrint("DB","HomePageView is unloaded, so ignoring & returning zero....")
-                    return 0
+                    return [0]
 
                 if self.callingClass.theBook is None:
                     myPrint("DB","HomePageView widget: book is None - returning zero...")
-                    return 0
+                    return [0]
 
                 if len(self.callingClass.extensionClass.savedAccountListUUIDs) < 1:
                     myPrint("DB","...savedAccountListUUIDs is empty - returning zero...")
-                    return 0
+                    return [0]
 
                 myPrint("DB","HomePageView widget: (re)calculating balances")
 
                 baseCurr = self.callingClass.theBook.getCurrencies().getBaseType()
 
                 accountsToShow = []
-                for accID in self.callingClass.extensionClass.savedAccountListUUIDs:
-                    myPrint("DB","...looking for Account with UUID: %s" %accID)
-                    acct = AccountUtil.findAccountWithID(self.callingClass.theBook.getRootAccount(), accID)
-                    if acct is not None:
-                        myPrint("DB","...found and adding account to list: %s" %acct)
-                        accountsToShow.append(acct)
-                    else:
-                        myPrint("DB","...odd - Account with UUID %s not found..? Skipping this one...." %(accID))
+                for iAccountLoop in range(0,len(self.callingClass.extensionClass.savedAccountListUUIDs)):
+                    accountsToShow.append([])
+                    for accID in self.callingClass.extensionClass.savedAccountListUUIDs[iAccountLoop]:
+                        myPrint("DB","...Instance/row: %s - looking for Account with UUID: %s" %(iAccountLoop+1, accID))
+                        acct = AccountUtil.findAccountWithID(self.callingClass.theBook.getRootAccount(), accID)
+                        if acct is not None:
+                            myPrint("DB","....found and adding account to list: %s" %acct)
+                            accountsToShow[iAccountLoop].append(acct)
+                        else:
+                            myPrint("DB","....odd - Account with UUID %s not found..? Skipping this one...." %(accID))
 
-                totalBalance = 0
-                for acct in accountsToShow:
-                    acctCurr = acct.getCurrencyType()
-                    # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance"
-                    if self.callingClass.extensionClass.savedBalanceType == 0:
-                        bal = acct.getBalance()
-                        myPrint("DB","HomePageView widget: adding acct: %s Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
-                    elif self.callingClass.extensionClass.savedBalanceType == 1:
-                        bal = acct.getCurrentBalance()
-                        myPrint("DB","HomePageView widget: adding acct: %s Current Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
-                    elif self.callingClass.extensionClass.savedBalanceType == 2:
-                        bal = acct.getClearedBalance()
-                        myPrint("DB","HomePageView widget: adding acct: %s Cleared Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
-                    else:
-                        bal = 0
-                        myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType))
+                totalBalanceTable = []
 
-                    if bal != 0 and acctCurr != baseCurr:
-                        balConv = CurrencyUtil.convertValue(bal, acctCurr, baseCurr)
-                        myPrint("DB",".. Converted %s to %s (base)" %(acctCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(balConv, dec)))
-                        totalBalance += balConv
-                    else:
-                        totalBalance += bal
+                for iAccountLoop in range(0,len(accountsToShow)):
+                    onInstance = iAccountLoop+1
 
-                    # noinspection PyUnresolvedReferences
-                    if acct.getAccountType() == Account.AccountType.INVESTMENT:
-                        for securityAcct in acct.getSubAccounts():  # There's only one level of security sub accounts
-                            securityCurr = securityAcct.getCurrencyType()
-                            relCurr = securityCurr.getCurrencyParameter(None, None, "relative_to_currid", acctCurr)
-                            myPrint("DB",".. Security curr: %s Relative curr: %s Account curr: %s Base Curr: %s" %(securityCurr, relCurr, acctCurr, baseCurr))
+                    totalBalance = 0
 
-                            if self.callingClass.extensionClass.savedBalanceType == 0:
-                                bal = securityAcct.getBalance()
-                                myPrint("DB","HomePageView widget: adding security: %s Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
-                            elif self.callingClass.extensionClass.savedBalanceType == 1:
-                                bal = securityAcct.getCurrentBalance()
-                                myPrint("DB","HomePageView widget: adding security: %s Current Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
-                            elif self.callingClass.extensionClass.savedBalanceType == 2:
-                                bal = securityAcct.getClearedBalance()
-                                myPrint("DB","HomePageView widget: adding security: %s Cleared Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
-                            else:
-                                bal = 0
-                                myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType))
+                    myPrint("DB","HomePageView widget: calculating balances for widget instance/row: %s" %(onInstance))
 
-                            if bal != 0:
-                                # securityValue = CurrencyUtil.convertValue(bal, securityCurr, relCurr)
-                                # myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), relCurr.formatSemiFancy(securityValue, dec)))
+                    for acct in accountsToShow[iAccountLoop]:
+                        acctCurr = acct.getCurrencyType()
+                        # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance"
+                        if self.callingClass.extensionClass.savedBalanceType == 0:
+                            bal = acct.getBalance()
+                            myPrint("DB","HomePageView widget: adding acct: %s Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
+                        elif self.callingClass.extensionClass.savedBalanceType == 1:
+                            bal = acct.getCurrentBalance()
+                            myPrint("DB","HomePageView widget: adding acct: %s Current Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
+                        elif self.callingClass.extensionClass.savedBalanceType == 2:
+                            bal = acct.getClearedBalance()
+                            myPrint("DB","HomePageView widget: adding acct: %s Cleared Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
+                        else:
+                            bal = 0
+                            myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType))
 
-                                securityValue = CurrencyUtil.convertValue(bal, securityCurr, baseCurr)
-                                myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(securityValue, dec)))
+                        if bal != 0 and acctCurr != baseCurr:
+                            balConv = CurrencyUtil.convertValue(bal, acctCurr, baseCurr)
+                            myPrint("DB",".. Converted %s to %s (base)" %(acctCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(balConv, dec)))
+                            totalBalance += balConv
+                        else:
+                            totalBalance += bal
 
-                                totalBalance += securityValue
+                        # noinspection PyUnresolvedReferences
+                        if acct.getAccountType() == Account.AccountType.INVESTMENT:
+                            for securityAcct in acct.getSubAccounts():  # There's only one level of security sub accounts
+                                securityCurr = securityAcct.getCurrencyType()
+                                relCurr = securityCurr.getCurrencyParameter(None, None, "relative_to_currid", acctCurr)
+                                myPrint("DB",".. Security curr: %s Relative curr: %s Account curr: %s Base Curr: %s" %(securityCurr, relCurr, acctCurr, baseCurr))
 
-                del accountsToShow
+                                if self.callingClass.extensionClass.savedBalanceType == 0:
+                                    bal = securityAcct.getBalance()
+                                    myPrint("DB","HomePageView widget: adding security: %s Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
+                                elif self.callingClass.extensionClass.savedBalanceType == 1:
+                                    bal = securityAcct.getCurrentBalance()
+                                    myPrint("DB","HomePageView widget: adding security: %s Current Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
+                                elif self.callingClass.extensionClass.savedBalanceType == 2:
+                                    bal = securityAcct.getClearedBalance()
+                                    myPrint("DB","HomePageView widget: adding security: %s Cleared Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
+                                else:
+                                    bal = 0
+                                    myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType))
 
-                myPrint("DB",".. Calculated a total balance of %s" %(totalBalance/100.0))
-                return totalBalance
+                                if bal != 0:
+                                    # securityValue = CurrencyUtil.convertValue(bal, securityCurr, relCurr)
+                                    # myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), relCurr.formatSemiFancy(securityValue, dec)))
+
+                                    securityValue = CurrencyUtil.convertValue(bal, securityCurr, baseCurr)
+                                    myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(securityValue, dec)))
+
+                                    totalBalance += securityValue
+
+                    totalBalanceTable.append(totalBalance)
+
+                del accountsToShow, totalBalance
+
+                for i in range(0,len(totalBalanceTable)):
+                    myPrint("DB",".. Instance/Row: %s - Calculated a total balance of %s" %(i+1, totalBalanceTable[i] / 100.0))
+
+                return totalBalanceTable
 
             def __init__(self, book, callingClass):
 

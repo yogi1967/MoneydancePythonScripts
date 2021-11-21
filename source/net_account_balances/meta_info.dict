@@ -8,5 +8,5 @@
   "module_name" = "Net Account Balances"
   "module_desc" = "This HomePageView widget totals selected account/category balances on the Summary screen...."
   "mac_sandbox_friendly" = "true"
-  "news" = "Tweaked to allow clone instance2"
+  "news" = "Multi-instance version"
 }
