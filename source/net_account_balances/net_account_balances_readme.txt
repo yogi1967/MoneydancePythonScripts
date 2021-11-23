@@ -17,13 +17,17 @@ This extension creates a Moneydance Home Page View >> a little widget on the Hom
 - Drag and drop the .mxt file onto the left side bar to install (or use Extensions, Manage Extensions, add from file)
 - Once installed, visit Preferences > Summary Page, and then move the new widget to the desired Home screen location
 
-- This widget allows you to select multiple accounts. The balances are totalled to present on the Home screen widget
+- This widget allows you to select multiple accounts. The balances are totalled and displayed on the Home screen widget
 - My concept was to add balances to target zero. Thus a positive number is 'good', a negative is 'bad'
 - The idea is that you net cash and debt to get back to zero every month
 - However, you could create a Net Worth Balance for example; you can use it for anything really
 
+- You can add/delete/move as many rows as you require, and then configure the accounts for each row
+
 - You can change the widget name and also the balance type in the config screen (click the widget, or extensions menu)
 - Any non base currency accounts are converted back to your base currency
 - NOTE: This does not use recursive balance totalling, it simply uses the selected accounts' balance...
+
+>> DON'T FORGET TO SAVE CHANGES <<
 
 Thanks for reading..... ;->
