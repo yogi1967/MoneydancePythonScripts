@@ -6,7 +6,7 @@
   "minbuild" = "3056"
   "vendor_url" = "https://yogi1967.github.io/MoneydancePythonScripts/"
   "module_name" = "Net Account Balances"
-  "module_desc" = "This HomePageView widget totals selected account/category balances on the Summary screen...."
+  "module_desc" = "HomePageView multi-row widget that totals selected account/category balances on the Summary screen..."
   "mac_sandbox_friendly" = "true"
-  "news" = "Multi-instance version"
+  "news" = "Multi-row version"
 }
