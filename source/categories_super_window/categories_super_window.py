@@ -2639,8 +2639,8 @@ Visit: %s (Author's site)
                 theControlPanel = huntPanelWithButtons(catWin, 0)
                 if theControlPanel is not None:
                     myPrint("DB", "@@ FOUND CONTROL PANEL @@", theControlPanel, type(theControlPanel))
-                    # theControlPanel.add(mySearchField,GridC.getc().xy(0,1).colspan(2).insets(0,10,0,5))
-                    theControlPanel.add(mySearchField,GridC.getc().xy(0,1).insets(0,10,0,5))
+                    theControlPanel.add(mySearchField,GridC.getc().xy(0,1).colspan(7).fillx().insets(0,10,0,5))
+                    # theControlPanel.add(mySearchField,GridC.getc().xy(0,1).insets(0,10,0,5))
                     theControlPanel.validate()
                     categories_super_window_frame_.setVisible(True)
 
