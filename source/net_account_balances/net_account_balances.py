@@ -324,6 +324,7 @@ else:
     from com.moneydance.awt import JLinkListener, JLinkLabel
     from com.infinitekind.util import StringUtils
     from java.awt.event import FocusAdapter
+    from java.lang import IllegalArgumentException
 
     # renamed in MD build 3067
     if int(MD_REF.getBuild()) >= 3067:
@@ -4030,101 +4031,109 @@ Visit: %s (Author's site)
 
                 baseCurr = self.callingClass.theBook.getCurrencies().getBaseType()
 
-                accountsToShow = []
-                for iAccountLoop in range(0,len(self.callingClass.extensionClass.savedAccountListUUIDs)):
-                    onRow = iAccountLoop+1
-
-                    accountsToShow.append([])
-
-                    myPrint("DB","HomePageView widget: Finding selected accounts for row: %s" %(onRow))
-
-                    for accID in self.callingClass.extensionClass.savedAccountListUUIDs[iAccountLoop]:
-                        myPrint("DB","... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
-                        acct = AccountUtil.findAccountWithID(self.callingClass.theBook.getRootAccount(), accID)
-                        if acct is not None:
-                            myPrint("DB","....found and adding account to list: %s" %acct)
-                            accountsToShow[iAccountLoop].append(acct)
-                        else:
-                            myPrint("B","....WARNING - Row: %s >> Account with UUID %s not found..? Skipping this one...." %(onRow, accID))
-
                 totalBalanceTable = []
 
-                myPrint("DB","accountsToShow table: %s" %accountsToShow)
+                try:
+                    accountsToShow = []
+                    for iAccountLoop in range(0,len(self.callingClass.extensionClass.savedAccountListUUIDs)):
+                        onRow = iAccountLoop+1
 
-                for iAccountLoop in range(0,len(accountsToShow)):
-                    onRow = iAccountLoop+1
+                        accountsToShow.append([])
 
-                    myPrint("DB","HomePageView widget: calculating balances for widget row: %s" %(onRow))
+                        myPrint("DB","HomePageView widget: Finding selected accounts for row: %s" %(onRow))
 
-                    if len(accountsToShow[iAccountLoop]) < 1:
-                        totalBalance = None
-                    else:
-                        totalBalance = 0
-
-                        for acct in accountsToShow[iAccountLoop]:
-                            acctCurr = acct.getCurrencyType()
-                            # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance"
-                            if self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 0:
-                                bal = acct.getBalance()
-                                myPrint("DB","HomePageView widget: adding acct: %s Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
-                            elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 1:
-                                bal = acct.getCurrentBalance()
-                                myPrint("DB","HomePageView widget: adding acct: %s Current Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
-                            elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 2:
-                                bal = acct.getClearedBalance()
-                                myPrint("DB","HomePageView widget: adding acct: %s Cleared Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
+                        for accID in self.callingClass.extensionClass.savedAccountListUUIDs[iAccountLoop]:
+                            myPrint("DB","... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
+                            acct = AccountUtil.findAccountWithID(self.callingClass.theBook.getRootAccount(), accID)
+                            if acct is not None:
+                                myPrint("DB","....found and adding account to list: %s" %acct)
+                                accountsToShow[iAccountLoop].append(acct)
                             else:
-                                bal = 0
-                                myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType[iAccountLoop]))
+                                myPrint("B","....WARNING - Row: %s >> Account with UUID %s not found..? Skipping this one...." %(onRow, accID))
 
-                            if bal != 0 and acctCurr != baseCurr:
-                                balConv = CurrencyUtil.convertValue(bal, acctCurr, baseCurr)
-                                myPrint("DB",".. Converted %s to %s (base)" %(acctCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(balConv, dec)))
-                                totalBalance += balConv
-                            else:
-                                totalBalance += bal
+                    # Printing of lists containing objects which return multi-bye characters (e.g. Asian) will error - e.g. print [acct]
+                    try: myPrint("DB","accountsToShow table: %s" %accountsToShow)
+                    except: pass
 
-                            # noinspection PyUnresolvedReferences
-                            if acct.getAccountType() == Account.AccountType.INVESTMENT:
-                                for securityAcct in acct.getSubAccounts():  # There's only one level of security sub accounts
-                                    securityCurr = securityAcct.getCurrencyType()
-                                    relCurr = securityCurr.getCurrencyParameter(None, None, "relative_to_currid", acctCurr)
-                                    myPrint("DB",".. Security curr: %s Relative curr: %s Account curr: %s Base Curr: %s" %(securityCurr, relCurr, acctCurr, baseCurr))
+                    for iAccountLoop in range(0,len(accountsToShow)):
+                        onRow = iAccountLoop+1
 
-                                    if self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 0:
-                                        bal = securityAcct.getBalance()
-                                        myPrint("DB","HomePageView widget: adding security: %s Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
-                                    elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 1:
-                                        bal = securityAcct.getCurrentBalance()
-                                        myPrint("DB","HomePageView widget: adding security: %s Current Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
-                                    elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 2:
-                                        bal = securityAcct.getClearedBalance()
-                                        myPrint("DB","HomePageView widget: adding security: %s Cleared Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
-                                    else:
-                                        bal = 0
-                                        myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType[iAccountLoop]))
+                        myPrint("DB","HomePageView widget: calculating balances for widget row: %s" %(onRow))
 
-                                    if bal != 0:
-                                        # securityValue = CurrencyUtil.convertValue(bal, securityCurr, relCurr)
-                                        # myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), relCurr.formatSemiFancy(securityValue, dec)))
+                        if len(accountsToShow[iAccountLoop]) < 1:
+                            totalBalance = None
+                        else:
+                            totalBalance = 0
 
-                                        securityValue = CurrencyUtil.convertValue(bal, securityCurr, baseCurr)
-                                        myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(securityValue, dec)))
+                            for acct in accountsToShow[iAccountLoop]:
+                                acctCurr = acct.getCurrencyType()
+                                # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance"
+                                if self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 0:
+                                    bal = acct.getBalance()
+                                    myPrint("DB","HomePageView widget: adding acct: %s Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
+                                elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 1:
+                                    bal = acct.getCurrentBalance()
+                                    myPrint("DB","HomePageView widget: adding acct: %s Current Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
+                                elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 2:
+                                    bal = acct.getClearedBalance()
+                                    myPrint("DB","HomePageView widget: adding acct: %s Cleared Balance: %s" %((acct.getFullAccountName()), rpad(acctCurr.formatSemiFancy(bal, dec),12)))
+                                else:
+                                    bal = 0
+                                    myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType[iAccountLoop]))
 
-                                        totalBalance += securityValue
+                                if bal != 0 and acctCurr != baseCurr:
+                                    balConv = CurrencyUtil.convertValue(bal, acctCurr, baseCurr)
+                                    myPrint("DB",".. Converted %s to %s (base)" %(acctCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(balConv, dec)))
+                                    totalBalance += balConv
+                                else:
+                                    totalBalance += bal
 
-                    totalBalanceTable.append(totalBalance)
+                                # noinspection PyUnresolvedReferences
+                                if acct.getAccountType() == Account.AccountType.INVESTMENT:
+                                    for securityAcct in acct.getSubAccounts():  # There's only one level of security sub accounts
+                                        securityCurr = securityAcct.getCurrencyType()
+                                        relCurr = securityCurr.getCurrencyParameter(None, None, "relative_to_currid", acctCurr)
+                                        myPrint("DB",".. Security curr: %s Relative curr: %s Account curr: %s Base Curr: %s" %(securityCurr, relCurr, acctCurr, baseCurr))
 
-                del accountsToShow, totalBalance
+                                        if self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 0:
+                                            bal = securityAcct.getBalance()
+                                            myPrint("DB","HomePageView widget: adding security: %s Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
+                                        elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 1:
+                                            bal = securityAcct.getCurrentBalance()
+                                            myPrint("DB","HomePageView widget: adding security: %s Current Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
+                                        elif self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 2:
+                                            bal = securityAcct.getClearedBalance()
+                                            myPrint("DB","HomePageView widget: adding security: %s Cleared Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, dec),12)))
+                                        else:
+                                            bal = 0
+                                            myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType[iAccountLoop]))
 
-                for i in range(0,len(totalBalanceTable)):
-                    if totalBalanceTable[i] is None:
-                        result = "<NONE>"
-                    elif totalBalanceTable[i] == 0:
-                        result = "<ZERO>"
-                    else:
-                        result = totalBalanceTable[i] / 100.0
-                    myPrint("DB",".. Row: %s - Calculated a total balance of %s" %(i+1, result))
+                                        if bal != 0:
+                                            # securityValue = CurrencyUtil.convertValue(bal, securityCurr, relCurr)
+                                            # myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), relCurr.formatSemiFancy(securityValue, dec)))
+
+                                            securityValue = CurrencyUtil.convertValue(bal, securityCurr, baseCurr)
+                                            myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), baseCurr.formatSemiFancy(securityValue, dec)))
+
+                                            totalBalance += securityValue
+
+                        totalBalanceTable.append(totalBalance)
+
+                    del accountsToShow, totalBalance
+
+                    for i in range(0,len(totalBalanceTable)):
+                        if totalBalanceTable[i] is None:
+                            result = "<NONE>"
+                        elif totalBalanceTable[i] == 0:
+                            result = "<ZERO>"
+                        else:
+                            result = totalBalanceTable[i] / 100.0
+                        myPrint("DB",".. Row: %s - Calculated a total balance of %s" %(i+1, result))
+
+                except IllegalArgumentException:
+                    myPrint("B","ERROR - Probably on a multi-byte character.....")
+                    dump_sys_error_to_md_console_and_errorlog()
+                    raise
 
                 return totalBalanceTable
 
