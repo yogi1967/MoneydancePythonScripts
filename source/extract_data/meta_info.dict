@@ -8,5 +8,5 @@
   "module_name" = "Extract Data"
   "module_desc" = "Extract data to screen/csv. Options incl: 'StockGlance2020' investments, Reminders, Account / Investment txns, Currency History; Attachments..."
   "mac_sandbox_friendly" = "true"
-  "news" = "Enhancements for Dark Themes; tweak to print SG2020 2-part table to pdf"
+  "news" = "Enhancements for Dark Themes; tweak to print SG2020 2-part table to pdf; Asian double-byte fixes too"
 }

@@ -82,7 +82,7 @@
 # build: 1016 - Common code tweaks; Flat Dark Theme
 # build: 1017 - SG2020: Fix print to PDF to make 2 parts to avoid overwriting the same pdf file....
 # build: 1018 - Common code tweaks
-# build: 1019 - Common code tweaks; catch error in myPrint() on Asian multi-byte characters
+# build: 1019 - Common code tweaks; catch error in myPrint() on Asian double-byte characters; Other Asian Double-Byte fixes (more str() issues!!)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -6731,8 +6731,8 @@ Visit: %s (Author's site)
 
                             remtype = rem.getReminderType()  # NOTE or TRANSACTION
                             desc = rem.getDescription().replace(",", " ")  # remove commas to keep csv format happy
-                            memo = str(rem.getMemo()).replace(",", " ").strip()  # remove commas to keep csv format happy
-                            memo = str(memo).replace("\n", "*").strip()  # remove newlines to keep csv format happy
+                            memo = rem.getMemo().replace(",", " ").strip()  # remove commas to keep csv format happy
+                            memo = memo.replace("\n", "*").strip()  # remove newlines to keep csv format happy
 
                             myPrint("P", "Reminder: ", index + 1, rem.getDescription())  # Name of Reminder
 
@@ -6804,7 +6804,8 @@ Visit: %s (Author's site)
                             lastdate = rem.getLastDateInt()
                             if lastdate < 1:  # Detect if an enddate is set
                                 remdate = str(rem.getNextOccurance(20991231))  # Use cutoff  far into the future
-                            else:        remdate = str(rem.getNextOccurance(rem.getLastDateInt()))  # Stop at enddate
+                            else:
+                                remdate = str(rem.getNextOccurance(rem.getLastDateInt()))  # Stop at enddate
 
                             if lastdate < 1: lastdate = ''
 
@@ -6821,7 +6822,7 @@ Visit: %s (Author's site)
                                 csvline = []
                                 csvline.append(index + 1)
                                 csvline.append(dateoutput(remdate, userdateformat))
-                                csvline.append(str(rem.getReminderType()))
+                                csvline.append(safeStr(rem.getReminderType()))
                                 csvline.append(remfreq)
                                 csvline.append(auto)
                                 csvline.append(dateoutput(lastack, userdateformat))
@@ -6850,14 +6851,16 @@ Visit: %s (Author's site)
 
                                     if index2 > 0: amount = ''  # Don't repeat the new amount on subsequent split lines (so you can total column). The split amount will be correct
 
-                                    stripacct = str(txnparent.getAccount()).replace(",",
-                                                                                    " ").strip()  # remove commas to keep csv format happy
-                                    stripcat = str(txnparent.getOtherTxn(index2).getAccount()).replace(","," ").strip()  # remove commas to keep csv format happy
+                                    # stripacct = str(txnparent.getAccount()).replace(",", " ").strip()  # remove commas to keep csv format happy
+                                    stripacct = txnparent.getAccount().getFullAccountName().replace(",", " ").strip()  # remove commas to keep csv format happy
+
+                                    # stripcat = str(txnparent.getOtherTxn(index2).getAccount()).replace(","," ").strip()  # remove commas to keep csv format happy
+                                    stripcat = txnparent.getOtherTxn(index2).getAccount().getFullAccountName().replace(","," ").strip()  # remove commas to keep csv format happy
 
                                     csvline = []
                                     csvline.append(index + 1)
                                     csvline.append(dateoutput(remdate, userdateformat))
-                                    csvline.append(str(rem.getReminderType()))
+                                    csvline.append(safeStr(rem.getReminderType()))
                                     csvline.append(remfreq)
                                     csvline.append(auto)
                                     csvline.append(dateoutput(lastack, userdateformat))
@@ -7934,7 +7937,7 @@ Visit: %s (Author's site)
                                             iBal+=1
                                             _row = ([None] * dataKeys["_END"][0])  # Create a blank row to be populated below...
                                             _row[dataKeys["_KEY"][_COLUMN]] = txnAcct.getUUID()
-                                            _row[dataKeys["_ACCOUNTTYPE"][_COLUMN]] = str(txnAcct.getAccountType())
+                                            _row[dataKeys["_ACCOUNTTYPE"][_COLUMN]] = safeStr(txnAcct.getAccountType())
                                             _row[dataKeys["_ACCOUNT"][_COLUMN]] = txnAcct.getFullAccountName()
                                             _row[dataKeys["_CURR"][_COLUMN]] = acctCurr.getIDString()
                                             _row[dataKeys["_DESC"][_COLUMN]] = "MANUAL OPENING BALANCE"
@@ -7960,7 +7963,7 @@ Visit: %s (Author's site)
                             txnKey = txn.getUUID()
                             _row[dataKeys["_KEY"][_COLUMN]] = txnKey + "-" + str(keyIndex).zfill(3)
 
-                            _row[dataKeys["_ACCOUNTTYPE"][_COLUMN]] = str(txnAcct.getAccountType())
+                            _row[dataKeys["_ACCOUNTTYPE"][_COLUMN]] = safeStr(txnAcct.getAccountType())
                             _row[dataKeys["_ACCOUNT"][_COLUMN]] = txnAcct.getFullAccountName()
                             _row[dataKeys["_CURR"][_COLUMN]] = acctCurr.getIDString()
                             _row[dataKeys["_DATE"][_COLUMN]] = txn.getDateInt()
@@ -7989,7 +7992,7 @@ Visit: %s (Author's site)
                                     _row[dataKeys["_TOTALAMOUNT"][_COLUMN]] = acctCurr.getDoubleValue(txn.getAmount())
 
                             _row[dataKeys["_PARENTHASATTACHMENTS"][_COLUMN]] = parent_Txn.hasAttachments()
-                            if str(parent_Txn.getKeywords()) != "[]": _row[dataKeys["_PARENTTAGS"][_COLUMN]] = str(parent_Txn.getKeywords())
+                            if str(parent_Txn.getKeywords()) != "[]": _row[dataKeys["_PARENTTAGS"][_COLUMN]] = safeStr(parent_Txn.getKeywords())
 
                             lNeedToPrintTotalAmount = True
 
@@ -8023,7 +8026,7 @@ Visit: %s (Author's site)
                                             continue
 
                                     splitMemo = parent_Txn.getOtherTxn(_ii).getDescription()
-                                    splitTags = str(parent_Txn.getOtherTxn(_ii).getKeywords())
+                                    splitTags = safeStr(parent_Txn.getOtherTxn(_ii).getKeywords())
                                     splitCat = parent_Txn.getOtherTxn(_ii).getAccount().getFullAccountName()
                                     splitHasAttachments = parent_Txn.getOtherTxn(_ii).hasAttachments()
 
@@ -8075,7 +8078,7 @@ Visit: %s (Author's site)
                                             break
 
                                     splitMemo = txn.getDescription()
-                                    splitTags = str(txn.getKeywords())
+                                    splitTags = safeStr(txn.getKeywords())
                                     splitCat = parent_Txn.getAccount().getFullAccountName()
                                     splitHasAttachments = txn.hasAttachments()
 
@@ -8138,7 +8141,7 @@ Visit: %s (Author's site)
 
                                 if not lExtractAttachments_EAR or not holdTheKeys:
                                     if holdTheKeys:
-                                        splitRowCopy[dataKeys["_ATTACHMENTLINK"][_COLUMN]] = str(holdTheKeys)
+                                        splitRowCopy[dataKeys["_ATTACHMENTLINK"][_COLUMN]] = safeStr(holdTheKeys)
                                     myPrint("D", splitRowCopy)
                                     transactionTable.append(splitRowCopy)
                                     # abort
@@ -8211,7 +8214,7 @@ Visit: %s (Author's site)
                                 iBal+=1
                                 _row = ([None] * dataKeys["_END"][0])  # Create a blank row to be populated below...
                                 _row[dataKeys["_KEY"][_COLUMN]] = acctBal.getUUID()
-                                _row[dataKeys["_ACCOUNTTYPE"][_COLUMN]] = str(acctBal.getAccountType())
+                                _row[dataKeys["_ACCOUNTTYPE"][_COLUMN]] = safeStr(acctBal.getAccountType())
                                 _row[dataKeys["_ACCOUNT"][_COLUMN]] = acctBal.getFullAccountName()
                                 _row[dataKeys["_CURR"][_COLUMN]] = acctCurr.getIDString()
                                 _row[dataKeys["_DESC"][_COLUMN]] = "MANUAL OPENING BALANCE"
@@ -8934,9 +8937,9 @@ Visit: %s (Author's site)
 
 
                             if securityTxn:
-                                _row[dataKeys["_SECURITY"][_COLUMN]] = str(securityCurr.getName())
-                                _row[dataKeys["_SECCURR"][_COLUMN]] = str(securityCurr.getRelativeCurrency().getIDString())
-                                _row[dataKeys["_TICKER"][_COLUMN]] = str(securityCurr.getTickerSymbol())
+                                _row[dataKeys["_SECURITY"][_COLUMN]] = safeStr(securityCurr.getName())
+                                _row[dataKeys["_SECCURR"][_COLUMN]] = safeStr(securityCurr.getRelativeCurrency().getIDString())
+                                _row[dataKeys["_TICKER"][_COLUMN]] = safeStr(securityCurr.getTickerSymbol())
                                 _row[dataKeys["_SHARES"][_COLUMN]] = securityCurr.getDoubleValue(securityTxn.getValue())
                                 _row[dataKeys["_PRICE"][_COLUMN]] = acctCurr.getDoubleValue(securityTxn.getAmount())
                                 _row[dataKeys["_AVGCOST"][_COLUMN]] = securityAcct.getUsesAverageCost()
@@ -8972,14 +8975,14 @@ Visit: %s (Author's site)
                                         continue
 
 
-                            _row[dataKeys["_DESC"][_COLUMN]] = str(txn.getDescription())
-                            _row[dataKeys["_ACTION"][_COLUMN]] = str(txn.getTransferType())
+                            _row[dataKeys["_DESC"][_COLUMN]] = safeStr(txn.getDescription())
+                            _row[dataKeys["_ACTION"][_COLUMN]] = safeStr(txn.getTransferType())
                             if lParent:
-                                _row[dataKeys["_TT"][_COLUMN]] = str(txn.getInvestTxnType())
+                                _row[dataKeys["_TT"][_COLUMN]] = safeStr(txn.getInvestTxnType())
                             else:
-                                _row[dataKeys["_TT"][_COLUMN]] = str(txn.getParentTxn().getInvestTxnType())
+                                _row[dataKeys["_TT"][_COLUMN]] = safeStr(txn.getParentTxn().getInvestTxnType())
 
-                            _row[dataKeys["_CLEARED"][_COLUMN]] = str(txn.getStatusChar())
+                            _row[dataKeys["_CLEARED"][_COLUMN]] = safeStr(txn.getStatusChar())
 
                             if lParent:
                                 if xfrTxn:
@@ -9002,11 +9005,11 @@ Visit: %s (Author's site)
                             elif expTxn:
                                 _row[dataKeys["_AMOUNT"][_COLUMN]] = (acctCurr.getDoubleValue(expTxn.getAmount())) * -1
 
-                            _row[dataKeys["_CHEQUE"][_COLUMN]] = str(txn.getCheckNumber())
+                            _row[dataKeys["_CHEQUE"][_COLUMN]] = safeStr(txn.getCheckNumber())
                             if lParent:
-                                _row[dataKeys["_MEMO"][_COLUMN]] = str(txn.getMemo())
+                                _row[dataKeys["_MEMO"][_COLUMN]] = safeStr(txn.getMemo())
                             else:
-                                _row[dataKeys["_MEMO"][_COLUMN]] = str(txn.getParentTxn().getMemo())
+                                _row[dataKeys["_MEMO"][_COLUMN]] = safeStr(txn.getParentTxn().getMemo())
 
                             if expTxn:
                                 _row[dataKeys["_CAT"][_COLUMN]] = expAcct.getFullAccountName()
@@ -9592,7 +9595,7 @@ Visit: %s (Author's site)
 
                             # NOTE - You can add sep=; to beginning of file to tell Excel what delimiter you are using
                             if True:
-                                theTable = sorted(theTable, key=lambda x: (str(x[_CURRNAME]).upper(),x[_SNAPDATE]))
+                                theTable = sorted(theTable, key=lambda x: (safeStr(x[_CURRNAME]).upper(),x[_SNAPDATE]))
 
                             myPrint("P", "Now pre-processing the file to convert integer dates to 'formatted' dates....")
                             for row in theTable:                                                                                # noqa
