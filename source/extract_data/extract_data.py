@@ -6084,6 +6084,11 @@ Visit: %s (Author's site)
                             self.table.setRowHeight(fontSize)
                             self.table.setRowMargin(0)
                             myPrint("DB","Setting main table row height to %s and intercellspacing to 0" %fontSize)
+                            myPrint("DB","\n\t\tTable Font: %s,\n\t\tMD.defaultSystemFont: %s,\n\t\tMD.defaultText: %s,\n\t\tMD.register: %s\n"
+                                    %(self.table.getFont(),
+                                      MD_REF.getUI().getFonts().defaultSystemFont,
+                                      MD_REF.getUI().getFonts().defaultText,
+                                      MD_REF.getUI().getFonts().register))
 
                             fontSize = self.footerTable.getFont().getSize()+5
                             self.footerTable.setRowHeight(fontSize)
