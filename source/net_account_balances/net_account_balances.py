@@ -1,24 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1008 - July 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1009 - July 2021 - Stuart Beesley - StuWareSoftSystems
 
 ###############################################################################
 # This extension creates a Moneydance Home Page View >> a little widget on the Home / Summary Screen dashboard
 # Drag and drop the .mxt file onto the left side bar to install (or use Extensions, Manage Extensions, add from file)
 # Once installed, visit Preferences > Summary Page, and then move the new widget to the desired Home screen location
 
-# This widget allows you to select multiple accounts. The balances are totalled to present on the Home screen widget
+# This widget allows you to select multiple accounts/categories - OR Securities.
+# The balance(s) are totalled to present on the Home screen widget
 # My concept was to add balances to target zero. Thus a positive number is 'good', a negative is 'bad'
 # The idea is that you net cash and debt to get back to zero every month
 # However, you could create a Net Worth Balance for example; you can use it for anything really
 #
-# You can change the widget name and also the balance type in the config screen (click the widget, or extensions menu)
-# Any non base currency accounts are converted back to your base currency
+# To configure, select an existing row on the Home Screen, or use the Extensions menu
+# You can add/delete/move rows. Then select the row to configure, select Accounts/Categories - OR Securities
+# Select the Currency to display on the Home Screen Row (i.e. it converts to this currency)
+# You can change the widget name and also the balance type
+
 # NOTE: This does not use recursive balance totalling, it simply uses the selected accounts' balance...
+#
 
-# As of Nov 2021 this extension allows you to select how many rows you require and configure each row
-
+# As of Nov 2021:   this extension allows you to select how many rows you require and configure each row
+#                   and select a currency conversion per row
+#                   and select a mutually exclusive Accounts/Categories - OR - Securities list - per row
 ###############################################################################
 # MIT License
 #
@@ -62,7 +68,8 @@
 # Build: 1005 - Common code tweaks; Tweaked colors for Dark themes and to be more MD 'compatible'
 # Build: 1006 - Common code tweaks; Flat Dark Theme
 # Build: 1007 - Common code tweaks
-# Build: 1008 - Common code tweaks; Multi-row/currency version.
+# Build: 1008 - Common code tweaks; Multi-row, currency conversion options(s)
+# Build: 1009 - Accounts/Categories/Securities Selection Option(s)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -70,7 +77,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1008"
+version_build = "1009"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -326,6 +333,7 @@ else:
     from com.infinitekind.util import StringUtils
     from java.awt.event import FocusAdapter
     from com.moneydance.awt import AwtUtil
+    from com.infinitekind.util import StreamVector
 
     # renamed in MD build 3067
     if int(MD_REF.getBuild()) >= 3067:
@@ -337,22 +345,21 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    global __net_account_balances_extension
-    global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
-    global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_currency_NAB
+    GlobalVars.__net_account_balances_extension = None
 
     # Old version parameters - will be migrated and deleted (if they exist)
-    extn_param_listAccountUUIDs_NAB = None                                                                              # noqa
-    extn_param_balanceType_NAB = None                                                                                   # noqa
-    extn_param_widget_display_name_NAB = None                                                                           # noqa
+    GlobalVars.extn_param_listAccountUUIDs_NAB = None
+    GlobalVars.extn_param_balanceType_NAB = None
+    GlobalVars.extn_param_widget_display_name_NAB = None
 
     # New multi-row variables
-    extn_param_NEW_listAccountUUIDs_NAB = None                                                                          # noqa
-    extn_param_NEW_balanceType_NAB = None                                                                               # noqa
-    extn_param_NEW_widget_display_name_NAB = None                                                                       # noqa
-    extn_param_NEW_currency_NAB = None                                                                                  # noqa
+    GlobalVars.extn_param_NEW_listAccountUUIDs_NAB = None
+    GlobalVars.extn_param_NEW_balanceType_NAB = None
+    GlobalVars.extn_param_NEW_acctsCatsSecurities_NAB = None
+    GlobalVars.extn_param_NEW_widget_display_name_NAB = None
+    GlobalVars.extn_param_NEW_currency_NAB = None
 
-    DEFAULT_WIDGET_NAME = "Net Account Balances:"
+    GlobalVars.DEFAULT_WIDGET_NAME = "Net Account Balances:"
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
     # COPY >> START
@@ -2546,38 +2553,31 @@ Visit: %s (Author's site)
     def load_StuWareSoftSystems_parameters_into_memory():
         global debug, myParameters, lPickle_version_warning, version_build
 
-        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-        global __net_account_balances_extension
-        global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
-        global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_currency_NAB
-
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
 
         if myParameters is None: myParameters = {}
 
-        if myParameters.get("__net_account_balances_extension") is not None: __net_account_balances_extension = myParameters.get("__net_account_balances_extension")
+        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
+        if myParameters.get("__net_account_balances_extension") is not None:        GlobalVars.__net_account_balances_extension = myParameters.get("__net_account_balances_extension")
 
-        if myParameters.get("extn_param_listAccountUUIDs_NAB") is not None: extn_param_listAccountUUIDs_NAB = myParameters.get("extn_param_listAccountUUIDs_NAB")
-        if myParameters.get("extn_param_balanceType_NAB") is not None: extn_param_balanceType_NAB = myParameters.get("extn_param_balanceType_NAB")
-        if myParameters.get("extn_param_widget_display_name_NAB") is not None: extn_param_widget_display_name_NAB = myParameters.get("extn_param_widget_display_name_NAB")
+        if myParameters.get("extn_param_listAccountUUIDs_NAB") is not None:         GlobalVars.extn_param_listAccountUUIDs_NAB = myParameters.get("extn_param_listAccountUUIDs_NAB")
+        if myParameters.get("extn_param_balanceType_NAB") is not None:              GlobalVars.extn_param_balanceType_NAB = myParameters.get("extn_param_balanceType_NAB")
+        if myParameters.get("extn_param_widget_display_name_NAB") is not None:      GlobalVars.extn_param_widget_display_name_NAB = myParameters.get("extn_param_widget_display_name_NAB")
 
-        if myParameters.get("extn_param_NEW_listAccountUUIDs_NAB") is not None: extn_param_NEW_listAccountUUIDs_NAB = myParameters.get("extn_param_NEW_listAccountUUIDs_NAB")
-        if myParameters.get("extn_param_NEW_balanceType_NAB") is not None: extn_param_NEW_balanceType_NAB = myParameters.get("extn_param_NEW_balanceType_NAB")
-        if myParameters.get("extn_param_NEW_widget_display_name_NAB") is not None: extn_param_NEW_widget_display_name_NAB = myParameters.get("extn_param_NEW_widget_display_name_NAB")
-        if myParameters.get("extn_param_NEW_currency_NAB") is not None: extn_param_NEW_currency_NAB = myParameters.get("extn_param_NEW_currency_NAB")
+        if myParameters.get("extn_param_NEW_listAccountUUIDs_NAB") is not None:     GlobalVars.extn_param_NEW_listAccountUUIDs_NAB = myParameters.get("extn_param_NEW_listAccountUUIDs_NAB")
+        if myParameters.get("extn_param_NEW_balanceType_NAB") is not None:          GlobalVars.extn_param_NEW_balanceType_NAB = myParameters.get("extn_param_NEW_balanceType_NAB")
+        if myParameters.get("extn_param_NEW_acctsCatsSecurities_NAB") is not None:  GlobalVars.extn_param_NEW_acctsCatsSecurities_NAB = myParameters.get("extn_param_NEW_acctsCatsSecurities_NAB")
+        if myParameters.get("extn_param_NEW_widget_display_name_NAB") is not None:  GlobalVars.extn_param_NEW_widget_display_name_NAB = myParameters.get("extn_param_NEW_widget_display_name_NAB")
+        if myParameters.get("extn_param_NEW_currency_NAB") is not None:             GlobalVars.extn_param_NEW_currency_NAB = myParameters.get("extn_param_NEW_currency_NAB")
 
-        myPrint("DB","myParameters{} set into memory (as variables).....")
+        myPrint("DB","myParameters{} set into memory (as variables).....:", myParameters)
 
         return
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def dump_StuWareSoftSystems_parameters_from_memory():
         global debug, myParameters, lPickle_version_warning, version_build
-
-        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-        global __net_account_balances_extension
-        global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_currency_NAB
 
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
@@ -2586,6 +2586,7 @@ Visit: %s (Author's site)
 
         if myParameters is None: myParameters = {}
 
+        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
         myParameters["__net_account_balances_extension"] = version_build
 
         # Purge old parameters
@@ -2593,12 +2594,13 @@ Visit: %s (Author's site)
             if myParameters.get(key) is not None: myParameters.pop(key)
 
         # Save newer multi-instance parameters
-        myParameters["extn_param_NEW_listAccountUUIDs_NAB"] = extn_param_NEW_listAccountUUIDs_NAB
-        myParameters["extn_param_NEW_balanceType_NAB"] = extn_param_NEW_balanceType_NAB
-        myParameters["extn_param_NEW_widget_display_name_NAB"] = extn_param_NEW_widget_display_name_NAB
-        myParameters["extn_param_NEW_currency_NAB"] = extn_param_NEW_currency_NAB
+        myParameters["extn_param_NEW_listAccountUUIDs_NAB"]     = GlobalVars.extn_param_NEW_listAccountUUIDs_NAB
+        myParameters["extn_param_NEW_balanceType_NAB"]          = GlobalVars.extn_param_NEW_balanceType_NAB
+        myParameters["extn_param_NEW_acctsCatsSecurities_NAB"]  = GlobalVars.extn_param_NEW_acctsCatsSecurities_NAB
+        myParameters["extn_param_NEW_widget_display_name_NAB"]  = GlobalVars.extn_param_NEW_widget_display_name_NAB
+        myParameters["extn_param_NEW_currency_NAB"]             = GlobalVars.extn_param_NEW_currency_NAB
 
-        myPrint("DB","variables dumped from memory back into myParameters{}.....")
+        myPrint("DB","variables dumped from memory back into myParameters{}.....:", myParameters)
 
         return
 
@@ -2636,20 +2638,21 @@ Visit: %s (Author's site)
 
     class MyAcctFilter(AcctFilter):
 
-        def __init__(self): pass
+        def __init__(self, _acctsCatsSecuritiesType):
+            self.selectAcctsCats = _acctsCatsSecuritiesType == 0
+            myPrint("DB", "MyAcctFilter(%s = %s)" %(_acctsCatsSecuritiesType, self.selectAcctsCats))
 
         # noinspection PyMethodMayBeStatic
         def matches(self, acct):
 
-            # # noinspection PyUnresolvedReferences
-            # if not (acct.getAccountType() == Account.AccountType.BANK
-            #         or acct.getAccountType() == Account.AccountType.CREDIT_CARD):
-            #     return False
+            # noinspection PyUnresolvedReferences
+            if acct.getAccountType() == Account.AccountType.ROOT: return False
 
             # noinspection PyUnresolvedReferences
-            if (acct.getAccountType() == Account.AccountType.ROOT
-                    or acct.getAccountType() == Account.AccountType.SECURITY):
-                return False
+            if self.selectAcctsCats and acct.getAccountType() == Account.AccountType.SECURITY: return False
+
+            # noinspection PyUnresolvedReferences
+            if not self.selectAcctsCats and acct.getAccountType() != Account.AccountType.SECURITY: return False
 
             if (acct.getAccountOrParentIsInactive()): return False
             if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
@@ -2658,15 +2661,26 @@ Visit: %s (Author's site)
 
     class StoreAccountList():
         def __init__(self, obj):
+            self.obj = None
+            self.displayIndentedName = None
+
             if isinstance(obj,Account):
-                self.obj = obj                          # type: Account
-            else:
-                self.obj = None
+                self.obj = obj                                                                                          # type: Account
+                # noinspection PyUnresolvedReferences
+                self.displayIndentedName = self.obj.getAccountType() != Account.AccountType.SECURITY
+
+        def getAccount(self): return self.obj
 
         def __str__(self):
-            if self.obj is None:
-                return "Invalid Acct Obj or None"
-            return "%s : %s" %(self.obj.getAccountType(),self.obj.getFullAccountName())
+            if self.obj is None: return "Invalid Acct Obj or None"
+
+            leftText = "%s : " %(self.getAccount().getAccountType())
+
+            if self.displayIndentedName:
+                rightText = self.getAccount().getIndentedName()
+            else:
+                rightText = self.getAccount().getFullAccountName()
+            return "%s%s" %(leftText,rightText)
 
         def __repr__(self): return self.__str__()
 
@@ -2713,6 +2727,8 @@ Visit: %s (Author's site)
 
             self.alreadyClosed = False
 
+            self.configSaved = True
+
             self.parametersLoaded = False
             self.myCounter = 0
             self.theFrame = None
@@ -2724,6 +2740,7 @@ Visit: %s (Author's site)
             self.savedBalanceType = None
             self.savedWidgetName = None
             self.savedCurrencyTable = None      # Only contains UUID strings
+            self.savedAcctsCatsSecurities = None
 
             self.menuItemDEBUG = None
             self.mainMenuBar= None
@@ -2731,12 +2748,15 @@ Visit: %s (Author's site)
             self.configPanelOpen = False
 
             self.jlst = None
-            self.balanceType_option = None
-            self.currency_option = None         # Contains a Class holding Currency Objects
+            self.balanceType_COMBO = None
+            self.currency_COMBO = None         # Contains a Class holding Currency Objects
+            self.acctsCatsSecurities_COMBO = None
             self.widgetNameField = None
 
             self.rowSelectedSaved = 0
-            self.rowSelectedCombo = None
+            self.rowSelected_COMBO = None
+
+            self.switchFromHomeScreen = False
 
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "##########################################################################################")
@@ -2762,7 +2782,12 @@ Visit: %s (Author's site)
             self.saveMyHomePageView = MyHomePageView(self)
 
             if self.getMoneydanceUI():         # Only do this if the UI is loaded and dataset loaded...
-                myPrint("B","@@ Assuming an extension reinstall. Selecting Home Screen in preparation to receive new widget....")
+                myPrint("B","@@ Assuming an extension reinstall...")
+
+                myPrint("B","...Checking Home Screen Display Order Layout (lefties/righties/unused)")
+                self.configureLeftiesRighties(self.saveMyHomePageView.getID())
+
+                myPrint("B","...Selecting Home Screen in preparation to receive new widget....")
                 selectHomeScreen()
 
             self.moneydanceContext.registerHomePageView(extension_object, self.saveMyHomePageView)
@@ -2775,6 +2800,49 @@ Visit: %s (Author's site)
                 fireMDPreferencesUpdated()
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "##########################################################################################")
+
+        def configureLeftiesRighties(self, widgetID):
+
+            KEY_LEFTIES = "gui.home.lefties"
+            KEY_RIGHTIES = "gui.home.righties"
+            KEY_UNUSED = "gui.home.unused"
+            prefs = self.moneydanceContext.getPreferences()
+            lefties = prefs.getVectorSetting(KEY_LEFTIES, StreamVector())
+            righties = prefs.getVectorSetting(KEY_RIGHTIES, StreamVector())
+            unused = prefs.getVectorSetting(KEY_UNUSED, StreamVector())
+
+            myPrint("DB","Starting... lefties:  %s" %(lefties))
+            myPrint("DB","Starting... righties: %s" %(righties))
+            myPrint("DB","Starting... unused:   %s" %(unused))
+
+            if widgetID in unused:
+                myPrint("B", ".. Widget: '%s' sitting in unused... Will remove from unused"  %(widgetID))
+                unused.remove(widgetID)
+                prefs.setSetting(KEY_UNUSED, unused)
+
+            if widgetID in lefties:
+                myPrint("DB", ".. Widget: '%s' already configured in 'lefties'... Will not change Layout"  %(widgetID))
+                return
+
+            if widgetID in righties:
+                if righties[-1] != widgetID:
+                    myPrint("DB", ".. Widget: '%s' already configured in 'righties' (not last)... Will not change Layout"  %(widgetID))
+                    return
+
+                myPrint("B", ".. Widget: '%s'... Will remove from last position in 'righties' (Home Screen bottom right)"  %(widgetID))
+                righties.remove(widgetID)
+                prefs.setSetting(KEY_RIGHTIES, righties)
+
+            myPrint("B", ".. Widget: '%s'... Adding to first position in 'lefties' (Home Screen top left)"  %(widgetID))
+            myPrint("B", ".. Widget: '%s'... Adding to first position in 'lefties' (Home Screen top left)"  %(widgetID))
+            lefties.insertElementAt(widgetID,0)
+            prefs.setSetting(KEY_RIGHTIES, righties)
+
+            myPrint("DB","Ending... lefties:  %s" %(lefties))
+            myPrint("DB","Ending... righties: %s" %(righties))
+            myPrint("DB","Ending... unused:   %s" %(unused))
+            MD_REF.savePreferences()
+
 
         class CloseAction(AbstractAction):
 
@@ -2845,11 +2913,17 @@ Visit: %s (Author's site)
 
 
         def validateParameters(self):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
             # New parameter - pre-populate with None = base as default
             if self.savedCurrencyTable == [None] and len(self.savedCurrencyTable) != len(self.savedAccountListUUIDs):
                 self.savedCurrencyTable = [None] * len(self.savedAccountListUUIDs)
                 myPrint("DB", "New parameter savedCurrencyTable detected, pre-populating with %s (= base currency)" %(self.savedCurrencyTable))
+
+            # New parameter - pre-populate with [0] = Accts/Cats as default (not Securities)
+            if self.savedAcctsCatsSecurities == [0] and len(self.savedAcctsCatsSecurities) != len(self.savedAccountListUUIDs):
+                self.savedAcctsCatsSecurities = [0] * len(self.savedAccountListUUIDs)
+                myPrint("DB", "New parameter savedAcctsCatsSecurities detected, pre-populating with %s (= Accts/Cats option - not Securities)" %(self.savedAcctsCatsSecurities))
 
             if self.savedAccountListUUIDs is None or not isinstance(self.savedAccountListUUIDs, list) or len(self.savedAccountListUUIDs) < 1:
                 self.resetParameters(1)
@@ -2859,12 +2933,16 @@ Visit: %s (Author's site)
                 self.resetParameters(3)
             elif self.savedCurrencyTable is None or not isinstance(self.savedCurrencyTable, list) or len(self.savedCurrencyTable) < 1:
                 self.resetParameters(4)
-            elif len(self.savedBalanceType) != len(self.savedAccountListUUIDs):
+            elif self.savedAcctsCatsSecurities is None or not isinstance(self.savedAcctsCatsSecurities, list) or len(self.savedAcctsCatsSecurities) < 1:
                 self.resetParameters(5)
-            elif len(self.savedWidgetName) != len(self.savedAccountListUUIDs):
+            elif len(self.savedBalanceType) != len(self.savedAccountListUUIDs):
                 self.resetParameters(6)
-            elif len(self.savedCurrencyTable) != len(self.savedAccountListUUIDs):
+            elif len(self.savedWidgetName) != len(self.savedAccountListUUIDs):
                 self.resetParameters(7)
+            elif len(self.savedCurrencyTable) != len(self.savedAccountListUUIDs):
+                self.resetParameters(8)
+            elif len(self.savedAcctsCatsSecurities) != len(self.savedAccountListUUIDs):
+                self.resetParameters(9)
             else:
                 for i in range(0, len(self.savedAccountListUUIDs)):
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
@@ -2873,6 +2951,9 @@ Visit: %s (Author's site)
                     if self.savedBalanceType[i] is None or not isinstance(self.savedBalanceType[i], int) or self.savedBalanceType[i] < 0 or self.savedBalanceType[i] > 2:
                         myPrint("B","Resetting parameter '%s' on row: %s" %("savedBalanceType", i))
                         self.savedBalanceType[i] = 0
+                    if self.savedAcctsCatsSecurities[i] is None or not isinstance(self.savedAcctsCatsSecurities[i], int) or self.savedAcctsCatsSecurities[i] < 0 or self.savedAcctsCatsSecurities[i] > 1:
+                        myPrint("B","Resetting parameter '%s' on row: %s" %("savedAcctsCatsSecurities", i))
+                        self.savedAcctsCatsSecurities[i] = 0
                     if self.savedWidgetName[i] is None or not isinstance(self.savedWidgetName[i], (str,unicode)) or self.savedWidgetName[i] == "":
                         myPrint("B","Resetting parameter '%s' on row: %s" %("savedWidgetName", i))
                         self.savedWidgetName[i] = "<NOT CONFIGURED>"
@@ -2882,6 +2963,7 @@ Visit: %s (Author's site)
 
 
         def resetParameters(self, iError=None):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
             if iError is None:
                 myPrint("B","Initialising PARAMETERS to defaults....")
@@ -2890,14 +2972,34 @@ Visit: %s (Author's site)
 
             self.savedAccountListUUIDs = [[]]
             self.savedBalanceType = [0]
-            self.savedWidgetName = [DEFAULT_WIDGET_NAME]
+            self.savedAcctsCatsSecurities = [0]
+            self.savedWidgetName = [GlobalVars.DEFAULT_WIDGET_NAME]
             self.savedCurrencyTable = [None]
             self.rowSelectedSaved = 0
 
         def rebuildFrameComponents(self, selectRowIndex=0):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
             self.rowSelectedSaved = selectRowIndex
-            self.balanceType_option.setSelectedIndex(self.savedBalanceType[selectRowIndex])
+
+            saveMyActionListeners = {}
+            for combo in [self.rowSelected_COMBO,
+                          self.balanceType_COMBO,
+                          self.currency_COMBO,
+                          self.acctsCatsSecurities_COMBO]:
+                myPrint("DB",".. saving and removing listeners from %s: %s" %(combo.getName(), combo.getActionListeners()))
+                saveMyActionListeners[combo.getName()] = combo.getActionListeners()
+                for comboListener in combo.getActionListeners(): combo.removeActionListener(comboListener)
+
+            # Rebuild Select Row Dropdown
+            myPrint("DB", "..about to set rowSelected_COMBO..")
+            self.rowSelected_COMBO.setModel(DefaultComboBoxModel([str(i) for i in range(1,self.getNumberOfRows()+1)]))
+            self.rowSelected_COMBO.setSelectedIndex(selectRowIndex)
+
+            myPrint("DB", "..about to set balanceType_COMBO..")
+            self.balanceType_COMBO.setSelectedIndex(self.savedBalanceType[selectRowIndex])
+
+            myPrint("DB", "about to set widget name..")
             self.widgetNameField.setText(self.savedWidgetName[selectRowIndex])
 
             # Rebuild Currency Dropdown, and pre-select correct one
@@ -2910,26 +3012,39 @@ Visit: %s (Author's site)
                 if curr.getCurrencyType() == CurrencyType.Type.CURRENCY: currencyChoices.append(self.StoreCurrencyAsText(curr, base))
             del allCurrencies
 
-            self.currency_option.setModel(DefaultComboBoxModel(currencyChoices))
+            myPrint("DB", "about to set currency_COMBO..")
+            self.currency_COMBO.setModel(DefaultComboBoxModel(currencyChoices))
 
             if self.savedCurrencyTable[selectRowIndex] is not None:
                 for c in currencyChoices:
                     if c.getUUID() == self.savedCurrencyTable[selectRowIndex]:
-                        self.currency_option.setSelectedItem(c)
+                        self.currency_COMBO.setSelectedItem(c)
                         break
                     del c
             del currencyChoices
 
-            # Rebuild Select Row Dropdown
-            self.rowSelectedCombo.setModel(DefaultComboBoxModel([str(i) for i in range(1,self.getNumberOfRows()+1)]))
-            self.rowSelectedCombo.setSelectedIndex(selectRowIndex)
+            myPrint("DB", "about to rebuild jlist..")
+            self.rebuildJList(useSetting=self.savedAcctsCatsSecurities[selectRowIndex])
 
-            self.rebuildJList()
+            myPrint("DB", "about to set acctsCatsSecurities_COMBO combo..")
+            self.acctsCatsSecurities_COMBO.setSelectedIndex(self.jlst.getAcctsCatsSecuritiesType())
+
+            for combo in [self.rowSelected_COMBO,
+                          self.balanceType_COMBO,
+                          self.currency_COMBO,
+                          self.acctsCatsSecurities_COMBO]:
+                myPrint("DB",".. retrieving and re-adding listeners to %s: %s" %(combo.getName(), saveMyActionListeners[combo.getName()]))
+                for comboListener in saveMyActionListeners[combo.getName()]: combo.addActionListener(comboListener)
+            del saveMyActionListeners
+
 
             myPrint("DB","...Setup complete for Config screen >> row: %s" %([selectRowIndex+1]))
             myPrint("DB",".....%s accountsToShow stored in JList" %(self.jlst.getModel().getSize()))
             myPrint("DB",".....savedAccountListUUIDs: %s" %(self.savedAccountListUUIDs[selectRowIndex]))
             myPrint("DB",".....savedBalanceType: %s" %(self.savedBalanceType[selectRowIndex]))
+            myPrint("DB",".....balanceType_COMBO: %s" %(self.balanceType_COMBO.getSelectedIndex()))
+            myPrint("DB",".....savedAcctsCatsSecurities: %s" %(self.savedAcctsCatsSecurities[selectRowIndex]))
+            myPrint("DB",".....acctsCatsSecurities_COMBO: %s" %(self.acctsCatsSecurities_COMBO.getSelectedIndex()))
             myPrint("DB",".....savedCurrencyTable: %s" %(self.savedCurrencyTable[selectRowIndex]))
             myPrint("DB",".....savedWidgetName: %s" %(self.savedWidgetName[selectRowIndex]))
             myPrint("DB",".....%s accountsToShow matched UUIDs and selected in JList" %(len(self.jlst.getSelectedIndices())))
@@ -2941,24 +3056,61 @@ Visit: %s (Author's site)
         def getNumberOfRows(self): return len(self.savedAccountListUUIDs)
 
         def storeWidgetNameForSelectedRow(self):
-            self.savedWidgetName[self.getSelectedRowIndex()] = self.widgetNameField.getText()
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            if self.switchFromHomeScreen:
+                myPrint("DB", ".. switchFromHomeScreen detected... ignoring....")
+                self.switchFromHomeScreen = False
+            else:
+                myPrint("DB", ".. selectedRowIndex(): %s was: '%s', will set to: '%s'" %(self.getSelectedRowIndex(), self.savedWidgetName[self.getSelectedRowIndex()], self.widgetNameField.getText()))
+                if self.savedWidgetName[self.getSelectedRowIndex()] != self.widgetNameField.getText():
+                    myPrint("DB", "..... saving widget name....")
+                    self.savedWidgetName[self.getSelectedRowIndex()] = self.widgetNameField.getText()
+                    self.configSaved = False
 
         def storeCurrentJListSelected(self):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             del self.savedAccountListUUIDs[self.getSelectedRowIndex()][:]
             myPrint("B","Storing account list for HomePageView widget for row: %s into memory.." %(self.getSelectedRow()))
             for selectedAccount in self.jlst.getSelectedValuesList():
                 myPrint("DB","...storing account %s into memory..." %(selectedAccount))
                 self.savedAccountListUUIDs[self.getSelectedRowIndex()].append(selectedAccount.obj.getUUID())
+            myPrint("B","Storing related AcctsCatsSecurities type (%s) for HomePageView widget for row: %s into memory.." %(self.jlst.getAcctsCatsSecuritiesType(), self.getSelectedRow()))
 
-        def rebuildJList(self):
+            myPrint("DB",">> savedAcctsCatsSecurities: was: %s" %(self.savedAcctsCatsSecurities))
+            self.savedAcctsCatsSecurities[self.getSelectedRowIndex()] = self.jlst.getAcctsCatsSecuritiesType()
+            myPrint("DB",">> savedAcctsCatsSecurities: now: %s" %(self.savedAcctsCatsSecurities))
+
+        def resetJListModel(self):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+            if isinstance(self.jlst, JList):
+                myPrint("DB","Checking JList ListData model for any reference(s) to objects...")
+                if self.jlst.getModel().getSize() > 0:
+                    myPrint("DB","Setting JList ListData model to [] to release any references to objects")
+                    self.jlst.setListData([])
+                    self.jlst.setAcctsCatsSecuritiesType(0)                                                             # noqa
+                else:
+                    myPrint("DB","JList ListData model is already empty (no action)")
+            else:
+                myPrint("DB","self.jlst is None or not JList (no action)")
+
+        def rebuildJList(self, useSetting=None):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            myPrint("DB","Passed useSetting: %s" %useSetting)
+            if useSetting is None:
+                useSetting = self.savedAcctsCatsSecurities[self.getSelectedRowIndex()]
+                myPrint("DB","Overriding useSetting: %s" %useSetting)
 
             listOfAllAccountsForJList = []
+            getAccounts = AccountUtil.allMatchesForSearch(self.moneydanceContext.getCurrentAccountBook(), MyAcctFilter(useSetting))
 
-            getAccounts = AccountUtil.allMatchesForSearch(self.moneydanceContext.getCurrentAccountBook(), MyAcctFilter())
             getAccounts = sorted(getAccounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
             for acct in getAccounts:
                 listOfAllAccountsForJList.append(StoreAccountList(acct))
             del getAccounts
+
+            myPrint("DB", listOfAllAccountsForJList)
 
             countMatch = 0
             index = 0
@@ -2975,6 +3127,8 @@ Visit: %s (Author's site)
             if len(itemsToSelect):
                 self.jlst.setSelectedIndices(itemsToSelect)
                 self.jlst.ensureIndexIsVisible(itemsToSelect[0])
+
+            self.jlst.setAcctsCatsSecuritiesType(useSetting)
 
             return len(itemsToSelect)
 
@@ -3020,8 +3174,12 @@ Visit: %s (Author's site)
                 # ##################################################################################################
 
                 if self.callingClass.configPanelOpen:
-                    myPrint("DB",".. Application's config panel is already open...")
-
+                    myPrint("DB",".. Application's config panel is already open... Just select correct row if different...")
+                    if self.callingClass.rowSelected_COMBO.getSelectedIndex() != self.callingClass.getSelectedRowIndex():
+                        myPrint("DB","... Need to switch row....")
+                        self.callingClass.rowSelected_COMBO.setSelectedIndex(self.callingClass.getSelectedRowIndex())
+                    else:
+                        myPrint("DB","... Row selected is already correct - no change....")
                 else:
                     myPrint("DB",".. Application's config panel was not open already...")
                     self.callingClass.configPanelOpen = True
@@ -3086,6 +3244,7 @@ Visit: %s (Author's site)
                 if self.theFrame.isVisible():
                     myPrint("DB", ".. in windowClosing, but isVisible is True, let's trigger a widget refresh....")
                     self.callingClass.executeRefresh()
+                    self.callingClass.resetJListModel()
                 else:
                     myPrint("DB", ".. in windowClosing, and isVisible is False, so will start termination....")
                     self.terminate_script()
@@ -3156,17 +3315,13 @@ Visit: %s (Author's site)
 
             def actionPerformed(self, event):
                 global debug    # Keep this here as we change debug further down
-                global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_currency_NAB
 
                 lShouldSaveParameters = False
                 lShouldRefreshHomeScreenWidget = False
 
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
-                myPrint("DB", "... Action Command", event.getActionCommand())
-
-                # ##########################################################################################################
-                # self.callingClass.storeWidgetNameForSelectedRow()   # Auto-save changes to widget name...
+                myPrint("DB", "... Action Command:", event.getActionCommand(), "(%s)" %(event.getSource().getName()))
 
                 # ##########################################################################################################
                 if event.getActionCommand().lower() == "about":
@@ -3179,22 +3334,32 @@ Visit: %s (Author's site)
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
 
-                    if event.getSource().getName().lower() == "balanceType_option".lower():
-                        myPrint("DB", ".. setting savedBalanceType to: %s for row: %s" %(event.getSource().getSelectedIndex(), self.callingClass.getSelectedRow()))
-                        self.callingClass.savedBalanceType[self.callingClass.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                    if event.getSource().getName().lower() == "balanceType_COMBO".lower():
+                        if self.callingClass.savedBalanceType[self.callingClass.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
+                            myPrint("DB", ".. setting savedBalanceType to: %s for row: %s" %(event.getSource().getSelectedIndex(), self.callingClass.getSelectedRow()))
+                            self.callingClass.savedBalanceType[self.callingClass.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                            self.callingClass.configSaved = False
 
-                    if event.getSource().getName().lower() == "currency_option".lower():
+                    if event.getSource().getName().lower() == "acctsCatsSecurities_COMBO".lower():
+                        myPrint("DB", ".. detected savedAcctsCatsSecurities combo - user selected: %s for row: %s (will rebuild JList)" %(event.getSource().getSelectedIndex(), self.callingClass.getSelectedRow()))
+                        # self.callingClass.savedAcctsCatsSecurities[self.callingClass.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                        self.callingClass.rebuildJList(useSetting=event.getSource().getSelectedIndex())
+
+                    if event.getSource().getName().lower() == "currency_COMBO".lower():
                         selCur = event.getSource().getSelectedItem()
                         myPrint("DB", "selCur: %s" %(selCur))
                         if selCur.isBase:
                             selCurUUID = None
                         else:
-                            selCurUUID = selCur.getUUID()                                                               # noqa
-                        myPrint("DB", ".. setting savedCurrencyTable to: %s (%s) for row: %s" %(selCurUUID, selCur, self.callingClass.getSelectedRow()))
-                        self.callingClass.savedCurrencyTable[self.callingClass.getSelectedRowIndex()] = selCurUUID
+                            selCurUUID = selCur.getUUID()
+                        if self.callingClass.savedCurrencyTable[self.callingClass.getSelectedRowIndex()] != selCurUUID:
+                            myPrint("DB", ".. setting savedCurrencyTable to: %s (%s) for row: %s" %(selCurUUID, selCur, self.callingClass.getSelectedRow()))
+                            self.callingClass.savedCurrencyTable[self.callingClass.getSelectedRowIndex()] = selCurUUID
+                            self.callingClass.configSaved = False
 
-                    if event.getSource().getName().lower() == "rowSelectedCombo".lower():
+                    if event.getSource().getName().lower() == "rowSelected_COMBO".lower():
                         myPrint("DB", ".. setting selected row to configure to: %s" %(event.getSource().getSelectedIndex()+1))
+
                         self.callingClass.storeWidgetNameForSelectedRow()
                         self.callingClass.rebuildFrameComponents(selectRowIndex=event.getSource().getSelectedIndex())
 
@@ -3205,18 +3370,22 @@ Visit: %s (Author's site)
                         myPrint("DB", ".. inserting a new row number %s (before)" %(self.callingClass.getSelectedRow()))
                         self.callingClass.savedAccountListUUIDs.insert(self.callingClass.getSelectedRowIndex(), [])
                         self.callingClass.savedBalanceType.insert(self.callingClass.getSelectedRowIndex(), 0)
+                        self.callingClass.savedAcctsCatsSecurities.insert(self.callingClass.getSelectedRowIndex(), 0)
                         self.callingClass.savedWidgetName.insert(self.callingClass.getSelectedRowIndex(), "(NOT CONFIGURED)")
                         self.callingClass.savedCurrencyTable.insert(self.callingClass.getSelectedRowIndex(), None)
                         self.callingClass.rebuildFrameComponents(selectRowIndex=self.callingClass.getSelectedRowIndex())
+                        self.callingClass.configSaved = False
 
                 if event.getActionCommand().lower().startswith("Insert Row after".lower()):
                     if myPopupAskQuestion(self.callingClass.theFrame,"INSERT ROW","Insert a new row %s (after this row)?" %(self.callingClass.getSelectedRow()+1)):
                         myPrint("DB", ".. inserting a new row number %s (after)" %(self.callingClass.getSelectedRow()+1))
                         self.callingClass.savedAccountListUUIDs.insert(self.callingClass.getSelectedRowIndex()+1, [])
                         self.callingClass.savedBalanceType.insert(self.callingClass.getSelectedRowIndex()+1, 0)
+                        self.callingClass.savedAcctsCatsSecurities.insert(self.callingClass.getSelectedRowIndex()+1, 0)
                         self.callingClass.savedWidgetName.insert(self.callingClass.getSelectedRowIndex()+1, "(NOT CONFIGURED)")
                         self.callingClass.savedCurrencyTable.insert(self.callingClass.getSelectedRowIndex()+1, None)
                         self.callingClass.rebuildFrameComponents(selectRowIndex=self.callingClass.getSelectedRowIndex()+1)
+                        self.callingClass.configSaved = False
 
                 if event.getActionCommand().lower().startswith("Delete Row".lower()):
                     if self.callingClass.getNumberOfRows() <= 1:
@@ -3226,9 +3395,11 @@ Visit: %s (Author's site)
                             myPrint("DB", ".. deleting row: %s" %(self.callingClass.getSelectedRow()))
                             del self.callingClass.savedAccountListUUIDs[self.callingClass.getSelectedRowIndex()]
                             del self.callingClass.savedBalanceType[self.callingClass.getSelectedRowIndex()]
+                            del self.callingClass.savedAcctsCatsSecurities[self.callingClass.getSelectedRowIndex()]
                             del self.callingClass.savedWidgetName[self.callingClass.getSelectedRowIndex()]
                             del self.callingClass.savedCurrencyTable[self.callingClass.getSelectedRowIndex()]
                             self.callingClass.rebuildFrameComponents(selectRowIndex=(min(self.callingClass.getSelectedRowIndex(), self.callingClass.getNumberOfRows()-1)))
+                            self.callingClass.configSaved = False
 
                 if event.getActionCommand().lower().startswith("Move Row".lower()):
                     if self.callingClass.getNumberOfRows() < 2:
@@ -3249,9 +3420,11 @@ Visit: %s (Author's site)
 
                                 self.callingClass.savedAccountListUUIDs.insert(newPos, self.callingClass.savedAccountListUUIDs.pop(oldPos))
                                 self.callingClass.savedBalanceType.insert(newPos, self.callingClass.savedBalanceType.pop(oldPos))
+                                self.callingClass.savedAcctsCatsSecurities.insert(newPos, self.callingClass.savedAcctsCatsSecurities.pop(oldPos))
                                 self.callingClass.savedWidgetName.insert(newPos, self.callingClass.savedWidgetName.pop(oldPos))
                                 self.callingClass.savedCurrencyTable.insert(newPos, self.callingClass.savedCurrencyTable.pop(oldPos))
                                 self.callingClass.rebuildFrameComponents(selectRowIndex=newPos)
+                                self.callingClass.configSaved = False
                             else:
                                 myPrint("B","User entered an invalid new row position (%s) to move from (%s) - no action taken" %(newPosition, self.callingClass.getSelectedRow()))
                 # ######################################################################################################
@@ -3264,7 +3437,7 @@ Visit: %s (Author's site)
                         self.callingClass.rebuildFrameComponents(selectRowIndex=0)
 
                         lShouldRefreshHomeScreenWidget = True
-                        # lShouldSaveParameters = True
+                        self.callingClass.configSaved = False
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("reload"):
@@ -3282,7 +3455,7 @@ Visit: %s (Author's site)
 
                     if self.callingClass.savedWidgetName[self.callingClass.getSelectedRowIndex()].strip() == "":
                         if self.callingClass.getSelectedRow() == 1:
-                            self.callingClass.savedWidgetName[self.callingClass.getSelectedRowIndex()] = DEFAULT_WIDGET_NAME
+                            self.callingClass.savedWidgetName[self.callingClass.getSelectedRowIndex()] = GlobalVars.DEFAULT_WIDGET_NAME
                         else:
                             self.callingClass.savedWidgetName[self.callingClass.getSelectedRowIndex()] = "<NOT CONFIGURED>"
 
@@ -3301,13 +3474,12 @@ Visit: %s (Author's site)
                 if event.getActionCommand().lower().startswith("store"):
                     myPrint("DB","...storing account list selection into memory...")
                     self.callingClass.storeCurrentJListSelected()
+                    self.callingClass.configSaved = False
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("undo"):
                     myPrint("DB","...undoing account list selection changes and reverting to previously saved account list")
                     self.callingClass.rebuildJList()
-                    # self.callingClass.configPanelOpen = False
-                    # self.callingClass.theFrame.setVisible(False)    # Listener, so already on Swing EDT
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("debug"):
@@ -3338,16 +3510,19 @@ Visit: %s (Author's site)
                 # ######################################################################################################
                 if lShouldSaveParameters:
 
-                    extn_param_NEW_listAccountUUIDs_NAB = self.callingClass.savedAccountListUUIDs
-                    extn_param_NEW_balanceType_NAB = self.callingClass.savedBalanceType
-                    extn_param_NEW_widget_display_name_NAB = self.callingClass.savedWidgetName
-                    extn_param_NEW_currency_NAB = self.callingClass.savedCurrencyTable
+                    GlobalVars.extn_param_NEW_listAccountUUIDs_NAB      = self.callingClass.savedAccountListUUIDs
+                    GlobalVars.extn_param_NEW_balanceType_NAB           = self.callingClass.savedBalanceType
+                    GlobalVars.extn_param_NEW_acctsCatsSecurities_NAB   = self.callingClass.savedAcctsCatsSecurities
+                    GlobalVars.extn_param_NEW_widget_display_name_NAB   = self.callingClass.savedWidgetName
+                    GlobalVars.extn_param_NEW_currency_NAB              = self.callingClass.savedCurrencyTable
 
                     try:
                         save_StuWareSoftSystems_parameters_to_file(myFile="%s_extension.dict" %(self.callingClass.myModuleID))
                     except:
                         myPrint("DB","@@ Error saving parameters back to pickle file....?")
                         dump_sys_error_to_md_console_and_errorlog()
+
+                    self.callingClass.configSaved = True
 
                 # ######################################################################################################
 
@@ -3369,9 +3544,6 @@ Visit: %s (Author's site)
                 return c
 
         def load_saved_parameters(self, lForceReload=False):
-            global extn_param_listAccountUUIDs_NAB, extn_param_balanceType_NAB, extn_param_widget_display_name_NAB
-            global extn_param_NEW_listAccountUUIDs_NAB, extn_param_NEW_balanceType_NAB, extn_param_NEW_widget_display_name_NAB, extn_param_NEW_currency_NAB
-
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
             myPrint("DB", "... parametersLoaded: %s .getCurrentAccountBook(): %s" %(self.parametersLoaded, self.moneydanceContext.getCurrentAccountBook()))
@@ -3383,38 +3555,43 @@ Visit: %s (Author's site)
 
                         self.resetParameters()
 
-                        extn_param_NEW_listAccountUUIDs_NAB = [[]]                      # Loading will overwrite if saved, else pre-load defaults
-                        extn_param_NEW_balanceType_NAB = [0]                            # Loading will overwrite if saved, else pre-load defaults
-                        extn_param_NEW_widget_display_name_NAB = [DEFAULT_WIDGET_NAME]  # Loading will overwrite if saved, else pre-load defaults
-                        extn_param_NEW_currency_NAB = [None]                            # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_listAccountUUIDs_NAB = [[]]                                   # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_balanceType_NAB = [0]                                         # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_acctsCatsSecurities_NAB = [0]                                 # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_widget_display_name_NAB = [GlobalVars.DEFAULT_WIDGET_NAME]    # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_currency_NAB = [None]                                         # Loading will overwrite if saved, else pre-load defaults
 
                         get_StuWareSoftSystems_parameters_from_file(myFile="%s_extension.dict" %(self.myModuleID))
 
                         # Migrate parameters from old to new multi-row format....
-                        if ((extn_param_listAccountUUIDs_NAB is not None and len(extn_param_listAccountUUIDs_NAB) > 0)
-                                and (len(extn_param_NEW_listAccountUUIDs_NAB[0]) < 1)):
+                        if ((GlobalVars.extn_param_listAccountUUIDs_NAB is not None and len(GlobalVars.extn_param_listAccountUUIDs_NAB) > 0)
+                                and (len(GlobalVars.extn_param_NEW_listAccountUUIDs_NAB[0]) < 1)):
                             myPrint("B","MIGRATING OLD PARAMETERS TO NEW MULTI-ROW PARAMETERS")
 
-                            extn_param_NEW_listAccountUUIDs_NAB = [extn_param_listAccountUUIDs_NAB]
-                            extn_param_NEW_balanceType_NAB = [extn_param_balanceType_NAB]
-                            extn_param_NEW_widget_display_name_NAB = [extn_param_widget_display_name_NAB]
-                            extn_param_NEW_currency_NAB = [None]    # Did not exist previously
+                            GlobalVars.extn_param_NEW_listAccountUUIDs_NAB      = [GlobalVars.extn_param_listAccountUUIDs_NAB]
+                            GlobalVars.extn_param_NEW_balanceType_NAB           = [GlobalVars.extn_param_balanceType_NAB]
+                            GlobalVars.extn_param_NEW_widget_display_name_NAB   = [GlobalVars.extn_param_widget_display_name_NAB]
+                            GlobalVars.extn_param_NEW_acctsCatsSecurities_NAB   = [0]           # Did not exist previously - default to Accts/Cats (not Securities)
+                            GlobalVars.extn_param_NEW_currency_NAB              = [None]        # Did not exist previously
 
-                            extn_param_listAccountUUIDs_NAB = None
-                            extn_param_balanceType_NAB = None
-                            extn_param_widget_display_name_NAB = None
+                            GlobalVars.extn_param_listAccountUUIDs_NAB      = None
+                            GlobalVars.extn_param_balanceType_NAB           = None
+                            GlobalVars.extn_param_widget_display_name_NAB   = None
 
                         else:
                             myPrint("DB","No migration of (old) parameters to new multi-row parameters performed....")
 
                         self.parametersLoaded = True
-                        self.savedAccountListUUIDs = extn_param_NEW_listAccountUUIDs_NAB
-                        self.savedBalanceType = extn_param_NEW_balanceType_NAB
-                        self.savedWidgetName = extn_param_NEW_widget_display_name_NAB
-                        self.savedCurrencyTable = extn_param_NEW_currency_NAB
+                        self.savedAccountListUUIDs      = GlobalVars.extn_param_NEW_listAccountUUIDs_NAB
+                        self.savedBalanceType           = GlobalVars.extn_param_NEW_balanceType_NAB
+                        self.savedAcctsCatsSecurities   = GlobalVars.extn_param_NEW_acctsCatsSecurities_NAB
+                        self.savedWidgetName            = GlobalVars.extn_param_NEW_widget_display_name_NAB
+                        self.savedCurrencyTable         = GlobalVars.extn_param_NEW_currency_NAB
                         self.rowSelectedSaved = 0
 
                         self.validateParameters()
+                        self.configSaved = True
+
 
         # method getName() must exist as the interface demands it.....
         def getName(self):      # noqa
@@ -3487,8 +3664,6 @@ Visit: %s (Author's site)
             return True
 
         def build_main_frame(self):
-            global net_account_balances_frame_
-
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -3501,7 +3676,7 @@ Visit: %s (Author's site)
                     self.callingClass = callingClass
 
                 def run(self):                                                                                                        # noqa
-                    global net_account_balances_frame_
+                    global net_account_balances_frame_  # Keep this here as we set it below
 
                     myPrint("DB", "Creating main JFrame for application...")
 
@@ -3540,7 +3715,15 @@ Visit: %s (Author's site)
                             else:
                                 self.addSelectionInterval(start, end)
 
-                    self.callingClass.jlst = JList([])
+                    class MyJList(JList):
+                        def __init__(self, _list):
+                            self.acctsCatsSecurities = 0
+                            super(JList, self).__init__(_list)                                                          # noqa
+
+                        def getAcctsCatsSecuritiesType(self): return self.acctsCatsSecurities
+                        def setAcctsCatsSecuritiesType(self, _type): self.acctsCatsSecurities = _type
+
+                    self.callingClass.jlst = MyJList([])
                     self.callingClass.jlst.setBackground((self.callingClass.moneydanceContext.getUI().getColors()).listBackground)
                     self.callingClass.jlst.setCellRenderer( self.callingClass.MyJListRenderer() )
                     self.callingClass.jlst.setFixedCellHeight(self.callingClass.jlst.getFixedCellHeight()+30)
@@ -3591,15 +3774,15 @@ Visit: %s (Author's site)
 
                     # -----------------------------------------------------------------------------------
                     onCol = 0
-                    rowSelectedComboLabel = JLabel("Select Row to Configure:")
-                    pnl.add(rowSelectedComboLabel, GridC.getc(onCol, onRow).leftInset(10))
+                    rowSelected_COMBOLabel = JLabel("Select Row to Configure:")
+                    pnl.add(rowSelected_COMBOLabel, GridC.getc(onCol, onRow).leftInset(10))
                     onCol += 1
 
-                    self.callingClass.rowSelectedCombo = JComboBox([None])
-                    self.callingClass.rowSelectedCombo.setName("rowSelectedCombo")
-                    self.callingClass.rowSelectedCombo.setToolTipText("Select the row you would like to configure")
-                    self.callingClass.rowSelectedCombo.addActionListener(saveMyActionListener)
-                    pnl.add(self.callingClass.rowSelectedCombo, GridC.getc(onCol, onRow).west().rightInset(8))
+                    self.callingClass.rowSelected_COMBO = JComboBox([None])
+                    self.callingClass.rowSelected_COMBO.setName("rowSelected_COMBO")
+                    self.callingClass.rowSelected_COMBO.setToolTipText("Select the row you would like to configure")
+                    self.callingClass.rowSelected_COMBO.addActionListener(saveMyActionListener)
+                    pnl.add(self.callingClass.rowSelected_COMBO, GridC.getc(onCol, onRow).west().rightInset(8))
                     onRow += 1
 
                     # -----------------------------------------------------------------------------------
@@ -3672,12 +3855,12 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     balanceTypes = ["Balance", "Current Balance", "Cleared Balance"]
-                    self.callingClass.balanceType_option = JComboBox(balanceTypes)
-                    self.callingClass.balanceType_option.setName("balanceType_option")
-                    self.callingClass.balanceType_option.setToolTipText("Select the balance type to total: Balance (i.e. the final balance), Current Balance (as of today), Cleared Balance")
-                    self.callingClass.balanceType_option.setSelectedItem(balanceTypes[self.callingClass.savedBalanceType[0]])
-                    self.callingClass.balanceType_option.addActionListener(saveMyActionListener)
-                    pnl.add(self.callingClass.balanceType_option, GridC.getc(onCol, onRow).leftInset(10).topInset(2).fillx())
+                    self.callingClass.balanceType_COMBO = JComboBox(balanceTypes)
+                    self.callingClass.balanceType_COMBO.setName("balanceType_COMBO")
+                    self.callingClass.balanceType_COMBO.setToolTipText("Select the balance type to total: Balance (i.e. the final balance), Current Balance (as of today), Cleared Balance")
+                    self.callingClass.balanceType_COMBO.setSelectedItem(balanceTypes[self.callingClass.savedBalanceType[0]])
+                    self.callingClass.balanceType_COMBO.addActionListener(saveMyActionListener)
+                    pnl.add(self.callingClass.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(10).topInset(2).fillx())
                     onRow += 1
 
                     # -----------------------------------------------------------------------------------
@@ -3685,15 +3868,23 @@ Visit: %s (Author's site)
                     pnl.add(JLabel("Display Currency:"), GridC.getc(onCol, onRow).east().leftInset(10))
                     onCol += 1
 
-                    self.callingClass.currency_option = JComboBox([None])
-                    self.callingClass.currency_option.setName("currency_option")
-                    self.callingClass.currency_option.setToolTipText("Select the Currency to convert / display totals (default = your base currency)")
-                    self.callingClass.currency_option.addActionListener(saveMyActionListener)
-                    pnl.add(self.callingClass.currency_option, GridC.getc(onCol, onRow).leftInset(10).topInset(2).colspan(2).fillx())
+                    self.callingClass.currency_COMBO = JComboBox([None])
+                    self.callingClass.currency_COMBO.setName("currency_COMBO")
+                    self.callingClass.currency_COMBO.setToolTipText("Select the Currency to convert / display totals (default = your base currency)")
+                    self.callingClass.currency_COMBO.addActionListener(saveMyActionListener)
+                    pnl.add(self.callingClass.currency_COMBO, GridC.getc(onCol, onRow).leftInset(10).topInset(2).colspan(2).fillx())
                     onRow += 1
 
                     # -----------------------------------------------------------------------------------
                     onCol = 0
+
+                    acctsCatsSecuritiesTypes = ["Accounts & Categories", "Securities"]
+                    self.callingClass.acctsCatsSecurities_COMBO = JComboBox(acctsCatsSecuritiesTypes)
+                    self.callingClass.acctsCatsSecurities_COMBO.setName("acctsCatsSecurities_COMBO")
+                    self.callingClass.acctsCatsSecurities_COMBO.setToolTipText("Select to filter by Accounts & Categories - or - Securities / Securities")
+                    self.callingClass.acctsCatsSecurities_COMBO.addActionListener(saveMyActionListener)
+                    pnl.add(self.callingClass.acctsCatsSecurities_COMBO, GridC.getc(onCol, onRow).leftInset(10).topInset(7).fillx())
+                    onCol += 1
 
                     clearList_button = JButton("Clear Selection")
                     clearList_button.setToolTipText("Clears the current selection(s)...")
@@ -3920,18 +4111,22 @@ Visit: %s (Author's site)
                     myPrint("DB","Requesting application JFrame to go invisible...")
                     SwingUtilities.invokeLater(GenericVisibleRunnable(self.theFrame, False))
 
+                self.resetJListModel()
+
             elif (appEvent == "md:file:opened"):  # This is the key event when a file is opened
                 myPrint("DB","%s Checking to see if UI loaded and create application Frame" %(appEvent))
                 self.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
 
             elif (appEvent.lower().startswith(("%s:customevent:showConfig" %(self.myModuleID)).lower())):
-                myPrint("DB","%s Config screen requested - I might show it conditions are appropriate" %(appEvent))
+                myPrint("DB","%s Config screen requested - I might show it if conditions are appropriate" %(appEvent))
 
                 self.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
 
                 requestedRow = self.decodeCommand(appEvent)[1]
                 if StringUtils.isInteger(requestedRow) and int(requestedRow) > 0:
                     myPrint("DB","COMMAND: %s received... Detected Row Parameter: %s" %(appEvent, requestedRow))
+                    self.storeWidgetNameForSelectedRow()
+                    self.switchFromHomeScreen = True
                     self.rowSelectedSaved = int(requestedRow)-1
 
                 if self.theFrame is not None and self.isUIavailable and self.theFrame.isActiveInMoneydance:
@@ -4165,6 +4360,8 @@ Visit: %s (Author's site)
                     for iAccountLoop in range(0,len(accountsToShow)):
                         onRow = iAccountLoop+1
 
+                        secLabelText = ""
+
                         thisRowCurr = self.getCurrencyByUUID(self.callingClass.extensionClass.savedCurrencyTable[iAccountLoop], baseCurr)
 
                         myPrint("DB","HomePageView widget: calculating balances for widget row: %s '%s' (currency to display: %s)" %(onRow, self.callingClass.extensionClass.savedWidgetName[iAccountLoop], thisRowCurr))
@@ -4175,6 +4372,8 @@ Visit: %s (Author's site)
                             totalBalance = 0
 
                             for acct in accountsToShow[iAccountLoop]:
+                                # noinspection PyUnresolvedReferences
+                                if acct.getAccountType() == Account.AccountType.SECURITY: secLabelText = " (Securities)"
                                 acctCurr = acct.getCurrencyType()
                                 # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance"
                                 if self.callingClass.extensionClass.savedBalanceType[iAccountLoop] == 0:
@@ -4190,6 +4389,7 @@ Visit: %s (Author's site)
                                     bal = 0
                                     myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(self.callingClass.extensionClass.savedBalanceType[iAccountLoop]))
 
+                                # This bit is neat, as it seems to work for Securities with just the qty balance!!
                                 if bal != 0 and acctCurr != thisRowCurr:
                                     balConv = CurrencyUtil.convertValue(bal, acctCurr, thisRowCurr)
                                     myPrint("DB",".. Converted %s to %s (%s)" %(acctCurr.formatSemiFancy(bal, dec), thisRowCurr.formatSemiFancy(balConv, dec), thisRowCurr))
@@ -4226,7 +4426,7 @@ Visit: %s (Author's site)
 
                                             totalBalance += securityValue
 
-                        totalBalanceTable.append([thisRowCurr,totalBalance])
+                        totalBalanceTable.append([thisRowCurr,totalBalance,secLabelText])
 
                     del accountsToShow, totalBalance
 
@@ -4237,7 +4437,7 @@ Visit: %s (Author's site)
                             result = "<ZERO>"
                         else:
                             result = totalBalanceTable[i][_valIdx] / 100.0
-                        myPrint("DB",".. Row: %s - Calculated a total balance of %s" %(i+1, result))
+                        myPrint("DB",".. Row: %s - DEBUG >> Calculated a total (potentially mixed currency) total of %s" %(i+1, result))
 
                 except IllegalArgumentException:
                     myPrint("B","ERROR - Probably on a multi-byte character.....")
@@ -4318,7 +4518,13 @@ Visit: %s (Author's site)
                     myPrint("DB", "Currency uuid passed was '%s' - returning defaultBase: %s" %(uuid, curr))
                 else:
                     curr = self.callingClass.extensionClass.moneydanceContext.getCurrentAccountBook().getCurrencies().getCurrencyByUUID(uuid)
-                    myPrint("DB", "Currency for uuid: %s found: %s" %(uuid, curr))
+
+                    if curr is None:
+                        myPrint("DB", "WARNING.... Currency for uuid: %s MISSING: Reverting to base: %s" %(uuid, defaultBase))
+                        curr = defaultBase
+                    else:
+                        myPrint("DB", "Currency for uuid: %s found: %s" %(uuid, curr))
+
                 return curr
 
             # noinspection PyUnresolvedReferences
@@ -4340,50 +4546,83 @@ Visit: %s (Author's site)
                 dec = md.getPreferences().getDecimalChar()
                 baseCurr = md.getCurrentAccountBook().getCurrencies().getBaseType()
 
-                _curIdx = 0; _valIdx = 1
-                netAmountTable = self.getBalancesBuildView(dec)
-
                 altFG = md.getUI().getColors().tertiaryTextFG
                 altFGHex = AwtUtil.hexStringForColor(altFG)
 
-                for i in range(0,len(netAmountTable)):
-                    onRow = i+1
+                _curIdx = 0; _valIdx = 1; _secLabelTextIdx = 2
 
-                    if netAmountTable[i][_curIdx] is not baseCurr:
-                        showCurrText = " (%s)" %(netAmountTable[i][_curIdx].getIDString())
-                        rowText = "<html>%s<small><font color=#%s>%s</font></small></html>" %(self.callingClass.extensionClass.savedWidgetName[i], altFGHex, showCurrText)
-                    else:
-                        myPrint("DB", "Row: %s Currency is %s (base) so no currency text.." %(i, baseCurr))
-                        rowText = self.callingClass.extensionClass.savedWidgetName[i]
 
-                    nameLabel = JLinkLabel(rowText, "showConfig?%s" %(str(onRow)), JLabel.LEFT)
+                try:
+                    netAmountTable = self.getBalancesBuildView(dec)
 
-                    if netAmountTable[i][_valIdx] is None:
-                        netTotalLbl = JLinkLabel("<not configured>", "showConfig?%s" %(str(onRow)), JLabel.RIGHT)
+                    onRow = iAddRow = 0
+                    if not self.callingClass.extensionClass.configSaved:
+                        rowText = "<CONFIG NOT SAVED>"
+                        nameLabel = JLinkLabel(rowText, "showConfig", JLabel.LEFT)
+                        nameLabel.setForeground(md.getUI().getColors().negativeBalFG)
+                        nameLabel.setDrawUnderline(True)
+
+                        netTotalLbl = JLinkLabel("", "showConfig", JLabel.RIGHT)
                         netTotalLbl.setFont((md.getUI().getFonts()).mono)
-                    else:
-                        netTotalLbl = JLinkLabel(netAmountTable[i][_curIdx].formatFancy(netAmountTable[i][_valIdx], dec), "showConfig?%s" %(onRow), JLabel.RIGHT)
-                        netTotalLbl.setFont((md.getUI().getFonts()).mono)
+                        netTotalLbl.setDrawUnderline(False)
 
-                        if netAmountTable[i][_valIdx] < 0:
-                            netTotalLbl.setForeground(md.getUI().getColors().negativeBalFG)
+                        self.listPanel.add(nameLabel, GridC.getc().xy(0, onRow).wx(1.0).filly().west().pady(2))
+                        self.listPanel.add(netTotalLbl, GridC.getc().xy(1, onRow).fillboth().pady(2))
+
+                        nameLabel.addLinkListener(self)
+                        netTotalLbl.addLinkListener(self)
+                        iAddRow = 1
+
+                    for i in range(0,len(netAmountTable)):
+                        onRow = i + 1
+                        onPnlRow = onRow + iAddRow
+
+                        showCurrText = ""
+                        if netAmountTable[i][_curIdx] is not baseCurr:
+                            showCurrText = " (%s)" %(netAmountTable[i][_curIdx].getIDString())
+                        rowText = "<html>%s<small><font color=#%s>%s%s</font></small></html>" %(self.callingClass.extensionClass.savedWidgetName[i], altFGHex, netAmountTable[i][_secLabelTextIdx], showCurrText)
+
+                        nameLabel = JLinkLabel(rowText, "showConfig?%s" %(str(onRow)), JLabel.LEFT)
+
+                        if netAmountTable[i][_valIdx] is None:
+                            netTotalLbl = JLinkLabel("<not configured>", "showConfig?%s" %(str(onRow)), JLabel.RIGHT)
+                            netTotalLbl.setFont((md.getUI().getFonts()).mono)
                         else:
-                            if  "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
-                                netTotalLbl.setForeground(md.getUI().getColors().budgetHealthyColor)
+                            netTotalLbl = JLinkLabel(netAmountTable[i][_curIdx].formatFancy(netAmountTable[i][_valIdx], dec), "showConfig?%s" %(onRow), JLabel.RIGHT)
+                            netTotalLbl.setFont((md.getUI().getFonts()).mono)
+
+                            if netAmountTable[i][_valIdx] < 0:
+                                netTotalLbl.setForeground(md.getUI().getColors().negativeBalFG)
                             else:
-                                netTotalLbl.setForeground(md.getUI().getColors().positiveBalFG)
+                                if  "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
+                                    netTotalLbl.setForeground(md.getUI().getColors().budgetHealthyColor)
+                                else:
+                                    netTotalLbl.setForeground(md.getUI().getColors().positiveBalFG)
 
-                    nameLabel.setBorder(self.nameBorder)
-                    netTotalLbl.setBorder(self.amountBorder)
+                        nameLabel.setBorder(self.nameBorder)
+                        netTotalLbl.setBorder(self.amountBorder)
 
-                    nameLabel.setDrawUnderline(False)
-                    netTotalLbl.setDrawUnderline(False)
+                        nameLabel.setDrawUnderline(False)
+                        netTotalLbl.setDrawUnderline(False)
 
-                    self.listPanel.add(nameLabel, GridC.getc().xy(0, onRow).wx(1.0).fillboth().pady(2))
-                    self.listPanel.add(netTotalLbl, GridC.getc().xy(1, onRow).fillboth().pady(2))
+                        self.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().pady(2))
+                        self.listPanel.add(netTotalLbl, GridC.getc().xy(1, onPnlRow).fillboth().pady(2))
 
-                    nameLabel.addLinkListener(self)
-                    netTotalLbl.addLinkListener(self)
+                        nameLabel.addLinkListener(self)
+                        netTotalLbl.addLinkListener(self)
+
+                    del netAmountTable
+
+                except:
+                    myPrint("DB","Detected ERROR building the viewPanel..")
+                    dump_sys_error_to_md_console_and_errorlog()
+
+                    onRow = 0
+                    rowText = "%s ERROR DETECTED (review console)" %(GlobalVars.DEFAULT_WIDGET_NAME)
+                    nameLabel = JLabel(rowText, JLabel.LEFT)
+                    nameLabel.setForeground(md.getUI().getColors().negativeBalFG)
+                    self.listPanel.add(nameLabel, GridC.getc().xy(0, onRow).wx(1.0).fillboth().west().pady(2))
+
 
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() within .reallyRefresh() returns: %s - about to call .setVisible(True)" %(SwingUtilities.isEventDispatchThread()))
                 self.setVisible(True)       # I think we are already on the Swing Event Dispatch Thread (EDT) so can just call directly....

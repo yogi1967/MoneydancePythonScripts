@@ -21969,7 +21969,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
         except IOException as ioe:
             cause = ioe.getCause()
-            if cause is not None and cause.getClass().getName().endswith("BadPaddingException"):
+            if cause is not None and cause.getClass().getName().endswith("BadPaddingException"):                        # noqa
+                myPrint("B","Caught: BadPaddingException. Class: %s, %s" %(cause.getClass(), cause.getClass().getName()))
                 lCaughtError = True
             else:
                 raise

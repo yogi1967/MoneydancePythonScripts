@@ -51,6 +51,7 @@
 md_version=" 2022.3 (4061)"
 
 USE_JAVA17="YES"
+USE_JAVA_AZUL="YES"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -59,6 +60,10 @@ USE_JAVA17="YES"
 # https://download2.gluonhq.com/openjfx/17.0.1/openjfx-17.0.1_osx-x64_bin-sdk.zip
 # https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17%2B35/OpenJDK17-jdk_x64_mac_hotspot_17_35.pkg
 # Edit the necessary install locations for JDK and JavaFX below
+
+# NOTE:   MD2022.3(4062) Introduced Java 17.0.1 (Azul Systems, Inc.) - JDK / fx together
+# https://cdn.azul.com/zulu/bin/zulu17.30.15-ca-jdk17.0.1-macosx_x64.dmg
+# https://cdn.azul.com/zulu/bin/zulu17.30.51-ca-fx-jdk17.0.1-macosx_x64.dmg (Couldn't get fx to work - so disabled it below)
 
 # Edit the necessary settings and your folder locations below
 
@@ -100,11 +105,20 @@ echo "My user path: ${my_user_path}"
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
 if [ "${USE_JAVA17}" = "YES" ]; then
-  export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
-  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib"
+  if [ "${USE_JAVA_AZUL}" = "YES" ]; then
+    export JAVA_HOME="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home"
+    javafx="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/lib"
+  else
+    export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+    javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib"
+    javafx_modulepath="--module-path ${javafx}"
+    use_javafx="--add-modules ${modules}"
+  fi
 else
   export JAVA_HOME="${my_user_path}/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home"
   javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
+  javafx_modulepath="--module-path ${javafx}"
+  use_javafx="--add-modules ${modules}"
 fi
 
 export PATH="${JAVA_HOME}/bin:${PATH}"
@@ -142,8 +156,8 @@ ${java} --version
 ${java} \
   -Xdock:icon="${md_icon}" \
   -cp "${md_jars}/*" \
-  --module-path "${javafx}" \
-  --add-modules ${modules} \
+  ${javafx_modulepath} \
+  ${use_javafx} \
   -Djava.library.path="${macos}:${machelper2}" \
   -Dapple.laf.useScreenMenuBar=true \
   -Dcom.apple.macos.use-file-dialog-packages=true \
