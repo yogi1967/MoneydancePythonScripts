@@ -350,6 +350,10 @@ else:
     from com.moneydance.awt import QuickSearchField
     from javax.swing.event import DocumentListener, ListSelectionListener
     from java.awt import RenderingHints
+    from java.awt.event import ComponentAdapter
+
+    from java.util import Comparator
+    from java.util import Iterator
 
     # renamed in MD build 3067
     if int(MD_REF.getBuild()) >= 3067:
@@ -2670,9 +2674,11 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
+    # noinspection PyUnresolvedReferences
     def isAccountActive(acct):
         if (acct.getAccountOrParentIsInactive()): return False
-        if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
+        if (acct.getAccountType() != Account.AccountType.SECURITY
+                and (acct.getHideOnHomePage() and acct.getBalance() == 0)): return False
         return True
 
     class MyAcctFilter(AcctFilter):
@@ -3055,6 +3061,53 @@ Visit: %s (Author's site)
             for where_key, where in [[KEY_LEFTIES, lefties], [KEY_RIGHTIES, righties], [KEY_UNUSED, unused]]:
                 myPrint("DB","%s '%s': %s" %("Ending...", where_key, where))
 
+        class ReSizeListener(ComponentAdapter):
+
+            def __init__(self, theFrame, thePanel, theScrollPane):
+                self.theFrame = theFrame
+                self.thePanel = thePanel
+                self.theScrollPane = theScrollPane
+
+            # def componentHidden(self, componentEvent):                                                                   # noqa
+            #     pass
+            #
+            # def componentMoved(self, componentEvent):                                                                    # noqa
+            #     pass
+            #
+            # def componentShown(self, componentEvent):                                                                    # noqa
+            #     pass
+
+            def componentResized(self, componentEvent):                                                                 # noqa
+                myPrint("D","In ", inspect.currentframe().f_code.co_name, "()")
+
+                if self.theFrame.getExtendedState() == JFrame.ICONIFIED:
+                    myPrint("D","Frame state: ICONIFIED Size: %s" %(self.theFrame.getSize()))
+
+                elif self.theFrame.getExtendedState() == JFrame.NORMAL:
+                    myPrint("D","Frame state: NORMAL Size: %s"  %(self.theFrame.getSize()))
+
+                else:
+                    myPrint("D","Frame state: MAXIMISED %s - Size: %s" %(str(self.theFrame.getExtendedState()),self.theFrame.getSize()))
+                    # MAXIMIZED_HORIZ
+                    # MAXIMIZED_VERT
+                    # MAXIMIZED_BOTH
+
+                calcWidth = self.theFrame.getSize().width - 30
+
+                scrollPaneTop = self.theScrollPane.getY()
+                calcHeight = (self.theFrame.getSize().height - scrollPaneTop - 70)
+
+                # myPrint("DB", "Was:", self.theScrollPane.getSize())
+                self.theScrollPane.setSize(Dimension(calcWidth, calcHeight))
+                # myPrint("DB", "Now:", self.theScrollPane.getSize())
+
+                self.theScrollPane.revalidate()
+                self.theFrame.repaint()
+
+                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+
+
 
         class CloseAction(AbstractAction):
 
@@ -3421,7 +3474,86 @@ Visit: %s (Author's site)
                 key2 = _acct.getFullAccountName().upper()
                 return (key1, key2)
 
-            getAccounts = sorted(getAccounts, key=lambda sort_x: specialSorter(sort_x))
+
+            # class MyComparator(Comparator):
+            #     def compare(self, o1, o2): return ACCOUNT_TYPE_NAME_COMPARATOR.compare(o1,o2)
+            #
+            #
+            # class MyAccountIterator(Iterator):
+            #   book;
+            #
+            #   private Iterator<SyncableItem> allAccounts = null;
+            #
+            #   private Account ancestorAccount = null;
+            #
+            #   private Account nextAccount = null;
+            #
+            #   def accountItemSorter = Comparator<SyncableItem>() {
+            #       public int compare(SyncableItem o1, SyncableItem o2) {
+            #         return AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR.compare((Account)o1, (Account)o2);
+            #       }
+            #     };
+            #
+            #
+            #
+            #
+            # # com.infinitekind.moneydance.model.AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR : Comparator
+            # def compareAccountsByHierarchy(a1, a2):
+            #     if (a1 is None and a2 is None):
+            #         return 0
+            #     elif a1 is None:
+            #         return -1
+            #     elif a2 is None:
+            #         return 1
+            #
+            #     depth1 = a1.getDepth()
+            #     depth2 = a2.getDepth()
+            #     maxDepth = Math.max(depth1, depth2) + 1
+            #
+            #     for i in range(0,maxDepth):
+            #         parent1 = a1.getParentAtDepth(i)
+            #         parent2 = a2.getParentAtDepth(i)
+            #
+            #         if parent1 is None and parent2 is None: return 0
+            #         if parent1 is None: return -1
+            #         if parent2 is None: return 1
+            #         if parent1 != parent2:
+            #
+            #             typeComparison = parent1.getAccountType().compareTo(parent2.getAccountType())
+            #             if typeComparison != 0:
+            #                 return typeComparison
+            #
+            #             nameComparison = parent1.getAccountName().compareTo(parent2.getAccountName())
+            #             if nameComparison != 0:
+            #                 return nameComparison
+            #
+            #             uuidComparison = parent1.getUUID().compareTo(parent2.getUUID())
+            #             if uuidComparison != 0:
+            #                 return uuidComparison
+            #
+            #     return 0
+            #
+            # def ACCOUNT_TYPE_NAME_COMPARATOR(lhs, rhs):
+            #     return compareAccountsByHierarchy(lhs, rhs)
+            #
+            # class MyAccountIterator(Iterator):
+            # def
+            #
+            # def allMatchesForSearch(book, search):
+            #     accts = []
+            #     ai = AccountIterator(book)
+            #     for iter in ai:
+            #         acct = iter.next()
+            #         if search.matches(acct):
+            #             accts.append(acct)
+            #     return accts
+            #
+            #
+            #
+            #
+
+            if not True:
+                getAccounts = sorted(getAccounts, key=lambda sort_x: specialSorter(sort_x))
             for acct in getAccounts: listOfAllAccountsForJList.append(StoreAccountList(acct, self.savedAutoSumAccounts[self.getSelectedRowIndex()]))
             del getAccounts
 
@@ -3916,10 +4048,11 @@ Visit: %s (Author's site)
                     NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Show Warnings Default".lower()):
+                if event.getActionCommand().lower().startswith("Show Warnings".lower()):
                     NAB.savedShowWarningsDefault = not NAB.savedShowWarningsDefault
                     NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
-                    myPrint("B", "User has changed Show Warnings Default to: %s" %(NAB.savedShowWarningsDefault))
+                    myPrint("B", "User has changed Show Warnings to: %s" %(NAB.savedShowWarningsDefault))
+                    NetAccountBalancesExtension.getNAB().simulateTotalForRow()
                     NAB.configSaved = False
 
                 # ######################################################################################################
@@ -4085,7 +4218,7 @@ Visit: %s (Author's site)
                         self.incomeExpenseFlag = ""
 
                     self.userXBalance = StoreAccountList.getUserXBalance(balType, self.account) * mult
-                    if self.userXBalance:
+                    if True or self.userXBalance:
                         if self.userXBalance != 0 and acctCurr != thisRowCurr:
                             self.userXBalance = CurrencyUtil.convertValue(self.userXBalance, acctCurr, thisRowCurr)
                         self.userXBalanceStr = thisRowCurr.formatFancy(self.userXBalance, dec)
@@ -4490,14 +4623,14 @@ Visit: %s (Author's site)
                     onCol = 0
                     topInset = 12
                     rowSelected_COMBOLabel = JLabel("Select Row to Configure:")
-                    pnl.add(rowSelected_COMBOLabel, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset))
+                    pnl.add(rowSelected_COMBOLabel, GridC.getc(onCol, onRow).leftInset(colLeftInset).rightInset(colInsetFiller).fillx().topInset(topInset))
                     onCol += 1
 
                     NAB.rowSelected_COMBO = JComboBox([None])
                     NAB.rowSelected_COMBO.setName("rowSelected_COMBO")
                     NAB.rowSelected_COMBO.setToolTipText("Select the row you would like to configure")
                     NAB.rowSelected_COMBO.addActionListener(saveMyActionListener)
-                    pnl.add(NAB.rowSelected_COMBO, GridC.getc(onCol, onRow).west().rightInset(colInsetFiller).topInset(topInset))
+                    pnl.add(NAB.rowSelected_COMBO, GridC.getc(onCol, onRow).west().topInset(topInset).leftInset(colInsetFiller))
                     onCol += 1
 
                     onCol += 1
@@ -4577,7 +4710,7 @@ Visit: %s (Author's site)
                     NAB.widgetNameField = JTextField(NAB.savedWidgetName[0])
                     NAB.widgetNameField.setName("widgetNameField")
                     NAB.widgetNameField.addFocusListener(NAB.MyWidgetNameFocusAdapter())
-                    pnl.add(NAB.widgetNameField, GridC.getc(onCol, onRow).west().colspan(2).leftInset(colInsetFiller).topInset(topInset).rightInset(colInsetFiller).fillboth())
+                    pnl.add(NAB.widgetNameField, GridC.getc(onCol, onRow).west().colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
                     NetAccountBalancesExtension.getNAB().simulateTotal_label = JLabel("<html><i>result here</i></html>",JLabel.CENTER)
@@ -4605,7 +4738,7 @@ Visit: %s (Author's site)
                     NAB.autoSumAccounts_CB.setName("autoSumAccounts_CB")
                     NAB.autoSumAccounts_CB.setToolTipText("AutoSum will auto sum/total the account recursively down the tree, including Securities. AutoSum=OFF means each item is totalled separately")
                     NAB.autoSumAccounts_CB.addActionListener(saveMyActionListener)
-                    pnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    pnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
 
                     onRow += 1
                     topInset = 2
@@ -4712,7 +4845,7 @@ Visit: %s (Author's site)
                     NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
                     menuO.add(NAB.menuItemAutoSumDefault)
 
-                    NAB.menuItemShowWarningsDefault = JCheckBoxMenuItem("Show Warnings Default")
+                    NAB.menuItemShowWarningsDefault = JCheckBoxMenuItem("Show Warnings")
                     NAB.menuItemShowWarningsDefault.addActionListener(saveMyActionListener)
                     NAB.menuItemShowWarningsDefault.setToolTipText("Sets the default for AutoSum on new rows")
                     NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
@@ -4753,6 +4886,7 @@ Visit: %s (Author's site)
 
                     NAB.theFrame.pack()
                     NAB.theFrame.setLocationRelativeTo(None)
+                    NAB.theFrame.getRootPane().addComponentListener(NAB.ReSizeListener(NAB.theFrame, pnl, scrollpane))
 
                     NAB.jlst.requestFocusInWindow()           # Set initial focus on the account selector
 
@@ -5161,13 +5295,13 @@ Visit: %s (Author's site)
                     lErrorDetected = False
                     iErrorDetectedRow = None
 
-                    iCountIncomeExpense = 0
-                    iCountAccounts = 0
-                    iCountNonInvestAccounts = 0
-                    iCountSecurities = 0
-
                     for iAccountLoop in range(0,len(accountsToShow)):
                         onRow = iAccountLoop+1
+
+                        iCountIncomeExpense = 0
+                        iCountAccounts = 0
+                        iCountNonInvestAccounts = 0
+                        iCountSecurities = 0
 
                         lFoundNonSecurity = False
                         secLabelText = ""
@@ -5330,7 +5464,7 @@ Visit: %s (Author's site)
 
                     NAB.errorInParametersDetected = lErrorDetected
                     NAB.errorInParametersDetectedRow = iErrorDetectedRow
-                    if NAB.errorInParametersDetected: myPrint("DB","@@ ERROR in parameters detected... review setup....")
+                    if NAB.errorInParametersDetected: myPrint("B","@@ ERROR in parameters detected... review setup....")
 
 
                 except IllegalArgumentException:
