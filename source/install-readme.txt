@@ -50,7 +50,7 @@ extract_data:                           Extract various data to screen and/or cs
 
 list_future_reminders:                  View future reminders on screen. Allows you to set the days to look forward
 
-net_account_balances:                   Homepage / summary screen widget. Display the total of selected Account Balances
+net_account_balances:                   Summary Page (HomePage) widget. Display the total of selected Account Balances
 
 total_selected_transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 

@@ -643,7 +643,7 @@ The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
 toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
-net_account_balances:                   Homepage / summary screen widget. Display the total of selected Account Balances
+net_account_balances:                   Summary Page (HomePage) widget. Display the total of selected Account Balances
 total_selected_transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
 Extension (.mxt) and Script (.py) Versions available:
@@ -2778,10 +2778,10 @@ Visit: %s (Author's site)
         try:
             currentViewAccount = MD_REF.getUI().firstMainFrame.getSelectedAccount()
             if currentViewAccount != MD_REF.getRootAccount():
-                myPrint("DB","Switched to Home Page Summary Screen (from: %s)" %(currentViewAccount))
+                myPrint("DB","Switched to Home Page Summary Page (from: %s)" %(currentViewAccount))
                 MD_REF.getUI().firstMainFrame.selectAccount(MD_REF.getRootAccount())
         except:
-            myPrint("B","Error switching to Home Page Summary Screen")
+            myPrint("B","Error switching to Home Page Summary Page")
 
     def fireMDPreferencesUpdated():
         """This triggers MD to firePreferencesUpdated().... Hopefully refreshing Home Screen Views too"""
@@ -6285,11 +6285,11 @@ Visit: %s (Author's site)
 
 
         options = ["All (both Currencies & Securities)",
-                   "All - Shown on Summary Screen Only",
+                   "All - Shown on Summary Page Only",
                    "Currencies - All",
-                   "Currencies - Shown on Summary screen Only",
+                   "Currencies - Shown on Summary Page Only",
                    "Securities - All",
-                   "Securities - Shown on Summary screen Only",
+                   "Securities - Shown on Summary Page Only",
                    "Securities - With holdings Only",
                    "All - include OK objects too"]
 
@@ -6500,7 +6500,7 @@ Visit: %s (Author's site)
         output += "All (Both Securities and Currencies): %s\n" %(lAll)
         output += "Securities Only:                      %s\n" %(lSecurityOnly)
         output += "Currencies Only:                      %s\n" %(lCurrencyOnly)
-        output += "Shown on Summary Screen Only Filter:  %s\n" %(lSummaryScreenOnly)
+        output += "Shown on Summary Page Only Filter:    %s\n" %(lSummaryScreenOnly)
         output += "Securities with Holdings Only Filter: %s\n" %(lSecurityHoldings)
         output += "All including OK Objects too:         %s\n" %(lEverything)
         output += "-----------------------------------------------------------------\n"
@@ -12659,7 +12659,7 @@ now after saving the file, restart Moneydance
                  "%s:\n" \
                  " ======================================================\n\n" %(_THIS_METHOD_NAME.upper())
 
-        output += "Moneydance predefines rules to include/exclude Accounts in the Home Summary Screen NetWorthView widget, & also the Titlebar NW instant graph\n" \
+        output += "Moneydance predefines rules to include/exclude Accounts in the Home Summary Page NetWorthView widget, & also the Titlebar NW instant graph\n" \
                   "- If the Account or Parent is Inactive, then it's excluded\n" \
                   "- ROOT and Income/Expense Categories are excluded\n" \
                   "- Then it checks for a hidden Account setting >> You can set this in Toolbox Advanced Mode\n" \
