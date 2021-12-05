@@ -247,7 +247,8 @@
 # build: 1045 - Enhanced decrypt file from local storage... Catch BadPadding Exception and continue....
 # build: 1045 - Fix to editStoredOFXPasswords() was pre-pending the key prefix when it was already there.....
 # build: 1045 - Common code tweak - destroyOldFrames() - add a "_" for cloned instances; re-enable
-# build: 1045 - Changed JFrame and JPanel layouts so that JScrollPane resize just works etc... Removed ReSize Listener (watching out for increased memeory consumption)
+# build: 1045 - Changed JFrame and JPanel layouts so that JScrollPane resize just works etc... Removed ReSize Listener (watching out for increased memory consumption)
+# build: 1045 - Fix JMenu()s - remove <html> tags (affects colors on older Macs)
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -25101,7 +25102,8 @@ Now you will have a text readable version of the file you can open in a text edi
             opq = False
 
             mb = JMenuBar()
-            menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
+            # menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
+            menu1 = JMenu("TOOLBOX Options")
             menu1.setMnemonic(KeyEvent.VK_T)
             menu1.setForeground(mfgtc); menu1.setBackground(mbgtc)
 
@@ -25175,7 +25177,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
             mb.add(menu1)
 
-            menuH = JMenu("<html>HELP</html>")
+            # menuH = JMenu("<html>HELP</html>")
+            menuH = JMenu("HELP")
             menuH.setMnemonic(KeyEvent.VK_I)
             menuH.setForeground(mfgtc); menuH.setBackground(mbgtc)
 

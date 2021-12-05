@@ -44,7 +44,7 @@
 # build: 1012 - Common code tweaks; Tweaked colors for Dark themes and to be more MD 'compatible'
 # build: 1013 - Common code tweaks; Flat Dark Theme
 # build: 1014 - Common code tweaks
-# build: 1015 - Common code tweaks
+# build: 1015 - Common code tweaks; Fix JMenu()s - remove <html> tags (affects colors on older Macs)
 
 # Displays Moneydance future reminders
 
@@ -3891,7 +3891,8 @@ Visit: %s (Author's site)
 
                     mb = JMenuBar()
 
-                    menuO = JMenu("<html><B>OPTIONS</b></html>")
+                    # menuO = JMenu("<html><B>OPTIONS</b></html>")
+                    menuO = JMenu("OPTIONS")
                     menuO.setForeground(mfgtc); menuO.setBackground(mbgtc)
 
                     menuItemR = JMenuItem("Refresh Data/Default Sort")
@@ -3932,7 +3933,8 @@ Visit: %s (Author's site)
 
                     mb.add(menuO)
 
-                    menuH = JMenu("<html><B>ABOUT</b></html>")
+                    # menuH = JMenu("<html><B>ABOUT</b></html>")
+                    menuH = JMenu("ABOUT")
                     menuH.setForeground(mfgtc); menuH.setBackground(mbgtc)
 
                     menuItemA = JMenuItem("About")

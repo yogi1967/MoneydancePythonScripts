@@ -83,6 +83,7 @@
 # build: 1017 - SG2020: Fix print to PDF to make 2 parts to avoid overwriting the same pdf file....
 # build: 1018 - Common code tweaks
 # build: 1019 - Common code tweaks; catch error in myPrint() on Asian double-byte characters; Other Asian Double-Byte fixes (more str() issues!!)
+# build: 1019 - Fix JMenu()s - remove <html> tags (affects colors on older Macs)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -6269,7 +6270,8 @@ Visit: %s (Author's site)
                             printButton.addActionListener(self.PrintJTable(extract_data_frame_, self.table, "StockGlance2020", self.footerTable))
 
                             mb = JMenuBar()
-                            menuH = JMenu("<html><B>ABOUT</b></html>")
+                            # menuH = JMenu("<html><B>ABOUT</b></html>")
+                            menuH = JMenu("ABOUT")
                             menuH.setForeground(mfgtc); menuH.setBackground(mbgtc)
 
                             menuItemA = JMenuItem("About")
@@ -7433,7 +7435,8 @@ Visit: %s (Author's site)
 
                             mb = JMenuBar()
 
-                            menuO = JMenu("<html><B>OPTIONS</b></html>")
+                            # menuO = JMenu("<html><B>OPTIONS</b></html>")
+                            menuO = JMenu("OPTIONS")
                             menuO.setForeground(mfgtc); menuO.setBackground(mbgtc)
 
                             menuItemR = JMenuItem("Refresh Data/Default Sort")
@@ -7459,7 +7462,8 @@ Visit: %s (Author's site)
 
                             mb.add(menuO)
 
-                            menuH = JMenu("<html><B>ABOUT</b></html>")
+                            # menuH = JMenu("<html><B>ABOUT</b></html>")
+                            menuH = JMenu("ABOUT")
                             menuH.setForeground(mfgtc); menuH.setBackground(mbgtc)
 
                             menuItemA = JMenuItem("About")
