@@ -335,6 +335,7 @@ else:
     from java.awt import RenderingHints
     from com.moneydance.apps.md.controller import PreferencesListener
 
+    from java.lang import ArrayIndexOutOfBoundsException
     from java.lang import String
     from java.util import Comparator, Iterator, Collections
     from java.util import Iterator
@@ -1464,7 +1465,7 @@ Visit: %s (Author's site)
         if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
-    def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
+    def getColorRed(): return (MD_REF.getUI().colors.errorMessageForeground)
 
     def getColorDarkGreen(): return (MD_REF.getUI().getColors().budgetHealthyColor)
 
@@ -2665,7 +2666,7 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
 
     # noinspection PyUnresolvedReferences
-    def isAccountActive(acct, checkParents=True):
+    def isAccountActive(acct, balType, checkParents=True):
         if checkParents:
             if (acct.getAccountOrParentIsInactive()): return False
         else:
@@ -2674,19 +2675,19 @@ Visit: %s (Author's site)
         if (acct.getAccountType() == Account.AccountType.SECURITY):
             if (acct.getCurrencyType().getHideInUI()): return False
             if (NetAccountBalancesExtension.getNAB().savedTreatSecZeroBalInactive
-                    and acct.getBalance() == 0 and acct.getCurrentBalance() == 0 and acct.getClearedBalance() == 0):
+                    and StoreAccountList.getXBalance(balType, acct) == 0):
                 return False
         else:
-            if (acct.getHideOnHomePage()
-                    and acct.getBalance() == 0 and acct.getCurrentBalance() == 0 and acct.getClearedBalance() == 0):
+            if (acct.getHideOnHomePage() and StoreAccountList.getXBalance(balType, acct) == 0):
                 return False
         return True
 
-    def accountIncludesInactiveChildren(acct):
-
+    def accountIncludesInactiveChildren(acct, balType):
         for child in acct.getSubAccounts():
-            if not isAccountActive(child, checkParents=False): return child
-            childResult = accountIncludesInactiveChildren(child)
+            if (not isAccountActive(child, balType, checkParents=False)
+                    and StoreAccountList.getRecursiveXBalance(balType, child) != 0):
+                return child
+            childResult = accountIncludesInactiveChildren(child, balType)
             if childResult: return childResult
 
         return None
@@ -2694,13 +2695,15 @@ Visit: %s (Author's site)
 
     class MyAcctFilter(AcctFilter):
 
-        def __init__(self, _filterIncludeInactive, _autoSum, _preSelectedList):
+        def __init__(self, _filterIncludeInactive, _autoSum, _preSelectedList, _balType):
             self._filterIncludeInactive = _filterIncludeInactive
             self._autoSum = _autoSum
             self._preSelectedList = _preSelectedList
-            myPrint("DB", "MyAcctFilter: Only Include Active Accounts: %s = %s. AutoSum: %s. Pre-selected list contains %s entries"
-                    %(_filterIncludeInactive, _filterIncludeInactive==0,
+            self._balType = _balType
+            myPrint("DB", "MyAcctFilter: Only Include Active Accounts: %s. AutoSum: %s. BalType: %s. Pre-selected list contains %s entries"
+                    %(not _filterIncludeInactive,
                       _autoSum,
+                      _balType,
                       len(_preSelectedList)))
 
         # noinspection PyMethodMayBeStatic
@@ -2709,19 +2712,9 @@ Visit: %s (Author's site)
             # noinspection PyUnresolvedReferences
             if acct.getAccountType() == Account.AccountType.ROOT: return False
 
-            # # noinspection PyUnresolvedReferences
-            # if self.selectAcctsCats and acct.getAccountType() == Account.AccountType.SECURITY: return False
-            #
-            # # noinspection PyUnresolvedReferences
-            # if not self.selectAcctsCats and acct.getAccountType() != Account.AccountType.SECURITY: return False
-
-            # noinspection PyUnresolvedReferences
-            # if self._autoSum and acct.getAccountType() == Account.AccountType.SECURITY:
-            #     return False
-
-            if self._filterIncludeInactive == 0:
+            if not self._filterIncludeInactive:
                 if acct.getUUID() not in self._preSelectedList:
-                    return isAccountActive(acct)
+                    return isAccountActive(acct, self._balType)
 
             return True
 
@@ -2749,6 +2742,7 @@ Visit: %s (Author's site)
 
         @staticmethod
         def getUserXBalance(_type, _acct):
+            # type: (int, Account) -> int
             if _type == 0:
                 return _acct.getUserBalance()
             elif _type == 1:
@@ -2757,13 +2751,34 @@ Visit: %s (Author's site)
                 return _acct.getUserClearedBalance()
 
         @staticmethod
+        def getXBalance(_type, _acct):
+            # type: (int, Account) -> int
+            if _type == 0:
+                return _acct.getBalance()
+            elif _type == 1:
+                return _acct.getCurrentBalance()
+            elif _type == 2:
+                return _acct.getClearedBalance()
+
+        @staticmethod
         def getRecursiveUserXBalance(_type, _acct):
+            # type: (int, Account) -> int
             if _type == 0:
                 return _acct.getRecursiveUserBalance()
             elif _type == 1:
                 return _acct.getRecursiveUserCurrentBalance()
             elif _type == 2:
                 return _acct.getRecursiveUserClearedBalance()
+
+        @staticmethod
+        def getRecursiveXBalance(_type, _acct):
+            # type: (int, Account) -> int
+            if _type == 0:
+                return _acct.getRecursiveBalance()
+            elif _type == 1:
+                return _acct.getRecursiveCurrentBalance()
+            elif _type == 2:
+                return _acct.getRecursiveClearedBalance()
 
         def getAccount(self): return self.obj
 
@@ -3126,7 +3141,7 @@ Visit: %s (Author's site)
             # for i in range(0, _model.getSize()):
             for obj in self.jlst.originalListObjects:
                 if _filter.lower() in obj.getAccount().getFullAccountName().lower():
-                    myPrint("DB","... adding %s to filtered list" %(obj.getAccount().getFullAccountName()))
+                    # myPrint("DB","... adding %s to filtered list" %(obj.getAccount().getFullAccountName()))
                     filteredListAccounts.append(obj)
 
             self.setJListDataAndSelection(filteredListAccounts, lFilter=True)
@@ -3612,7 +3627,8 @@ Visit: %s (Author's site)
             getAccounts = allMatchesForSearch(self.moneydanceContext.getCurrentAccountBook(),
                 MyAcctFilter(self.savedIncludeInactive[self.getSelectedRowIndex()],
                              self.savedAutoSumAccounts[self.getSelectedRowIndex()],
-                             self.savedAccountListUUIDs[self.getSelectedRowIndex()]))
+                             self.savedAccountListUUIDs[self.getSelectedRowIndex()],
+                             self.savedBalanceType[self.getSelectedRowIndex()]))
 
             for acct in getAccounts: listOfAllAccountsForJList.append(StoreAccountList(acct, self.savedAutoSumAccounts[self.getSelectedRowIndex()]))
             del getAccounts
@@ -3819,16 +3835,16 @@ Visit: %s (Author's site)
             md = NAB.moneydanceContext
             book = md.getCurrentAccountBook()
             baseCurr = book.getCurrencies().getBaseType()
-            altFG = md.getUI().getColors().tertiaryTextFG
+            altFG = md.getUI().colors.tertiaryTextFG
 
-            NAB.simulateTotal_label.setForeground(md.getUI().getColors().defaultTextForeground)
-            NAB.warning_label.setForeground(md.getUI().getColors().defaultTextForeground)
+            NAB.simulateTotal_label.setForeground(md.getUI().colors.defaultTextForeground)
+            NAB.warning_label.setForeground(md.getUI().colors.defaultTextForeground)
 
             totalBalanceTable = MyHomePageView.ViewPanel.calculateBalances(book, self.getSelectedRowIndex())
 
             if NAB.warningInParametersDetected and NAB.savedShowWarningsDefault:
                 NAB.warning_label.setText("*WARNING DETECTED*")
-                NAB.warning_label.setForeground(md.getUI().getColors().errorMessageForeground)
+                NAB.warning_label.setForeground(md.getUI().colors.errorMessageForeground)
             elif NAB.savedShowWarningsDefault:
                 NAB.warning_label.setText(wrap_HTML_small("","no warnings detected",altFG))
             elif not NAB.savedShowWarningsDefault:
@@ -3839,7 +3855,7 @@ Visit: %s (Author's site)
             if len(totalBalanceTable) < self.getSelectedRow():
                 myPrint("ERROR: Returned totalBalanceTable is incorrect?")
                 NAB.simulateTotal_label.setText("<ERROR>")
-                NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
+                NAB.simulateTotal_label.setForeground(md.getUI().colors.errorMessageForeground)
             else:
                 myPrint("DB", "Result of simulation:", totalBalanceTable)
                 _curIdx = 0; _valIdx = 1; _secLabelTextIdx = 2
@@ -3855,12 +3871,12 @@ Visit: %s (Author's site)
                     NAB.simulateTotal_label.setText(resultTxt)
 
                     if totalBalanceTable[i][_valIdx] < 0:
-                        NAB.simulateTotal_label.setForeground(md.getUI().getColors().negativeBalFG)
+                        NAB.simulateTotal_label.setForeground(md.getUI().colors.negativeBalFG)
                     else:
                         if  "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
-                            NAB.simulateTotal_label.setForeground(md.getUI().getColors().budgetHealthyColor)
+                            NAB.simulateTotal_label.setForeground(md.getUI().colors.budgetHealthyColor)
                         else:
-                            NAB.simulateTotal_label.setForeground(md.getUI().getColors().positiveBalFG)
+                            NAB.simulateTotal_label.setForeground(md.getUI().colors.positiveBalFG)
 
             del book, baseCurr, totalBalanceTable, md, altFG
 
@@ -4208,6 +4224,7 @@ Visit: %s (Author's site)
                 self.showFullAccountName = False
                 self.acctDepthIncrement = 14
                 self.showCurrency = False
+                self.includeInactive = None
 
                 self.hasInactiveChildren = False
                 self.isSelected = False
@@ -4223,7 +4240,6 @@ Visit: %s (Author's site)
                 self.userXBalanceStr = None
                 self.recursiveUserXBalance = None
                 self.recursiveUserXBalanceStr = None
-
 
                 self.mdImages = NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getImages()
 
@@ -4282,8 +4298,8 @@ Visit: %s (Author's site)
                     self.acctSubAcctCount = self.account.getSubAccountCount()
                     self.acctName = self.account.getFullAccountName() if self.showFullAccountName else self.account.getAccountName()
                     self.acctType = NAB.moneydanceContext.getUI().getResources().getShortAccountType(self.account.getAccountType())
-                    self.isAccountActive = isAccountActive(self.account)
-                    self.hasInactiveChildren = accountIncludesInactiveChildren(self.account)
+                    self.isAccountActive = isAccountActive(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()])
+                    self.hasInactiveChildren = accountIncludesInactiveChildren(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()])
 
                     acctCurr = self.account.getCurrencyType()
                     balType = NAB.savedBalanceType[NAB.getSelectedRowIndex()]
@@ -4337,7 +4353,7 @@ Visit: %s (Author's site)
                 self.isSelected = isSelected
 
                 # Create a line separator between accounts
-                c.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, MD_REF.getUI().getColors().headerBorder))
+                c.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, MD_REF.getUI().colors.headerBorder))
 
                 return c
 
@@ -4378,11 +4394,12 @@ Visit: %s (Author's site)
 
                 xshift = self.INITIAL_SHIFT if self.showFullAccountName else (12 + Math.max(self.acctDepth - 1, 0) * self.acctDepthIncrement)
                 x_right_shift = 12
-                iconPath = MDImages.getIconPathForAccountType(self.account.getAccountType())
-                iconTint = md.getUI().colors.sidebarSelectedFG if self.isSelected else self.mdImages.getIconTintForAccountType(self.account.getAccountType())
+                iconPathAccount = MDImages.getIconPathForAccountType(self.account.getAccountType())
+                iconTintAccount = md.getUI().colors.sidebarSelectedFG if self.isSelected else self.mdImages.getIconTintForAccountType(self.account.getAccountType())
+                iconTintInactive = md.getUI().colors.sidebarSelectedFG if self.isSelected else md.getUI().colors.errorMessageForeground
 
-                icon = self.mdImages.getIconWithColor(iconPath, iconTint)
-                icon2 = self.mdImages.getIconWithColor(MDImages.GRIP_VERTICAL, iconTint) if (not self.includeInactive and self.hasInactiveChildren) else None
+                iconAccount = self.mdImages.getIconWithColor(iconPathAccount, iconTintAccount)
+                iconInactive = self.mdImages.getIconWithColor(MDImages.GRIP_VERTICAL, iconTintInactive) if (not self.includeInactive and self.hasInactiveChildren) else None
 
                 if self.account is not None:
                     if not self.isAccountActive:
@@ -4399,12 +4416,12 @@ Visit: %s (Author's site)
                 fm = g2d.getFontMetrics()
                 textheight = fm.getMaxAscent()
                 texty = self.coord_h / 2 + textheight / 2
-                if icon is not None and self.paintIcons:
-                    icon.paintIcon(self, g2d, xshift, (self.coord_h - icon.getIconHeight()) / 2)
-                    xshift += icon.getIconWidth() + 5
+                if iconAccount is not None and self.paintIcons:
+                    iconAccount.paintIcon(self, g2d, xshift, (self.coord_h - iconAccount.getIconHeight()) / 2)
+                    xshift += iconAccount.getIconWidth() + 5
 
-                if icon2 is not None and self.paintIcons:
-                    icon2.paintIcon(self, g2d, self.coord_w - x_right_shift, (self.coord_h - icon2.getIconHeight()) / 2)
+                if iconInactive is not None and self.paintIcons:
+                    iconInactive.paintIcon(self, g2d, self.coord_w - x_right_shift, (self.coord_h - iconInactive.getIconHeight()) / 2)
 
                 oldClip = g2d.getClip()                                                                                 # noqa
 
@@ -4646,15 +4663,32 @@ Visit: %s (Author's site)
                                 return
 
                             myPrint("DB", ".. internal master list of selected was: %s" %(self.listOfSelectedObjects))
+
+                            i = -1
                             dataModel = self.getModel()
-                            for i in range(e.getFirstIndex(), e.getLastIndex()+1):
-                                obj = dataModel.getElementAt(i)
-                                if self.isSelectedIndex(i):
-                                    if obj not in self.listOfSelectedObjects:
-                                        self.listOfSelectedObjects.append(obj)
-                                else:
-                                    if obj in self.listOfSelectedObjects:
-                                        self.listOfSelectedObjects.remove(obj)
+                            try:
+                                for i in range(e.getFirstIndex(), e.getLastIndex()+1):
+                                    obj = dataModel.getElementAt(i)
+                                    if self.isSelectedIndex(i):
+                                        if obj not in self.listOfSelectedObjects:
+                                            self.listOfSelectedObjects.append(obj)
+                                    else:
+                                        if obj in self.listOfSelectedObjects:
+                                            self.listOfSelectedObjects.remove(obj)
+
+                            except ArrayIndexOutOfBoundsException:
+                                # When filtering the list, the getLastIndex() seems to go out of bounds... ignore...
+                                if debug:
+                                    myPrint("DB","Error managing internal selected objects list")
+                                    myPrint("DB", "e.getFirstIndex():%s, e.getLastIndex()+1:%s" %(e.getFirstIndex(), e.getLastIndex()+1))
+                                    myPrint("DB", "Was on i: %s" %(i))
+                                    raise
+
+                            except:
+                                myPrint("B","Error managing internal selected objects list")
+                                dump_sys_error_to_md_console_and_errorlog()
+                                raise
+
                             myPrint("DB", ".. internal master list of selected is now: %s" %(self.listOfSelectedObjects))
 
                         def enableSelectionListeners(self):
@@ -4695,7 +4729,7 @@ Visit: %s (Author's site)
                     renderer.setShowFullAccountName(False)
 
                     NAB.jlst = MyJList()
-                    NAB.jlst.setBackground((NAB.moneydanceContext.getUI().getColors()).listBackground)
+                    NAB.jlst.setBackground(NAB.moneydanceContext.getUI().colors.listBackground)
                     NAB.jlst.setCellRenderer(renderer)
                     NAB.jlst.setFixedCellHeight(NAB.jlst.getFixedCellHeight()+30)
                     NAB.jlst.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
@@ -4726,7 +4760,7 @@ Visit: %s (Author's site)
 
                     onCol += 1
                     NetAccountBalancesExtension.getNAB().warning_label = JLabel("",JLabel.CENTER)
-                    NetAccountBalancesExtension.getNAB().warning_label.setBorder(BorderFactory.createLineBorder(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getColors().headerBorder))
+                    NetAccountBalancesExtension.getNAB().warning_label.setBorder(BorderFactory.createLineBorder(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.headerBorder))
                     pnl.add(NetAccountBalancesExtension.getNAB().warning_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
@@ -4805,7 +4839,7 @@ Visit: %s (Author's site)
                     onCol += 2
 
                     NetAccountBalancesExtension.getNAB().simulateTotal_label = JLabel("<html><i>result here</i></html>",JLabel.CENTER)
-                    NetAccountBalancesExtension.getNAB().simulateTotal_label.setBorder(BorderFactory.createLineBorder(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getColors().headerBorder))
+                    NetAccountBalancesExtension.getNAB().simulateTotal_label.setBorder(BorderFactory.createLineBorder(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.headerBorder))
                     pnl.add(NetAccountBalancesExtension.getNAB().simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
@@ -4941,13 +4975,13 @@ Visit: %s (Author's site)
                     NAB.theFrame.setExtendedState(JFrame.NORMAL)
                     NAB.theFrame.setResizable(True)
 
-                    mfgtc = fgc = MD_REF.getUI().getColors().defaultTextForeground                                      # noqa
-                    mbgtc = bgc = MD_REF.getUI().getColors().defaultBackground                                          # noqa
+                    mfgtc = fgc = MD_REF.getUI().colors.defaultTextForeground                                           # noqa
+                    mbgtc = bgc = MD_REF.getUI().colors.defaultBackground                                               # noqa
                     if (not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())\
                             or (not isMacDarkModeDetected() and isMDThemeDarcula()):
                         # Swap the colors round when text (not a button)
-                        mfgtc = MD_REF.getUI().getColors().defaultBackground
-                        mbgtc = MD_REF.getUI().getColors().defaultTextForeground
+                        mfgtc = MD_REF.getUI().colors.defaultBackground
+                        mbgtc = MD_REF.getUI().colors.defaultTextForeground
                     opq = False                                                                                         # noqa
 
                     NAB.mainMenuBar = JMenuBar()
@@ -5481,29 +5515,30 @@ Visit: %s (Author's site)
 
                                 realAutoSum = NAB.savedAutoSumAccounts[iAccountLoop]
 
-                                # Validate selections.... Look for AutoSum'd accounts where a parent has been selected..
-                                if not NAB.migratedParameters:
-                                    myPrint("DB","... Verifying for illogical calculations up/down hierarchy...")
-                                    if realAutoSum:
-                                        for checkAcct in accountsToShow[iAccountLoop]:
-                                            if acct == checkAcct: continue
-                                            if acct in checkAcct.getPath()[:-1]:
-                                                lWarningDetected = True
-                                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                                myPrint("B","WARNING: Row: %s >> AutoSum ON and Selected acct: %s found in parent acct hierarchy: '%s' when ultimate parent: '%s' also selected" %(onRow, checkAcct, checkAcct.getPath()[:-1],acct))
+                                if debug or NAB.savedShowWarningsDefault:
+                                    # Validate selections.... Look for AutoSum'd accounts where a parent has been selected..
+                                    if not NAB.migratedParameters:
+                                        myPrint("DB","... Verifying for illogical calculations up/down hierarchy...")
+                                        if realAutoSum:
+                                            for checkAcct in accountsToShow[iAccountLoop]:
+                                                if acct == checkAcct: continue
+                                                if acct in checkAcct.getPath()[:-1]:
+                                                    lWarningDetected = True
+                                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                                    myPrint("B","WARNING: Row: %s >> AutoSum ON and Selected acct: %s found in parent acct hierarchy: '%s' when ultimate parent: '%s' also selected" %(onRow, checkAcct, checkAcct.getPath()[:-1],acct))
 
-                                        if not NAB.savedIncludeInactive[iAccountLoop]:
-                                            inactiveChild = accountIncludesInactiveChildren(acct)
-                                            if inactiveChild:
-                                                lWarningDetected = True
-                                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                                myPrint("B","WARNING: Row: %s >> AutoSum ON, Excluding Inactive Accounts, BUT account: '%s' includes inactive child: '%s'" %(onRow, acct, inactiveChild))
+                                            if not NAB.savedIncludeInactive[iAccountLoop]:
+                                                inactiveChild = accountIncludesInactiveChildren(acct, NAB.savedBalanceType[iAccountLoop])
+                                                if inactiveChild:
+                                                    lWarningDetected = True
+                                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                                    myPrint("B","WARNING: Row: %s >> AutoSum ON, Excluding Inactive Accounts, BUT account: '%s' includes inactive child with a balance: '%s'" %(onRow, acct, inactiveChild))
 
-                                    if not NAB.savedIncludeInactive[iAccountLoop] and not isAccountActive(acct):
-                                        lWarningDetected = True
-                                        iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                        myPrint("B","WARNING: Row: %s >> Excluding Inactive Accounts, BUT selected acct / parent hierarchy flagged as inactive somewhere: %s"
-                                                %(onRow, acct))
+                                        if not NAB.savedIncludeInactive[iAccountLoop] and not isAccountActive(acct, NAB.savedBalanceType[iAccountLoop]):
+                                            lWarningDetected = True
+                                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                            myPrint("B","WARNING: Row: %s >> Excluding Inactive Accounts, BUT selected acct / parent hierarchy flagged as inactive somewhere: %s"
+                                                    %(onRow, acct))
 
                                 # noinspection PyUnresolvedReferences
                                 if acct.getAccountType() != Account.AccountType.SECURITY:
@@ -5553,61 +5588,19 @@ Visit: %s (Author's site)
                                 else:
                                     totalBalance += (bal * mult)
 
-                                # # noinspection PyUnresolvedReferences
-                                # if acct.getAccountType() == Account.AccountType.INVESTMENT:
-                                #     if NAB.savedAutoSumAccounts[iAccountLoop]:
-                                #
-                                #         myPrint("DB", "AutoSum ON... Will iterate Investment Accounts for all sub-securities....")
-                                #
-                                #         for securityAcct in acct.getSubAccounts():  # There's only one level of security sub accounts
-                                #
-                                #             securityCurr = securityAcct.getCurrencyType()
-                                #             relCurr = securityCurr.getCurrencyParameter(None, None, "relative_to_currid", acctCurr)
-                                #
-                                #             if not isAccountActive(securityAcct) and not NAB.savedIncludeInactive[iAccountLoop]:
-                                #                 myPrint("DB",".. Not AutoSum'ing INACTIVE Security curr: %s Relative curr: %s Account curr: %s Base Curr: %s ThisRow Curr: %s"
-                                #                         %(securityCurr, relCurr, acctCurr, baseCurr, thisRowCurr))
-                                #
-                                #             else:
-                                #
-                                #                 myPrint("DB",".. Security curr: %s Relative curr: %s Account curr: %s Base Curr: %s ThisRow Curr: %s"
-                                #                         %(securityCurr, relCurr, acctCurr, baseCurr, thisRowCurr))
-                                #
-                                #                 if NAB.savedBalanceType[iAccountLoop] == 0:
-                                #                     bal = securityAcct.getBalance()
-                                #                     myPrint("DB","HomePageView widget: adding security: %s Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, _dec),12)))
-                                #                 elif NAB.savedBalanceType[iAccountLoop] == 1:
-                                #                     bal = securityAcct.getCurrentBalance()
-                                #                     myPrint("DB","HomePageView widget: adding security: %s Current Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, _dec),12)))
-                                #                 elif NAB.savedBalanceType[iAccountLoop] == 2:
-                                #                     bal = securityAcct.getClearedBalance()
-                                #                     myPrint("DB","HomePageView widget: adding security: %s Cleared Share Balance: %s" %((securityAcct.getAccountName()), rpad(securityCurr.formatSemiFancy(bal, _dec),12)))
-                                #                 else:
-                                #                     bal = 0
-                                #                     myPrint("B","@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(NAB.savedBalanceType[iAccountLoop]))
-                                #
-                                #                 if bal != 0:
-                                #                     # securityValue = CurrencyUtil.convertValue(bal, securityCurr, relCurr)
-                                #                     # myPrint("DB",".. Converted %s to %s (base)" %(securityCurr.formatSemiFancy(bal, dec), relCurr.formatSemiFancy(securityValue, dec)))
-                                #
-                                #                     securityValue = CurrencyUtil.convertValue(bal, securityCurr, thisRowCurr)
-                                #                     myPrint("DB",".. Converted %s to %s (%s)" %(securityCurr.formatSemiFancy(bal, _dec), thisRowCurr.formatSemiFancy(securityValue, _dec), thisRowCurr))
-                                #
-                                #                     totalBalance += securityValue
+                            if debug or NAB.savedShowWarningsDefault:
+                                # DETECT ILLOGICAL CALCULATIONS
+                                if ((iCountIncomeExpense and (iCountAccounts))
+                                        or (iCountSecurities and (iCountIncomeExpense))):
 
+                                    lWarningDetected = True
+                                    if iWarningDetectedInRow is None or iWarningDetectedInRow == onRow:
+                                        iWarningDetectedInRow = onRow
+                                    else:
+                                        iWarningDetectedInRow = 0
 
-                            # DETECT ILLOGICAL CALCULATIONS
-                            if ((iCountIncomeExpense and (iCountAccounts))
-                                    or (iCountSecurities and (iCountIncomeExpense))):
-
-                                lWarningDetected = True
-                                if iWarningDetectedInRow is None or iWarningDetectedInRow == onRow:
-                                    iWarningDetectedInRow = onRow
-                                else:
-                                    iWarningDetectedInRow = 0
-
-                                myPrint("B","WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                        %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                    myPrint("B","WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                            %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
 
 
                         _totalBalanceTable.append([thisRowCurr,totalBalance,secLabelText])
@@ -5745,7 +5738,7 @@ Visit: %s (Author's site)
 
                 baseCurr = md.getCurrentAccountBook().getCurrencies().getBaseType()
 
-                altFG = md.getUI().getColors().tertiaryTextFG
+                altFG = md.getUI().colors.tertiaryTextFG
 
                 _curIdx = 0; _valIdx = 1; _secLabelTextIdx = 2
 
@@ -5756,7 +5749,7 @@ Visit: %s (Author's site)
                     if not NAB.configSaved:
                         rowText = " ** SETTINGS NOT SAVED **"
                         nameLabel = JLinkLabel(rowText, "showConfig", JLabel.LEFT)
-                        nameLabel.setForeground(md.getUI().getColors().negativeBalFG)
+                        nameLabel.setForeground(md.getUI().colors.negativeBalFG)
                         nameLabel.setDrawUnderline(False)
                         nameLabel.setBorder(self.nameBorder)
 
@@ -5792,12 +5785,12 @@ Visit: %s (Author's site)
                             netTotalLbl.setFont((md.getUI().getFonts()).mono)
 
                             if netAmountTable[i][_valIdx] < 0:
-                                netTotalLbl.setForeground(md.getUI().getColors().negativeBalFG)
+                                netTotalLbl.setForeground(md.getUI().colors.negativeBalFG)
                             else:
                                 if  "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
-                                    netTotalLbl.setForeground(md.getUI().getColors().budgetHealthyColor)
+                                    netTotalLbl.setForeground(md.getUI().colors.budgetHealthyColor)
                                 else:
-                                    netTotalLbl.setForeground(md.getUI().getColors().positiveBalFG)
+                                    netTotalLbl.setForeground(md.getUI().colors.positiveBalFG)
 
                         nameLabel.setBorder(self.nameBorder)
                         netTotalLbl.setBorder(self.amountBorder)
@@ -5826,7 +5819,7 @@ Visit: %s (Author's site)
                             nameLabel = JLinkLabel(warningText, "showConfig?%s" %(str(NAB.warningInParametersDetectedInRow)), JLabel.LEFT)
                         nameLabel.setBorder(self.nameBorder)
                         nameLabel.setDrawUnderline(False)
-                        nameLabel.setForeground(md.getUI().getColors().errorMessageForeground)
+                        nameLabel.setForeground(md.getUI().colors.errorMessageForeground)
                         nameLabel.addLinkListener(self)
                         self.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().west().pady(2))
 
@@ -5851,7 +5844,7 @@ Visit: %s (Author's site)
                     onRow = 0
                     rowText = "%s ERROR DETECTED (review console)" %(GlobalVars.DEFAULT_WIDGET_NAME)
                     nameLabel = JLabel(rowText, JLabel.LEFT)
-                    nameLabel.setForeground(md.getUI().getColors().negativeBalFG)
+                    nameLabel.setForeground(md.getUI().colors.negativeBalFG)
                     self.listPanel.add(nameLabel, GridC.getc().xy(0, onRow).wx(1.0).fillboth().west().pady(2))
 
 

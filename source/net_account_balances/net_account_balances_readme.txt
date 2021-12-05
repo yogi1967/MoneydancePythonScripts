@@ -44,6 +44,12 @@ This extension creates a 'widget' that displays Totals for items you select on t
 
   - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
 
+- Active / Inactive Accounts:
+  - MD always includes the total balance(s) of all child accounts in an account's total.. Irrespective of Active/Inactive
+  - Thus if you select Active only and select an account which contains inactive children, it will include inactive balances
+  - When using AutoSum in this situation you will get a warning in Help>Console
+  - You will also see a small icon to the right of account totals in the list window in this situation too.
+
 - Warnings:
   - You can create illogical totals (e.g. by adding Securities to Income). NAB tries to detect these issues.
   - It will alert you if any are found. Help>Console will show you the details of any warnings
