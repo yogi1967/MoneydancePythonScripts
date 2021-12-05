@@ -5073,7 +5073,8 @@ Visit: %s (Author's site)
                     opq = False                                                                                         # noqa
 
                     NAB.mainMenuBar = MyJMenuBar()
-                    menuO = MyJMenu("<html><B>Options</b></html>")
+                    # menuO = MyJMenu("<html><B>Options</b></html>")
+                    menuO = MyJMenu("Options")
                     menuO.setForeground(mfgtc); menuO.setBackground(mbgtc)
 
                     NAB.menuItemDEBUG = MyJCheckBoxMenuItem("Debug")
@@ -5122,7 +5123,8 @@ Visit: %s (Author's site)
 
                     NAB.mainMenuBar.add(menuO)
 
-                    menuA = MyJMenu("<html><B>About</b></html>")
+                    # menuA = MyJMenu("<html><B>About</b></html>")
+                    menuA = MyJMenu("About")
                     menuA.setForeground(mfgtc); menuA.setBackground(mbgtc)
 
                     menuItemA = MyJMenuItem("About")
