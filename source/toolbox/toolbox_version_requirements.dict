@@ -1,5 +1,5 @@
 {
-    "last_updated" = "20211125"
+    "last_updated" = "20211205"
     "disable_all" = "n"
     "builds" = (
                     {
@@ -8,7 +8,7 @@
                     "news" = "Enabling MD2022 (with Moneydance+); USAA Fixes; Darcula & Theme fixes"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4062"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4063"
                     "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
                     "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -21,7 +21,7 @@
                     "news" = "Enabling MD2022 (with Moneydance+); USAA Fixes; Darcula fixes"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4062"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4063"
                     }
                     {
                     "build" = "1043"
@@ -29,7 +29,7 @@
                     "news" = "Enabling MD2022 (with Moneydance+)"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4062"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4063"
                     }
                     {
                     "build" = "1042"
@@ -37,7 +37,7 @@
                     "news" = "Enabling MD2022 (with Moneydance+)"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4062"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4063"
                     }
                     {
                     "build" = "1041"

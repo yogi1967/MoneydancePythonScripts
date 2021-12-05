@@ -617,7 +617,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4062                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4063                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -22332,6 +22332,7 @@ Now you will have a text readable version of the file you can open in a text edi
         storage.remove("ext.netsync.settings")
         storage.remove("netsync.guid")
         storage.remove("migrated.netsync.dropbox.fileid")
+        # NOTE: as of 2022.3(4063) - this is also performed: .setIsMasterSyncNode(True)
         storage.save()
 
         root = MD_REF.getCurrentAccountBook().getRootAccount()
