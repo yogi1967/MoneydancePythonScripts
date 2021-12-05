@@ -113,15 +113,11 @@ class MyJFrame(JFrame):
 
     def __init__(self, frameTitle=None):
         super(JFrame, self).__init__(frameTitle)
-        self.myJFrameVersion = 3
+        self.myJFrameVersion = 2
         self.isActiveInMoneydance = False
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
         self.HomePageViewObj = None
-
-    def updateUI(self):
-        # Used to set default colors etc for when LaF changes
-        super(MyJFrame, self).updateUI()                                                                                # noqa
 
 class GenericWindowClosingRunnable(Runnable):
 
