@@ -247,11 +247,11 @@
 # build: 1045 - Enhanced decrypt file from local storage... Catch BadPadding Exception and continue....
 # build: 1045 - Fix to editStoredOFXPasswords() was pre-pending the key prefix when it was already there.....
 # build: 1045 - Common code tweak - destroyOldFrames() - add a "_" for cloned instances; re-enable
+# build: 1045 - Changed JFrame and JPanel layouts so that JScrollPane resize just works etc... Removed ReSize Listener (watching out for increased memeory consumption)
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
-# todo - Known  issue  on Linux: Any drag to  resize main window, causes width to maximise. No issue on Mac or Windows..
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
@@ -297,11 +297,15 @@ class MyJFrame(JFrame):
 
     def __init__(self, frameTitle=None):
         super(JFrame, self).__init__(frameTitle)
-        self.myJFrameVersion = 2
+        self.myJFrameVersion = 3
         self.isActiveInMoneydance = False
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
         self.HomePageViewObj = None
+
+    def updateUI(self):
+        # Used to set default colors etc for when LaF changes
+        super(MyJFrame, self).updateUI()                                                                                # noqa
 
 class GenericWindowClosingRunnable(Runnable):
 
@@ -572,7 +576,7 @@ else:
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
     from com.moneydance.apps.md.view.gui import MDAccountProxy
     from java.lang import Integer, String
-
+    from javax.swing import BorderFactory, JSeparator
 
     from java.net import URL, URLEncoder, URLDecoder                                                                    # noqa
 
@@ -15486,7 +15490,7 @@ now after saving the file, restart Moneydance
         myPrint("P","\n"*2)
 
         if iOrphans and not lFix:
-            if theMsg.go():        # noqa
+            if theMsg.go():                                                                                             # noqa
                 while True:
                     selectedOrphan = JOptionPane.showInputDialog(jif,
                                                                  "Select an Orphan to View",
@@ -15501,19 +15505,19 @@ now after saving the file, restart Moneydance
                     try:
                         tmpDir = File(MD_REF.getCurrentAccount().getBook().getRootFolder(), "tmp")
                         tmpDir.mkdirs()
-                        attachFileName = (File(tmpDir, selectedOrphan[0])).getName()            # noqa
+                        attachFileName = (File(tmpDir, selectedOrphan[0])).getName()                                    # noqa
                         tmpFile = File.createTempFile(str(System.currentTimeMillis() % 10000L), attachFileName, tmpDir)
                         tmpFile.deleteOnExit()
                         fout = FileOutputStream(tmpFile)
-                        LS.readFile(selectedOrphan[0], fout)                                    # noqa
+                        LS.readFile(selectedOrphan[0], fout)                                                            # noqa
                         fout.close()
                         Desktop.getDesktop().open(tmpFile)
 
                     except:
-                        myPrint("B","Sorry, could not open attachment file....: %s" %selectedOrphan[0])     # noqa
+                        myPrint("B","Sorry, could not open attachment file....: %s" %selectedOrphan[0])                 # noqa
 
         else:
-            theMsg.go()        # noqa
+            theMsg.go()                                                                                                 # noqa
 
         if lFix and not iOrphans:
 
@@ -16189,7 +16193,7 @@ now after saving the file, restart Moneydance
             MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
             MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
-            pleaseWait.kill()       # noqa
+            pleaseWait.kill()                                                                                           # noqa
 
         try:
             # OK - Main update is done....
@@ -16302,7 +16306,7 @@ now after saving the file, restart Moneydance
                                 key=lambda x: (x.getCurrencyType(), x.getName().upper(), x.getTickerSymbol(), x.getIDString()))
 
             for currSec in currencies:
-                if currSec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                        # noqa
+                if currSec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                    # noqa
                 securities.append(currSec)
                 theTicker = currSec.getTickerSymbol().strip().upper()
                 if theTicker is None or theTicker == "" or len(theTicker) < 1: continue
@@ -17295,7 +17299,7 @@ now after saving the file, restart Moneydance
             MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
             MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
-            pleaseWait.kill()       # noqa
+            pleaseWait.kill()                                                                                           # noqa
 
         try:
             # OK - Main update is done....
@@ -17871,7 +17875,7 @@ now after saving the file, restart Moneydance
             MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
             MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
-            pleaseWait.kill()       # noqa
+            pleaseWait.kill()                                                                                           # noqa
 
         try:
             # Confirm that there are no txns left in the source account...
@@ -18056,7 +18060,7 @@ now after saving the file, restart Moneydance
             for _txn in txns:
                 if not isinstance(_txn, ParentTxn): continue   # only work with parent transactions
                 _acct = _txn.getAccount()
-                if _acct.getAccountType() != Account.AccountType.INVESTMENT: continue                                    # noqa
+                if _acct.getAccountType() != Account.AccountType.INVESTMENT: continue                                   # noqa
                 fields.setFieldStatus(_txn)
 
                 if fields.hasSecurity and fields.security is None:
@@ -18376,7 +18380,7 @@ now after saving the file, restart Moneydance
             return
 
         class SecurityObj:
-            def __init__(self,Obj,Book):                                                                        # noqa
+            def __init__(self,Obj,Book):                                                                                # noqa
                 self.Obj = Obj
                 self.Acct = Obj.getParentAccount()
                 self.TxnSet = Book.getTransactionSet().getTransactionsForAccount(Obj)
@@ -18388,7 +18392,7 @@ now after saving the file, restart Moneydance
                 for _Txn in self.TxnSet: self.Txns.append(TxnObj(_Txn))
 
         class TxnObj:
-            def __init__(self,Txn):                                                                             # noqa
+            def __init__(self,Txn):                                                                                     # noqa
                 self.Obj = Txn
                 self.Parent = Txn.getParentTxn()
                 self.ID = Txn.getUUID()
@@ -18503,7 +18507,7 @@ now after saving the file, restart Moneydance
             return
 
         class SecurityObj:
-            def __init__(self,Obj,Book):                                                                        # noqa
+            def __init__(self,Obj,Book):                                                                                # noqa
                 self.Obj = Obj
                 self.Acct = Obj.getParentAccount()
                 self.TxnSet = Book.getTransactionSet().getTransactionsForAccount(Obj)
@@ -18519,7 +18523,7 @@ now after saving the file, restart Moneydance
                 self.Txns.sort(key=lambda l: l.Date)
 
         class TxnObj:
-            def __init__(self,Txn):                                                                             # noqa
+            def __init__(self,Txn):                                                                                     # noqa
                 self.Obj = Txn
                 self.Parent = Txn.getParentTxn()
                 self.ID = Txn.getUUID()
@@ -18533,8 +18537,8 @@ now after saving the file, restart Moneydance
                 self.Shares = securityCurr.getDoubleValue(Txn.getValue())
                 self.saveCostBasisState = self.Obj.getParameter("cost_basis",None)
 
-        def MakeCostsFifo(Security,Book, INCLUDE_THE_ZEROS):            # noqa
-            WrngCnt = 0                                                 # noqa
+        def MakeCostsFifo(Security,Book, INCLUDE_THE_ZEROS):                                                            # noqa
+            WrngCnt = 0                                                                                                 # noqa
 
             textLog = ""
 
@@ -18550,7 +18554,7 @@ now after saving the file, restart Moneydance
                 Security.AvgCost = False
                 Security.Obj.syncItem()
 
-                for Txn in Security.Txns:                                                                       # noqa
+                for Txn in Security.Txns:                                                                               # noqa
                     if (InvestUtil.isSaleTransaction(Txn.Parent.getInvestTxnType())
                             and (Txn.LngShrs != 0 or INCLUDE_THE_ZEROS)):
                         RLots = InvestUtil.getRemainingLots(Book,Security.Obj,Txn.Obj.getDateInt())
@@ -19077,7 +19081,7 @@ now after saving the file, restart Moneydance
 
             elif lChange:
 
-                theFonts = None                                                                                 # noqa
+                theFonts = None                                                                                         # noqa
                 if Platform.isOSX():
                     if lMain:
                         theFonts = Mac_fonts_main
@@ -19428,7 +19432,7 @@ Now you will have a text readable version of the file you can open in a text edi
         diag.go()
 
         def findIOSBackup(pattern, path):
-            iFound=0                                                                                            # noqa
+            iFound=0                                                                                                    # noqa
             result = []
             dotCounter = 0
 
@@ -19592,10 +19596,10 @@ Now you will have a text readable version of the file you can open in a text edi
 
 
         try:
-            unichr(8364)                                                                                       # noqa
+            unichr(8364)                                                                                                # noqa
         except NameError:
             # Python 3
-            def unichr(x):                                                                                                  # noqa
+            def unichr(x):                                                                                              # noqa
                 return chr(x)
 
         # From CFDate Reference: "Absolute time is measured in seconds relative to the
@@ -19605,7 +19609,7 @@ Now you will have a text readable version of the file you can open in a text edi
         MARKER_NULL = 0X00
         MARKER_FALSE = 0X08
         MARKER_TRUE = 0X09
-        MARKER_FILL = 0X0F                                                                                       # noqa
+        MARKER_FILL = 0X0F                                                                                              # noqa
         MARKER_INT = 0X10
         MARKER_REAL = 0X20
         MARKER_DATE = 0X33
@@ -19927,7 +19931,7 @@ Now you will have a text readable version of the file you can open in a text edi
         dropdownCurrs=[]
         currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
         for curr in currencies:
-            if curr.getCurrencyType() != CurrencyType.Type.CURRENCY: continue                                  # noqa
+            if curr.getCurrencyType() != CurrencyType.Type.CURRENCY: continue                                           # noqa
             dropdownCurrs.append(curr)
         dropdownCurrs=sorted(dropdownCurrs, key=lambda sort_x: (sort_x.getName().upper()))
         label_currency = JLabel("Select Default Currency for any Accounts created:")
@@ -20250,7 +20254,7 @@ Now you will have a text readable version of the file you can open in a text edi
         if resetWhat == what[_RESETREGFILT]:    lRegFilters     = True
         if resetWhat == what[_RESETREGVIEW]:    lRegViews       = True
 
-        def get_set_config(st, tk, lReset, lResetAll, lResetWinLoc, lResetRegFilters, lResetRegViews ):                                                               # noqa
+        def get_set_config(st, tk, lReset, lResetAll, lResetWinLoc, lResetRegFilters, lResetRegViews ):                 # noqa
             # As of 2021.2010   Window locations are only in config.dict.
             #                   Register Filters and Initial Register Views are only in LocalStorage()
             #                   column width, sort orders, etc are everywhere......
@@ -20782,7 +20786,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 break
             elif not StringUtils.isInteger(days_response):
                 continue
-            elif int(days_response)>0 and int(days_response)<365:                                               # noqa
+            elif int(days_response)>0 and int(days_response)<365:                                                       # noqa
                 lDidIChangeDays = True
                 break
 
@@ -20880,7 +20884,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPopupInformationBox(toolbox_frame_, "ERROR: Parameter %s is NOT valid!" % addKey, "HACKER: ADD TO %s" %(theObject), JOptionPane.ERROR_MESSAGE)
                     continue    # back to Hacker menu
 
-                testKeyExists = theObject.getParameter(addKey,None)                                             # noqa
+                testKeyExists = theObject.getParameter(addKey,None)                                                     # noqa
 
                 if testKeyExists:
                     myPopupInformationBox(toolbox_frame_, "ERROR: Parameter %s already exists - cannot add - aborting..!" %(addKey), "HACKER: ADD TO %s" %(theObject), JOptionPane.ERROR_MESSAGE)
@@ -20966,7 +20970,7 @@ Now you will have a text readable version of the file you can open in a text edi
             # OK, so we are changing or deleting
             if lChg or lDel:
 
-                paramKeys = sorted(theObject.getParameterKeys())                                                # noqa
+                paramKeys = sorted(theObject.getParameterKeys())                                                        # noqa
                 selectedKey = JOptionPane.showInputDialog(toolbox_frame_,
                                                           "Select the %s Parameter you want to %s" % (theObject,text),
                                                           "HACKER",
@@ -20976,7 +20980,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                           None)
                 if not selectedKey: continue
 
-                value = theObject.getParameter(selectedKey, None)                                               # noqa
+                value = theObject.getParameter(selectedKey, None)                                                       # noqa
 
                 output =  "%s PLEASE REVIEW PARAMETER & VALUE BEFORE MAKING CHANGES\n" %(theObject)
                 output += "------------------------------------------------\n\n"
@@ -22555,6 +22559,20 @@ Now you will have a text readable version of the file you can open in a text edi
                 theList.append([k,v])
         return theList
 
+    class MyJPanel(JPanel):
+
+        def __init__(self, layout, panel_name):
+            self.panel_name = panel_name
+            super(JPanel, self).__init__(layout)                                                                        # noqa
+
+        def updateUI(self):
+            myPrint("DB", "In %s.%s() - JPanel: '%s'" %(self, inspect.currentframe().f_code.co_name, self.panel_name))
+            super(MyJPanel, self).updateUI()                                                                            # noqa
+            # Here I should call .setBackground() and .setForeground() with updated MD Colors....
+            # But I have not done so yet.... For now, just restart the Extension/MD to refresh after Theme change...
+            # self.setBackground(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.defaultBackground)
+            # self.setForeground(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.defaultTextForeground)
+
     class DiagnosticDisplay():
 
         def __init__(self):
@@ -22571,7 +22589,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 terminate_script()
 
-            def windowClosed(self, WindowEvent):                                                                       # noqa
+            def windowClosed(self, WindowEvent):                                                                        # noqa
                 myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -22594,54 +22612,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     self.theFrame.HomePageViewObj = None
 
                 cleanup_actions(self.theFrame)
-
-        class ReSizeListener(ComponentAdapter):
-
-            def __init__(self, theFrame, thePanel, theScrollPane):
-                self.theFrame = theFrame
-                self.thePanel = thePanel
-                self.theScrollPane = theScrollPane
-
-            # def componentHidden(self, componentEvent):                                                                   # noqa
-            #     pass
-            #
-            # def componentMoved(self, componentEvent):                                                                    # noqa
-            #     pass
-            #
-            # def componentShown(self, componentEvent):                                                                    # noqa
-            #     pass
-
-            def componentResized(self, componentEvent):                                                                 # noqa
-                global debug, toolbox_frame_
-
-                myPrint("D","In ", inspect.currentframe().f_code.co_name, "()")
-
-                if self.theFrame.getExtendedState() == JFrame.ICONIFIED:
-                    myPrint("D","Frame state: ICONIFIED Size: %s" %(self.theFrame.getSize()))
-
-                elif self.theFrame.getExtendedState() == JFrame.NORMAL:
-                    # myPrint("D","Frame state: NORMAL Size: %s"  %(self.theFrame.getSize()))
-                    pass
-                else:
-                    myPrint("D","Frame state: MAXIMISED %s - Size: %s" %(str(self.theFrame.getExtendedState()),self.theFrame.getSize()))
-                    # MAXIMIZED_HORIZ
-                    # MAXIMIZED_VERT
-                    # MAXIMIZED_BOTH
-
-                calcWidth = self.theFrame.getSize().width - 30
-
-                # if Platform.isUnix() or Platform.isLinux:
-                #     self.thePanel.setSize(Dimension(calcWidth, self.thePanel.getSize().height))
-                #
-                scrollPaneTop = self.theScrollPane.getY()
-                calcHeight = (self.theFrame.getSize().height - scrollPaneTop - 70)
-
-                self.theScrollPane.setSize(Dimension(calcWidth, calcHeight))
-
-                self.theScrollPane.revalidate()
-                self.theFrame.repaint()
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
         class CloseAction(AbstractAction):
 
@@ -23251,7 +23221,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                         def componentHidden(self, e):
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", e)
-                            super(MyJOptionPaneListener, self).componentHidden(e)                                        # noqa
+                            super(MyJOptionPaneListener, self).componentHidden(e)                                       # noqa
                             myPrint("D","Killing Timer Task for Search function as dialog closed...")
                             self.t.cancel()
                             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -24199,7 +24169,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         return
 
                     if user_view_MD_custom_theme_file.isSelected():
-                        x = ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme")          # noqa
+                        x = ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme")                          # noqa
                         x.actionPerformed(None)
                         return
 
@@ -24718,9 +24688,6 @@ Now you will have a text readable version of the file you can open in a text edi
                             if ("GEEK" in buttonText):
                                 theComponent.setVisible(not theComponent.isVisible())
 
-                    # Force a repaint to calculate scrollpane height....
-                    self.callingClass.ReSizeListener(toolbox_frame_, self.displayPanel, self.callingClass.myScrollPane).componentResized("")
-
                 # ##########################################################################################################
                 if event.getActionCommand() == "Debug":
                     if debug:
@@ -24800,9 +24767,6 @@ Now you will have a text readable version of the file you can open in a text edi
                             if ("HACKER" in buttonText):
                                 theComponent.setVisible(lHackerMode)
 
-                    # Force a repaint to calculate scrollpane height....
-                    self.callingClass.ReSizeListener(toolbox_frame_, self.displayPanel, self.callingClass.myScrollPane).componentResized("")
-
                 # ##########################################################################################################
                 if event.getActionCommand() == "Advanced Mode":
                     if myPopupAskQuestion(toolbox_frame_,
@@ -24846,9 +24810,6 @@ Now you will have a text readable version of the file you can open in a text edi
                                 if "MENU:".upper() in buttonText.upper():
                                     theComponent.setForeground(getColorRed())
 
-                        # Force a repaint to calculate scrollpane height....
-                        self.callingClass.ReSizeListener(toolbox_frame_, self.displayPanel, self.callingClass.myScrollPane).componentResized("")
-
                     else:
                         txt = "ADVANCED MODE DISABLED AS USER DECLINED DISCLAIMER - BASIC MODE ONLY"
                         setDisplayStatus(txt, "R")
@@ -24887,10 +24848,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
                             if "MENU:".upper() in buttonText.upper():
                                 theComponent.setForeground(Color(74,74,74))
-
-                    # Force a repaint to calculate scrollpane height....
-                    self.callingClass.ReSizeListener(toolbox_frame_, self.displayPanel, self.callingClass.myScrollPane).componentResized("")
-
 
                 # Save parameters now...
                 if (event.getActionCommand() == "Copy all Output to Clipboard"
@@ -24936,6 +24893,7 @@ Now you will have a text readable version of the file you can open in a text edi
             displayString = buildDiagText()
 
             GlobalVars.STATUS_LABEL = JLabel(("Infinite Kind (Moneydance) support tool >> DIAG STATUS: BASIC MODE RUNNING... - %s+I for Help (check out the Toolbox menu for more options/modes/features)"%MD_REF.getUI().ACCELERATOR_MASK_STR).ljust(800, " "), JLabel.LEFT)
+            GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).headerBorder, 2))
             GlobalVars.STATUS_LABEL.setForeground(GlobalVars.DARK_GREEN)
 
             try:
@@ -24975,7 +24933,8 @@ Now you will have a text readable version of the file you can open in a text edi
             displayPanel = JPanel()
             displayPanel.setLayout(FlowLayout(FlowLayout.LEFT))
 
-            displayPanel.setPreferredSize(Dimension(frame_width - 30, 300))
+            # displayPanel.setPreferredSize(Dimension(frame_width - 30, 180))
+            displayPanel.setPreferredSize(Dimension(0, 180))
 
             if lAutoPruneInternalBackups_TB:
                 prune_internal_backups(lStartup=True)
@@ -25105,13 +25064,21 @@ Now you will have a text readable version of the file you can open in a text edi
             mySearchAction = SearchAction(toolbox_frame_,myDiagText)
             toolbox_frame_.getRootPane().getActionMap().put("search-window", mySearchAction)
 
+            jSep = JSeparator()
+            jSep.setPreferredSize(Dimension(frame_width-30,3))
+            displayPanel.add(jSep)
             displayPanel.add(GlobalVars.STATUS_LABEL)
 
             self.myScrollPane = JScrollPane(myDiagText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-            self.myScrollPane.setPreferredSize(Dimension(frame_width - 30, frame_height - displayPanel.getPreferredSize().height))
-
+            # self.myScrollPane.setPreferredSize(Dimension(frame_width - 30, frame_height - displayPanel.getPreferredSize().height))
+            self.myScrollPane.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).mainPanelBorderColor, 1))
+            self.myScrollPane.setViewportBorder(EmptyBorder(1, 5, 5, 5))
+            self.myScrollPane.setOpaque(False)
             self.myScrollPane.setWheelScrollingEnabled(True)
-            displayPanel.add(self.myScrollPane)
+
+            mainPnl = MyJPanel(BorderLayout(), "%s: MyJPanel(): Main GUI Parent JPanel" %(myModuleID))
+            mainPnl.add(displayPanel, BorderLayout.NORTH)
+            mainPnl.add(self.myScrollPane, BorderLayout.CENTER)
 
             keyToUse = shortcut
 
@@ -25284,7 +25251,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
             toolbox_frame_.setJMenuBar(mb)
 
-            toolbox_frame_.add(displayPanel)
+            # toolbox_frame_.add(displayPanel)
+            toolbox_frame_.getContentPane().setLayout(BorderLayout())
+            toolbox_frame_.getContentPane().add(mainPnl, BorderLayout.CENTER)
 
             toolbox_frame_.pack()
             toolbox_frame_.setLocationRelativeTo(None)
@@ -25297,13 +25266,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 myPrint("B","FAILED to add MD App Listener...")
                 dump_sys_error_to_md_console_and_errorlog()
 
-            toolbox_frame_.getRootPane().addComponentListener(self.ReSizeListener(toolbox_frame_, displayPanel, self.myScrollPane))
             toolbox_frame_.setVisible(True)     # already on the EDT
             toolbox_frame_.toFront()            # already on the EDT
             toolbox_frame_.isActiveInMoneydance = True
-
-            # Force a repaint to calculate scrollpane height....
-            self.ReSizeListener(toolbox_frame_, displayPanel, self.myScrollPane).componentResized("")
 
             if Platform.isOSX():
                 System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
@@ -25496,7 +25461,7 @@ Script is analysing your moneydance & system settings....
                     def __init__(self):
                         pass
 
-                    def run(self):                                                                                                      # noqa
+                    def run(self):                                                                                      # noqa
                         global debug, toolbox_frame_
 
                         myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
