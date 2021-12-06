@@ -65,6 +65,9 @@
 # Build: 1009 - Accounts/Categories/Securities Selection Option(s) - PREVIEW BUILD
 # Build: 1010 - Further enhancements from preview release. Added Filters for Active/Inactive. AutoSum Investment Accts Option
 # Build: 1010 - QuickSearch filter; added balances to list window; replaced callingClass with reference to single instance name
+# Build: 1010 - Tweaks to ensure [list of] double-byte characters don't crash debug messages...
+
+# todo - Add the 3 vertical line symbol and its (has inactive child sub-accounts) explanation on the GUI somewhere
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -2120,6 +2123,33 @@ Visit: %s (Author's site)
 
         return
 
+    class SetupMDColors:
+
+        OPAQUE = None
+        FOREGROUND = None
+        FOREGROUND_REVERSED = None
+        BACKGROUND = None
+        BACKGROUND_REVERSED = None
+
+        def __init__(self): raise Exception("ERROR - Should not create instance of this class!")
+
+        @staticmethod
+        def updateUI():
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+
+            SetupMDColors.OPAQUE = False
+
+            SetupMDColors.FOREGROUND = MD_REF.getUI().getColors().defaultTextForeground
+            SetupMDColors.FOREGROUND_REVERSED = SetupMDColors.FOREGROUND
+
+            SetupMDColors.BACKGROUND = MD_REF.getUI().getColors().defaultBackground
+            SetupMDColors.BACKGROUND_REVERSED = SetupMDColors.BACKGROUND
+
+            if ((not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())
+                    or (not isMacDarkModeDetected() and isMDThemeDarcula())):
+                SetupMDColors.FOREGROUND_REVERSED = MD_REF.getUI().colors.defaultBackground
+                SetupMDColors.BACKGROUND_REVERSED = MD_REF.getUI().colors.defaultTextForeground
+
     class QuickJFrame():
 
         def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True, lQuitMDAfterClose=False):
@@ -2288,51 +2318,44 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
-                    mfgtc = fgc = MD_REF.getUI().getColors().defaultTextForeground
-                    mbgtc = bgc = MD_REF.getUI().getColors().defaultBackground
-                    if (not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())\
-                            or (not isMacDarkModeDetected() and isMDThemeDarcula()):
-                        # Swap the colors round when text (not a button)
-                        mfgtc = MD_REF.getUI().getColors().defaultBackground
-                        mbgtc = MD_REF.getUI().getColors().defaultTextForeground
-                    opq = False
+                    SetupMDColors.updateUI()
 
                     printButton = JButton("Print")
                     printButton.setToolTipText("Prints the output displayed in this window to your printer")
-                    printButton.setOpaque(opq)
-                    printButton.setBackground(bgc); printButton.setForeground(fgc)
+                    printButton.setOpaque(SetupMDColors.OPAQUE)
+                    printButton.setBackground(SetupMDColors.BACKGROUND); printButton.setForeground(SetupMDColors.FOREGROUND)
                     printButton.addActionListener(self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
 
                     if GlobalVars.defaultPrinterAttributes is None:
                         printPageSetup = JButton("Page Setup")
                         printPageSetup.setToolTipText("Printer Page Setup")
-                        printPageSetup.setOpaque(opq)
-                        printPageSetup.setBackground(bgc); printPageSetup.setForeground(fgc)
+                        printPageSetup.setOpaque(SetupMDColors.OPAQUE)
+                        printPageSetup.setBackground(SetupMDColors.BACKGROUND); printPageSetup.setForeground(SetupMDColors.FOREGROUND)
                         printPageSetup.addActionListener(self.callingClass.QuickJFramePageSetup())
 
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
-                    saveButton.setOpaque(opq)
-                    saveButton.setBackground(bgc); saveButton.setForeground(fgc)
+                    saveButton.setOpaque(SetupMDColors.OPAQUE)
+                    saveButton.setBackground(SetupMDColors.BACKGROUND); saveButton.setForeground(SetupMDColors.FOREGROUND)
                     saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
 
-                    wrapOption = MyJCheckBox("Wrap Contents (Screen & Print)", self.callingClass.lWrapText)
+                    wrapOption = JCheckBox("Wrap Contents (Screen & Print)", self.callingClass.lWrapText)
                     wrapOption.addActionListener(self.callingClass.ToggleWrap(self.callingClass, theJText))
-                    wrapOption.setForeground(mfgtc); wrapOption.setBackground(mbgtc)
+                    wrapOption.setForeground(SetupMDColors.FOREGROUND_REVERSED); wrapOption.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                     topButton = JButton("Top")
-                    topButton.setOpaque(opq)
-                    topButton.setBackground(bgc); topButton.setForeground(fgc)
+                    topButton.setOpaque(SetupMDColors.OPAQUE)
+                    topButton.setBackground(SetupMDColors.BACKGROUND); topButton.setForeground(SetupMDColors.FOREGROUND)
                     topButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lTop=True))
 
                     botButton = JButton("Bottom")
-                    botButton.setOpaque(opq)
-                    botButton.setBackground(bgc); botButton.setForeground(fgc)
+                    botButton.setOpaque(SetupMDColors.OPAQUE)
+                    botButton.setBackground(SetupMDColors.BACKGROUND); botButton.setForeground(SetupMDColors.FOREGROUND)
                     botButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lBottom=True))
 
                     closeButton = JButton("Close")
-                    closeButton.setOpaque(opq)
-                    closeButton.setBackground(bgc); closeButton.setForeground(fgc)
+                    closeButton.setOpaque(SetupMDColors.OPAQUE)
+                    closeButton.setBackground(SetupMDColors.BACKGROUND); closeButton.setForeground(SetupMDColors.FOREGROUND)
                     closeButton.addActionListener(self.callingClass.CloseAction(jInternalFrame))
 
                     if Platform.isOSX():
@@ -2817,13 +2840,33 @@ Visit: %s (Author's site)
             myPrint("DB",".. Sorry - did not find my application (JFrame) to send message....")
         return
 
-    class MyJPanel(JPanel):
+
+    # My attempts below to switch my GUI's LaF to match MD after a Theme switch
+    # Basically doesn't work... As MD doesn't set all properties up properly after a switch
+    # So user just needs to restart MD.....
+    # All properties: https://thebadprogrammer.com/swing-uimanager-keys/
+
+
+    def setJComponentStandardUIDefaults(component, key, opaque=False, border=False, background=True, foreground=True, font=True):
+        if font:        component.setFont(UIManager.getFont("%s.font" %(key)))
+        if foreground:  component.setForeground(UIManager.getColor("%s.foreground" %(key)))
+        if background:  component.setBackground(UIManager.getColor("%s.background" %(key)))
+        if opaque:      component.setOpaque(UIManager.getBoolean("%s.opaque" %(key)))
+        if border:      component.setBorder(UIManager.getBorder("%s.border" %(key)))
+
+    class MyJPanel(JPanel, Runnable):
 
         def __init__(self, layout):
             super(JPanel, self).__init__(layout)                                                                        # noqa
 
         def updateUI(self):
             super(MyJPanel, self).updateUI()                                                                            # noqa
+            # key = "Panel"
+            # setJComponentStandardUIDefaults(self, key, opaque=True)
+            # SwingUtilities.invokeLater(self)
+
+        # def run(self):
+        #     MoneydanceLAF.installUIRecursive(self)
 
     class MyJLabel(JLabel):
 
@@ -2832,6 +2875,9 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJLabel, self).updateUI()                                                                            # noqa
+            # key = "Label"
+            # setJComponentStandardUIDefaults(self, key, opaque=True)
+            # self.setBackground(None)
 
     class MyJComboBox(JComboBox):
 
@@ -2840,6 +2886,8 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJComboBox, self).updateUI()                                                                         # noqa
+            # key = "ComboBox"
+            # setJComponentStandardUIDefaults(self, key)
 
     class MyJButton(JButton):
 
@@ -2848,7 +2896,8 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJButton, self).updateUI()                                                                           # noqa
-            # Here I should call .setBackground() and .setForeground() with updated MD Colors....
+            # key = "Button"
+            # setJComponentStandardUIDefaults(self, key, opaque=True, border=True)
 
     class MyJTextField(JTextField):
 
@@ -2857,9 +2906,8 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJTextField, self).updateUI()                                                                        # noqa
-            # Here I should call .setBackground() and .setForeground() with updated MD Colors....
-            # self.setBackground(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.defaultBackground)
-            # self.setForeground(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.defaultTextForeground)
+            # key = "TextField"
+            # setJComponentStandardUIDefaults(self, key)
 
     class MyJCheckBox(JCheckBox):
 
@@ -2868,6 +2916,8 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJCheckBox, self).updateUI()                                                                         # noqa
+            # key = "CheckBox"
+            # setJComponentStandardUIDefaults(self, key, border=True)
 
     class MyJScrollPane(JScrollPane):
 
@@ -2876,6 +2926,8 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJScrollPane, self).updateUI()                                                                       # noqa
+            # key = "ScrollPane"
+            # setJComponentStandardUIDefaults(self, key, border=True)
 
     class MyJMenu(JMenu):
 
@@ -2884,6 +2936,13 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJMenu, self).updateUI()                                                                             # noqa
+            # key = "Menu"
+            # setJComponentStandardUIDefaults(self, key, border=True)
+            # Menu.borderPainted
+            # Menu.disabledBackground
+            # Menu.disabledForeground
+            # Menu.selectionBackground
+            # Menu.selectionForeground
 
     class MyJMenuBar(JMenuBar):
 
@@ -2892,6 +2951,19 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJMenuBar, self).updateUI()                                                                          # noqa
+            # key = "MenuBar"
+            # setJComponentStandardUIDefaults(self, key, border=True)
+            # SetupMDColors.updateUI()
+            # self.setForeground(SetupMDColors.FOREGROUND_REVERSED)
+            # self.setBackground(SetupMDColors.BACKGROUND_REVERSED)
+            # self.setOpaque(SetupMDColors.OPAQUE)
+            # MenuBar.disabledBackground
+            # MenuBar.disabledForeground
+            # MenuBar.highlight
+            # MenuBar.margin
+            # MenuBar.selectionBackground
+            # MenuBar.selectionForeground
+            # MenuBar.shadow
 
     class MyJCheckBoxMenuItem(JCheckBoxMenuItem):
 
@@ -2900,6 +2972,18 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJCheckBoxMenuItem, self).updateUI()                                                                 # noqa
+            # key = "CheckBoxMenuItem"
+            # setJComponentStandardUIDefaults(self, key, border=True)
+            # CheckBoxMenuItem.acceleratorDelimiter
+            # CheckBoxMenuItem.acceleratorFont
+            # CheckBoxMenuItem.acceleratorForeground
+            # CheckBoxMenuItem.acceleratorSelectionForeground
+            # CheckBoxMenuItem.borderPainted
+            # CheckBoxMenuItem.disabledBackground
+            # CheckBoxMenuItem.disabledForeground
+            # CheckBoxMenuItem.margin
+            # CheckBoxMenuItem.selectionBackground
+            # CheckBoxMenuItem.selectionForeground
 
     class MyJMenuItem(JMenuItem):
 
@@ -2908,6 +2992,21 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJMenuItem, self).updateUI()                                                                         # noqa
+            # key = "MenuItem"
+            # setJComponentStandardUIDefaults(self, key, border=True)
+            # MenuItem.margin
+            # MenuItem.acceleratorDelimiter
+            # MenuItem.acceleratorFont
+            # MenuItem.acceleratorForeground
+            # MenuItem.acceleratorSelectionForeground
+            # MenuItem.arrowIcon
+            # MenuItem.borderPainted
+            # MenuItem.checkIcon
+            # MenuItem.disabledBackground
+            # MenuItem.disabledForeground
+            # MenuItem.selectedBackgroundPainter
+            # MenuItem.selectionBackground
+            # MenuItem.selectionForeground
 
     class MyJSeparator(JSeparator):
 
@@ -2916,7 +3015,10 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJSeparator, self).updateUI()                                                                        # noqa
-
+            # key = "Separator"
+            # setJComponentStandardUIDefaults(self, key, border=True, background=False)
+            # Separator.highlight
+            # Separator.shadow
 
     # ------------------------------------------------------------------------------------------------------------------
     # com.infinitekind.moneydance.model.AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR : Comparator
@@ -3778,10 +3880,15 @@ Visit: %s (Author's site)
                         NAB.rowSelected_COMBO.setSelectedIndex(NAB.getSelectedRowIndex())
                     else:
                         myPrint("DB","... Row selected is already correct - no change....")
-                else:
+
+                elif NAB.moneydanceContext.getCurrentAccount().getBook() is not None:
+
                     myPrint("DB",".. Application's config panel was not open already...")
                     NAB.configPanelOpen = True
                     NAB.rebuildFrameComponents(NAB.getSelectedRowIndex())
+
+                else:
+                    myPrint("B","WARNING: Book is None.. Perhaps MD is shutting down.. Will do nothing....")
 
                 myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -4701,6 +4808,8 @@ Visit: %s (Author's site)
                 myPrint("DB",".. main JFrame is already built: %s - so exiting" %(self.theFrame))
                 return
 
+            SetupMDColors.updateUI()
+
             class BuildMainFrameRunnable(Runnable):
                 def __init__(self): pass
 
@@ -5072,19 +5181,9 @@ Visit: %s (Author's site)
                     NAB.theFrame.setExtendedState(JFrame.NORMAL)
                     NAB.theFrame.setResizable(True)
 
-                    mfgtc = fgc = MD_REF.getUI().colors.defaultTextForeground                                           # noqa
-                    mbgtc = bgc = MD_REF.getUI().colors.defaultBackground                                               # noqa
-                    if (not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())\
-                            or (not isMacDarkModeDetected() and isMDThemeDarcula()):
-                        # Swap the colors round when text (not a button)
-                        mfgtc = MD_REF.getUI().colors.defaultBackground
-                        mbgtc = MD_REF.getUI().colors.defaultTextForeground
-                    opq = False                                                                                         # noqa
-
                     NAB.mainMenuBar = MyJMenuBar()
                     # menuO = MyJMenu("<html><B>Options</b></html>")
                     menuO = MyJMenu("Options")
-                    menuO.setForeground(mfgtc); menuO.setBackground(mbgtc)
 
                     NAB.menuItemDEBUG = MyJCheckBoxMenuItem("Debug")
                     NAB.menuItemDEBUG.addActionListener(saveMyActionListener)
@@ -5134,7 +5233,6 @@ Visit: %s (Author's site)
 
                     # menuA = MyJMenu("<html><B>About</b></html>")
                     menuA = MyJMenu("About")
-                    menuA.setForeground(mfgtc); menuA.setBackground(mbgtc)
 
                     menuItemA = MyJMenuItem("About")
                     menuItemA.setToolTipText("About...")

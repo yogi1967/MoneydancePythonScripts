@@ -2373,6 +2373,33 @@ Visit: %s (Author's site)
 
         return
 
+    class SetupMDColors:
+
+        OPAQUE = None
+        FOREGROUND = None
+        FOREGROUND_REVERSED = None
+        BACKGROUND = None
+        BACKGROUND_REVERSED = None
+
+        def __init__(self): raise Exception("ERROR - Should not create instance of this class!")
+
+        @staticmethod
+        def updateUI():
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+
+            SetupMDColors.OPAQUE = False
+
+            SetupMDColors.FOREGROUND = MD_REF.getUI().getColors().defaultTextForeground
+            SetupMDColors.FOREGROUND_REVERSED = SetupMDColors.FOREGROUND
+
+            SetupMDColors.BACKGROUND = MD_REF.getUI().getColors().defaultBackground
+            SetupMDColors.BACKGROUND_REVERSED = SetupMDColors.BACKGROUND
+
+            if ((not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())
+                    or (not isMacDarkModeDetected() and isMDThemeDarcula())):
+                SetupMDColors.FOREGROUND_REVERSED = MD_REF.getUI().colors.defaultBackground
+                SetupMDColors.BACKGROUND_REVERSED = MD_REF.getUI().colors.defaultTextForeground
+
     class QuickJFrame():
 
         def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True, lQuitMDAfterClose=False):
@@ -2499,7 +2526,6 @@ Visit: %s (Author's site)
                     frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.9,0))))
 
                     # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
-
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)%s"
                                               %( MD_REF.getUI().ACCELERATOR_MASK_STR,
                                                 ("" if not self.callingClass.lQuitMDAfterClose else  " >> MD WILL QUIT AFTER VIEWING THIS <<")))
@@ -2542,51 +2568,44 @@ Visit: %s (Author's site)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
-                    mfgtc = fgc = MD_REF.getUI().getColors().defaultTextForeground
-                    mbgtc = bgc = MD_REF.getUI().getColors().defaultBackground
-                    if (not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())\
-                            or (not isMacDarkModeDetected() and isMDThemeDarcula()):
-                        # Swap the colors round when text (not a button)
-                        mfgtc = MD_REF.getUI().getColors().defaultBackground
-                        mbgtc = MD_REF.getUI().getColors().defaultTextForeground
-                    opq = False
+                    SetupMDColors.updateUI()
 
                     printButton = JButton("Print")
                     printButton.setToolTipText("Prints the output displayed in this window to your printer")
-                    printButton.setOpaque(opq)
-                    printButton.setBackground(bgc); printButton.setForeground(fgc)
+                    printButton.setOpaque(SetupMDColors.OPAQUE)
+                    printButton.setBackground(SetupMDColors.BACKGROUND); printButton.setForeground(SetupMDColors.FOREGROUND)
                     printButton.addActionListener(self.callingClass.QuickJFramePrint(self.callingClass, theJText, self.callingClass.title))
 
                     if GlobalVars.defaultPrinterAttributes is None:
                         printPageSetup = JButton("Page Setup")
                         printPageSetup.setToolTipText("Printer Page Setup")
-                        printPageSetup.setOpaque(opq)
-                        printPageSetup.setBackground(bgc); printPageSetup.setForeground(fgc)
+                        printPageSetup.setOpaque(SetupMDColors.OPAQUE)
+                        printPageSetup.setBackground(SetupMDColors.BACKGROUND); printPageSetup.setForeground(SetupMDColors.FOREGROUND)
                         printPageSetup.addActionListener(self.callingClass.QuickJFramePageSetup())
 
                     saveButton = JButton("Save to file")
                     saveButton.setToolTipText("Saves the output displayed in this window to a file")
-                    saveButton.setOpaque(opq)
-                    saveButton.setBackground(bgc); saveButton.setForeground(fgc)
+                    saveButton.setOpaque(SetupMDColors.OPAQUE)
+                    saveButton.setBackground(SetupMDColors.BACKGROUND); saveButton.setForeground(SetupMDColors.FOREGROUND)
                     saveButton.addActionListener(self.callingClass.QuickJFrameSaveTextToFile(self.callingClass.output, jInternalFrame))
 
                     wrapOption = JCheckBox("Wrap Contents (Screen & Print)", self.callingClass.lWrapText)
                     wrapOption.addActionListener(self.callingClass.ToggleWrap(self.callingClass, theJText))
-                    wrapOption.setForeground(mfgtc); wrapOption.setBackground(mbgtc)
+                    wrapOption.setForeground(SetupMDColors.FOREGROUND_REVERSED); wrapOption.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                     topButton = JButton("Top")
-                    topButton.setOpaque(opq)
-                    topButton.setBackground(bgc); topButton.setForeground(fgc)
+                    topButton.setOpaque(SetupMDColors.OPAQUE)
+                    topButton.setBackground(SetupMDColors.BACKGROUND); topButton.setForeground(SetupMDColors.FOREGROUND)
                     topButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lTop=True))
 
                     botButton = JButton("Bottom")
-                    botButton.setOpaque(opq)
-                    botButton.setBackground(bgc); botButton.setForeground(fgc)
+                    botButton.setOpaque(SetupMDColors.OPAQUE)
+                    botButton.setBackground(SetupMDColors.BACKGROUND); botButton.setForeground(SetupMDColors.FOREGROUND)
                     botButton.addActionListener(self.callingClass.QuickJFrameNavigate(theJText, lBottom=True))
 
                     closeButton = JButton("Close")
-                    closeButton.setOpaque(opq)
-                    closeButton.setBackground(bgc); closeButton.setForeground(fgc)
+                    closeButton.setOpaque(SetupMDColors.OPAQUE)
+                    closeButton.setBackground(SetupMDColors.BACKGROUND); closeButton.setForeground(SetupMDColors.FOREGROUND)
                     closeButton.addActionListener(self.callingClass.CloseAction(jInternalFrame))
 
                     if Platform.isOSX():
@@ -25095,20 +25114,13 @@ Now you will have a text readable version of the file you can open in a text edi
             else:
                 save_useScreenMenuBar = "true"
 
-            mfgtc = fgc = MD_REF.getUI().getColors().defaultTextForeground
-            mbgtc = bgc = MD_REF.getUI().getColors().defaultBackground
-            if (not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())\
-                    or (not isMacDarkModeDetected() and isMDThemeDarcula()):
-                # Swap the colors round when text (not a button)
-                mfgtc = MD_REF.getUI().getColors().defaultBackground
-                mbgtc = MD_REF.getUI().getColors().defaultTextForeground
-            opq = False
+            SetupMDColors.updateUI()
 
             mb = JMenuBar()
             # menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
             menu1 = JMenu("TOOLBOX Options")
             menu1.setMnemonic(KeyEvent.VK_T)
-            menu1.setForeground(mfgtc); menu1.setBackground(mbgtc)
+            menu1.setForeground(SetupMDColors.FOREGROUND_REVERSED); menu1.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
             menuItem0 = JMenuItem("Basic Mode")
             menuItem0.setMnemonic(KeyEvent.VK_B)
@@ -25183,7 +25195,7 @@ Now you will have a text readable version of the file you can open in a text edi
             # menuH = JMenu("<html>HELP</html>")
             menuH = JMenu("HELP")
             menuH.setMnemonic(KeyEvent.VK_I)
-            menuH.setForeground(mfgtc); menuH.setBackground(mbgtc)
+            menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
             menuItemH = JMenuItem("Help")
             menuItemH.setMnemonic(KeyEvent.VK_I)
@@ -25214,27 +25226,27 @@ Now you will have a text readable version of the file you can open in a text edi
             btnConsole = JButton("Launch Console Window")
             btnConsole.setToolTipText("launches the Moneydance Console Window (and turns DEBUG on).. Useful for extra diagnostics!")
 
-            btnConsole.setOpaque(opq)
-            btnConsole.setBackground(bgc)
-            btnConsole.setForeground(fgc)
+            btnConsole.setOpaque(SetupMDColors.OPAQUE)
+            btnConsole.setBackground(SetupMDColors.BACKGROUND)
+            btnConsole.setForeground(SetupMDColors.FOREGROUND)
 
             btnSaveConsole = JButton("Save Console Log")
             btnSaveConsole.setToolTipText("Copy/save the Console Error log file to a directory of your choosing..")
-            btnSaveConsole.setOpaque(opq)
-            btnSaveConsole.setBackground(bgc)
-            btnSaveConsole.setForeground(fgc)
+            btnSaveConsole.setOpaque(SetupMDColors.OPAQUE)
+            btnSaveConsole.setBackground(SetupMDColors.BACKGROUND)
+            btnSaveConsole.setForeground(SetupMDColors.FOREGROUND)
 
             btnOpenMDFolder = JButton("Open MD Folder")
             btnOpenMDFolder.setToolTipText("Open the selected Moneydance (internal) folder in Explorer/Finder window (etc)")
-            btnOpenMDFolder.setOpaque(opq)
-            btnOpenMDFolder.setBackground(bgc)
-            btnOpenMDFolder.setForeground(fgc)
+            btnOpenMDFolder.setOpaque(SetupMDColors.OPAQUE)
+            btnOpenMDFolder.setBackground(SetupMDColors.BACKGROUND)
+            btnOpenMDFolder.setForeground(SetupMDColors.FOREGROUND)
 
             btnCopyDiagnostics = JButton("Copy/Save/Print Diagnostics below")
             btnCopyDiagnostics.setToolTipText("Option to Copy the contents of the main diagnostics window (below) to the Clipboard.., or save to file, or print...")
-            btnCopyDiagnostics.setOpaque(opq)
-            btnCopyDiagnostics.setBackground(bgc)
-            btnCopyDiagnostics.setForeground(fgc)
+            btnCopyDiagnostics.setOpaque(SetupMDColors.OPAQUE)
+            btnCopyDiagnostics.setBackground(SetupMDColors.BACKGROUND)
+            btnCopyDiagnostics.setForeground(SetupMDColors.FOREGROUND)
 
             mb.add(btnConsole)
             mb.add(Box.createRigidArea(Dimension(10, 0)))
