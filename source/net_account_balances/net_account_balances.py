@@ -3656,56 +3656,59 @@ Visit: %s (Author's site)
                 myPrint("DB","self.jlst is None or not JList (no action)")
 
         def setJListDataAndSelection(self, _listOfAccountsForJList, lFilter=False):
-            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+            try:
+                myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
-            if lFilter: myPrint("DB",".... FILTER MODE: %s" %(lFilter))
+                if lFilter: myPrint("DB",".... FILTER MODE: %s" %(lFilter))
 
-            myPrint("DB",".. Was passed: %s" %(_listOfAccountsForJList))
+                myPrint("DB",".. Was passed:", _listOfAccountsForJList)
 
-            countMatch = 0
-            index = 0
-            _indexesToSelect = []
-            _objectsToSelect = []
+                countMatch = 0
+                index = 0
+                _indexesToSelect = []
+                _objectsToSelect = []
 
-            if not lFilter:
-                verificationList = self.savedAccountListUUIDs[self.getSelectedRowIndex()]
-            else:
-                verificationList = [obj.getAccount().getUUID() for obj in self.jlst.listOfSelectedObjects]
+                if not lFilter:
+                    verificationList = self.savedAccountListUUIDs[self.getSelectedRowIndex()]
+                else:
+                    verificationList = [obj.getAccount().getUUID() for obj in self.jlst.listOfSelectedObjects]
 
-            for a in _listOfAccountsForJList:
-                if a.getAccount().getUUID() in verificationList:
-                    countMatch += 1
-                    myPrint("DB","...Row: %s >> selecting %s in JList()" %(self.getSelectedRowIndex(), a))
-                    _indexesToSelect.append(index)
-                    _objectsToSelect.append(a)
+                for a in _listOfAccountsForJList:
+                    if a.getAccount().getUUID() in verificationList:
+                        countMatch += 1
+                        myPrint("DB","...Row: %s >> selecting %s in JList()" %(self.getSelectedRowIndex(), a))
+                        _indexesToSelect.append(index)
+                        _objectsToSelect.append(a)
 
-                # # noinspection PyUnresolvedReferences
-                # if ((self.savedAutoSumAccounts[self.getSelectedRowIndex()])
-                #         and a.getAccount().getAccountType() == Account.AccountType.SECURITY
-                #         and a.getAccount().getParentAccount().getUUID() in verificationList):
-                #     myPrint("DB","...Row: %s AUTOSUM=ON >> auto-selecting security %s into JList() too" %(self.getSelectedRowIndex(), a))
-                #     countMatch += 1
-                #     _indexesToSelect.append(index)
-                #     _objectsToSelect.append(a)
+                    # # noinspection PyUnresolvedReferences
+                    # if ((self.savedAutoSumAccounts[self.getSelectedRowIndex()])
+                    #         and a.getAccount().getAccountType() == Account.AccountType.SECURITY
+                    #         and a.getAccount().getParentAccount().getUUID() in verificationList):
+                    #     myPrint("DB","...Row: %s AUTOSUM=ON >> auto-selecting security %s into JList() too" %(self.getSelectedRowIndex(), a))
+                    #     countMatch += 1
+                    #     _indexesToSelect.append(index)
+                    #     _objectsToSelect.append(a)
 
-                index += 1
+                    index += 1
 
-            self.jlst.disableSelectionListeners()
-            self.jlst.setListData(_listOfAccountsForJList)
-            if len(_indexesToSelect):
-                self.jlst.setSelectedIndices(_indexesToSelect)
-                self.jlst.ensureIndexIsVisible(_indexesToSelect[0])
-                self.jlst.scrollRectToVisible(self.jlst.getCellBounds(_indexesToSelect[0],_indexesToSelect[0]+1))
-
-
-            self.jlst.enableSelectionListeners()
-
-            if not lFilter:
-                myPrint("DB",".. Saving Original List too...")
-                self.jlst.originalListObjects = _listOfAccountsForJList
-                self.jlst.listOfSelectedObjects = _objectsToSelect
+                self.jlst.disableSelectionListeners()
+                self.jlst.setListData(_listOfAccountsForJList)
+                if len(_indexesToSelect):
+                    self.jlst.setSelectedIndices(_indexesToSelect)
+                    self.jlst.ensureIndexIsVisible(_indexesToSelect[0])
+                    self.jlst.scrollRectToVisible(self.jlst.getCellBounds(_indexesToSelect[0],_indexesToSelect[0]+1))
 
 
+                self.jlst.enableSelectionListeners()
+
+                if not lFilter:
+                    myPrint("DB",".. Saving Original List too...")
+                    self.jlst.originalListObjects = _listOfAccountsForJList
+                    self.jlst.listOfSelectedObjects = _objectsToSelect
+            except:
+                myPrint("DB","ERROR in setJListDataAndSelection() routine ?")
+                dump_sys_error_to_md_console_and_errorlog()
+                raise
 
         def rebuildJList(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -4559,6 +4562,7 @@ Visit: %s (Author's site)
 
                         GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                     # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_showWarningsDefault_NAB       = self.showWarningsDefaultDefault()         # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = self.showDashesInsteadOfZerosDefault()    # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()     # Loading will overwrite if saved, else pre-load defaults
 
                         get_StuWareSoftSystems_parameters_from_file(myFile="%s_extension.dict" %(self.myModuleID))
@@ -4743,41 +4747,46 @@ Visit: %s (Author's site)
                             self.savedListeners = []
 
                         def valueChanged(self, e):
-                            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
-                            myPrint("DB", "In JList Selection Listener .valueChanged(): %s" %(e))
-
-                            if e.getValueIsAdjusting():
-                                myPrint("DB", ".. getValueIsAdjusting() is True.... Ignoring.....")
-                                return
-
-                            myPrint("DB", ".. internal master list of selected was: %s" %(self.listOfSelectedObjects))
-
-                            i = -1
-                            dataModel = self.getModel()
                             try:
-                                for i in range(e.getFirstIndex(), e.getLastIndex()+1):
-                                    obj = dataModel.getElementAt(i)
-                                    if self.isSelectedIndex(i):
-                                        if obj not in self.listOfSelectedObjects:
-                                            self.listOfSelectedObjects.append(obj)
-                                    else:
-                                        if obj in self.listOfSelectedObjects:
-                                            self.listOfSelectedObjects.remove(obj)
+                                myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+                                myPrint("DB", "In JList Selection Listener .valueChanged(): %s" %(e))
 
-                            except ArrayIndexOutOfBoundsException:
-                                # When filtering the list, the getLastIndex() seems to go out of bounds... ignore...
-                                if debug:
-                                    myPrint("DB","Error managing internal selected objects list")
-                                    myPrint("DB", "e.getFirstIndex():%s, e.getLastIndex()+1:%s" %(e.getFirstIndex(), e.getLastIndex()+1))
-                                    myPrint("DB", "Was on i: %s" %(i))
+                                if e.getValueIsAdjusting():
+                                    myPrint("DB", ".. getValueIsAdjusting() is True.... Ignoring.....")
+                                    return
+
+                                myPrint("DB", ".. internal master list of selected was:", self.listOfSelectedObjects)
+
+                                i = -1
+                                dataModel = self.getModel()
+                                try:
+                                    for i in range(e.getFirstIndex(), e.getLastIndex()+1):
+                                        obj = dataModel.getElementAt(i)
+                                        if self.isSelectedIndex(i):
+                                            if obj not in self.listOfSelectedObjects:
+                                                self.listOfSelectedObjects.append(obj)
+                                        else:
+                                            if obj in self.listOfSelectedObjects:
+                                                self.listOfSelectedObjects.remove(obj)
+
+                                except ArrayIndexOutOfBoundsException:
+                                    # When filtering the list, the getLastIndex() seems to go out of bounds... ignore...
+                                    if debug:
+                                        myPrint("DB","Error managing internal selected objects list")
+                                        myPrint("DB", "e.getFirstIndex():%s, e.getLastIndex()+1:%s" %(e.getFirstIndex(), e.getLastIndex()+1))
+                                        myPrint("DB", "Was on i: %s" %(i))
+                                        raise
+
+                                except:
+                                    myPrint("B","Error managing internal selected objects list")
+                                    dump_sys_error_to_md_console_and_errorlog()
                                     raise
 
+                                myPrint("DB", ".. internal master list of selected is now:", self.listOfSelectedObjects)
                             except:
-                                myPrint("B","Error managing internal selected objects list")
+                                myPrint("DB","ERROR in .valueChanged() routine")
                                 dump_sys_error_to_md_console_and_errorlog()
                                 raise
-
-                            myPrint("DB", ".. internal master list of selected is now: %s" %(self.listOfSelectedObjects))
 
                         def enableSelectionListeners(self):
                             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
