@@ -2750,7 +2750,8 @@ Visit: %s (Author's site)
     def wrap_HTML_italics(_textToWrap):
         return "<html><i>%s</i></html>" %(html_strip_chars(_textToWrap))
 
-    def wrap_HTML_small(_bigText, _smallText, _smallColor):
+    def wrap_HTML_small(_bigText, _smallText, _smallColor=None):
+        if _smallColor is None: _smallColor = MD_REF.getUI().colors.tertiaryTextFG
         _smallColorHex = AwtUtil.hexStringForColor(_smallColor)
         _htmlBigText = html_strip_chars(_bigText)
         _htmlSmallText = html_strip_chars(_smallText)
@@ -5122,7 +5123,21 @@ Visit: %s (Author's site)
                     topInset = 7
                     bottomInset = 10
 
-                    pnl.add(NAB.quickSearchField,GridC.getc(onCol, onRow).colspan(5).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
+                    pnl.add(NAB.quickSearchField,GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
+
+                    onCol += 3
+                    topInset = 0
+                    bottomInset = 0
+
+                    pnl.add(JLabel(wrap_HTML_small("","Total includes Inactive(s)")),GridC.getc(onCol, onRow).southEast().insets(topInset,colLeftInset,bottomInset,colRightInset))
+
+                    mdImages = NAB.moneydanceContext.getUI().getImages()
+                    iconTintInactive = NAB.moneydanceContext.getUI().colors.errorMessageForeground
+                    iconInactive = mdImages.getIconWithColor(MDImages.GRIP_VERTICAL, iconTintInactive)
+                    onCol += 1
+
+                    bottomInset = 2
+                    pnl.add(JLabel(iconInactive),GridC.getc(onCol, onRow).east().south().insets(topInset,colLeftInset,bottomInset,colRightInset))
 
                     onRow += 1
                     # -----------------------------------------------------------------------------------
