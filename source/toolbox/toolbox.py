@@ -249,6 +249,7 @@
 # build: 1045 - Common code tweak - destroyOldFrames() - add a "_" for cloned instances; re-enable
 # build: 1045 - Changed JFrame and JPanel layouts so that JScrollPane resize just works etc... Removed ReSize Listener (watching out for increased memory consumption)
 # build: 1045 - Fix JMenu()s - remove <html> tags (affects colors on older Macs)
+# build: 1045 - changed all to use .isMasterSyncNode() and .isMasterSyncNode() and also set primary on force reset all sync settings too (to match 4063)
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -3533,7 +3534,7 @@ Visit: %s (Author's site)
 
         textArray.append(count_database_objects())
 
-        textArray.append(u"Master Node (dataset): %s" %(MD_REF.getCurrentAccount().getBook().getLocalStorage().getBoolean(u"_is_master_node", True)))
+        textArray.append(u"Master Node (dataset): %s" %(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
 
         textArray.append(u"\nENCRYPTION")
         x = MD_REF.getUI().getCurrentAccounts().getEncryptionKey()
@@ -22333,7 +22334,9 @@ Now you will have a text readable version of the file you can open in a text edi
         storage.remove("ext.netsync.settings")
         storage.remove("netsync.guid")
         storage.remove("migrated.netsync.dropbox.fileid")
+
         # NOTE: as of 2022.3(4063) - this is also performed: .setIsMasterSyncNode(True)
+        MD_REF.getUI().getCurrentAccounts().setIsMasterSyncNode(True)
         storage.save()
 
         root = MD_REF.getCurrentAccountBook().getRootAccount()
@@ -24435,7 +24438,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                if MD_REF.getCurrentAccount().getBook().getLocalStorage().getBoolean("_is_master_node", True):
+                if MD_REF.getUI().getCurrentAccounts().isMasterSyncNode():
                     txt = "Your dataset is already Master - NO CHANGES MADE!"
                     setDisplayStatus(txt, "R")
                     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -24463,7 +24466,7 @@ Now you will have a text readable version of the file you can open in a text edi
                             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                             return
 
-                        MD_REF.getCurrentAccount().getBook().getLocalStorage().put("_is_master_node", True)
+                        MD_REF.getUI().getCurrentAccounts().setIsMasterSyncNode(True)
                         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()        # Flush local storage to safe/settings
 
                         play_the_money_sound()
@@ -24891,7 +24894,7 @@ Now you will have a text readable version of the file you can open in a text edi
             displayString = buildDiagText()
 
             GlobalVars.STATUS_LABEL = JLabel(("Infinite Kind (Moneydance) support tool >> DIAG STATUS: BASIC MODE RUNNING... - %s+I for Help (check out the Toolbox menu for more options/modes/features)"%MD_REF.getUI().ACCELERATOR_MASK_STR).ljust(800, " "), JLabel.LEFT)
-            GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).headerBorder, 2))
+            # GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).headerBorder, 2))
             GlobalVars.STATUS_LABEL.setForeground(GlobalVars.DARK_GREEN)
 
             try:
@@ -24948,7 +24951,7 @@ Now you will have a text readable version of the file you can open in a text edi
             displayPanel.add(backup_button)
 
             # These are instant fix buttons
-            if (not MD_REF.getCurrentAccount().getBook().getLocalStorage().getBoolean("_is_master_node", True)):
+            if (not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()):
                 convertSecondary_button = JButton("<html><center><B>FIX: Make me a<BR>Primary dataset</B></center></html>")
                 convertSecondary_button.setToolTipText("Promotes this Dataset a Primary / Master Dataset. Enables Sync options. (typically after restore from a synchronised secondary dataset/backup). THIS CHANGES DATA!")
                 convertSecondary_button.setBackground(Color.ORANGE)
@@ -25276,7 +25279,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
 
             # Check for secondary node (potentially restored from backup).. Popup alert message
-            if not MD_REF.getCurrentAccount().getBook().getLocalStorage().getBoolean("_is_master_node", True):
+            if not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode():
 
                 MyPopUpDialogBox(toolbox_frame_,"INFORMATION ONLY - THIS IS NOT A PROBLEM",
                                                  "This Dataset is running as a 'Secondary Node'\n" 
@@ -25477,6 +25480,8 @@ Script is analysing your moneydance & system settings....
                     myPrint("DB",".. Main App Already within the EDT so calling naked...")
                     MainAppRunnable().run()
 
+                myPrint("DB","Requesting System Garbage Collection....")
+                System.gc()
 
                 myPrint("P","-----------------------------------------------------------------------------------------------------------")
                 myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", myScriptName, " script ending (frame is open/running)......")
