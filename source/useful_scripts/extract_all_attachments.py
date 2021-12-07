@@ -274,6 +274,7 @@ else:
     MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
 
     class GlobalVars:        # Started using this method for storing global variables from August 2021
+        CONTEXT = MD_REF
         defaultPrintService = None
         defaultPrinterAttributes = None
         defaultPrintFontSize = None
@@ -2054,16 +2055,16 @@ Visit: %s (Author's site)
 
             SetupMDColors.OPAQUE = False
 
-            SetupMDColors.FOREGROUND = MD_REF.getUI().getColors().defaultTextForeground
+            SetupMDColors.FOREGROUND = GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground
             SetupMDColors.FOREGROUND_REVERSED = SetupMDColors.FOREGROUND
 
-            SetupMDColors.BACKGROUND = MD_REF.getUI().getColors().defaultBackground
+            SetupMDColors.BACKGROUND = GlobalVars.CONTEXT.getUI().getColors().defaultBackground
             SetupMDColors.BACKGROUND_REVERSED = SetupMDColors.BACKGROUND
 
             if ((not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())
                     or (not isMacDarkModeDetected() and isMDThemeDarcula())):
-                SetupMDColors.FOREGROUND_REVERSED = MD_REF.getUI().colors.defaultBackground
-                SetupMDColors.BACKGROUND_REVERSED = MD_REF.getUI().colors.defaultTextForeground
+                SetupMDColors.FOREGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultBackground
+                SetupMDColors.BACKGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultTextForeground
 
     class QuickJFrame():
 

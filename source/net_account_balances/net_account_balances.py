@@ -305,6 +305,7 @@ else:
     MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
 
     class GlobalVars:        # Started using this method for storing global variables from August 2021
+        CONTEXT = MD_REF
         defaultPrintService = None
         defaultPrinterAttributes = None
         defaultPrintFontSize = None
@@ -2139,16 +2140,16 @@ Visit: %s (Author's site)
 
             SetupMDColors.OPAQUE = False
 
-            SetupMDColors.FOREGROUND = MD_REF.getUI().getColors().defaultTextForeground
+            SetupMDColors.FOREGROUND = GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground
             SetupMDColors.FOREGROUND_REVERSED = SetupMDColors.FOREGROUND
 
-            SetupMDColors.BACKGROUND = MD_REF.getUI().getColors().defaultBackground
+            SetupMDColors.BACKGROUND = GlobalVars.CONTEXT.getUI().getColors().defaultBackground
             SetupMDColors.BACKGROUND_REVERSED = SetupMDColors.BACKGROUND
 
             if ((not isMDThemeVAQua() and not isMDThemeDark() and isMacDarkModeDetected())
                     or (not isMacDarkModeDetected() and isMDThemeDarcula())):
-                SetupMDColors.FOREGROUND_REVERSED = MD_REF.getUI().colors.defaultBackground
-                SetupMDColors.BACKGROUND_REVERSED = MD_REF.getUI().colors.defaultTextForeground
+                SetupMDColors.FOREGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultBackground
+                SetupMDColors.BACKGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultTextForeground
 
     class QuickJFrame():
 
@@ -2848,178 +2849,162 @@ Visit: %s (Author's site)
     # All properties: https://thebadprogrammer.com/swing-uimanager-keys/
 
 
-    def setJComponentStandardUIDefaults(component, key, opaque=False, border=False, background=True, foreground=True, font=True):
-        if font:        component.setFont(UIManager.getFont("%s.font" %(key)))
-        if foreground:  component.setForeground(UIManager.getColor("%s.foreground" %(key)))
-        if background:  component.setBackground(UIManager.getColor("%s.background" %(key)))
-        if opaque:      component.setOpaque(UIManager.getBoolean("%s.opaque" %(key)))
-        if border:      component.setBorder(UIManager.getBorder("%s.border" %(key)))
+    def setJComponentStandardUIDefaults(component, opaque=False, border=False, background=True, foreground=True, font=True):
 
-    class MyJPanel(JPanel, Runnable):
+        if isinstance(component,    JPanel):            key = "Panel"
+        elif isinstance(component,  JLabel):            key = "Label"
+        elif isinstance(component,  JComboBox):         key = "ComboBox"
+        elif isinstance(component,  JButton):           key = "Button"
+        elif isinstance(component,  JTextField):        key = "TextField"
+        elif isinstance(component,  JCheckBox):         key = "CheckBox"
+        elif isinstance(component,  JScrollPane):       key = "ScrollPane"
+        elif isinstance(component,  JMenu):             key = "Menu"
+        elif isinstance(component,  JMenuBar):          key = "MenuBar"
+        elif isinstance(component,  JCheckBoxMenuItem): key = "CheckBoxMenuItem"
+        elif isinstance(component,  JMenuItem):         key = "MenuItem"
+        elif isinstance(component,  JSeparator):        key = "Separator"
+        else: raise Exception("Error in setJComponentStandardUIDefaults() - unknown Component instance: %s" %(component))
+
+        if opaque: component.setOpaque(UIManager.getBoolean("%s.opaque" %(key)))
+
+        if isinstance(component, (JMenu)) or component.getClientProperty("%s.id.reversed" %(myModuleID)):
+            SetupMDColors.updateUI()
+            component.setForeground(SetupMDColors.FOREGROUND_REVERSED)
+            component.setBackground(SetupMDColors.BACKGROUND_REVERSED)
+        else:
+            if foreground: component.setForeground(UIManager.getColor("%s.foreground" %(key)))
+            if background and (component.isOpaque() or isinstance(component, (JComboBox, JTextField, JMenuBar))):
+                component.setBackground(UIManager.getColor("%s.background" %(key)))
+
+        if border: component.setBorder(UIManager.getBorder("%s.border" %(key)))
+        if font:   component.setFont(UIManager.getFont("%s.font" %(key)))
+
+    class MyJPanel(JPanel):
 
         def __init__(self, *args, **kwargs):
-            super(JPanel, self).__init__(*args, **kwargs)                                                               # noqa
+            super(JPanel, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJPanel, self).updateUI()                                                                            # noqa
-            # key = "Panel"
-            # setJComponentStandardUIDefaults(self, key, opaque=True)
-            # SwingUtilities.invokeLater(self)
-
-        # def run(self):
-        #     MoneydanceLAF.installUIRecursive(self)
+            super(MyJPanel, self).updateUI()
+            setJComponentStandardUIDefaults(self)
 
     class MyJLabel(JLabel):
 
         def __init__(self, *args, **kwargs):
-            super(JLabel, self).__init__(*args, **kwargs)                                                               # noqa
+            self.hasMDHeaderBorder = False
+            super(JLabel, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJLabel, self).updateUI()                                                                            # noqa
-            # key = "Label"
-            # setJComponentStandardUIDefaults(self, key, opaque=True)
-            # self.setBackground(None)
+            super(MyJLabel, self).updateUI()
+            setJComponentStandardUIDefaults(self)
+
+            if self.hasMDHeaderBorder: self.setMDHeaderBorder()
+
+        def setMDHeaderBorder(self):
+            self.hasMDHeaderBorder = True
+            self.setBorder(BorderFactory.createLineBorder(GlobalVars.CONTEXT.getUI().colors.headerBorder))
 
     class MyJComboBox(JComboBox):
 
         def __init__(self, *args, **kwargs):
-            super(JComboBox, self).__init__(*args, **kwargs)                                                            # noqa
+            super(JComboBox, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJComboBox, self).updateUI()                                                                         # noqa
-            # key = "ComboBox"
-            # setJComponentStandardUIDefaults(self, key)
+            super(MyJComboBox, self).updateUI()
+            setJComponentStandardUIDefaults(self)
 
     class MyJButton(JButton):
 
         def __init__(self, *args, **kwargs):
-            super(JButton, self).__init__(*args, **kwargs)                                                              # noqa
+            super(JButton, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJButton, self).updateUI()                                                                           # noqa
-            # key = "Button"
+            super(MyJButton, self).updateUI()
             # setJComponentStandardUIDefaults(self, key, opaque=True, border=True)
+            setJComponentStandardUIDefaults(self)
 
     class MyJTextField(JTextField):
 
         def __init__(self, *args, **kwargs):
-            super(JTextField, self).__init__(*args, **kwargs)                                                           # noqa
+            super(JTextField, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJTextField, self).updateUI()                                                                        # noqa
-            # key = "TextField"
-            # setJComponentStandardUIDefaults(self, key)
+            super(MyJTextField, self).updateUI()
+            setJComponentStandardUIDefaults(self)
 
     class MyJCheckBox(JCheckBox):
 
         def __init__(self, *args, **kwargs):
-            super(JCheckBox, self).__init__(*args, **kwargs)                                                            # noqa
+            super(JCheckBox, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJCheckBox, self).updateUI()                                                                         # noqa
-            # key = "CheckBox"
-            # setJComponentStandardUIDefaults(self, key, border=True)
+            super(MyJCheckBox, self).updateUI()
+            setJComponentStandardUIDefaults(self, border=True)
 
     class MyJScrollPane(JScrollPane):
 
         def __init__(self, *args, **kwargs):
-            super(JScrollPane, self).__init__(*args, **kwargs)                                                          # noqa
+            super(JScrollPane, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJScrollPane, self).updateUI()                                                                       # noqa
-            # key = "ScrollPane"
-            # setJComponentStandardUIDefaults(self, key, border=True)
+            super(MyJScrollPane, self).updateUI()
+            setJComponentStandardUIDefaults(self, border=True)
 
     class MyJMenu(JMenu):
 
         def __init__(self, *args, **kwargs):
-            super(JMenu, self).__init__(*args, **kwargs)                                                                # noqa
+            super(JMenu, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJMenu, self).updateUI()                                                                             # noqa
-            # key = "Menu"
-            # setJComponentStandardUIDefaults(self, key, border=True)
-            # Menu.borderPainted
-            # Menu.disabledBackground
-            # Menu.disabledForeground
-            # Menu.selectionBackground
-            # Menu.selectionForeground
+            super(MyJMenu, self).updateUI()
+            # setJComponentStandardUIDefaults(self)
 
     class MyJMenuBar(JMenuBar):
 
         def __init__(self, *args, **kwargs):
-            super(JMenuBar, self).__init__(*args, **kwargs)                                                             # noqa
+            super(JMenuBar, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJMenuBar, self).updateUI()                                                                          # noqa
-            # key = "MenuBar"
-            # setJComponentStandardUIDefaults(self, key, border=True)
-            # SetupMDColors.updateUI()
-            # self.setForeground(SetupMDColors.FOREGROUND_REVERSED)
-            # self.setBackground(SetupMDColors.BACKGROUND_REVERSED)
-            # self.setOpaque(SetupMDColors.OPAQUE)
-            # MenuBar.disabledBackground
-            # MenuBar.disabledForeground
-            # MenuBar.highlight
-            # MenuBar.margin
-            # MenuBar.selectionBackground
-            # MenuBar.selectionForeground
-            # MenuBar.shadow
+            super(MyJMenuBar, self).updateUI()
+            # setJComponentStandardUIDefaults(self)
 
     class MyJCheckBoxMenuItem(JCheckBoxMenuItem):
 
         def __init__(self, *args, **kwargs):
-            super(JCheckBoxMenuItem, self).__init__(*args, **kwargs)                                                    # noqa
+            super(JCheckBoxMenuItem, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJCheckBoxMenuItem, self).updateUI()                                                                 # noqa
-            # key = "CheckBoxMenuItem"
-            # setJComponentStandardUIDefaults(self, key, border=True)
-            # CheckBoxMenuItem.acceleratorDelimiter
-            # CheckBoxMenuItem.acceleratorFont
-            # CheckBoxMenuItem.acceleratorForeground
-            # CheckBoxMenuItem.acceleratorSelectionForeground
-            # CheckBoxMenuItem.borderPainted
-            # CheckBoxMenuItem.disabledBackground
-            # CheckBoxMenuItem.disabledForeground
-            # CheckBoxMenuItem.margin
-            # CheckBoxMenuItem.selectionBackground
-            # CheckBoxMenuItem.selectionForeground
+            super(MyJCheckBoxMenuItem, self).updateUI()
+            # setJComponentStandardUIDefaults(self, border=True)
 
     class MyJMenuItem(JMenuItem):
 
         def __init__(self, *args, **kwargs):
-            super(JMenuItem, self).__init__(*args, **kwargs)                                                            # noqa
+            super(JMenuItem, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJMenuItem, self).updateUI()                                                                         # noqa
-            # key = "MenuItem"
-            # setJComponentStandardUIDefaults(self, key, border=True)
-            # MenuItem.margin
-            # MenuItem.acceleratorDelimiter
-            # MenuItem.acceleratorFont
-            # MenuItem.acceleratorForeground
-            # MenuItem.acceleratorSelectionForeground
-            # MenuItem.arrowIcon
-            # MenuItem.borderPainted
-            # MenuItem.checkIcon
-            # MenuItem.disabledBackground
-            # MenuItem.disabledForeground
-            # MenuItem.selectedBackgroundPainter
-            # MenuItem.selectionBackground
-            # MenuItem.selectionForeground
+            super(MyJMenuItem, self).updateUI()
+            # setJComponentStandardUIDefaults(self, border=True)
 
     class MyJSeparator(JSeparator):
 
         def __init__(self, *args, **kwargs):
-            super(JSeparator, self).__init__(*args, **kwargs)                                                           # noqa
+            super(JSeparator, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJSeparator, self).updateUI()                                                                        # noqa
-            # key = "Separator"
-            # setJComponentStandardUIDefaults(self, key, border=True, background=False)
-            # Separator.highlight
-            # Separator.shadow
+            super(MyJSeparator, self).updateUI()
+            setJComponentStandardUIDefaults(self, border=True, background=False)
+
+    class MyQuickSearchField(QuickSearchField):
+
+        def __init__(self, *args, **kwargs):
+            super(QuickSearchField, self).__init__(*args, **kwargs)
+
+        def updateUI(self):
+            super(MyQuickSearchField, self).updateUI()
+            self.setBackground(GlobalVars.CONTEXT.getUI().colors.defaultBackground)
+            self.setOuterBackground(GlobalVars.CONTEXT.getUI().colors.headerBG)
+            self.setForeground(GlobalVars.CONTEXT.getUI().colors.defaultTextForeground)
 
     # ------------------------------------------------------------------------------------------------------------------
     # com.infinitekind.moneydance.model.AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR : Comparator
@@ -3173,8 +3158,9 @@ Visit: %s (Author's site)
             self.saveMyHomePageView = None
             self.helpFile = "<NONE>"
 
-            self.quickSearchField = QuickSearchField()
-            # self.quickSearchField.setOuterBackground(JLabel().getBackground())
+            self.saveActionListener = None
+
+            self.quickSearchField = MyQuickSearchField()
             document = self.quickSearchField.getDocument()                                                              # noqa
             document.addDocumentListener(MyQuickSearchDocListener(self))
             self.quickSearchField.addFocusListener(MyQuickSearchFocusAdapter(self.quickSearchField,document))           # noqa
@@ -3199,7 +3185,7 @@ Visit: %s (Author's site)
             self.menuItemShowDashesInsteadOfZeros = None
             self.menuItemTreatSecZeroBalInactive = None
 
-            self.mainMenuBar= None
+            self.mainMenuBar = None
 
             self.configPanelOpen = False
 
@@ -3868,33 +3854,16 @@ Visit: %s (Author's site)
 
                 NAB = NetAccountBalancesExtension.getNAB()
 
-                NAB.menuItemDEBUG.setSelected(debug)
-                NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
-                NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
-                NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
-                NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
-
                 # ######################################################################################################
                 # On Mac,since VAqua was used builds 3039 onwards, the JMenuBar() would sometimes appear in the wrong place
                 # It seems that the useScreenMenuBar=false setting needs to be in play as the JFrame is made visible
                 # or perhaps when the JMenuBar() is added.... Hence doing it here. A bit messy I know.....
                 # ... probably I should create a new JFrame() with every config call, but then I would have to change the launch checks...
                 # ######################################################################################################
-                if Platform.isOSX():
-                    save_useScreenMenuBar = System.getProperty("apple.laf.useScreenMenuBar")
-                    if save_useScreenMenuBar is None or save_useScreenMenuBar == "":
-                        save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
-                    System.setProperty("apple.laf.useScreenMenuBar", "false")
-                    System.setProperty("com.apple.macos.useScreenMenuBar", "false")
 
-                    myPrint("DB","...setting the JMenuBar() now....: %s" %(NAB.mainMenuBar))
-                    NAB.theFrame.setJMenuBar(NAB.mainMenuBar)
+                myPrint("DB","...Creating and setting the JMenuBar() now....: %s" %(NAB.mainMenuBar))
+                NAB.createMenus()
 
-                    NAB.mainMenuBar.revalidate()
-                    NAB.mainMenuBar.repaint()
-
-                    System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
-                    System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
                 # ##################################################################################################
 
                 if NAB.configPanelOpen:
@@ -3914,6 +3883,24 @@ Visit: %s (Author's site)
                 else:
                     myPrint("B","WARNING: Book is None.. Perhaps MD is shutting down.. Will do nothing....")
 
+                # The below is in case of a LaF/Theme change
+                pnls = []
+                subPnls = []
+                for comp in NAB.theFrame.getContentPane().getComponents():
+                    if isinstance(comp, JPanel) and comp.getClientProperty("%s.id" %(NAB.myModuleID)) == "controlPnl": pnls.append(comp)
+                    for subComp in comp.getComponents():
+                        if isinstance(subComp, JPanel) and subComp.getClientProperty("%s.id" %(NAB.myModuleID)) == "controlPnl": subPnls.append(comp)
+
+                for comp in subPnls:
+                    myPrint("DB", ".... invalidating: %s" %(comp))
+                    comp.revalidate()
+                    comp.repaint()
+
+                for comp in pnls:
+                    myPrint("DB", ".... invalidating: %s" %(comp))
+                    comp.revalidate()
+                    comp.repaint()
+
                 myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
             # noinspection PyMethodMayBeStatic
@@ -3922,9 +3909,8 @@ Visit: %s (Author's site)
 
                 NAB = NetAccountBalancesExtension.getNAB()
 
-                if Platform.isOSX():
-                    myPrint("DB","...setting JMenuBar() to None")
-                    NAB.theFrame.setJMenuBar(None)
+                myPrint("DB","...setting JMenuBar() to None")
+                NAB.theFrame.setJMenuBar(None)
 
             # noinspection PyMethodMayBeStatic
             def windowDeiconified(self, WindowEvent):                                                                   # noqa
@@ -4836,6 +4822,108 @@ Visit: %s (Author's site)
                 except: pass
             return False
 
+        def createMenus(self):
+            # Called by Listener(s) so will be on the EDT
+
+            NAB = NetAccountBalancesExtension.getNAB()
+
+            # Recreate the Menu system each time - Damn Mac!!
+            NAB.mainMenuBar = MyJMenuBar()
+
+            menuO = MyJMenu("Options")
+            menuO.setForeground(SetupMDColors.FOREGROUND_REVERSED)
+            menuO.setBackground(SetupMDColors.BACKGROUND_REVERSED)
+
+            NAB.menuItemDEBUG = MyJCheckBoxMenuItem("Debug")
+            NAB.menuItemDEBUG.addActionListener(NAB.saveActionListener)
+            NAB.menuItemDEBUG.setToolTipText("Enables extension to output debug information (internal technical stuff)")
+            NAB.menuItemDEBUG.setSelected(debug)
+            menuO.add(NAB.menuItemDEBUG)
+
+            NAB.menuItemAutoSumDefault = MyJCheckBoxMenuItem("AutoSum Default (setting for new/inserted rows)")
+            NAB.menuItemAutoSumDefault.addActionListener(NAB.saveActionListener)
+            NAB.menuItemAutoSumDefault.setToolTipText("Sets the default flag for AutoSum on new rows - does not affect existing/saved rows")
+            NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
+            menuO.add(NAB.menuItemAutoSumDefault)
+
+            NAB.menuItemShowWarningsDefault = MyJCheckBoxMenuItem("Show Warnings (on 'illogical' calculations)")
+            NAB.menuItemShowWarningsDefault.addActionListener(NAB.saveActionListener)
+            NAB.menuItemShowWarningsDefault.setToolTipText("Enables / disables warning alerts if 'illogical' parameters set by user")
+            NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
+            menuO.add(NAB.menuItemShowWarningsDefault)
+
+            NAB.menuItemShowDashesInsteadOfZeros = MyJCheckBoxMenuItem("Show Dashes instead of Zeros")
+            NAB.menuItemShowDashesInsteadOfZeros.addActionListener(NAB.saveActionListener)
+            NAB.menuItemShowDashesInsteadOfZeros.setToolTipText("Replaces the list display to show a '-' in place of '<CURR>0.0'")
+            NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
+            menuO.add(NAB.menuItemShowDashesInsteadOfZeros)
+
+            NAB.menuItemTreatSecZeroBalInactive = MyJCheckBoxMenuItem("Treat Securities with Zero Balance as Inactive")
+            NAB.menuItemTreatSecZeroBalInactive.addActionListener(NAB.saveActionListener)
+            NAB.menuItemTreatSecZeroBalInactive.setToolTipText("When enabled will treat securities with a zero balance as 'Inactive'")
+            NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
+            menuO.add(NAB.menuItemTreatSecZeroBalInactive)
+
+            menuItemDeactivate = MyJMenuItem("Deactivate Extension")
+            menuItemDeactivate.addActionListener(NAB.saveActionListener)
+            menuItemDeactivate.setToolTipText("Deactivates this extension and also the HomePage 'widget' (will reactivate upon MD restart)")
+            menuItemDeactivate.setSelected(True)
+            if debug:
+                menuO.add(menuItemDeactivate)  # Removed at the request of Sean (IK) to allow onto extensions list
+
+            menuItemUninstall = MyJMenuItem("Uninstall Extension")
+            menuItemUninstall.addActionListener(NAB.saveActionListener)
+            menuItemUninstall.setToolTipText("Uninstalls and removes this extension (and also the HomePage 'widget'). This is permanent until you reinstall...")
+            menuItemUninstall.setSelected(True)
+            if debug:
+                menuO.add(menuItemUninstall)  # Removed at the request of Sean (IK) to allow onto extensions list
+
+            NAB.mainMenuBar.add(menuO)
+
+            menuA = MyJMenu("About")
+            menuA.setForeground(SetupMDColors.FOREGROUND_REVERSED)
+            menuA.setBackground(SetupMDColors.BACKGROUND_REVERSED)
+
+            menuItemA = MyJMenuItem("About")
+            menuItemA.setToolTipText("About...")
+            menuItemA.addActionListener(NAB.saveActionListener)
+            menuItemA.setEnabled(True)
+            menuA.add(menuItemA)
+
+            menuItemH = MyJMenuItem("Help")
+            menuItemH.setToolTipText("Help - show the readme.txt file...")
+            menuItemH.addActionListener(NAB.saveActionListener)
+            menuItemH.setEnabled(True)
+            menuA.add(menuItemH)
+
+            NAB.mainMenuBar.add(menuA)
+
+            if Platform.isOSX():
+                save_useScreenMenuBar = System.getProperty("apple.laf.useScreenMenuBar")
+                if save_useScreenMenuBar is None or save_useScreenMenuBar == "":
+                    save_useScreenMenuBar= System.getProperty("com.apple.macos.useScreenMenuBar")
+                System.setProperty("apple.laf.useScreenMenuBar", "false")
+                System.setProperty("com.apple.macos.useScreenMenuBar", "false")
+            else:
+                save_useScreenMenuBar = None
+
+            NAB.theFrame.setJMenuBar(NAB.mainMenuBar)
+            NAB.mainMenuBar.revalidate()
+            NAB.mainMenuBar.repaint()
+
+            if Platform.isOSX():
+                System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
+                System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
+
+            NAB.menuItemDEBUG.setSelected(debug)
+            NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
+            NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
+            NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
+            NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
+
+
+
+
         def build_main_frame(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -4977,9 +5065,10 @@ Visit: %s (Author's site)
                     NAB.jlst.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
                     NAB.jlst.setSelectionModel(MyDefaultListSelectionModel())
 
-                    saveMyActionListener = NAB.MyActionListener()
+                    NAB.saveActionListener = NAB.MyActionListener()
 
-                    pnl = MyJPanel(GridBagLayout())
+                    controlPnl = MyJPanel(GridBagLayout())
+                    controlPnl.putClientProperty("%s.id" %(NAB.myModuleID), "controlPnl")
 
                     colLeftInset = 3
                     colRightInset = 3
@@ -4990,46 +5079,57 @@ Visit: %s (Author's site)
                     onCol = 0
                     topInset = 12
                     rowSelected_COMBOLabel = MyJLabel("Select Row to Configure:")
-                    pnl.add(rowSelected_COMBOLabel, GridC.getc(onCol, onRow).leftInset(colLeftInset).rightInset(colInsetFiller).fillx().topInset(topInset))
+                    rowSelected_COMBOLabel.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBOLabel")
+                    controlPnl.add(rowSelected_COMBOLabel, GridC.getc(onCol, onRow).leftInset(colLeftInset).rightInset(colInsetFiller).fillx().topInset(topInset))
                     onCol += 1
 
                     NAB.rowSelected_COMBO = MyJComboBox([None])
                     NAB.rowSelected_COMBO.setName("rowSelected_COMBO")
+                    NAB.rowSelected_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBO")
                     NAB.rowSelected_COMBO.setToolTipText("Select the row you would like to configure")
-                    NAB.rowSelected_COMBO.addActionListener(saveMyActionListener)
-                    pnl.add(NAB.rowSelected_COMBO, GridC.getc(onCol, onRow).west().topInset(topInset).leftInset(colInsetFiller))
+                    NAB.rowSelected_COMBO.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.rowSelected_COMBO, GridC.getc(onCol, onRow).west().topInset(topInset).leftInset(colInsetFiller))
 
                     onCol += 1
-                    NetAccountBalancesExtension.getNAB().warning_label = MyJLabel("",JLabel.CENTER)
-                    NetAccountBalancesExtension.getNAB().warning_label.setBorder(BorderFactory.createLineBorder(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.headerBorder))
-                    pnl.add(NetAccountBalancesExtension.getNAB().warning_label, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    NAB.warning_label = MyJLabel("",JLabel.CENTER)
+                    NAB.warning_label.putClientProperty("%s.id" %(NAB.myModuleID), "warning_label")
+                    NAB.warning_label.setMDHeaderBorder()
+                    controlPnl.add(NAB.warning_label, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
 
                     # -----------------------------------------------------------------------------------
                     onCol = 0
                     insertBefore_button = MyJButton("Insert Row before")
+                    insertBefore_button.putClientProperty("%s.id" %(NAB.myModuleID), "insertBefore_button")
+                    insertBefore_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     insertBefore_button.setToolTipText("Inserts a new row before this one...")
-                    insertBefore_button.addActionListener(saveMyActionListener)
-                    pnl.add(insertBefore_button, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillx())
+                    insertBefore_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(insertBefore_button, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillx())
                     onCol += 1
 
                     insertAfter_button = MyJButton("Insert Row after")
+                    insertAfter_button.putClientProperty("%s.id" %(NAB.myModuleID), "insertAfter_button")
+                    insertAfter_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     insertAfter_button.setToolTipText("Inserts a new row after this one...")
-                    insertAfter_button.addActionListener(saveMyActionListener)
-                    pnl.add(insertAfter_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
+                    insertAfter_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(insertAfter_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
                     onCol += 1
 
                     deleteRow_button = MyJButton("Delete Row")
+                    deleteRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "deleteRow_button")
+                    deleteRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     deleteRow_button.setToolTipText("Deletes this row...")
-                    deleteRow_button.addActionListener(saveMyActionListener)
-                    pnl.add(deleteRow_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
+                    deleteRow_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(deleteRow_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
                     onCol += 1
 
                     moveRow_button = MyJButton("Move Row")
+                    moveRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "moveRow_button")
+                    moveRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     moveRow_button.setToolTipText("Moves this row elsewhere...")
-                    moveRow_button.addActionListener(saveMyActionListener)
-                    pnl.add(moveRow_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
+                    moveRow_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(moveRow_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
                     onCol += 1
 
                     onRow += 1
@@ -5037,51 +5137,63 @@ Visit: %s (Author's site)
                     # -----------------------------------------------------------------------------------
                     onCol = 0
                     duplicateRow_button = MyJButton("Duplicate Row")
+                    duplicateRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "duplicateRow_button")
+                    duplicateRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     duplicateRow_button.setToolTipText("Duplicates this row...")
-                    duplicateRow_button.addActionListener(saveMyActionListener)
-                    pnl.add(duplicateRow_button, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillx())
+                    duplicateRow_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(duplicateRow_button, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillx())
                     onCol += 1
 
                     cancelChanges_button = MyJButton("Reload Settings")
+                    cancelChanges_button.putClientProperty("%s.id" %(NAB.myModuleID), "cancelChanges_button")
+                    cancelChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     cancelChanges_button.setToolTipText("Reloads all settings from last saved")
-                    cancelChanges_button.addActionListener(saveMyActionListener)
-                    pnl.add(cancelChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
+                    cancelChanges_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(cancelChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
                     onCol += 1
 
                     resetDefaults_button = MyJButton("Reset Defaults")
+                    resetDefaults_button.putClientProperty("%s.id" %(NAB.myModuleID), "resetDefaults_button")
+                    resetDefaults_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     resetDefaults_button.setToolTipText("Wipes all saved settings, resets to defaults with 1 row (does not save)")
-                    resetDefaults_button.addActionListener(saveMyActionListener)
-                    pnl.add(resetDefaults_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
+                    resetDefaults_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(resetDefaults_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
                     onCol += 1
 
                     saveSettings_button = MyJButton("Save All Settings".upper())
+                    saveSettings_button.putClientProperty("%s.id" %(NAB.myModuleID), "saveSettings_button")
+                    saveSettings_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     saveSettings_button.setToolTipText("Saves all the changes made to settings")
-                    saveSettings_button.addActionListener(saveMyActionListener)
-                    pnl.add(saveSettings_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
+                    saveSettings_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(saveSettings_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
                     onRow += 1
 
                     # -----------------------------------------------------------------------------------
                     onCol = 0
                     topInset = 8
                     bottomInset = 5
-                    pnl.add(MyJSeparator(), GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(4).fillx())
+                    controlPnl.add(MyJSeparator(), GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(4).fillx())
                     onRow += 1
 
                     # -----------------------------------------------------------------------------------
                     onCol = 0
                     topInset = 4
-                    pnl.add(JLabel("Row Name:"), GridC.getc(onCol, onRow).east().leftInset(colLeftInset).topInset(topInset))
+                    rowNameLabel = MyJLabel("Row Name:")
+                    rowNameLabel.putClientProperty("%s.id" %(NAB.myModuleID), "rowNameLabel")
+                    controlPnl.add(rowNameLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset).topInset(topInset))
                     onCol += 1
 
                     NAB.widgetNameField_JTF = MyJTextField(NAB.savedWidgetName[0])
+                    NAB.widgetNameField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setName("widgetNameField_JTF")
                     NAB.widgetNameField_JTF.addFocusListener(NAB.MyWidgetNameFocusAdapter())
-                    pnl.add(NAB.widgetNameField_JTF, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
+                    controlPnl.add(NAB.widgetNameField_JTF, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
-                    NetAccountBalancesExtension.getNAB().simulateTotal_label = MyJLabel("<html><i>result here</i></html>",JLabel.CENTER)
-                    NetAccountBalancesExtension.getNAB().simulateTotal_label.setBorder(BorderFactory.createLineBorder(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.headerBorder))
-                    pnl.add(NetAccountBalancesExtension.getNAB().simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    NAB.simulateTotal_label = MyJLabel("<html><i>result here</i></html>",JLabel.CENTER)
+                    NAB.simulateTotal_label.putClientProperty("%s.id" %(NAB.myModuleID), "simulateTotal_label")
+                    NAB.simulateTotal_label.setMDHeaderBorder()
+                    controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
 
@@ -5089,36 +5201,44 @@ Visit: %s (Author's site)
                     onCol = 0
                     topInset = 2
 
-                    pnl.add(JLabel("Balance Option:"), GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    balanceOptionLabel = MyJLabel("Balance Option:")
+                    balanceOptionLabel.putClientProperty("%s.id" %(NAB.myModuleID), "balanceOptionLabel")
+                    controlPnl.add(balanceOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
                     balanceTypes = ["Balance", "Current Balance", "Cleared Balance"]
                     NAB.balanceType_COMBO = MyJComboBox(balanceTypes)
+                    NAB.balanceType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "balanceType_COMBO")
                     NAB.balanceType_COMBO.setName("balanceType_COMBO")
                     NAB.balanceType_COMBO.setToolTipText("Select the balance type to total: Balance (i.e. the final balance), Current Balance (as of today), Cleared Balance")
-                    NAB.balanceType_COMBO.addActionListener(saveMyActionListener)
-                    pnl.add(NAB.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    NAB.balanceType_COMBO.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
                     onCol += 1
 
                     NAB.autoSumAccounts_CB = MyJCheckBox("AutoSum Accounts", True)
+                    NAB.autoSumAccounts_CB.putClientProperty("%s.id" %(NAB.myModuleID), "autoSumAccounts_CB")
+                    NAB.autoSumAccounts_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.autoSumAccounts_CB.setName("autoSumAccounts_CB")
                     NAB.autoSumAccounts_CB.setToolTipText("AutoSum will auto sum/total the account recursively down the tree, including Securities. AutoSum=OFF means each item is totalled separately")
-                    NAB.autoSumAccounts_CB.addActionListener(saveMyActionListener)
-                    pnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    NAB.autoSumAccounts_CB.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
 
                     onRow += 1
                     topInset = 2
 
                     # -----------------------------------------------------------------------------------
                     onCol = 0
-                    pnl.add(JLabel("Display Currency:"), GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    displayCurrencyLabel = MyJLabel("Display Currency:")
+                    displayCurrencyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "displayCurrencyLabel")
+                    controlPnl.add(displayCurrencyLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
                     NAB.currency_COMBO = MyJComboBox([None])
+                    NAB.currency_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "currency_COMBO")
                     NAB.currency_COMBO.setName("currency_COMBO")
                     NAB.currency_COMBO.setToolTipText("Select the Currency to convert / display totals (default = your base currency)")
-                    NAB.currency_COMBO.addActionListener(saveMyActionListener)
-                    pnl.add(NAB.currency_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(2).fillx())
+                    NAB.currency_COMBO.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.currency_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(2).fillx())
                     onRow += 1
 
                     # -----------------------------------------------------------------------------------
@@ -5127,28 +5247,35 @@ Visit: %s (Author's site)
 
                     includeInactiveOptions = ["Active Only", "Include Inactive"]
                     NAB.includeInactive_COMBO = MyJComboBox(includeInactiveOptions)
+                    NAB.includeInactive_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "includeInactive_COMBO")
                     NAB.includeInactive_COMBO.setName("includeInactive_COMBO")
                     NAB.includeInactive_COMBO.setToolTipText("Select to only list Active items, or also include Inactive too")
-                    NAB.includeInactive_COMBO.addActionListener(saveMyActionListener)
-                    pnl.add(NAB.includeInactive_COMBO, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).fillx())
+                    NAB.includeInactive_COMBO.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.includeInactive_COMBO, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset+3).fillx())
                     onCol += 1
 
                     clearList_button = MyJButton("Clear Selection")
+                    clearList_button.putClientProperty("%s.id" %(NAB.myModuleID), "clearList_button")
+                    clearList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     clearList_button.setToolTipText("Clears the current selection(s)...")
-                    clearList_button.addActionListener(saveMyActionListener)
-                    pnl.add(clearList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    clearList_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(clearList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
                     onCol += 1
 
                     storeAccountList_button = MyJButton("Store List Changes")
+                    storeAccountList_button.putClientProperty("%s.id" %(NAB.myModuleID), "storeAccountList_button")
+                    storeAccountList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     storeAccountList_button.setToolTipText("Stores the selected account list into memory (does not save)")
-                    storeAccountList_button.addActionListener(saveMyActionListener)
-                    pnl.add(storeAccountList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    storeAccountList_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(storeAccountList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
                     onCol += 1
 
                     undoListChanges_button = MyJButton("Undo List Changes")
+                    undoListChanges_button.putClientProperty("%s.id" %(NAB.myModuleID), "undoListChanges_button")
+                    undoListChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     undoListChanges_button.setToolTipText("Undo your account list changes and revert to last saved list")
-                    undoListChanges_button.addActionListener(saveMyActionListener)
-                    pnl.add(undoListChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).topInset(topInset).fillx())
+                    undoListChanges_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(undoListChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).topInset(topInset).fillx())
 
                     onRow += 1
 
@@ -5157,19 +5284,21 @@ Visit: %s (Author's site)
                     topInset = 7
                     bottomInset = 10
 
-                    pnl.add(NAB.quickSearchField,GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
+                    controlPnl.add(NAB.quickSearchField,GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
 
                     onCol += 3
                     topInset = 0
                     bottomInset = 0
 
                     NAB.keyLabel = MyJLabel("Key:")
-                    pnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().insets(topInset,colLeftInset,bottomInset,colRightInset))
+                    NAB.keyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "keyLabel")
+                    controlPnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().insets(topInset,colLeftInset,bottomInset,colRightInset))
 
                     onRow += 1
                     # -----------------------------------------------------------------------------------
 
                     scrollpane = MyJScrollPane(NAB.jlst, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+                    scrollpane.putClientProperty("%s.id" %(NAB.myModuleID), "scrollpane")
                     scrollpane.setViewportBorder(EmptyBorder(5, colLeftInset, 5, colRightInset))
                     scrollpane.setOpaque(False)
 
@@ -5184,12 +5313,10 @@ Visit: %s (Author's site)
                     # scrollpane.setMinimumSize(Dimension(desired_scrollPane_width, calcScrollPaneHeight))
                     # scrollpane.setMaximumSize(Dimension(int(round(screenSize.width * 0.9,0)), int(round((screenSize.height * 0.9) - scrollPaneTop - 70,0))))
 
-                    spPnl = MyJPanel(BorderLayout())
-                    spPnl.add(scrollpane,BorderLayout.NORTH)
-
                     # -----------------------------------------------------------------------------------
                     mainPnl = MyJPanel(BorderLayout())
-                    mainPnl.add(pnl, BorderLayout.NORTH)
+                    mainPnl.putClientProperty("%s.id" %(NAB.myModuleID), "mainPnl")
+                    mainPnl.add(controlPnl, BorderLayout.NORTH)
                     mainPnl.add(scrollpane, BorderLayout.CENTER)
 
                     NAB.theFrame.getContentPane().setLayout(BorderLayout())
@@ -5223,75 +5350,7 @@ Visit: %s (Author's site)
                     NAB.theFrame.setExtendedState(JFrame.NORMAL)
                     NAB.theFrame.setResizable(True)
 
-                    NAB.mainMenuBar = MyJMenuBar()
-                    # menuO = MyJMenu("<html><B>Options</b></html>")
-                    menuO = MyJMenu("Options")
-
-                    NAB.menuItemDEBUG = MyJCheckBoxMenuItem("Debug")
-                    NAB.menuItemDEBUG.addActionListener(saveMyActionListener)
-                    NAB.menuItemDEBUG.setToolTipText("Enables extension to output debug information (internal technical stuff)")
-                    NAB.menuItemDEBUG.setSelected(debug)
-                    menuO.add(NAB.menuItemDEBUG)
-
-                    NAB.menuItemAutoSumDefault = MyJCheckBoxMenuItem("AutoSum Default (setting for new/inserted rows)")
-                    NAB.menuItemAutoSumDefault.addActionListener(saveMyActionListener)
-                    NAB.menuItemAutoSumDefault.setToolTipText("Sets the default flag for AutoSum on new rows - does not affect existing/saved rows")
-                    NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
-                    menuO.add(NAB.menuItemAutoSumDefault)
-
-                    NAB.menuItemShowWarningsDefault = MyJCheckBoxMenuItem("Show Warnings (on 'illogical' calculations)")
-                    NAB.menuItemShowWarningsDefault.addActionListener(saveMyActionListener)
-                    NAB.menuItemShowWarningsDefault.setToolTipText("Enables / disables warning alerts if 'illogical' parameters set by user")
-                    NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
-                    menuO.add(NAB.menuItemShowWarningsDefault)
-
-                    NAB.menuItemShowDashesInsteadOfZeros = MyJCheckBoxMenuItem("Show Dashes instead of Zeros")
-                    NAB.menuItemShowDashesInsteadOfZeros.addActionListener(saveMyActionListener)
-                    NAB.menuItemShowDashesInsteadOfZeros.setToolTipText("Replaces the list display to show a '-' in place of '<CURR>0.0'")
-                    NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
-                    menuO.add(NAB.menuItemShowDashesInsteadOfZeros)
-
-                    NAB.menuItemTreatSecZeroBalInactive = MyJCheckBoxMenuItem("Treat Securities with Zero Balance as Inactive")
-                    NAB.menuItemTreatSecZeroBalInactive.addActionListener(saveMyActionListener)
-                    NAB.menuItemTreatSecZeroBalInactive.setToolTipText("When enabled will treat securities with a zero balance as 'Inactive'")
-                    NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
-                    menuO.add(NAB.menuItemTreatSecZeroBalInactive)
-
-                    menuItemDeactivate = MyJMenuItem("Deactivate Extension")
-                    menuItemDeactivate.addActionListener(saveMyActionListener)
-                    menuItemDeactivate.setToolTipText("Deactivates this extension and also the HomePage 'widget' (will reactivate upon MD restart)")
-                    menuItemDeactivate.setSelected(True)
-                    if debug:
-                        menuO.add(menuItemDeactivate)  # Removed at the request of Sean (IK) to allow onto extensions list
-
-                    menuItemUninstall = MyJMenuItem("Uninstall Extension")
-                    menuItemUninstall.addActionListener(saveMyActionListener)
-                    menuItemUninstall.setToolTipText("Uninstalls and removes this extension (and also the HomePage 'widget'). This is permanent until you reinstall...")
-                    menuItemUninstall.setSelected(True)
-                    if debug:
-                        menuO.add(menuItemUninstall)  # Removed at the request of Sean (IK) to allow onto extensions list
-
-                    NAB.mainMenuBar.add(menuO)
-
-                    # menuA = MyJMenu("<html><B>About</b></html>")
-                    menuA = MyJMenu("About")
-
-                    menuItemA = MyJMenuItem("About")
-                    menuItemA.setToolTipText("About...")
-                    menuItemA.addActionListener(saveMyActionListener)
-                    menuItemA.setEnabled(True)
-                    menuA.add(menuItemA)
-
-                    menuItemH = MyJMenuItem("Help")
-                    menuItemH.setToolTipText("Help - show the readme.txt file...")
-                    menuItemH.addActionListener(saveMyActionListener)
-                    menuItemH.setEnabled(True)
-                    menuA.add(menuItemH)
-
-                    NAB.mainMenuBar.add(menuA)
-
-                    if not Platform.isOSX():
-                        NAB.theFrame.setJMenuBar(NAB.mainMenuBar)
+                    # No longer setting up menu here....
 
                     NAB.theFrame.pack()
                     NAB.theFrame.setLocationRelativeTo(None)
