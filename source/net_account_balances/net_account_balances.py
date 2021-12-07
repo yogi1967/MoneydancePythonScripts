@@ -2857,8 +2857,8 @@ Visit: %s (Author's site)
 
     class MyJPanel(JPanel, Runnable):
 
-        def __init__(self, layout):
-            super(JPanel, self).__init__(layout)                                                                        # noqa
+        def __init__(self, *args, **kwargs):
+            super(JPanel, self).__init__(*args, **kwargs)                                                               # noqa
 
         def updateUI(self):
             super(MyJPanel, self).updateUI()                                                                            # noqa
@@ -2871,8 +2871,8 @@ Visit: %s (Author's site)
 
     class MyJLabel(JLabel):
 
-        def __init__(self, _text, _alignment=JLabel.LEFT):
-            super(JLabel, self).__init__(_text, _alignment)                                                             # noqa
+        def __init__(self, *args, **kwargs):
+            super(JLabel, self).__init__(*args, **kwargs)                                                               # noqa
 
         def updateUI(self):
             super(MyJLabel, self).updateUI()                                                                            # noqa
@@ -2882,8 +2882,8 @@ Visit: %s (Author's site)
 
     class MyJComboBox(JComboBox):
 
-        def __init__(self, _model):
-            super(JComboBox, self).__init__(_model)                                                                     # noqa
+        def __init__(self, *args, **kwargs):
+            super(JComboBox, self).__init__(*args, **kwargs)                                                            # noqa
 
         def updateUI(self):
             super(MyJComboBox, self).updateUI()                                                                         # noqa
@@ -2892,8 +2892,8 @@ Visit: %s (Author's site)
 
     class MyJButton(JButton):
 
-        def __init__(self, _button):
-            super(JButton, self).__init__(_button)                                                                      # noqa
+        def __init__(self, *args, **kwargs):
+            super(JButton, self).__init__(*args, **kwargs)                                                              # noqa
 
         def updateUI(self):
             super(MyJButton, self).updateUI()                                                                           # noqa
@@ -2902,8 +2902,8 @@ Visit: %s (Author's site)
 
     class MyJTextField(JTextField):
 
-        def __init__(self, _text):
-            super(JTextField, self).__init__(_text)                                                                     # noqa
+        def __init__(self, *args, **kwargs):
+            super(JTextField, self).__init__(*args, **kwargs)                                                           # noqa
 
         def updateUI(self):
             super(MyJTextField, self).updateUI()                                                                        # noqa
@@ -2912,8 +2912,8 @@ Visit: %s (Author's site)
 
     class MyJCheckBox(JCheckBox):
 
-        def __init__(self, _name, _enabled):
-            super(JCheckBox, self).__init__(_name, _enabled)                                                            # noqa
+        def __init__(self, *args, **kwargs):
+            super(JCheckBox, self).__init__(*args, **kwargs)                                                            # noqa
 
         def updateUI(self):
             super(MyJCheckBox, self).updateUI()                                                                         # noqa
@@ -2922,8 +2922,8 @@ Visit: %s (Author's site)
 
     class MyJScrollPane(JScrollPane):
 
-        def __init__(self, _scrollWhat, vSB, hSB):
-            super(JScrollPane, self).__init__(_scrollWhat, vSB, hSB)                                                    # noqa
+        def __init__(self, *args, **kwargs):
+            super(JScrollPane, self).__init__(*args, **kwargs)                                                          # noqa
 
         def updateUI(self):
             super(MyJScrollPane, self).updateUI()                                                                       # noqa
@@ -2932,8 +2932,8 @@ Visit: %s (Author's site)
 
     class MyJMenu(JMenu):
 
-        def __init__(self, _menuItem):
-            super(JMenu, self).__init__(_menuItem)                                                                      # noqa
+        def __init__(self, *args, **kwargs):
+            super(JMenu, self).__init__(*args, **kwargs)                                                                # noqa
 
         def updateUI(self):
             super(MyJMenu, self).updateUI()                                                                             # noqa
@@ -2947,8 +2947,8 @@ Visit: %s (Author's site)
 
     class MyJMenuBar(JMenuBar):
 
-        def __init__(self):
-            super(JMenuBar, self).__init__()                                                                            # noqa
+        def __init__(self, *args, **kwargs):
+            super(JMenuBar, self).__init__(*args, **kwargs)                                                             # noqa
 
         def updateUI(self):
             super(MyJMenuBar, self).updateUI()                                                                          # noqa
@@ -2968,8 +2968,8 @@ Visit: %s (Author's site)
 
     class MyJCheckBoxMenuItem(JCheckBoxMenuItem):
 
-        def __init__(self, _item):
-            super(JCheckBoxMenuItem, self).__init__(_item)                                                              # noqa
+        def __init__(self, *args, **kwargs):
+            super(JCheckBoxMenuItem, self).__init__(*args, **kwargs)                                                    # noqa
 
         def updateUI(self):
             super(MyJCheckBoxMenuItem, self).updateUI()                                                                 # noqa
@@ -2988,8 +2988,8 @@ Visit: %s (Author's site)
 
     class MyJMenuItem(JMenuItem):
 
-        def __init__(self, _item):
-            super(JMenuItem, self).__init__(_item)                                                                      # noqa
+        def __init__(self, *args, **kwargs):
+            super(JMenuItem, self).__init__(*args, **kwargs)                                                            # noqa
 
         def updateUI(self):
             super(MyJMenuItem, self).updateUI()                                                                         # noqa
@@ -3011,8 +3011,8 @@ Visit: %s (Author's site)
 
     class MyJSeparator(JSeparator):
 
-        def __init__(self):
-            super(JSeparator, self).__init__()                                                                          # noqa
+        def __init__(self, *args, **kwargs):
+            super(JSeparator, self).__init__(*args, **kwargs)                                                           # noqa
 
         def updateUI(self):
             super(MyJSeparator, self).updateUI()                                                                        # noqa
@@ -3163,6 +3163,7 @@ Visit: %s (Author's site)
 
             self.migratedParameters = False
             self.warningInParametersDetected = False
+            self.warningInParametersDetectedType = False
             self.warningInParametersDetectedInRow = None
 
             self.parametersLoaded = False
@@ -3208,6 +3209,7 @@ Visit: %s (Author's site)
             self.widgetNameField_JTF = None
             self.includeInactive_COMBO = None
             self.autoSumAccounts_CB = None
+            self.keyLabel = None
 
             self.rowSelectedSaved = 0
             self.rowSelected_COMBO = None
@@ -3613,6 +3615,25 @@ Visit: %s (Author's site)
 
             self.rowSelectedSaved       = 0
 
+
+        def setKeyLabel(self, _row):
+            NAB = NetAccountBalancesExtension.getNAB()
+            myPrint("DB", "about to set key label..")
+            if not NAB.savedIncludeInactive[_row]:
+                if NAB.keyLabel.getIcon() is None:
+                    mdImages = NAB.moneydanceContext.getUI().getImages()
+                    iconTintInactive = NAB.moneydanceContext.getUI().colors.errorMessageForeground
+                    iconInactive = mdImages.getIconWithColor(MDImages.GRIP_VERTICAL, iconTintInactive)
+                    NAB.keyLabel.setIcon(iconInactive)
+                NAB.keyLabel.setText(wrap_HTML_small("","WARNING: Includes Inactive(s)"))
+                NAB.keyLabel.setHorizontalAlignment(JLabel.RIGHT)
+                NAB.keyLabel.setHorizontalTextPosition(JLabel.LEFT)
+                NAB.keyLabel.repaint()
+            else:
+                NAB.keyLabel.setText("")
+                NAB.keyLabel.setIcon(None)
+                NAB.keyLabel.repaint()
+
         def rebuildFrameComponents(self, selectRowIndex=0):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
@@ -3655,6 +3676,8 @@ Visit: %s (Author's site)
 
             myPrint("DB", "about to set widget name..")
             self.widgetNameField_JTF.setText(self.savedWidgetName[selectRowIndex])
+
+            self.setKeyLabel(selectRowIndex)
 
             # Rebuild Currency Dropdown, and pre-select correct one
             currencyChoices = []
@@ -4026,6 +4049,17 @@ Visit: %s (Author's site)
             myPrint("DB", "... About to call HomePageView .refresh() after updating accounts list via SwingUtilities.invokeLater(MyRefreshRunnable())")
             SwingUtilities.invokeLater(self.MyRefreshRunnable())
 
+        def getWarningType(self, _type):
+            if _type == 0:
+                return("MULTI-WARNINGS")
+            elif _type == 1:
+                return("AUTOSUM: ALSO IN PARENT WARNING")
+            elif _type == 2:
+                return("INCLUDES INACTIVE CHILD WARNING")
+            elif _type == 3:
+                return("PARENT IS INACTIVE WARNING")
+            return("WARNING DETECTED")
+
         def simulateTotalForRow(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
@@ -4042,7 +4076,7 @@ Visit: %s (Author's site)
             totalBalanceTable = MyHomePageView.ViewPanel.calculateBalances(book, self.getSelectedRowIndex())
 
             if NAB.warningInParametersDetected and NAB.savedShowWarningsDefault:
-                NAB.warning_label.setText("*WARNING DETECTED*")
+                NAB.warning_label.setText("*%s*" %(self.getWarningType(NAB.warningInParametersDetectedType)))
                 NAB.warning_label.setForeground(md.getUI().colors.errorMessageForeground)
             elif NAB.savedShowWarningsDefault:
                 NAB.warning_label.setText(wrap_HTML_small("","no warnings detected",altFG))
@@ -4131,6 +4165,7 @@ Visit: %s (Author's site)
                         if NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
                             myPrint("DB", ".. setting savedIncludeInactive to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
                             NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                            NAB.setKeyLabel(NAB.getSelectedRowIndex())
                             NAB.rebuildJList()
                             NAB.configSaved = False
                             NetAccountBalancesExtension.getNAB().simulateTotalForRow()
@@ -4963,12 +4998,11 @@ Visit: %s (Author's site)
                     NAB.rowSelected_COMBO.setToolTipText("Select the row you would like to configure")
                     NAB.rowSelected_COMBO.addActionListener(saveMyActionListener)
                     pnl.add(NAB.rowSelected_COMBO, GridC.getc(onCol, onRow).west().topInset(topInset).leftInset(colInsetFiller))
-                    onCol += 1
 
                     onCol += 1
                     NetAccountBalancesExtension.getNAB().warning_label = MyJLabel("",JLabel.CENTER)
                     NetAccountBalancesExtension.getNAB().warning_label.setBorder(BorderFactory.createLineBorder(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.headerBorder))
-                    pnl.add(NetAccountBalancesExtension.getNAB().warning_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    pnl.add(NetAccountBalancesExtension.getNAB().warning_label, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
 
@@ -5129,15 +5163,8 @@ Visit: %s (Author's site)
                     topInset = 0
                     bottomInset = 0
 
-                    pnl.add(JLabel(wrap_HTML_small("","Total includes Inactive(s)")),GridC.getc(onCol, onRow).southEast().insets(topInset,colLeftInset,bottomInset,colRightInset))
-
-                    mdImages = NAB.moneydanceContext.getUI().getImages()
-                    iconTintInactive = NAB.moneydanceContext.getUI().colors.errorMessageForeground
-                    iconInactive = mdImages.getIconWithColor(MDImages.GRIP_VERTICAL, iconTintInactive)
-                    onCol += 1
-
-                    bottomInset = 2
-                    pnl.add(JLabel(iconInactive),GridC.getc(onCol, onRow).east().south().insets(topInset,colLeftInset,bottomInset,colRightInset))
+                    NAB.keyLabel = MyJLabel("Key:")
+                    pnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().insets(topInset,colLeftInset,bottomInset,colRightInset))
 
                     onRow += 1
                     # -----------------------------------------------------------------------------------
@@ -5688,6 +5715,7 @@ Visit: %s (Author's site)
                     except: pass
 
                     lWarningDetected = False
+                    iWarningType = None
                     iWarningDetectedInRow = None
 
                     # Iterate each row
@@ -5736,6 +5764,7 @@ Visit: %s (Author's site)
                                                 if acct == checkAcct: continue
                                                 if acct in checkAcct.getPath()[:-1]:
                                                     lWarningDetected = True
+                                                    iWarningType = (1 if (iWarningType is None or iWarningType == 1) else 0)
                                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
                                                     myPrint("B","WARNING: Row: %s >> AutoSum ON and Selected acct: %s found in parent acct hierarchy: '%s' when ultimate parent: '%s' also selected" %(onRow, checkAcct, checkAcct.getPath()[:-1],acct))
 
@@ -5743,11 +5772,13 @@ Visit: %s (Author's site)
                                                 inactiveChild = accountIncludesInactiveChildren(acct, NAB.savedBalanceType[iAccountLoop])
                                                 if inactiveChild:
                                                     lWarningDetected = True
+                                                    iWarningType = (2 if (iWarningType is None or iWarningType == 2) else 0)
                                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
                                                     myPrint("B","WARNING: Row: %s >> AutoSum ON, Excluding Inactive Accounts, BUT account: '%s' includes inactive child with a balance: '%s'" %(onRow, acct, inactiveChild))
 
                                         if not NAB.savedIncludeInactive[iAccountLoop] and not isAccountActive(acct, NAB.savedBalanceType[iAccountLoop]):
                                             lWarningDetected = True
+                                            iWarningType = (3 if (iWarningType is None or iWarningType == 3) else 0)
                                             iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
                                             myPrint("B","WARNING: Row: %s >> Excluding Inactive Accounts, BUT selected acct / parent hierarchy flagged as inactive somewhere: %s"
                                                     %(onRow, acct))
@@ -5806,10 +5837,8 @@ Visit: %s (Author's site)
                                         or (iCountSecurities and (iCountIncomeExpense))):
 
                                     lWarningDetected = True
-                                    if iWarningDetectedInRow is None or iWarningDetectedInRow == onRow:
-                                        iWarningDetectedInRow = onRow
-                                    else:
-                                        iWarningDetectedInRow = 0
+                                    iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
 
                                     myPrint("B","WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                             %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
@@ -5830,6 +5859,7 @@ Visit: %s (Author's site)
                         myPrint("DB",".. Row: %s - DEBUG >> Calculated a total (potentially mixed currency) total of %s" %(i+1, result))
 
                     NAB.warningInParametersDetected = lWarningDetected
+                    NAB.warningInParametersDetectedType = iWarningType
                     NAB.warningInParametersDetectedInRow = iWarningDetectedInRow
                     if NAB.warningInParametersDetected: myPrint("B","@@ WARNING in parameter setup detected... review setup....")
 
@@ -6024,7 +6054,9 @@ Visit: %s (Author's site)
 
                     if NAB.warningInParametersDetected and NAB.savedShowWarningsDefault:
                         onPnlRow += 1
-                        warningText = "** WARNING IN PARAMETERS DETECTED (row: %s) **" %("multi" if not NAB.warningInParametersDetectedInRow else NAB.warningInParametersDetectedInRow)
+                        warningTypeText = NAB.getWarningType(NAB.warningInParametersDetectedType)
+                        warningText = "** '%s' IN PARAMETERS DETECTED (row: %s) **" %(warningTypeText, "multi" if not NAB.warningInParametersDetectedInRow else NAB.warningInParametersDetectedInRow)
+
                         if not NAB.warningInParametersDetectedInRow:
                             nameLabel = JLinkLabel(warningText, "showConfig", JLabel.LEFT)
                         else:
