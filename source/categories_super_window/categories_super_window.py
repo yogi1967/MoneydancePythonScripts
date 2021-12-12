@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# categories_super_window.py build: 1000 - November 2021 - Stuart Beesley StuWareSoftSystems
+# categories_super_window.py build: 1001 - November 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -29,6 +29,7 @@
 # Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
 
 # build: 1000 - Initial Release
+# build: 1001 - Updated common code MyJFrame.dispose()
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -38,7 +39,7 @@
 
 # SET THESE LINES
 myModuleID = u"categories_super_window"
-version_build = "1000"
+version_build = "1001"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -67,11 +68,26 @@ class MyJFrame(JFrame):
 
     def __init__(self, frameTitle=None):
         super(JFrame, self).__init__(frameTitle)
-        self.myJFrameVersion = 2
+        self.disposing = False
+        self.myJFrameVersion = 3
         self.isActiveInMoneydance = False
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
         self.HomePageViewObj = None
+
+    def dispose(self):
+        # This removes all content as VAqua retains the JFrame reference in memory...
+        if self.disposing: return
+        try:
+            self.disposing = True
+            self.removeAll()
+            if self.getJMenuBar() is not None: self.setJMenuBar(None)
+            super(MyJFrame, self).dispose()
+        except:
+            _msg = "%s: ERROR DISPOSING OF FRAME: %s\n" %(myModuleID, self)
+            print(_msg); System.err.write(_msg)
+        finally:
+            self.disposing = False
 
 class GenericWindowClosingRunnable(Runnable):
 

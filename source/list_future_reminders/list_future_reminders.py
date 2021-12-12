@@ -44,7 +44,7 @@
 # build: 1012 - Common code tweaks; Tweaked colors for Dark themes and to be more MD 'compatible'
 # build: 1013 - Common code tweaks; Flat Dark Theme
 # build: 1014 - Common code tweaks
-# build: 1015 - Common code tweaks; Fix JMenu()s - remove <html> tags (affects colors on older Macs)
+# build: 1015 - Common code tweaks; Fix JMenu()s - remove <html> tags (affects colors on older Macs); newer MyJFrame.dispose()
 
 # Displays Moneydance future reminders
 
@@ -83,11 +83,26 @@ class MyJFrame(JFrame):
 
     def __init__(self, frameTitle=None):
         super(JFrame, self).__init__(frameTitle)
-        self.myJFrameVersion = 2
+        self.disposing = False
+        self.myJFrameVersion = 3
         self.isActiveInMoneydance = False
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
         self.HomePageViewObj = None
+
+    def dispose(self):
+        # This removes all content as VAqua retains the JFrame reference in memory...
+        if self.disposing: return
+        try:
+            self.disposing = True
+            self.removeAll()
+            if self.getJMenuBar() is not None: self.setJMenuBar(None)
+            super(MyJFrame, self).dispose()
+        except:
+            _msg = "%s: ERROR DISPOSING OF FRAME: %s\n" %(myModuleID, self)
+            print(_msg); System.err.write(_msg)
+        finally:
+            self.disposing = False
 
 class GenericWindowClosingRunnable(Runnable):
 

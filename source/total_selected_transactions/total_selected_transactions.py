@@ -35,7 +35,7 @@
 # build: 1003 - Common code tweaks
 # build: 1004 - Common code tweaks; Flat Dark
 # build: 1005 - Common code tweaks
-# build: 1006 - Common code tweaks
+# build: 1006 - Common code tweaks; Newer MyJFrame.dispose()
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -75,11 +75,26 @@ class MyJFrame(JFrame):
 
     def __init__(self, frameTitle=None):
         super(JFrame, self).__init__(frameTitle)
-        self.myJFrameVersion = 2
+        self.disposing = False
+        self.myJFrameVersion = 3
         self.isActiveInMoneydance = False
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
         self.HomePageViewObj = None
+
+    def dispose(self):
+        # This removes all content as VAqua retains the JFrame reference in memory...
+        if self.disposing: return
+        try:
+            self.disposing = True
+            self.removeAll()
+            if self.getJMenuBar() is not None: self.setJMenuBar(None)
+            super(MyJFrame, self).dispose()
+        except:
+            _msg = "%s: ERROR DISPOSING OF FRAME: %s\n" %(myModuleID, self)
+            print(_msg); System.err.write(_msg)
+        finally:
+            self.disposing = False
 
 class GenericWindowClosingRunnable(Runnable):
 

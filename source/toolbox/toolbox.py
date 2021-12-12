@@ -250,6 +250,7 @@
 # build: 1045 - Changed JFrame and JPanel layouts so that JScrollPane resize just works etc... Removed ReSize Listener (watching out for increased memory consumption)
 # build: 1045 - Fix JMenu()s - remove <html> tags (affects colors on older Macs)
 # build: 1045 - changed all to use .isMasterSyncNode() and .isMasterSyncNode() and also set primary on force reset all sync settings too (to match 4063)
+# build: 1045 - Newer MyJFrame.dispose()
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -299,11 +300,26 @@ class MyJFrame(JFrame):
 
     def __init__(self, frameTitle=None):
         super(JFrame, self).__init__(frameTitle)
-        self.myJFrameVersion = 2
+        self.disposing = False
+        self.myJFrameVersion = 3
         self.isActiveInMoneydance = False
         self.isRunTimeExtension = False
         self.MoneydanceAppListener = None
         self.HomePageViewObj = None
+
+    def dispose(self):
+        # This removes all content as VAqua retains the JFrame reference in memory...
+        if self.disposing: return
+        try:
+            self.disposing = True
+            self.removeAll()
+            if self.getJMenuBar() is not None: self.setJMenuBar(None)
+            super(MyJFrame, self).dispose()
+        except:
+            _msg = "%s: ERROR DISPOSING OF FRAME: %s\n" %(myModuleID, self)
+            print(_msg); System.err.write(_msg)
+        finally:
+            self.disposing = False
 
 class GenericWindowClosingRunnable(Runnable):
 

@@ -50,6 +50,41 @@ This extension creates a 'widget' that displays Totals for items you select on t
   - When using AutoSum in this situation you will get a warning in Help>Console
   - You will also see a small icon to the right of account totals in the list window in this situation too.
 
+- Income / Expense Categories:
+  - You can change the date range selection from the default of "All Dates" to any of the options in the list
+  - WARNING: This switches the widget to build and maintain a parallel table of balances.
+             Calculated by sweeping through all transactions and calculating balances
+             THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
+             Any row that uses a NON "All Dates" will trigger this parallel balances sweep
+
+  - I/E Date Range options:
+    Example: Given a today's date of 11th December 2021, the I/E Date Range filters will return the following:
+    DR_YEAR_TO_DATE                20210101 - 20211211
+    DR_FISCAL_YEAR_TO_DATE         20210406 - 20211211
+    DR_LAST_FISCAL_QUARTER         20210706 - 20211005
+    DR_QUARTER_TO_DATE             20211001 - 20211211
+    DR_MONTH_TO_DATE               20211201 - 20211211
+    DR_THIS_YEAR                   20210101 - 20211231 **future**
+    DR_THIS_FISCAL_YEAR            20210406 - 20220405 **future**
+    DR_THIS_QUARTER                20211001 - 20211231 **future**
+    DR_THIS_MONTH                  20211201 - 20211231 **future**
+    DR_THIS_WEEK                   20211205 - 20211211
+    DR_LAST_YEAR                   20200101 - 20201231
+    DR_LAST_FISCAL_YEAR            20200406 - 20210405
+    DR_LAST_QUARTER                20210701 - 20210930
+    DR_LAST_MONTH                  20211101 - 20211130
+    DR_LAST_WEEK                   20211128 - 20211204
+    DR_LAST_12_MONTHS              20201201 - 20211130
+    DR_LAST_365_DAYS               20201211 - 20211211
+    DR_LAST_30_DAYS                20211111 - 20211211
+    DR_LAST_1_DAY                  20211210 - 20211211
+    DR_ALL_DATES                   (returns all dates)
+
+    NOTE: The above will interact with your Balance/Current Balance/Cleared setting for that row:
+          E.G.  Current Balance will always cutoff to today's date
+                Balance will just include everything it finds within the above date ranges
+                Cleared Balance will just include all cleared items within the above date ranges
+
 - Warnings:
   - You can create illogical totals (e.g. by adding Securities to Income). NAB tries to detect these issues.
   - It will alert you if any are found. Help>Console will show you the details of any warnings
