@@ -2463,19 +2463,21 @@ Visit: %s (Author's site)
     def getHumanReadableModifiedDateTimeFromFile(_theFile):
         return getHumanReadableDateTimeFromTimeStamp(os.path.getmtime(_theFile))
 
-    def convertStrippedIntDateFormattedText( strippedDateInt ):
+    def convertStrippedIntDateFormattedText(strippedDateInt, _format=None):
 
-        prettyDate = ""
+        if _format is None: _format = "yyyy/MM/dd"
+
+        convertedDate = ""
         try:
             c = Calendar.getInstance()
             dateFromInt = DateUtil.convertIntDateToLong(strippedDateInt)
             c.setTime(dateFromInt)
-            dateFormatter = SimpleDateFormat("yyyy/MM/dd")
-            prettyDate = dateFormatter.format(c.getTime())
+            dateFormatter = SimpleDateFormat(_format)
+            convertedDate = dateFormatter.format(c.getTime())
         except:
             pass
 
-        return prettyDate
+        return convertedDate
 
     def selectHomeScreen():
 
@@ -2590,9 +2592,9 @@ Visit: %s (Author's site)
         # noinspection PyUnusedLocal
         class MyDocListener(DocumentListener):
             def __init__(self, _what):      self._what = _what
-            def changedUpdate(self, evt):   self._what.searchUpdated()
-            def removeUpdate(self, evt):    self._what.searchUpdated()
-            def insertUpdate(self, evt):    self._what.searchUpdated()
+            def changedUpdate(self, evt):   self._what.searchFiltersUpdated()
+            def removeUpdate(self, evt):    self._what.searchFiltersUpdated()
+            def insertUpdate(self, evt):    self._what.searchFiltersUpdated()
 
         # noinspection PyUnusedLocal
         class MyFocusAdapter(FocusAdapter):
@@ -2652,7 +2654,7 @@ Visit: %s (Author's site)
 
 
             def searchUpdated(self):
-                myPrint("DB", "within searchUpdated()")
+                myPrint("DB", "within searchFiltersUpdated()")
                 self._catAcctSearch.searchFilter = self.mySearchField.getText().strip()
                 self.saveTableModelReference.reloadAccounts()
                 self.saveTableModelReference.fireTableDataChanged()
