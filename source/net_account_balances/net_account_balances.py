@@ -384,9 +384,9 @@ else:
     GlobalVars.extn_param_NEW_includeInactive_NAB           = None
     GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = None
     GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = None
+    GlobalVars.extn_param_NEW_showWarningsTable_NAB         = None
 
     GlobalVars.extn_param_NEW_autoSumDefault_NAB            = None
-    GlobalVars.extn_param_NEW_showWarningsDefault_NAB       = None
     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = None
     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = None
 
@@ -2631,9 +2631,9 @@ Visit: %s (Author's site)
         if myParameters.get("extn_param_NEW_includeInactive_NAB") is not None:          GlobalVars.extn_param_NEW_includeInactive_NAB = myParameters.get("extn_param_NEW_includeInactive_NAB")
         if myParameters.get("extn_param_NEW_widget_display_name_NAB") is not None:      GlobalVars.extn_param_NEW_widget_display_name_NAB = myParameters.get("extn_param_NEW_widget_display_name_NAB")
         if myParameters.get("extn_param_NEW_currency_NAB") is not None:                 GlobalVars.extn_param_NEW_currency_NAB = myParameters.get("extn_param_NEW_currency_NAB")
+        if myParameters.get("extn_param_NEW_showWarningsTable_NAB") is not None:        GlobalVars.extn_param_NEW_showWarningsTable_NAB = myParameters.get("extn_param_NEW_showWarningsTable_NAB")
 
         if myParameters.get("extn_param_NEW_autoSumDefault_NAB") is not None:           GlobalVars.extn_param_NEW_autoSumDefault_NAB = myParameters.get("extn_param_NEW_autoSumDefault_NAB")
-        if myParameters.get("extn_param_NEW_showWarningsDefault_NAB") is not None:      GlobalVars.extn_param_NEW_showWarningsDefault_NAB = myParameters.get("extn_param_NEW_showWarningsDefault_NAB")
         if myParameters.get("extn_param_NEW_showDashesInsteadOfZeros_NAB") is not None: GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB = myParameters.get("extn_param_NEW_showDashesInsteadOfZeros_NAB")
         if myParameters.get("extn_param_NEW_treatSecZeroBalInactive_NAB") is not None:  GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB = myParameters.get("extn_param_NEW_treatSecZeroBalInactive_NAB")
 
@@ -2660,6 +2660,7 @@ Visit: %s (Author's site)
                     "extn_param_balanceType_NAB",
                     "extn_param_widget_display_name_NAB",
                     "extn_param_NEW_acctsCatsSecurities_NAB",
+                    "extn_param_NEW_showWarningsDefault_NAB",
                     "extn_param_NEW_autoSumInvestmentAccts_NAB"]:
             if myParameters.get(key) is not None: myParameters.pop(key)
 
@@ -2671,9 +2672,9 @@ Visit: %s (Author's site)
         myParameters["extn_param_NEW_includeInactive_NAB"]          = GlobalVars.extn_param_NEW_includeInactive_NAB
         myParameters["extn_param_NEW_widget_display_name_NAB"]      = GlobalVars.extn_param_NEW_widget_display_name_NAB
         myParameters["extn_param_NEW_currency_NAB"]                 = GlobalVars.extn_param_NEW_currency_NAB
+        myParameters["extn_param_NEW_showWarningsTable_NAB"]        = GlobalVars.extn_param_NEW_showWarningsTable_NAB
 
         myParameters["extn_param_NEW_autoSumDefault_NAB"]           = GlobalVars.extn_param_NEW_autoSumDefault_NAB
-        myParameters["extn_param_NEW_showWarningsDefault_NAB"]      = GlobalVars.extn_param_NEW_showWarningsDefault_NAB
         myParameters["extn_param_NEW_showDashesInsteadOfZeros_NAB"] = GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB
         myParameters["extn_param_NEW_treatSecZeroBalInactive_NAB"]  = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
 
@@ -3566,9 +3567,9 @@ Visit: %s (Author's site)
             self.savedCurrencyTable = None      # Only contains UUID strings
             self.savedIncludeInactive = None
             self.savedIncomeExpenseDateRange = None
+            self.savedShowWarningsTable = None
 
             self.savedAutoSumDefault = None
-            self.savedShowWarningsDefault = None
             self.savedShowDashesInsteadOfZeros = None
             self.savedTreatSecZeroBalInactive = None
 
@@ -3576,7 +3577,6 @@ Visit: %s (Author's site)
 
             self.menuItemDEBUG = None
             self.menuItemAutoSumDefault = None
-            self.menuItemShowWarningsDefault = None
             self.menuItemShowDashesInsteadOfZeros = None
             self.menuItemTreatSecZeroBalInactive = None
 
@@ -3591,7 +3591,9 @@ Visit: %s (Author's site)
             self.widgetNameField_JTF = None
             self.includeInactive_COMBO = None
             self.autoSumAccounts_CB = None
+            self.showWarnings_CB = None
             self.filterOutZeroBalAccts_CB = None
+
             self.keyLabel = None
             self.dateRangeLabel = None
             self.parallelBalancesWarningLabel = None
@@ -3930,7 +3932,7 @@ Visit: %s (Author's site)
         def includeInactiveDefault(self):           return 0
         def widgetRowDefault(self):                 return "<NOT CONFIGURED>"
         def autoSumDefault(self):                   return (False if self.savedAutoSumDefault is None else self.savedAutoSumDefault)
-        def showWarningsDefaultDefault(self):       return True
+        def showWarningsDefault(self):              return True
         def showDashesInsteadOfZerosDefault(self):  return False
         def treatSecZeroBalInactiveDefault(self):   return False
 
@@ -3957,6 +3959,11 @@ Visit: %s (Author's site)
                 self.savedIncomeExpenseDateRange = [self.incomeExpenseDateRangeDefault()] * len(self.savedAccountListUUIDs)
                 myPrint("B", "New parameter savedIncomeExpenseDateRange detected, pre-populating with %s (= Income/Expense All Dates)" %(self.savedIncomeExpenseDateRange))
 
+            # New parameter - pre-populate with default
+            if self.savedShowWarningsTable == [self.showWarningsDefault()] and len(self.savedShowWarningsTable) != len(self.savedAccountListUUIDs):
+                self.savedShowWarningsTable = [self.showWarningsDefault()] * len(self.savedAccountListUUIDs)
+                myPrint("B", "New parameter savedShowWarningsTable detected, pre-populating with %s (= Default Show Warnings per row)" %(self.savedIncomeExpenseDateRange))
+
             if self.savedAccountListUUIDs is None or not isinstance(self.savedAccountListUUIDs, list) or len(self.savedAccountListUUIDs) < 1:
                 self.resetParameters(1)
             elif self.savedBalanceType is None or not isinstance(self.savedBalanceType, list) or len(self.savedBalanceType) < 1:
@@ -3971,9 +3978,9 @@ Visit: %s (Author's site)
                 self.resetParameters(6)
             elif self.savedIncomeExpenseDateRange is None or not isinstance(self.savedIncomeExpenseDateRange, list) or len(self.savedIncomeExpenseDateRange) < 1:
                 self.resetParameters(7)
-            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
+            elif self.savedShowWarningsTable is None or not isinstance(self.savedShowWarningsTable, list) or len(self.savedShowWarningsTable) < 1:
                 self.resetParameters(8)
-            elif self.savedShowWarningsDefault is None or not isinstance(self.savedShowWarningsDefault, bool):
+            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
                 self.resetParameters(9)
             elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
                 self.resetParameters(10)
@@ -3991,6 +3998,8 @@ Visit: %s (Author's site)
                 self.resetParameters(16)
             elif len(self.savedIncomeExpenseDateRange) != len(self.savedAccountListUUIDs):
                 self.resetParameters(17)
+            elif len(self.savedShowWarningsTable) != len(self.savedAccountListUUIDs):
+                self.resetParameters(18)
             else:
                 for i in range(0, len(self.savedAccountListUUIDs)):
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
@@ -4014,6 +4023,9 @@ Visit: %s (Author's site)
                     if self.savedIncomeExpenseDateRange[i] is None or not isinstance(self.savedIncomeExpenseDateRange[i], (str,unicode)) or self.savedIncomeExpenseDateRange[i] == "":
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedIncomeExpenseDateRange", i))
                         self.savedIncomeExpenseDateRange[i] = self.incomeExpenseDateRangeDefault()
+                    if self.savedShowWarningsTable[i] is None or not isinstance(self.savedShowWarningsTable[i], bool):
+                        myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedShowWarningsTable", i))
+                        self.savedShowWarningsTable[i] = self.showWarningsDefault()
 
         def resetParameters(self, iError=None):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -4030,9 +4042,9 @@ Visit: %s (Author's site)
             self.savedAutoSumAccounts           = [self.autoSumDefault()]
             self.savedWidgetName                = [GlobalVars.DEFAULT_WIDGET_NAME]
             self.savedCurrencyTable             = [self.currencyDefault()]
+            self.savedShowWarningsTable         = [self.showWarningsDefault()]
 
             self.savedAutoSumDefault            = self.autoSumDefault()
-            self.savedShowWarningsDefault       = self.showWarningsDefaultDefault()
             self.savedShowDashesInsteadOfZeros  = self.showDashesInsteadOfZerosDefault()
             self.savedTreatSecZeroBalInactive   = self.treatSecZeroBalInactiveDefault()
 
@@ -4141,6 +4153,7 @@ Visit: %s (Author's site)
                           self.currency_COMBO,
                           self.includeInactive_COMBO,
                           self.filterOutZeroBalAccts_CB,
+                          self.showWarnings_CB,
                           self.autoSumAccounts_CB]:
                 myPrint("DB",".. saving and removing listeners from %s: %s" %(comp.getName(), comp.getActionListeners()))
                 saveMyActionListeners[comp.getName()] = comp.getActionListeners()
@@ -4177,6 +4190,9 @@ Visit: %s (Author's site)
 
             myPrint("DB", "..about to set autoSumAccounts_CB..")
             self.autoSumAccounts_CB.setSelected(self.savedAutoSumAccounts[selectRowIndex])
+
+            myPrint("DB", "..about to set savedShowWarningsTable..")
+            self.showWarnings_CB.setSelected(self.savedShowWarningsTable[selectRowIndex])
 
             myPrint("DB", "about to set widget name..")
             self.widgetNameField_JTF.setText(self.savedWidgetName[selectRowIndex])
@@ -4215,6 +4231,7 @@ Visit: %s (Author's site)
                           self.currency_COMBO,
                           self.includeInactive_COMBO,
                           self.filterOutZeroBalAccts_CB,
+                          self.showWarnings_CB,
                           self.autoSumAccounts_CB]:
                 myPrint("DB",".. retrieving and re-adding listeners to %s: %s" %(comp.getName(), saveMyActionListeners[comp.getName()]))
                 for comboListener in saveMyActionListeners[comp.getName()]: comp.addActionListener(comboListener)
@@ -4236,12 +4253,13 @@ Visit: %s (Author's site)
             myPrint("DB",".....includeInactive_COMBO: %s"                   %(self.includeInactive_COMBO.getSelectedIndex()))
             myPrint("DB",".....savedAutoSumAccounts: %s"                    %(self.savedAutoSumAccounts[selectRowIndex]))
             myPrint("DB",".....autoSumAccounts_CB: %s"                      %(self.autoSumAccounts_CB.isSelected()))
+            myPrint("DB",".....savedShowWarningsTable: %s"                  %(self.savedShowWarningsTable[selectRowIndex]))
+            myPrint("DB",".....showWarnings_CB: %s"                         %(self.showWarnings_CB.isSelected()))
             myPrint("DB",".....filterOutZeroBalAccts_CB: %s"                %(self.filterOutZeroBalAccts_CB.isSelected()))
             myPrint("DB",".....savedCurrencyTable: %s"                      %(self.savedCurrencyTable[selectRowIndex]))
             myPrint("DB",".....savedWidgetName: %s"                         %(self.savedWidgetName[selectRowIndex]))
 
             myPrint("DB",".....savedAutoSumDefault: %s"                     %(self.savedAutoSumDefault))
-            myPrint("DB",".....savedShowWarningsDefault: %s"                %(self.savedShowWarningsDefault))
             myPrint("DB",".....savedShowDashesInsteadOfZeros: %s"           %(self.savedShowDashesInsteadOfZeros))
             myPrint("DB",".....savedTreatSecZeroBalInactive: %s"            %(self.savedTreatSecZeroBalInactive))
 
@@ -4408,7 +4426,6 @@ Visit: %s (Author's site)
             myPrint("B", "NAB: Analysis of saved options:")
             myPrint("B", "-------------------------------------------")
             myPrint("B", " %s" %(pad("savedAutoSumDefault",30)),           NAB.savedAutoSumDefault)
-            myPrint("B", " %s" %(pad("savedShowWarningsDefault",30)),      NAB.savedShowWarningsDefault)
             myPrint("B", " %s" %(pad("savedShowDashesInsteadOfZeros",30)), NAB.savedShowDashesInsteadOfZeros)
             myPrint("B", " %s" %(pad("savedTreatSecZeroBalInactive",30)),  NAB.savedTreatSecZeroBalInactive)
             myPrint("B", " ----")
@@ -4422,6 +4439,7 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedBalanceType",30)),              NAB.savedBalanceType[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAutoSumAccounts",30)),          NAB.savedAutoSumAccounts[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncludeInactive",30)),          NAB.savedIncludeInactive[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedShowWarningsTable",30)),        NAB.savedShowWarningsTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncomeExpenseDateRange",30)),   NAB.savedIncomeExpenseDateRange[iRowIdx])
 
                 dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[iRowIdx])
@@ -4703,12 +4721,12 @@ Visit: %s (Author's site)
                     NAB.simulateTotal_label.setForeground(md.getUI().colors.defaultTextForeground)
                     NAB.warning_label.setForeground(md.getUI().colors.defaultTextForeground)
 
-                    if NAB.warningInParametersDetected and NAB.savedShowWarningsDefault:
+                    if NAB.warningInParametersDetected and NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()]:
                         NAB.warning_label.setText("*%s*" %(NAB.getWarningType(NAB.warningInParametersDetectedType)))
                         NAB.warning_label.setForeground(md.getUI().colors.errorMessageForeground)
-                    elif NAB.savedShowWarningsDefault:
+                    elif NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()]:
                         NAB.warning_label.setText(wrap_HTML_small("","no warnings detected",altFG))
-                    elif not NAB.savedShowWarningsDefault:
+                    elif not NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()]:
                         NAB.warning_label.setText(wrap_HTML_small("","warnings turned off",altFG))
                     else:
                         NAB.warning_label.setText("?")
@@ -4784,12 +4802,21 @@ Visit: %s (Author's site)
                     QuickJFrame("%s - Help" %(NAB.myModuleID), NAB.helpFile).show_the_frame()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("AutoSum Accounts".lower()):
-
+                if event.getActionCommand().lower().startswith("AutoSum Accts".lower()):
                     if event.getSource().getName().lower() == "autoSumAccounts_CB".lower():
                         if NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
                             myPrint("DB", ".. setting autoSumAccounts_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
                             NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                            NAB.configSaved = False
+                            NAB.simulateTotalForRow()
+                            NAB.jlst.repaint()
+
+                # ######################################################################################################
+                if event.getActionCommand().lower().startswith("Show Warnings".lower()):
+                    if event.getSource().getName().lower() == "showWarnings_CB".lower():
+                        if NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                            myPrint("DB", ".. setting showWarnings_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                            NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
                             NAB.configSaved = False
                             NAB.simulateTotalForRow()
                             NAB.jlst.repaint()
@@ -4814,18 +4841,17 @@ Visit: %s (Author's site)
 
                     if event.getSource().getName().lower() == "incomeExpenseDateRange_COMBO".lower():
                         if NAB.savedIncomeExpenseDateRange[NAB.getSelectedRowIndex()] != event.getSource().getSelectedItem().getDR().getResourceKey():
-                            if (event.getSource().getSelectedItem().getDR().getResourceKey() != NAB.incomeExpenseDateRangeDefault()):
-                                myPopupInformationBox(NAB.theFrame,
-                                                      theTitle="Inc/Exp Date Range",
-                                                      theMessage="ALERT: Custom date range scans all txns each time widget refreshes",
-                                                      theMessageType=JOptionPane.WARNING_MESSAGE)
+                            # if (event.getSource().getSelectedItem().getDR().getResourceKey() != NAB.incomeExpenseDateRangeDefault()):
+                            #     myPopupInformationBox(NAB.theFrame,
+                            #                           theTitle="Inc/Exp Date Range",
+                            #                           theMessage="ALERT: Custom date range scans all txns each time widget refreshes",
+                            #                           theMessageType=JOptionPane.WARNING_MESSAGE)
                             myPrint("DB", ".. setting savedIncomeExpenseDateRange to: %s for row: %s" %(event.getSource().getSelectedItem().getDR().getResourceKey(), NAB.getSelectedRow()))
                             NAB.savedIncomeExpenseDateRange[NAB.getSelectedRowIndex()] = event.getSource().getSelectedItem().getDR().getResourceKey()
                             NAB.configSaved = False
                             NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
                             NAB.setDateRangeLabel(NAB.getSelectedRowIndex())
                             NAB.rebuildParallelBalanceTable()
-
 
                     if event.getSource().getName().lower() == "includeInactive_COMBO".lower():
                         if NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
@@ -4869,6 +4895,7 @@ Visit: %s (Author's site)
                                     NAB.savedIncomeExpenseDateRange,
                                     NAB.savedAutoSumAccounts,
                                     NAB.savedIncludeInactive,
+                                    NAB.savedShowWarningsTable,
                                     NAB.savedWidgetName,
                                     NAB.savedCurrencyTable]:
                             obj.insert(newPos, obj[oldPos])
@@ -4886,6 +4913,7 @@ Visit: %s (Author's site)
                         NAB.savedWidgetName.insert(NAB.getSelectedRowIndex(),               NAB.widgetRowDefault())
                         NAB.savedCurrencyTable.insert(NAB.getSelectedRowIndex(),            NAB.currencyDefault())
                         NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex(),          NAB.includeInactiveDefault())
+                        NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex(),        NAB.showWarningsDefault())
 
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex())
                         NAB.configSaved = False
@@ -4901,6 +4929,7 @@ Visit: %s (Author's site)
                         NAB.savedWidgetName.insert(NAB.getSelectedRowIndex()+1,             NAB.widgetRowDefault())
                         NAB.savedCurrencyTable.insert(NAB.getSelectedRowIndex()+1,          NAB.currencyDefault())
                         NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex()+1,        NAB.includeInactiveDefault())
+                        NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex()+1,      NAB.showWarningsDefault())
 
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex()+1)
                         NAB.configSaved = False
@@ -4917,6 +4946,7 @@ Visit: %s (Author's site)
                                         NAB.savedIncomeExpenseDateRange,
                                         NAB.savedAutoSumAccounts,
                                         NAB.savedIncludeInactive,
+                                        NAB.savedShowWarningsTable,
                                         NAB.savedWidgetName,
                                         NAB.savedCurrencyTable]:
                                 del obj[NAB.getSelectedRowIndex()]
@@ -4946,6 +4976,7 @@ Visit: %s (Author's site)
                                             NAB.savedIncomeExpenseDateRange,
                                             NAB.savedAutoSumAccounts,
                                             NAB.savedIncludeInactive,
+                                            NAB.savedShowWarningsTable,
                                             NAB.savedWidgetName,
                                             NAB.savedCurrencyTable]:
                                     obj.insert(newPos, obj.pop(oldPos))
@@ -5029,14 +5060,6 @@ Visit: %s (Author's site)
                     NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Show Warnings".lower()):
-                    NAB.savedShowWarningsDefault = not NAB.savedShowWarningsDefault
-                    NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
-                    myPrint("B", "User has changed 'Show Warnings' to: %s" %(NAB.savedShowWarningsDefault))
-                    NAB.simulateTotalForRow()
-                    NAB.configSaved = False
-
-                # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Show Dashes".lower()):
                     NAB.savedShowDashesInsteadOfZeros = not NAB.savedShowDashesInsteadOfZeros
                     NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
@@ -5085,9 +5108,9 @@ Visit: %s (Author's site)
                     GlobalVars.extn_param_NEW_includeInactive_NAB           = NAB.savedIncludeInactive
                     GlobalVars.extn_param_NEW_widget_display_name_NAB       = NAB.savedWidgetName
                     GlobalVars.extn_param_NEW_currency_NAB                  = NAB.savedCurrencyTable
+                    GlobalVars.extn_param_NEW_showWarningsTable_NAB         = NAB.savedShowWarningsTable
 
                     GlobalVars.extn_param_NEW_autoSumDefault_NAB            = NAB.savedAutoSumDefault
-                    GlobalVars.extn_param_NEW_showWarningsDefault_NAB       = NAB.savedShowWarningsDefault
                     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = NAB.savedShowDashesInsteadOfZeros
                     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = NAB.savedTreatSecZeroBalInactive
 
@@ -5401,9 +5424,9 @@ Visit: %s (Author's site)
                         GlobalVars.extn_param_NEW_includeInactive_NAB           = [self.includeInactiveDefault()]           # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = [self.autoSumDefault()]                   # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = [self.incomeExpenseDateRangeDefault()]    # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_showWarningsTable_NAB         = [self.showWarningsDefault()]              # Loading will overwrite if saved, else pre-load defaults
 
                         GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                     # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_showWarningsDefault_NAB       = self.showWarningsDefaultDefault()         # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = self.showDashesInsteadOfZerosDefault()    # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()     # Loading will overwrite if saved, else pre-load defaults
 
@@ -5423,9 +5446,9 @@ Visit: %s (Author's site)
                             GlobalVars.extn_param_NEW_includeInactive_NAB           = [self.includeInactiveDefault()]           # Did not exist previously
                             GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = [self.autoSumDefault()]                   # Did not exist previously
                             GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = [self.incomeExpenseDateRangeDefault()]    # Did not exist previously
+                            GlobalVars.extn_param_NEW_showWarningsTable_NAB         = [self.showWarningsDefault()]              # Loading will overwrite if saved, else pre-load defaults
 
                             GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                     # Loading will overwrite if saved, else pre-load defaults
-                            GlobalVars.extn_param_NEW_showWarningsDefault_NAB       = self.showWarningsDefaultDefault()         # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = self.showDashesInsteadOfZerosDefault()    # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()     # Loading will overwrite if saved, else pre-load defaults
 
@@ -5444,9 +5467,9 @@ Visit: %s (Author's site)
                         self.savedAutoSumAccounts           = GlobalVars.extn_param_NEW_autoSumAccounts_NAB
                         self.savedWidgetName                = GlobalVars.extn_param_NEW_widget_display_name_NAB
                         self.savedCurrencyTable             = GlobalVars.extn_param_NEW_currency_NAB
+                        self.savedShowWarningsTable         = GlobalVars.extn_param_NEW_showWarningsTable_NAB
 
                         self.savedAutoSumDefault            = GlobalVars.extn_param_NEW_autoSumDefault_NAB
-                        self.savedShowWarningsDefault       = GlobalVars.extn_param_NEW_showWarningsDefault_NAB
                         self.savedShowDashesInsteadOfZeros  = GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB
                         self.savedTreatSecZeroBalInactive   = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
 
@@ -5562,12 +5585,6 @@ Visit: %s (Author's site)
             NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
             menuO.add(NAB.menuItemAutoSumDefault)
 
-            NAB.menuItemShowWarningsDefault = MyJCheckBoxMenuItem("Show Warnings (on 'illogical' calculations)")
-            NAB.menuItemShowWarningsDefault.addActionListener(NAB.saveActionListener)
-            NAB.menuItemShowWarningsDefault.setToolTipText("Enables / disables warning alerts if 'illogical' parameters set by user")
-            NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
-            menuO.add(NAB.menuItemShowWarningsDefault)
-
             NAB.menuItemShowDashesInsteadOfZeros = MyJCheckBoxMenuItem("Show Dashes instead of Zeros")
             NAB.menuItemShowDashesInsteadOfZeros.addActionListener(NAB.saveActionListener)
             NAB.menuItemShowDashesInsteadOfZeros.setToolTipText("Replaces the list display to show a '-' in place of '<CURR>0.0'")
@@ -5633,7 +5650,6 @@ Visit: %s (Author's site)
 
             NAB.menuItemDEBUG.setSelected(debug)
             NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
-            NAB.menuItemShowWarningsDefault.setSelected(NAB.savedShowWarningsDefault)
             NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
             NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
 
@@ -5929,14 +5945,25 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
                     onCol += 1
 
-                    NAB.autoSumAccounts_CB = MyJCheckBox("AutoSum Accounts", True)
+                    NAB.autoSumAccounts_CB = MyJCheckBox("AutoSum Accts", True)
                     NAB.autoSumAccounts_CB.putClientProperty("%s.id" %(NAB.myModuleID), "autoSumAccounts_CB")
                     NAB.autoSumAccounts_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.autoSumAccounts_CB.setName("autoSumAccounts_CB")
                     NAB.autoSumAccounts_CB.setToolTipText("AutoSum will auto sum/total the account recursively down the tree, including Securities. AutoSum=OFF means each item is totalled separately")
                     NAB.autoSumAccounts_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(2).fillx())
+                    controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx())
+                    onCol += 1
+
+                    NAB.showWarnings_CB = MyJCheckBox("Show Warnings", True)
+                    NAB.showWarnings_CB.putClientProperty("%s.id" %(NAB.myModuleID), "showWarnings_CB")
+                    NAB.showWarnings_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.showWarnings_CB.setName("showWarnings_CB")
+                    NAB.showWarnings_CB.setToolTipText("Warnings on 'illogical' calculations will be shown for this row...")
+                    NAB.showWarnings_CB.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.showWarnings_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx())
+
                     onRow += 1
+
                     # -----------------------------------------------------------------------------------
 
                     onCol = 0
@@ -6649,7 +6676,7 @@ Visit: %s (Author's site)
 
                                 realAutoSum = NAB.savedAutoSumAccounts[iAccountLoop]
 
-                                if debug or NAB.savedShowWarningsDefault:
+                                if debug or NAB.savedShowWarningsTable[iAccountLoop]:
                                     # Validate selections.... Look for AutoSum'd accounts where a parent has been selected..
                                     if not NAB.migratedParameters:
                                         myPrint("DB","... Verifying for illogical calculations up/down hierarchy...")
@@ -6735,7 +6762,7 @@ Visit: %s (Author's site)
                                 else:
                                     totalBalance += (bal * mult)
 
-                            if debug or NAB.savedShowWarningsDefault:
+                            if debug or NAB.savedShowWarningsTable[iAccountLoop]:
                                 # DETECT ILLOGICAL CALCULATIONS
                                 if ((iCountIncomeExpense and (iCountAccounts))
                                         or (iCountSecurities and (iCountIncomeExpense))):
@@ -7004,7 +7031,13 @@ Visit: %s (Author's site)
                                 myPrint("DB","Checking for Preview build status...")
                                 NAB.isPreview = NAB.isPreviewBuild()
 
-                            if NAB.warningInParametersDetected and NAB.savedShowWarningsDefault:
+                            lAnyShowWarningsEnabled  = False
+                            lAnyShowWarningsDisabled = False
+                            for showWarn in NAB.savedShowWarningsTable:
+                                if showWarn: lAnyShowWarningsEnabled = True
+                                if not showWarn: lAnyShowWarningsDisabled = True
+
+                            if NAB.warningInParametersDetected and lAnyShowWarningsEnabled:
                                 warningTypeText = NAB.getWarningType(NAB.warningInParametersDetectedType)
                                 warningText = "** '%s' IN PARAMETERS DETECTED (row: %s) **" %(warningTypeText, "multi" if not NAB.warningInParametersDetectedInRow else NAB.warningInParametersDetectedInRow)
 
@@ -7026,7 +7059,7 @@ Visit: %s (Author's site)
                                 debugText = "" if not debug else "DEBUG ENABLED "
                                 migratedText = "" if not NAB.migratedParameters else "*MIGRATED PARAMETERS* "
                                 warningCheckText = "" if not NAB.warningInParametersDetected else "*WARNING DETECTED* "
-                                warningsTurnedOffText = "" if NAB.savedShowWarningsDefault else "*WARNINGS TURNED OFF* "
+                                warningsTurnedOffText = "" if not lAnyShowWarningsDisabled else "*SOME WARNINGS TURNED OFF* "
                                 parallelText = "" if not NAB.parallelBalanceTableOperating else "*PARALLEL BALANCE CALCS* "
 
                                 rowText = wrap_HTML_small("", previewText+debugText+migratedText+warningCheckText+warningsTurnedOffText+parallelText, altFG)
