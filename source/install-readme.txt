@@ -39,20 +39,20 @@ To run Scripts:
 4) That's it.... Repeat these steps each time.
 
 All Extensions/Scripts available:
-toolbox:                                View Moneydance settings, diagnostics, fix issues, change settings and much more
+Toolbox:                                View Moneydance settings, diagnostics, fix issues, change settings and much more
 
-extract_data:                           Extract various data to screen and/or csv.. Consolidation of:
+Custom Balances (net_account_balances): Summary Page (HomePage) widget. Display the total of selected Account Balances
+
+Extract Data:                           Extract various data to screen and/or csv.. Consolidation of:
 - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
 - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
 - extract_currency_history_csv          Extract currency history to csv
 - extract_investment_transactions_csv   Extract investment transactions to csv
 - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
-list_future_reminders:                  View future reminders on screen. Allows you to set the days to look forward
+List Future Reminders:                  View future reminders on screen. Allows you to set the days to look forward
 
-net_account_balances:                   Summary Page (HomePage) widget. Display the total of selected Account Balances
-
-total_selected_transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
+Total selected transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
 categories_super_window:                Clones MD Menu> Tools>Categories and adds a Quick Search box/capability
 

@@ -85,7 +85,7 @@ class MyJFrame(JFrame):
             self.disposing = True
             self.removeAll()
             if self.getJMenuBar() is not None: self.setJMenuBar(None)
-            super(MyJFrame, self).dispose()
+            super(self.__class__, self).dispose()
         except:
             _msg = "%s: ERROR DISPOSING OF FRAME: %s\n" %(myModuleID, self)
             print(_msg); System.err.write(_msg)
@@ -326,19 +326,19 @@ Thank you for using %s!
 The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
-toolbox                                 View Moneydance settings, diagnostics, fix issues, change settings and much more
-net_account_balances:                   Summary Page (HomePage) widget. Display the total of selected Account Balances
-total_selected_transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
+Toolbox:                                View Moneydance settings, diagnostics, fix issues, change settings and much more
+Custom Balances (net_account_balances): Summary Page (HomePage) widget. Display the total of selected Account Balances
+Total selected transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
 Extension (.mxt) and Script (.py) Versions available:
-extract_data                            Extract various data to screen and/or csv.. Consolidation of:
+Extract Data:                           Extract various data to screen and/or csv.. Consolidation of:
 - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv 
 - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
 - extract_currency_history_csv          Extract currency history to csv
 - extract_investment_transactions_csv   Extract investment transactions to csv
 - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
-list_future_reminders:                  View future reminders on screen. Allows you to set the days to look forward
+List Future Reminders:                  View future reminders on screen. Allows you to set the days to look forward
 
 A collection of useful ad-hoc scripts (zip file)
 useful_scripts:                         Just unzip and select the script you want for the task at hand...
@@ -2688,129 +2688,160 @@ Visit: %s (Author's site)
         output+=("\nQUICK SEARCH FOR OTHER DATASETS:\n"
                  "---------------------------------\n")
 
-        md_extn = ".moneydance"
-        md_archive = ".moneydancearchive"
+        try:
+            md_extn = ".moneydance"
+            md_archive = ".moneydancearchive"
 
-        saveFiles={}
-        saveArchiveFiles={}
+            saveFiles = {}
+            saveArchiveFiles = {}
 
-        myDataset = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
+            myDataset = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
 
-        internalDir = Common.getDocumentsDirectory().getCanonicalPath()
-        dirList =  os.listdir(internalDir)
-        for fileName in dirList:
-            fullPath = os.path.join(internalDir,fileName)
-            if fileName.endswith(md_extn):
-                saveFiles[fullPath] = True
-            elif fileName.endswith(md_archive):
-                saveArchiveFiles[fullPath] = True
-        del internalDir, dirList
+            errorDirs = []
 
-        parentofDataset = MD_REF.getCurrentAccount().getBook().getRootFolder().getParent()
-        if os.path.exists(parentofDataset):
-            dirList =  os.listdir(parentofDataset)
-            for fileName in dirList:
-                fullPath = os.path.join(parentofDataset,fileName)
-                if fileName.endswith(md_extn):
-                    saveFiles[fullPath] = True
-                elif fileName.endswith(md_archive):
-                    saveArchiveFiles[fullPath] = True
-            del dirList
-        del parentofDataset
-
-        externalFiles = AccountBookUtil.getExternalAccountBooks()
-        for wrapper in externalFiles:
-            saveFiles[wrapper.getBook().getRootFolder().getCanonicalPath()] = True
-            externalDir = wrapper.getBook().getRootFolder().getParent()
-            if os.path.exists(externalDir):
-                dirList =  os.listdir(externalDir)
+            internalDir = Common.getDocumentsDirectory().getCanonicalPath()
+            try:
+                dirList =  os.listdir(internalDir)
                 for fileName in dirList:
-                    fullPath = os.path.join(externalDir,fileName)
+                    fullPath = os.path.join(internalDir,fileName)
                     if fileName.endswith(md_extn):
                         saveFiles[fullPath] = True
                     elif fileName.endswith(md_archive):
                         saveArchiveFiles[fullPath] = True
                 del dirList
-        del externalFiles
+            except OSError:
+                myPrint("B","@@ Error accessing internalDir: '%s' - skipping...." %(internalDir))
+                errorDirs.append(internalDir)
 
-        for backupLocation in [ FileUtils.getBackupDir(MD_REF.getPreferences()).getCanonicalPath(),
-                                MD_REF.getUI().getPreferences().getSetting("backup.location",""),
-                                MD_REF.getUI().getPreferences().getSetting("backup.last_saved",""),
-                                MD_REF.getUI().getPreferences().getSetting("backup.last_browsed","")]:
-            if backupLocation is not None and backupLocation != "" and os.path.exists(backupLocation):
-                dirList =  os.listdir(backupLocation)
-                for fileName in dirList:
-                    fullPath = os.path.join(backupLocation,fileName)
-                    if fileName.endswith(md_extn):
-                        if saveFiles.get(fileName) is not None:
+            parentofDataset = MD_REF.getCurrentAccount().getBook().getRootFolder().getParent()
+            if os.path.exists(parentofDataset):
+                try:
+                    dirList =  os.listdir(parentofDataset)
+                    for fileName in dirList:
+                        fullPath = os.path.join(parentofDataset,fileName)
+                        if fileName.endswith(md_extn):
                             saveFiles[fullPath] = True
-                    elif fileName.endswith(md_archive):
-                        saveArchiveFiles[fullPath] = True
-                del dirList
-        del backupLocation
+                        elif fileName.endswith(md_archive):
+                            saveArchiveFiles[fullPath] = True
+                    del dirList
+                except OSError:
+                    myPrint("B","@@ Error accessing dataset's folder: '%s' - skipping...." %(parentofDataset))
+                    errorDirs.append(parentofDataset)
+            del parentofDataset
 
-        saveFiles[myDataset] = None
+            externalFiles = AccountBookUtil.getExternalAccountBooks()
+            for wrapper in externalFiles:
+                saveFiles[wrapper.getBook().getRootFolder().getCanonicalPath()] = True
+                externalDir = wrapper.getBook().getRootFolder().getParent()
+                if os.path.exists(externalDir):
+                    try:
+                        dirList =  os.listdir(externalDir)
+                        for fileName in dirList:
+                            fullPath = os.path.join(externalDir,fileName)
+                            if fileName.endswith(md_extn):
+                                saveFiles[fullPath] = True
+                            elif fileName.endswith(md_archive):
+                                saveArchiveFiles[fullPath] = True
+                        del dirList
+                    except OSError:
+                        myPrint("B","@@ Error accessing externalDir: '%s' - skipping...." %(externalDir))
+                        errorDirs.append(externalDir)
 
-        listTheFiles=sorted(saveFiles.keys())
-        listTheArchiveFiles=sorted(saveArchiveFiles.keys())
+            del externalFiles
 
-        for _f in listTheFiles:
-            if saveFiles[_f] is not None:
-                output+=("Dataset: Mod: %s %s\n"
-                         % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
-        del listTheFiles
+            for backupLocation in [ FileUtils.getBackupDir(MD_REF.getPreferences()).getCanonicalPath(),
+                                    MD_REF.getUI().getPreferences().getSetting("backup.location",""),
+                                    MD_REF.getUI().getPreferences().getSetting("backup.last_saved",""),
+                                    MD_REF.getUI().getPreferences().getSetting("backup.last_browsed","")]:
+                if backupLocation is not None and backupLocation != "" and os.path.exists(backupLocation):
+                    try:
+                        dirList =  os.listdir(backupLocation)
+                        for fileName in dirList:
+                            fullPath = os.path.join(backupLocation,fileName)
+                            if fileName.endswith(md_extn):
+                                if saveFiles.get(fileName) is not None:
+                                    saveFiles[fullPath] = True
+                            elif fileName.endswith(md_archive):
+                                saveArchiveFiles[fullPath] = True
+                        del dirList
+                    except OSError:
+                        myPrint("B","@@ Error accessing backupLocationDir: '%s' - skipping...." %(backupLocation))
+                        errorDirs.append(backupLocation)
+            del backupLocation
 
-        output+=("\nBACKUP FILES\n"
-                 "-------------\n")
+            saveFiles[myDataset] = None
 
-        for _f in listTheArchiveFiles:
-            if saveArchiveFiles[_f] is not None:
-                output+=("Archive: Mod: %s %s\n"
-                         % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
-        del listTheArchiveFiles
+            listTheFiles=sorted(saveFiles.keys())
+            listTheArchiveFiles=sorted(saveArchiveFiles.keys())
 
-        output+=("\nSYNC FOLDERS FOUND:\n"
-                 "---------------------\n")
+            for _f in listTheFiles:
+                if saveFiles[_f] is not None:
+                    output+=("Dataset: Mod: %s %s\n"
+                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
+            del listTheFiles
 
-        saveSyncFolder=None
-        try:
-            syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
-            syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
+            output+=("\nBACKUP FILES\n"
+                     "-------------\n")
 
-            if syncMethod is not None and syncMethod.getSyncFolder() is not None:
-                # noinspection PyUnresolvedReferences
-                syncBaseFolder = syncMethod.getSyncFolder().getSyncBaseFolder()
+            for _f in listTheArchiveFiles:
+                if saveArchiveFiles[_f] is not None:
+                    output+=("Archive: Mod: %s %s\n"
+                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
+            del listTheArchiveFiles
 
-                saveSyncFolder = syncBaseFolder.getCanonicalPath()
-                dirList =  os.listdir(saveSyncFolder)
+            output+=("\nSYNC FOLDERS FOUND:\n"
+                     "---------------------\n")
+
+            saveSyncFolder=None
+            try:
+                # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
+                # Also, MD2021.2 Build 3088 adds iCloud Sync which crashes if launched from command line....
+                syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
+                syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
+
+                if syncMethod is not None and syncMethod.getSyncFolder() is not None:
+                    # noinspection PyUnresolvedReferences
+                    syncBaseFolder = syncMethod.getSyncFolder().getSyncBaseFolder()
+
+                    saveSyncFolder = syncBaseFolder.getCanonicalPath()
+                    dirList =  os.listdir(saveSyncFolder)
+
+                    for fileName in dirList:
+                        fullPath = os.path.join(saveSyncFolder,fileName)
+                        if len(fileName)>32:
+                            output+=("Sync Folder: %s %s\n"
+                                     % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(fullPath)).strftime('%Y-%m-%d %H:%M:%S'), 11), fullPath))
+                else:
+                    output+=("<NONE FOUND>\n")
+
+                del syncMethod, syncMethods
+            except:
+                pass
+
+            dropboxPath = tell_me_if_dropbox_folder_exists()
+            if dropboxPath and dropboxPath is not None and dropboxPath != saveSyncFolder:
+
+                output+=("\nDROPBOX FOLDERS FOUND:\n"
+                         "-----------------------\n")
+                dirList =  os.listdir(dropboxPath)
 
                 for fileName in dirList:
-                    fullPath = os.path.join(saveSyncFolder,fileName)
+                    fullPath = os.path.join(dropboxPath,fileName)
                     if len(fileName)>32:
-                        output+=("Sync Folder: %s %s\n"
+                        output+=("Dropbox Sync Folder: %s %s\n"
                                  % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(fullPath)).strftime('%Y-%m-%d %H:%M:%S'), 11), fullPath))
-            else:
-                output+=("<NONE FOUND>\n")
+            del dropboxPath
 
-            del syncMethod, syncMethods
+            if len(errorDirs) > 0:
+                output += ("\nERROR ACCESSING DIRECTORY:\n"
+                           "---------------------------\n")
+                for errorDir in errorDirs: output += (" @@ %s\n" %(errorDir))
+
+            output+="\n\n(for a more extensive search please use Toolbox - Find my Datasets and Backups button\n\n"
+
         except:
-            pass
-
-        dropboxPath = tell_me_if_dropbox_folder_exists()
-        if dropboxPath and dropboxPath is not None and dropboxPath != saveSyncFolder:
-
-            output+=("\nDROPBOX FOLDERS FOUND:\n"
-                     "-----------------------\n")
-            dirList =  os.listdir(dropboxPath)
-
-            for fileName in dirList:
-                fullPath = os.path.join(dropboxPath,fileName)
-                if len(fileName)>32:
-                    output+=("Dropbox Sync Folder: %s %s\n"
-                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(fullPath)).strftime('%Y-%m-%d %H:%M:%S'), 11), fullPath))
-        del dropboxPath
-
-        output+="\n\n(for a more extensive search please use Toolbox extension - 'Find my Datasets and Backups' button\n\n"
+            myPrint("B","@@ ERROR: Failed in find_other_datasets()?")
+            output += dump_sys_error_to_md_console_and_errorlog(lReturnText=True)
 
         return output
 

@@ -1,5 +1,7 @@
 Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated Dec 2021
 
+>> Display Name changed to 'Custom Balances' (from 'Net Account Balances') Dec 2021.
+
 Extension format only >> Minimum Moneydance version 2021.1 (build: 3056, ideally 3069 onwards)
 (If you have installed the extension, but nothing happens, then check your Moneydance version)
 
@@ -84,6 +86,8 @@ This extension creates a 'widget' that displays Totals for items you select on t
           E.G.  Current Balance will always cutoff to today's date
                 Balance will just include everything it finds within the above date ranges
                 Cleared Balance will just include all cleared items within the above date ranges
+
+    NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
 
 - Warnings:
   - You can create illogical totals (e.g. by adding Securities to Income). NAB tries to detect these issues.
