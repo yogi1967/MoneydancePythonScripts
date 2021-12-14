@@ -3552,14 +3552,14 @@ Visit: %s (Author's site)
             except ConcurrentModificationException:
                 myPrint("B","@@ Error: Caught 'ConcurrentModificationException' in returnTransactionsForAccounts() whilst iterating txns.. Attempts so far: %s" %(attempts))
                 myPrint("B","@@ Current SwingWorkers are:", NAB.swingWorkers)
-                dump_sys_error_to_md_console_and_errorlog()
+                # dump_sys_error_to_md_console_and_errorlog()
                 if attempts < 3 and not swClass.isCancelled():
-                    myPrint("DB","... Will sleep on it and then retry....")
+                    myPrint("B","... Will sleep on it and then retry....")
                     Thread.sleep(2000)
                     zapIncExpTableOfTxns(_incExpTable)
                     continue
 
-                myPrint("DB","... Aborting attempts.....")
+                myPrint("B","... Aborting attempts.....")
                 raise
 
             break       # We made it!
@@ -3711,6 +3711,7 @@ Visit: %s (Author's site)
             self.filterOutZeroBalAccts_ACTIVE_CB    = None
             self.filterIncludeSelected_CB           = None
             self.filterOnlyShowSelected_CB          = None
+            self.filterOnlyAccountType_COMBO        = None
 
             self.keyLabel = None
             self.dateRangeLabel = None
@@ -3906,15 +3907,16 @@ Visit: %s (Author's site)
             for obj in self.jlst.originalListObjects:
 
                 sudoAccount = self.getSudoAccountFromParallel(obj, NAB.getSelectedRowIndex())
-
                 if (self.filterOnlyShowSelected_CB.isSelected()
                         and obj not in NAB.jlst.listOfSelectedObjects):
                     continue
 
+                lAllAccountTypes = NAB.filterOnlyAccountType_COMBO.getSelectedItem() == "All Account Types"
+                selectedAccountType = NAB.filterOnlyAccountType_COMBO.getSelectedItem()
+
                 if (_filterText.lower() not in obj.getAccount().getFullAccountName().lower()):
                     if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
                         continue
-
                 if (self.filterOutZeroBalAccts_INACTIVE_CB.isSelected()
                         and not isAccountActive(obj.getAccount(), NAB.savedBalanceType[row])
                         and StoreAccountList.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
@@ -3924,6 +3926,10 @@ Visit: %s (Author's site)
                 if (self.filterOutZeroBalAccts_ACTIVE_CB.isSelected()
                         and isAccountActive(obj.getAccount(), NAB.savedBalanceType[row])
                         and StoreAccountList.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
+                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                        continue
+
+                if not lAllAccountTypes and obj.getAccount().getAccountType() != selectedAccountType:
                     if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
                         continue
 
@@ -4235,28 +4241,31 @@ Visit: %s (Author's site)
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedShowWarningsTable", i))
                         self.savedShowWarningsTable[i] = self.showWarningsDefault()
 
-        def resetParameters(self, iError=None):
+        def resetParameters(self, iError=None, lJustRowSettings=False):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
-            if iError is None:
+            if iError is None and lJustRowSettings:
+                myPrint("B","Initialising to 1 row with default settings....")
+            elif iError is None:
                 myPrint("B","Initialising PARAMETERS to defaults....")
             else:
                 myPrint("B","RESET PARAMETERS Called/Triggered (Error code: %s)... Resetting...." %(iError))
 
-            self.savedAccountListUUIDs          = [self.accountListDefault()]
-            self.savedBalanceType               = [self.balanceDefault()]
-            self.savedIncomeExpenseDateRange    = [self.incomeExpenseDateRangeDefault()]
-            self.savedCustomDatesTable          = [self.customDatesDefault()]
-            self.savedIncludeInactive           = [self.includeInactiveDefault()]
-            self.savedAutoSumAccounts           = [self.autoSumDefault()]
-            self.savedWidgetName                = [self.widgetNameDefault()]
-            self.savedCurrencyTable             = [self.currencyDefault()]
-            self.savedShowWarningsTable         = [self.showWarningsDefault()]
+            self.savedAccountListUUIDs              = [self.accountListDefault()]
+            self.savedBalanceType                   = [self.balanceDefault()]
+            self.savedIncomeExpenseDateRange        = [self.incomeExpenseDateRangeDefault()]
+            self.savedCustomDatesTable              = [self.customDatesDefault()]
+            self.savedIncludeInactive               = [self.includeInactiveDefault()]
+            self.savedAutoSumAccounts               = [self.autoSumDefault()]
+            self.savedWidgetName                    = [self.widgetNameDefault()]
+            self.savedCurrencyTable                 = [self.currencyDefault()]
+            self.savedShowWarningsTable             = [self.showWarningsDefault()]
 
-            self.savedAutoSumDefault            = self.autoSumDefault()
-            self.savedDisableWidgetTitle        = self.disableWidgetTitleDefault()
-            self.savedShowDashesInsteadOfZeros  = self.showDashesInsteadOfZerosDefault()
-            self.savedTreatSecZeroBalInactive   = self.treatSecZeroBalInactiveDefault()
+            if not lJustRowSettings:
+                self.savedAutoSumDefault            = self.autoSumDefault()
+                self.savedDisableWidgetTitle        = self.disableWidgetTitleDefault()
+                self.savedShowDashesInsteadOfZeros  = self.showDashesInsteadOfZerosDefault()
+                self.savedTreatSecZeroBalInactive   = self.treatSecZeroBalInactiveDefault()
 
             self.setSelectedRowIndex(0)
 
@@ -4368,6 +4377,7 @@ Visit: %s (Author's site)
                           self.filterOutZeroBalAccts_ACTIVE_CB,
                           self.filterIncludeSelected_CB,
                           self.filterOnlyShowSelected_CB,
+                          self.filterOnlyAccountType_COMBO,
                           self.showWarnings_CB,
                           self.autoSumAccounts_CB]:
                 myPrint("DB",".. saving and removing listeners from %s: %s" %(comp.getName(), comp.getActionListeners()))
@@ -4400,6 +4410,10 @@ Visit: %s (Author's site)
             # Reset Filter filterOnlyShowSelected_CB
             myPrint("DB", "..about to reset filterOnlyShowSelected_CB ..")
             self.filterOnlyShowSelected_CB.setSelected(False)
+
+            # Reset Filter filterOnlyAccountType_COMBO
+            myPrint("DB", "..about to reset filterOnlyAccountType_COMBO ..")
+            self.filterOnlyAccountType_COMBO.setSelectedItem("All Account Types")
 
             # Rebuild Select Row Dropdown
             myPrint("DB", "..about to set rowSelected_COMBO..")
@@ -4461,6 +4475,7 @@ Visit: %s (Author's site)
                           self.filterOutZeroBalAccts_ACTIVE_CB,
                           self.filterIncludeSelected_CB,
                           self.filterOnlyShowSelected_CB,
+                          self.filterOnlyAccountType_COMBO,
                           self.showWarnings_CB,
                           self.autoSumAccounts_CB]:
                 myPrint("DB",".. retrieving and re-adding listeners to %s: %s" %(comp.getName(), saveMyActionListeners[comp.getName()]))
@@ -4490,6 +4505,7 @@ Visit: %s (Author's site)
             myPrint("DB",".....filterOutZeroBalAccts_ACTIVE_CB: %s"         %(self.filterOutZeroBalAccts_ACTIVE_CB.isSelected()))
             myPrint("DB",".....filterIncludeSelected_CB: %s"                %(self.filterIncludeSelected_CB.isSelected()))
             myPrint("DB",".....filterOnlyShowSelected_CB: %s"               %(self.filterOnlyShowSelected_CB.isSelected()))
+            myPrint("DB",".....filterOnlyAccountType_COMBO: %s"             %(self.filterOnlyAccountType_COMBO.getSelectedItem()))
             myPrint("DB",".....savedCurrencyTable: %s"                      %(self.savedCurrencyTable[selectRowIndex]))
             myPrint("DB",".....savedWidgetName: %s"                         %(self.savedWidgetName[selectRowIndex]))
 
@@ -4769,14 +4785,15 @@ Visit: %s (Author's site)
                     else:
                         myPrint("DB","... Row selected is already correct - no change....")
 
-                elif NAB.moneydanceContext.getCurrentAccount().getBook() is not None:
+                elif (NAB.moneydanceContext.getCurrentAccount() is not None
+                      and NAB.moneydanceContext.getCurrentAccount().getBook() is not None):
 
                     myPrint("DB",".. Application's config panel was not open already...")
                     NAB.configPanelOpen = True
                     NAB.rebuildFrameComponents(NAB.getSelectedRowIndex())
 
                 else:
-                    myPrint("B","WARNING: Book is None.. Perhaps MD is shutting down.. Will do nothing....")
+                    myPrint("B","WARNING: getCurrentAccount() or 'Book' is None.. Perhaps MD is shutting down.. Will do nothing....")
 
                 # The below is in case of a LaF/Theme change
                 pnls = []
@@ -5117,6 +5134,12 @@ Visit: %s (Author's site)
                         myPrint("DB", ".. setting filterOnlyShowSelected_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
                         NAB.searchFiltersUpdated()
 
+                if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
+                    if event.getSource().getName().lower() == "filterOnlyAccountType_COMBO".lower():
+                        if event.getSource().getName().lower() == "filterOnlyAccountType_COMBO".lower():
+                            myPrint("DB", ".. setting filterOnlyAccountType_COMBO to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
+                            NAB.searchFiltersUpdated()
+
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
 
@@ -5273,12 +5296,12 @@ Visit: %s (Author's site)
                         NAB.configSaved = False
 
                 if event.getActionCommand().lower().startswith("Delete Row".lower()):
-                    if NAB.getNumberOfRows() <= 1:
-                        myPopupInformationBox(NAB.theFrame,"Cannot delete last remaining row",theMessageType=JOptionPane.WARNING_MESSAGE)
-                    else:
-                        if myPopupAskQuestion(NAB.theFrame,"DELETE ROW","Delete row: %s from Home Page Widget?" %(NAB.getSelectedRow())):
-                            myPrint("DB", ".. deleting row: %s" %(NAB.getSelectedRow()))
+                    if myPopupAskQuestion(NAB.theFrame,"DELETE ROW","Delete row: %s from Home Page Widget?" %(NAB.getSelectedRow())):
+                        myPrint("DB", ".. deleting row: %s" %(NAB.getSelectedRow()))
 
+                        if NAB.getNumberOfRows() <= 1:
+                            NAB.resetParameters(lJustRowSettings=True)
+                        else:
                             for obj in [NAB.savedAccountListUUIDs,
                                         NAB.savedBalanceType,
                                         NAB.savedIncomeExpenseDateRange,
@@ -5290,8 +5313,9 @@ Visit: %s (Author's site)
                                         NAB.savedCurrencyTable]:
                                 del obj[NAB.getSelectedRowIndex()]
 
-                            NAB.rebuildFrameComponents(selectRowIndex=(min(NAB.getSelectedRowIndex(), NAB.getNumberOfRows()-1)))
-                            NAB.configSaved = False
+                        NAB.rebuildFrameComponents(selectRowIndex=(min(NAB.getSelectedRowIndex(), NAB.getNumberOfRows()-1)))
+                        lShouldRefreshHomeScreenWidget = False      # Make true to refresh the home screen widget too
+                        NAB.configSaved = False
 
                 if event.getActionCommand().lower().startswith("Move Row".lower()):
                     if NAB.getNumberOfRows() < 2:
@@ -6427,7 +6451,7 @@ Visit: %s (Author's site)
 
                     onCol = 0
                     topInset = 0
-                    bottomInset = 5
+                    bottomInset = 2
 
                     NAB.filterOutZeroBalAccts_INACTIVE_CB = MyJCheckBox("Filter Zeros Inactive", True)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_INACTIVE_CB")
@@ -6436,15 +6460,6 @@ Visit: %s (Author's site)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setToolTipText("Applies an additional filter: hide inactive accounts with a zero balance")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.filterOutZeroBalAccts_INACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
-                    onCol += 1
-
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Zeros Active", True)
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_ACTIVE_CB")
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setName("filterOutZeroBalAccts_ACTIVE_CB")
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setToolTipText("Applies an additional filter: hide active accounts with a zero balance")
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOutZeroBalAccts_ACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
                     onCol += 1
 
                     NAB.filterIncludeSelected_CB = MyJCheckBox("Filter Include Selected", True)
@@ -6456,6 +6471,42 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.filterIncludeSelected_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
                     onCol += 1
 
+                    # noinspection PyUnresolvedReferences
+                    includeAccountType = ["All Account Types",
+                                          Account.AccountType.BANK,
+                                          Account.AccountType.CREDIT_CARD,
+                                          Account.AccountType.INVESTMENT,
+                                          Account.AccountType.SECURITY,
+                                          Account.AccountType.ASSET,
+                                          Account.AccountType.LIABILITY,
+                                          Account.AccountType.LOAN,
+                                          Account.AccountType.INCOME,
+                                          Account.AccountType.EXPENSE]
+
+                    topInset = 5
+
+                    NAB.filterOnlyAccountType_COMBO = MyJComboBox(includeAccountType)
+                    NAB.filterOnlyAccountType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyAccountType_COMBO")
+                    NAB.filterOnlyAccountType_COMBO.setName("filterOnlyAccountType_COMBO")
+                    NAB.filterOnlyAccountType_COMBO.setToolTipText("Applies an additional filter: Only show the selected account type")
+                    NAB.filterOnlyAccountType_COMBO.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.filterOnlyAccountType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
+
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+
+                    topInset = 0
+
+                    onCol = 0
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Zeros Active", True)
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_ACTIVE_CB")
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setName("filterOutZeroBalAccts_ACTIVE_CB")
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setToolTipText("Applies an additional filter: hide active accounts with a zero balance")
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.filterOutZeroBalAccts_ACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
+                    onCol += 1
+
                     NAB.filterOnlyShowSelected_CB = MyJCheckBox("Only Show Selected", True)
                     NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyShowSelected_CB")
                     NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
@@ -6464,10 +6515,7 @@ Visit: %s (Author's site)
                     NAB.filterOnlyShowSelected_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.filterOnlyShowSelected_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
 
-                    onRow += 1
-                    # --------------------------------------------------------------------------------------------------
-
-                    onCol = 2
+                    onCol += 1
                     NAB.keyLabel = MyJLabel("Key:")
                     NAB.keyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "keyLabel")
                     controlPnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().colspan(2).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
@@ -6812,6 +6860,7 @@ Visit: %s (Author's site)
 
             self.lastRefreshTimeMs = 0
             self.lastRefreshTimeDelayMs = 3000
+            self.lastRefreshTimeExtraDelayMs = 0
 
             # my attempt to replicate Java's 'synchronized' statements
             self.lock = threading.Lock()
@@ -6901,13 +6950,13 @@ Visit: %s (Author's site)
                 myPrint("DB", "In ViewPanel.accountModified()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", "...calling refresh()")
-                self.refresh()
+                self.refresh(lExtraDelay=True)
 
             def accountBalanceChanged(self, paramAccount):                                                              # noqa
                 myPrint("DB", "In ViewPanel.accountBalanceChanged()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", "...calling refresh()")
-                self.refresh()
+                self.refresh(lExtraDelay=True)
 
             def accountDeleted(self, paramAccount):                                                                     # noqa
                 myPrint("DB", "In ViewPanel.accountDeleted()")
@@ -6955,7 +7004,7 @@ Visit: %s (Author's site)
                         myPrint("DB", "... Detected that SwingWorkers already running.... Skipping reallyRefresh()")
                         return
 
-                    if (gap > HPV.lastRefreshTimeDelayMs or not NAB.parallelBalanceTableOperating):
+                    if (gap > (HPV.lastRefreshTimeDelayMs + HPV.lastRefreshTimeExtraDelayMs)):
                         delayGapTxt = ("*NEVER*" if not HPV.lastRefreshTimeMs else "%s seconds" %(gap/1000.0))
                         myPrint("DB", "... Detected that gap between refresh runs is: %s - WILL reallyRefresh()" %(delayGapTxt))
                         HPV.lastRefreshTimeMs = System.currentTimeMillis()
@@ -7358,7 +7407,7 @@ Visit: %s (Author's site)
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 NetAccountBalancesExtension.getNAB().moneydanceContext.getCurrentAccountBook().removeAccountListener(self)
 
-            def refresh(self):
+            def refresh(self, lExtraDelay=False):
                 myPrint("DB", "In ViewPanel: %s.%s()" %(self, inspect.currentframe().f_code.co_name))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", "HomePageView(ViewPanel): .refresh()..")
@@ -7374,6 +7423,8 @@ Visit: %s (Author's site)
                     return
 
                 if self.refresher is not None:
+                    HPV.lastRefreshTimeExtraDelayMs = (3000 if lExtraDelay else 0)
+
                     myPrint("DB","... calling refresher.enqueueRefresh()")
                     self.refresher.enqueueRefresh()
                 else:
