@@ -31,7 +31,10 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 
 **To install/run Extensions:**
 1) Launch Moneydance
-2) Double-click the .mxt file; or drag and drop the .mxt file onto the Moneydance left side bar;
+2) Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
+   ... or drag and drop the .mxt file onto the Moneydance left side bar;
+   ... or Extensions, Manage Extensions, add from file to install.
+
    or Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install;
    (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
 3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
@@ -51,22 +54,22 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
     <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)
 
 
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Net Account Balances**: Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Now multi-row, display currency, and you can select Accounts/Categories/Securities per row.
-NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView widget
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Custom Balances(Net Account Balances)**: Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Now multi-row, display currency, and you can select Accounts/Categories/Securities per row.
+NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView (Summary Page) widget
 
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/total_selected_transactions.zip">**^^Total Selected Transactions**: Allows you to select register txns and with one click show a popup sum-total of the txn amounts selected.
 
 ### Extension and Scripts formats (*.mxt and *.py format) - Very latest (unsigned) builds
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**extract_data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
 - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
 - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
 - extract_currency_history_csv          Extract currency history to csv
 - extract_investment_transactions_csv   Extract investment transactions to csv
 - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/categories_super_window.zip">**^^categories_super_window**: Clones MD Menu> Tools>Categories and adds a Quick Search box/capability.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/categories_super_window.zip">**^^Categories Super Window**: Clones MD Menu> Tools>Categories and adds a Quick Search box/capability.
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**list_future_reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**List Future Reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
