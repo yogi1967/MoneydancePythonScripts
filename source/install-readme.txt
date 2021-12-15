@@ -25,7 +25,7 @@ HOW DO YOU CHOOSE?
 
 To install/run Extensions:
 1) Launch the Moneydance application
-2) Double-click the .mxt file
+2) Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
    .. or drag and drop the .mxt file onto the Moneydance left side bar
    .. or Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install
 3) Accept the warning that the extension is unsigned / missing (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.

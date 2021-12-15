@@ -2,8 +2,8 @@
 # -*- coding: UTF-8 -*-
 
 # net_account_balances.py build: 1011 - July-Dec 2021 - Stuart Beesley - StuWareSoftSystems
-
-###############################################################################
+# Display Name in MD now 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
+########################################################################################################################
 # This extension creates a 'widget' that displays Totals for items you select on the Moneydance Summary Page (Home Page)
 #
 # Double-click .mxt, or Drag & drop .mxt onto left side bar, or Extensions, Manage Extensions, add from file to install.
@@ -15,13 +15,14 @@
 # Review net_account_balances_readme.txt for more details
 #
 # As of Dec 2021:   this extension allows you to select how many rows you require and configure each row
-#                   and select a currency conversion per row, include/exclude Active/Inactive accounts
-#                   and auto sum whole accounts (or when off, manually select sub accounts / securities)
-#                   with QuickSearch Filter too.
+#                   ... select a currency conversion per row, include/exclude Active/Inactive accounts
+#                   ... auto sum whole accounts (or when off, manually select sub accounts / securities)
+#                   ... QuickSearch Filters too.
 #
 #                   On Income/Expense categories you can select a date range, and widget will recalculate balances
+#                   ... and allows custom date ranges too
 #                   WARNING: This is potentially an 'expensive' operation. Do not use for heavy reporting...
-###############################################################################
+########################################################################################################################
 # MIT License
 #
 # Copyright (c) 2021 Stuart Beesley
@@ -931,7 +932,7 @@ Visit: %s (Author's site)
                 def __init__(self, callingClass):
                     self.callingClass = callingClass
 
-                def run(self):                                                                                                      # noqa
+                def run(self):                                                                                          # noqa
 
                     myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
                     myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
@@ -1303,7 +1304,7 @@ Visit: %s (Author's site)
                     or (self.what == "1234" and (myString in "1234")) \
                     or (self.what == "CURR"):
                 if ((self.getLength() + len(myString)) <= self.limit):
-                    super(JTextFieldLimitYN, self).insertString(myOffset, myString, myAttr)                         # noqa
+                    super(JTextFieldLimitYN, self).insertString(myOffset, myString, myAttr)                             # noqa
 
     def fix_delimiter( theDelimiter ):
 
@@ -2779,7 +2780,7 @@ Visit: %s (Author's site)
             self._preSelectedList = _preSelectedList
             self._balType = _balType
             self._incExpDateRange = _incExpDateRange
-            myPrint("DB", "MyAcctFilter: Only Include Active Accounts: %s. AutoSum: %s. BalType: %s. IncExp Date Range Option: %s. Pre-selected list contains %s entries"
+            myPrint("DB", "MyAcctFilter passed parameters: Only Include Active Accounts: %s. AutoSum: %s. BalType: %s. IncExp Date Range Option: %s. Pre-selected list contains %s entries"
                     %(not _filterIncludeInactive,
                       _autoSum,
                       _balType,
@@ -2792,9 +2793,9 @@ Visit: %s (Author's site)
             # noinspection PyUnresolvedReferences
             if acct.getAccountType() == Account.AccountType.ROOT: return False
 
-            if not self._filterIncludeInactive:
-                if acct.getUUID() not in self._preSelectedList:
-                    return isAccountActive(acct, self._balType)
+            # if not self._filterIncludeInactive:
+            #     if acct.getUUID() not in self._preSelectedList:
+            #         return isAccountActive(acct, self._balType)
 
             return True
 
@@ -3902,8 +3903,6 @@ Visit: %s (Author's site)
 
             filteredListAccounts = []
 
-            # selectedValuesList = NAB.jlst.getSelectedValuesList()
-
             for obj in self.jlst.originalListObjects:
 
                 sudoAccount = self.getSudoAccountFromParallel(obj, NAB.getSelectedRowIndex())
@@ -3914,9 +3913,15 @@ Visit: %s (Author's site)
                 lAllAccountTypes = NAB.filterOnlyAccountType_COMBO.getSelectedItem() == "All Account Types"
                 selectedAccountType = NAB.filterOnlyAccountType_COMBO.getSelectedItem()
 
+                if (not self.savedIncludeInactive[row]
+                        and not isAccountActive(obj.getAccount(), self.savedBalanceType[row])):
+                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                        continue
+
                 if (_filterText.lower() not in obj.getAccount().getFullAccountName().lower()):
                     if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
                         continue
+
                 if (self.filterOutZeroBalAccts_INACTIVE_CB.isSelected()
                         and not isAccountActive(obj.getAccount(), NAB.savedBalanceType[row])
                         and StoreAccountList.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
@@ -4305,7 +4310,7 @@ Visit: %s (Author's site)
                     iconTintInactive = NAB.moneydanceContext.getUI().colors.errorMessageForeground
                     iconInactive = mdImages.getIconWithColor(MDImages.GRIP_VERTICAL, iconTintInactive)
                     NAB.keyLabel.setIcon(iconInactive)
-                NAB.keyLabel.setText(wrap_HTML_small("","WARNING: Includes Inactive(s)"))
+                NAB.keyLabel.setText(wrap_HTML_small("","WARNING: Total Includes Inactive Children", NAB.moneydanceContext.getUI().colors.defaultTextForeground))
                 NAB.keyLabel.setHorizontalAlignment(JLabel.RIGHT)
                 NAB.keyLabel.setHorizontalTextPosition(JLabel.LEFT)
                 NAB.keyLabel.repaint()
@@ -4347,8 +4352,8 @@ Visit: %s (Author's site)
 
             def getDR(self):        return self.DR
             def __str__(self):      return NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getStr(self.getDR().getResourceKey())  # noqa
-            def __repr__(self):     return self.__str__()                                                   # noqa
-            def toString(self):     return self.__str__()                                                   # noqa
+            def __repr__(self):     return self.__str__()                                                               # noqa
+            def toString(self):     return self.__str__()                                                               # noqa
 
 
         def findDateRange(self, _key):
@@ -5114,12 +5119,12 @@ Visit: %s (Author's site)
                             NAB.jlst.repaint()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Filter Zeros Inactive".lower()):
+                if event.getActionCommand().lower().startswith("Filter Out Zeros Inactive".lower()):
                     if event.getSource().getName().lower() == "filterOutZeroBalAccts_INACTIVE_CB".lower():
                         myPrint("DB", ".. setting filterOutZeroBalAccts_INACTIVE_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
                         NAB.searchFiltersUpdated()
 
-                if event.getActionCommand().lower().startswith("Filter Zeros Active".lower()):
+                if event.getActionCommand().lower().startswith("Filter Out Zeros Active".lower()):
                     if event.getSource().getName().lower() == "filterOutZeroBalAccts_ACTIVE_CB".lower():
                         myPrint("DB", ".. setting filterOutZeroBalAccts_ACTIVE_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
                         NAB.searchFiltersUpdated()
@@ -5135,10 +5140,19 @@ Visit: %s (Author's site)
                         NAB.searchFiltersUpdated()
 
                 if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
-                    if event.getSource().getName().lower() == "filterOnlyAccountType_COMBO".lower():
-                        if event.getSource().getName().lower() == "filterOnlyAccountType_COMBO".lower():
-                            myPrint("DB", ".. setting filterOnlyAccountType_COMBO to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
+
+                    if event.getSource().getName().lower() == "includeInactive_COMBO".lower():
+                        if NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
+                            myPrint("DB", ".. setting savedIncludeInactive to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
+                            NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                            NAB.setKeyLabel(NAB.getSelectedRowIndex())
+                            # NAB.rebuildJList()
+                            NAB.configSaved = False
                             NAB.searchFiltersUpdated()
+
+                    if event.getSource().getName().lower() == "filterOnlyAccountType_COMBO".lower():
+                        myPrint("DB", ".. setting filterOnlyAccountType_COMBO to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
+                        NAB.searchFiltersUpdated()
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
@@ -5209,14 +5223,6 @@ Visit: %s (Author's site)
                             NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
                             NAB.setDateRangeLabel(NAB.getSelectedRowIndex())
                             NAB.rebuildParallelBalanceTable()
-
-                    if event.getSource().getName().lower() == "includeInactive_COMBO".lower():
-                        if NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
-                            myPrint("DB", ".. setting savedIncludeInactive to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
-                            NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
-                            NAB.setKeyLabel(NAB.getSelectedRowIndex())
-                            NAB.rebuildJList()
-                            NAB.configSaved = False
 
                     if event.getSource().getName().lower() == "currency_COMBO".lower():
                         selCur = event.getSource().getSelectedItem()
@@ -5443,7 +5449,8 @@ Visit: %s (Author's site)
                     NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
                     myPrint("B", "User has changed 'Treat Securities With Zero Balance as Inactive' to: %s" %(NAB.savedTreatSecZeroBalInactive))
 
-                    NAB.rebuildJList()
+                    # NAB.rebuildJList()
+                    NAB.searchFiltersUpdated()
                     NAB.configSaved = False
 
                 # ######################################################################################################
@@ -6393,17 +6400,8 @@ Visit: %s (Author's site)
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
 
-                    onCol = 0
+                    onCol = 1
                     topInset = 7
-
-                    includeInactiveOptions = ["Active Only", "Include Inactive"]
-                    NAB.includeInactive_COMBO = MyJComboBox(includeInactiveOptions)
-                    NAB.includeInactive_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "includeInactive_COMBO")
-                    NAB.includeInactive_COMBO.setName("includeInactive_COMBO")
-                    NAB.includeInactive_COMBO.setToolTipText("Select to only list Active items, or also include Inactive too")
-                    NAB.includeInactive_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.includeInactive_COMBO, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset+3).fillx())
-                    onCol += 1
 
                     clearList_button = MyJButton("Clear Selection")
                     clearList_button.putClientProperty("%s.id" %(NAB.myModuleID), "clearList_button")
@@ -6440,11 +6438,12 @@ Visit: %s (Author's site)
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
-                    topInset = 2
+                    topInset = 0
                     bottomInset = 0
 
-                    controlPnl.add(NAB.quickSearchField,GridC.getc(onCol, onRow).colspan(4).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
-                    onCol += 0
+                    filterLabel = MyJLabel(wrap_HTML_small("","FILTERS:", NAB.moneydanceContext.getUI().colors.defaultTextForeground))
+                    filterLabel.putClientProperty("%s.id" %(NAB.myModuleID), "filterLabel")
+                    controlPnl.add(filterLabel, GridC.getc(onCol, onRow).southEast().fillx().insets(topInset,colLeftInset+2,bottomInset,colRightInset))
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
@@ -6453,13 +6452,22 @@ Visit: %s (Author's site)
                     topInset = 0
                     bottomInset = 2
 
-                    NAB.filterOutZeroBalAccts_INACTIVE_CB = MyJCheckBox("Filter Zeros Inactive", True)
+                    includeInactiveOptions = ["Active Only", "Include Inactive"]
+                    NAB.includeInactive_COMBO = MyJComboBox(includeInactiveOptions)
+                    NAB.includeInactive_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "includeInactive_COMBO")
+                    NAB.includeInactive_COMBO.setName("includeInactive_COMBO")
+                    NAB.includeInactive_COMBO.setToolTipText("Select to only list Active items, or also include Inactive too")
+                    NAB.includeInactive_COMBO.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.includeInactive_COMBO, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset+3).fillx())
+                    onCol += 1
+
+                    NAB.filterOutZeroBalAccts_INACTIVE_CB = MyJCheckBox("Filter Out Zeros Inactive", True)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_INACTIVE_CB")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setName("filterOutZeroBalAccts_INACTIVE_CB")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setToolTipText("Applies an additional filter: hide inactive accounts with a zero balance")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOutZeroBalAccts_INACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
+                    controlPnl.add(NAB.filterOutZeroBalAccts_INACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
                     onCol += 1
 
                     NAB.filterIncludeSelected_CB = MyJCheckBox("Filter Include Selected", True)
@@ -6470,6 +6478,12 @@ Visit: %s (Author's site)
                     NAB.filterIncludeSelected_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.filterIncludeSelected_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
                     onCol += 1
+
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+
+                    onCol = 0
+                    topInset = 5
 
                     # noinspection PyUnresolvedReferences
                     includeAccountType = ["All Account Types",
@@ -6483,28 +6497,23 @@ Visit: %s (Author's site)
                                           Account.AccountType.INCOME,
                                           Account.AccountType.EXPENSE]
 
-                    topInset = 5
-
                     NAB.filterOnlyAccountType_COMBO = MyJComboBox(includeAccountType)
                     NAB.filterOnlyAccountType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyAccountType_COMBO")
                     NAB.filterOnlyAccountType_COMBO.setName("filterOnlyAccountType_COMBO")
                     NAB.filterOnlyAccountType_COMBO.setToolTipText("Applies an additional filter: Only show the selected account type")
                     NAB.filterOnlyAccountType_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOnlyAccountType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
-
-                    onRow += 1
-                    # --------------------------------------------------------------------------------------------------
+                    controlPnl.add(NAB.filterOnlyAccountType_COMBO, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
+                    onCol += 1
 
                     topInset = 0
 
-                    onCol = 0
-                    NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Zeros Active", True)
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Out Zeros Active", True)
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_ACTIVE_CB")
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.setName("filterOutZeroBalAccts_ACTIVE_CB")
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.setToolTipText("Applies an additional filter: hide active accounts with a zero balance")
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.filterOutZeroBalAccts_ACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
+                    controlPnl.add(NAB.filterOutZeroBalAccts_ACTIVE_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
                     onCol += 1
 
                     NAB.filterOnlyShowSelected_CB = MyJCheckBox("Only Show Selected", True)
@@ -6515,10 +6524,22 @@ Visit: %s (Author's site)
                     NAB.filterOnlyShowSelected_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.filterOnlyShowSelected_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
 
-                    onCol += 1
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+
+                    onCol = 0
+                    topInset = 2
+                    bottomInset = 0
+
+                    controlPnl.add(NAB.quickSearchField,GridC.getc(onCol, onRow).colspan(4).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
+
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+
+                    onCol = 2
                     NAB.keyLabel = MyJLabel("Key:")
                     NAB.keyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "keyLabel")
-                    controlPnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().colspan(2).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset))
+                    controlPnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().colspan(2).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset+2))
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
