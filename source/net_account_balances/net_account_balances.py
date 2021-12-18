@@ -4054,7 +4054,8 @@ Visit: %s (Author's site)
 
             NAB.configSaved = True
             if lFromHomeScreen:
-                if MyHomePageView.getHPV().view is not None: MyHomePageView.getHPV().view.lastRefreshTimeMs = 0
+                if MyHomePageView.getHPV().view is not None:
+                    MyHomePageView.getHPV().view.lastRefreshTriggerWasAccountModified = False
                 NAB.executeRefresh()
 
         def getSudoAccountFromParallel(self, acctObj, rowIndex):
@@ -4838,10 +4839,10 @@ Visit: %s (Author's site)
                     NAB.simulateTotalForRow(lFromParallel=True)
 
                 except InterruptedException:
-                    myPrint("B","@@ RebuildParallelBalanceTableSwingWorker InterruptedException - aborting...")
+                    myPrint("DB","@@ RebuildParallelBalanceTableSwingWorker InterruptedException - aborting...")
 
                 except CancellationException:
-                    myPrint("B","@@ RebuildParallelBalanceTableSwingWorker CancellationException - aborting...")
+                    myPrint("DB","@@ RebuildParallelBalanceTableSwingWorker CancellationException - aborting...")
 
                 except:
                     myPrint("B","@@ ERROR: RebuildParallelBalanceTableSwingWorker:Done() has failed?")
@@ -5080,8 +5081,7 @@ Visit: %s (Author's site)
 
                     NAB.cancelSwingWorkers(lSimulates=True, lParallelRebuilds=True, lBuildHomePageWidgets=True)
 
-                    HPV.view.lastRefreshTimeMs = 0
-                    HPV.view.lastRefreshTimeExtraDelayMs = 0
+                    HPV.view.lastRefreshTriggerWasAccountModified = False
 
                     NAB.resetJListModel()
                     NAB.executeRefresh()
@@ -5253,10 +5253,10 @@ Visit: %s (Author's site)
                                     NAB.simulateTotal_label.setForeground(md.getUI().colors.positiveBalFG)
 
                 except InterruptedException:
-                    myPrint("B","@@ SimulateTotalForRowSwingWorker InterruptedException - aborting...")
+                    myPrint("DB","@@ SimulateTotalForRowSwingWorker InterruptedException - aborting...")
 
                 except CancellationException:
-                    myPrint("B","@@ SimulateTotalForRowSwingWorker CancellationException - aborting...")
+                    myPrint("DB","@@ SimulateTotalForRowSwingWorker CancellationException - aborting...")
 
                 except AttributeError as e:
                     if not detectMDClosingError(e): raise
@@ -7277,13 +7277,13 @@ Visit: %s (Author's site)
                 myPrint("DB", "In ViewPanel.accountModified()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", "...calling refresh()")
-                self.refresh(lExtraDelay=True)
+                self.refresh(lFromAccountListener=True)
 
             def accountBalanceChanged(self, paramAccount):                                                              # noqa
                 myPrint("DB", "In ViewPanel.accountBalanceChanged()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", "...calling refresh()")
-                self.refresh(lExtraDelay=True)
+                self.refresh(lFromAccountListener=True)
 
             def accountDeleted(self, paramAccount):                                                                     # noqa
                 myPrint("DB", "In ViewPanel.accountDeleted()")
@@ -7314,7 +7314,7 @@ Visit: %s (Author's site)
                         myPrint("DB",".. calling .showURL() to trigger Help>Console Window ('%s')..." %(link))
                         NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
 
-            # The Runnable for CollapsibleRefresher()
+            # The Runnable for CollapsibleRefresher() >> Doesn't really need to be a Runnable as .run() is called directly
             class GUIRunnable(Runnable):
 
                 def __init__(self, viewPanelInstance):
@@ -7324,25 +7324,7 @@ Visit: %s (Author's site)
                 # noinspection PyMethodMayBeStatic
                 def run(self):
                     myPrint("DB","Inside GUIRunnable.... Calling .reallyRefresh()..")
-
-                    NAB = NetAccountBalancesExtension.getNAB()
-
-                    gap = System.currentTimeMillis() - self.viewPanelInstance.lastRefreshTimeMs
-
-                    # if NAB.isWidgetRefreshRunning_LOCKFIRST():
-                    #     myPrint("B", "... Detected that other Build WidgetSwingWorker(s) already running.... Skipping reallyRefresh() - details as follows:");
-                    #     NAB.listAllSwingWorkers()
-                    #     return
-
-                    if (gap > (self.viewPanelInstance.lastRefreshTimeDelayMs + self.viewPanelInstance.lastRefreshTimeExtraDelayMs)):
-                        delayGapTxt = ("*NEVER*" if not self.viewPanelInstance.lastRefreshTimeMs else "%s seconds" %(gap/1000.0))
-                        myPrint("DB", "... Detected that gap between refresh runs is: %s - WILL reallyRefresh()" %(delayGapTxt))
-                        NAB.cancelSwingWorkers(lBuildHomePageWidgets=True)
-                        self.viewPanelInstance.lastRefreshTimeMs = System.currentTimeMillis()
-                        self.viewPanelInstance.reallyRefresh()
-                    else:
-                        myPrint("DB", "... Detected that gap between refresh runs is less than %s seconds - so will NOT reallyRefresh()"
-                                %((self.viewPanelInstance.lastRefreshTimeDelayMs + self.viewPanelInstance.lastRefreshTimeExtraDelayMs) / 1000.0))
+                    self.viewPanelInstance.reallyRefresh()
 
             @staticmethod
             def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):                            # noqa
@@ -7710,9 +7692,8 @@ Visit: %s (Author's site)
                 self.refresher = None
                 self.book = book
 
-                self.lastRefreshTimeMs = 0
-                self.lastRefreshTimeDelayMs = 3000
-                self.lastRefreshTimeExtraDelayMs = 0
+                self.lastRefreshTimeDelayMs = 10000
+                self.lastRefreshTriggerWasAccountModified = False
 
                 super(JPanel, self).__init__()                                                                          # noqa
 
@@ -7786,12 +7767,15 @@ Visit: %s (Author's site)
                 book.removeAccountListener(self)
                 book.getCurrencies().removeCurrencyListener(self)
 
-            def refresh(self, lExtraDelay=False):
+            def refresh(self, lFromAccountListener=False):
                 myPrint("DB", "In ViewPanel: %s.%s()" %(self, inspect.currentframe().f_code.co_name))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                 myPrint("DB", "HomePageView(ViewPanel): .refresh()..")
 
                 HPV = MyHomePageView.getHPV()
+
+                myPrint("DB",".. lastRefreshTriggerWasAccountModified: %s" %(self.lastRefreshTriggerWasAccountModified))
+                self.lastRefreshTriggerWasAccountModified = lFromAccountListener
 
                 if HPV.is_unloaded:
                     myPrint("DB","HomePageView is unloaded, so ignoring....")
@@ -7802,8 +7786,6 @@ Visit: %s (Author's site)
                     return
 
                 if self.refresher is not None:
-                    self.lastRefreshTimeExtraDelayMs = (3000 if lExtraDelay else 0)
-
                     myPrint("DB","... calling refresher.enqueueRefresh()")
                     self.refresher.enqueueRefresh()
                 else:
@@ -7829,6 +7811,12 @@ Visit: %s (Author's site)
                     result = False
 
                     try:
+                        if self.callingClass.lastRefreshTriggerWasAccountModified:
+                            myPrint("DB","** BuildHomePageWidgetSwingWorker.doInBackground() will now sleep for %s seconds as last trigger for .reallyRefresh() was an Account Listener... (unless I get superceded and cancelled)"
+                                    %(self.callingClass.lastRefreshTimeDelayMs / 1000.0))
+                            Thread.sleep(self.callingClass.lastRefreshTimeDelayMs)
+                            myPrint("DB",".. >> Back from my sleep.... Now will reallyRefresh....!")
+
                         self.netAmountTable = self.callingClass.getBalancesBuildView(self)
                         result = True
 
@@ -7836,7 +7824,10 @@ Visit: %s (Author's site)
                         if not detectMDClosingError(e): raise
 
                     except InterruptedException:
-                        myPrint("B","@@ BuildHomePageWidgetSwingWorker InterruptedException - aborting...")
+                        myPrint("DB","@@ BuildHomePageWidgetSwingWorker InterruptedException - aborting...")
+
+                    except CancellationException:
+                        myPrint("DB","@@ BuildHomePageWidgetSwingWorker CancellationException - aborting...")
 
                     except:
                         myPrint("B","@@ ERROR Detected in BuildHomePageWidgetSwingWorker running: getBalancesBuildView() inside ViewPanel")
@@ -7994,10 +7985,10 @@ Visit: %s (Author's site)
                             raise
 
                     except InterruptedException:
-                        myPrint("B","@@ BuildHomePageWidgetSwingWorker InterruptedException - aborting...")
+                        myPrint("DB","@@ BuildHomePageWidgetSwingWorker InterruptedException - aborting...")
 
                     except CancellationException:
-                        myPrint("B","@@ BuildHomePageWidgetSwingWorker CancellationException - aborting...")
+                        myPrint("DB","@@ BuildHomePageWidgetSwingWorker CancellationException - aborting...")
 
                     except:
 
@@ -8041,6 +8032,8 @@ Visit: %s (Author's site)
 
                 NAB = NetAccountBalancesExtension.getNAB()
                 md = NAB.moneydanceContext
+
+                NAB.cancelSwingWorkers(lBuildHomePageWidgets=True)
 
                 # launch -invoke[_and_quit] can cause program to fall over as it's shutting down.. Detect None condition
                 if md.getCurrentAccountBook() is None:
