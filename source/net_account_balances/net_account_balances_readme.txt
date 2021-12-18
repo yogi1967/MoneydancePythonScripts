@@ -53,6 +53,9 @@ This extension creates a 'widget' that displays Totals for items you select on t
                  These are primarily where you have created 'illogical' calculations - e.g. Expense: Gas plus a Security
                  You can enable/disable warnings per row. The widget doesn't care. It will total up anything...!
 
+                 NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
+                       .. The search for warnings stops after the first occurrence of each type of error it finds....
+
 - Active / Inactive Accounts:
   - MD ALWAYS includes the total balance(s) of all child accounts in an account's total.. Irrespective of Active/Inactive
   - Thus if you select Active only and select an account which contains inactive children, it will include inactive balances
@@ -102,14 +105,14 @@ This extension creates a 'widget' that displays Totals for items you select on t
 
 - Warnings:
   - You can create illogical totals (e.g. by adding Securities to Income). NAB tries to detect these issues.
-  - It will alert you if any are found. Help>Console will show you the details of any warnings
+  - It will alert you if any are found. Help>Console Window will show you the details of any warnings
 
 - Options Menu:
   - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
   - You can change the default setting AutoSum for new rows that you insert/create. It does not affect existing rows
   - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
-  - Debug: Generates program debug messages in Help>Console. DO NOT LEAVE THIS PERMANENTLY ON
+  - Debug: Generates program debug messages in Help>Console Window. DO NOT LEAVE THIS PERMANENTLY ON
 
 >> DON'T FORGET TO SAVE CHANGES <<
 

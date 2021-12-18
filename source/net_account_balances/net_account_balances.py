@@ -339,12 +339,13 @@ else:
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
     import threading
     from com.moneydance.apps.md.view import HomePageView
-    from com.infinitekind.moneydance.model import AccountListener, AbstractTxn
+    from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener
     from com.moneydance.apps.md.controller import FeatureModule
     from javax.swing import JList, ListSelectionModel, DefaultComboBoxModel, DefaultListSelectionModel, JSeparator
     from javax.swing import DefaultListCellRenderer, BorderFactory
     from com.moneydance.apps.md.view.gui import MoneydanceLAF
-    from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, CollapsibleRefresher, AwtUtil
+    from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil
+    # from com.moneydance.awt import CollapsibleRefresher
     from com.infinitekind.util import StringUtils, StreamVector
     from java.awt.event import FocusAdapter
 
@@ -358,11 +359,13 @@ else:
 
     from java.lang import ArrayIndexOutOfBoundsException, String, Integer
     from java.util import Comparator, Iterator, Collections, Iterator
-    from com.infinitekind.moneydance.model import TxnIterator
+    # from com.infinitekind.moneydance.model import TxnIterator
 
     from java.lang import InterruptedException
-    from java.util import ConcurrentModificationException
+    # from java.util import ConcurrentModificationException
     from java.util.concurrent import CancellationException
+
+    from com.moneydance.apps.md.view.gui import ConsoleWindow
 
     # renamed in MD build 3067
     if int(MD_REF.getBuild()) >= 3067:
@@ -388,6 +391,7 @@ else:
     GlobalVars.extn_param_NEW_balanceType_NAB               = None
     GlobalVars.extn_param_NEW_widget_display_name_NAB       = None
     GlobalVars.extn_param_NEW_currency_NAB                  = None
+    GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = None
     GlobalVars.extn_param_NEW_includeInactive_NAB           = None
     GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = None
     GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = None
@@ -2630,26 +2634,27 @@ Visit: %s (Author's site)
         if myParameters is None: myParameters = {}
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-        if myParameters.get("__net_account_balances_extension") is not None:            GlobalVars.__net_account_balances_extension = myParameters.get("__net_account_balances_extension")
+        if myParameters.get("__net_account_balances_extension") is not None:                GlobalVars.__net_account_balances_extension = myParameters.get("__net_account_balances_extension")
 
-        if myParameters.get("extn_param_listAccountUUIDs_NAB") is not None:             GlobalVars.extn_param_listAccountUUIDs_NAB = myParameters.get("extn_param_listAccountUUIDs_NAB")
-        if myParameters.get("extn_param_balanceType_NAB") is not None:                  GlobalVars.extn_param_balanceType_NAB = myParameters.get("extn_param_balanceType_NAB")
-        if myParameters.get("extn_param_widget_display_name_NAB") is not None:          GlobalVars.extn_param_widget_display_name_NAB = myParameters.get("extn_param_widget_display_name_NAB")
+        if myParameters.get("extn_param_listAccountUUIDs_NAB") is not None:                 GlobalVars.extn_param_listAccountUUIDs_NAB = myParameters.get("extn_param_listAccountUUIDs_NAB")
+        if myParameters.get("extn_param_balanceType_NAB") is not None:                      GlobalVars.extn_param_balanceType_NAB = myParameters.get("extn_param_balanceType_NAB")
+        if myParameters.get("extn_param_widget_display_name_NAB") is not None:              GlobalVars.extn_param_widget_display_name_NAB = myParameters.get("extn_param_widget_display_name_NAB")
 
-        if myParameters.get("extn_param_NEW_listAccountUUIDs_NAB") is not None:         GlobalVars.extn_param_NEW_listAccountUUIDs_NAB = myParameters.get("extn_param_NEW_listAccountUUIDs_NAB")
-        if myParameters.get("extn_param_NEW_balanceType_NAB") is not None:              GlobalVars.extn_param_NEW_balanceType_NAB = myParameters.get("extn_param_NEW_balanceType_NAB")
-        if myParameters.get("extn_param_NEW_incomeExpenseDateRange_NAB") is not None:   GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB = myParameters.get("extn_param_NEW_incomeExpenseDateRange_NAB")
-        if myParameters.get("extn_param_NEW_customDatesTable_NAB") is not None:         GlobalVars.extn_param_NEW_customDatesTable_NAB = myParameters.get("extn_param_NEW_customDatesTable_NAB")
-        if myParameters.get("extn_param_NEW_autoSumAccounts_NAB") is not None:          GlobalVars.extn_param_NEW_autoSumAccounts_NAB = myParameters.get("extn_param_NEW_autoSumAccounts_NAB")
-        if myParameters.get("extn_param_NEW_includeInactive_NAB") is not None:          GlobalVars.extn_param_NEW_includeInactive_NAB = myParameters.get("extn_param_NEW_includeInactive_NAB")
-        if myParameters.get("extn_param_NEW_widget_display_name_NAB") is not None:      GlobalVars.extn_param_NEW_widget_display_name_NAB = myParameters.get("extn_param_NEW_widget_display_name_NAB")
-        if myParameters.get("extn_param_NEW_currency_NAB") is not None:                 GlobalVars.extn_param_NEW_currency_NAB = myParameters.get("extn_param_NEW_currency_NAB")
-        if myParameters.get("extn_param_NEW_showWarningsTable_NAB") is not None:        GlobalVars.extn_param_NEW_showWarningsTable_NAB = myParameters.get("extn_param_NEW_showWarningsTable_NAB")
+        if myParameters.get("extn_param_NEW_listAccountUUIDs_NAB") is not None:             GlobalVars.extn_param_NEW_listAccountUUIDs_NAB = myParameters.get("extn_param_NEW_listAccountUUIDs_NAB")
+        if myParameters.get("extn_param_NEW_balanceType_NAB") is not None:                  GlobalVars.extn_param_NEW_balanceType_NAB = myParameters.get("extn_param_NEW_balanceType_NAB")
+        if myParameters.get("extn_param_NEW_incomeExpenseDateRange_NAB") is not None:       GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB = myParameters.get("extn_param_NEW_incomeExpenseDateRange_NAB")
+        if myParameters.get("extn_param_NEW_customDatesTable_NAB") is not None:             GlobalVars.extn_param_NEW_customDatesTable_NAB = myParameters.get("extn_param_NEW_customDatesTable_NAB")
+        if myParameters.get("extn_param_NEW_autoSumAccounts_NAB") is not None:              GlobalVars.extn_param_NEW_autoSumAccounts_NAB = myParameters.get("extn_param_NEW_autoSumAccounts_NAB")
+        if myParameters.get("extn_param_NEW_includeInactive_NAB") is not None:              GlobalVars.extn_param_NEW_includeInactive_NAB = myParameters.get("extn_param_NEW_includeInactive_NAB")
+        if myParameters.get("extn_param_NEW_widget_display_name_NAB") is not None:          GlobalVars.extn_param_NEW_widget_display_name_NAB = myParameters.get("extn_param_NEW_widget_display_name_NAB")
+        if myParameters.get("extn_param_NEW_currency_NAB") is not None:                     GlobalVars.extn_param_NEW_currency_NAB = myParameters.get("extn_param_NEW_currency_NAB")
+        if myParameters.get("extn_param_NEW_disableCurrencyFormatting_NAB") is not None:    GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = myParameters.get("extn_param_NEW_disableCurrencyFormatting_NAB")
+        if myParameters.get("extn_param_NEW_showWarningsTable_NAB") is not None:            GlobalVars.extn_param_NEW_showWarningsTable_NAB = myParameters.get("extn_param_NEW_showWarningsTable_NAB")
 
-        if myParameters.get("extn_param_NEW_autoSumDefault_NAB") is not None:           GlobalVars.extn_param_NEW_autoSumDefault_NAB = myParameters.get("extn_param_NEW_autoSumDefault_NAB")
-        if myParameters.get("extn_param_NEW_disableWidgetTitle_NAB") is not None:       GlobalVars.extn_param_NEW_disableWidgetTitle_NAB = myParameters.get("extn_param_NEW_disableWidgetTitle_NAB")
-        if myParameters.get("extn_param_NEW_showDashesInsteadOfZeros_NAB") is not None: GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB = myParameters.get("extn_param_NEW_showDashesInsteadOfZeros_NAB")
-        if myParameters.get("extn_param_NEW_treatSecZeroBalInactive_NAB") is not None:  GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB = myParameters.get("extn_param_NEW_treatSecZeroBalInactive_NAB")
+        if myParameters.get("extn_param_NEW_autoSumDefault_NAB") is not None:               GlobalVars.extn_param_NEW_autoSumDefault_NAB = myParameters.get("extn_param_NEW_autoSumDefault_NAB")
+        if myParameters.get("extn_param_NEW_disableWidgetTitle_NAB") is not None:           GlobalVars.extn_param_NEW_disableWidgetTitle_NAB = myParameters.get("extn_param_NEW_disableWidgetTitle_NAB")
+        if myParameters.get("extn_param_NEW_showDashesInsteadOfZeros_NAB") is not None:     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB = myParameters.get("extn_param_NEW_showDashesInsteadOfZeros_NAB")
+        if myParameters.get("extn_param_NEW_treatSecZeroBalInactive_NAB") is not None:      GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB = myParameters.get("extn_param_NEW_treatSecZeroBalInactive_NAB")
 
         myPrint("DB","myParameters{} set into memory (as variables).....:", myParameters)
 
@@ -2679,20 +2684,21 @@ Visit: %s (Author's site)
             if myParameters.get(key) is not None: myParameters.pop(key)
 
         # Save newer multi-instance parameters
-        myParameters["extn_param_NEW_listAccountUUIDs_NAB"]         = GlobalVars.extn_param_NEW_listAccountUUIDs_NAB
-        myParameters["extn_param_NEW_balanceType_NAB"]              = GlobalVars.extn_param_NEW_balanceType_NAB
-        myParameters["extn_param_NEW_incomeExpenseDateRange_NAB"]   = GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB
-        myParameters["extn_param_NEW_customDatesTable_NAB"]         = GlobalVars.extn_param_NEW_customDatesTable_NAB
-        myParameters["extn_param_NEW_autoSumAccounts_NAB"]          = GlobalVars.extn_param_NEW_autoSumAccounts_NAB
-        myParameters["extn_param_NEW_includeInactive_NAB"]          = GlobalVars.extn_param_NEW_includeInactive_NAB
-        myParameters["extn_param_NEW_widget_display_name_NAB"]      = GlobalVars.extn_param_NEW_widget_display_name_NAB
-        myParameters["extn_param_NEW_currency_NAB"]                 = GlobalVars.extn_param_NEW_currency_NAB
-        myParameters["extn_param_NEW_showWarningsTable_NAB"]        = GlobalVars.extn_param_NEW_showWarningsTable_NAB
+        myParameters["extn_param_NEW_listAccountUUIDs_NAB"]             = GlobalVars.extn_param_NEW_listAccountUUIDs_NAB
+        myParameters["extn_param_NEW_balanceType_NAB"]                  = GlobalVars.extn_param_NEW_balanceType_NAB
+        myParameters["extn_param_NEW_incomeExpenseDateRange_NAB"]       = GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB
+        myParameters["extn_param_NEW_customDatesTable_NAB"]             = GlobalVars.extn_param_NEW_customDatesTable_NAB
+        myParameters["extn_param_NEW_autoSumAccounts_NAB"]              = GlobalVars.extn_param_NEW_autoSumAccounts_NAB
+        myParameters["extn_param_NEW_includeInactive_NAB"]              = GlobalVars.extn_param_NEW_includeInactive_NAB
+        myParameters["extn_param_NEW_widget_display_name_NAB"]          = GlobalVars.extn_param_NEW_widget_display_name_NAB
+        myParameters["extn_param_NEW_currency_NAB"]                     = GlobalVars.extn_param_NEW_currency_NAB
+        myParameters["extn_param_NEW_disableCurrencyFormatting_NAB"]    = GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB
+        myParameters["extn_param_NEW_showWarningsTable_NAB"]            = GlobalVars.extn_param_NEW_showWarningsTable_NAB
 
-        myParameters["extn_param_NEW_autoSumDefault_NAB"]           = GlobalVars.extn_param_NEW_autoSumDefault_NAB
-        myParameters["extn_param_NEW_disableWidgetTitle_NAB"]       = GlobalVars.extn_param_NEW_disableWidgetTitle_NAB
-        myParameters["extn_param_NEW_showDashesInsteadOfZeros_NAB"] = GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB
-        myParameters["extn_param_NEW_treatSecZeroBalInactive_NAB"]  = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
+        myParameters["extn_param_NEW_autoSumDefault_NAB"]               = GlobalVars.extn_param_NEW_autoSumDefault_NAB
+        myParameters["extn_param_NEW_disableWidgetTitle_NAB"]           = GlobalVars.extn_param_NEW_disableWidgetTitle_NAB
+        myParameters["extn_param_NEW_showDashesInsteadOfZeros_NAB"]     = GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB
+        myParameters["extn_param_NEW_treatSecZeroBalInactive_NAB"]      = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
 
         myPrint("DB","variables dumped from memory back into myParameters{}.....:", myParameters)
 
@@ -2798,6 +2804,10 @@ Visit: %s (Author's site)
             #         return isAccountActive(acct, self._balType)
 
             return True
+
+    class MyTxnSearch(TxnSearch):
+        def __init__(self):     pass
+        def matchesAll(self):   return True
 
     def html_strip_chars(_textToStrip):
         _textToStrip = _textToStrip.replace("  ","&nbsp;&nbsp;")
@@ -2996,7 +3006,8 @@ Visit: %s (Author's site)
 
         def updateUI(self):
             super(MyJCheckBox, self).updateUI()
-            setJComponentStandardUIDefaults(self, border=True)
+            # setJComponentStandardUIDefaults(self, border=True)
+            setJComponentStandardUIDefaults(self)
 
     class MyJScrollPane(JScrollPane):
 
@@ -3176,7 +3187,7 @@ Visit: %s (Author's site)
         def matches(self, acct):    return isIncomeExpenseAcct(acct)
 
 
-    def isAllIncomeExpenseDatesSelected(index):
+    def isIncomeExpenseAllDatesSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedIncomeExpenseDateRange[index] == NAB.incomeExpenseDateRangeDefault())
 
@@ -3184,28 +3195,28 @@ Visit: %s (Author's site)
         # type: () -> [{}]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
-        for i in range(0, len(NAB.savedAccountListUUIDs)): table.append({})
+        for i in range(0, NAB.getNumberOfRows()): table.append({})
         return table
 
     def buildEmptyDateRangeArray():
         # type: () -> [[]]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
-        for i in range(0, len(NAB.savedAccountListUUIDs)): table.append([])
+        for i in range(0, NAB.getNumberOfRows()): table.append([])
         return table
 
     def buildEmptyAccountList():
         # type: () -> [[]]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
-        for i in range(0, len(NAB.savedAccountListUUIDs)): table.append([])
+        for i in range(0, NAB.getNumberOfRows()): table.append([])
         return table
 
     def isParallelBalanceTableOperational():
         NAB = NetAccountBalancesExtension.getNAB()
 
         lAnyParallel = False
-        for iRowIndex in range(0, len(NAB.savedAccountListUUIDs)):
+        for iRowIndex in range(0, NAB.getNumberOfRows()):
             onRow = iRowIndex+1
             if NAB.savedIncomeExpenseDateRange[iRowIndex] != NAB.incomeExpenseDateRangeDefault():
                 myPrint("DB", "** Row: %s >> Parallel Balances based on Txns is in operation.." %(onRow))
@@ -3223,7 +3234,7 @@ Visit: %s (Author's site)
         NAB = NetAccountBalancesExtension.getNAB()
         iRowIdx = NAB.getSelectedRowIndex()
 
-        if isAllIncomeExpenseDatesSelected(iRowIdx):
+        if isIncomeExpenseAllDatesSelected(iRowIdx):
             myPrint("DB",".. Skipping build of parallel balances table for Income/Expense as not needed (as using all dates)...")
             return buildEmptyTxnOrBalanceArray()
 
@@ -3529,41 +3540,71 @@ Visit: %s (Author's site)
             dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRow], NAB.savedCustomDatesTable[iRow])
             _dateRangeArray[iRow] = [dateRange.getStartDateInt(), dateRange.getEndDateInt()]
 
-        iTxns = 0
+        iTxns = 0                                                                                                       # noqa
         attempts = 0
 
-        while True:
-            if swClass.isCancelled(): break
+        ################################################################################################################
+        # This way returns the "flipped" SplitTxns (which is OK), but the TxnSet is not locked and can crash if list modified
+        #
+        # while True:
+        #     if swClass.isCancelled(): break
+        #
+        #     # One sweep big of Txns
+        #     try:
+        #         attempts += 1
+        #         txnIterator = TxnIterator(book.getTransactionSet())
+        #
+        #         iTxns = 0
+        #
+        #         for txn in txnIterator:
+        #
+        #             if swClass.isCancelled(): break
+        #
+        #             iTxns += 1
+        #             # if not searchIncExpTableForAccount(txn.getAccount(), _incExpTable): continue
+        #             updateIncExpTableWithTxn(txn, _incExpTable, _dateRangeArray)
+        #
+        #         del txnIterator
+        #
+        #     except ConcurrentModificationException:
+        #         myPrint("B","@@ Error: Caught 'ConcurrentModificationException' in returnTransactionsForAccounts() whilst iterating txns.. Attempts so far: %s" %(attempts))
+        #         myPrint("B","@@ Current SwingWorkers are:", NAB.swingWorkers)
+        #         # dump_sys_error_to_md_console_and_errorlog()
+        #         if attempts < 3 and not swClass.isCancelled():
+        #             myPrint("B","... Will sleep on it and then retry....")
+        #             Thread.sleep(2000)
+        #             zapIncExpTableOfTxns(_incExpTable)
+        #             continue
+        #
+        #         myPrint("B","... Aborting attempts.....")
+        #         raise
+        #
+        #     break       # We made it!
 
-            # One sweep big of Txns
-            try:
-                attempts += 1
-                txnIterator = TxnIterator(book.getTransactionSet())
 
-                iTxns = 0
+        ################################################################################################################
+        # One sweep big of Txns: This method returns the 'old' ParentTxn/SplitTxn records AND the TxnSet is locked....
+        try:
+            attempts += 1
 
-                for txn in txnIterator:
+            txnSet = book.getTransactionSet().getTransactions(MyTxnSearch())        # using matchesAll() TRUE is faster
 
-                    if swClass.isCancelled(): break
+            iTxns = 0
 
-                    iTxns += 1
-                    # if not searchIncExpTableForAccount(txn.getAccount(), _incExpTable): continue
-                    updateIncExpTableWithTxn(txn, _incExpTable, _dateRangeArray)
+            for txn in txnSet:
 
-            except ConcurrentModificationException:
-                myPrint("B","@@ Error: Caught 'ConcurrentModificationException' in returnTransactionsForAccounts() whilst iterating txns.. Attempts so far: %s" %(attempts))
-                myPrint("B","@@ Current SwingWorkers are:", NAB.swingWorkers)
-                # dump_sys_error_to_md_console_and_errorlog()
-                if attempts < 3 and not swClass.isCancelled():
-                    myPrint("B","... Will sleep on it and then retry....")
-                    Thread.sleep(2000)
-                    zapIncExpTableOfTxns(_incExpTable)
-                    continue
+                if swClass.isCancelled(): break
 
-                myPrint("B","... Aborting attempts.....")
-                raise
+                iTxns += 1
+                # if not searchIncExpTableForAccount(txn.getAccount(), _incExpTable): continue
+                updateIncExpTableWithTxn(txn, _incExpTable, _dateRangeArray)
 
-            break       # We made it!
+            del txnSet
+
+        except:
+            myPrint("B","@@ ERROR: .returnTransactionsForAccounts() failed whilst iterating TxnSet: book.getTransactionSet().getTransactions(MyTxnSearch())")
+            dump_sys_error_to_md_console_and_errorlog()
+            raise
 
         if debug:
             myPrint("DB", "------------------------------")
@@ -3602,6 +3643,66 @@ Visit: %s (Author's site)
             return True
         return False
 
+    class MyCollapsibleRefresher:
+        """"com.moneydance.awt.CollapsibleRefresher
+        Class that enables easy collapsible refreshing.  That is, if you expect to receive a lot of updates
+        to a data model that the UI can't keep up with, you can use this to enqueue a Runnable that will
+        refresh your UI that won't queue up more than one Runnable on the swing event dispatch thread.
+
+        Multiple .enqueue()s will get ignored.... The first gets pushed to the EDT via .invokeLater()
+        EXCEPT: Where an enqueued job has started on the EDT, then the next enqueued will get pushed onto the Queue
+
+        NOTE: HomePageView.ViewPanel gets created as a new instance each time the summary page is requested
+              Hence, a new ViewPanel instance will get created with it's own CollapsibleRefresher
+              So new .enqueue()s to this Refresher will load whilst the old one might be dead/dying as dereferenced."""
+
+        @staticmethod
+        class MyQueueableRefresher(Runnable):
+            def __init__(self, collapsibleRefresherClass):
+                # type: (Runnable) -> None
+                self.collapsibleRefresherClass = collapsibleRefresherClass
+
+            # noinspection PyMethodMayBeStatic
+            def run(self):
+                myPrint("DB","Inside MyQueueableRefresher.... Calling MyCollapsibleRefresher.refreshable.run() Calling Instance:", self.collapsibleRefresherClass)
+                self.collapsibleRefresherClass.isPendingRefresh = False
+                self.collapsibleRefresherClass.refreshable.run()
+
+        def __init__(self, refreshable):
+            # type: (Runnable, bool) -> None
+            myPrint("DB","Initialising MyCollapsibleRefresher.... Instance: %s. Refreshable: %s" %(self, refreshable))
+            self.isPendingRefresh = False
+            self.refreshable = refreshable
+            self.queueableRefresher = MyCollapsibleRefresher.MyQueueableRefresher(self)
+
+        def enqueueRefresh(self):
+            myPrint("DB","Inside MyCollapsibleRefresher (instance: %s).... invokeLater(%s) .." %(self, self.queueableRefresher))
+            if self.isPendingRefresh:
+                myPrint("DB","... DISCARDING enqueueRefresh request as one is already pending... Discarded:", self.queueableRefresher)
+                return
+            myPrint("DB","... REQUESTING .invokeLater() on:", self.queueableRefresher)
+            self.isPendingRefresh = True
+            SwingUtilities.invokeLater(self.queueableRefresher)
+
+
+    class ShowConsoleRunnable(Runnable):
+
+        def __init__(self): pass
+
+        def run(self):      ConsoleWindow.showConsoleWindow(GlobalVars.CONTEXT.getUI())
+
+
+    def hideUnideCollapsiblePanels(startingComponent, lSetVisible):
+        # type: (JComponent, bool) -> None
+
+        # if isinstance(startingComponent, JPanel) and startingComponent.getClientProperty("%s.collapsible" %(myModuleID)) is not None:
+        if isinstance(startingComponent, JComponent) and startingComponent.getClientProperty("%s.collapsible" %(myModuleID)) == "true":
+            startingComponent.setVisible(lSetVisible)
+
+        for subComp in startingComponent.getComponents():
+            hideUnideCollapsiblePanels(subComp, lSetVisible=lSetVisible)
+
+    ####################################################################################################################
 
     myPrint("B","HomePageView widget / extension is now running...")
 
@@ -3629,13 +3730,7 @@ Visit: %s (Author's site)
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
-            self.lock = threading.Lock()
-
-            self.simulateLock = threading.Lock()
-            self.simulateRunning = False
-
-            self.parallelRebuildRunningLock = threading.Lock()
-            self.parallelRebuildRunning = False
+            self.NAB_LOCK = threading.Lock()
 
             self.moneydanceContext = MD_REF
             self.moneydanceExtensionObject = None
@@ -3678,6 +3773,7 @@ Visit: %s (Author's site)
             self.savedAutoSumAccounts           = None
             self.savedWidgetName                = None
             self.savedCurrencyTable             = None      # Only contains UUID strings
+            self.savedDisableCurrencyFormatting = None
             self.savedIncludeInactive           = None
             self.savedIncomeExpenseDateRange    = None
             self.savedCustomDatesTable          = None
@@ -3696,18 +3792,22 @@ Visit: %s (Author's site)
             self.menuItemShowDashesInsteadOfZeros = None
             self.menuItemTreatSecZeroBalInactive = None
 
+            self.menuBarItemHideControlPanel_CB = None
+            self.savedHideControlPanel = False
+
             self.mainMenuBar = None
 
             self.configPanelOpen = False
 
-            self.jlst = None
-            self.balanceType_COMBO = None
-            self.incomeExpenseDateRange_COMBO = None
-            self.currency_COMBO = None                  # Contains a Class holding Currency Objects
-            self.widgetNameField_JTF = None
-            self.includeInactive_COMBO = None
-            self.autoSumAccounts_CB = None
-            self.showWarnings_CB = None
+            self.jlst                               = None
+            self.balanceType_COMBO                  = None
+            self.incomeExpenseDateRange_COMBO       = None
+            self.currency_COMBO                     = None                  # Contains a Class holding Currency Objects
+            self.disableCurrencyFormatting_CB       = None
+            self.widgetNameField_JTF                = None
+            self.includeInactive_COMBO              = None
+            self.autoSumAccounts_CB                 = None
+            self.showWarnings_CB                    = None
             self.filterOutZeroBalAccts_INACTIVE_CB  = None
             self.filterOutZeroBalAccts_ACTIVE_CB    = None
             self.filterIncludeSelected_CB           = None
@@ -3726,8 +3826,10 @@ Visit: %s (Author's site)
 
             self.switchFromHomeScreen = False
 
-            self.swingWorkers = []
-            self.swingWorkersLock = threading.Lock()
+            self.swingWorkers_LOCK = threading.Lock()
+            with self.swingWorkers_LOCK:
+                self.swingWorkers = []
+
 
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "##########################################################################################")
@@ -3780,9 +3882,72 @@ Visit: %s (Author's site)
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "##########################################################################################")
 
+        ################################################################################################################
         def areSwingWorkersRunning(self):
-            with self.swingWorkersLock:
-                return len(self.swingWorkers) > 0
+            with self.swingWorkers_LOCK: return len(self.swingWorkers) > 0
+
+        def listAllSwingWorkers(self):
+            with self.swingWorkers_LOCK:
+                if len(self.swingWorkers) < 1:
+                    myPrint("DB","No SwingWorkers found...")
+                else:
+                    for sw in self.swingWorkers:                                                                        # type: SwingWorker
+                        myPrint("DB","... Found SwingWorker:", sw)
+                        myPrint("DB","....... Status - isDone: %s, isCancelled: %s" %(sw.isDone(), sw.isCancelled()))
+                    return
+
+        def isWidgetRefreshRunning_NOLOCKFIRST(self):
+            for sw in self.swingWorkers:                                                                                # type: SwingWorker
+                if sw.isBuildHomePageWidgetSwingWorker():
+                    # myPrint("DB","isWidgetRefreshRunning() reports TRUE on SwingWorker:", sw)
+                    return True
+            # myPrint("DB","isSimulateRunning() reports False")
+            return False
+
+        def isWidgetRefreshRunning_LOCKFIRST(self):
+            with self.swingWorkers_LOCK: return self.isWidgetRefreshRunning_NOLOCKFIRST()
+
+        def isSimulateRunning_NOLOCKFIRST(self):
+            for sw in self.swingWorkers:                                                                                # type: SwingWorker
+                if sw.isSimulateTotalForRowSwingWorker():
+                    # myPrint("DB","isSimulateRunning() reports TRUE on SwingWorker:", sw)
+                    return True
+            # myPrint("DB","isSimulateRunning() reports False")
+            return False
+
+        def isSimulateRunning_LOCKFIRST(self):
+            with self.swingWorkers_LOCK: return self.isSimulateRunning_NOLOCKFIRST()
+
+        def isParallelRebuildRunning_NOLOCKFIRST(self):
+            for sw in self.swingWorkers:                                                                                # type: SwingWorker
+                if sw.isRebuildParallelBalanceTableSwingWorker():
+                    # myPrint("DB","isParallelRebuildRunning() reports TRUE on SwingWorker:", sw)
+                    return True
+            # myPrint("DB","isParallelRebuildRunning() reports False")
+            return False
+
+        def isParallelRebuildRunning_LOCKFIRST(self):
+            with self.swingWorkers_LOCK: return self.isParallelRebuildRunning_NOLOCKFIRST()
+
+        def cancelSwingWorkers(self, lSimulates=False, lParallelRebuilds=False, lBuildHomePageWidgets=False):
+            lCancelledAny = False
+            for sw in self.swingWorkers:                                                                                # type: SwingWorker
+                if ((lSimulates and sw.isSimulateTotalForRowSwingWorker())
+                        or (lParallelRebuilds and sw.isRebuildParallelBalanceTableSwingWorker())
+                        or (lBuildHomePageWidgets and sw.isBuildHomePageWidgetSwingWorker())):
+                    if not sw.isCancelled() and not sw.isDone():
+                        myPrint("`DB","cancelSwingWorkers() sending CANCEL COMMAND to running SwingWorker:", sw)
+                        if not sw.cancel(True):
+                            myPrint("`DB", " @@ ALERT - SwingWorker.cancel(True) failed >> Moving on.....:", sw)
+                        else:
+                            lCancelledAny = True
+                    else:
+                        myPrint("DB","cancelSwingWorkers() skipping cancellation of SwingWorker as isDone: %s isCancelled: %s ... SW:" %(sw.isDone(), sw.isCancelled()), sw)
+
+            if not lCancelledAny: myPrint("DB","cancelSwingWorkers() no SwingWorker(s) to cancel....")
+            return lCancelledAny
+        ################################################################################################################
+
 
         def preferencesUpdated(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -3844,6 +4009,8 @@ Visit: %s (Author's site)
                 NAB.saveSettings(lFromHomeScreen=True)
 
         def saveSettings(self, lFromHomeScreen=False):
+            global debug        # Need this here as we set it below
+
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
             myPrint("B","SAVINGS PARAMETERS HomePageView widget back to disk..")
@@ -3862,6 +4029,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_includeInactive_NAB           = NAB.savedIncludeInactive
             GlobalVars.extn_param_NEW_widget_display_name_NAB       = NAB.savedWidgetName
             GlobalVars.extn_param_NEW_currency_NAB                  = NAB.savedCurrencyTable
+            GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = NAB.savedDisableCurrencyFormatting
             GlobalVars.extn_param_NEW_showWarningsTable_NAB         = NAB.savedShowWarningsTable
 
             GlobalVars.extn_param_NEW_autoSumDefault_NAB            = NAB.savedAutoSumDefault
@@ -3870,19 +4038,30 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = NAB.savedTreatSecZeroBalInactive
 
             try:
+                # Preventing debug ON from being saved... Stops users leaving 'expensive' debug logging on
+
+                saveDebug = debug
+                myPrint("DB","@@ ALERT: I am saving debug OFF to parameters file so that debugging will not be enabled at next load (prevents long console debug logs)")
+                debug = False
+
                 save_StuWareSoftSystems_parameters_to_file(myFile="%s_extension.dict" %(NAB.myModuleID))
+
+                debug = saveDebug
+
             except:
                 myPrint("B","@@ Error saving parameters back to pickle file....?")
                 dump_sys_error_to_md_console_and_errorlog()
 
             NAB.configSaved = True
-            if lFromHomeScreen: NAB.executeRefresh()
+            if lFromHomeScreen:
+                if MyHomePageView.getHPV().view is not None: MyHomePageView.getHPV().view.lastRefreshTimeMs = 0
+                NAB.executeRefresh()
 
         def getSudoAccountFromParallel(self, acctObj, rowIndex):
             ## type: (StoreAccountList, int) -> [Account, HoldBalance]
 
             NAB = NetAccountBalancesExtension.getNAB()
-            if (isIncomeExpenseAcct(acctObj.getAccount()) and not isAllIncomeExpenseDatesSelected(rowIndex)):
+            if (isIncomeExpenseAcct(acctObj.getAccount()) and not isIncomeExpenseAllDatesSelected(rowIndex)):
                 sudoAcctRef = NAB.jlst.parallelAccountBalances[rowIndex][acctObj.getAccount()]                          # type: HoldBalance
             else:
                 sudoAcctRef = acctObj.getAccount()                                                                      # type: Account
@@ -4121,6 +4300,7 @@ Visit: %s (Author's site)
         def widgetNameDefault(self):                return GlobalVars.DEFAULT_WIDGET_ROW_NAME
         def accountListDefault(self):               return []
         def currencyDefault(self):                  return None
+        def disableCurrencyFormattingDefault(self): return False
         def balanceDefault(self):                   return 0
         def incomeExpenseDateRangeDefault(self):    return DateRangeOption.DR_ALL_DATES.getResourceKey()
         def customDatesDefault(self):               return [0, 0]
@@ -4137,42 +4317,41 @@ Visit: %s (Author's site)
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
             # New parameter - pre-populate with default (None = Base)
-            if self.savedCurrencyTable == [self.currencyDefault()] and len(self.savedCurrencyTable) != len(self.savedAccountListUUIDs):
-                # self.savedCurrencyTable = [self.currencyDefault()] * len(self.savedAccountListUUIDs)
-                self.savedCurrencyTable = [self.currencyDefault() for i in range(0,len(self.savedAccountListUUIDs))]      # Don't just do [] * n (as you will get references to same list)
+            if self.savedCurrencyTable == [self.currencyDefault()] and len(self.savedCurrencyTable) != self.getNumberOfRows():
+                self.savedCurrencyTable = [self.currencyDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedCurrencyTable detected, pre-populating with %s (= base currency)" %(self.savedCurrencyTable))
 
             # New parameter - pre-populate with default (0 = Active)
-            if self.savedIncludeInactive == [self.includeInactiveDefault()] and len(self.savedIncludeInactive) != len(self.savedAccountListUUIDs):
-                # self.savedIncludeInactive = [self.includeInactiveDefault()] * len(self.savedAccountListUUIDs)
-                self.savedIncludeInactive = [self.includeInactiveDefault() for i in range(0,len(self.savedAccountListUUIDs))]      # Don't just do [] * n (as you will get references to same list)
+            if self.savedDisableCurrencyFormatting == [self.disableCurrencyFormattingDefault()] and len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
+                self.savedDisableCurrencyFormatting = [self.disableCurrencyFormattingDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
+                myPrint("B", "New parameter savedDisableCurrencyFormatting detected, pre-populating with %s (= Normal Currency Formatting)" %(self.savedDisableCurrencyFormatting))
+
+            # New parameter - pre-populate with default (0 = Active)
+            if self.savedIncludeInactive == [self.includeInactiveDefault()] and len(self.savedIncludeInactive) != self.getNumberOfRows():
+                self.savedIncludeInactive = [self.includeInactiveDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedIncludeInactive detected, pre-populating with %s (= Active items only)" %(self.savedIncludeInactive))
 
             # New parameter - pre-populate with default
-            if self.savedAutoSumAccounts == [self.autoSumDefault()] and len(self.savedAutoSumAccounts) != len(self.savedAccountListUUIDs):
-                # self.savedAutoSumAccounts = [self.autoSumDefault()] * len(self.savedAccountListUUIDs)
-                self.savedAutoSumAccounts = [self.autoSumDefault() for i in range(0,len(self.savedAccountListUUIDs))]      # Don't just do [] * n (as you will get references to same list)
+            if self.savedAutoSumAccounts == [self.autoSumDefault()] and len(self.savedAutoSumAccounts) != self.getNumberOfRows():
+                self.savedAutoSumAccounts = [self.autoSumDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedAutoSumAccounts detected, pre-populating with %s (= Auto Sum Accounts)" %(self.savedAutoSumAccounts))
 
             # New parameter - pre-populate with default
-            if self.savedIncomeExpenseDateRange == [self.incomeExpenseDateRangeDefault()] and len(self.savedIncomeExpenseDateRange) != len(self.savedAccountListUUIDs):
-                # self.savedIncomeExpenseDateRange = [self.incomeExpenseDateRangeDefault()] * len(self.savedAccountListUUIDs)
-                self.savedIncomeExpenseDateRange = [self.incomeExpenseDateRangeDefault() for i in range(0,len(self.savedAccountListUUIDs))]      # Don't just do [] * n (as you will get references to same list)
+            if self.savedIncomeExpenseDateRange == [self.incomeExpenseDateRangeDefault()] and len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
+                self.savedIncomeExpenseDateRange = [self.incomeExpenseDateRangeDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedIncomeExpenseDateRange detected, pre-populating with %s (= Income/Expense All Dates)" %(self.savedIncomeExpenseDateRange))
 
             # New parameter - pre-populate with default
-            if self.savedCustomDatesTable == [self.customDatesDefault()] and len(self.savedCustomDatesTable) != len(self.savedAccountListUUIDs):
-                # self.savedCustomDatesTable = [self.customDatesDefault()] * len(self.savedAccountListUUIDs)
-                self.savedCustomDatesTable = [self.customDatesDefault() for i in range(0,len(self.savedAccountListUUIDs))]      # Don't just do [] * n (as you will get references to same list)
+            if self.savedCustomDatesTable == [self.customDatesDefault()] and len(self.savedCustomDatesTable) != self.getNumberOfRows():
+                self.savedCustomDatesTable = [self.customDatesDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedCustomDatesTable detected, pre-populating with %s (= no custom dates)" %(self.savedCustomDatesTable))
 
             # New parameter - pre-populate with default
-            if self.savedShowWarningsTable == [self.showWarningsDefault()] and len(self.savedShowWarningsTable) != len(self.savedAccountListUUIDs):
-                # self.savedShowWarningsTable = [self.showWarningsDefault()] * len(self.savedAccountListUUIDs)
-                self.savedShowWarningsTable = [self.showWarningsDefault() for i in range(0,len(self.savedAccountListUUIDs))]      # Don't just do [] * n (as you will get references to same list)
+            if self.savedShowWarningsTable == [self.showWarningsDefault()] and len(self.savedShowWarningsTable) != self.getNumberOfRows():
+                self.savedShowWarningsTable = [self.showWarningsDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedShowWarningsTable detected, pre-populating with %s (= Default Show Warnings per row)" %(self.savedShowWarningsTable))
 
-            if self.savedAccountListUUIDs is None or not isinstance(self.savedAccountListUUIDs, list) or len(self.savedAccountListUUIDs) < 1:
+            if self.savedAccountListUUIDs is None or not isinstance(self.savedAccountListUUIDs, list) or self.getNumberOfRows() < 1:
                 self.resetParameters(1)
             elif self.savedBalanceType is None or not isinstance(self.savedBalanceType, list) or len(self.savedBalanceType) < 1:
                 self.resetParameters(2)
@@ -4182,40 +4361,44 @@ Visit: %s (Author's site)
                 self.resetParameters(4)
             elif self.savedIncludeInactive is None or not isinstance(self.savedIncludeInactive, list) or len(self.savedIncludeInactive) < 1:
                 self.resetParameters(5)
-            elif self.savedAutoSumAccounts is None or not isinstance(self.savedAutoSumAccounts, list) or len(self.savedAutoSumAccounts) < 1:
+            elif self.savedDisableCurrencyFormatting is None or not isinstance(self.savedDisableCurrencyFormatting, list) or len(self.savedDisableCurrencyFormatting) < 1:
                 self.resetParameters(6)
-            elif self.savedIncomeExpenseDateRange is None or not isinstance(self.savedIncomeExpenseDateRange, list) or len(self.savedIncomeExpenseDateRange) < 1:
+            elif self.savedAutoSumAccounts is None or not isinstance(self.savedAutoSumAccounts, list) or len(self.savedAutoSumAccounts) < 1:
                 self.resetParameters(7)
-            elif self.savedCustomDatesTable is None or not isinstance(self.savedCustomDatesTable, list) or len(self.savedCustomDatesTable) < 1:
+            elif self.savedIncomeExpenseDateRange is None or not isinstance(self.savedIncomeExpenseDateRange, list) or len(self.savedIncomeExpenseDateRange) < 1:
                 self.resetParameters(8)
-            elif self.savedShowWarningsTable is None or not isinstance(self.savedShowWarningsTable, list) or len(self.savedShowWarningsTable) < 1:
+            elif self.savedCustomDatesTable is None or not isinstance(self.savedCustomDatesTable, list) or len(self.savedCustomDatesTable) < 1:
                 self.resetParameters(9)
-            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
+            elif self.savedShowWarningsTable is None or not isinstance(self.savedShowWarningsTable, list) or len(self.savedShowWarningsTable) < 1:
                 self.resetParameters(10)
-            elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
+            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
                 self.resetParameters(11)
-            elif self.savedDisableWidgetTitle is None or not isinstance(self.savedDisableWidgetTitle, bool):
+            elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
                 self.resetParameters(12)
-            elif self.savedTreatSecZeroBalInactive is None or not isinstance(self.savedTreatSecZeroBalInactive, bool):
+            elif self.savedDisableWidgetTitle is None or not isinstance(self.savedDisableWidgetTitle, bool):
                 self.resetParameters(13)
-            elif len(self.savedBalanceType) != len(self.savedAccountListUUIDs):
+            elif self.savedTreatSecZeroBalInactive is None or not isinstance(self.savedTreatSecZeroBalInactive, bool):
                 self.resetParameters(14)
-            elif len(self.savedWidgetName) != len(self.savedAccountListUUIDs):
+            elif len(self.savedBalanceType) != self.getNumberOfRows():
                 self.resetParameters(15)
-            elif len(self.savedCurrencyTable) != len(self.savedAccountListUUIDs):
+            elif len(self.savedWidgetName) != self.getNumberOfRows():
                 self.resetParameters(16)
-            elif len(self.savedIncludeInactive) != len(self.savedAccountListUUIDs):
+            elif len(self.savedCurrencyTable) != self.getNumberOfRows():
                 self.resetParameters(17)
-            elif len(self.savedAutoSumAccounts) != len(self.savedAccountListUUIDs):
+            elif len(self.savedIncludeInactive) != self.getNumberOfRows():
                 self.resetParameters(18)
-            elif len(self.savedIncomeExpenseDateRange) != len(self.savedAccountListUUIDs):
+            elif len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
                 self.resetParameters(19)
-            elif len(self.savedCustomDatesTable) != len(self.savedAccountListUUIDs):
+            elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
                 self.resetParameters(20)
-            elif len(self.savedShowWarningsTable) != len(self.savedAccountListUUIDs):
+            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
                 self.resetParameters(21)
+            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
+                self.resetParameters(22)
+            elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
+                self.resetParameters(23)
             else:
-                for i in range(0, len(self.savedAccountListUUIDs)):
+                for i in range(0, self.getNumberOfRows()):
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedAccountListUUIDs", i))
                         self.savedAccountListUUIDs[i] = self.accountListDefault()
@@ -4231,6 +4414,9 @@ Visit: %s (Author's site)
                     if self.savedIncludeInactive[i] is None or not isinstance(self.savedIncludeInactive[i], int) or self.savedIncludeInactive[i] < 0 or self.savedIncludeInactive[i] > 1:
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedIncludeInactive", i))
                         self.savedIncludeInactive[i] = self.includeInactiveDefault()
+                    if self.savedDisableCurrencyFormatting[i] is None or not isinstance(self.savedDisableCurrencyFormatting[i], bool):
+                        myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedDisableCurrencyFormatting", i))
+                        self.savedDisableCurrencyFormatting[i] = self.disableCurrencyFormattingDefault()
                     if self.savedAutoSumAccounts[i] is None or not isinstance(self.savedAutoSumAccounts[i], bool):
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedAutoSumAccounts", i))
                         self.savedAutoSumAccounts[i] = self.autoSumDefault()
@@ -4252,7 +4438,7 @@ Visit: %s (Author's site)
             if iError is None and lJustRowSettings:
                 myPrint("B","Initialising to 1 row with default settings....")
             elif iError is None:
-                myPrint("B","Initialising PARAMETERS to defaults....")
+                myPrint("B","Initialising PARAMETERS....")
             else:
                 myPrint("B","RESET PARAMETERS Called/Triggered (Error code: %s)... Resetting...." %(iError))
 
@@ -4264,6 +4450,7 @@ Visit: %s (Author's site)
             self.savedAutoSumAccounts               = [self.autoSumDefault()]
             self.savedWidgetName                    = [self.widgetNameDefault()]
             self.savedCurrencyTable                 = [self.currencyDefault()]
+            self.savedDisableCurrencyFormatting     = [self.disableCurrencyFormattingDefault()]
             self.savedShowWarningsTable             = [self.showWarningsDefault()]
 
             if not lJustRowSettings:
@@ -4323,7 +4510,7 @@ Visit: %s (Author's site)
             REFRESHX2 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_refresh.png"
             NAB = NetAccountBalancesExtension.getNAB()
             myPrint("DB", "about to set parallelBalancesWarningLabel..")
-            if not isAllIncomeExpenseDatesSelected(_row):
+            if not isIncomeExpenseAllDatesSelected(_row):
                 if NAB.parallelBalancesWarningLabel.getIcon() is None:
                     mdImages = NAB.moneydanceContext.getUI().getImages()
                     iconTintParallel = NAB.moneydanceContext.getUI().colors.errorMessageForeground
@@ -4377,6 +4564,7 @@ Visit: %s (Author's site)
                           self.balanceType_COMBO,
                           self.incomeExpenseDateRange_COMBO,
                           self.currency_COMBO,
+                          self.disableCurrencyFormatting_CB,
                           self.includeInactive_COMBO,
                           self.filterOutZeroBalAccts_INACTIVE_CB,
                           self.filterOutZeroBalAccts_ACTIVE_CB,
@@ -4468,6 +4656,9 @@ Visit: %s (Author's site)
                     del c
             del currencyChoices
 
+            myPrint("DB", "..about to set savedDisableCurrencyFormatting..")
+            self.disableCurrencyFormatting_CB.setSelected(self.savedDisableCurrencyFormatting[selectRowIndex])
+
             myPrint("DB", "about to rebuild jlist..")
             self.rebuildJList()
 
@@ -4475,6 +4666,7 @@ Visit: %s (Author's site)
                           self.balanceType_COMBO,
                           self.incomeExpenseDateRange_COMBO,
                           self.currency_COMBO,
+                          self.disableCurrencyFormatting_CB,
                           self.includeInactive_COMBO,
                           self.filterOutZeroBalAccts_INACTIVE_CB,
                           self.filterOutZeroBalAccts_ACTIVE_CB,
@@ -4512,6 +4704,7 @@ Visit: %s (Author's site)
             myPrint("DB",".....filterOnlyShowSelected_CB: %s"               %(self.filterOnlyShowSelected_CB.isSelected()))
             myPrint("DB",".....filterOnlyAccountType_COMBO: %s"             %(self.filterOnlyAccountType_COMBO.getSelectedItem()))
             myPrint("DB",".....savedCurrencyTable: %s"                      %(self.savedCurrencyTable[selectRowIndex]))
+            myPrint("DB",".....savedDisableCurrencyFormatting: %s"          %(self.savedDisableCurrencyFormatting[selectRowIndex]))
             myPrint("DB",".....savedWidgetName: %s"                         %(self.savedWidgetName[selectRowIndex]))
 
             myPrint("DB",".....savedAutoSumDefault: %s"                     %(self.savedAutoSumDefault))
@@ -4525,7 +4718,7 @@ Visit: %s (Author's site)
         def getSelectedRowIndex(self):      return (self.rowSelectedSaved)
         def getSelectedRow(self):           return (self.getSelectedRowIndex() + 1)
 
-        def getNumberOfRows(self):      return len(self.savedAccountListUUIDs)
+        def getNumberOfRows(self):          return len(self.savedAccountListUUIDs)
 
         def storeWidgetNameForSelectedRow(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -4615,8 +4808,11 @@ Visit: %s (Author's site)
 
         class RebuildParallelBalanceTableSwingWorker(SwingWorker):
             def __init__(self):
-                with NetAccountBalancesExtension.getNAB().swingWorkersLock:
-                    NetAccountBalancesExtension.getNAB().swingWorkers.append(self)
+                NetAccountBalancesExtension.getNAB().swingWorkers.append(self)      # Already locked from calling code
+
+            def isBuildHomePageWidgetSwingWorker(self):         return False
+            def isSimulateTotalForRowSwingWorker(self):         return False
+            def isRebuildParallelBalanceTableSwingWorker(self): return True
 
             def doInBackground(self):                                                                                   # Runs on a worker thread
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -4629,19 +4825,17 @@ Visit: %s (Author's site)
                 return not self.isCancelled()
 
             def done(self):                                                                                             # Executes on the EDT
-                myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
-
                 try:
-                    self.get()  # wait for process to finish
+                    myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
                     NAB = NetAccountBalancesExtension.getNAB()
 
-                    NAB.parallelRebuildRunning = False
+                    self.get()  # wait for process to finish
 
                     NAB.searchFiltersUpdated()
                     # NAB.jlst.repaint()
 
-                    NAB.simulateTotalForRow()
+                    NAB.simulateTotalForRow(lFromParallel=True)
 
                 except InterruptedException:
                     myPrint("B","@@ RebuildParallelBalanceTableSwingWorker InterruptedException - aborting...")
@@ -4655,18 +4849,24 @@ Visit: %s (Author's site)
                     raise
 
                 finally:
-                    with NetAccountBalancesExtension.getNAB().swingWorkersLock:
-                        NetAccountBalancesExtension.getNAB().swingWorkers.remove(self)
+                    NAB = NetAccountBalancesExtension.getNAB()
+                    with NAB.swingWorkers_LOCK:
+                        if self in NAB.swingWorkers:
+                            NAB.swingWorkers.remove(self)
+                        else:
+                            raise Exception("@@ ALERT: I did not find myself within swingWorkers list, so doing nothing...: %s" %(self))
 
         def rebuildParallelBalanceTable(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
-            if self.parallelRebuildRunningLock.locked():
-                myPrint("DB","@@..Sorry parallelRebuildRunning already locked/running. Request will wait....")
+            if self.swingWorkers_LOCK.locked():
+                myPrint("DB","@@.. ALERT In .rebuildParallelBalanceTable() >> swingWorkers_LOCK locked. Request might wait....")
 
-            with self.parallelRebuildRunningLock:
-                if not self.parallelRebuildRunning:
-                    self.parallelRebuildRunning = True
+            self.cancelSwingWorkers(lSimulates=True, lParallelRebuilds=True)  # Running outside of lock....
+
+            with self.swingWorkers_LOCK:
+
+                if not self.isParallelRebuildRunning_NOLOCKFIRST():
                     sw = self.RebuildParallelBalanceTableSwingWorker()
                     sw.execute()
                 else:
@@ -4706,12 +4906,13 @@ Visit: %s (Author's site)
             myPrint("B", " %s" %(pad("savedTreatSecZeroBalInactive",30)),   NAB.savedTreatSecZeroBalInactive)
             myPrint("B", " ----")
 
-            for iRowIdx in range(0, len(NAB.savedAccountListUUIDs)):
+            for iRowIdx in range(0, NAB.getNumberOfRows()):
                 onRow = iRowIdx+1
                 myPrint("B", "  Row: %s" %(onRow))
                 myPrint("B", "  %s" %(pad("savedWidgetName",60)),               NAB.savedWidgetName[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAccountListUUIDs",60)),         NAB.savedAccountListUUIDs[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedCurrencyTable",60)),            NAB.savedCurrencyTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedDisableCurrencyFormatting",60)),NAB.savedDisableCurrencyFormatting[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedBalanceType",60)),              NAB.savedBalanceType[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAutoSumAccounts",60)),          NAB.savedAutoSumAccounts[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncludeInactive",60)),          NAB.savedIncludeInactive[iRowIdx])
@@ -4728,20 +4929,18 @@ Visit: %s (Author's site)
 
             myPrint("DB",".. Validating savedIncomeExpenseDateRange parameters...")
             NAB = NetAccountBalancesExtension.getNAB()
-            md = NAB.moneydanceContext
-            book = md.getCurrentAccountBook()
 
-            for iRowIdx in range(0,len(NAB.savedAccountListUUIDs)):
+            for iRowIdx in range(0,NAB.getNumberOfRows()):
                 onRow = iRowIdx+1
 
-                if isAllIncomeExpenseDatesSelected(iRowIdx): continue
+                if isIncomeExpenseAllDatesSelected(iRowIdx): continue
 
                 lFoundAnyIncExp = False
                 for accID in NAB.savedAccountListUUIDs[iRowIdx]:
-                    acct = AccountUtil.findAccountWithID(book.getRootAccount(), accID)
+                    acct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(accID)
 
                     if acct is None:
-                        myPrint("DB","WARNING: Row: %s >> Account for UUID: '%s' NOT FOUND... Ignoring this error...." %(onRow, accID))
+                        myPrint("DB","... WARNING: Row: %s >> Account for UUID: '%s' NOT FOUND... Ignoring this error...." %(onRow, accID))
                         continue
                     else:
                         if isIncomeExpenseAcct(acct):
@@ -4750,11 +4949,9 @@ Visit: %s (Author's site)
                     continue
 
                 if not lFoundAnyIncExp:
-                    myPrint("B","ALERT: Saved Parameters - Row: %s >> Inc/Exp Date Range: '%s' selected but no Income/Expense Accounts.... RESETTING BACK TO ALL DATES"
-                            %(onRow, NAB.savedIncomeExpenseDateRange[iRowIdx]))
+                    myPrint("B","... ALERT: Saved Parameters - Row: %s >> Inc/Exp Date Range: '%s' selected but no Income/Expense Accounts.... "
+                                "RESETTING BACK TO ALL DATES" %(onRow, NAB.savedIncomeExpenseDateRange[iRowIdx]))
                     NAB.savedIncomeExpenseDateRange[iRowIdx] = NAB.incomeExpenseDateRangeDefault()
-
-            del md, book
 
         class WindowListener(WindowAdapter):
 
@@ -4874,13 +5071,20 @@ Visit: %s (Author's site)
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
                 NAB = NetAccountBalancesExtension.getNAB()
+                HPV = MyHomePageView.getHPV()
 
                 NAB.configPanelOpen = False
 
                 if self.theFrame.isVisible():
                     myPrint("DB", ".. in windowClosing, but isVisible is True, let's trigger a widget refresh....")
-                    NAB.executeRefresh()
+
+                    NAB.cancelSwingWorkers(lSimulates=True, lParallelRebuilds=True, lBuildHomePageWidgets=True)
+
+                    HPV.view.lastRefreshTimeMs = 0
+                    HPV.view.lastRefreshTimeExtraDelayMs = 0
+
                     NAB.resetJListModel()
+                    NAB.executeRefresh()
                 else:
                     myPrint("DB", ".. in windowClosing, and isVisible is False, so will start termination....")
                     self.terminate_script()
@@ -4893,6 +5097,7 @@ Visit: %s (Author's site)
                 NAB = NetAccountBalancesExtension.getNAB()
 
                 NAB.configPanelOpen = False
+
                 self.theFrame.isActiveInMoneydance = False
 
                 if self.theFrame.MoneydanceAppListener is not None and not self.theFrame.MoneydanceAppListener.alreadyClosed:
@@ -4968,8 +5173,11 @@ Visit: %s (Author's site)
 
         class SimulateTotalForRowSwingWorker(SwingWorker):
             def __init__(self):
-                with NetAccountBalancesExtension.getNAB().swingWorkersLock:
-                    NetAccountBalancesExtension.getNAB().swingWorkers.append(self)
+                NetAccountBalancesExtension.getNAB().swingWorkers.append(self)  # Already locked by calling class
+
+            def isBuildHomePageWidgetSwingWorker(self):         return False
+            def isSimulateTotalForRowSwingWorker(self):         return True
+            def isRebuildParallelBalanceTableSwingWorker(self): return False
 
             def doInBackground(self):                                                                                   # Runs on a worker thread
                 # type: () -> [{Account: [HoldBalance]}]
@@ -4987,11 +5195,12 @@ Visit: %s (Author's site)
 
                 return totalBalanceTable
 
-            def done(self):                                                                                         # Executes on the EDT
-                myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
-
+            def done(self):                                                                                             # Executes on the EDT
                 try:
+                    myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
                     NAB = NetAccountBalancesExtension.getNAB()
+
                     md = NAB.moneydanceContext
 
                     baseCurr = NAB.moneydanceContext.getCurrentAccountBook().getCurrencies().getBaseType()
@@ -5029,7 +5238,10 @@ Visit: %s (Author's site)
                             showCurrText = ""
                             if totalBalanceTable[i][_curIdx] is not baseCurr: showCurrText = " (%s)" %(totalBalanceTable[i][_curIdx].getIDString())
 
-                            resultTxt = wrap_HTML_small(totalBalanceTable[i][_curIdx].formatFancy(totalBalanceTable[i][_valIdx], NAB.decimal), showCurrText, altFG)
+                            theFormattedValue = (totalBalanceTable[i][_curIdx].formatFancy(totalBalanceTable[i][_valIdx], NAB.decimal) if (not NAB.savedDisableCurrencyFormatting[i])
+                                                 else totalBalanceTable[i][_curIdx].formatSemiFancy(totalBalanceTable[i][_valIdx], NAB.decimal))
+
+                            resultTxt = wrap_HTML_small(theFormattedValue, showCurrText, altFG)
                             NAB.simulateTotal_label.setText(resultTxt)
 
                             if totalBalanceTable[i][_valIdx] < 0:
@@ -5039,8 +5251,6 @@ Visit: %s (Author's site)
                                     NAB.simulateTotal_label.setForeground(md.getUI().colors.budgetHealthyColor)
                                 else:
                                     NAB.simulateTotal_label.setForeground(md.getUI().colors.positiveBalFG)
-
-                    NAB.simulateRunning = False
 
                 except InterruptedException:
                     myPrint("B","@@ SimulateTotalForRowSwingWorker InterruptedException - aborting...")
@@ -5057,22 +5267,31 @@ Visit: %s (Author's site)
                     raise
 
                 finally:
-                    with NetAccountBalancesExtension.getNAB().swingWorkersLock:
-                        NetAccountBalancesExtension.getNAB().swingWorkers.remove(self)
+                    NAB = NetAccountBalancesExtension.getNAB()
+                    with NAB.swingWorkers_LOCK:
+                        if self in NAB.swingWorkers:
+                            NAB.swingWorkers.remove(self)
+                        else:
+                            raise Exception("@@ ALERT: I did not find myself within swingWorkers list, so doing nothing...: %s" %(self))
 
-        def simulateTotalForRow(self):
+
+        def simulateTotalForRow(self, lFromParallel=False):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
-            if self.simulateLock.locked():
-                myPrint("DB","..Sorry simulateTotalForRow already locked/running. Request will probably wait....")
+            if self.swingWorkers_LOCK.locked():
+                myPrint("DB","@@.. ALERT In .simulateTotalForRow() >> swingWorkers_LOCK locked. Request might wait....")
 
-            with self.simulateLock:
-                if not self.simulateRunning:
-                    self.simulateRunning = True
+            self.cancelSwingWorkers(lSimulates=True)  # Running outside of lock....
+
+            with self.swingWorkers_LOCK:
+
+                if not lFromParallel and self.isParallelRebuildRunning_NOLOCKFIRST():
+                    myPrint("DB","..Sorry Simulate cannot run as Parallel rebuild already running, cancelled request.... Try later....")
+                elif self.isSimulateRunning_NOLOCKFIRST():
+                    myPrint("DB","..Sorry Simulate already running, cancelled request.... Try later....")
+                else:
                     sw = self.SimulateTotalForRowSwingWorker()
                     sw.execute()
-                else:
-                    myPrint("DB","..Sorry Simulate already running, cancelled request.... Try later....")
 
         class MyActionListener(AbstractAction):
 
@@ -5102,8 +5321,18 @@ Visit: %s (Author's site)
                 if event.getActionCommand().lower().startswith("AutoSum Accts".lower()):
                     if event.getSource().getName().lower() == "autoSumAccounts_CB".lower():
                         if NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting autoSumAccounts_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                            myPrint("DB", ".. setting savedAutoSumAccounts to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
                             NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                            NAB.configSaved = False
+                            NAB.simulateTotalForRow()
+                            NAB.jlst.repaint()
+
+                # ######################################################################################################
+                if event.getActionCommand().lower().startswith("Disable Currency Formatting".lower()):
+                    if event.getSource().getName().lower() == "disableCurrencyFormatting_CB".lower():
+                        if NAB.savedDisableCurrencyFormatting[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                            myPrint("DB", ".. setting savedDisableCurrencyFormatting to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                            NAB.savedDisableCurrencyFormatting[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
                             NAB.configSaved = False
                             NAB.simulateTotalForRow()
                             NAB.jlst.repaint()
@@ -5112,11 +5341,10 @@ Visit: %s (Author's site)
                 if event.getActionCommand().lower().startswith("Show Warnings".lower()):
                     if event.getSource().getName().lower() == "showWarnings_CB".lower():
                         if NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting showWarnings_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                            myPrint("DB", ".. setting savedShowWarningsTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
                             NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
                             NAB.configSaved = False
                             NAB.simulateTotalForRow()
-                            NAB.jlst.repaint()
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Filter Out Zeros Inactive".lower()):
@@ -5162,7 +5390,7 @@ Visit: %s (Author's site)
                             myPrint("DB", ".. setting savedBalanceType to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
                             NAB.savedBalanceType[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
                             NAB.configSaved = False
-                            NAB.setDateRangeLabel(NAB.getSelectedRowIndex())
+                            NAB.setDateRangeLabel(NAB.getSelectedRowIndex())    # Balance option affects end date
                             NAB.searchFiltersUpdated()
                             NAB.getNAB().simulateTotalForRow()
                             NAB.getNAB().jlst.repaint()
@@ -5262,6 +5490,7 @@ Visit: %s (Author's site)
                                     NAB.savedIncludeInactive,
                                     NAB.savedShowWarningsTable,
                                     NAB.savedWidgetName,
+                                    NAB.savedDisableCurrencyFormatting,
                                     NAB.savedCurrencyTable]:
                             obj.insert(newPos, obj[oldPos])
 
@@ -5278,6 +5507,7 @@ Visit: %s (Author's site)
                         NAB.savedAutoSumAccounts.insert(NAB.getSelectedRowIndex(),          NAB.autoSumDefault())
                         NAB.savedWidgetName.insert(NAB.getSelectedRowIndex(),               NAB.widgetRowDefault())
                         NAB.savedCurrencyTable.insert(NAB.getSelectedRowIndex(),            NAB.currencyDefault())
+                        NAB.savedDisableCurrencyFormatting.insert(NAB.getSelectedRowIndex(),NAB.disableCurrencyFormattingDefault())
                         NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex(),          NAB.includeInactiveDefault())
                         NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex(),        NAB.showWarningsDefault())
 
@@ -5288,15 +5518,16 @@ Visit: %s (Author's site)
                     if myPopupAskQuestion(NAB.theFrame,"INSERT ROW","Insert a new row %s (after this row)?" %(NAB.getSelectedRow()+1)):
                         myPrint("DB", ".. inserting a new row number %s (after)" %(NAB.getSelectedRow()+1))
 
-                        NAB.savedAccountListUUIDs.insert(NAB.getSelectedRowIndex()+1,       NAB.accountListDefault())
-                        NAB.savedBalanceType.insert(NAB.getSelectedRowIndex()+1,            NAB.balanceDefault())
-                        NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex()+1, NAB.incomeExpenseDateRangeDefault())
-                        NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex()+1,       NAB.customDatesDefault())
-                        NAB.savedAutoSumAccounts.insert(NAB.getSelectedRowIndex()+1,        NAB.autoSumDefault())
-                        NAB.savedWidgetName.insert(NAB.getSelectedRowIndex()+1,             NAB.widgetRowDefault())
-                        NAB.savedCurrencyTable.insert(NAB.getSelectedRowIndex()+1,          NAB.currencyDefault())
-                        NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex()+1,        NAB.includeInactiveDefault())
-                        NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex()+1,      NAB.showWarningsDefault())
+                        NAB.savedAccountListUUIDs.insert(NAB.getSelectedRowIndex()+1,           NAB.accountListDefault())
+                        NAB.savedBalanceType.insert(NAB.getSelectedRowIndex()+1,                NAB.balanceDefault())
+                        NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex()+1,     NAB.incomeExpenseDateRangeDefault())
+                        NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex()+1,           NAB.customDatesDefault())
+                        NAB.savedAutoSumAccounts.insert(NAB.getSelectedRowIndex()+1,            NAB.autoSumDefault())
+                        NAB.savedWidgetName.insert(NAB.getSelectedRowIndex()+1,                 NAB.widgetRowDefault())
+                        NAB.savedCurrencyTable.insert(NAB.getSelectedRowIndex()+1,              NAB.currencyDefault())
+                        NAB.savedDisableCurrencyFormatting.insert(NAB.getSelectedRowIndex()+1,  NAB.disableCurrencyFormattingDefault())
+                        NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex()+1,            NAB.includeInactiveDefault())
+                        NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex()+1,          NAB.showWarningsDefault())
 
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex()+1)
                         NAB.configSaved = False
@@ -5316,11 +5547,11 @@ Visit: %s (Author's site)
                                         NAB.savedIncludeInactive,
                                         NAB.savedShowWarningsTable,
                                         NAB.savedWidgetName,
+                                        NAB.savedDisableCurrencyFormatting,
                                         NAB.savedCurrencyTable]:
                                 del obj[NAB.getSelectedRowIndex()]
 
                         NAB.rebuildFrameComponents(selectRowIndex=(min(NAB.getSelectedRowIndex(), NAB.getNumberOfRows()-1)))
-                        lShouldRefreshHomeScreenWidget = False      # Make true to refresh the home screen widget too
                         NAB.configSaved = False
 
                 if event.getActionCommand().lower().startswith("Move Row".lower()):
@@ -5348,6 +5579,7 @@ Visit: %s (Author's site)
                                             NAB.savedIncludeInactive,
                                             NAB.savedShowWarningsTable,
                                             NAB.savedWidgetName,
+                                            NAB.savedDisableCurrencyFormatting,
                                             NAB.savedCurrencyTable]:
                                     obj.insert(newPos, obj.pop(oldPos))
 
@@ -5364,7 +5596,6 @@ Visit: %s (Author's site)
                         NAB.resetParameters()
                         NAB.rebuildFrameComponents(selectRowIndex=0)
 
-                        lShouldRefreshHomeScreenWidget = False      # Make true to refresh the home screen widget too
                         NAB.configSaved = False
 
                 # ######################################################################################################
@@ -5372,8 +5603,6 @@ Visit: %s (Author's site)
                     myPrint("DB","Dumping changes and reloading saved settings")
                     NAB.load_saved_parameters(lForceReload=True)
                     NAB.rebuildFrameComponents(selectRowIndex=0)
-
-                    lShouldRefreshHomeScreenWidget = False      # Make true to refresh the home screen widget too
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("save"):
@@ -5424,34 +5653,44 @@ Visit: %s (Author's site)
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("AutoSum Default".lower()):
+                    myPrint("B", "User has changed 'AutoSum Default for new rows' to: %s" %(NAB.savedAutoSumDefault))
                     NAB.savedAutoSumDefault = not NAB.savedAutoSumDefault
                     NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
-                    myPrint("B", "User has changed 'AutoSum Default for new rows' to: %s" %(NAB.savedAutoSumDefault))
                     NAB.configSaved = False
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Show Dashes".lower()):
+                    myPrint("B", "User has changed 'Show Dashes instead of Zeros' to: %s" %(NAB.savedShowDashesInsteadOfZeros))
                     NAB.savedShowDashesInsteadOfZeros = not NAB.savedShowDashesInsteadOfZeros
                     NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
-                    myPrint("B", "User has changed 'Show Dashes instead of Zeros' to: %s" %(NAB.savedShowDashesInsteadOfZeros))
                     NAB.simulateTotalForRow()
                     NAB.jlst.repaint()
+                    NAB.configSaved = False
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Disable Widget Title".lower()):
+                    myPrint("B", "User has changed 'Disable Widget Title' to: %s" %(NAB.savedDisableWidgetTitle))
                     NAB.savedDisableWidgetTitle = not NAB.savedDisableWidgetTitle
                     NAB.menuItemDisableWidgetTitle.setSelected(NAB.savedDisableWidgetTitle)
-                    myPrint("B", "User has changed 'Disable Widget Title' to: %s" %(NAB.savedDisableWidgetTitle))
+                    NAB.configSaved = False
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Treat Securities".lower()):
+                    myPrint("B", "User has changed 'Treat Securities With Zero Balance as Inactive' to: %s" %(NAB.savedTreatSecZeroBalInactive))
                     NAB.savedTreatSecZeroBalInactive = not NAB.savedTreatSecZeroBalInactive
                     NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
-                    myPrint("B", "User has changed 'Treat Securities With Zero Balance as Inactive' to: %s" %(NAB.savedTreatSecZeroBalInactive))
 
                     # NAB.rebuildJList()
                     NAB.searchFiltersUpdated()
                     NAB.configSaved = False
+
+                # ######################################################################################################
+                if event.getActionCommand().lower().startswith("Hide Controls".lower()):
+                    myPrint("DB", "User has changed 'Hide Control Panel' to: %s" %(NAB.savedHideControlPanel))
+                    NAB.savedHideControlPanel = not NAB.savedHideControlPanel
+                    NAB.menuBarItemHideControlPanel_CB.setSelected(NAB.savedHideControlPanel)
+
+                    hideUnideCollapsiblePanels(NAB.theFrame, not NAB.savedHideControlPanel)
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("deactivate"):
@@ -5523,6 +5762,7 @@ Visit: %s (Author's site)
                 self.recursiveUserXBalance = None
                 self.recursiveUserXBalanceStr = None
                 self.isParallelBalance = False
+                self.hasDisabledCurrencyFormatting = False
 
                 self.mdImages = NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getImages()
 
@@ -5581,7 +5821,7 @@ Visit: %s (Author's site)
                     self.acctSubAcctCount = self.account.getSubAccountCount()
                     self.acctName = self.account.getFullAccountName() if self.showFullAccountName else self.account.getAccountName()
                     self.acctType = NAB.moneydanceContext.getUI().getResources().getShortAccountType(self.account.getAccountType())
-                    self.isAllIncExpDatesSelected = isAllIncomeExpenseDatesSelected(NAB.getSelectedRowIndex())
+                    self.isAllIncExpDatesSelected = isIncomeExpenseAllDatesSelected(NAB.getSelectedRowIndex())
 
                     if self.isAllIncExpDatesSelected or not isIncomeExpenseAcct((self.account)):
                         self.isParallelBalance = False
@@ -5590,8 +5830,8 @@ Visit: %s (Author's site)
                         self.hasInactiveChildren = accountIncludesInactiveChildren(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()])
                     else:
                         self.isParallelBalance = True
-                        if NAB.parallelRebuildRunning:
-                            self.sudoAccountHoldBalanceObj = self.account
+                        if NAB.isParallelRebuildRunning_NOLOCKFIRST():
+                            self.sudoAccountHoldBalanceObj = self.account   # Temporarily switch to Account whilst rebuild running...
                         else:
                             try:
                                 self.sudoAccountHoldBalanceObj = NAB.jlst.parallelAccountBalances[NAB.getSelectedRowIndex()][self.account]
@@ -5610,6 +5850,7 @@ Visit: %s (Author's site)
                     thisRowCurr = MyHomePageView.getCurrencyByUUID(NAB.savedCurrencyTable[NAB.getSelectedRowIndex()], baseCurr)
 
                     self.includeInactive = NAB.savedIncludeInactive[NAB.getSelectedRowIndex()]
+                    self.hasDisabledCurrencyFormatting = NAB.savedDisableCurrencyFormatting[NAB.getSelectedRowIndex()]
 
                     mult = 1
                     # noinspection PyUnresolvedReferences
@@ -5625,25 +5866,30 @@ Visit: %s (Author's site)
                     if not NAB.savedShowDashesInsteadOfZeros or self.userXBalance:
                         if self.userXBalance != 0 and acctCurr != thisRowCurr:
                             self.userXBalance = CurrencyUtil.convertValue(self.userXBalance, acctCurr, thisRowCurr)
-                        self.userXBalanceStr = thisRowCurr.formatFancy(self.userXBalance, NAB.decimal)
+
+
+                        self.userXBalanceStr = (thisRowCurr.formatFancy(self.userXBalance, NAB.decimal) if (not self.hasDisabledCurrencyFormatting)
+                                                else thisRowCurr.formatSemiFancy(self.userXBalance, NAB.decimal))
                     else:
                         self.userXBalanceStr = "-"
 
-                    if NAB.parallelRebuildRunning: self.userXBalanceStr = "<rebuilding>"
+                    if NAB.isParallelRebuildRunning_NOLOCKFIRST(): self.userXBalanceStr = "<rebuilding>"
 
                     if self.acctSubAcctCount > 0:
                         self.recursiveUserXBalance = StoreAccountList.getRecursiveUserXBalance(balType, self.sudoAccountHoldBalanceObj) * mult
                         if not NAB.savedShowDashesInsteadOfZeros or self.recursiveUserXBalance:
                             if self.recursiveUserXBalance != 0 and acctCurr != thisRowCurr:
                                 self.recursiveUserXBalance = CurrencyUtil.convertValue(self.recursiveUserXBalance, acctCurr, thisRowCurr)
-                            self.recursiveUserXBalanceStr = thisRowCurr.formatFancy(self.recursiveUserXBalance, NAB.decimal)
+
+                            self.recursiveUserXBalanceStr = (thisRowCurr.formatFancy(self.recursiveUserXBalance, NAB.decimal) if (not self.hasDisabledCurrencyFormatting)
+                                                             else thisRowCurr.formatSemiFancy(self.recursiveUserXBalance, NAB.decimal))
                         else:
                             self.recursiveUserXBalanceStr = "-"
                     else:
                         self.recursiveUserXBalance = 0
                         self.recursiveUserXBalanceStr = ""
 
-                    if NAB.parallelRebuildRunning: self.recursiveUserXBalanceStr = "<rebuilding>"
+                    if NAB.isParallelRebuildRunning_NOLOCKFIRST(): self.recursiveUserXBalanceStr = "<rebuilding>"
 
                 else:
                     self.account = None
@@ -5655,6 +5901,7 @@ Visit: %s (Author's site)
                     self.isAllIncExpDatesSelected = True
                     self.sudoAccountHoldBalanceObj = None
                     self.isParallelBalance = False
+                    self.hasDisabledCurrencyFormatting = False
 
                     self.userXBalance = 0
                     self.userXBalanceStr = ""
@@ -5768,28 +6015,29 @@ Visit: %s (Author's site)
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
             myPrint("DB", "... parametersLoaded: %s .getCurrentAccountBook(): %s" %(self.parametersLoaded, self.moneydanceContext.getCurrentAccountBook()))
 
-            with self.lock:
+            with self.NAB_LOCK:
                 if not self.parametersLoaded or lForceReload:
                     if self.moneydanceContext.getCurrentAccountBook() is not None:
-                        self.configPanelOpen = False
+                        # self.configPanelOpen = False
 
                         self.resetParameters()
 
-                        GlobalVars.extn_param_NEW_listAccountUUIDs_NAB          = [self.accountListDefault()]               # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_balanceType_NAB               = [self.balanceDefault()]                   # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_widget_display_name_NAB       = [GlobalVars.DEFAULT_WIDGET_ROW_NAME]      # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_listAccountUUIDs_NAB              = [self.accountListDefault()]                # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_balanceType_NAB                   = [self.balanceDefault()]                    # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_widget_display_name_NAB           = [GlobalVars.DEFAULT_WIDGET_ROW_NAME]       # Loading will overwrite if saved, else pre-load defaults
 
-                        GlobalVars.extn_param_NEW_currency_NAB                  = [self.currencyDefault()]                  # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_includeInactive_NAB           = [self.includeInactiveDefault()]           # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = [self.autoSumDefault()]                   # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = [self.incomeExpenseDateRangeDefault()]    # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_customDatesTable_NAB          = [self.customDatesDefault()]               # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_showWarningsTable_NAB         = [self.showWarningsDefault()]              # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_currency_NAB                      = [self.currencyDefault()]                   # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB     = [self.disableCurrencyFormattingDefault()]  # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_includeInactive_NAB               = [self.includeInactiveDefault()]            # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_autoSumAccounts_NAB               = [self.autoSumDefault()]                    # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB        = [self.incomeExpenseDateRangeDefault()]     # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_customDatesTable_NAB              = [self.customDatesDefault()]                # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_showWarningsTable_NAB             = [self.showWarningsDefault()]               # Loading will overwrite if saved, else pre-load defaults
 
-                        GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                     # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = self.disableWidgetTitleDefault()          # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = self.showDashesInsteadOfZerosDefault()    # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()     # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_autoSumDefault_NAB                = self.autoSumDefault()                      # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_disableWidgetTitle_NAB            = self.disableWidgetTitleDefault()           # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB      = self.showDashesInsteadOfZerosDefault()     # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB       = self.treatSecZeroBalInactiveDefault()      # Loading will overwrite if saved, else pre-load defaults
 
                         get_StuWareSoftSystems_parameters_from_file(myFile="%s_extension.dict" %(self.myModuleID))
 
@@ -5803,17 +6051,18 @@ Visit: %s (Author's site)
                             GlobalVars.extn_param_NEW_balanceType_NAB               = [GlobalVars.extn_param_balanceType_NAB]
                             GlobalVars.extn_param_NEW_widget_display_name_NAB       = [GlobalVars.extn_param_widget_display_name_NAB]
 
-                            GlobalVars.extn_param_NEW_currency_NAB                  = [self.currencyDefault()]                  # Did not exist previously
-                            GlobalVars.extn_param_NEW_includeInactive_NAB           = [self.includeInactiveDefault()]           # Did not exist previously
-                            GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = [self.autoSumDefault()]                   # Did not exist previously
-                            GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = [self.incomeExpenseDateRangeDefault()]    # Did not exist previously
-                            GlobalVars.extn_param_NEW_customDatesTable_NAB          = [self.customDatesDefault()]               # Loading will overwrite if saved, else pre-load defaults
-                            GlobalVars.extn_param_NEW_showWarningsTable_NAB         = [self.showWarningsDefault()]              # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_currency_NAB                  = [self.currencyDefault()]                   # Did not exist previously
+                            GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = [self.disableCurrencyFormattingDefault()]  # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_includeInactive_NAB           = [self.includeInactiveDefault()]            # Did not exist previously
+                            GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = [self.autoSumDefault()]                    # Did not exist previously
+                            GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = [self.incomeExpenseDateRangeDefault()]     # Did not exist previously
+                            GlobalVars.extn_param_NEW_customDatesTable_NAB          = [self.customDatesDefault()]                # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_showWarningsTable_NAB         = [self.showWarningsDefault()]               # Loading will overwrite if saved, else pre-load defaults
 
-                            GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                     # Loading will overwrite if saved, else pre-load defaults
-                            GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = self.disableWidgetTitleDefault()          # Loading will overwrite if saved, else pre-load defaults
-                            GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = self.showDashesInsteadOfZerosDefault()    # Loading will overwrite if saved, else pre-load defaults
-                            GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()     # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                      # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = self.disableWidgetTitleDefault()           # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = self.showDashesInsteadOfZerosDefault()     # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()      # Loading will overwrite if saved, else pre-load defaults
 
                             GlobalVars.extn_param_listAccountUUIDs_NAB      = None
                             GlobalVars.extn_param_balanceType_NAB           = None
@@ -5831,6 +6080,8 @@ Visit: %s (Author's site)
                         self.savedAutoSumAccounts           = GlobalVars.extn_param_NEW_autoSumAccounts_NAB
                         self.savedWidgetName                = GlobalVars.extn_param_NEW_widget_display_name_NAB
                         self.savedCurrencyTable             = GlobalVars.extn_param_NEW_currency_NAB
+                        self.savedDisableCurrencyFormatting = GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB
+
                         self.savedShowWarningsTable         = GlobalVars.extn_param_NEW_showWarningsTable_NAB
 
                         self.savedAutoSumDefault            = GlobalVars.extn_param_NEW_autoSumDefault_NAB
@@ -5999,6 +6250,20 @@ Visit: %s (Author's site)
             menuA.add(menuItemH)
 
             NAB.mainMenuBar.add(menuA)
+
+            NAB.mainMenuBar.add(Box.createHorizontalGlue())
+
+            NAB.menuBarItemHideControlPanel_CB = MyJCheckBox("Hide Controls", NAB.savedHideControlPanel)
+            NAB.menuBarItemHideControlPanel_CB.putClientProperty("%s.id" %(NAB.myModuleID), "menuBarItemHideControlPanel_CB")
+            NAB.menuBarItemHideControlPanel_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), True)
+            NAB.menuBarItemHideControlPanel_CB.setName("menuBarItemHideControlPanel_CB")
+            NAB.menuBarItemHideControlPanel_CB.setToolTipText("Hides some of the Control panel to give you more screen space for the selection list")
+            NAB.menuBarItemHideControlPanel_CB.addActionListener(NAB.saveActionListener)
+            NAB.mainMenuBar.add(NAB.menuBarItemHideControlPanel_CB)
+
+            # NAB.mainMenuBar.add(Box.createHorizontalGlue())
+            NAB.mainMenuBar.add(Box.createRigidArea(Dimension(10, 0)))
+
 
             if Platform.isOSX():
                 save_useScreenMenuBar = System.getProperty("apple.laf.useScreenMenuBar")
@@ -6200,12 +6465,14 @@ Visit: %s (Author's site)
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
+
                     onCol = 0
 
                     insertBefore_button = MyJButton("Insert Row before")
                     insertBefore_button.putClientProperty("%s.id" %(NAB.myModuleID), "insertBefore_button")
                     insertBefore_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     insertBefore_button.setToolTipText("Inserts a new row before this one...")
+                    insertBefore_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     insertBefore_button.addActionListener(NAB.saveActionListener)
                     controlPnl.add(insertBefore_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colLeftInset).fillx())
                     onCol += 1
@@ -6214,6 +6481,7 @@ Visit: %s (Author's site)
                     insertAfter_button.putClientProperty("%s.id" %(NAB.myModuleID), "insertAfter_button")
                     insertAfter_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     insertAfter_button.setToolTipText("Inserts a new row after this one...")
+                    insertAfter_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     insertAfter_button.addActionListener(NAB.saveActionListener)
                     controlPnl.add(insertAfter_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colInsetFiller).fillx())
                     onCol += 1
@@ -6222,6 +6490,7 @@ Visit: %s (Author's site)
                     deleteRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "deleteRow_button")
                     deleteRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     deleteRow_button.setToolTipText("Deletes this row...")
+                    deleteRow_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     deleteRow_button.addActionListener(NAB.saveActionListener)
                     controlPnl.add(deleteRow_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colInsetFiller).fillx())
                     onCol += 1
@@ -6230,6 +6499,7 @@ Visit: %s (Author's site)
                     moveRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "moveRow_button")
                     moveRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     moveRow_button.setToolTipText("Moves this row elsewhere...")
+                    moveRow_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     moveRow_button.addActionListener(NAB.saveActionListener)
                     controlPnl.add(moveRow_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
                     onCol += 1
@@ -6243,6 +6513,7 @@ Visit: %s (Author's site)
                     duplicateRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "duplicateRow_button")
                     duplicateRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     duplicateRow_button.setToolTipText("Duplicates this row...")
+                    duplicateRow_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     duplicateRow_button.addActionListener(NAB.saveActionListener)
                     controlPnl.add(duplicateRow_button, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillx())
                     onCol += 1
@@ -6251,6 +6522,7 @@ Visit: %s (Author's site)
                     cancelChanges_button.putClientProperty("%s.id" %(NAB.myModuleID), "cancelChanges_button")
                     cancelChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     cancelChanges_button.setToolTipText("Reloads all settings from last saved")
+                    cancelChanges_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     cancelChanges_button.addActionListener(NAB.saveActionListener)
                     controlPnl.add(cancelChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
                     onCol += 1
@@ -6259,26 +6531,24 @@ Visit: %s (Author's site)
                     resetDefaults_button.putClientProperty("%s.id" %(NAB.myModuleID), "resetDefaults_button")
                     resetDefaults_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     resetDefaults_button.setToolTipText("Wipes all saved settings, resets to defaults with 1 row (does not save)")
+                    resetDefaults_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     resetDefaults_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(resetDefaults_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
+                    controlPnl.add(resetDefaults_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
                     onCol += 1
 
-                    saveSettings_button = MyJButton("Save All Settings".upper())
-                    saveSettings_button.putClientProperty("%s.id" %(NAB.myModuleID), "saveSettings_button")
-                    saveSettings_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    saveSettings_button.setToolTipText("Saves all the changes made to settings")
-                    saveSettings_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(saveSettings_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
-
                     onRow += 1
+
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
                     topInset = 8
                     bottomInset = 5
 
-                    controlPnl.add(MyJSeparator(), GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(4).fillx())
+                    js = MyJSeparator()
+                    js.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(js, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(4).fillx())
                     onRow += 1
+
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
@@ -6302,6 +6572,7 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
+
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
@@ -6309,6 +6580,7 @@ Visit: %s (Author's site)
 
                     balanceOptionLabel = MyJLabel("Balance Option:")
                     balanceOptionLabel.putClientProperty("%s.id" %(NAB.myModuleID), "balanceOptionLabel")
+                    balanceOptionLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(balanceOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
@@ -6317,8 +6589,9 @@ Visit: %s (Author's site)
                     NAB.balanceType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "balanceType_COMBO")
                     NAB.balanceType_COMBO.setName("balanceType_COMBO")
                     NAB.balanceType_COMBO.setToolTipText("Select the balance type to total: Balance (i.e. the final balance), Current Balance (as of today), Cleared Balance")
+                    NAB.balanceType_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.balanceType_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    controlPnl.add(NAB.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx().padx(padx))
                     onCol += 1
 
                     NAB.autoSumAccounts_CB = MyJCheckBox("AutoSum Accts", True)
@@ -6326,8 +6599,9 @@ Visit: %s (Author's site)
                     NAB.autoSumAccounts_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.autoSumAccounts_CB.setName("autoSumAccounts_CB")
                     NAB.autoSumAccounts_CB.setToolTipText("AutoSum will auto sum/total the account recursively down the tree, including Securities. AutoSum=OFF means each item is totalled separately")
+                    NAB.autoSumAccounts_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.autoSumAccounts_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx())
+                    controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
                     onCol += 1
 
                     NAB.showWarnings_CB = MyJCheckBox("Show Warnings", True)
@@ -6335,8 +6609,9 @@ Visit: %s (Author's site)
                     NAB.showWarnings_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.showWarnings_CB.setName("showWarnings_CB")
                     NAB.showWarnings_CB.setToolTipText("Warnings on 'illogical' calculations will be shown for this row...")
+                    NAB.showWarnings_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.showWarnings_CB.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.showWarnings_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx())
+                    controlPnl.add(NAB.showWarnings_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).rightInset(colRightInset).fillx().padx(padx))
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
@@ -6346,6 +6621,7 @@ Visit: %s (Author's site)
 
                     displayCurrencyLabel = MyJLabel("Display Currency:")
                     displayCurrencyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "displayCurrencyLabel")
+                    displayCurrencyLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(displayCurrencyLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
@@ -6353,8 +6629,21 @@ Visit: %s (Author's site)
                     NAB.currency_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "currency_COMBO")
                     NAB.currency_COMBO.setName("currency_COMBO")
                     NAB.currency_COMBO.setToolTipText("Select the Currency to convert / display totals (default = your base currency)")
+                    NAB.currency_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.currency_COMBO.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.currency_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(2).fillx())
+                    onCol += 2
+
+                    NAB.disableCurrencyFormatting_CB = MyJCheckBox("Disable Currency Formatting", True)
+                    NAB.disableCurrencyFormatting_CB.putClientProperty("%s.id" %(NAB.myModuleID), "disableCurrencyFormatting_CB")
+                    NAB.disableCurrencyFormatting_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.disableCurrencyFormatting_CB.setName("disableCurrencyFormatting_CB")
+                    NAB.disableCurrencyFormatting_CB.setToolTipText("Disable Currency Formatting (just present 'raw' numbers) >> thanks @dtd for this one ;->")
+                    NAB.disableCurrencyFormatting_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.disableCurrencyFormatting_CB.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.disableCurrencyFormatting_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    onCol += 1
+
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -6362,7 +6651,8 @@ Visit: %s (Author's site)
                     topInset = 2
 
                     incExpDateRangeOptionLabel = MyJLabel("Inc/Exp Date Range:")
-                    balanceOptionLabel.putClientProperty("%s.id" %(NAB.myModuleID), "incExpDateRangeOptionLabel")
+                    incExpDateRangeOptionLabel.putClientProperty("%s.id" %(NAB.myModuleID), "incExpDateRangeOptionLabel")
+                    incExpDateRangeOptionLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
@@ -6375,6 +6665,7 @@ Visit: %s (Author's site)
                     NAB.incomeExpenseDateRange_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "incomeExpenseDateRange_COMBO")
                     NAB.incomeExpenseDateRange_COMBO.setName("incomeExpenseDateRange_COMBO")
                     NAB.incomeExpenseDateRange_COMBO.setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
+                    NAB.incomeExpenseDateRange_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.incomeExpenseDateRange_COMBO.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.incomeExpenseDateRange_COMBO, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillx())
 
@@ -6384,6 +6675,7 @@ Visit: %s (Author's site)
 
                     NAB.parallelBalancesWarningLabel = MyJLabel("Key:")
                     NAB.parallelBalancesWarningLabel.putClientProperty("%s.id" %(NAB.myModuleID), "parallelBalancesWarningLabel")
+                    NAB.parallelBalancesWarningLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(NAB.parallelBalancesWarningLabel, GridC.getc(onCol, onRow).insets(topInset,colLeftInset,bottomInset,colRightInset))
 
                     onRow += 1
@@ -6395,12 +6687,13 @@ Visit: %s (Author's site)
 
                     NAB.dateRangeLabel = MyJLabel("Date Range:")
                     NAB.dateRangeLabel.putClientProperty("%s.id" %(NAB.myModuleID), "dateRangeLabel")
+                    NAB.dateRangeLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(NAB.dateRangeLabel, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset))
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
 
-                    onCol = 1
+                    onCol = 0
                     topInset = 7
 
                     clearList_button = MyJButton("Clear Selection")
@@ -6411,6 +6704,14 @@ Visit: %s (Author's site)
                     controlPnl.add(clearList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
                     onCol += 1
 
+                    undoListChanges_button = MyJButton("Undo List Changes")
+                    undoListChanges_button.putClientProperty("%s.id" %(NAB.myModuleID), "undoListChanges_button")
+                    undoListChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    undoListChanges_button.setToolTipText("Undo your account list changes and revert to last saved list")
+                    undoListChanges_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(undoListChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onCol += 1
+
                     storeAccountList_button = MyJButton("Store List Changes")
                     storeAccountList_button.putClientProperty("%s.id" %(NAB.myModuleID), "storeAccountList_button")
                     storeAccountList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
@@ -6419,14 +6720,15 @@ Visit: %s (Author's site)
                     controlPnl.add(storeAccountList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
                     onCol += 1
 
-                    undoListChanges_button = MyJButton("Undo List Changes")
-                    undoListChanges_button.putClientProperty("%s.id" %(NAB.myModuleID), "undoListChanges_button")
-                    undoListChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    undoListChanges_button.setToolTipText("Undo your account list changes and revert to last saved list")
-                    undoListChanges_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(undoListChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).topInset(topInset).fillx())
+                    saveSettings_button = MyJButton("Save All Settings".upper())
+                    saveSettings_button.putClientProperty("%s.id" %(NAB.myModuleID), "saveSettings_button")
+                    saveSettings_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    saveSettings_button.setToolTipText("Saves all the changes made to settings")
+                    saveSettings_button.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(saveSettings_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
+
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
@@ -6443,6 +6745,7 @@ Visit: %s (Author's site)
 
                     filterLabel = MyJLabel(wrap_HTML_small("","FILTERS:", NAB.moneydanceContext.getUI().colors.defaultTextForeground))
                     filterLabel.putClientProperty("%s.id" %(NAB.myModuleID), "filterLabel")
+                    filterLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(filterLabel, GridC.getc(onCol, onRow).southEast().fillx().insets(topInset,colLeftInset+2,bottomInset,colRightInset))
 
                     onRow += 1
@@ -6524,6 +6827,7 @@ Visit: %s (Author's site)
                     NAB.filterOnlyShowSelected_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.filterOnlyShowSelected_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).bottomInset(bottomInset).colspan(1).fillboth())
 
+
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
 
@@ -6539,6 +6843,7 @@ Visit: %s (Author's site)
                     onCol = 2
                     NAB.keyLabel = MyJLabel("Key:")
                     NAB.keyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "keyLabel")
+                    NAB.keyLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().colspan(2).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset+2))
 
                     onRow += 1
@@ -6726,6 +7031,7 @@ Visit: %s (Author's site)
                     self.saveMyHomePageView.lastBookUsed = None
 
                 self.parametersLoaded = self.configPanelOpen = False
+
                 if self.theFrame is not None and self.theFrame.isVisible():
                     myPrint("DB","Requesting application JFrame to go invisible...")
                     SwingUtilities.invokeLater(GenericVisibleRunnable(self.theFrame, False))
@@ -6733,21 +7039,15 @@ Visit: %s (Author's site)
                 self.resetJListModel()
 
                 if appEvent == "md:file:closing":
-                    myPrint("DB","There appear to be %s active SwingWorkers....:" %(len(self.swingWorkers)))
 
-                    with self.swingWorkersLock:
-                        for sw in reversed(self.swingWorkers):                                                          # type: SwingWorker
-                            myPrint("DB","... Found:", sw)
-                            if sw.isDone() or sw.isCancelled():
-                                myPrint("DB"," >> Ignoring as it reports isDone() %s and isCancelled() %s" %(sw.isDone(), sw.isCancelled()))
-                            else:
-                                myPrint("DB"," >> SENDING CANCEL COMMAND")
-                                if not sw.cancel(True):
-                                    myPrint("DB", "  @@ ALERT - SwingWorker.cancel(True) failed >> Moving on.....")
+                    with self.swingWorkers_LOCK:
+                        myPrint("DB","Cancelling any active SwingWorkers - all types....")
+                        self.cancelSwingWorkers(lSimulates=True, lParallelRebuilds=True, lBuildHomePageWidgets=True)
 
             elif (appEvent == "md:file:opening"):  # Precedes file opened
-                myPrint("DB","%s Dataset is opening... Reset internal list of SwingWorkers" %(appEvent))
-                self.swingWorkers = []
+                myPrint("DB","%s Dataset is opening... Internal list of SwingWorkers as follows...:" %(appEvent))
+                # self.swingWorkers = [];
+                self.listAllSwingWorkers()
 
             elif (appEvent == "md:file:opened"):  # This is the key event when a file is opened
                 myPrint("DB","%s Checking to see if UI loaded and create application Frame" %(appEvent))
@@ -6775,7 +7075,7 @@ Visit: %s (Author's site)
                     myPrint("DB","... launching the config screen...")
                     SwingUtilities.invokeLater(GenericVisibleRunnable(self.theFrame, True, True))
                 else:
-                    myPrint("DB", "Sorry, conditions are not right to allow console. Ignoring request....")
+                    myPrint("DB", "Sorry, conditions are not right to allow the GUI to load. Ignoring request....")
                     myPrint("DB", "self.theFrame: %s" %(self.theFrame))
                     myPrint("DB", "self.isUIavailable: %s" %(self.isUIavailable))
                     myPrint("DB", "self.theFrame.isActiveInMoneydance: %s" %(self.theFrame.isActiveInMoneydance))       # noqa
@@ -6788,6 +7088,10 @@ Visit: %s (Author's site)
                 if self.theFrame is not None and self.theFrame.isActiveInMoneydance:
                     myPrint("DB", "Triggering saveSettings() via Runnable....")
                     SwingUtilities.invokeLater(self.SaveSettingsRunnable())
+
+            elif (appEvent.lower().startswith(("%s:customevent:showConsole" %(self.myModuleID)).lower())):
+                myPrint("B","%s Save settings requested - Triggering Help>Show Console" %(appEvent))
+                SwingUtilities.invokeLater(ShowConsoleRunnable())
 
             elif (appEvent == "%s:customevent:close" %(self.myModuleID)):
                 if debug:
@@ -6879,12 +7183,8 @@ Visit: %s (Author's site)
             self.i_am_active = False
             self.is_unloaded = False
 
-            self.lastRefreshTimeMs = 0
-            self.lastRefreshTimeDelayMs = 3000
-            self.lastRefreshTimeExtraDelayMs = 0
-
             # my attempt to replicate Java's 'synchronized' statements
-            self.lock = threading.Lock()
+            self.HPV_LOCK = threading.Lock()
 
         # noinspection PyMethodMayBeStatic
         def getID(self): return self.myModuleID
@@ -6953,7 +7253,7 @@ Visit: %s (Author's site)
                     myPrint("DB","Inside CreateViewPanelRunnable().... Calling creating ViewPanel..")
                     HPV.view = HPV.ViewPanel(book)
 
-            with self.lock:
+            with self.HPV_LOCK:
                 if not SwingUtilities.isEventDispatchThread():
                     myPrint("DB",".. Not running within the EDT so calling via CreateViewPanelRunnable()...")
                     SwingUtilities.invokeAndWait(CreateViewPanelRunnable())
@@ -6964,7 +7264,13 @@ Visit: %s (Author's site)
                 return self.view
 
 
-        class ViewPanel(JPanel, AccountListener, JLinkListener):
+        class ViewPanel(JPanel, AccountListener, CurrencyListener, JLinkListener):
+
+            def currencyTableModified(self, currencyTable):                                                             # noqa
+                myPrint("DB", "In ViewPanel.currencyTableModified()")
+                myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
+                myPrint("DB", "...calling refresh()")
+                self.refresh()
 
             # Account Listener Methods
             def accountModified(self, paramAccount):                                                                    # noqa
@@ -7000,9 +7306,12 @@ Visit: %s (Author's site)
                         myPrint("DB",".. calling .showURL() to call up %s panel" %(link))
                         NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
 
-                if isinstance(link, (str, unicode)):
                     if (link.lower().startswith("saveSettings".lower())):
                         myPrint("DB",".. calling .showURL() to trigger a save of settings ('%s')..." %(link))
+                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
+
+                    if (link.lower().startswith("showConsole".lower())):
+                        myPrint("DB",".. calling .showURL() to trigger Help>Console Window ('%s')..." %(link))
                         NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
 
             # The Runnable for CollapsibleRefresher()
@@ -7016,25 +7325,27 @@ Visit: %s (Author's site)
                 def run(self):
                     myPrint("DB","Inside GUIRunnable.... Calling .reallyRefresh()..")
 
-                    HPV = MyHomePageView.getHPV()
                     NAB = NetAccountBalancesExtension.getNAB()
 
-                    gap = System.currentTimeMillis() - HPV.lastRefreshTimeMs
+                    gap = System.currentTimeMillis() - self.viewPanelInstance.lastRefreshTimeMs
 
-                    if NAB.areSwingWorkersRunning():
-                        myPrint("DB", "... Detected that SwingWorkers already running.... Skipping reallyRefresh()")
-                        return
+                    # if NAB.isWidgetRefreshRunning_LOCKFIRST():
+                    #     myPrint("B", "... Detected that other Build WidgetSwingWorker(s) already running.... Skipping reallyRefresh() - details as follows:");
+                    #     NAB.listAllSwingWorkers()
+                    #     return
 
-                    if (gap > (HPV.lastRefreshTimeDelayMs + HPV.lastRefreshTimeExtraDelayMs)):
-                        delayGapTxt = ("*NEVER*" if not HPV.lastRefreshTimeMs else "%s seconds" %(gap/1000.0))
+                    if (gap > (self.viewPanelInstance.lastRefreshTimeDelayMs + self.viewPanelInstance.lastRefreshTimeExtraDelayMs)):
+                        delayGapTxt = ("*NEVER*" if not self.viewPanelInstance.lastRefreshTimeMs else "%s seconds" %(gap/1000.0))
                         myPrint("DB", "... Detected that gap between refresh runs is: %s - WILL reallyRefresh()" %(delayGapTxt))
-                        HPV.lastRefreshTimeMs = System.currentTimeMillis()
+                        NAB.cancelSwingWorkers(lBuildHomePageWidgets=True)
+                        self.viewPanelInstance.lastRefreshTimeMs = System.currentTimeMillis()
                         self.viewPanelInstance.reallyRefresh()
                     else:
-                        myPrint("DB", "... Detected that gap between refresh runs is less than %s seconds - so will NOT reallyRefresh()" %(HPV.lastRefreshTimeDelayMs / 1000.0))
+                        myPrint("DB", "... Detected that gap between refresh runs is less than %s seconds - so will NOT reallyRefresh()"
+                                %((self.viewPanelInstance.lastRefreshTimeDelayMs + self.viewPanelInstance.lastRefreshTimeExtraDelayMs) / 1000.0))
 
             @staticmethod
-            def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):
+            def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):                            # noqa
 
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -7052,13 +7363,13 @@ Visit: %s (Author's site)
                 try:
                     startTime = System.currentTimeMillis()
 
-                    saveTheRowIndex = (NAB.getSelectedRowIndex() if not lFromSimulate else None)
+                    # saveTheRowIndex = (NAB.getSelectedRowIndex() if not lFromSimulate else None)
 
                     isParallelBalanceTableOperational()
 
                     # --------------------------------------------------------------------------------------------------
                     accountsToShow = buildEmptyAccountList()
-                    for iAccountLoop in range(0,len(NAB.savedAccountListUUIDs)):
+                    for iAccountLoop in range(0,NAB.getNumberOfRows()):
 
                         if swClass and swClass.isCancelled(): return []
 
@@ -7067,14 +7378,15 @@ Visit: %s (Author's site)
                         if justIndex is not None and iAccountLoop != justIndex: continue
 
                         myPrint("DB","HomePageView widget: Finding selected accounts for row: %s" %(onRow))
-                        if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
+                        # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
 
                         for accID in NAB.savedAccountListUUIDs[iAccountLoop]:
 
                             if swClass and swClass.isCancelled(): return []
 
                             myPrint("DB","... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
-                            acct = AccountUtil.findAccountWithID(_book.getRootAccount(), accID)
+                            # acct = AccountUtil.findAccountWithID(_book.getRootAccount(), accID)                       # Very slow...
+                            acct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(accID)
 
                             if acct is not None:
                                 # myPrint("DB","....found and adding account to list: %s" %acct)
@@ -7082,6 +7394,10 @@ Visit: %s (Author's site)
 
                             else:
                                 myPrint("B","....WARNING - Row: %s >> Account with UUID %s not found..? Skipping this one...." %(onRow, accID))
+
+                    tookTime = System.currentTimeMillis() - startTime
+                    myPrint("DB", "calculateBalances() STAGE1>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+                    startTime = System.currentTimeMillis()
 
                     # Printing of lists containing objects which return multi-bye characters (e.g. Asian) will error - e.g. print [acct]
                     try: myPrint("DB","accountsToShow table: %s" %accountsToShow)
@@ -7091,11 +7407,11 @@ Visit: %s (Author's site)
                     lIncExpData = False
 
                     # Income / Expense harvest associated accounts
-                    for iAccountLoop in range(0,len(NAB.savedAccountListUUIDs)):
+                    for iAccountLoop in range(0,NAB.getNumberOfRows()):
 
                         if swClass and swClass.isCancelled(): return []
 
-                        if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
+                        # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
 
                         onRow = iAccountLoop+1
 
@@ -7103,7 +7419,7 @@ Visit: %s (Author's site)
 
                         if justIndex is not None and iAccountLoop != justIndex: continue
 
-                        if not isAllIncomeExpenseDatesSelected(iAccountLoop):
+                        if not isIncomeExpenseAllDatesSelected(iAccountLoop):
                             myPrint("DB","HomePageView widget: Income/Expense Date Range '%s' used on Row: %s (will gather child accounts (if AutoSum) and all related income/expense transactions). AutoSum = %s"
                                     %(NAB.savedIncomeExpenseDateRange[iAccountLoop], onRow, NAB.savedAutoSumAccounts[iAccountLoop]))
 
@@ -7124,6 +7440,9 @@ Visit: %s (Author's site)
 
                                 myPrint("DB","...No Income/Expense Accounts found for row: %s" %(onRow))
 
+                    tookTime = System.currentTimeMillis() - startTime
+                    myPrint("DB", "calculateBalances() STAGE2>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+                    startTime = System.currentTimeMillis()
 
                     # Income / Expense harvest associated Txns - all in one sweep....
                     if not lIncExpData:
@@ -7151,7 +7470,11 @@ Visit: %s (Author's site)
 
                         if swClass and swClass.isCancelled(): return []
 
-                        if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
+                        # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
+
+                        lFoundAutoSumParentInThisRowWarning = False
+                        lFoundAutoSumInActiveChildInThisThisRowWarning = False
+                        lFoundAutoSumInActiveParentInThisThisRowWarning = False
 
                         onRow = iAccountLoop+1
 
@@ -7192,36 +7515,58 @@ Visit: %s (Author's site)
 
                                 realAutoSum = NAB.savedAutoSumAccounts[iAccountLoop]
 
-                                if debug or NAB.savedShowWarningsTable[iAccountLoop]:
+                                if debug or (NAB.savedShowWarningsTable[iAccountLoop]):
+
                                     # Validate selections.... Look for AutoSum'd accounts where a parent has been selected..
                                     if not NAB.migratedParameters:
                                         myPrint("DB","... Verifying for illogical calculations up/down hierarchy...")
                                         if realAutoSum:
-                                            for checkAcct in accountsToShow[iAccountLoop]:
 
-                                                if swClass and swClass.isCancelled(): return []
+                                            if not lFoundAutoSumParentInThisRowWarning:
+                                                parentPath = acct.getPath()[:-1]
+                                                for checkParentAcct in parentPath:
+                                                    if checkParentAcct in accountsToShow[iAccountLoop]:
+                                                        lWarningDetected = True
+                                                        iWarningType = (1 if (iWarningType is None or iWarningType == 1) else 0)
+                                                        iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                                        myPrint("B","WARNING: Row: %s >> AutoSum ON and Selected acct '%s' is being double totalled by selected AutoSum'd parent acct: '%s'"
+                                                                    " (stopping further checks...)" %(onRow, acct, checkParentAcct))
+                                                        lFoundAutoSumParentInThisRowWarning = True
+                                                        break
 
-                                                if acct == checkAcct: continue
-                                                if acct in checkAcct.getPath()[:-1]:
-                                                    lWarningDetected = True
-                                                    iWarningType = (1 if (iWarningType is None or iWarningType == 1) else 0)
-                                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                                    myPrint("DB","WARNING: Row: %s >> AutoSum ON and Selected acct: %s found in parent acct hierarchy: '%s' when ultimate parent: '%s' also selected" %(onRow, checkAcct, checkAcct.getPath()[:-1],acct))
+                                            # Eliminated this slow way of doing it....
+                                            # for checkAcct in accountsToShow[iAccountLoop]:
+                                            #
+                                            #     if swClass and swClass.isCancelled(): return []
+                                            #
+                                            #     if acct == checkAcct: continue
+                                            #
+                                            #     if acct in checkAcct.getPath()[:-1]:
+                                            #         lWarningDetected = True
+                                            #         iWarningType = (1 if (iWarningType is None or iWarningType == 1) else 0)
+                                            #         iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                            #         myPrint("B","WARNING: Row: %s >> AutoSum ON and Selected acct: %s found in parent acct hierarchy: '%s' "
+                                            #                      "when ultimate parent: '%s' also selected" %(onRow, checkAcct, checkAcct.getPath()[:-1], acct));
 
-                                            if not NAB.savedIncludeInactive[iAccountLoop]:
-                                                inactiveChild = accountIncludesInactiveChildren(acct, NAB.savedBalanceType[iAccountLoop])
-                                                if inactiveChild:
-                                                    lWarningDetected = True
-                                                    iWarningType = (2 if (iWarningType is None or iWarningType == 2) else 0)
-                                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                                    myPrint("DB","WARNING: Row: %s >> AutoSum ON, Excluding Inactive Accounts, BUT account: '%s' includes inactive child with a balance: '%s'" %(onRow, acct, inactiveChild))
+                                            if not lFoundAutoSumInActiveChildInThisThisRowWarning:
+                                                if not NAB.savedIncludeInactive[iAccountLoop]:
+                                                    inactiveChild = accountIncludesInactiveChildren(acct, NAB.savedBalanceType[iAccountLoop])
+                                                    if inactiveChild:
+                                                        lWarningDetected = True
+                                                        iWarningType = (2 if (iWarningType is None or iWarningType == 2) else 0)
+                                                        iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                                        myPrint("B","WARNING: Row: %s >> AutoSum ON, Excluding Inactive Accounts, BUT account: '%s' includes inactive child with a balance: '%s'"
+                                                                    " (stopping further checks...)" %(onRow, acct, inactiveChild))
+                                                        lFoundAutoSumInActiveChildInThisThisRowWarning = True
 
-                                        if not NAB.savedIncludeInactive[iAccountLoop] and not isAccountActive(acct, NAB.savedBalanceType[iAccountLoop]):
-                                            lWarningDetected = True
-                                            iWarningType = (3 if (iWarningType is None or iWarningType == 3) else 0)
-                                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                            myPrint("DB","WARNING: Row: %s >> Excluding Inactive Accounts, BUT selected acct / parent hierarchy flagged as inactive somewhere: %s"
-                                                    %(onRow, acct))
+                                        if not lFoundAutoSumInActiveParentInThisThisRowWarning:
+                                            if not NAB.savedIncludeInactive[iAccountLoop] and not isAccountActive(acct, NAB.savedBalanceType[iAccountLoop]):
+                                                lWarningDetected = True
+                                                iWarningType = (3 if (iWarningType is None or iWarningType == 3) else 0)
+                                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                                myPrint("B","WARNING: Row: %s >> Excluding Inactive Accounts, BUT selected acct / parent hierarchy flagged as inactive somewhere: %s"
+                                                            " (stopping further checks...)" %(onRow, acct))
+                                                lFoundAutoSumInActiveParentInThisThisRowWarning = True
 
                                 # noinspection PyUnresolvedReferences
                                 if acct.getAccountType() != Account.AccountType.SECURITY:
@@ -7242,7 +7587,7 @@ Visit: %s (Author's site)
                                 # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance"
 
                                 acctCurr = acct.getCurrencyType()
-                                if (isIncomeExpenseAcct(acct) and not isAllIncomeExpenseDatesSelected(iAccountLoop)):
+                                if (isIncomeExpenseAcct(acct) and not isIncomeExpenseAllDatesSelected(iAccountLoop)):
                                     myPrint("DB",">> RowIdx: %s - Income/Expense date range: %s - Swapping in recalculated balances....:" %(iAccountLoop, NAB.savedIncomeExpenseDateRange[iAccountLoop]))
 
                                     try: sudoAcctRef = incExpBalanceTable[iAccountLoop][acct]                           # type: HoldBalance
@@ -7290,7 +7635,7 @@ Visit: %s (Author's site)
                                     iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
 
-                                    myPrint("DB","WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                    myPrint("B","WARNING: Row: %s >> Mix and match of different accounts/categories/securities detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
                                             %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
 
 
@@ -7298,6 +7643,9 @@ Visit: %s (Author's site)
 
                     del accountsToShow, totalBalance, incExpTxnTable, incExpAccountsList
 
+                    tookTime = System.currentTimeMillis() - startTime
+                    myPrint("DB", "calculateBalances() STAGE3>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+                    startTime = System.currentTimeMillis()
 
                     for i in range(0,len(_totalBalanceTable)):
                         if _totalBalanceTable[i][_valIdx] is None:
@@ -7313,7 +7661,7 @@ Visit: %s (Author's site)
                     NAB.warningInParametersDetectedInRow = iWarningDetectedInRow
                     if NAB.warningInParametersDetected: myPrint("B","@@ WARNING(S) in parameter setup detected... review setup....")
 
-                    if not lFromSimulate: NAB.setSelectedRowIndex(saveTheRowIndex)
+                    # if not lFromSimulate: NAB.setSelectedRowIndex(saveTheRowIndex);
 
                     tookTime = System.currentTimeMillis() - startTime
                     if debug or (tookTime >= 1000):
@@ -7344,7 +7692,7 @@ Visit: %s (Author's site)
                     myPrint("DB","HomePageView widget: book is None - returning zero...")
                     return [None]
 
-                if len(NetAccountBalancesExtension.getNAB().savedAccountListUUIDs) < 1:
+                if NetAccountBalancesExtension.getNAB().getNumberOfRows() < 1:
                     myPrint("DB","...savedAccountListUUIDs is empty - returning zero...")
                     return [None]
 
@@ -7362,6 +7710,10 @@ Visit: %s (Author's site)
                 self.refresher = None
                 self.book = book
 
+                self.lastRefreshTimeMs = 0
+                self.lastRefreshTimeDelayMs = 3000
+                self.lastRefreshTimeExtraDelayMs = 0
+
                 super(JPanel, self).__init__()                                                                          # noqa
 
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -7369,7 +7721,8 @@ Visit: %s (Author's site)
 
                 NAB = NetAccountBalancesExtension.getNAB()
 
-                self.refresher = CollapsibleRefresher(self.GUIRunnable(self))
+                # self.refresher = CollapsibleRefresher(self.GUIRunnable(self))
+                self.refresher = MyCollapsibleRefresher(self.GUIRunnable(self))
 
                 self.nameBorder = EmptyBorder(3, 14, 3, 0)
                 self.amountBorder = EmptyBorder(3, 0, 3, 14)
@@ -7415,18 +7768,23 @@ Visit: %s (Author's site)
             def activate(self):
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
-                myPrint("DB",".. activate().. Adding myself as an (HomePageView) account listener...")
+                myPrint("DB",".. activate().. Adding myself as (HomePageView) AccountBook & Currency listeners...")
 
-                NetAccountBalancesExtension.getNAB().moneydanceContext.getCurrentAccountBook().addAccountListener(self)
+                book = NetAccountBalancesExtension.getNAB().moneydanceContext.getCurrentAccountBook()
+                book.addAccountListener(self)
+                book.getCurrencies().addCurrencyListener(self)
+
                 myPrint("DB",".. and calling refresh()..")
                 self.refresh()
 
             def deactivate(self):
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
-                myPrint("DB",".. deactivate().. Removing myself as an (HomePageView) account listener...")
+                myPrint("DB",".. deactivate().. Removing myself as (HomePageView) AccountBook & Currency listeners...")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
-                NetAccountBalancesExtension.getNAB().moneydanceContext.getCurrentAccountBook().removeAccountListener(self)
+                book = NetAccountBalancesExtension.getNAB().moneydanceContext.getCurrentAccountBook()
+                book.removeAccountListener(self)
+                book.getCurrencies().removeCurrencyListener(self)
 
             def refresh(self, lExtraDelay=False):
                 myPrint("DB", "In ViewPanel: %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -7444,7 +7802,7 @@ Visit: %s (Author's site)
                     return
 
                 if self.refresher is not None:
-                    HPV.lastRefreshTimeExtraDelayMs = (3000 if lExtraDelay else 0)
+                    self.lastRefreshTimeExtraDelayMs = (3000 if lExtraDelay else 0)
 
                     myPrint("DB","... calling refresher.enqueueRefresh()")
                     self.refresher.enqueueRefresh()
@@ -7458,8 +7816,12 @@ Visit: %s (Author's site)
                     self.callingClass = callingClass
                     self.netAmountTable = None
 
-                    with NetAccountBalancesExtension.getNAB().swingWorkersLock:
+                    with NetAccountBalancesExtension.getNAB().swingWorkers_LOCK:
                         NetAccountBalancesExtension.getNAB().swingWorkers.append(self)
+
+                def isBuildHomePageWidgetSwingWorker(self):         return True
+                def isSimulateTotalForRowSwingWorker(self):         return False
+                def isRebuildParallelBalanceTableSwingWorker(self): return False
 
                 def doInBackground(self):                                                                               # Runs on a worker thread
                     myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -7472,6 +7834,9 @@ Visit: %s (Author's site)
 
                     except AttributeError as e:
                         if not detectMDClosingError(e): raise
+
+                    except InterruptedException:
+                        myPrint("B","@@ BuildHomePageWidgetSwingWorker InterruptedException - aborting...")
 
                     except:
                         myPrint("B","@@ ERROR Detected in BuildHomePageWidgetSwingWorker running: getBalancesBuildView() inside ViewPanel")
@@ -7537,7 +7902,9 @@ Visit: %s (Author's site)
                                     netTotalLbl = JLinkLabel(GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(), "showConfig?%s" %(str(onRow)), JLabel.RIGHT)
                                     netTotalLbl.setFont((md.getUI().getFonts()).mono)                                   # noqa
                                 else:
-                                    netTotalLbl = JLinkLabel(self.netAmountTable[i][_curIdx].formatFancy(self.netAmountTable[i][_valIdx], NAB.decimal), "showConfig?%s" %(onRow), JLabel.RIGHT)
+                                    theFormattedValue = (self.netAmountTable[i][_curIdx].formatFancy(self.netAmountTable[i][_valIdx], NAB.decimal) if (not NAB.savedDisableCurrencyFormatting[i])
+                                                         else self.netAmountTable[i][_curIdx].formatSemiFancy(self.netAmountTable[i][_valIdx], NAB.decimal))
+                                    netTotalLbl = JLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT)
                                     netTotalLbl.setFont((md.getUI().getFonts()).mono)                                   # noqa
 
                                     if self.netAmountTable[i][_valIdx] < 0:
@@ -7611,11 +7978,14 @@ Visit: %s (Author's site)
                             onPnlRow = 0
 
                             rowText = "%s ERROR DETECTED (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
-                            nameLabel = MyJLabel(rowText, JLabel.LEFT)
-                            nameLabel.setForeground(md.getUI().colors.errorMessageForeground)
-                            nameLabel.setBorder(self.callingClass.nameBorder)
+                            nameLabel = JLinkLabel(rowText, "showConsole", JLabel.LEFT)
+                            nameLabel.setDrawUnderline(False)
+                            nameLabel.setForeground(md.getUI().colors.errorMessageForeground)                           # noqa
+                            nameLabel.setBorder(self.callingClass.nameBorder)                                           # noqa
+                            nameLabel.addLinkListener(self.callingClass)
                             self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().west().pady(2))
                             onPnlRow += 1
+
 
                     except AttributeError as e:
                         if detectMDClosingError(e):
@@ -7646,8 +8016,12 @@ Visit: %s (Author's site)
                         onPnlRow += 1
 
                     finally:
-                        with NetAccountBalancesExtension.getNAB().swingWorkersLock:
-                            NetAccountBalancesExtension.getNAB().swingWorkers.remove(self)
+                        NAB = NetAccountBalancesExtension.getNAB()
+                        with NAB.swingWorkers_LOCK:
+                            if self in NAB.swingWorkers:
+                                NAB.swingWorkers.remove(self)
+                            else:
+                                myPrint("DB","@@ ALERT: I did not find myself within swingworkers list, so doing nothing...:", self)
 
                     self.callingClass.setVisible(True)  # Already on the Swing Event Dispatch Thread (EDT) so can just call directly....
 
@@ -7679,7 +8053,8 @@ Visit: %s (Author's site)
                 self.balTypeLabel.setText("Calculated Total")                                                           # noqa
                 self.balTypeLabel.setForeground(md.getUI().colors.secondaryTextFG)                                      # noqa
 
-                if isParallelBalanceTableOperational():
+                # if isParallelBalanceTableOperational():
+                if debug:
                     self.listPanel.removeAll()
                     onPnlRow = 0
 
@@ -7770,15 +8145,15 @@ Visit: %s (Author's site)
                 myPrint("DB","HomePageView is unloaded, so ignoring....")
                 return None
 
-            with self.lock:
+            with self.HPV_LOCK:
                 self.setActive(False)
                 self.lastBookUsed = None
                 self.theBook = None
                 self.view = None
                 # self.lastRefreshTimeMs = 0
 
-                if NetAccountBalancesExtension.NAB is not None:
-                    NetAccountBalancesExtension.getNAB().configPanelOpen = False
+                # if NetAccountBalancesExtension.NAB is not None:
+                #     NetAccountBalancesExtension.getNAB().configPanelOpen = False
 
         def unload(self):   # This is my own method (not overridden from HomePageView)
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
