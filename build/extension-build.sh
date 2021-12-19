@@ -269,14 +269,15 @@ else
   fi
 
   echo "Zipping *.txt into mxt..."
-  if test -f "${EXTN_DIR}"/*.txt; then
+  ls "${EXTN_DIR}"/*.txt >/dev/null 2>&1
+  if [ $? -ne 0 ]; then
+    echo "No *.txt file(s) to ZIP - skipping....."
+  else
     zip -j "${MXT}" "${EXTN_DIR}"/*.txt
     if [ $? -ne 0 ]; then
       echo "*** zip *.txt Failed??"
       exit 8
     fi
-  else
-    echo "No *.txt file(s) to ZIP - skipping....."
   fi
 
   if [ "${EXTN_NAME}" != "extension_tester" ]; then

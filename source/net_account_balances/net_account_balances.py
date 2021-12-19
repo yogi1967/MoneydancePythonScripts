@@ -239,6 +239,8 @@ else:
     # COMMON IMPORTS #######################################################################################################
     # COMMON IMPORTS #######################################################################################################
     # COMMON IMPORTS #######################################################################################################
+
+    # NOTE: As of MD2022(4040) python.getSystemState().setdefaultencoding("utf8") is called on the python interpreter at launch...
     import sys
     reload(sys)  # Dirty hack to eliminate UTF-8 coding errors
     sys.setdefaultencoding('utf8')  # Dirty hack to eliminate UTF-8 coding errors. Without this str() fails on unicode strings...
@@ -275,7 +277,7 @@ else:
     from javax.swing.border import EmptyBorder
     from javax.swing.filechooser import FileFilter
 
-    exec("from javax.print import attribute")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
+    exec("from javax.print import attribute")       # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     exec("from java.awt.print import PrinterJob")   # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     global attribute, PrinterJob
 
@@ -309,7 +311,7 @@ else:
 
     # COMMON GLOBALS #######################################################################################################
     global myParameters, myScriptName, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
-    global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlobalWarningDetected
+    global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
@@ -320,7 +322,7 @@ else:
     _resetParameters = False                                                                                            # noqa
     lPickle_version_warning = False                                                                                     # noqa
     lIamAMac = False                                                                                                    # noqa
-    lGlobalWarningDetected = False																						# noqa
+    lGlobalErrorDetected = False																						# noqa
     MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
 
     class GlobalVars:        # Started using this method for storing global variables from August 2021
@@ -1505,7 +1507,7 @@ Visit: %s (Author's site)
         if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
-    def getColorRed(): return (MD_REF.getUI().colors.errorMessageForeground)
+    def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
 
     def getColorDarkGreen(): return (MD_REF.getUI().getColors().budgetHealthyColor)
 
@@ -2591,7 +2593,7 @@ Visit: %s (Author's site)
                 myPrint("DB","Switched to Home Page Summary Page (from: %s)" %(currentViewAccount))
                 MD_REF.getUI().firstMainFrame.selectAccount(MD_REF.getRootAccount())
         except:
-            myPrint("B","@@ Error switching to Home Page Summary Page")
+            myPrint("B","@@ Error switching to Summary Page (Home Page)")
 
     def fireMDPreferencesUpdated():
         """This triggers MD to firePreferencesUpdated().... Hopefully refreshing Home Screen Views too"""
