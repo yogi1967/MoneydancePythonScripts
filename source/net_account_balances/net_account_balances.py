@@ -405,7 +405,7 @@ else:
     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = None
     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = None
 
-    GlobalVars.DEFAULT_WIDGET_ROW_NAME              = "Net Account Balances:"
+    GlobalVars.DEFAULT_WIDGET_ROW_NAME              = "Custom Balances:"
     GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME          = "Custom Balances"
     GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED    = "<NOT CONFIGURED>"
 

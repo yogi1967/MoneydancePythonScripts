@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1019 - August 2021 - Stuart Beesley
+# extract_data.py - build: 1020 - August 2021 - Stuart Beesley
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -78,12 +78,13 @@
 # build: 1013 - Common code tweaks
 # build: 1014 - Trap ZeroDivisionError: when cost basis is zero. Also trap all errors with a user popup
 # build: 1014 - New print options for StockGlance2020 and Extract_Data
-# build: 1015 - Common code tweaks; fixed colors for Dark themese and to be more MD 'compatible'
+# build: 1015 - Common code tweaks; fixed colors for Dark themes and to be more MD 'compatible'
 # build: 1016 - Common code tweaks; Flat Dark Theme
 # build: 1017 - SG2020: Fix print to PDF to make 2 parts to avoid overwriting the same pdf file....
 # build: 1018 - Common code tweaks
 # build: 1019 - Common code tweaks; catch error in myPrint() on Asian double-byte characters; Other Asian Double-Byte fixes (more str() issues!!)
 # build: 1019 - Fix JMenu()s - remove <html> tags (affects colors on older Macs); newer MyJFrame().dispose()
+# build: 1020 - Tweak extract reminders - Monkey Patched the display / sort / extract date format....
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -91,7 +92,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1019"
+version_build = "1020"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -4557,8 +4558,9 @@ Visit: %s (Author's site)
                 # EXTRACT_REMINDERS_CSV PARAMETER SCREEN
                 # ####################################################
 
-                dateStrings=["dd/mm/yyyy", "mm/dd/yyyy", "yyyy/mm/dd", "yyyymmdd"]
                 # 1=dd/mm/yyyy, 2=mm/dd/yyyy, 3=yyyy/mm/dd, 4=yyyymmdd
+                dateStrings = ["dd/mm/yyyy", "mm/dd/yyyy", "yyyy/mm/dd", "yyyymmdd"]
+
                 label1 = JLabel("Select Output Date Format (default yyyy/mm/dd):")
                 user_dateformat = JComboBox(dateStrings)
 
@@ -6605,6 +6607,27 @@ Visit: %s (Author's site)
                 # EXTRACT_REMINDERS_CSV EXECUTION
                 # ####################################################
 
+                class StoreDateInt:
+                    def __init__(self, dateInt, dateFormat):
+                        self.dateInt        = dateInt
+                        self.dateFormat     = dateFormat
+                        self.expired        = False
+
+                    def setExpired(self, lExpired): self.expired = lExpired
+                    def getDateInt(self):           return self.dateInt
+
+                    def getDateIntFormatted(self):
+                        if self.expired: return "EXPIRED"
+                        if self.getDateInt() == 0 or self.getDateInt() == 19700101: return ""
+
+                        dateasdate = datetime.datetime.strptime(str(self.getDateInt()), "%Y%m%d")  # Convert to Date field
+                        return dateasdate.strftime(self.dateFormat)
+
+                    def __str__(self):      return self.getDateIntFormatted()
+                    def __repr__(self):     return self.__str__()                                                       # noqa
+                    def toString(self):     return self.__str__()                                                       # noqa
+
+
                 def do_extract_reminders():
                     global debug
                     global decimalCharSep, lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
@@ -6680,19 +6703,6 @@ Visit: %s (Author's site)
 
                             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                             return
-
-                    # Moneydance dates  are int yyyymmddd - convert to locale date string for CSV format
-                    def dateoutput(dateinput, theformat):
-
-                        if dateinput == "EXPIRED": _dateoutput = dateinput
-                        elif dateinput == "": _dateoutput = ""
-                        elif dateinput == 0: _dateoutput = ""
-                        elif dateinput == "0": _dateoutput = ""
-                        else:
-                            dateasdate = datetime.datetime.strptime(str(dateinput), "%Y%m%d")  # Convert to Date field
-                            _dateoutput = dateasdate.strftime(theformat)
-
-                        return _dateoutput
 
                     def build_the_data_file(ind):
                         global sdf, userdateformat, csvlines, csvheaderline, myScriptName, baseCurrency, headerFormats
@@ -6830,22 +6840,21 @@ Visit: %s (Author's site)
                                 remfreq += 'YEARLY'
                                 countfreqs += 1
 
-                            if len(
-                                    remfreq) < 1 or countfreqs == 0:         remfreq = '!ERROR! NO ACTUAL FREQUENCY OPTIONS SET PROPERLY ' + remfreq
-                            if countfreqs > 1: remfreq = "**MULTI** " + remfreq
+                            if len(remfreq) < 1 or countfreqs == 0:
+                                remfreq = '!ERROR! NO ACTUAL FREQUENCY OPTIONS SET PROPERLY ' + remfreq
+
+                            if countfreqs > 1:
+                                remfreq = "**MULTI** " + remfreq
 
                             lastdate = rem.getLastDateInt()
                             if lastdate < 1:  # Detect if an enddate is set
-                                remdate = str(rem.getNextOccurance(20991231))  # Use cutoff  far into the future
+                                # remdate = rem.getNextOccurance(20991231)                                              # Use cutoff  far into the future
+                                remdate = StoreDateInt(rem.getNextOccurance(20991231), userdateformat)                  # Use cutoff  far into the future
                             else:
-                                remdate = str(rem.getNextOccurance(rem.getLastDateInt()))  # Stop at enddate
+                                # remdate = rem.getNextOccurance(rem.getLastDateInt())                                  # Stop at enddate
+                                remdate = StoreDateInt(rem.getNextOccurance(rem.getLastDateInt()), userdateformat)      # Stop at enddate
 
-                            if lastdate < 1: lastdate = ''
-
-                            if remdate == '0': remdate = "EXPIRED"
-
-                            lastack = rem.getDateAcknowledgedInt()
-                            if lastack == 0 or lastack == 19700101: lastack = ''
+                            if remdate.getDateInt() == 0: remdate.setExpired(True)
 
                             auto = rem.getAutoCommitDays()
                             if auto >= 0:    auto = 'YES: (' + str(auto) + ' days before scheduled)'
@@ -6854,13 +6863,13 @@ Visit: %s (Author's site)
                             if str(remtype) == 'NOTE':
                                 csvline = []
                                 csvline.append(index + 1)
-                                csvline.append(dateoutput(remdate, userdateformat))
+                                csvline.append(remdate)
                                 csvline.append(safeStr(rem.getReminderType()))
                                 csvline.append(remfreq)
                                 csvline.append(auto)
-                                csvline.append(dateoutput(lastack, userdateformat))
-                                csvline.append(dateoutput(rem.getInitialDateInt(), userdateformat))
-                                csvline.append(dateoutput(lastdate, userdateformat))
+                                csvline.append(StoreDateInt(rem.getDateAcknowledgedInt(), userdateformat))
+                                csvline.append(StoreDateInt(rem.getInitialDateInt(), userdateformat))
+                                csvline.append(StoreDateInt(lastdate, userdateformat))
                                 csvline.append(desc)
                                 csvline.append('')  # NetAmount
                                 csvline.append('')  # TxfrType
@@ -6892,13 +6901,13 @@ Visit: %s (Author's site)
 
                                     csvline = []
                                     csvline.append(index + 1)
-                                    csvline.append(dateoutput(remdate, userdateformat))
+                                    csvline.append(remdate)
                                     csvline.append(safeStr(rem.getReminderType()))
                                     csvline.append(remfreq)
                                     csvline.append(auto)
-                                    csvline.append(dateoutput(lastack, userdateformat))
-                                    csvline.append(dateoutput(rem.getInitialDateInt(), userdateformat))
-                                    csvline.append(dateoutput(lastdate, userdateformat))
+                                    csvline.append(StoreDateInt(rem.getDateAcknowledgedInt(), userdateformat))
+                                    csvline.append(StoreDateInt(rem.getInitialDateInt(), userdateformat))
+                                    csvline.append(StoreDateInt(lastdate, userdateformat))
                                     csvline.append(desc)
                                     csvline.append((amount))
                                     csvline.append(txnparent.getTransferType())
@@ -7223,6 +7232,7 @@ Visit: %s (Author's site)
 
                             if column == 0:
                                 renderer = MyPlainNumberRenderer()
+
                             elif headerFormats[column][0] == Number:
                                 renderer = MyNumberRenderer()
                             else:
@@ -7248,7 +7258,13 @@ Visit: %s (Author's site)
                                 global decimalCharSep
                                 validString = "-0123456789" + decimalCharSep  # Yes this will strip % sign too, but that still works
 
-                                # if debug: print str1, str2, self.lSortNumber, self.lSortRealNumber, type(str1), type(str2)
+                                if isinstance(str1, StoreDateInt) or isinstance(str2, StoreDateInt):
+                                    if str1.getDateInt() > str2.getDateInt():
+                                        return 1
+                                    elif str1.getDateInt() == str2.getDateInt():
+                                        return 0
+                                    else:
+                                        return -1
 
                                 if isinstance(str1, (float,int)) or isinstance(str2,(float,int)):
                                     if str1 is None or str1 == "": str1 = 0
@@ -7341,22 +7357,22 @@ Visit: %s (Author's site)
                                     self.setForeground(MD_REF.getUI().getColors().budgetHealthyColor)
                                 self.setText(baseCurrency.formatFancy(int(value*100), decimalCharSep, True))
                             else:
-                                self.setText(str(value))
+                                if isinstance(value, StoreDateInt):
+                                    self.setText(value.getDateIntFormatted())
+                                else:
+                                    self.setText(str(value))
 
                             return
 
-                    # noinspection PyArgumentList
                     class MyPlainNumberRenderer(DefaultTableCellRenderer):
-                        global baseCurrency
-
                         def __init__(self):
-                            super(DefaultTableCellRenderer, self).__init__()
+                            super(DefaultTableCellRenderer, self).__init__()                                            # noqa
 
                         def setValue(self, value):
-
-                            self.setText(str(value))
-
-                            return
+                            if isinstance(value, StoreDateInt):
+                                self.setText(value.getDateIntFormatted())
+                            else:
+                                self.setText(str(value))
 
                     def ReminderTable(tabledata, ind):
                         global extract_data_frame_, scrollpane, table, row, debug, ReminderTable_Count, csvheaderline, lDisplayOnly
@@ -7621,15 +7637,27 @@ Visit: %s (Author's site)
                                         for _iii in range(0, len(csvlines)):
                                             # Write the table, but swap in the raw numbers (rather than formatted number strings)
                                             try:
+
+                                                if _iii == 0:
+                                                    f1 = fixFormatsStr(csvlines[_iii][1], True)
+                                                    f5 = fixFormatsStr(csvlines[_iii][5], True)
+                                                    f6 = fixFormatsStr(csvlines[_iii][6], True)
+                                                    f7 = fixFormatsStr(csvlines[_iii][7], True)
+                                                else:
+                                                    f1 = csvlines[_iii][1].getDateIntFormatted()
+                                                    f5 = csvlines[_iii][5].getDateIntFormatted()
+                                                    f6 = csvlines[_iii][6].getDateIntFormatted()
+                                                    f7 = csvlines[_iii][7].getDateIntFormatted()
+
                                                 writer.writerow([
                                                     fixFormatsStr(csvlines[_iii][0], False),
-                                                    fixFormatsStr(csvlines[_iii][1], True),
+                                                    f1,
                                                     fixFormatsStr(csvlines[_iii][2], False),
                                                     fixFormatsStr(csvlines[_iii][3], False),
                                                     fixFormatsStr(csvlines[_iii][4], False),
-                                                    fixFormatsStr(csvlines[_iii][5], False),
-                                                    fixFormatsStr(csvlines[_iii][6], False),
-                                                    fixFormatsStr(csvlines[_iii][7], False),
+                                                    f5,
+                                                    f6,
+                                                    f7,
                                                     fixFormatsStr(csvlines[_iii][8], False),
                                                     fixFormatsStr(csvlines[_iii][9], True),
                                                     fixFormatsStr(csvlines[_iii][10], False),
