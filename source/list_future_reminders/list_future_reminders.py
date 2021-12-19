@@ -3551,7 +3551,7 @@ Visit: %s (Author's site)
                     if column == 0:
                         renderer = MyPlainNumberRenderer()
                     elif column == 1:
-                         renderer = MyDateRenderer()
+                        renderer = MyDateRenderer()
                     elif headerFormats[column][0] == Number:
                         renderer = MyNumberRenderer()
                     else:

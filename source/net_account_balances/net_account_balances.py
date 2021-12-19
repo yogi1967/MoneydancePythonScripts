@@ -405,7 +405,6 @@ else:
     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = None
     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = None
 
-    GlobalVars.DEFAULT_WIDGET_ROW_NAME              = "Custom Balances:"
     GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME          = "Custom Balances"
     GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED    = "<NOT CONFIGURED>"
 
@@ -4300,7 +4299,7 @@ Visit: %s (Author's site)
 
             def __repr__(self): return self.__str__()
 
-        def widgetNameDefault(self):                return GlobalVars.DEFAULT_WIDGET_ROW_NAME
+        def widgetRowDefault(self):                 return GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED
         def accountListDefault(self):               return []
         def currencyDefault(self):                  return None
         def disableCurrencyFormattingDefault(self): return False
@@ -4308,7 +4307,6 @@ Visit: %s (Author's site)
         def incomeExpenseDateRangeDefault(self):    return DateRangeOption.DR_ALL_DATES.getResourceKey()
         def customDatesDefault(self):               return [0, 0]
         def includeInactiveDefault(self):           return 0
-        def widgetRowDefault(self):                 return GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED
         def autoSumDefault(self):                   return (False if self.savedAutoSumDefault is None else self.savedAutoSumDefault)
         def showWarningsDefault(self):              return True
         def disableWidgetTitleDefault(self):        return False
@@ -4451,7 +4449,7 @@ Visit: %s (Author's site)
             self.savedCustomDatesTable              = [self.customDatesDefault()]
             self.savedIncludeInactive               = [self.includeInactiveDefault()]
             self.savedAutoSumAccounts               = [self.autoSumDefault()]
-            self.savedWidgetName                    = [self.widgetNameDefault()]
+            self.savedWidgetName                    = [self.widgetRowDefault()]
             self.savedCurrencyTable                 = [self.currencyDefault()]
             self.savedDisableCurrencyFormatting     = [self.disableCurrencyFormattingDefault()]
             self.savedShowWarningsTable             = [self.showWarningsDefault()]
@@ -5614,10 +5612,7 @@ Visit: %s (Author's site)
                     NAB.storeCurrentJListSelected()
 
                     if NAB.savedWidgetName[NAB.getSelectedRowIndex()].strip() == "":
-                        if NAB.getSelectedRow() == 1:
-                            NAB.savedWidgetName[NAB.getSelectedRowIndex()] = NAB.widgetNameDefault()
-                        else:
-                            NAB.savedWidgetName[NAB.getSelectedRowIndex()] = NAB.widgetRowDefault()
+                        NAB.savedWidgetName[NAB.getSelectedRowIndex()] = NAB.widgetRowDefault()
 
                     NAB.configPanelOpen = False
                     NAB.theFrame.setVisible(False)    # Listener, so already on Swing EDT
@@ -6026,7 +6021,7 @@ Visit: %s (Author's site)
 
                         GlobalVars.extn_param_NEW_listAccountUUIDs_NAB              = [self.accountListDefault()]                # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_balanceType_NAB                   = [self.balanceDefault()]                    # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_widget_display_name_NAB           = [GlobalVars.DEFAULT_WIDGET_ROW_NAME]       # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_widget_display_name_NAB           = [self.widgetRowDefault()]                  # Loading will overwrite if saved, else pre-load defaults
 
                         GlobalVars.extn_param_NEW_currency_NAB                      = [self.currencyDefault()]                   # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB     = [self.disableCurrencyFormattingDefault()]  # Loading will overwrite if saved, else pre-load defaults
