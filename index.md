@@ -34,11 +34,10 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 1) Launch Moneydance
 
 2) Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
-   ... or drag and drop the .mxt file onto the Moneydance left side bar;
-   ... or Extensions, Manage Extensions, add from file to install.
-
-   or Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install;
-   (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
+  - or drag and drop the .mxt file onto the Moneydance left side bar;
+  - or Extensions, Manage Extensions, add from file to install.
+  - or Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install;
+  - (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
 3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
 
 4) Once its installed, restart Moneydance.
