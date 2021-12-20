@@ -2569,6 +2569,17 @@ Visit: %s (Author's site)
         currentAccount = MD_REF.getCurrentAccount()
         if currentAccount is None: raise Exception("??")
 
+        def isPreviewBuild():
+            if MD_EXTENSION_LOADER is not None:
+                try:
+                    stream = MD_EXTENSION_LOADER.getResourceAsStream("/_PREVIEW_BUILD_")
+                    if stream is not None:
+                        myPrint("B", "@@ PREVIEW BUILD (%s) DETECTED @@" %(version_build))
+                        stream.close()
+                        return True
+                except: pass
+            return False
+
         class MyAcctFilter(AcctFilter):
 
             def __init__(self):
@@ -2678,8 +2689,10 @@ Visit: %s (Author's site)
                 myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
+                titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
+
                 catWin = MyCOAWindow(MD_REF.getUI(), currentAccount, catAcctSearch, newAcctTypes, "gui.cat_window_", True, mySearchField)
-                catWin.setTitle("Categories Super Window")
+                catWin.setTitle("Categories Super Window   %s" %(titleExtraTxt))
 
                 categories_super_window_frame_ = catWin
                 categories_super_window_frame_.setName(u"%s_main" %(myModuleID))

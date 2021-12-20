@@ -85,7 +85,7 @@
 # build: 1019 - Common code tweaks; catch error in myPrint() on Asian double-byte characters; Other Asian Double-Byte fixes (more str() issues!!)
 # build: 1019 - Fix JMenu()s - remove <html> tags (affects colors on older Macs); newer MyJFrame().dispose()
 # build: 1020 - Tweak extract reminders - Monkey Patched the display / sort / extract date format....
-# build: 1021 - ?
+# build: 1021 - Added <PREVIEW> tag to JFrame titlebar if detected...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -3010,6 +3010,18 @@ Visit: %s (Author's site)
         MainAppRunnable().run()
 
     try:
+
+        def isPreviewBuild():
+            if MD_EXTENSION_LOADER is not None:
+                try:
+                    stream = MD_EXTENSION_LOADER.getResourceAsStream("/_PREVIEW_BUILD_")
+                    if stream is not None:
+                        myPrint("B", "@@ PREVIEW BUILD (%s) DETECTED @@" %(version_build))
+                        stream.close()
+                        return True
+                except: pass
+            return False
+
         # Mirror code in list_future_reminders (ensure identical)
         def printJTable(_theFrame, _theJTable, _theTitle, _secondJTable=None):
 
@@ -6082,10 +6094,12 @@ Visit: %s (Author's site)
 
                             # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
 
+                            titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
+
                             if lDisplayOnly:
-                                extract_data_frame_.setTitle(u"StockGlance2020 - Summarise Stocks/Funds...")
+                                extract_data_frame_.setTitle(u"StockGlance2020 - Summarise Stocks/Funds...   %s" %(titleExtraTxt))
                             else:
-                                extract_data_frame_.setTitle(u"StockGlance2020 - Summarise Stocks/Funds... (NOTE: your file has already been exported)")
+                                extract_data_frame_.setTitle(u"StockGlance2020 - Summarise Stocks/Funds... (NOTE: your file has already been exported)   %s" %(titleExtraTxt))
 
                             extract_data_frame_.setName(u"%s_main_stockglance2020" %(myModuleID))
 
@@ -7432,7 +7446,10 @@ Visit: %s (Author's site)
 
                             # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
                             # extract_data_frame_ = JFrame("extract_data(Reminders) - StuWareSoftSystems(build: %s)..." % version_build)
-                            extract_data_frame_.setTitle(u"Extract Reminders...")
+
+                            titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
+
+                            extract_data_frame_.setTitle(u"Extract Reminders...   %s" %(titleExtraTxt))
                             extract_data_frame_.setName(u"%s_main_reminders" %myModuleID)
                             # extract_data_frame_.setLayout(FlowLayout())
 

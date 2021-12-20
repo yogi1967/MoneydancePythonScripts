@@ -46,7 +46,7 @@
 # build: 1014 - Common code tweaks
 # build: 1015 - Common code tweaks; Fix JMenu()s - remove <html> tags (affects colors on older Macs); newer MyJFrame.dispose()
 # build: 1015 - Tweaked date format to use MD Preferences set by user
-# build: 1016 - ?
+# build: 1016 - Added <PREVIEW> title to main JFrame if preview build detected...
 
 # Displays Moneydance future reminders
 
@@ -326,6 +326,7 @@ else:
     from java.lang import String, Number
     from com.infinitekind.util import StringUtils
     from com.moneydance.apps.md.controller import AppEventListener
+    from com.moneydance.awt import AwtUtil
     exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     global Book
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
@@ -2665,6 +2666,18 @@ Visit: %s (Author's site)
         myPrint("DB",".. Main App Already within the EDT so calling naked...")
         MainAppRunnable().run()
 
+    def isPreviewBuild():
+        if MD_EXTENSION_LOADER is not None:
+            try:
+                stream = MD_EXTENSION_LOADER.getResourceAsStream("/_PREVIEW_BUILD_")
+                if stream is not None:
+                    myPrint("B", "@@ PREVIEW BUILD (%s) DETECTED @@" %(version_build))
+                    stream.close()
+                    return True
+            except: pass
+        return False
+
+
     class DoTheMenu(AbstractAction):
 
         def __init__(self, menu):
@@ -3747,7 +3760,8 @@ Visit: %s (Author's site)
 
                 if ind == 0:  # Function can get called multiple times; only set main frames up once
                     # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
-                    list_future_reminders_frame_.setTitle(u"List future reminders...")
+                    titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
+                    list_future_reminders_frame_.setTitle(u"List future reminders...   %s" %(titleExtraTxt))
                     list_future_reminders_frame_.setName(u"%s_main" %(myModuleID))
 
                     if (not Platform.isMac()):

@@ -36,7 +36,7 @@
 # build: 1004 - Common code tweaks; Flat Dark
 # build: 1005 - Common code tweaks
 # build: 1006 - Common code tweaks; Newer MyJFrame.dispose()
-# build: 1007 - ?
+# build: 1007 - Added <PREVIEW> tag to popup Dialog title if preview detected...
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -2576,6 +2576,17 @@ Visit: %s (Author's site)
     try:
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
+        def isPreviewBuild():
+            if MD_EXTENSION_LOADER is not None:
+                try:
+                    stream = MD_EXTENSION_LOADER.getResourceAsStream("/_PREVIEW_BUILD_")
+                    if stream is not None:
+                        myPrint("B", "@@ PREVIEW BUILD (%s) DETECTED @@" %(version_build))
+                        stream.close()
+                        return True
+                except: pass
+            return False
+
         lFoundAnySelectedTransactions = [False]
 
         def hunt_component(swingComponent, targetComponent):
@@ -2727,6 +2738,8 @@ Visit: %s (Author's site)
                     else:
                         invest_line = ""
 
+                    titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
+
                     MyPopUpDialogBox(frame, "Cash value: %s (Count: %s, Average: %s)" %(acctCurr.formatFancy(total,MD_decimal),
                                                                                    len(listTxns),
                                                                                    averageValue),
@@ -2742,7 +2755,7 @@ Visit: %s (Author's site)
                                                   acctCurr.getName()),
                                      lModal=False,
                                      theWidth=100,
-                                     theTitle="Value Selected Txns").go()
+                                     theTitle=u"Value Selected Txns   %s" %(titleExtraTxt)).go()
                     lFoundAnySelectedTransactions[0] = True
 
             return
