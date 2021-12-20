@@ -14,7 +14,7 @@ Python is actual Jython 2.7 and accesses the Moneydance Java codebase.
 My scripts and extensions are identical. The extension version(s) are simply a 'packaged' script version. 
 InfiniteKind (the creators of Moneydance) have now signed my Extensions.
 NOTE: The signed versions hosted by IK/MD may be a few builds behind my latest versions.
-If you require a signed version, then download links are at the bottom of this page...
+If you require a signed version, then download links are at the bottom of this page (these also appear in the Extensions>Manage Extensions menu))
 
 The Extensions will only run properly on Moneydance version 2021.1 (build 3056 onwards)...
 The minimum version to run as standalone scripts is 2019.4 (build 1904)...
@@ -30,7 +30,9 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 - Scripts have a file extension of *.py
 
 **To install/run Extensions:**
+
 1) Launch Moneydance
+
 2) Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
    ... or drag and drop the .mxt file onto the Moneydance left side bar;
    ... or Extensions, Manage Extensions, add from file to install.
@@ -38,16 +40,23 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
    or Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install;
    (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
 3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
+
 4) Once its installed, restart Moneydance.
+
 5) From now on, just click Menu>Extensions and the name of the Extension
 
 **To run Scripts:**
+
 1) Load Moneydance. Menu>Window>Show Moneybot Console
+
 2) Open Script>choose <scriptname>.py file
+
 3) Click RUN (and not run snippet)
+
 4) That's it.... Repeat these steps each time.
 
-### Extension only format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
+
+### Extension ONLY format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
 
@@ -59,13 +68,13 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/total_selected_transactions.zip">**^^Total Selected Transactions**: Allows you to select register txns and with one click show a popup sum-total of the txn amounts selected.
 
-### Extension and Scripts formats (*.mxt and *.py format) - Very latest (unsigned) builds
+### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
-- stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
-- extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
-- extract_currency_history_csv          Extract currency history to csv
-- extract_investment_transactions_csv   Extract investment transactions to csv
-- extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
+    - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
+    - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
+    - extract_currency_history_csv          Extract currency history to csv
+    - extract_investment_transactions_csv   Extract investment transactions to csv
+    - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/categories_super_window.zip">**^^Categories Super Window**: Clones MD Menu> Tools>Categories and adds a Quick Search box/capability.
 
@@ -74,10 +83,11 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1044 - 30th Oct 2021) (Moneydance+ 'friendly' version)
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">extract_data (signed) (build: 1016 - 30th Oct 2021)
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">list_future_reminders (signed) (build: 1013 - 30th Oct 2021)
-- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">net_account_balances (signed) (build: 1006 - 30th Oct 2021)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1045 - 19th Dec 2021) (Moneydance+ 'friendly' version)
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1020 - 19th Dec 2021)
+- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1015 - 19th Dec 2021)
+- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1011 - 19th Dec 2021) (Updated: Multi-row, Currency, Custom Dates etc)
+- <a href="https://infinitekind.com/app/md/extensions/total_selected_transactions.mxt">Total Selected Transactions (signed) (build: 1006 - 19th Dec 2021)
 
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
@@ -87,8 +97,8 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
   - orphan_attachments.py: scans your attachments and detects if any are orphaned (and other related errors)
   - demo_account_currency_rates.py: demo script for beginner coders with some simple Moneydance API calls etc
   - demo_calling_import_functions.py: demo script to show how to call deep API importFile() method and bypass UI popups (for headless running)
-  - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance
-  - ofx_populate_multiple_userids.py: script that allows you to modify a working OFX profile and populate with multiple UserIDs
+  - ofx_create_new_usaa_bank_custom_profile.py: script that creates a new custom USAA bank logon profile so that it can connect within Moneydance (also built into Toolbox)
+  - ofx_populate_multiple_userids.py: script that allows you to modify a working OFX profile and populate with multiple UserIDs (also built into Toolbox)
   - import_categories.py: script that allows you to import from a CSV file to create new Categories
 
 
@@ -115,3 +125,6 @@ Method 2: Using Python and JPype (sets up the JVM as part of the script) - See f
 <a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
 <BR><BR>
 <a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/">**Moneydance's site for code**: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/
+
+
+(site last updated 20th December 2021)
