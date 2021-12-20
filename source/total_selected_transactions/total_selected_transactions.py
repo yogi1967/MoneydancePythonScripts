@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# total_selected_transactions.py build: 1006 - August 2021 - Stuart Beesley StuWareSoftSystems
+# total_selected_transactions.py build: 1007 - August 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -36,6 +36,7 @@
 # build: 1004 - Common code tweaks; Flat Dark
 # build: 1005 - Common code tweaks
 # build: 1006 - Common code tweaks; Newer MyJFrame.dispose()
+# build: 1007 - ?
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -46,7 +47,7 @@
 
 # SET THESE LINES
 myModuleID = u"total_selected_transactions"
-version_build = "1006"
+version_build = "1007"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 

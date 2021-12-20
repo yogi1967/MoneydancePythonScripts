@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# categories_super_window.py build: 1001 - November 2021 - Stuart Beesley StuWareSoftSystems
+# categories_super_window.py build: 1002 - November 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -30,6 +30,7 @@
 
 # build: 1000 - Initial Release
 # build: 1001 - Updated common code MyJFrame.dispose()
+# build: 1002 - ?
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -39,7 +40,7 @@
 
 # SET THESE LINES
 myModuleID = u"categories_super_window"
-version_build = "1001"
+version_build = "1002"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1015)
+# list_future_reminders.py (build: 1016)
 
 ###############################################################################
 # MIT License
@@ -46,6 +46,7 @@
 # build: 1014 - Common code tweaks
 # build: 1015 - Common code tweaks; Fix JMenu()s - remove <html> tags (affects colors on older Macs); newer MyJFrame.dispose()
 # build: 1015 - Tweaked date format to use MD Preferences set by user
+# build: 1016 - ?
 
 # Displays Moneydance future reminders
 
@@ -55,7 +56,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1015"
+version_build = "1016"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

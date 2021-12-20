@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1011 - July-Dec 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1012 - Jul to Dec 2021 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD now 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
+
+# Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
+# further thanks to Kevin(N) and dwg for their testing and input too...
 ########################################################################################################################
 # This extension creates a 'widget' that displays Totals for items you select on the Moneydance Summary Page (Home Page)
 #
@@ -72,6 +75,7 @@
 # Build: 1010 - Tweaks to ensure [list of] double-byte characters don't crash debug messages...
 # Build: 1011 - Enhance Income/Expense totalling by date range. Multi threaded with SwingWorker. New filters.
 # Build: 1011 - Renamed display name to 'Custom Balances'
+# Build: 1012 - ?
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -79,7 +83,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1011"
+version_build = "1012"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -6635,7 +6639,7 @@ Visit: %s (Author's site)
                     NAB.disableCurrencyFormatting_CB.putClientProperty("%s.id" %(NAB.myModuleID), "disableCurrencyFormatting_CB")
                     NAB.disableCurrencyFormatting_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.disableCurrencyFormatting_CB.setName("disableCurrencyFormatting_CB")
-                    NAB.disableCurrencyFormatting_CB.setToolTipText("Disable Currency Formatting (just present 'raw' numbers) >> thanks @dtd for this one ;->")
+                    NAB.disableCurrencyFormatting_CB.setToolTipText("Disable Currency Formatting (just present 'raw' numbers)")
                     NAB.disableCurrencyFormatting_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.disableCurrencyFormatting_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.disableCurrencyFormatting_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
