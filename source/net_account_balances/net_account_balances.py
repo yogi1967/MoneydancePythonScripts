@@ -75,7 +75,7 @@
 # Build: 1010 - Tweaks to ensure [list of] double-byte characters don't crash debug messages...
 # Build: 1011 - Enhance Income/Expense totalling by date range. Multi threaded with SwingWorker. New filters.
 # Build: 1011 - Renamed display name to 'Custom Balances'
-# Build: 1012 - ?
+# Build: 1012 - Added <PREVIEW> tag to GUI title bar if preview detected...; Tweak to catching MD closing 'book' trap
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -6310,12 +6310,19 @@ Visit: %s (Author's site)
 
                     myPrint("DB", "Creating main JFrame for application...")
 
+
                     # At startup, create dummy settings to build frame if nothing set.. Real settings will get loaded later
                     if NAB.savedAccountListUUIDs is None: NAB.resetParameters()
 
+                    if NAB.isPreview is None:
+                        myPrint("DB","Checking for Preview build status...")
+                        NAB.isPreview = NAB.isPreviewBuild()
+                    titleExtraTxt = u"" if not NAB.isPreview else u"<PREVIEW BUILD: %s>" %(version_build)
+
                     # Called from getMoneydanceUI() so assume the Moneydance GUI is loaded...
                     # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
-                    net_account_balances_frame_ = MyJFrame(u"%s: Configure Summary Page (Home Page) widget's settings" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()))
+                    net_account_balances_frame_ = MyJFrame(u"%s: Configure Summary Page (Home Page) widget's settings   %s"
+                                                           %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title(), titleExtraTxt))
                     NAB.theFrame = net_account_balances_frame_
                     NAB.theFrame.setName(u"%s_main" %(NAB.myModuleID))
 
@@ -7652,9 +7659,11 @@ Visit: %s (Author's site)
                                 %(tookTime, tookTime / 1000.0))
 
                 except AttributeError as e:
+                    _totalBalanceTable = []
                     if not detectMDClosingError(e): raise
 
                 except IllegalArgumentException:
+                    _totalBalanceTable = []
                     myPrint("B","@@ ERROR - Probably on a multi-byte character.....")
                     dump_sys_error_to_md_console_and_errorlog()
                     raise
@@ -7667,21 +7676,21 @@ Visit: %s (Author's site)
 
                 HPV = MyHomePageView.getHPV()
 
+                totalBalanceTable = []
+
                 if HPV.is_unloaded:
                     myPrint("DB","HomePageView is unloaded, so ignoring & returning zero....")
-                    return [None]
+                    return totalBalanceTable
 
                 if HPV.theBook is None:
                     myPrint("DB","HomePageView widget: book is None - returning zero...")
-                    return [None]
+                    return totalBalanceTable
 
                 if NetAccountBalancesExtension.getNAB().getNumberOfRows() < 1:
                     myPrint("DB","...savedAccountListUUIDs is empty - returning zero...")
-                    return [None]
+                    return totalBalanceTable
 
                 myPrint("DB","HomePageView widget: (re)calculating balances")
-
-                totalBalanceTable = None
 
                 if not swClass.isCancelled():
                     totalBalanceTable = MyHomePageView.ViewPanel.calculateBalances(HPV.theBook, swClass=swClass)
@@ -7819,7 +7828,9 @@ Visit: %s (Author's site)
                             myPrint("DB",".. >> Back from my sleep.... Now will reallyRefresh....!")
 
                         self.netAmountTable = self.callingClass.getBalancesBuildView(self)
-                        result = True
+
+                        if self.netAmountTable is not None and len(self.netAmountTable) > 0:
+                            result = True
 
                     except AttributeError as e:
                         if not detectMDClosingError(e): raise
