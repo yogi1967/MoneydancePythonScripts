@@ -2972,7 +2972,7 @@ Visit: %s (Author's site)
         # from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
         from com.infinitekind.moneydance.model import OnlineServiceLink
 
-    def  getMDPlusLicenseInfoForBook():
+    def getMDPlusLicenseInfoForBook():
         _licenseObject = MD_REF.getCurrentAccountBook().getItemForID("tik.mdplus-license")	    # type: MoneydanceSyncableItem
         return _licenseObject
 
@@ -17506,6 +17506,90 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
+        # # ########### FILTER OPTIONS ###################################################################################
+        # _options = ["Move/Merge ALL Txn from Source into Target Account",
+        #             "Move/Merge Only FILTERED Txns between Accounts (use with caution)"]
+        #
+        # selectedFilterOption = JOptionPane.showInputDialog(toolbox_frame_,
+        #                                                    "Select ALL or to use filter options?",
+        #                                                    _THIS_METHOD_NAME.upper(),
+        #                                                    JOptionPane.WARNING_MESSAGE,
+        #                                                    None,
+        #                                                    _options,
+        #                                                    None)
+        #
+        # if not selectedFilterOption:
+        #     txt = "%s: User did not select a Move/Merge Filter Option - no changes made" %(_THIS_METHOD_NAME)
+        #     statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+        #     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        #     return
+        #
+        # lSelectALL = (_options.index(selectedFilterOption) == 0)
+        # del _options, selectedFilterOption
+        #
+        # lFilterByDate = lFilterOneSecurity = False
+        # filterSecurity = filterDateFrom = filterDateTo = None
+        #
+        # if not lSelectALL:
+        #     _options = ["Move/Merge Txns for just ONE selected Security? (use with caution)",
+        #                 "Move/Merge Txns (all) based on date range? (use with caution)",
+        #                 "Move/Merge Txns for ONE selected Security AND a date range? (use with caution)"]
+        #
+        #     selectedFilterOption = JOptionPane.showInputDialog(toolbox_frame_,
+        #                                                        "Select your filter option?",
+        #                                                        _THIS_METHOD_NAME.upper(),
+        #                                                        JOptionPane.WARNING_MESSAGE,
+        #                                                        None,
+        #                                                        _options,
+        #                                                        None)
+        #
+        #     if not selectedFilterOption:
+        #         txt = "%s: User did not select a Move/Merge Sub-Filter Option - no changes made" % (_THIS_METHOD_NAME)
+        #         statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+        #         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+        #         return
+        #
+        #     lFilterOneSecurity  = (_options.index(selectedFilterOption) == 0 or _options.index(selectedFilterOption) == 2)
+        #     lFilterByDate       = (_options.index(selectedFilterOption) == 1 or _options.index(selectedFilterOption) == 2)
+        #     del _options, selectedFilterOption
+        #
+        #
+        #     if lFilterOneSecurity:
+        #         filterSecurity = JOptionPane.showInputDialog(toolbox_frame_,
+        #                                                      "Select the Security to move",
+        #                                                      _THIS_METHOD_NAME.upper(),
+        #                                                      JOptionPane.INFORMATION_MESSAGE,
+        #                                                      None,
+        #                                                      sourceAccount.getSubAccounts(),
+        #                                                      None)
+        #
+        #         if not filterSecurity:
+        #             txt = "%s: User did not select a Security to filter on  - no changes made" % (_THIS_METHOD_NAME)
+        #             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+        #             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+        #             return
+        #
+        #     if lFilterByDate:
+        #         dateField = JDateField(MD_REF.getUI())
+        #         if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Filter Starting Date:", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION:
+        #             txt = "%s: User did not select filter start date - no changes made" %(_THIS_METHOD_NAME)
+        #             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+        #             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+        #             return
+        #         filterDateFrom = dateField.getDateInt()
+        #
+        #         dateField.gotoToday()
+        #         if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Filter Ending Date:", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION:
+        #             txt = "%s: User did not select end date - no changes made" %(_THIS_METHOD_NAME)
+        #             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
+        #             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+        #             return
+        #         filterDateTo = dateField.getDateInt()
+        #
+        # # ##############################################################################################################
+
+
+
         myPrint("B", "%s: Analysing Investment accounts %s into %s...." %(_THIS_METHOD_NAME, sourceAccount, targetAccount))
 
         output = "%s: from one account into another:\n" \
@@ -17517,6 +17601,14 @@ now after saving the file, restart Moneydance
 
             if isQuoteLoader_or_QER_Running():
                 output += "QuoteLoader / Q&ER extension is loaded. User confirmed that it's not auto-updating and to proceed....\n\n"
+
+            # if lSelectALL:
+            #     output += "Default Option of Move/Merge **ALL** txns selected...\n"
+            # else:
+            #     output += "FILTER TRANSACTIONS OPTION selected...\n"
+            #     output += "....... Select One Security: %s\n" %(lFilterOneSecurity)
+            #     output += "....... Select Date Range..: %s\n" %(lFilterByDate)
+            #     output += "\n"
 
             output += "Pre move/merge analysis....\n"
             output += "Source Account: %s\n" %(sourceAccount.getFullAccountName())

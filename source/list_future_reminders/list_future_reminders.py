@@ -326,7 +326,6 @@ else:
     from java.lang import String, Number
     from com.infinitekind.util import StringUtils
     from com.moneydance.apps.md.controller import AppEventListener
-    from com.moneydance.awt import AwtUtil
     exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     global Book
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################

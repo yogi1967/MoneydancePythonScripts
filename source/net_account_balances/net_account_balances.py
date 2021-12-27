@@ -77,6 +77,8 @@
 # Build: 1011 - Renamed display name to 'Custom Balances'
 # Build: 1012 - Added <PREVIEW> tag to GUI title bar if preview detected...; Tweak to catching MD closing 'book' trap
 
+# todo add as of balance date option (for non i/e with custom dates) - perhaps??
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -1639,13 +1641,13 @@ Visit: %s (Author's site)
                 myPrint("DB", "WARNING: Folder will be restricted by MacOSx...")
                 if not lForceJFC:
                     txt = ("FileDialog: MacOSx restricts Java Access to 'special' locations like 'Library\n"
-                          "Folder: %s\n"
-                          "Please navigate to this location manually in the next popup. This grants permission"
-                          %(fileChooser_starting_dir))
+                           "Folder: %s\n"
+                           "Please navigate to this location manually in the next popup. This grants permission"
+                           %(fileChooser_starting_dir))
                 else:
                     txt = ("JFileChooser: MacOSx restricts Java Access to 'special' locations like 'Library\n"
-                          "Folder: %s\n"
-                          "Your files will probably be hidden.. If so, switch to FileDialog()...(contact author)"
+                           "Folder: %s\n"
+                           "Your files will probably be hidden.. If so, switch to FileDialog()...(contact author)"
                           %(fileChooser_starting_dir))
                 MyPopUpDialogBox(fileChooser_parent,
                                  "NOTE: Mac Security Restriction",
@@ -2320,7 +2322,7 @@ Visit: %s (Author's site)
                     # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)%s"
                                               %( MD_REF.getUI().ACCELERATOR_MASK_STR,
-                                                ("" if not self.callingClass.lQuitMDAfterClose else  " >> MD WILL QUIT AFTER VIEWING THIS <<")))
+                                                 ("" if not self.callingClass.lQuitMDAfterClose else " >> MD WILL QUIT AFTER VIEWING THIS <<")))
 
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
@@ -4479,7 +4481,7 @@ Visit: %s (Author's site)
 
             dateExtraTxt = ("(up to today's date)" if (NAB.savedBalanceType[_row] == GlobalVars.BALTYPE_CURRENTBALANCE) else "")
 
-            if  NAB.savedIncomeExpenseDateRange[_row] != NAB.incomeExpenseDateRangeDefault():
+            if NAB.savedIncomeExpenseDateRange[_row] != NAB.incomeExpenseDateRangeDefault():
                 # dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[_row]).getDateRange()
                 dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[_row], NAB.savedCustomDatesTable[_row])
                 endDate = NAB.getEndDate(dateRange.getEndDateInt(), NAB.savedBalanceType[_row])
@@ -5251,7 +5253,7 @@ Visit: %s (Author's site)
                             if totalBalanceTable[i][_valIdx] < 0:
                                 NAB.simulateTotal_label.setForeground(md.getUI().colors.negativeBalFG)
                             else:
-                                if  "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
+                                if "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
                                     NAB.simulateTotal_label.setForeground(md.getUI().colors.budgetHealthyColor)
                                 else:
                                     NAB.simulateTotal_label.setForeground(md.getUI().colors.positiveBalFG)
@@ -7913,7 +7915,7 @@ Visit: %s (Author's site)
                                     if self.netAmountTable[i][_valIdx] < 0:
                                         netTotalLbl.setForeground(md.getUI().colors.negativeBalFG)                      # noqa
                                     else:
-                                        if  "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
+                                        if "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
                                             netTotalLbl.setForeground(md.getUI().colors.budgetHealthyColor)             # noqa
                                         else:
                                             netTotalLbl.setForeground(md.getUI().colors.positiveBalFG)                  # noqa
