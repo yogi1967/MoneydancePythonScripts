@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: October 2021)
+# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: March 2022)
 # Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
@@ -8,7 +8,7 @@
 
 # NOTE:   You can also just run the 'code-signed app' by launching the following from Terminal (which is a simpler approach):
 #         "/Applications/Moneydance.app/Contents/MacOS/Moneydance"                [-d] [-v] [... etc]
-#         "/Applications/Moneydance 2022.2 (4060).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
+#         "/Applications/Moneydance 2022.3 (4068).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
 
 # THIS IS WRITTEN FOR MacOS Terminal(zsh). Adjust accordingly...!
 
@@ -41,17 +41,14 @@
 #                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
 
 # shellcheck disable=SC2121
-#unset md_passphrase
-#unset md_passphrase
+unset md_passphrase
+unset md_passphrase
 #set md_passphrase=x
 #export md_passphrase=x
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2022.3 (4061)"
-
-USE_JAVA17="YES"
-USE_JAVA_AZUL="YES"
+md_version=" 2022.3 (4068)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -59,12 +56,16 @@ USE_JAVA_AZUL="YES"
 # NOTE:   MD2022.1(4058) Introduced Java 17
 # https://download2.gluonhq.com/openjfx/17.0.1/openjfx-17.0.1_osx-x64_bin-sdk.zip
 # https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17%2B35/OpenJDK17-jdk_x64_mac_hotspot_17_35.pkg
-# Edit the necessary install locations for JDK and JavaFX below
 
 # NOTE:   MD2022.3(4062) Introduced Java 17.0.1 (Azul Systems, Inc.) - JDK / fx together
 # https://cdn.azul.com/zulu/bin/zulu17.30.15-ca-jdk17.0.1-macosx_x64.dmg
 # https://cdn.azul.com/zulu/bin/zulu17.30.51-ca-fx-jdk17.0.1-macosx_x64.dmg (Couldn't get fx to work - so disabled it below)
 
+# NOTE:   MD2022.3(4062) Re-Introduced Java 17.0.2 by Adoptium (Hotspot)
+# https://download2.gluonhq.com/openjfx/17.0.2/openjfx-17.0.2_osx-x64_bin-sdk.zip
+# https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.2%2B8/OpenJDK17U-jdk_x64_mac_hotspot_17.0.2_8.pkg
+
+# Edit the necessary install locations for JDK and JavaFX below
 # Edit the necessary settings and your folder locations below
 
 clear
@@ -104,28 +105,14 @@ echo "My user path: ${my_user_path}"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
-if [ "${USE_JAVA17}" = "YES" ]; then
-  if [ "${USE_JAVA_AZUL}" = "YES" ]; then
-    export JAVA_HOME="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home"
-    javafx="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home/lib"
-  else
-    export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
-    javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib"
-    javafx_modulepath="--module-path ${javafx}"
-    use_javafx="--add-modules ${modules}"
-  fi
-else
-  export JAVA_HOME="${my_user_path}/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home"
-  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
-  javafx_modulepath="--module-path ${javafx}"
-  use_javafx="--add-modules ${modules}"
-fi
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+
+# JavaFX modules
+javafx_modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
+javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.2/lib"
 
 export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
-
-# JavaFX directory
-modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
@@ -156,8 +143,8 @@ ${java} --version
 ${java} \
   -Xdock:icon="${md_icon}" \
   -cp "${md_jars}/*" \
-  ${javafx_modulepath} \
-  ${use_javafx} \
+  --module-path "${javafx_modulepath}" \
+  --add-modules "${javafx_modules}" \
   -Djava.library.path="${macos}:${machelper2}" \
   -Dapple.laf.useScreenMenuBar=true \
   -Dcom.apple.macos.use-file-dialog-packages=true \
