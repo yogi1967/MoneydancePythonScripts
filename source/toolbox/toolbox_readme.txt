@@ -21,11 +21,10 @@ PLEASE ALWAYS BACKUP YOUR DATA FIRST! You  can use the Export Backup (green) but
 PURPOSE
 
 To enable the User to self-diagnose problems, or access key diagnostics to enable support to help
-- Basic (default) mode is very safe - it contains view options only
-- Advanced Mode - Allows user to run fixes - THIS CHANGES DATA
-- Geek Mode - Allows user to view technical information/settings in various places (this is readonly)
-- Hacker Mode - Allows the user to manually add/change/delete config.dict and LocalStorage() keys/values - ONLY USE IF YOU KNOW WHAT YOU ARE DOING
-                Also allows you to toggle Moneydance internal settings like DEBUG
+- Basic mode:    The default mode. Very safe and contains useful / view options only
+- Update Mode:   Allows running of fixes/updates. CAN CHANGE DATA (you will always be asked to confirm first)
+- Geek Mode:     View technical information/settings in various places (this is readonly)
+- Advanced Mode: Enables 'advanced' features. USE WITH CARE!
 
 - The Toolbox offers the option to Backup first  - ALWAYS BACKUP (But this is your choice!)
 - The Toolbox will *ALWAYS* make a copy of config.dict, custom theme file, LocalStorage() ./safe/settings before any changes
@@ -78,7 +77,7 @@ NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND
 # change-security-cusip.py                              (from Finite Mobius, LLC / Jason R. Miller)
 
 Toolbox uses the the internal MD 'code' font for display and outputs. Typically a Monospaced font so text columns align.
->> If your language's double-byte characters do not display properly, then change in advanced mode; General Tools>Set MD Fonts
+>> If your language's double-byte characters do not display properly, then change in update mode; General Tools>Set MD Fonts
 >> Change 'code' font. Please only use a fixed-width Monospaced so that column alignments are maintained (but your choice).
 
 Features:
@@ -134,7 +133,7 @@ ALT-B - Basic Mode
         - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
     - MENU: Accounts & Categories tools
         - View Check number settings
-        - DIAGnostics - View Categories with zero balance. You can also inactivate using Advanced mode.
+        - DIAGnostics - View Categories with zero balance. You can also inactivate using Update mode.
         - DIAGnostics - View Accounts' shouldBeIncludedInNetWorth() settings...
     - MENU: Currency & Security tools:
         - DIAGnostics - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
@@ -148,7 +147,7 @@ ALT-B - Basic Mode
         - Extract your Attachments (this decrypts and extracts your attachments to a directory of your choice) (export_all_attachments.py)
         - DIAGnostics - Analise your  attachments (and Detect Orphans)
 
-ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
+ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
     - These first four buttons will appear only if they are necessary / possible in your system
         - FIX - Make me a Primary Dataset (convert from Secondary dataset to enable Sync) (convert_secondary_to_primary_data_set.py)
         - FIX - Create Dropbox Sync Folder (creates the missing .moneydancesync folder if missing from Dropbox)
@@ -175,7 +174,6 @@ ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / secur
         - Update OFXLastTxnUpdate Last Download Date for Online Txns (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
         - Delete single cached OnlineTxnList record/Txns
         - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
-        - OFX Cookie Management (some options also required Hacker mode)
         - OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)
             - SUBMENU: OFX Authentication Management
                 - Clear the Authentication Cache (Passwords) for One Service / Bank Profile
@@ -183,9 +181,10 @@ ALT-M - Advanced Mode (** NOTE: Some menu items will disable if currency / secur
                 - Edit/Setup (multiple) UserIDs / Passwords (executes a special script) (ofx_populate_multiple_userids.py)
                 - Edit stored authentication passwords linked to a working OFX Profile
                 - Manual Edit of stored Root UserIDs/ClientUIDs
-        - Export your Moneydance+ (Plaid) settings to a file (for 'transplant') - MD Version 2022 onwards. READONLY
-        - Import ('transplant') your Moneydance+ (Plaid) settings from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE.
-        - ZAP Dataset's Moneydance+ (Plaid) settings (also required Hacker mode) - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
+        - OFX Cookie Management (requires Advanced mode)
+        - Export your Moneydance+ (Plaid) settings to a file (for 'transplant') - MD Version 2022 onwards. READONLY (requires Advanced mode)
+        - Import ('transplant') your Moneydance+ (Plaid) settings from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
+        - ZAP Dataset's Moneydance+ (Plaid) settings (requires Advanced mode) - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
         - USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs
         - USAA Only: Executes the special script to create a working USAA OFX Profile (ofx_create_new_usaa_bank_custom_profile.py)
 
@@ -233,8 +232,8 @@ ALT-G - GEEK OUT MODE
     - All Environment Variables
     - All Java Properties
 
-Menu - HACKER MODE
-    >> VERY TECHNICAL - DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING
+Menu - ADVANCED MODE
+    >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
     - Toggle other known DEBUG settings on (extra messages in Console)
     - Toggle all internal Moneydance DEBUG settings ON/OFF (same as viewing console)
     - Extract a (single) file from within LocalStorage. Decrypts a LocalStorage file to TMP dir for viewing (file self destructs after MD restart)
@@ -247,7 +246,7 @@ Menu - HACKER MODE
         >> External locations > Edits config.dict to remove references to external files for File/open - AND ALLOWS YOU TO DELETE THE FILES TOO
         >> Default / Internal locations > ALLOWS YOU TO DELETE THE Dataset from disk (this then removes it from the File/Open menu)
     - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
-    - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use with extreme care!
+    - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
     - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
     - Force reset Sync settings (This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync)
     - Restore an archive file, and RETAIN Sync settings (the default File/Restore will wipe out your Sync settings)
