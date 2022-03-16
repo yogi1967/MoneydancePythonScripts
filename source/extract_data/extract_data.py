@@ -86,6 +86,7 @@
 # build: 1019 - Fix JMenu()s - remove <html> tags (affects colors on older Macs); newer MyJFrame().dispose()
 # build: 1020 - Tweak extract reminders - Monkey Patched the display / sort / extract date format....
 # build: 1021 - Added <PREVIEW> tag to JFrame titlebar if detected...
+# build: 1021 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -6318,8 +6319,8 @@ Visit: %s (Author's site)
                             printButton.addActionListener(self.PrintJTable(extract_data_frame_, self.table, "StockGlance2020", self.footerTable))
 
                             mb = JMenuBar()
-                            # menuH = JMenu("<html><B>ABOUT</b></html>")
-                            menuH = JMenu("ABOUT")
+                            menuH = JMenu("<html><B>ABOUT</b></html>")
+                            # menuH = JMenu("ABOUT")
                             menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                             menuItemA = JMenuItem("About")
@@ -7493,8 +7494,8 @@ Visit: %s (Author's site)
 
                             mb = JMenuBar()
 
-                            # menuO = JMenu("<html><B>OPTIONS</b></html>")
-                            menuO = JMenu("OPTIONS")
+                            menuO = JMenu("<html><B>OPTIONS</b></html>")
+                            # menuO = JMenu("OPTIONS")
                             menuO.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuO.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                             menuItemR = JMenuItem("Refresh Data/Default Sort")
@@ -7520,8 +7521,8 @@ Visit: %s (Author's site)
 
                             mb.add(menuO)
 
-                            # menuH = JMenu("<html><B>ABOUT</b></html>")
-                            menuH = JMenu("ABOUT")
+                            menuH = JMenu("<html><B>ABOUT</b></html>")
+                            # menuH = JMenu("ABOUT")
                             menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                             menuItemA = JMenuItem("About")

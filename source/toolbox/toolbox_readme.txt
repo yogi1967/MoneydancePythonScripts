@@ -16,7 +16,7 @@ The script will never change anything without your permission - and it will alwa
 
 DISCLAIMER: YOU USE THIS SCRIPT AT YOUR OWN RISK AND YOU ACCEPT ANY CONSEQUENCES OF CHANGING YOUR DATA!
 
-PLEASE ALWAYS BACKUP YOUR DATA FIRST! You  can use the Export Backup (green) button top-left in Toolbox to do this.
+PLEASE ALWAYS BACKUP YOUR DATA FIRST! You  can use the Create Backup (green) button top-left in Toolbox to do this.
 
 PURPOSE
 
@@ -30,7 +30,7 @@ To enable the User to self-diagnose problems, or access key diagnostics to enabl
 - The Toolbox will *ALWAYS* make a copy of config.dict, custom theme file, LocalStorage() ./safe/settings before any changes
 >> These backup files will have a unique (timestamp-like) number and _$SAVED$ appended to the end of the filename
 
->> Your dataset backups will be located wherever you choose to save them (USE THE 'EXPORT BACKUP' button (top left in green)
+>> Your dataset backups will be located wherever you choose to save them (USE THE 'CREATE BACKUP' button (top left in green)
 >> Note the normal Moneydance Backup is a complete dataset, but does not include config.dict, custom theme file, extensions etc
 
 - All updates (and other key messages) get written to the Moneydance console error log
@@ -107,9 +107,9 @@ POPUP Output/Report Window(s):
     - Wrap Contents: Turns on line wrap. Also enables print 'fit-to-width'
     - Print, Save to file: Prints the contents or saves to file.
 
-ALT-B - Basic Mode
+Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update modes
 - Basic mode: Buttons
-    - EXPORT BACKUP (This calls the Moneydance function to backup your dataset)
+    - CREATE BACKUP (This calls the Moneydance 'Export Backup' function to backup your dataset)
     - Analyse Dataset Objects Size & Files
     - Find my Dataset (Search for *.moneydance & *.moneydancearchive Datasets)
     - MENU: General Tools (contains a variety of general Diagnostics, Fixes and Tools...)
@@ -148,6 +148,7 @@ ALT-B - Basic Mode
         - DIAGnostics - Analise your  attachments (and Detect Orphans)
 
 ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
+    All basic mode settings plus:
     - These first four buttons will appear only if they are necessary / possible in your system
         - FIX - Make me a Primary Dataset (convert from Secondary dataset to enable Sync) (convert_secondary_to_primary_data_set.py)
         - FIX - Create Dropbox Sync Folder (creates the missing .moneydancesync folder if missing from Dropbox)
@@ -166,7 +167,6 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
                 4. RESET>> Window locations, Size, Sort Orders, One-line, Split Reg, Offset, Column Widths; Dividers, isOpen,
                 isExpanded, isMaximised settings (this does not reset Filters or Initial views)
     - MENU: Online (OFX) Banking Tools:
-        - All basic mode settings plus:
         - Forget OFX Banking Import Link (so it asks which account when importing ofx files) (remove_ofx_account_bindings.py) (MD versions < 2022)
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
         - Cleanup missing Online Banking Links (NOTE: This is always called when running 'Delete OFX Banking Logon Profile / Service' above

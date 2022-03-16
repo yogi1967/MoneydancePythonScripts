@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1012 - Jul to Dec 2021 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1013 - Jul to Dec 2021 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD now 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -76,6 +76,7 @@
 # Build: 1011 - Enhance Income/Expense totalling by date range. Multi threaded with SwingWorker. New filters.
 # Build: 1011 - Renamed display name to 'Custom Balances'
 # Build: 1012 - Added <PREVIEW> tag to GUI title bar if preview detected...; Tweak to catching MD closing 'book' trap
+# Build: 1013 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -85,7 +86,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1012"
+version_build = "1013"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -6186,7 +6187,7 @@ Visit: %s (Author's site)
             # Recreate the Menu system each time - Damn Mac!!
             NAB.mainMenuBar = MyJMenuBar()
 
-            menuO = MyJMenu("Options")
+            menuO = MyJMenu("<html><B>Options</b></html>")
             menuO.setForeground(SetupMDColors.FOREGROUND_REVERSED)
             menuO.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
@@ -6236,7 +6237,7 @@ Visit: %s (Author's site)
 
             NAB.mainMenuBar.add(menuO)
 
-            menuA = MyJMenu("About")
+            menuA = MyJMenu("<html><B>About</b></html>")
             menuA.setForeground(SetupMDColors.FOREGROUND_REVERSED)
             menuA.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 

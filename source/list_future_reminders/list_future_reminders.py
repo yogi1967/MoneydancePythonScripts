@@ -47,6 +47,7 @@
 # build: 1015 - Common code tweaks; Fix JMenu()s - remove <html> tags (affects colors on older Macs); newer MyJFrame.dispose()
 # build: 1015 - Tweaked date format to use MD Preferences set by user
 # build: 1016 - Added <PREVIEW> title to main JFrame if preview build detected...
+# Build: 1016 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
 
 # Displays Moneydance future reminders
 
@@ -3800,8 +3801,8 @@ Visit: %s (Author's site)
 
                     mb = JMenuBar()
 
-                    # menuO = JMenu("<html><B>OPTIONS</b></html>")
-                    menuO = JMenu("OPTIONS")
+                    menuO = JMenu("<html><B>OPTIONS</b></html>")
+                    # menuO = JMenu("OPTIONS")
                     menuO.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuO.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                     menuItemR = JMenuItem("Refresh Data/Default Sort")
@@ -3842,8 +3843,8 @@ Visit: %s (Author's site)
 
                     mb.add(menuO)
 
-                    # menuH = JMenu("<html><B>ABOUT</b></html>")
-                    menuH = JMenu("ABOUT")
+                    menuH = JMenu("<html><B>ABOUT</b></html>")
+                    # menuH = JMenu("ABOUT")
                     menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                     menuItemA = JMenuItem("About")

@@ -21,7 +21,7 @@
 # NOTE: You will see some usage of globals... I wrote this when I was learning Python and Java... Know I know a lot more,
 # I would do this differently, but leaving this as-is for now... (I'll upgrade elements as I make future changes)
 
-# DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Export Backup will achieve this).
+# DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Create Backup will achieve this).
 
 # Includes previous / standalone scripts (which I have now decommissioned):
 # FIX-reset_window_location_data.py 0.2beta
@@ -254,6 +254,8 @@
 # build: 1046 - skipped this build
 # build: 1047 - Renaming Advanced mode to Update mode and Hacker mode to Advanced mode....
 # build: 1047 - Put back .setRate() in fix currency / security routines - as it wasn't working on infinity rrates (zero)....
+# build: 1047 - Changed Options menu so that Basic/Advanced mode are a Checkbox and ALT-M is the toggle....; Renamed Export Backup to Create Backup
+# build: 1047 - Flipped JMenus to use html and bold tags (as otherwise disappeared on mouse hover)
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -960,14 +962,14 @@ Visit: %s (Author's site)
                                                 _options[0])
 
         if response == 2:
-            myPrint("B", "User requested to perform Export Backup before update/fix - calling moneydance export backup routine...")
-            MD_REF.getUI().setStatus("%s performing an Export Backup...." %(myScriptName),-1.0)
+            myPrint("B", "User requested to create a backup before update/fix - calling moneydance 'Export Backup' routine...")
+            MD_REF.getUI().setStatus("%s is creating a backup...." %(myScriptName),-1.0)
             MD_REF.getUI().saveToBackup(None)
-            MD_REF.getUI().setStatus("%s Export Backup completed...." %(myScriptName),0)
+            MD_REF.getUI().setStatus("%s create (export) backup process completed...." %(myScriptName),0)
             return True
 
         elif response == 1:
-            myPrint("B", "User DECLINED to perform Export Backup before update/fix...!")
+            myPrint("B", "User DECLINED to create a backup before update/fix...!")
             if not lReturnTheTruth:
                 return True
 
@@ -24821,11 +24823,12 @@ Now you will have a text readable version of the file you can open in a text edi
                             txt = "AUTO-PRUNE INTERNAL BACKUPS DISABLED AS USER DECLINED TO PROCEED"
                             setDisplayStatus(txt, "R")
 
-                            for i in range(0, self.menu.getItemCount()):
-                                x = self.menu.getItem(i)
-                                if x.getText() == "Auto Prune Internal Backups":
-                                    x.setSelected(False)
-                                    break
+                            event.getSource().setSelected(False)
+                            # for i in range(0, self.menu.getItemCount()):
+                            #     x = self.menu.getItem(i)
+                            #     if x.getText() == "Auto Prune Internal Backups":
+                            #         x.setSelected(False)
+                            #         break
 
                             return
                         else:
@@ -24887,11 +24890,12 @@ Now you will have a text readable version of the file you can open in a text edi
                             setDisplayStatus(txt, "R")
                             myPrint("B", txt)
 
-                            for i in range(0, self.menu.getItemCount()):
-                                x = self.menu.getItem(i)
-                                if x.getText() == "Advanced Mode":
-                                    x.setSelected(False)
-                                    break
+                            event.getSource().setSelected(False)
+                            # for i in range(0, self.menu.getItemCount()):
+                            #     x = self.menu.getItem(i)
+                            #     if x.getText() == "Advanced Mode":
+                            #         x.setSelected(False)
+                            #         break
                             return
                         else:
                             myPrint("B", "User accepted Disclaimer and agreed to use Toolbox Advanced Mode at own risk.....")
@@ -24902,11 +24906,13 @@ Now you will have a text readable version of the file you can open in a text edi
                             if not backup_local_storage_settings() or not backup_config_dict():
                                 txt = "ADVANCED MODE DISABLED: SORRY - ERROR WHEN SAVING LocalStorage() ./safe/settings and config.dict to backup file!!??"
                                 setDisplayStatus(txt, "R")
-                                for i in range(0, self.menu.getItemCount()):
-                                    x = self.menu.getItem(i)
-                                    if x.getText() == "Advanced Mode":
-                                        x.setSelected(False)
-                                        break
+
+                                event.getSource().setSelected(False)
+                                # for i in range(0, self.menu.getItemCount()):
+                                #     x = self.menu.getItem(i)
+                                #     if x.getText() == "Advanced Mode":
+                                #         x.setSelected(False)
+                                #         break
                                 return
 
                             myPrint("B","@@ ADVANCED MODE ENABLED. config.dict and safe/settings have been backed up...! @@")
@@ -24931,65 +24937,38 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Update Mode":
-                    if myPopupAskQuestion(toolbox_frame_,
-                                          "UPDATE MODE",
+                    if not GlobalVars.UPDATE_MODE and myPopupAskQuestion(toolbox_frame_,
+                                          "ENABLE UPDATE MODE",
                                           "UPDATE MODE >> DISCLAIMER: DO YOU ACCEPT THAT YOU USE THIS TOOLBOX AT YOUR OWN RISK?",
                                           JOptionPane.YES_NO_OPTION,
                                           JOptionPane.ERROR_MESSAGE):
 
-                        myPrint("B", "User accepted Disclaimer and agreed to use Toolbox Update mode at own risk.....")
+                        myPrint("B", "User accepted Disclaimer and agreed to enable Toolbox UPDATE mode (at own risk).....")
 
-                        backup = BackupButtonAction("Would you like to create a backup before starting Update mode?")
+                        backup = BackupButtonAction("Would you like to create a backup before enabling UPDATE mode?")
                         backup.actionPerformed(None)
 
-                        txt = "UPDATE MODE SELECTED - RED BUTTONS CAN CHANGE YOUR DATA - %s+I for Help" %(MD_REF.getUI().ACCELERATOR_MASK_STR)
+                        txt = "UPDATE MODE ENABLED - RED BUTTONS CAN CHANGE YOUR DATA - %s+I for Help" %(MD_REF.getUI().ACCELERATOR_MASK_STR)
                         setDisplayStatus(txt, "R")
 
+                        newMenuColor = getColorRed()
                         GlobalVars.UPDATE_MODE = True
 
-                        for i in range(0, self.menu.getItemCount()):
-                            x = self.menu.getItem(i)
-                            if x.getText() == "Update Mode":
-                                x.setEnabled(False)
-                            else:
-                                x.setEnabled(True)
-
-                        components = self.displayPanel.getComponents()
-                        for theComponent in components:
-                            if isinstance(theComponent, JButton):
-                                # noinspection PyUnresolvedReferences
-                                buttonText = theComponent.getLabel().strip().upper()
-
-                                if  "ADVANCED" in buttonText:
-                                    pass
-                                elif("FIX" in buttonText
-                                      or "FONTS" in buttonText
-                                      or "RESET" in buttonText
-                                      or "DELETE" in buttonText
-                                      or "FORGET" in buttonText):
-                                    theComponent.setVisible(True)
-
-                                if "MENU:".upper() in buttonText.upper():
-                                    theComponent.setForeground(getColorRed())
-
                     else:
-                        txt = "UPDATE MODE DISABLED AS USER DECLINED DISCLAIMER - BASIC MODE ONLY"
-                        setDisplayStatus(txt, "R")
-                        myPrint("B", txt)
 
-                # ##########################################################################################################
-                if event.getActionCommand() == "Basic Mode":
-                    txt = "BASIC MODE SELECTED"
-                    setDisplayStatus(txt, "DG")
+                        txt = "BASIC MODE IN OPERATION (Update mode NOT enabled)"
+                        setDisplayStatus(txt, "DG")
 
-                    GlobalVars.UPDATE_MODE = False
+                        # newMenuColor = Color(74,74,74)
+                        newMenuColor = MD_REF.getUI().getColors().defaultTextForeground
+                        GlobalVars.UPDATE_MODE = False
 
-                    for i in range(0, self.menu.getItemCount()):
-                        x = self.menu.getItem(i)
-                        if x.getText() == "Basic Mode":
-                            x.setEnabled(False)
-                        else:
-                            x.setEnabled(True)
+                    event.getSource().setSelected(GlobalVars.UPDATE_MODE)
+                    # for i in range(0, self.menu.getItemCount()):
+                    #     x = self.menu.getItem(i)
+                    #     if x.getText() == "Update Mode":
+                    #         x.setSelected(GlobalVars.UPDATE_MODE)
+                    #         break
 
                     components = self.displayPanel.getComponents()
                     for theComponent in components:
@@ -24997,19 +24976,51 @@ Now you will have a text readable version of the file you can open in a text edi
                             # noinspection PyUnresolvedReferences
                             buttonText = theComponent.getLabel().strip().upper()
 
-                            if "DIAG" in buttonText:
+                            if  "ADVANCED" in buttonText:
                                 pass
-                            elif "ADVANCED" in buttonText:
-                                pass
-                            elif ("FIX" in buttonText
+                            elif("FIX" in buttonText
                                   or "FONTS" in buttonText
                                   or "RESET" in buttonText
                                   or "DELETE" in buttonText
                                   or "FORGET" in buttonText):
-                                theComponent.setVisible(False)
+                                theComponent.setVisible(True)
 
                             if "MENU:".upper() in buttonText.upper():
-                                theComponent.setForeground(Color(74,74,74))
+                                theComponent.setForeground(newMenuColor)
+
+                # ##########################################################################################################
+                # if event.getActionCommand() == "Basic Mode":
+                #     txt = "BASIC MODE SELECTED"
+                #     setDisplayStatus(txt, "DG")
+                #
+                #     GlobalVars.UPDATE_MODE = False
+                #
+                #     for i in range(0, self.menu.getItemCount()):
+                #         x = self.menu.getItem(i)
+                #         if x.getText() == "Basic Mode":
+                #             x.setEnabled(False)
+                #         else:
+                #             x.setEnabled(True)
+                #
+                #     components = self.displayPanel.getComponents()
+                #     for theComponent in components:
+                #         if isinstance(theComponent, JButton):
+                #             # noinspection PyUnresolvedReferences
+                #             buttonText = theComponent.getLabel().strip().upper()
+                #
+                #             if "DIAG" in buttonText:
+                #                 pass
+                #             elif "ADVANCED" in buttonText:
+                #                 pass
+                #             elif ("FIX" in buttonText
+                #                   or "FONTS" in buttonText
+                #                   or "RESET" in buttonText
+                #                   or "DELETE" in buttonText
+                #                   or "FORGET" in buttonText):
+                #                 theComponent.setVisible(False)
+                #
+                #             if "MENU:".upper() in buttonText.upper():
+                #                 theComponent.setForeground(Color(74,74,74))
 
                 # Save parameters now...
                 if (event.getActionCommand() == "Copy all Output to Clipboard"
@@ -25104,7 +25115,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 myPrint("J","Auto-prune of internal backups of config.dict, custom_theme.properties, ./safe/settings files is disabled... so no action")
 
             # START OF BUTTONS
-            backup_button = JButton("<html><center><B>EXPORT BACKUP</B></center></html>")
+            backup_button = JButton("<html><center><B>CREATE BACKUP</B></center></html>")
             backup_button.setToolTipText("This will allow you to take a backup of your Moneydance Dataset")
             backup_button.setBackground(GlobalVars.DARK_GREEN)
             backup_button.setForeground(Color.WHITE)
@@ -25259,33 +25270,33 @@ Now you will have a text readable version of the file you can open in a text edi
             SetupMDColors.updateUI()
 
             mb = JMenuBar()
-            # menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
-            menu1 = JMenu("TOOLBOX Options")
+            menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
+            # menu1 = JMenu("TOOLBOX Options")
             menu1.setMnemonic(KeyEvent.VK_T)
             menu1.setForeground(SetupMDColors.FOREGROUND_REVERSED); menu1.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
-            menuItem0 = JMenuItem("Basic Mode")
-            menuItem0.setMnemonic(KeyEvent.VK_B)
-            menuItem0.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, keyToUse))
-            menuItem0.setToolTipText("Switch to basic (no harm) mode")
+            menuItem0 = JCheckBoxMenuItem("Update Mode")
+            menuItem0.setMnemonic(KeyEvent.VK_M)
+            menuItem0.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, keyToUse))
             menuItem0.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
-            menuItem0.setEnabled(False)
+            menuItem0.setToolTipText("Enables UPDATE (Fix Mode) >> can update data/settings...")
+            menuItem0.setSelected(False)
             menu1.add(menuItem0)
 
-            menuItem1 = JMenuItem("Update Mode")
-            menuItem1.setMnemonic(KeyEvent.VK_M)  # Can't think of a spare letter to use!!!!
-            menuItem1.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, keyToUse))
-            menuItem1.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
-            menuItem1.setToolTipText("Switch to UPDATE (Fix Mode) >> can update data/settings...")
-            menu1.add(menuItem1)
-
-            menuItemC = JCheckBoxMenuItem("Copy all Output to Clipboard")
-            menuItemC.setMnemonic(KeyEvent.VK_O)  # Can't think of a spare letter to use!!!!
-            menuItemC.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, keyToUse))
-            menuItemC.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
-            menuItemC.setToolTipText("When selected copies the output of all displays to Clipboard")
-            menuItemC.setSelected(lCopyAllToClipBoard_TB)
-            menu1.add(menuItemC)
+            # menuItem0 = JMenuItem("Basic Mode")
+            # menuItem0.setMnemonic(KeyEvent.VK_B)
+            # menuItem0.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, keyToUse))
+            # menuItem0.setToolTipText("Switch to basic (no harm) mode")
+            # menuItem0.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            # menuItem0.setEnabled(False)
+            # menu1.add(menuItem0)
+            #
+            # menuItem1 = JMenuItem("Update Mode")
+            # menuItem1.setMnemonic(KeyEvent.VK_M)  # Can't think of a spare letter to use!!!!
+            # menuItem1.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, keyToUse))
+            # menuItem1.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            # menuItem1.setToolTipText("Switch to UPDATE (Fix Mode) >> can update data/settings...")
+            # menu1.add(menuItem1)
 
             menuItemG = JCheckBoxMenuItem("Geek Out Mode")
             menuItemG.setMnemonic(KeyEvent.VK_G)  # Can't think of a spare letter to use!!!!
@@ -25295,11 +25306,19 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemG.setSelected(lGeekOutModeEnabled_TB)
             menu1.add(menuItemG)
 
-            menuItemH = JCheckBoxMenuItem("Advanced Mode")
+            menuItemH = JCheckBoxMenuItem("Advanced Mode")      # (Previously Hacker mode)
             menuItemH.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
             menuItemH.setToolTipText("Enables 'ADVANCED' Mode - Do not do this unless you know what you are doing... Allows you to update data!")
             menuItemH.setSelected(False)
             menu1.add(menuItemH)
+
+            menuItemC = JCheckBoxMenuItem("Copy all Output to Clipboard")
+            menuItemC.setMnemonic(KeyEvent.VK_O)  # Can't think of a spare letter to use!!!!
+            menuItemC.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, keyToUse))
+            menuItemC.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItemC.setToolTipText("When selected copies the output of all displays to Clipboard")
+            menuItemC.setSelected(lCopyAllToClipBoard_TB)
+            menu1.add(menuItemC)
 
             menuItemD = JCheckBoxMenuItem("Debug")
             menuItemD.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
@@ -25334,8 +25353,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
             mb.add(menu1)
 
-            # menuH = JMenu("<html>HELP</html>")
-            menuH = JMenu("HELP")
+            menuH = JMenu("<html><B>HELP</b></html>")
+            # menuH = JMenu("HELP")
             menuH.setMnemonic(KeyEvent.VK_I)
             menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
