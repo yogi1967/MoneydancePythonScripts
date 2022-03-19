@@ -256,6 +256,7 @@
 # build: 1047 - Put back .setRate() in fix currency / security routines - as it wasn't working on infinity rrates (zero)....
 # build: 1047 - Changed Options menu so that Basic/Advanced mode are a Checkbox and ALT-M is the toggle....; Renamed Export Backup to Create Backup
 # build: 1047 - Flipped JMenus to use html and bold tags (as otherwise disappeared on mouse hover)
+# build: 1047 - Added CMD-SHIFT-U hotkey to show object's raw data - enter UUID to locate
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -581,7 +582,7 @@ else:
 
     from com.infinitekind.util import StreamTable, StreamVector, IOUtils, StringUtils, CustomDateFormat
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
-    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AccountBook
+    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AccountBook, AbstractTxn
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
     from com.infinitekind.tiksync import SyncRecord
     from com.infinitekind.tiksync import SyncableItem
@@ -22820,6 +22821,34 @@ Now you will have a text readable version of the file you can open in a text edi
                 setDisplayStatus(txt, sColor); myPrint("B",txt)
                 return
 
+        class DisplayUUID(AbstractAction):
+
+            def __init__(self, theFrame):
+                self.theFrame = theFrame
+
+            def actionPerformed(self, event):                                                                           # noqa
+                myPrint("DB","In DisplayUUID().", inspect.currentframe().f_code.co_name, "()")
+
+                uuid = myPopupAskForInput(self.theFrame,"DISPLAY OBJECT BY UUID", "UUID:", "Enter the UUID to display",
+                                          defaultValue=None,isPassword=False,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+                if StringUtils.isEmpty(uuid): return
+
+                uuid = uuid.strip()
+
+                obj = MD_REF.getCurrentAccount().getBook().getItemForID(uuid)
+                if obj is None: obj = MD_REF.getCurrentAccount().getBook().getItemForID(uuid.lower())                   # noqa
+
+                # We search Txns too as Splits by their UUID (for example) can only be found this way...
+                if obj is None: obj = MD_REF.getCurrentAccount().getBook().getTransactionSet().getTxnByID(uuid)
+                if obj is None: obj = MD_REF.getCurrentAccount().getBook().getTransactionSet().getTxnByID(uuid.lower()) # noqa
+
+                if obj is None: return
+
+                if isinstance(obj, AbstractTxn):
+                    MD_REF.getUI().showTxnXML(obj, self.theFrame)
+                else:
+                    MD_REF.getUI().showRawItemDetails(obj, self.theFrame)
+
         class OnlineBankingToolsButtonAction(AbstractAction):
 
             def __init__(self): pass
@@ -25090,6 +25119,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "display-pickle")
             toolbox_frame_.getRootPane().getActionMap().put("display-pickle", ViewFileButtonAction("display_pickle()", "StuWareSoftSystems Pickle Parameter File", lFile=False))
+
+            toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_U, (shortcut | Event.SHIFT_MASK)), "display-UUID")
+            toolbox_frame_.getRootPane().getActionMap().put("display-UUID", self.DisplayUUID(toolbox_frame_))
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, shortcut), "display-help")
             toolbox_frame_.getRootPane().getActionMap().put("display-help", ViewFileButtonAction("display_help()", "HELP DOCUMENTATION", lFile=False))

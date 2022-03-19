@@ -88,11 +88,11 @@ Features:
 
 NOTE: Where CMD is specified, this may be CTRL (or ALT) in Windows / Linux
 
-CMD-I - This  Help Instruction Information
-
-CMD-F - Search for text in display windows
-
-CMD-O - Copy all outputs to Clipboard
+CMD-I           This  Help Instruction Information
+CMD-F           Search for text in display windows
+CMD-O           Copy all outputs to Clipboard
+CMD-SHIFT-U     Examine an object's raw data - enter the Object's UUID
+CMD-SHIFT-+     Unlock Toolbox (Contact Author for password and usage) - (Might be CMD-SHIFT-= on some keyboards)
 
 TOOLBAR / MENU BAR Contains the following:
     - Toolbox Options Menu
