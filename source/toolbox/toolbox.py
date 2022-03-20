@@ -12,7 +12,7 @@
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance and they retain all copyright over Moneydance internal code
 # Designed to show user a number of settings / fixes / updates they may find useful (some normally hidden)
-# The Basic / Geek Out Mode(s) are very safe and do not change any data or settings
+# Basic mode and Expert View Internal Settings are both readonly and very safe >> They do NOT change any data or settings
 # If you switch to Update / Advanced mode(s) then you have the ability to perform fixes, change data, change config etc
 # NOTE: Any change that impacts config.dict, custom_theme.properties, LocalStorage() ./safe/settings...
 #       will always backup that single config/settings file (in the directory where it's located).
@@ -257,6 +257,8 @@
 # build: 1047 - Changed Options menu so that Basic/Advanced mode are a Checkbox and ALT-M is the toggle....; Renamed Export Backup to Create Backup
 # build: 1047 - Flipped JMenus to use html and bold tags (as otherwise disappeared on mouse hover)
 # build: 1047 - Added CMD-SHIFT-U hotkey to show object's raw data - enter UUID to locate
+# build: 1047 - Remove 'Geek Out' mode and have the button ever-present... Renamed Button to 'Expert: View Internal Settings'
+# build: 1047 - Enhanced the number of keys that force reset sync removes to include old migrated sync keys/settings...
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -614,7 +616,7 @@ else:
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     global __TOOLBOX
-    global toolbox_frame_, fixRCurrencyCheck, lCopyAllToClipBoard_TB, _COLWIDTHS, lGeekOutModeEnabled_TB
+    global toolbox_frame_, fixRCurrencyCheck, lCopyAllToClipBoard_TB, _COLWIDTHS
     global lIgnoreOutdatedExtensions_TB, lMustRestartAfterSnapChanges, lAutoPruneInternalBackups_TB
     global globalSaveFI_data, globalSave_DEBUG_FI_data
     global TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_BUILD
@@ -629,7 +631,6 @@ else:
     GlobalVars.ADVANCED_MODE = False                                                                                    # Previously Hacker Mode
 
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
-    lGeekOutModeEnabled_TB = False                                                                                      # noqa
     lIgnoreOutdatedExtensions_TB = False                                                                                # noqa
     lAutoPruneInternalBackups_TB = False                                                                                # noqa
     _COLWIDTHS = ["bank", "cc", "invest", "security", "loan", "misc", "split","rec_credits","rec_debits","secdetail"]   # noqa
@@ -2862,7 +2863,7 @@ Visit: %s (Author's site)
         global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-        global __TOOLBOX, lCopyAllToClipBoard_TB, lGeekOutModeEnabled_TB, lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
+        global __TOOLBOX, lCopyAllToClipBoard_TB, lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
@@ -2871,9 +2872,11 @@ Visit: %s (Author's site)
 
         if myParameters.get("__TOOLBOX") is not None: __TOOLBOX = myParameters.get("__TOOLBOX")
         if myParameters.get("lCopyAllToClipBoard_TB") is not None: lCopyAllToClipBoard_TB = myParameters.get("lCopyAllToClipBoard_TB")
-        if myParameters.get("lGeekOutModeEnabled_TB") is not None: lGeekOutModeEnabled_TB = myParameters.get("lGeekOutModeEnabled_TB")
         if myParameters.get("lIgnoreOutdatedExtensions_TB") is not None: lIgnoreOutdatedExtensions_TB = myParameters.get("lIgnoreOutdatedExtensions_TB")
         if myParameters.get("lAutoPruneInternalBackups_TB") is not None: lAutoPruneInternalBackups_TB = myParameters.get("lAutoPruneInternalBackups_TB")
+
+        # No longer needed as button will be ever-present...
+        if myParameters.get("lGeekOutModeEnabled_TB") is not None: myParameters.pop("lGeekOutModeEnabled_TB")
 
         myPrint("DB","myParameters{} set into memory (as variables).....")
 
@@ -2884,7 +2887,7 @@ Visit: %s (Author's site)
         global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-        global __TOOLBOX, lCopyAllToClipBoard_TB, lGeekOutModeEnabled_TB, lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
+        global __TOOLBOX, lCopyAllToClipBoard_TB, lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
@@ -2895,7 +2898,6 @@ Visit: %s (Author's site)
 
         myParameters["__TOOLBOX"] = version_build
         myParameters["lCopyAllToClipBoard_TB"] = lCopyAllToClipBoard_TB
-        myParameters["lGeekOutModeEnabled_TB"] = lGeekOutModeEnabled_TB
         myParameters["lIgnoreOutdatedExtensions_TB"] = lIgnoreOutdatedExtensions_TB
         myParameters["lAutoPruneInternalBackups_TB"] = lAutoPruneInternalBackups_TB
 
@@ -9380,7 +9382,7 @@ Please update any that you use before proceeding....
                                                        what,
                                                        None)
             if not selectedWhat:
-                txt = "No data type was selected to Geek out on.."
+                txt = "No Cookie action/option was selected!"
                 setDisplayStatus(txt, "R")
                 return
 
@@ -10758,7 +10760,7 @@ Please update any that you use before proceeding....
 
         return
 
-    def get_the_objects_for_geekout_and_advanced_edit(objWhat, selectedObjType, titleStr, lForceOneTxn):
+    def get_the_objects_for_expert_view_and_advanced_edit(objWhat, selectedObjType, titleStr, lForceOneTxn):
 
         # Yes, I know, repeated from calling function.... EDIT IN BOTH PLACES!
         # You need to edit the below in the sub def function too!!! (sorry ;-> )
@@ -11421,7 +11423,7 @@ Please update any that you use before proceeding....
         del _storage
         return _authenticationCache
 
-    class GeekOutModeButtonAction(AbstractAction):
+    class ExpertViewInternalSettingsButtonAction(AbstractAction):
 
         def __init__(self, lOFX=False, EDIT_MODE=False):
             self.lOFX = lOFX
@@ -11515,17 +11517,17 @@ Please update any that you use before proceeding....
             else:
                 selectedWhat = JOptionPane.showInputDialog(toolbox_frame_,
                                                            "Select the type of Key data you want to view",
-                                                           "GEEK OUT",
+                                                           "EXPERT VIEW: INTERNAL SETTINGS",
                                                            JOptionPane.INFORMATION_MESSAGE,
                                                            MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                            what,
                                                            None)
                 if not selectedWhat:
-                    txt = "GEEKOUT: No data type was selected to Geek out on.."
+                    txt = "EXPERT VIEW: INTERNAL SETTINGS: No data type was selected to view.."
                     setDisplayStatus(txt, "B")
                     return
 
-            myPrint("J", "User has requested to view internal Moneydance Settings (Geek Out Mode): %s"%selectedWhat)
+            myPrint("J", "EXPERT VIEW: INTERNAL SETTINGS. User has requested to view: %s"%selectedWhat)
 
             lObject = False
             selectedObject = None                                                                               # noqa
@@ -11542,24 +11544,24 @@ Please update any that you use before proceeding....
 
                 selectedSearch = JOptionPane.showInputDialog(toolbox_frame_,
                                                              "SEARCH: Keys or Key Data?",
-                                                             "GEEK OUT",
+                                                             "EXPERT VIEW: INTERNAL SETTINGS",
                                                              JOptionPane.INFORMATION_MESSAGE,
                                                              MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                              ["Keys","Key Data"],
                                                              None)
                 if not selectedSearch:
-                    txt = "GEEKOUT: No Search type selected (to Geek out on..)"
+                    txt = "EXPERT VIEW: INTERNAL SETTINGS: No Search type selected"
                     setDisplayStatus(txt, "B")
                     return
 
                 if selectedSearch == "Keys": lKeys = True
                 elif selectedSearch == "Key Data": lKeyData = True
                 else:
-                    raise(Exception("ERROR: Unknown Geekout Search Key type selected!?"))
+                    raise(Exception("EXPERT VIEW: INTERNAL SETTINGS: ERROR: Unknown Search Key type selected!?"))
 
-                searchWhat = myPopupAskForInput(toolbox_frame_, "GEEK OUT: SEARCH", "%s:" % selectedSearch, "Enter the (partial) string to search for within %s..." % selectedSearch, "", False)
+                searchWhat = myPopupAskForInput(toolbox_frame_, "EXPERT VIEW: INTERNAL SETTINGS: SEARCH", "%s:" % selectedSearch, "Enter the (partial) string to search for within %s..." % selectedSearch, "", False)
                 if not searchWhat or searchWhat == "":
-                    txt = "GEEKOUT: No Search data selected (to Geek out on..)"
+                    txt = "EXPERT VIEW: INTERNAL SETTINGS: No Search data selected"
                     setDisplayStatus(txt, "B")
                     return
                 searchWhat=searchWhat.strip()
@@ -11567,7 +11569,7 @@ Please update any that you use before proceeding....
             if selectedWhat == what[_OBJKEYS]:
                 lObject = True
 
-                titleText="GEEK OUT"
+                titleText="EXPERT VIEW: INTERNAL SETTINGS"
                 moreText="VIEW"
                 lFindInAdvancedMode=False
                 if self.EDIT_MODE:
@@ -11589,7 +11591,7 @@ Please update any that you use before proceeding....
 
                 baseCurr = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
 
-                objects, lReportDefaultsSelected = get_the_objects_for_geekout_and_advanced_edit(objWhat, selectedObjType,"%s" %(titleText), lFindInAdvancedMode)
+                objects, lReportDefaultsSelected = get_the_objects_for_expert_view_and_advanced_edit(objWhat, selectedObjType,"%s" %(titleText), lFindInAdvancedMode)
                 if self.EDIT_MODE:
                     return objects
                 else:
@@ -12219,12 +12221,12 @@ Please update any that you use before proceeding....
 
             output += "<END>\n"
 
-            jif = QuickJFrame("Geek Out on....: %s" % selectedWhat, output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+            jif = QuickJFrame("Expert View Internal Settings...: %s" % selectedWhat, output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
             if self.lOFX:
                 return jif
             else:
-                txt = "I hope you enjoyed Geeking Out on...: %s" %(selectedWhat)
+                txt = "I hope you enjoyed Expertly Viewing Internal Settings...: %s" %(selectedWhat)
                 setDisplayStatus(txt, "DG")
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -19811,7 +19813,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
 
         class ObjectRef(object):
-            def __init__(self, index):
+            def __init__(self, index):                                                                                  # noqa
                 self.index = index
 
             def resolve(self, lst):
@@ -19820,7 +19822,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         class BinaryPListReader(object):
 
-            def __init__(self, fd):
+            def __init__(self, fd):                                                                                     # noqa
                 self._fd = fd
                 self._offsets = None
                 self.objectRefSize = None
@@ -20981,7 +20983,7 @@ Now you will have a text readable version of the file you can open in a text edi
             setDisplayStatus(txt, "R")
             return
 
-        objSelecter = GeekOutModeButtonAction(lOFX=False, EDIT_MODE=True)
+        objSelecter = ExpertViewInternalSettingsButtonAction(lOFX=False, EDIT_MODE=True)
         theObject = objSelecter.actionPerformed("")  # type: list
         del objSelecter
 
@@ -22490,15 +22492,25 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
+        SYNC_KEYS = ["netsync.dropbox.fileid",
+                     "netsync.sync_type",
+                     "netsync.subpath",
+                     "netsync.dropbox_enabled",
+                     "netsync.synckey",
+                     "ext.netsync.settings",
+                     "netsync.guid",
+                     "migrated.netsync.dropbox.fileid",
+                     "migrated.ext.netsync.settings",                                                                   # Extra from here
+                     "migrated.netsync.dropbox_enabled",
+                     "migrated.netsync.guid",
+                     "migrated.netsync.synckey",
+                     "netsync.dropbox.fileid"
+                     ]
+
+        for skey in SYNC_KEYS: storage.remove(skey)
+
         # Copied from: com.moneydance.apps.md.controller.AccountBookWrapper.resetSyncInfoIfNecessary()
         storage.put("netsync.dropbox.fileid", UUID.randomUUID())
-        storage.remove("netsync.sync_type")
-        storage.remove("netsync.subpath")
-        storage.remove("netsync.dropbox_enabled")
-        storage.remove("netsync.synckey")
-        storage.remove("ext.netsync.settings")
-        storage.remove("netsync.guid")
-        storage.remove("migrated.netsync.dropbox.fileid")
 
         # NOTE: as of 2022.3(4063) - this is also performed: .setIsMasterSyncNode(True)
         MD_REF.getUI().getCurrentAccounts().setIsMasterSyncNode(True)
@@ -22506,14 +22518,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         root = MD_REF.getCurrentAccountBook().getRootAccount()
         if root is not None:
-            root.removeParameter("netsync.dropbox.fileid")
-            root.removeParameter("netsync.sync_type")
-            root.removeParameter("netsync.subpath")
-            root.removeParameter("netsync.dropbox_enabled")
-            root.removeParameter("netsync.synckey")
-            root.removeParameter("ext.netsync.settings")
-            root.removeParameter("netsync.guid")
-            root.removeParameter("migrated.netsync.dropbox.fileid")
+            for skey in SYNC_KEYS: root.removeParameter(skey)
 
         play_the_money_sound()
         txt = "ALL SYNC SETTINGS HAVE BEEN RESET - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
@@ -23069,7 +23074,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     #     OFXDEBUGToggle()
 
                     if user_searchOFXData.isSelected():
-                        viewer = GeekOutModeButtonAction(lOFX=True)
+                        viewer = ExpertViewInternalSettingsButtonAction(lOFX=True)
                         viewer.actionPerformed("")
                         del viewer
                         txt = "OFX: Your OFX Bank related settings have been searched and displayed...."
@@ -24818,7 +24823,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.callingClass = callingClass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug, lCopyAllToClipBoard_TB, lGeekOutModeEnabled_TB
+                global toolbox_frame_, debug, lCopyAllToClipBoard_TB
                 global lAutoPruneInternalBackups_TB
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
@@ -24853,11 +24858,6 @@ Now you will have a text readable version of the file you can open in a text edi
                             setDisplayStatus(txt, "R")
 
                             event.getSource().setSelected(False)
-                            # for i in range(0, self.menu.getItemCount()):
-                            #     x = self.menu.getItem(i)
-                            #     if x.getText() == "Auto Prune Internal Backups":
-                            #         x.setSelected(False)
-                            #         break
 
                             return
                         else:
@@ -24869,18 +24869,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if lAutoPruneInternalBackups_TB:
                         prune_internal_backups()
-
-                # ##########################################################################################################
-                if event.getActionCommand() == "Geek Out Mode":
-                    lGeekOutModeEnabled_TB = not lGeekOutModeEnabled_TB
-                    components = self.displayPanel.getComponents()
-                    for theComponent in components:
-                        if isinstance(theComponent, JButton):
-                            # noinspection PyUnresolvedReferences
-                            buttonText = theComponent.getLabel().strip().upper()
-
-                            if ("GEEK" in buttonText):
-                                theComponent.setVisible(not theComponent.isVisible())
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Debug":
@@ -24920,11 +24908,7 @@ Now you will have a text readable version of the file you can open in a text edi
                             myPrint("B", txt)
 
                             event.getSource().setSelected(False)
-                            # for i in range(0, self.menu.getItemCount()):
-                            #     x = self.menu.getItem(i)
-                            #     if x.getText() == "Advanced Mode":
-                            #         x.setSelected(False)
-                            #         break
+
                             return
                         else:
                             myPrint("B", "User accepted Disclaimer and agreed to use Toolbox Advanced Mode at own risk.....")
@@ -24937,11 +24921,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                 setDisplayStatus(txt, "R")
 
                                 event.getSource().setSelected(False)
-                                # for i in range(0, self.menu.getItemCount()):
-                                #     x = self.menu.getItem(i)
-                                #     if x.getText() == "Advanced Mode":
-                                #         x.setSelected(False)
-                                #         break
+
                                 return
 
                             myPrint("B","@@ ADVANCED MODE ENABLED. config.dict and safe/settings have been backed up...! @@")
@@ -24988,16 +24968,10 @@ Now you will have a text readable version of the file you can open in a text edi
                         txt = "BASIC MODE IN OPERATION (Update mode NOT enabled)"
                         setDisplayStatus(txt, "DG")
 
-                        # newMenuColor = Color(74,74,74)
                         newMenuColor = MD_REF.getUI().getColors().defaultTextForeground
                         GlobalVars.UPDATE_MODE = False
 
                     event.getSource().setSelected(GlobalVars.UPDATE_MODE)
-                    # for i in range(0, self.menu.getItemCount()):
-                    #     x = self.menu.getItem(i)
-                    #     if x.getText() == "Update Mode":
-                    #         x.setSelected(GlobalVars.UPDATE_MODE)
-                    #         break
 
                     components = self.displayPanel.getComponents()
                     for theComponent in components:
@@ -25012,49 +24986,14 @@ Now you will have a text readable version of the file you can open in a text edi
                                   or "RESET" in buttonText
                                   or "DELETE" in buttonText
                                   or "FORGET" in buttonText):
-                                theComponent.setVisible(True)
+                                theComponent.setVisible(GlobalVars.UPDATE_MODE)
 
                             if "MENU:".upper() in buttonText.upper():
                                 theComponent.setForeground(newMenuColor)
 
-                # ##########################################################################################################
-                # if event.getActionCommand() == "Basic Mode":
-                #     txt = "BASIC MODE SELECTED"
-                #     setDisplayStatus(txt, "DG")
-                #
-                #     GlobalVars.UPDATE_MODE = False
-                #
-                #     for i in range(0, self.menu.getItemCount()):
-                #         x = self.menu.getItem(i)
-                #         if x.getText() == "Basic Mode":
-                #             x.setEnabled(False)
-                #         else:
-                #             x.setEnabled(True)
-                #
-                #     components = self.displayPanel.getComponents()
-                #     for theComponent in components:
-                #         if isinstance(theComponent, JButton):
-                #             # noinspection PyUnresolvedReferences
-                #             buttonText = theComponent.getLabel().strip().upper()
-                #
-                #             if "DIAG" in buttonText:
-                #                 pass
-                #             elif "ADVANCED" in buttonText:
-                #                 pass
-                #             elif ("FIX" in buttonText
-                #                   or "FONTS" in buttonText
-                #                   or "RESET" in buttonText
-                #                   or "DELETE" in buttonText
-                #                   or "FORGET" in buttonText):
-                #                 theComponent.setVisible(False)
-                #
-                #             if "MENU:".upper() in buttonText.upper():
-                #                 theComponent.setForeground(Color(74,74,74))
-
                 # Save parameters now...
                 if (event.getActionCommand() == "Copy all Output to Clipboard"
-                        or event.getActionCommand() == "Debug"
-                        or event.getActionCommand() == "Geek Out Mode"
+                        # or event.getActionCommand() == "Debug"
                         or event.getActionCommand() == "Auto Prune Internal Backups"):
 
                     try:
@@ -25232,13 +25171,12 @@ Now you will have a text readable version of the file you can open in a text edi
             transactionMenu_button.addActionListener(self.TransactionMenuButtonAction())
             displayPanel.add(transactionMenu_button)
 
-            GeekOutMode_button = JButton("<html><B>Geek Out</B></html>")
-            GeekOutMode_button.setToolTipText("This allows you to display very Technical Information on the Moneydance System and many key objects..... READONLY")
-            GeekOutMode_button.setBackground(Color.MAGENTA)
-            GeekOutMode_button.setForeground(Color.WHITE)
-            GeekOutMode_button.addActionListener(GeekOutModeButtonAction())
-            GeekOutMode_button.setVisible(lGeekOutModeEnabled_TB)
-            displayPanel.add(GeekOutMode_button)
+            ExpertViewInternalSettings_button = JButton("<html><center>EXPERT: View<BR>Internal Settings</center></html>")
+            ExpertViewInternalSettings_button.setToolTipText("This allows you to display very Technical Information on the Moneydance System and many key objects..... READONLY")
+            ExpertViewInternalSettings_button.setBackground(Color.MAGENTA)
+            ExpertViewInternalSettings_button.setForeground(Color.WHITE)
+            ExpertViewInternalSettings_button.addActionListener(ExpertViewInternalSettingsButtonAction())
+            displayPanel.add(ExpertViewInternalSettings_button)
 
             advancedMenu_button = JButton("<html><center><B>ADVANCED MODE</B></center></html>")
             advancedMenu_button.setToolTipText("Menu containing 'Advanced' Tools...")
@@ -25286,7 +25224,6 @@ Now you will have a text readable version of the file you can open in a text edi
             mainPnl.add(self.myScrollPane, BorderLayout.CENTER)
 
             keyToUse = shortcut
-
             if Platform.isWindows():
                 keyToUse = InputEvent.ALT_MASK
 
@@ -25308,41 +25245,20 @@ Now you will have a text readable version of the file you can open in a text edi
             menu1.setForeground(SetupMDColors.FOREGROUND_REVERSED); menu1.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
             menuItem0 = JCheckBoxMenuItem("Update Mode")
-            menuItem0.setMnemonic(KeyEvent.VK_M)
+            menuItem0.setMnemonic(KeyEvent.VK_U)
             menuItem0.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, keyToUse))
             menuItem0.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
             menuItem0.setToolTipText("Enables UPDATE (Fix Mode) >> can update data/settings...")
             menuItem0.setSelected(False)
             menu1.add(menuItem0)
 
-            # menuItem0 = JMenuItem("Basic Mode")
-            # menuItem0.setMnemonic(KeyEvent.VK_B)
-            # menuItem0.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, keyToUse))
-            # menuItem0.setToolTipText("Switch to basic (no harm) mode")
-            # menuItem0.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
-            # menuItem0.setEnabled(False)
-            # menu1.add(menuItem0)
-            #
-            # menuItem1 = JMenuItem("Update Mode")
-            # menuItem1.setMnemonic(KeyEvent.VK_M)  # Can't think of a spare letter to use!!!!
-            # menuItem1.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, keyToUse))
-            # menuItem1.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
-            # menuItem1.setToolTipText("Switch to UPDATE (Fix Mode) >> can update data/settings...")
-            # menu1.add(menuItem1)
-
-            menuItemG = JCheckBoxMenuItem("Geek Out Mode")
-            menuItemG.setMnemonic(KeyEvent.VK_G)  # Can't think of a spare letter to use!!!!
-            menuItemG.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, keyToUse))
-            menuItemG.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
-            menuItemG.setToolTipText("Enables the Geek Out Button to show very technical stuff - readonly")
-            menuItemG.setSelected(lGeekOutModeEnabled_TB)
-            menu1.add(menuItemG)
-
-            menuItemH = JCheckBoxMenuItem("Advanced Mode")      # (Previously Hacker mode)
-            menuItemH.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
-            menuItemH.setToolTipText("Enables 'ADVANCED' Mode - Do not do this unless you know what you are doing... Allows you to update data!")
-            menuItemH.setSelected(False)
-            menu1.add(menuItemH)
+            menuItemA = JCheckBoxMenuItem("Advanced Mode")      # (Previously Hacker mode)
+            menuItemA.setMnemonic(KeyEvent.VK_A)
+            menuItemA.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, (keyToUse | Event.SHIFT_MASK)))
+            menuItemA.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItemA.setToolTipText("Enables 'ADVANCED' Mode - Do not do this unless you know what you are doing... Allows you to update data!")
+            menuItemA.setSelected(False)
+            menu1.add(menuItemA)
 
             menuItemC = JCheckBoxMenuItem("Copy all Output to Clipboard")
             menuItemC.setMnemonic(KeyEvent.VK_O)  # Can't think of a spare letter to use!!!!
@@ -25353,24 +25269,28 @@ Now you will have a text readable version of the file you can open in a text edi
             menu1.add(menuItemC)
 
             menuItemD = JCheckBoxMenuItem("Debug")
+            menuItemD.setMnemonic(KeyEvent.VK_D)
             menuItemD.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
             menuItemD.setToolTipText("Enables script to output debug information - technical stuff - readonly")
             menuItemD.setSelected(debug)
             menu1.add(menuItemD)
 
             menuItemP = JCheckBoxMenuItem("Auto Prune Internal Backups")
+            menuItemP.setMnemonic(KeyEvent.VK_B)
             menuItemP.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
             menuItemP.setToolTipText("Enables auto pruning of the internal backups that Toolbox makes of config.dict, custom_theme.properties, and ./safe/settings")
             menuItemP.setSelected(lAutoPruneInternalBackups_TB)
             menu1.add(menuItemP)
 
             menuItemF = JMenuItem("Find/Search")
+            menuItemF.setMnemonic(KeyEvent.VK_F)
             menuItemF.setToolTipText("Finds text within the main display window..")
             menuItemF.addActionListener(mySearchAction)
             menuItemF.setEnabled(True)
             menu1.add(menuItemF)
 
             menuItemPS = JMenuItem("Page Setup")
+            menuItemPS.setMnemonic(KeyEvent.VK_P)
             menuItemPS.setToolTipText("Printer Page Setup")
             menuItemPS.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
             menuItemPS.setEnabled(True)
@@ -25399,6 +25319,7 @@ Now you will have a text readable version of the file you can open in a text edi
             menuH.add(menuItemH)
 
             menuItemA = JMenuItem("About Toolbox")
+            menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setToolTipText("About...")
             menuItemA.addActionListener(self.DoTheMenu(displayPanel, menuH, self))
             menuItemA.setEnabled(True)

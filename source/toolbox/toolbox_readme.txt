@@ -21,10 +21,10 @@ PLEASE ALWAYS BACKUP YOUR DATA FIRST! You  can use the Create Backup (green) but
 PURPOSE
 
 To enable the User to self-diagnose problems, or access key diagnostics to enable support to help
-- Basic mode:    The default mode. Very safe and contains useful / view options only
-- Update Mode:   Allows running of fixes/updates. CAN CHANGE DATA (you will always be asked to confirm first)
-- Geek Mode:     View technical information/settings in various places (this is readonly)
-- Advanced Mode: Enables 'advanced' features. USE WITH CARE!
+- Basic mode:                    The default mode. Very safe and contains useful / view options only
+- Update Mode:                   Allows running of fixes/updates. CAN CHANGE DATA (you will always be asked to confirm first)
+- Advanced Mode:                 Enables 'advanced' features. USE WITH CARE!
+- Expert View Internal Settings: View technical information/settings in various places (this is readonly)
 
 - The Toolbox offers the option to Backup first  - ALWAYS BACKUP (But this is your choice!)
 - The Toolbox will *ALWAYS* make a copy of config.dict, custom theme file, LocalStorage() ./safe/settings before any changes
@@ -147,6 +147,20 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - Extract your Attachments (this decrypts and extracts your attachments to a directory of your choice) (export_all_attachments.py)
         - DIAGnostics - Analise your  attachments (and Detect Orphans)
 
+Menu - EXPERT: VIEW INTERNAL SETTINGS (Read-Only - very safe)
+    >> Allows you to view raw settings
+    - Search for keys or key-data containing filter characters (you specify)
+    - ROOT Parameter keys
+    - Local Storage - Settings
+    - User Preferences
+    - All Accounts' preference keys
+    - View single Object's Keys/Data (Account, Category, Currency, Security, Report / Graph, Reminder, Address, OFX Service, by UUID, TXNs)
+    - All Sync Settings
+    - All Online Banking Settings
+    - All Settings related to window sizes/positions/locations etc
+    - All Environment Variables
+    - All Java Properties
+
 ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
     All basic mode settings plus:
     - These first four buttons will appear only if they are necessary / possible in your system
@@ -218,21 +232,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Reverse Transaction Amounts between dates (reverse_txn_amounts.py)
         - FIX - Reverse Transaction Exchange rates between dates (reverse_txn_amounts.py)
 
-ALT-G - GEEK OUT MODE
-    >> Allows you to view raw settings
-    - Search for keys or key-data containing filter characters (you specify)
-    - ROOT Parameter keys
-    - Local Storage - Settings
-    - User Preferences
-    - All Accounts' preference keys
-    - View single Object's Keys/Data (Account, Category, Currency, Security, Report / Graph, Reminder, Address, OFX Service, by UUID, TXNs)
-    - All Sync Settings
-    - All Online Banking Settings
-    - All Settings related to window sizes/positions/locations etc
-    - All Environment Variables
-    - All Java Properties
-
-Menu - ADVANCED MODE
+ALT-SHIFT-M - Menu - ADVANCED MODE
     >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
     - Toggle other known DEBUG settings on (extra messages in Console)
     - Toggle all internal Moneydance DEBUG settings ON/OFF (same as viewing console)
