@@ -22503,8 +22503,7 @@ Now you will have a text readable version of the file you can open in a text edi
                      "migrated.ext.netsync.settings",                                                                   # Extra from here
                      "migrated.netsync.dropbox_enabled",
                      "migrated.netsync.guid",
-                     "migrated.netsync.synckey",
-                     "netsync.dropbox.fileid"
+                     "migrated.netsync.synckey"
                      ]
 
         for skey in SYNC_KEYS: storage.remove(skey)
@@ -22539,7 +22538,12 @@ Now you will have a text readable version of the file you can open in a text edi
                         "netsync.synckey",
                         "ext.netsync.settings",
                         "netsync.guid",
-                        "migrated.netsync.dropbox.fileid" ]
+                        "migrated.netsync.dropbox.fileid",
+                        "migrated.ext.netsync.settings",                                                                   # Extra from here
+                        "migrated.netsync.dropbox_enabled",
+                        "migrated.netsync.guid",
+                        "migrated.netsync.synckey"
+                        ]
 
         _THIS_METHOD_NAME = "RESTORE ARCHIVE (RETAIN SYNC SETTINGS)"
 
@@ -22668,9 +22672,9 @@ Now you will have a text readable version of the file you can open in a text edi
         storage = archiveBook.getLocalStorage()
         saveSyncSetting = storage.getString(_PARAM_KEY, _NONE)
 
-        myPrint("B", "All Sync Keys in Restored Dataset..:")
+        myPrint("B", "List of all 'Sync' Keys preserved in the Restored Dataset..:")
         for sKey in _SYNC_KEYS: myPrint("B", "Key %s  Value: '%s'" %(pad(sKey,40), storage.getString(sKey, "NOT SET")))
-        myPrint("B", "<END OF SYNC KEYS>")
+        myPrint("B", "<END OF PRESERVED SYNC KEYS>")
 
         myPrint("B", "@@@ Setting Sync in restored dataset to %s" %(_NONE))
         storage.put(_PARAM_KEY, _NONE)
