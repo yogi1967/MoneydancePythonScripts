@@ -87,6 +87,7 @@
 # build: 1020 - Tweak extract reminders - Monkey Patched the display / sort / extract date format....
 # build: 1021 - Added <PREVIEW> tag to JFrame titlebar if detected...
 # build: 1021 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
+# build: 1022 - Changed JDateField to use user's date format
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -2656,7 +2657,8 @@ Visit: %s (Author's site)
 
     def convertStrippedIntDateFormattedText(strippedDateInt, _format=None):
 
-        if _format is None: _format = "yyyy/MM/dd"
+        # if _format is None: _format = "yyyy/MM/dd"
+        if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
 
         convertedDate = ""
         try:
@@ -3558,14 +3560,14 @@ Visit: %s (Author's site)
 
 
                 labelDateStart = JLabel("Date range start (enter as yyyy/mm/dd):")
-                user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+                user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateStart.setName("user_selectDateStart")                                                        # noqa
                 user_selectDateStart.setEnabled(False)                                                                      # noqa
                 # user_selectDateStart.setDisabledTextColor(Color.gray)                                                       # noqa
                 user_selectDateStart.setDateInt(userdateStart_EAR)
 
                 labelDateEnd = JLabel("Date range end (enter as yyyy/mm/dd):")
-                user_selectDateEnd = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+                user_selectDateEnd = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateEnd.setName("user_selectDateEnd")                                                            # noqa
                 user_selectDateEnd.setEnabled(False)                                                                        # noqa
                 # user_selectDateEnd.setDisabledTextColor(Color.gray)                                                         # noqa
@@ -4163,11 +4165,11 @@ Visit: %s (Author's site)
                 else: user_dateformat.setSelectedItem("yyyy/mm/dd")
 
                 labelDateStart = JLabel("Date range start (enter as yyyy/mm/dd):")
-                user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+                user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateStart.setDateInt(userdateStart_ECH)
 
                 labelDateEnd = JLabel("Date range end (enter as yyyy/mm/dd):")
-                user_selectDateEnd = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+                user_selectDateEnd = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateEnd.setDateInt(userdateEnd_ECH)
                 # user_selectDateEnd.gotoToday()
 

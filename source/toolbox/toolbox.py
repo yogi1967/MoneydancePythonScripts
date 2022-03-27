@@ -262,6 +262,7 @@
 # build: 1047 - Upgraded move_merge_investment_txns() with GUI for processing options and filters for security and date range...
 # build: 1047 - Moved move_merge_investment_txns to an enclosed script and added as a new Extensions menu option to allow register selection
 # build: 1047 - Moved Total Selected Transactions to an enclosed script and added as a new Extensions menu option to allow register selection
+# build: 1047 - Updated usages of JDateField() to present user's dateformat... also convertStrippedIntDateFormattedText() too
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -2810,7 +2811,8 @@ Visit: %s (Author's site)
 
     def convertStrippedIntDateFormattedText(strippedDateInt, _format=None):
 
-        if _format is None: _format = "yyyy/MM/dd"
+        # if _format is None: _format = "yyyy/MM/dd"
+        if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
 
         convertedDate = ""
         try:
@@ -6242,7 +6244,7 @@ Visit: %s (Author's site)
                          theTitle="MANUALLY EDIT HIDDEN PRICE_DATE FIELD").go()
 
         labelUpdateDate = JLabel("Select the new current price hidden 'price_date' (enter as yyyy/mm/dd):")
-        user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+        user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
         if newestSnapshotDate > 0:
             user_selectDateStart.setDateInt(min(newestSnapshotDate,DateUtil.getStrippedDateInt()))
         else:
@@ -8951,7 +8953,7 @@ Please update any that you use before proceeding....
         if not isMDPlusEnabledBuild():
 
             labelUpdateDate = JLabel("Select the new OFXLastTxnUpdate download Date (enter as yyyy/mm/dd):")
-            user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+            user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
             user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
 
             datePanel = JPanel(GridLayout(0, 1))
@@ -10974,11 +10976,11 @@ Please update any that you use before proceeding....
             else:
                 dateTxt="Range "
                 labelDateStart = JLabel("Date range start (enter as yyyy/mm/dd):")
-            user_selectDateStart = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+            user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
             user_selectDateStart.setDateInt(dateStart)
 
             labelDateEnd = JLabel("Date range end (enter as yyyy/mm/dd):")
-            user_selectDateEnd = JDateField(CustomDateFormat("ymd"),15)   # Use MD API function (not std Python)
+            user_selectDateEnd = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
             user_selectDateEnd.setDateInt(dateEnd)
 
             datePanel = JPanel(GridLayout(0, 2))
