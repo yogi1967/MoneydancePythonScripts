@@ -377,8 +377,8 @@ The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
 Toolbox:                                View Moneydance settings, diagnostics, fix issues, change settings and much more
+                                        + Extension Menus: Total selected transactions & Move Investment Transactions
 Custom Balances (net_account_balances): Summary Page (HomePage) widget. Display the total of selected Account Balances
-Total selected transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
 Extension (.mxt) and Script (.py) Versions available:
 Extract Data:                           Extract various data to screen and/or csv.. Consolidation of:
