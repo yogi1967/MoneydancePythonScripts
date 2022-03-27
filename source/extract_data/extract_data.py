@@ -1543,18 +1543,18 @@ Visit: %s (Author's site)
 
         return
 
-    def get_time_stamp_as_nice_text( timeStamp ):
+    def get_time_stamp_as_nice_text(timeStamp, _format=None):
 
-        prettyDate = ""
+        if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
+
+        humanReadableDate = ""
         try:
             c = Calendar.getInstance()
             c.setTime(Date(timeStamp))
-            dateFormatter = SimpleDateFormat("yyyy/MM/dd HH:mm:ss(.SSS) Z z zzzz")
-            prettyDate = dateFormatter.format(c.getTime())
-        except:
-            pass
-
-        return prettyDate
+            dateFormatter = SimpleDateFormat("%s HH:mm:ss(.SSS) Z z zzzz" %(_format))
+            humanReadableDate = dateFormatter.format(c.getTime())
+        except: pass
+        return humanReadableDate
 
     def currentDateTimeMarker():
         c = Calendar.getInstance()
@@ -3559,14 +3559,14 @@ Visit: %s (Author's site)
                 labelDateDropDown = JLabel("Select Date Range:")
 
 
-                labelDateStart = JLabel("Date range start (enter as yyyy/mm/dd):")
+                labelDateStart = JLabel("Date range start:")
                 user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateStart.setName("user_selectDateStart")                                                        # noqa
                 user_selectDateStart.setEnabled(False)                                                                      # noqa
                 # user_selectDateStart.setDisabledTextColor(Color.gray)                                                       # noqa
                 user_selectDateStart.setDateInt(userdateStart_EAR)
 
-                labelDateEnd = JLabel("Date range end (enter as yyyy/mm/dd):")
+                labelDateEnd = JLabel("Date range end:")
                 user_selectDateEnd = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateEnd.setName("user_selectDateEnd")                                                            # noqa
                 user_selectDateEnd.setEnabled(False)                                                                        # noqa
@@ -4164,11 +4164,11 @@ Visit: %s (Author's site)
                 elif userdateformat == "%Y%m%d": user_dateformat.setSelectedItem("yyyymmdd")
                 else: user_dateformat.setSelectedItem("yyyy/mm/dd")
 
-                labelDateStart = JLabel("Date range start (enter as yyyy/mm/dd):")
+                labelDateStart = JLabel("Date range start:")
                 user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateStart.setDateInt(userdateStart_ECH)
 
-                labelDateEnd = JLabel("Date range end (enter as yyyy/mm/dd):")
+                labelDateEnd = JLabel("Date range end:")
                 user_selectDateEnd = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
                 user_selectDateEnd.setDateInt(userdateEnd_ECH)
                 # user_selectDateEnd.gotoToday()

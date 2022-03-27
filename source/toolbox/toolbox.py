@@ -263,6 +263,7 @@
 # build: 1047 - Moved move_merge_investment_txns to an enclosed script and added as a new Extensions menu option to allow register selection
 # build: 1047 - Moved Total Selected Transactions to an enclosed script and added as a new Extensions menu option to allow register selection
 # build: 1047 - Updated usages of JDateField() to present user's dateformat... also convertStrippedIntDateFormattedText() too
+# build: 1047 - Updated usages of get_time_stamp_as_nice_text() to use MD date format set by user...
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -1697,18 +1698,18 @@ Visit: %s (Author's site)
 
         return
 
-    def get_time_stamp_as_nice_text( timeStamp ):
+    def get_time_stamp_as_nice_text(timeStamp, _format=None):
 
-        prettyDate = ""
+        if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
+
+        humanReadableDate = ""
         try:
             c = Calendar.getInstance()
             c.setTime(Date(timeStamp))
-            dateFormatter = SimpleDateFormat("yyyy/MM/dd HH:mm:ss(.SSS) Z z zzzz")
-            prettyDate = dateFormatter.format(c.getTime())
-        except:
-            pass
-
-        return prettyDate
+            dateFormatter = SimpleDateFormat("%s HH:mm:ss(.SSS) Z z zzzz" %(_format))
+            humanReadableDate = dateFormatter.format(c.getTime())
+        except: pass
+        return humanReadableDate
 
     def currentDateTimeMarker():
         c = Calendar.getInstance()
@@ -6243,7 +6244,7 @@ Visit: %s (Author's site)
                          %(currPriceDate, theCurrentDatePretty, theLatestSnapshotDatePretty,safeInvertRate(currentPrice),txtLatestSnapshotPrice),
                          theTitle="MANUALLY EDIT HIDDEN PRICE_DATE FIELD").go()
 
-        labelUpdateDate = JLabel("Select the new current price hidden 'price_date' (enter as yyyy/mm/dd):")
+        labelUpdateDate = JLabel("Select the new current price hidden 'price_date':")
         user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
         if newestSnapshotDate > 0:
             user_selectDateStart.setDateInt(min(newestSnapshotDate,DateUtil.getStrippedDateInt()))
@@ -8952,7 +8953,7 @@ Please update any that you use before proceeding....
 
         if not isMDPlusEnabledBuild():
 
-            labelUpdateDate = JLabel("Select the new OFXLastTxnUpdate download Date (enter as yyyy/mm/dd):")
+            labelUpdateDate = JLabel("Select the new OFXLastTxnUpdate download Date:")
             user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
             user_selectDateStart.setDateInt(DateUtil.getStrippedDateInt())
 
@@ -10972,14 +10973,14 @@ Please update any that you use before proceeding....
 
             dateTxt=""
             if lForceOneTxn:
-                labelDateStart = JLabel("Select the Date (enter as yyyy/mm/dd):")
+                labelDateStart = JLabel("Select the Date:")
             else:
                 dateTxt="Range "
-                labelDateStart = JLabel("Date range start (enter as yyyy/mm/dd):")
+                labelDateStart = JLabel("Date range start:")
             user_selectDateStart = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
             user_selectDateStart.setDateInt(dateStart)
 
-            labelDateEnd = JLabel("Date range end (enter as yyyy/mm/dd):")
+            labelDateEnd = JLabel("Date range end:")
             user_selectDateEnd = JDateField(MD_REF.getUI())   # Use MD API function (not std Python)
             user_selectDateEnd.setDateInt(dateEnd)
 
