@@ -7,6 +7,16 @@
       "module_name" = "Toolbox"
     }
     {
+      "type" = "menu"
+      "script_file" = "toolbox_move_merge_investment_txns.py"
+      "name" = "Toolbox: Move Investment Transactions"
+    }
+    {
+      "type" = "menu"
+      "script_file" = "toolbox_total_selected_transactions.py"
+      "name" = "Toolbox: Total Selected Transactions"
+    }
+    {
       "type" = "initializer"
       "script_file" = "toolbox_init.py"
     }

@@ -259,6 +259,9 @@
 # build: 1047 - Added CMD-SHIFT-U hotkey to show object's raw data - enter UUID to locate
 # build: 1047 - Remove 'Geek Out' mode and have the button ever-present... Renamed Button to 'Expert: View Internal Settings'
 # build: 1047 - Enhanced the number of keys that force reset sync removes to include old migrated sync keys/settings...
+# build: 1047 - Upgraded move_merge_investment_txns() with GUI for processing options and filters for security and date range...
+# build: 1047 - Moved move_merge_investment_txns to an enclosed script and added as a new Extensions menu option to allow register selection
+# build: 1047 - Moved Total Selected Transactions to an enclosed script and added as a new Extensions menu option to allow register selection
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -599,11 +602,11 @@ else:
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
     from com.moneydance.apps.md.view.gui import MDAccountProxy
     from java.lang import Integer, String
-    from javax.swing import BorderFactory, JSeparator
+    from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
 
     from java.net import URL, URLEncoder, URLDecoder                                                                    # noqa
 
-    from java.awt.event import ComponentAdapter
+    from java.awt.event import ComponentAdapter, ItemListener, ItemEvent                                                # noqa
 
     from java.util import UUID
 
@@ -670,8 +673,8 @@ The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
 Toolbox:                                View Moneydance settings, diagnostics, fix issues, change settings and much more
+                                        + Extension Menus: Total selected transactions & Move Investment Transactions
 Custom Balances (net_account_balances): Summary Page (HomePage) widget. Display the total of selected Account Balances
-Total selected transactions:            One-click. Shows a popup total of the register txn amounts selected on screen
 
 Extension (.mxt) and Script (.py) Versions available:
 Extract Data:                           Extract various data to screen and/or csv.. Consolidation of:
@@ -2744,7 +2747,7 @@ Visit: %s (Author's site)
 
                     aboutPanel=JPanel()
                     aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
-                    aboutPanel.setPreferredSize(Dimension(1120, 525))
+                    aboutPanel.setPreferredSize(Dimension(1120, 550))
 
                     _label1 = JLabel(pad("Author: Stuart Beesley", 800))
                     _label1.setForeground(getColorBlue())
@@ -8310,7 +8313,7 @@ Please update any that you use before proceeding....
         output = "INSTRUCTIONS:\n" \
                  "Read the latest walk through guide: ofx_create_new_usaa_bank_custom_profile.pdf\n" \
                  "Latest: %s\n" \
-                 "(url has been copied to the clipboad)\n\n\n" %(pdfURL)
+                 "(url has been copied to the clipboard)\n\n\n" %(pdfURL)
 
         output += "LIST OF OFX USAA USERIDs/ClientUIDs STORED ON THE ROOT ACCOUNT\n" \
                   " =============================================================\n\n"
@@ -8738,8 +8741,8 @@ Please update any that you use before proceeding....
             myPrint("B","**********************************************************")
             py = MD_REF.getPythonInterpreter()
             py.set("toolbox_script_runner", _runThisScript)
-            # py.getSystemState().setClassLoader(MD_EXTENSION_LOADER)
-            # py.set("moneydance_extension_loader", MD_EXTENSION_LOADER)
+            py.getSystemState().setClassLoader(MD_EXTENSION_LOADER)
+            py.set("moneydance_extension_loader", MD_EXTENSION_LOADER)
 
             class ScriptRunnable(Runnable):
 
@@ -8777,18 +8780,6 @@ Please update any that you use before proceeding....
 
         scriptToRun = "ofx_populate_multiple_userids.py"
 
-        # ask = MyPopUpDialogBox(toolbox_frame_,
-        #                  "This is a special process that will run a script",
-        #                  "You do not need to leave Toolbox....\n"
-        #                  "Script: %s" %(scriptToRun),
-        #                  theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
-        #
-        # if not ask.go():
-        #     txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
-        #     setDisplayStatus(txt, "B"); myPrint("B", txt)
-        #     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-        #     return False
-
         if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute the script: %s?" %(scriptToRun)):
             return False
 
@@ -8800,18 +8791,6 @@ Please update any that you use before proceeding....
         _THIS_METHOD_NAME = "Create USAA OFX Profile".upper()
 
         scriptToRun = "ofx_create_new_usaa_bank_custom_profile.py"
-
-        # ask = MyPopUpDialogBox(toolbox_frame_,
-        #                  "This is a special process that will run a script",
-        #                  "You do not need to leave Toolbox....\n"
-        #                  "Script: %s" %(scriptToRun),
-        #                  theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="Proceed?")
-        #
-        # if not ask.go():
-        #     txt = "%s: User abandoned script execution (%s)" %(_THIS_METHOD_NAME, scriptToRun)
-        #     setDisplayStatus(txt, "B"); myPrint("B", txt)
-        #     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-        #     return False
 
         if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute the script: %s?" %(scriptToRun)):
             return False
@@ -8883,6 +8862,22 @@ Please update any that you use before proceeding....
             return "%s: %s (%s)" %(self.obj.getCurrencyType(), self.obj.getName(),self.obj.formatSemiFancy(self.qtyHeld,self.decimal))
 
         def __repr__(self): return self.__str__()
+
+    class StoreAccountSecurity():
+        def __init__(self, obj):
+            self.obj = obj                                                                                              # type: Account
+
+        def __str__(self):
+            # noinspection PyUnresolvedReferences
+            if self.obj is None or not isinstance(self.obj, Account) or self.obj.getAccountType() != Account.AccountType.SECURITY:
+                return "Invalid Account/Security Obj or None"
+            return "%s" %(self.obj.getAccountName())
+
+        def getAccount(self):       return self.obj
+        def getAccountName(self):   return self.getAccount().getAccountName()
+
+        def __repr__(self):         return self.__str__()
+        def toString(self):         return self.__str__()
 
     class StoreTheOnlinePayeeList():
         def __init__(self, obj, acct):
@@ -17446,9 +17441,7 @@ now after saving the file, restart Moneydance
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
-    # noinspection PyUnresolvedReferences
     def move_merge_investment_txns():
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -17456,747 +17449,12 @@ now after saving the file, restart Moneydance
 
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
-        PARAMETER_KEY = "toolbox_txn_merge"
-        today = Calendar.getInstance()                                                                                  # noqa
+        scriptToRun = "toolbox_move_merge_investment_txns.py"
 
-        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
-            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
+        # if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute the script: %s?" %(scriptToRun)):
+        #     return False
 
-        allInvestmentAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(23))
-        toListAccount = list(allInvestmentAccounts)
-
-        if len(allInvestmentAccounts) < 2:
-            txt = "%s: You do not have enough accounts to do this - no changes made" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        txt = "%s" %(_THIS_METHOD_NAME)
-        if not perform_quote_loader_check(toolbox_frame_, txt): return
-
-        sourceAccount = JOptionPane.showInputDialog(toolbox_frame_,
-                                                      "Select the 'from' source Account",
-                                                      _THIS_METHOD_NAME.upper(),
-                                                      JOptionPane.INFORMATION_MESSAGE,
-                                                      None,
-                                                      allInvestmentAccounts,
-                                                      None)
-
-        if not sourceAccount:
-            txt = "%s: User did not select a source Account to move txns from - no changes made" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        toListAccount.remove(sourceAccount)
-
-        targetAccount = JOptionPane.showInputDialog(toolbox_frame_,
-                                                    "Select the target Account to move/merge txns into",
-                                                    _THIS_METHOD_NAME.upper(),
-                                                    JOptionPane.INFORMATION_MESSAGE,
-                                                    None,
-                                                    toListAccount,
-                                                    None)
-
-        if not targetAccount:
-            txt = "%s: User did not select a target Account to move txns into - no changes made" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
-        if sourceTxns.getSize() < 1:
-            txt = "%s: Source Account has no transactions - no changes made!" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "B")
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        # # ########### FILTER OPTIONS ###################################################################################
-        # _options = ["Move/Merge ALL Txn from Source into Target Account",
-        #             "Move/Merge Only FILTERED Txns between Accounts (use with caution)"]
-        #
-        # selectedFilterOption = JOptionPane.showInputDialog(toolbox_frame_,
-        #                                                    "Select ALL or to use filter options?",
-        #                                                    _THIS_METHOD_NAME.upper(),
-        #                                                    JOptionPane.WARNING_MESSAGE,
-        #                                                    None,
-        #                                                    _options,
-        #                                                    None)
-        #
-        # if not selectedFilterOption:
-        #     txt = "%s: User did not select a Move/Merge Filter Option - no changes made" %(_THIS_METHOD_NAME)
-        #     statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
-        #     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-        #     return
-        #
-        # lSelectALL = (_options.index(selectedFilterOption) == 0)
-        # del _options, selectedFilterOption
-        #
-        # lFilterByDate = lFilterOneSecurity = False
-        # filterSecurity = filterDateFrom = filterDateTo = None
-        #
-        # if not lSelectALL:
-        #     _options = ["Move/Merge Txns for just ONE selected Security? (use with caution)",
-        #                 "Move/Merge Txns (all) based on date range? (use with caution)",
-        #                 "Move/Merge Txns for ONE selected Security AND a date range? (use with caution)"]
-        #
-        #     selectedFilterOption = JOptionPane.showInputDialog(toolbox_frame_,
-        #                                                        "Select your filter option?",
-        #                                                        _THIS_METHOD_NAME.upper(),
-        #                                                        JOptionPane.WARNING_MESSAGE,
-        #                                                        None,
-        #                                                        _options,
-        #                                                        None)
-        #
-        #     if not selectedFilterOption:
-        #         txt = "%s: User did not select a Move/Merge Sub-Filter Option - no changes made" % (_THIS_METHOD_NAME)
-        #         statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
-        #         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-        #         return
-        #
-        #     lFilterOneSecurity  = (_options.index(selectedFilterOption) == 0 or _options.index(selectedFilterOption) == 2)
-        #     lFilterByDate       = (_options.index(selectedFilterOption) == 1 or _options.index(selectedFilterOption) == 2)
-        #     del _options, selectedFilterOption
-        #
-        #
-        #     if lFilterOneSecurity:
-        #         filterSecurity = JOptionPane.showInputDialog(toolbox_frame_,
-        #                                                      "Select the Security to move",
-        #                                                      _THIS_METHOD_NAME.upper(),
-        #                                                      JOptionPane.INFORMATION_MESSAGE,
-        #                                                      None,
-        #                                                      sourceAccount.getSubAccounts(),
-        #                                                      None)
-        #
-        #         if not filterSecurity:
-        #             txt = "%s: User did not select a Security to filter on  - no changes made" % (_THIS_METHOD_NAME)
-        #             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
-        #             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-        #             return
-        #
-        #     if lFilterByDate:
-        #         dateField = JDateField(MD_REF.getUI())
-        #         if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Filter Starting Date:", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION:
-        #             txt = "%s: User did not select filter start date - no changes made" %(_THIS_METHOD_NAME)
-        #             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
-        #             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-        #             return
-        #         filterDateFrom = dateField.getDateInt()
-        #
-        #         dateField.gotoToday()
-        #         if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Filter Ending Date:", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION:
-        #             txt = "%s: User did not select end date - no changes made" %(_THIS_METHOD_NAME)
-        #             statusLabel.setText((txt).ljust(800, " ")); statusLabel.setForeground(Color.BLUE)
-        #             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-        #             return
-        #         filterDateTo = dateField.getDateInt()
-        #
-        # # ##############################################################################################################
-
-
-
-        myPrint("B", "%s: Analysing Investment accounts %s into %s...." %(_THIS_METHOD_NAME, sourceAccount, targetAccount))
-
-        output = "%s: from one account into another:\n" \
-                 " ============================================================\n\n" %(_THIS_METHOD_NAME)
-
-        try:
-
-            base = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
-
-            if isQuoteLoader_or_QER_Running():
-                output += "QuoteLoader / Q&ER extension is loaded. User confirmed that it's not auto-updating and to proceed....\n\n"
-
-            # if lSelectALL:
-            #     output += "Default Option of Move/Merge **ALL** txns selected...\n"
-            # else:
-            #     output += "FILTER TRANSACTIONS OPTION selected...\n"
-            #     output += "....... Select One Security: %s\n" %(lFilterOneSecurity)
-            #     output += "....... Select Date Range..: %s\n" %(lFilterByDate)
-            #     output += "\n"
-
-            output += "Pre move/merge analysis....\n"
-            output += "Source Account: %s\n" %(sourceAccount.getFullAccountName())
-            output += "Target Account: %s\n\n" %(targetAccount.getFullAccountName())
-
-            MD_decimal = MD_REF.getPreferences().getDecimalChar()
-
-            # noinspection PyUnresolvedReferences
-            def getSubSecAccts(fromWhere, lSource):
-                secs = []
-                _output = ""
-                _txtSource = "Source"
-                if not lSource: _txtSource = "Target"
-                for acct in fromWhere.getSubAccounts():
-                    if acct.getAccountType() == Account.AccountType.SECURITY and acct.getStartBalance() == 0:
-                        secs.append(acct)
-                        _relCurr = acct.getCurrencyType()
-                        _output += "..%s: %s contains Security: %s (%s shares)\n" %(_txtSource, fromWhere, acct, _relCurr.formatSemiFancy(acct.getBalance(),MD_decimal))
-                    elif acct.getAccountType() == Account.AccountType.SECURITY:
-                        _txt = "Error: %s found SECURITY (sub account) %s with starting balance of %s - should always be ZERO? - Aborting" %(_txtSource, acct, acct.getStartBalance())
-                        myPrint("DB",_txt)
-                        setDisplayStatus(txt, "R")
-                        myPopupInformationBox(toolbox_frame_,_txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                        return None, None
-                    else:
-                        _txt = "Error: %s found non SECURITY account %s within %s? - Aborting" %(_txtSource, acct,fromWhere)
-                        myPrint("DB",_txt)
-                        setDisplayStatus(txt, "R")
-                        myPopupInformationBox(toolbox_frame_,_txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                        return None, None
-                return secs, _output
-
-            response = getSubSecAccts(sourceAccount, lSource=True)
-            if response[0] is None: return
-            sourceSecurities = response[0]
-            output += response[1]
-            output += "\n"
-
-            response = getSubSecAccts(targetAccount, lSource=False)
-            if response[0] is None: return
-            targetSecurities = response[0]
-            output += response[1]
-            output += "\n"
-
-            def find_src_sec_in_target(findSecCurr):
-                for _trgSec in targetSecurities:
-                    if _trgSec.getCurrencyType() == findSecCurr:
-                        return _trgSec
-                return None
-
-            securities_to_create = []
-            for srcSec in sourceSecurities:
-                trgSec = find_src_sec_in_target(srcSec.getCurrencyType())
-                if trgSec:
-                    if trgSec.getUsesAverageCost() != srcSec.getUsesAverageCost():
-                        txt = "Error: Security %s Source & Target UsesAverageCost does NOT match (%s vs %s) - Aborting" %(srcSec,srcSec.getUsesAverageCost(),trgSec.getUsesAverageCost())
-                        myPrint("DB",txt)
-                        setDisplayStatus(txt, "R")
-                        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                        return
-                    output += "Matched: %s to %s >> UsesAverageCost=%s\n" %(srcSec, trgSec, srcSec.getUsesAverageCost())
-                else:
-                    securities_to_create.append(srcSec)
-
-            targetTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(targetAccount)
-
-            if sourceAccount.getCurrencyType() != targetAccount.getCurrencyType():
-                txt = "Error: Sorry the source acct's currency %s does not match target's %s" %(sourceAccount.getCurrencyType(), targetAccount.getCurrencyType())
-                myPrint("DB",txt)
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-            output += "\nConfirmed that source and target accounts use the same currency: %s\n" %(sourceAccount.getCurrencyType())
-
-            countSourceBefore = sourceTxns.getSize()
-            countTargetBefore = targetTxns.getSize()
-
-            output += "\n"
-            output += "Source Account contains: {:>10} transactions\n".format(countSourceBefore)
-            output += "Target Account contains: {:>10} transactions\n".format(countTargetBefore)
-            del targetTxns
-
-            # Validate against a loop where the source contains a txf to/from the target
-            iCountLoops = 0
-            output += "\nValidating against an account 'loop' where the source contains a txf to/from the target\n"
-
-            sourceTxns = sorted(sourceTxns, key=lambda _x: (_x.getDateInt()))       # Sort for the log output of txns with loops
-
-            for srcTxn in sourceTxns:
-
-                if isinstance(srcTxn,SplitTxn):
-                    if srcTxn.getParentTxn().getAccount() == targetAccount:
-                        pass
-                    else:
-                        continue
-
-                elif isinstance(srcTxn,ParentTxn):
-                    # secTxn = TxnUtil.getSecurityPart(srcTxn)
-                    xfrTxn = TxnUtil.getXfrPart(srcTxn)
-                    feeTxn = TxnUtil.getCommissionPart(srcTxn)
-                    incTxn = TxnUtil.getIncomePart(srcTxn)
-                    expTxn = TxnUtil.getExpensePart(srcTxn)
-
-                    if ((xfrTxn and xfrTxn.getAccount() == targetAccount)
-                            or (feeTxn and feeTxn.getAccount() == targetAccount)
-                            or (incTxn and incTxn.getAccount() == targetAccount)
-                            or (expTxn and expTxn.getAccount() == targetAccount)):
-                        pass
-                    else:
-                        continue
-
-                else:
-                    # Should never happen!!
-                    txt = "Error: found a non-Parent / non-Split Txn - Cannot continue...:\n%s\nDate: %s\n" %(srcTxn.getSyncInfo().toMultilineHumanReadableString(), convertStrippedIntDateFormattedText(srcTxn.getDateInt()))
-                    myPrint("B",txt)
-                    txt2 = "%s: ERROR: Found a non-Parent / non-Split Txn - Cannot continue..." %(_THIS_METHOD_NAME)
-                    setDisplayStatus(txt2, "R")
-                    MyPopUpDialogBox(toolbox_frame_,txt2,txt,OKButtonText="ABORT",lAlertLevel=2).go()
-                    return
-
-                # OK - we have a loop - list them out for the user to find....
-                pTxn = srcTxn.getParentTxn()
-                iCountLoops += 1
-
-                output += ".. *** LOOP DETECTED %s %s %s %s ***\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
-                                               pad(pTxn.getInvestTxnType().getIDString(),12),
-                                               pad(pTxn.getDescription()+pTxn.getMemo(),60),
-                                               rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
-
-            if iCountLoops < 1:
-                output += "... to/from accounts validated... No account 'loops' should be created...\n"
-            else:
-                output += "... to/from accounts checked... %s account 'loops' could exist if we proceed with move/merge...\n" %(iCountLoops)
-                jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
-                if not MyPopUpDialogBox(jif,
-                                       "Move/merge: Would create %s account loop(s) - Proceed or Cancel?" %(iCountLoops),
-                                       ">>The txns that would cause an account 'loop' are shown on screen....\n"
-                                       "%s source txns already refer to the new target account\n"
-                                       "If you proceed, then these txns would refer to them themselves once move/merged\n"
-                                       "This is illogical, and your cash balances might be 'incorrect'\n"
-                                       "You can proceed and fix yourself later, or cancel to fix first before you proceed?!" %(iCountLoops),
-                                       theTitle=_THIS_METHOD_NAME.upper(),
-                                       OKButtonText="PROCEED",
-                                       lCancelButton=True,
-                                       lAlertLevel=1).go():
-                    txt = "ERROR: %s Txns to move/merge includes the target account - would cause account 'loop(s)' - no changes made" %(iCountLoops)
-                    myPrint("B", txt)
-                    setDisplayStatus(txt, "R")
-                    myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
-                    return
-
-                else:
-                    jif.dispose()
-                    output += "\n*** to/from accounts failed validation. The move/merge will create %s txns with account 'loops' that refer to self. PLEASE FIX YOURSELF LATER ***\n" %(iCountLoops)
-
-            sourceRCurr = sourceAccount.getCurrencyType()
-            sourceStartBal = sourceAccount.getStartBalance()
-
-            targetRCurr = targetAccount.getCurrencyType()
-            targetStartBal = targetAccount.getStartBalance()
-
-            if sourceStartBal == 0 and targetStartBal == 0:
-                output += "\nSource & Target have starting cash balances of zero...\n"
-            else:
-                output += "\nSource starting cash balance: %s\n" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))
-                output += "\nTarget starting cash balance: %s\n" %(targetRCurr.formatSemiFancy(targetStartBal,MD_decimal))
-
-            ask = MyPopUpDialogBox(toolbox_frame_,
-                                   "%s: from selected Investment account into another.. REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE MERGE" %(_THIS_METHOD_NAME),
-                                   output,
-                                   theTitle=_THIS_METHOD_NAME.upper(),
-                                   lCancelButton=True,
-                                   OKButtonText="PROCEED")
-            if not ask.go():
-                txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
-                myPrint("B",txt)
-                setDisplayStatus(txt, "R")
-                jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-                return
-
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(),
-                                                     "EXECUTE MOVE FROM %s to %s?" %(sourceAccount,targetAccount)):
-                return
-
-            output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH MOVE/MERGE FROM %s to %s.....\n\n" %(sourceAccount, targetAccount)
-
-            lAddCashBalances = False
-            if sourceStartBal != 0:
-                if myPopupAskQuestion(toolbox_frame_,"%s: - CASH BALANCES" %(_THIS_METHOD_NAME.upper()),"Do you want me to add source acct's starting cash balance of %s into target's?" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))):
-                    lAddCashBalances = True
-                    output += "User requested to add source acct's starting cash balance into target's...\n\n"
-                else:
-                    output += "User DECLINED to add source acct's starting cash balance into target's... It will therefore be left behind...\n\n"
-
-            lDeleteEmptyAccount = False
-            if sourceStartBal != 0 and not lAddCashBalances:
-                txt = "NOTE: Source account cannot be auto-deleted post merge as it will be left with a cash starting balance..."
-                myPopupInformationBox(toolbox_frame_,txt,"%s: - STARTING CASH BALANCE(S)" %(_THIS_METHOD_NAME.upper()))
-                output += "%s\n\n" %(txt)
-
-            elif JOptionPane.showOptionDialog(toolbox_frame_,
-                                              "Do you want me to delete the resulting empty source account?",
-                                              "%s: - CLEANUP?" %(_THIS_METHOD_NAME.upper()),
-                                              JOptionPane.YES_NO_OPTION,
-                                              JOptionPane.WARNING_MESSAGE,
-                                              None,
-                                              ["NO", "YES"], "NO") == 1:    # == 1 will == "YES"
-                lDeleteEmptyAccount = True
-                output += "User requested to delete the resulting source account: %s\n\n" %(sourceAccount)
-
-            ################
-            # LET'S DO IT! #
-            ################
-
-            # Prepare before totals...
-            _WHAT = 0
-            _QTY = 1
-            _COSTBASIS = 2
-            _VALUE = 3
-            _CBFLAG = 4
-
-            sourceValuesBefore = []
-            targetValuesBefore = []
-
-            lAnyCostBasisErrorsFound = [False]
-
-            # noinspection PyUnresolvedReferences
-            def create_totals(theCount, theAccount, theTable):
-                _acctRelCurr = theAccount.getCurrencyType()
-                theTable.append(["Txn Count",    theCount, "", "", ""])
-                theTable.append(["Account Starting Balance", "","",_acctRelCurr.formatSemiFancy(theAccount.getStartBalance(),MD_decimal), ""])
-                theTable.append(["Cash Balance", "", "", _acctRelCurr.formatSemiFancy(theAccount.getBalance(),MD_decimal), ""])
-                _totals = [0.0, 0.0, _acctRelCurr.getDoubleValue(theAccount.getBalance()), False]
-                lDetectCBError = False
-                for acct in theAccount.getSubAccounts():
-                    if acct.getAccountType() == Account.AccountType.SECURITY:
-
-                        if not InvestUtil.isCostBasisValid(acct):
-                            lDetectCBError = True
-                            lAnyCostBasisErrorsFound[0] = True
-
-                        _subAcctRelCurr = acct.getCurrencyType()
-                        subAcctBal = acct.getBalance()
-                        subAcctCostBasis = InvestUtil.getCostBasis(acct)
-                        # price = (1.0 / _subAcctRelCurr.adjustRateForSplitsInt(DateUtil.convertCalToInt(today), _subAcctRelCurr.getRelativeRate()))                        # noqa
-                        price = CurrencyTable.getUserRate(_subAcctRelCurr, _acctRelCurr)                                # noqa
-
-                        _totals[0] += _subAcctRelCurr.getDoubleValue(subAcctBal)
-                        _totals[1] += _acctRelCurr.getDoubleValue(subAcctCostBasis)
-                        _totals[2] +=  round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())
-                        if lDetectCBError: _totals[3] = True
-                        theTable.append([acct.getAccountName(),
-                                         _subAcctRelCurr.formatSemiFancy(subAcctBal,MD_decimal),
-                                         _acctRelCurr.formatSemiFancy(subAcctCostBasis,MD_decimal),
-                                         _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(round(_subAcctRelCurr.getDoubleValue(subAcctBal) * price,_acctRelCurr.getDecimalPlaces())),MD_decimal),
-                                         lDetectCBError])
-                theTable.append(["**TOTALS:",
-                                 _totals[0],
-                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[1]),MD_decimal),
-                                 _acctRelCurr.formatSemiFancy(_acctRelCurr.getLongValue(_totals[2]),MD_decimal),
-                                _totals[3]])
-
-            create_totals(countSourceBefore, sourceAccount, sourceValuesBefore)
-            create_totals(countTargetBefore, targetAccount, targetValuesBefore)
-
-            if lAnyCostBasisErrorsFound[0]:
-                output += "\n\n** WARNING: Lot Control / Cost Basis errors detected before changes started - review output....\n\n"
-            else:
-                output += "\nLot Control / Cost Basis reports OK before changes....\n"
-
-            output += "\n"
-
-        except:
-            txt = "MINOR ERROR - Move/merge crashed before any move/merge. Please review output and console".upper()
-            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
-            output += dump_sys_error_to_md_console_and_errorlog(True)
-            setDisplayStatus(txt, "R")
-            jif = QuickJFrame("MINOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
-
-        # Catch any crash during the update as this would be bad... :-(
-        try:
-
-            pleaseWait = MyPopUpDialogBox(toolbox_frame_,
-                                          "Please wait: executing move/merge right now..",
-                                          theTitle=_THIS_METHOD_NAME.upper(),
-                                          theWidth=100,
-                                          lModal=False,
-                                          OKButtonText="WAIT")
-            pleaseWait.go()
-
-            myPrint("DB","Flushing dataset pre-move/merge changes in memory to sync... and disabling balance recalculation(s) / display refresh(es)..")
-            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the move/merge..
-            MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
-            MD_REF.getUI().setSuspendRefresh(True)
-
-            # Start by adding any Account Starting Cash Balances....
-            if lAddCashBalances:
-                txt = "Adding source starting cash balance: %s to target's: %s = %s"\
-                      %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal),
-                        targetRCurr.formatSemiFancy(targetStartBal,MD_decimal),
-                        targetRCurr.formatSemiFancy(sourceStartBal+targetStartBal,MD_decimal))
-
-                myPrint("B", txt); output += "%s\n" %(txt)
-
-                targetAccount.setEditingMode()
-                targetAccount.setStartBalance(sourceStartBal+targetStartBal)
-                targetAccount.setParameter(PARAMETER_KEY,True)
-                targetAccount.syncItem()
-
-                sourceAccount.setEditingMode()
-                sourceAccount.setStartBalance(0)
-                sourceAccount.setParameter(PARAMETER_KEY,True)
-                sourceAccount.syncItem()
-
-
-            # Now create any missing security sub account(s)...
-            if len(securities_to_create) > 0:
-                txt = "Adding %s missing security(s) to target Investment Account:" %(len(securities_to_create))
-                myPrint("B", txt); output += "%s\n" %(txt)
-
-                for sec_to_create in securities_to_create:
-                    txt = "... Creating: %s" %(sec_to_create.getAccountName())
-                    myPrint("B", txt); output += "%s\n" %(txt)
-
-                    newSecurityAcct = Account.makeAccount(MD_REF.getCurrentAccountBook(),
-                                                          Account.AccountType.SECURITY,
-                                                          targetAccount)
-                    newSecurityAcct.setEditingMode()
-                    newSecurityAcct.getUUID()
-                    newSecurityAcct.setAccountName(sec_to_create.getAccountName())
-                    newSecurityAcct.setCurrencyType(sec_to_create.getCurrencyType())
-                    newSecurityAcct.setStartBalance(0)
-
-                    newSecurityAcct.setUsesAverageCost(sec_to_create.getUsesAverageCost())
-                    newSecurityAcct.setBroker(sec_to_create.getBroker())
-                    newSecurityAcct.setBrokerPhone(sec_to_create.getBrokerPhone())
-                    newSecurityAcct.setAPR(sec_to_create.getAPR())
-                    newSecurityAcct.setBondType(sec_to_create.getBondType())
-                    newSecurityAcct.setComment(sec_to_create.getComment())
-                    newSecurityAcct.setCompounding(sec_to_create.getCompounding())
-                    newSecurityAcct.setFaceValue(sec_to_create.getFaceValue())
-                    newSecurityAcct.setFaceValue(sec_to_create.getFaceValue())
-                    newSecurityAcct.setMaturity(sec_to_create.getMaturity())
-                    newSecurityAcct.setMonth(sec_to_create.getMonth())
-                    newSecurityAcct.setNumYears(sec_to_create.getNumYears())
-                    newSecurityAcct.setPut(sec_to_create.getPut())
-                    newSecurityAcct.setOptionPrice(sec_to_create.getOptionPrice())
-                    newSecurityAcct.setDividend(sec_to_create.getDividend())
-                    newSecurityAcct.setExchange(sec_to_create.getExchange())
-                    newSecurityAcct.setSecurityType(sec_to_create.getSecurityType())
-                    newSecurityAcct.setSecuritySubType(sec_to_create.getSecuritySubType())
-                    newSecurityAcct.setStrikePrice(sec_to_create.getStrikePrice())
-
-                    for param in ["hide","hide_on_hp","ol.haspendingtxns", "ol.new_txn_count"]:
-                        newSecurityAcct.setParameter(param, sec_to_create.getParameter(param))
-
-                    newSecurityAcct.setParameter(PARAMETER_KEY,True)
-                    newSecurityAcct.syncItem()
-                    targetSecurities.append(newSecurityAcct)
-
-
-            copyTxns = sourceTxns
-            del sourceTxns
-
-            txt = "Now Moving/Merging transactions...:"
-            myPrint("B", txt); output += "\n\n%s\n" %(txt)
-
-            # now for the merge/move of the transactions...
-            for srcTxn in copyTxns:
-
-                if isinstance(srcTxn, SplitTxn):      # This is a cash transfer
-                    pTxn = srcTxn.getParentTxn()
-                    pTxn.setEditingMode()
-                    srcTxn.setAccount(targetAccount)
-                    srcTxn.setParameter(PARAMETER_KEY,True)
-                    pTxn.syncItem()
-                    output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
-                                                   pad(pTxn.getInvestTxnType().getIDString(),12),
-                                                   pad(pTxn.getDescription()+pTxn.getMemo(),60),
-                                                   rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
-                    continue
-
-                # Thus, we are on a parent...
-                if not isinstance(srcTxn, ParentTxn): raise Exception("Error: found a non-parent: %s" %(srcTxn))
-                srcTxn.setEditingMode()
-                for iSplit in range(0, srcTxn.getSplitCount()):
-                    theSplit = srcTxn.getSplit(iSplit)
-                    theSrcSplitAcct = theSplit.getAccount()
-                    if theSrcSplitAcct.getAccountType() == Account.AccountType.SECURITY:
-                        trgSec = find_src_sec_in_target(theSrcSplitAcct.getCurrencyType())
-                        theSplit.setAccount(trgSec)
-                srcTxn.setParameter(PARAMETER_KEY,True)
-                srcTxn.setAccount(targetAccount)
-                srcTxn.syncItem()
-                output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(srcTxn.getDateInt()),
-                                               pad(srcTxn.getInvestTxnType().getIDString(),12),
-                                               pad(srcTxn.getDescription()+srcTxn.getMemo(),60),
-                                               rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
-
-            del copyTxns
-
-            output += "\n>> Move/merge completed..\n\n"
-
-        except:
-
-            txt = ("MAJOR ERROR - %s: crashed. Please review output, console, and RESTORE YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
-            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
-            output += dump_sys_error_to_md_console_and_errorlog(True)
-            setDisplayStatus(txt, "R")
-            jif = QuickJFrame("MAJOR ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
-
-        finally:
-
-            myPrint("DB","Saving dataset move/merge changes in memory to sync... and re-enabling balance recalculation(s) and display refresh(es)..")
-            MD_REF.getUI().getMain().saveCurrentAccount()
-            MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
-            MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
-
-            pleaseWait.kill()                                                                                           # noqa
-
-        try:
-            # Confirm that there are no txns left in the source account...
-            sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
-            targetTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(targetAccount)
-            countSourceAfter = sourceTxns.getSize()
-            countTargetAfter = targetTxns.getSize()
-            output += "Source Account now contains: {:>10} transactions\n".format(countSourceAfter)
-            output += "Target Account now contains: {:>10} transactions\n".format(countTargetAfter)
-
-            del sourceTxns, targetTxns
-
-            if countSourceAfter == 0:
-                output += "\nVerified that source account now contains ZERO txns...\n"
-            else:
-                txt = "ERROR: source account %s still seems to have %s transactions" %(sourceAccount, countSourceAfter)
-                myPrint("B", txt); output += "\n%s\n" %(txt)
-                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-            if countTargetAfter == (countSourceBefore + countTargetBefore):
-                output += "Verified that ending target txn count of %s is equal to original source %s + target %s\n"\
-                          %(countTargetAfter, countSourceBefore, countTargetBefore)
-            else:
-                txt = "ERROR: target account txn count of %s is NOT equal to original source %s + target %s!"\
-                      %(countTargetAfter, countSourceBefore, countTargetBefore)
-                myPrint("B", txt); output += "\n%s\n" %(txt)
-                jif = QuickJFrame(_THIS_METHOD_NAME.upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-            # Total up the Accounts after the merge...
-            sourceValuesAfter = []
-            targetValuesAfter = []
-
-            lAnyCostBasisErrorsFound[0] = False
-            create_totals(countSourceAfter, sourceAccount, sourceValuesAfter)
-            create_totals(countTargetAfter, targetAccount, targetValuesAfter)
-
-            # Delete the empty Account(s) if requested...
-            # Don't forget we block this earlier on if source has a starting balance and user did not request to add into target
-            if lDeleteEmptyAccount:
-                MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
-                MD_REF.getUI().setSuspendRefresh(True)
-
-                txt = "Now deleting the empty source account after removing associated Securities..:"
-                myPrint("B", txt); output += "%s\n\n" %(txt)
-
-                for subAcct in sourceAccount.getSubAccounts():
-                    subAcct.deleteItem()
-                sourceAccount.deleteItem()
-
-                MD_REF.getUI().getMain().saveCurrentAccount()
-                MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
-                MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
-
-            # OK - Main update is done....
-
-            output += "\n\n ***\n\n" \
-                      "STATISTICS OF ACCOUNTS BEFORE AND AFTER...\n"\
-                     " =========================================\n\n"
-            output += "BEFORE:\n"\
-                      "-----------------------------------------------------\n"
-
-            def output_stats(theText, theAccount, theTable):
-
-                if theAccount.getCurrencyType() == base or theAccount.getCurrencyType() is None:
-                    relText = ""
-                else:
-                    relText = " relative to %s" %(theAccount.getCurrencyType().getRelativeCurrency())
-
-                local_output = "%s: %s (Currency: %s%s)\n" %(theText, theAccount, theAccount.getCurrencyType(), relText)
-                iRow = 1
-                posInc = 0
-                for data in theTable:
-                    if iRow == 2:
-                        posInc += 14
-                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("Qty Shares",12), rpad("Cost Basis",15), rpad("Current Value",15))
-                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
-
-                    if iRow == 4:
-                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("",12), rpad("",15), rpad("-------------",15))
-
-                    if data[_WHAT].upper() == "**TOTALS:".upper():
-                        local_output += "   %s %s %s %s\n" %(pad("",60+posInc),rpad("----------",12), rpad("----------",15), rpad("-------------",15))
-
-                    cbMsg = ""
-                    if data[_CBFLAG]: cbMsg = " * Cost Basis Error detected"
-                    local_output += "   %s %s %s %s %s\n" %(pad(data[_WHAT],60+posInc),rpad(data[_QTY],12), rpad(data[_COSTBASIS],15), rpad(data[_VALUE],15),cbMsg)
-                    iRow += 1
-                return local_output
-
-            output += output_stats("Source", sourceAccount, sourceValuesBefore)
-            output += "\n"
-            output += output_stats("Target", targetAccount, targetValuesBefore)
-
-            output += "\n\n"
-            output += "AFTER:\n" \
-                      "-------------------------------------------------------\n"
-
-            output += output_stats("Source", sourceAccount, sourceValuesAfter)
-            output += "\n"
-            output += output_stats("Target", targetAccount, targetValuesAfter)
-
-            if lAnyCostBasisErrorsFound[0]:
-                output += "\n\n** WARNING: Lot Control / Cost Basis errors detected after changes completed - review output....\n\n"
-            else:
-                output += "\nLot Control / Cost Basis reports OK after changes....\n"
-
-            if True:    # We are saving Trunk as we want to flush the mass changes to disk. Stops the restart reapplying these again....
-                pleaseWait = MyPopUpDialogBox(toolbox_frame_,
-                                              "Please wait: Flushing dataset (and these move/merge txns) back to disk.....",
-                                              theTitle=_THIS_METHOD_NAME.upper(),
-                                              theWidth=100,
-                                              lModal=False,
-                                              OKButtonText="WAIT")
-                pleaseWait.go()
-
-                txt = "... Saving Trunk to flush all changes back to disk now ...."
-                myPrint("B", txt); output += "\n%s\n" %(txt)
-                MD_REF.getCurrentAccount().getBook().saveTrunkFile()
-                pleaseWait.kill()
-
-            if lAnyCostBasisErrorsFound[0]:
-                txt = "%s: from %s to %s completed. NOTE: You have Lot Control errors >> please review log and check the results..." %(_THIS_METHOD_NAME, sourceAccount, targetAccount)
-                optionColor = "R"
-                optionFlag = JOptionPane.WARNING_MESSAGE
-            else:
-                txt = "%s: from %s to %s successfully completed - please review log and check the results..." %(_THIS_METHOD_NAME, sourceAccount, targetAccount)
-                optionColor = "DG"
-                optionFlag = JOptionPane.INFORMATION_MESSAGE
-
-            myPrint("B", txt); output += "\n\n%s\n" %(txt)
-            output += "\n\n *** PLEASE CHECK YOUR PORTFOLIO VIEW & REPORTS TO BALANCES ***\n\n"
-            output += "\n<END>"
-
-        except:
-            txt = ("ERROR - %s crashed after the move/merge. Please review output, console, and VERIFY YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
-            myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
-            output += dump_sys_error_to_md_console_and_errorlog(True)
-            setDisplayStatus(txt, "R")
-            jif = QuickJFrame("ERROR - %s:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
-
-        jif = QuickJFrame("%s COMPLETED:" %(_THIS_METHOD_NAME.upper()),output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
-        setDisplayStatus(txt, optionColor)
-        play_the_money_sound()
-        myPopupInformationBox(jif,txt,theMessageType=optionFlag)
-
-        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
+        return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
 
     def fix_non_hier_sec_acct_txns():
 
@@ -25603,6 +24861,12 @@ Script is analysing your moneydance & system settings....
                         theDisplay = DiagnosticDisplay()
                         theDisplay.openDisplay()
 
+                        # At this point, Toolbox is running. Put bypass methods here for debug testing
+                        # GlobalVars.UPDATE_MODE = True
+                        # GlobalVars.ADVANCED_MODE = True
+                        # Call a function here if needed for debug
+
+
                 if not SwingUtilities.isEventDispatchThread():
                     myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")
                     SwingUtilities.invokeAndWait(MainAppRunnable())
@@ -25616,6 +24880,7 @@ Script is analysing your moneydance & system settings....
                 myPrint("P","-----------------------------------------------------------------------------------------------------------")
                 myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", myScriptName, " script ending (frame is open/running)......")
                 myPrint("P","-----------------------------------------------------------------------------------------------------------")
+
         else:
             lAbort = True
 

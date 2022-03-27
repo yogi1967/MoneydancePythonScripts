@@ -1,11 +1,11 @@
 {
-    "last_updated" = "20220315"
+    "last_updated" = "20220327"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1047"
                     "disable" = "n"
-                    "news" = "Renaming Hacker & Advanced modes"
+                    "news" = "Renaming Hacker & Advanced modes; enhancements to move/merge investment transactions"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4068"

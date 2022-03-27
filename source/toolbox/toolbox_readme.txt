@@ -94,6 +94,10 @@ CMD-O           Copy all outputs to Clipboard
 CMD-SHIFT-U     Examine an object's raw data - enter the Object's UUID
 CMD-SHIFT-+     Unlock Toolbox (Contact Author for password and usage) - (Might be CMD-SHIFT-= on some keyboards)
 
+Toolbox also installs two new Extensions Menu options (which allow the user to select register transactions before running):
+    - Toolbox: Move Investment Transactions
+    - Toolbox: Total Selected Transactions
+
 TOOLBAR / MENU BAR Contains the following:
     - Toolbox Options Menu
     - Help menu
@@ -212,9 +216,9 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Correct the Name of Root to match Dataset
     - MENU: Currency & Security tools:
         - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
-        - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly). >> 2021.2 onwards
-        - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).       >> 2021.2 onwards
-        - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price whilst fixing too..  >> 2021.2 onwards
+        - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).  >> 2021.2 onwards
+        - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).        >> 2021.2 onwards
+        - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price whilst fixing too..   >> 2021.2 onwards
         - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
         - FIX - Convert Stock to LOT Controlled and Allocate LOTs using FiFo method (MakeFifoCost.py)
         - FIX - Convert Stock to Average Cost Control (and wipe any LOT control records)
@@ -225,7 +229,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - FORCE change an Account's Currency (use with care). (Does not update any transactions) (force_change_account_currency.py)
         - FIX - FORCE change ALL Account's currencies (use with care). (Does not update any transactions) (force_change_all_currencies.py)
     - MENU: Transactions tools
-        - Move/Merge Investment transactions from one account into another.                                                         >> 2021.2 onwards
+        - Move/Merge Investment transactions from one account into another (Can also be run by selecting txns in the register first) >> 2021.2 onwards
         - FIX - Diagnose Attachments - DELETE Orphan attachments (allows you to delete Orphan attachments from Disk ** Syncing must be disabled **)
         - FIX - Non Hierarchical Security Account Txns (cross-linked securities) (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)
         - FIX - Delete One-Sided Txns (delete_invalid_txns.py)
