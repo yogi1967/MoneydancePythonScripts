@@ -2666,7 +2666,7 @@ Visit: %s (Author's site)
                     p_catWin.setAccessible(False)
 
 
-            def searchUpdated(self):
+            def searchFiltersUpdated(self):
                 myPrint("DB", "within searchFiltersUpdated()")
                 self._catAcctSearch.searchFilter = self.mySearchField.getText().strip()
                 self.saveTableModelReference.reloadAccounts()
