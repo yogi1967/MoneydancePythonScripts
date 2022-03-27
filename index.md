@@ -57,7 +57,10 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 
 ### Extension ONLY format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
-NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Hacker mode(s). In the default Basic mode it's READONLY and VERY useful!
+NOTE: Toolbox has the ability to update your dataset/settings in Update and Advanced mode(s). In the default Basic mode it's READONLY and VERY useful!
+NOTE: Also installs two new Extensions Menu options:
+  - Move Investment Transactions: Allows you to move the txns you have selected in the visible Investment Register. 
+  - Total Selected Transactions:  Will total up the txns you have selected in the visible register.
 
     <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)
 
@@ -65,7 +68,6 @@ NOTE: Toolbox has the ability to update your dataset/settings in Advanced and Ha
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Custom Balances(Net Account Balances)**: Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Now multi-row, display currency, and you can select Accounts/Categories/Securities per row.
 NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView (Summary Page) widget
 
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/total_selected_transactions.zip">**^^Total Selected Transactions**: Allows you to select register txns and with one click show a popup sum-total of the txn amounts selected.
 
 ### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
@@ -86,7 +88,6 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 - <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1020 - 19th Dec 2021)
 - <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1015 - 19th Dec 2021)
 - <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1011 - 19th Dec 2021) (Updated: Multi-row, Currency, Custom Dates etc)
-- <a href="https://infinitekind.com/app/md/extensions/total_selected_transactions.mxt">Total Selected Transactions (signed) (build: 1006 - 19th Dec 2021)
 
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
@@ -126,4 +127,4 @@ Method 2: Using Python and JPype (sets up the JVM as part of the script) - See f
 <a href="https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/">**Moneydance's site for code**: https://github.com/TheInfiniteKind/moneydance_open/tree/main/python_scripts/
 
 
-_(site last updated 20th December 2021)_
+_(site last updated 27th March 2022)_
