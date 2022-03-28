@@ -77,6 +77,7 @@
 # Build: 1011 - Renamed display name to 'Custom Balances'
 # Build: 1012 - Added <PREVIEW> tag to GUI title bar if preview detected...; Tweak to catching MD closing 'book' trap
 # Build: 1013 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
+# Build: 1013 - Added Security currencies into currency display table... Allows shares to be used etc...
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -2514,7 +2515,7 @@ Visit: %s (Author's site)
 
                     aboutPanel=JPanel()
                     aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
-                    aboutPanel.setPreferredSize(Dimension(1120, 525))
+                    aboutPanel.setPreferredSize(Dimension(1120, 550))
 
                     _label1 = JLabel(pad("Author: Stuart Beesley", 800))
                     _label1.setForeground(getColorBlue())
@@ -4295,6 +4296,7 @@ Visit: %s (Author's site)
                 self.name = theCurr.getName()
                 self.UUID = theCurr.getUUID()
                 self.isBase = (theCurr is baseCurr)
+                self.isCurr = theCurr.getCurrencyType() == CurrencyType.Type.CURRENCY                                   # noqa
 
             def getIDString(self): return self.IDString
 
@@ -4303,7 +4305,7 @@ Visit: %s (Author's site)
             def getUUID(self): return self.UUID
 
             def __str__(self):
-                return "%s (%s)" %(self.getName(), self.getIDString())
+                return "%s: %s (%s)" %(("C" if self.isCurr else "S"),self.getName(), self.getIDString())
 
             def __repr__(self): return self.__str__()
 
@@ -4648,10 +4650,15 @@ Visit: %s (Author's site)
             currencyChoices = []
             base = self.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
             allCurrencies = self.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
-            allCurrencies = sorted(allCurrencies, key=lambda sort_x: ((0 if sort_x is base else 1), sort_x.getName().upper()))
-            for curr in allCurrencies:
-                # noinspection PyUnresolvedReferences
-                if curr.getCurrencyType() == CurrencyType.Type.CURRENCY: currencyChoices.append(self.StoreCurrencyAsText(curr, base))
+            # allCurrencies = sorted(allCurrencies, key=lambda sort_x: ((0 if sort_x is base else 1), sort_x.getName().upper()))
+            allCurrencies = sorted(allCurrencies, key=lambda sort_x: ((0 if sort_x is base else 1),
+                                                                      (0 if sort_x.getCurrencyType() == CurrencyType.Type.CURRENCY else 1), # noqa
+                                                                      sort_x.getName().upper()))
+
+            # for curr in allCurrencies:
+            #     # noinspection PyUnresolvedReferences
+            #     if curr.getCurrencyType() == CurrencyType.Type.CURRENCY: currencyChoices.append(self.StoreCurrencyAsText(curr, base))
+            for curr in allCurrencies: currencyChoices.append(self.StoreCurrencyAsText(curr, base))
             del allCurrencies
 
             myPrint("DB", "about to set currency_COMBO..")
@@ -6638,6 +6645,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.currency_COMBO = MyJComboBox([None])
+                    NAB.currency_COMBO.setPrototypeDisplayValue(""*45)
                     NAB.currency_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "currency_COMBO")
                     NAB.currency_COMBO.setName("currency_COMBO")
                     NAB.currency_COMBO.setToolTipText("Select the Currency to convert / display totals (default = your base currency)")

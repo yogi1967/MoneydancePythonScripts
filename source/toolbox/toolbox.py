@@ -264,6 +264,7 @@
 # build: 1047 - Moved Total Selected Transactions to an enclosed script and added as a new Extensions menu option to allow register selection
 # build: 1047 - Updated usages of JDateField() to present user's dateformat... also convertStrippedIntDateFormattedText() too
 # build: 1047 - Updated usages of get_time_stamp_as_nice_text() to use MD date format set by user...
+# build: 1047 - Added check for critical 'java.io.tmpdir' folder
 
 # todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
 # todo - check/fix QuickJFrame() alert colours since VAqua....!?
@@ -3109,6 +3110,43 @@ Visit: %s (Author's site)
 
         return dictInfo
 
+    def detect_broken_critical_javaio_temp_dir_OK():
+        KEY = "java.io.tmpdir"                                                                                          # noqa
+        javaTmpDir = System.getProperty(KEY)
+        if javaTmpDir is None or javaTmpDir == "":
+            myPrint("B","'%s' property missing!?" %(KEY))
+            return False
+        tmpDir = File(javaTmpDir)
+        try:
+            f = File.createTempFile("TOOLBOX-TEST-TEMP_DIR", str(System.currentTimeMillis() % 10000L), tmpDir)
+            f.delete()
+            myPrint("DB","Successfully created temp file in '%s':" %(KEY), f.getCanonicalPath())
+
+        except IOException as e:
+            myPrint("B","ERROR with property '%s' - Could not create file in temp dir:" %(KEY), tmpDir.getCanonicalPath(), "Message:", e.getMessage())
+            return False
+
+        except:
+            myPrint("B","ERROR with property '%s' - Could not create file in temp dir:" %(KEY), tmpDir.getCanonicalPath())
+            dump_sys_error_to_md_console_and_errorlog()
+            return False
+
+        return True
+
+    def return_critical_javaio_temp_dir_msg():
+        KEY = "java.io.tmpdir"                                                                                          # noqa
+        javaTmpDir = System.getProperty(KEY)
+
+        if detect_broken_critical_javaio_temp_dir_OK():
+            if debug:
+                rtnMsg = u"\nImportant java temp folder looks OK ('%s' = '%s')\n" %(KEY, javaTmpDir)
+            else:
+                rtnMsg = u""
+        else:
+            rtnMsg = u"\n** ERROR >> Problem with important java temp folder - review console\n" \
+                     u"('%s' = '%s')\n" %(KEY, javaTmpDir)
+        return rtnMsg
+
     class DetectAndChangeMacTabbingMode(AbstractAction):
 
         def __init__(self, lQuickCheckOnly):
@@ -3487,7 +3525,7 @@ Visit: %s (Author's site)
             myPrint("B",u"@@ ERROR: Failed to detect MD Locale..?")
             dump_sys_error_to_md_console_and_errorlog()
 
-        textArray.append(u"")
+        textArray.append(return_critical_javaio_temp_dir_msg())
 
         textArray.append(u"Moneydance Version / Build:          %s" %(MD_REF.getVersion()) + u"  Build: %s" %(MD_REF.getBuild()))
         textArray.append(u"Moneydance Config file reports:      %s" %MD_REF.getUI().getPreferences().getSetting(u"current_version", u""))
@@ -24258,7 +24296,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 # Save parameters now...
                 if (event.getActionCommand() == "Copy all Output to Clipboard"
-                        # or event.getActionCommand() == "Debug"
+                        or event.getActionCommand() == "Debug"
                         or event.getActionCommand() == "Auto Prune Internal Backups"):
 
                     try:
@@ -24668,6 +24706,19 @@ Now you will have a text readable version of the file you can open in a text edi
                 System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
                 System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
 
+
+            # Check for problem with java.io.tmpdir - causes missing icons etc.. Popup alert message
+            if not detect_broken_critical_javaio_temp_dir_OK():
+                MyPopUpDialogBox(toolbox_frame_,"PROBLEM DETECTED",
+                                                 "Your 'java.io.tmpdir' setting points to a folder that cannot be accessed\n" 
+                                                 "%s\n" 
+                                                 "Review console for details and correct problem"
+                                                        %(return_critical_javaio_temp_dir_msg()),
+                                                 120,
+                                                 "ERROR - JAVA TEMP FOLDER",
+                                                 OKButtonText="ACKNOWLEDGE",
+                                                 lAlertLevel=2,
+                                                 lModal=True).go()
 
             # Check for secondary node (potentially restored from backup).. Popup alert message
             if not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode():

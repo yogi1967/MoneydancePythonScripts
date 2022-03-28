@@ -138,6 +138,8 @@ mkdir -v -p "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/D
 console_file="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/errlog.txt"
 ${java} --version
 
+# NOTE useful to check sometimes...... -Djava.io.tmpdir=
+
 # shellcheck disable=SC2086
 # shellcheck disable=SC2048
 ${java} \
