@@ -1832,8 +1832,11 @@ Visit: %s (Author's site)
 
         return
 
-    try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: GlobalVars.defaultPrintFontSize = 12
+    if MD_REF_UI is not None:       # Only action if the UI is loaded - e.g. scripts (not run time extensions)
+        try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
+        except: GlobalVars.defaultPrintFontSize = 12
+    else:
+        GlobalVars.defaultPrintFontSize = 12
 
     ####################################################################################################################
     # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc

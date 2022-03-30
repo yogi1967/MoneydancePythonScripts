@@ -78,6 +78,7 @@
 # Build: 1012 - Added <PREVIEW> tag to GUI title bar if preview detected...; Tweak to catching MD closing 'book' trap
 # Build: 1013 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
 # Build: 1013 - Added Security currencies into currency display table... Allows shares to be used etc...
+# Build: 1013 - Fixes for 4069 Alpha onwards.. Calls to getUI() off the EDT are now (properly) blocked by MD.....
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -1904,8 +1905,11 @@ Visit: %s (Author's site)
 
         return
 
-    try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: GlobalVars.defaultPrintFontSize = 12
+    if MD_REF_UI is not None:       # Only action if the UI is loaded - e.g. scripts (not run time extensions)
+        try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
+        except: GlobalVars.defaultPrintFontSize = 12
+    else:
+        GlobalVars.defaultPrintFontSize = 12
 
     ####################################################################################################################
     # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
@@ -3773,10 +3777,7 @@ Visit: %s (Author's site)
 
             self.saveActionListener = None
 
-            self.quickSearchField = MyQuickSearchField()
-            document = self.quickSearchField.getDocument()                                                              # noqa
-            document.addDocumentListener(MyQuickSearchDocListener(self))
-            self.quickSearchField.addFocusListener(MyQuickSearchFocusAdapter(self.quickSearchField,document))           # noqa
+            self.quickSearchField = None
 
             self.savedAccountListUUIDs          = None
             self.savedBalanceType               = None
@@ -6321,6 +6322,11 @@ Visit: %s (Author's site)
 
                     myPrint("DB", "Creating main JFrame for application...")
 
+                    NAB.quickSearchField = MyQuickSearchField()
+                    document = NAB.quickSearchField.getDocument()                                                       # noqa
+                    document.addDocumentListener(MyQuickSearchDocListener(NAB))
+                    NAB.quickSearchField.addFocusListener(MyQuickSearchFocusAdapter(NAB.quickSearchField,document))     # noqa
+
 
                     # At startup, create dummy settings to build frame if nothing set.. Real settings will get loaded later
                     if NAB.savedAccountListUUIDs is None: NAB.resetParameters()
@@ -7001,7 +7007,12 @@ Visit: %s (Author's site)
 
                 myPrint("DB","Success - the Moneydance UI is loaded.... Extension can execute properly now...!")
 
+                # Have to do .getUI() etc stuff here (and not at startup) as UI not loaded then. As of 4069, is blocked by MD!
                 setDefaultFonts()
+
+                try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+                except: GlobalVars.defaultPrintFontSize = 12
+
                 self.build_main_frame()
                 self.isUIavailable = True
             else:
