@@ -6,7 +6,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2021 Stuart Beesley - StuWareSoftSystems
+# Copyright (c) 2021-2022 Stuart Beesley - StuWareSoftSystems
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -296,16 +296,19 @@ else:
     lGlobalErrorDetected = False																						# noqa
     MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
 
-    class GlobalVars:        # Started using this method for storing global variables from August 2021
-        CONTEXT = MD_REF
-        defaultPrintService = None
-        defaultPrinterAttributes = None
-        defaultPrintFontSize = None
-        defaultPrintLandscape = None
-        defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
-        STATUS_LABEL = None
-        DARK_GREEN = Color(0, 192, 0)
-        def __init__(self): pass    # Leave empty
+    if "GlobalVars" in globals():   # Prevent wiping if 'buddy' extension - like Toolbox - is running too...
+        global GlobalVars
+    else:
+        class GlobalVars:        # Started using this method for storing global variables from August 2021
+            CONTEXT = MD_REF
+            defaultPrintService = None
+            defaultPrinterAttributes = None
+            defaultPrintFontSize = None
+            defaultPrintLandscape = None
+            defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
+            STATUS_LABEL = None
+            DARK_GREEN = Color(0, 192, 0)
+            def __init__(self): pass    # Leave empty
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
@@ -360,8 +363,8 @@ Visit: %s (Author's site)
 
     def cleanup_references():
         global MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
-        myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
-        del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
+        # myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
+        # del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
 
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -1801,8 +1804,11 @@ Visit: %s (Author's site)
 
         return
 
-    try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: GlobalVars.defaultPrintFontSize = 12
+    if MD_REF_UI is not None:       # Only action if the UI is loaded - e.g. scripts (not run time extensions)
+        try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
+        except: GlobalVars.defaultPrintFontSize = 12
+    else:
+        GlobalVars.defaultPrintFontSize = 12
 
     ####################################################################################################################
     # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
@@ -2467,11 +2473,38 @@ Visit: %s (Author's site)
 
     def convertBytesKBs(_size): return round((_size/(1000.0)),1)
 
-    def getHumanReadableDateTimeFromTimeStamp(_theTimeStamp):
-        return datetime.datetime.fromtimestamp(_theTimeStamp).strftime('%Y-%m-%d %H:%M:%S')
+    def convertMDShortDateFormat_strftimeFormat(lIncludeTime=False, lForceYYMMDDHMS=False):
+        """Returns a Python strftime format string in accordance with MD Preferences for Date Format"""
+        # https://strftime.org
 
-    def getHumanReadableModifiedDateTimeFromFile(_theFile):
-        return getHumanReadableDateTimeFromTimeStamp(os.path.getmtime(_theFile))
+        _MDFormat = MD_REF.getPreferences().getShortDateFormat()
+
+        rtnFormat = "%Y-%m-%d"
+
+        if lForceYYMMDDHMS:
+            lIncludeTime = True
+        else:
+            if _MDFormat == "MM/dd/yyyy":
+                rtnFormat = "%m/%d/%Y"
+            elif _MDFormat == "MM.dd.yyyy":
+                rtnFormat = "%m.%d.%Y"
+            elif _MDFormat == "yyyy/MM/dd":
+                rtnFormat = "%Y/%m/%d"
+            elif _MDFormat == "yyyy.MM.dd":
+                rtnFormat = "%Y.%m.%d"
+            elif _MDFormat == "dd/MM/yyyy":
+                rtnFormat = "%d/%m/%Y"
+            elif _MDFormat == "dd.MM.yyyy":
+                rtnFormat = "%d.%m.%Y"
+
+        if lIncludeTime: rtnFormat += " %H:%M:%S"
+        return rtnFormat
+
+    def getHumanReadableDateTimeFromTimeStamp(_theTimeStamp, lIncludeTime=False, lForceYYMMDDHMS=False):
+        return datetime.datetime.fromtimestamp(_theTimeStamp).strftime(convertMDShortDateFormat_strftimeFormat(lIncludeTime=lIncludeTime, lForceYYMMDDHMS=lForceYYMMDDHMS))
+
+    def getHumanReadableModifiedDateTimeFromFile(_theFile, lIncludeTime=True, lForceYYMMDDHMS=True):
+        return getHumanReadableDateTimeFromTimeStamp(os.path.getmtime(_theFile), lIncludeTime=lIncludeTime, lForceYYMMDDHMS=lForceYYMMDDHMS)
 
     def convertStrippedIntDateFormattedText(strippedDateInt, _format=None):
 
@@ -2577,6 +2610,44 @@ Visit: %s (Author's site)
     MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
 
     try:
+
+        lRunningFromToolbox = False
+        if "toolbox_script_runner" in globals():
+            global toolbox_script_runner
+            myPrint("B","Toolbox script runner detected: %s (build: %s)" %(toolbox_script_runner, version_build))
+            lRunningFromToolbox = True
+        else:
+            # This means it's been called from the extensions menu as a 'buddy' extension to Toolbox. Both running will overwrite common variables
+            # destroyOldFrames(u"toolbox")
+            pass
+
+        class MainAppRunnable(Runnable):
+            def __init__(self): pass
+
+            def run(self):                                                                                              # noqa
+                global debug, toolbox_total_selected_transactions_frame_
+
+                myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
+                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+                toolbox_total_selected_transactions_frame_ = MyJFrame()
+                toolbox_total_selected_transactions_frame_.setName(u"%s_main" %(myModuleID))
+                if (not Platform.isMac()):
+                    MD_REF.getUI().getImages()
+                    toolbox_total_selected_transactions_frame_.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                toolbox_total_selected_transactions_frame_.setVisible(False)
+                toolbox_total_selected_transactions_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+
+                myPrint("DB","Main JFrame %s for application created.." %(toolbox_total_selected_transactions_frame_.getName()))
+
+        if not SwingUtilities.isEventDispatchThread():
+            myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")
+            SwingUtilities.invokeAndWait(MainAppRunnable())
+        else:
+            myPrint("DB",".. Main App Already within the EDT so calling naked...")
+            MainAppRunnable().run()
+
+
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
         def isPreviewBuild():
@@ -2639,7 +2710,7 @@ Visit: %s (Author's site)
 
                     break     # Seems to appear twice, so skip the second one.....
 
-        def analyseTxns(listTxns, frame):
+        def analyseTxns(listTxns, frame):                                                                               # noqa
 
             iCountTxns = 0
 
@@ -2743,9 +2814,11 @@ Visit: %s (Author's site)
 
                     titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
 
-                    MyPopUpDialogBox(frame, "Cash value: %s (Count: %s, Average: %s)" %(acctCurr.formatFancy(total,MD_decimal),
-                                                                                   len(listTxns),
-                                                                                   averageValue),
+                    # can use frame if you like for the original MD frame....
+                    MyPopUpDialogBox(toolbox_total_selected_transactions_frame_,
+                                     "Cash value: %s (Count: %s, Average: %s)" %(acctCurr.formatFancy(total,MD_decimal),
+                                                                                 len(listTxns),
+                                                                                 averageValue),
                                      theMessage="%s %s\n"
                                                 "%s"
                                                 "%s"

@@ -152,18 +152,18 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - DIAGnostics - Analise your  attachments (and Detect Orphans)
 
 Menu - EXPERT: VIEW INTERNAL SETTINGS (Read-Only - very safe)
-    >> Allows you to view raw settings
-    - Search for keys or key-data containing filter characters (you specify)
-    - ROOT Parameter keys
-    - Local Storage - Settings
-    - User Preferences
-    - All Accounts' preference keys
-    - View single Object's Keys/Data (Account, Category, Currency, Security, Report / Graph, Reminder, Address, OFX Service, by UUID, TXNs)
-    - All Sync Settings
-    - All Online Banking Settings
-    - All Settings related to window sizes/positions/locations etc
-    - All Environment Variables
-    - All Java Properties
+    >> Allows you to view internal / raw settings / data
+    - Search for a key/data (in most places  - but not txns)
+    - Show ROOT Account's Parameter Keys and data
+    - Show Dataset's Local Storage Keys and data (from ./safe/settings)
+    - Show All User Preferences loaded into Memory (from config.dict)
+    - Show Accounts' Parameter's Keys and Data
+    - Show an Obj's settings/data (Acct, Cat, Curr, Security, Reports, Reminders, Addrs, OFX, by UUID, TXNs)
+    - Show All Sync Settings
+    - Show All Online Banking (Searches for OFX) Settings
+    - Show all Settings relating to Window Locations/Sizes/Widths/Sort Order/Filters/Initial Reg View etc..
+    - Show all Java JVM System Properties
+    - Show all Operating System Environment Variables
 
 ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
     All basic mode settings plus:
@@ -220,6 +220,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).        >> 2021.2 onwards
         - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price whilst fixing too..   >> 2021.2 onwards
         - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
+        - FIX - Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid
         - FIX - Convert Stock to LOT Controlled and Allocate LOTs using FiFo method (MakeFifoCost.py)
         - FIX - Convert Stock to Average Cost Control (and wipe any LOT control records)
         - FIX - Detect and fix Investment Security records not properly linked to Security Master records

@@ -7,10 +7,10 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1047 - November 2020 thru Dec 2021+ - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1047 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
-# Credit of course to Moneydance and they retain all copyright over Moneydance internal code
+# Credit of course to Moneydance(Sean) and they retain all copyright over Moneydance internal code
 # Designed to show user a number of settings / fixes / updates they may find useful (some normally hidden)
 # Basic mode and Expert View Internal Settings are both readonly and very safe >> They do NOT change any data or settings
 # If you switch to Update / Advanced mode(s) then you have the ability to perform fixes, change data, change config etc
@@ -23,14 +23,7 @@
 
 # DISCLAIMER >> PLEASE ALWAYS BACKUP YOUR DATA BEFORE MAKING CHANGES (Menu>Create Backup will achieve this).
 
-# Includes previous / standalone scripts (which I have now decommissioned):
-# FIX-reset_window_location_data.py 0.2beta
-# DIAG-can_i_delete_security.py v2
-# DIAG-list_security_currency_decimal_places.py v1
-# DIAG-diagnose_currencies.py v2a
-# fix_macos_tabbing_mode.py v1b
-
-# Also includes these MD scripts (enhanced)
+# Also includes these IK/Moneydance support scripts (but with enhanced capabilities)
 # reset_relative_currencies.py                          (from Moneydance support)
 # remove_ofx_account_bindings.py                        (from Moneydance support)
 # convert_secondary_to_primary_data_set.py              (from Moneydance support)
@@ -63,7 +56,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2021 Stuart Beesley - StuWareSoftSystems & Infinite Kind (Moneydance)
+# Copyright (c) 2021-2022 Stuart Beesley - StuWareSoftSystems & Infinite Kind (Moneydance)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -263,11 +256,13 @@
 # build: 1047 - Moved move_merge_investment_txns to an enclosed script and added as a new Extensions menu option to allow register selection
 # build: 1047 - Moved Total Selected Transactions to an enclosed script and added as a new Extensions menu option to allow register selection
 # build: 1047 - Updated usages of JDateField() to present user's dateformat... also convertStrippedIntDateFormattedText() too
-# build: 1047 - Updated usages of get_time_stamp_as_nice_text() to use MD date format set by user...
+# build: 1047 - Updated usages of get_time_stamp_as_nice_text() to use MD date format set by user... Also where strftime formats used
 # build: 1047 - Added check for critical 'java.io.tmpdir' folder
+# build: 1047 - Added 'FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid' function
+# build: 1047 - Updated / fixed / tweaked show_open_share_lots(); also tweaked common code to allow for when buddy scripts might run at same time...
 
-# todo - purge old in/out/ .txn files (possibly corrupt), not in processed.dct (should get added to processed.dct build 4061 onwards)
-# todo - check/fix QuickJFrame() alert colours since VAqua....!?
+
+# todo - I don't think that show_open_share_lots() works properly - also dpc.....
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
@@ -531,16 +526,19 @@ else:
     lGlobalErrorDetected = False																						# noqa
     MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
 
-    class GlobalVars:        # Started using this method for storing global variables from August 2021
-        CONTEXT = MD_REF
-        defaultPrintService = None
-        defaultPrinterAttributes = None
-        defaultPrintFontSize = None
-        defaultPrintLandscape = None
-        defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
-        STATUS_LABEL = None
-        DARK_GREEN = Color(0, 192, 0)
-        def __init__(self): pass    # Leave empty
+    if "GlobalVars" in globals():   # Prevent wiping if 'buddy' extension - like Toolbox - is running too...
+        global GlobalVars
+    else:
+        class GlobalVars:        # Started using this method for storing global variables from August 2021
+            CONTEXT = MD_REF
+            defaultPrintService = None
+            defaultPrinterAttributes = None
+            defaultPrintFontSize = None
+            defaultPrintLandscape = None
+            defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
+            STATUS_LABEL = None
+            DARK_GREEN = Color(0, 192, 0)
+            def __init__(self): pass    # Leave empty
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
@@ -604,7 +602,7 @@ else:
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
     from com.moneydance.apps.md.view.gui import MDAccountProxy
-    from java.lang import Integer, String
+    from java.lang import Integer, String, Long
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
 
     from java.net import URL, URLEncoder, URLDecoder                                                                    # noqa
@@ -650,7 +648,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4068                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4069                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -698,8 +696,8 @@ Visit: %s (Author's site)
 
     def cleanup_references():
         global MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
-        myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
-        del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
+        # myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
+        # del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
 
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -2139,8 +2137,11 @@ Visit: %s (Author's site)
 
         return
 
-    try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
-    except: GlobalVars.defaultPrintFontSize = 12
+    if MD_REF_UI is not None:       # Only action if the UI is loaded - e.g. scripts (not run time extensions)
+        try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")   # Do this here as MD_REF disappears after script ends...
+        except: GlobalVars.defaultPrintFontSize = 12
+    else:
+        GlobalVars.defaultPrintFontSize = 12
 
     ####################################################################################################################
     # PRINTING UTILITIES...: Points to MM, to Inches, to Resolution: Conversion routines etc
@@ -2805,11 +2806,38 @@ Visit: %s (Author's site)
 
     def convertBytesKBs(_size): return round((_size/(1000.0)),1)
 
-    def getHumanReadableDateTimeFromTimeStamp(_theTimeStamp):
-        return datetime.datetime.fromtimestamp(_theTimeStamp).strftime('%Y-%m-%d %H:%M:%S')
+    def convertMDShortDateFormat_strftimeFormat(lIncludeTime=False, lForceYYMMDDHMS=False):
+        """Returns a Python strftime format string in accordance with MD Preferences for Date Format"""
+        # https://strftime.org
 
-    def getHumanReadableModifiedDateTimeFromFile(_theFile):
-        return getHumanReadableDateTimeFromTimeStamp(os.path.getmtime(_theFile))
+        _MDFormat = MD_REF.getPreferences().getShortDateFormat()
+
+        rtnFormat = "%Y-%m-%d"
+
+        if lForceYYMMDDHMS:
+            lIncludeTime = True
+        else:
+            if _MDFormat == "MM/dd/yyyy":
+                rtnFormat = "%m/%d/%Y"
+            elif _MDFormat == "MM.dd.yyyy":
+                rtnFormat = "%m.%d.%Y"
+            elif _MDFormat == "yyyy/MM/dd":
+                rtnFormat = "%Y/%m/%d"
+            elif _MDFormat == "yyyy.MM.dd":
+                rtnFormat = "%Y.%m.%d"
+            elif _MDFormat == "dd/MM/yyyy":
+                rtnFormat = "%d/%m/%Y"
+            elif _MDFormat == "dd.MM.yyyy":
+                rtnFormat = "%d.%m.%Y"
+
+        if lIncludeTime: rtnFormat += " %H:%M:%S"
+        return rtnFormat
+
+    def getHumanReadableDateTimeFromTimeStamp(_theTimeStamp, lIncludeTime=False, lForceYYMMDDHMS=False):
+        return datetime.datetime.fromtimestamp(_theTimeStamp).strftime(convertMDShortDateFormat_strftimeFormat(lIncludeTime=lIncludeTime, lForceYYMMDDHMS=lForceYYMMDDHMS))
+
+    def getHumanReadableModifiedDateTimeFromFile(_theFile, lIncludeTime=True, lForceYYMMDDHMS=True):
+        return getHumanReadableDateTimeFromTimeStamp(os.path.getmtime(_theFile), lIncludeTime=lIncludeTime, lForceYYMMDDHMS=lForceYYMMDDHMS)
 
     def convertStrippedIntDateFormattedText(strippedDateInt, _format=None):
 
@@ -3373,7 +3401,7 @@ Visit: %s (Author's site)
             for _f in listTheFiles:
                 if saveFiles[_f] is not None:
                     output+=("Dataset: Mod: %s %s\n"
-                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
+                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)), 11), _f))
             del listTheFiles
 
             output+=("\nBACKUP FILES\n"
@@ -3382,7 +3410,7 @@ Visit: %s (Author's site)
             for _f in listTheArchiveFiles:
                 if saveArchiveFiles[_f] is not None:
                     output+=("Archive: Mod: %s %s\n"
-                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime('%Y-%m-%d %H:%M:%S'), 11), _f))
+                             % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(_f)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)), 11), _f))
             del listTheArchiveFiles
 
             output+=("\nSYNC FOLDERS FOUND:\n"
@@ -3406,7 +3434,7 @@ Visit: %s (Author's site)
                         fullPath = os.path.join(saveSyncFolder,fileName)
                         if len(fileName)>32:
                             output+=("Sync Folder: %s %s\n"
-                                     % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(fullPath)).strftime('%Y-%m-%d %H:%M:%S'), 11), fullPath))
+                                     % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(fullPath)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)), 11), fullPath))
                 else:
                     output+=("<NONE FOUND>\n")
 
@@ -3425,7 +3453,7 @@ Visit: %s (Author's site)
                     fullPath = os.path.join(dropboxPath,fileName)
                     if len(fileName)>32:
                         output+=("Dropbox Sync Folder: %s %s\n"
-                                 % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(fullPath)).strftime('%Y-%m-%d %H:%M:%S'), 11), fullPath))
+                                 % (pad(datetime.datetime.fromtimestamp(os.path.getmtime(fullPath)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)), 11), fullPath))
             del dropboxPath
 
             if len(errorDirs) > 0:
@@ -4140,7 +4168,7 @@ Visit: %s (Author's site)
             textArray.append(getTheSetting(u"ofx.app_version", 29))
 
         textArray.append(u"")
-        textArray.append(u"System Properties containing references to Moneydance")
+        textArray.append(u"Java JVM System Properties containing references to Moneydance")
         for x in System.getProperties():
 
             # noinspection PyUnresolvedReferences
@@ -11095,6 +11123,8 @@ Please update any that you use before proceeding....
             if selectedObject is None:
                 txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
                 selectedObject = txnSet.getTxnByID(theUUID.strip())
+                if selectedObject is None:
+                    selectedObject = TxnUtil.getTxnByID(txnSet, theUUID.strip())
 
             objects  = [selectedObject]
             if not selectedObject:
@@ -11492,7 +11522,7 @@ Please update any that you use before proceeding....
                 "Show All Sync Settings",
                 "Show All Online Banking (Searches for OFX) Settings",
                 "Show all Settings relating to Window Locations/Sizes/Widths/Sort Order/Filters/Initial Reg View etc..",
-                "Show all Operating 'System' Properties",
+                "Show all Java JVM System Properties",
                 "Show all Operating System Environment Variables"]
 
             # You need to edit the below in the sub function and edit function too!!! (sorry ;-> )
@@ -12239,7 +12269,7 @@ Please update any that you use before proceeding....
 
                 if selectedWhat == what[_OSPROPS]:  # System.Properties
 
-                    output += "\n ====== (Operating) System.Properties.....======\n"
+                    output += "\n ====== (Java JVM) System.Properties.....======\n"
 
                     props = sorted(System.getProperties())
                     for prop in props:
@@ -12330,13 +12360,13 @@ Please update any that you use before proceeding....
                 for _fp in filelist:
                     iRecords += 1
                     if iRecords <= files_to_keep:
-                        myPrint("D", "skipping-keeping %s files: %s %s" %(files_to_keep,datetime.datetime.fromtimestamp(os.path.getmtime(_fp)).strftime('%Y-%m-%d %H:%M:%S'),_fp))
+                        myPrint("D", "skipping-keeping %s files: %s %s" %(files_to_keep,datetime.datetime.fromtimestamp(os.path.getmtime(_fp)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),_fp))
                         continue
                     file_ts = datetime.datetime.fromtimestamp(os.path.getmtime(_fp))
                     if file_ts >= lookBack:
-                        myPrint("D","skipping < %s days: %s %s" %(days_to_look_back, file_ts.strftime('%Y-%m-%d %H:%M:%S'),_fp))
+                        myPrint("D","skipping < %s days: %s %s" %(days_to_look_back, file_ts.strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),_fp))
                         continue
-                    myPrint("DB", "DELETING: %s %s" %(file_ts.strftime('%Y-%m-%d %H:%M:%S'),_fp))
+                    myPrint("DB", "DELETING: %s %s" %(file_ts.strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),_fp))
                     if "settings" in _fp:
                         iDeletedSettings+=1
                     elif "config-" in _fp:
@@ -15372,7 +15402,7 @@ now after saving the file, restart Moneydance
             for name in files:
                 theFile = os.path.join(root,name)[len(attachmentFullPath)-len(MD_REF.getCurrentAccountBook().getAttachmentsFolder()):]
                 byteSize = os.path.getsize(os.path.join(root,name))
-                modified = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime('%Y-%m-%d %H:%M:%S')
+                modified = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,name))).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True))
                 attachmentsRawListFound.append([theFile, byteSize, modified, os.path.join(root,name)])
                 theExtension = os.path.splitext(theFile)[1].lower()
 
@@ -15486,7 +15516,7 @@ now after saving the file, restart Moneydance
             for theOrphanRecord in attachmentsNotInLS:
                 x="Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
                                                                                                                      theOrphanRecord[2],
-                                                                                                                     theOrphanRecord[3],
+                                                                                                                     convertStrippedIntDateFormattedText(theOrphanRecord[3]),
                                                                                                                      theOrphanRecord[4],
                                                                                                                      theOrphanRecord[5])
                 myPrint("B", x)
@@ -15542,7 +15572,7 @@ now after saving the file, restart Moneydance
                     diagDisplay+="AT: %s ACT: %s DT: %s Val: %s FILE: %s\n" \
                                  %(pad(repr(record[2]),12),
                                    pad(safeStr(record[1]),20),       # Avoid utf-8 issue!
-                                   record[3],
+                                   convertStrippedIntDateFormattedText(record[3]),
                                    rpad(record[4]/100.0,10),
                                    validLocation)
 
@@ -15812,6 +15842,141 @@ now after saving the file, restart Moneydance
         setDisplayStatus(txt, "DG")
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
+    def fix_invalidLotRecords():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        PARAMETER_KEY = "toolbox_fix_invalid_lots"
+        PARAMETER_KEY_COST_BASIS = "cost_basis"
+        PARAMETER_KEY_OLD_COST_BASIS = ".old_cost_basis"
+
+        _THIS_METHOD_NAME = "Detect and fix (wipe) LOT records"
+
+        selectHomeScreen()      # Stops the LOT Control box popping up.....
+
+        allSecurityAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
+        if len(allSecurityAccounts) < 1:
+            txt = "No Securities exist within Investment Accounts to check - No changes made!"
+            setDisplayStatus(txt, "B"); myPrint("DB",txt)
+            myPopupInformationBox(toolbox_frame_,txt)
+            return
+
+        # Based on: com.infinitekind.moneydance.model.TxnUtil.parseCostBasisTag(SplitTxn)
+        def parseCostBasisTag(_txn):
+            """Returns the Cost Basis Lot Matching Tags without validating the UUID data first"""
+
+            if not isinstance(_txn, SplitTxn): return None
+            tags = _txn.getParameter(PARAMETER_KEY_COST_BASIS, None)
+            if tags is None or len(tags) < 1: return None
+            splitTags = tags.split(";")
+
+            rtnTagList = {}
+            for eachTagString in splitTags:
+                if eachTagString is None or len(eachTagString) < 1: continue
+                splitLine = eachTagString.split(":")
+                uuid = splitLine[0]
+                qty = Long.valueOf(Long.parseLong(splitLine[1]))
+                rtnTagList[uuid] = qty
+            return rtnTagList
+
+        output = "%s:\n\n" %(_THIS_METHOD_NAME.upper())
+
+        securityTxnsToFix = {}
+        lLotErrors = False
+        for secAcct in allSecurityAccounts:
+            secTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(secAcct)
+            output += "Validating: %s\n" %(secAcct)
+            if InvestUtil.isCostBasisValid(secAcct):
+                output += "... Cost Basis reports as valid\n"
+            else:
+                output += "... Cost Basis reports as INVALID\n"
+
+            for secTxn in secTxns:
+
+                newTags = {}
+                lAnyTagChanges = False
+
+                # cbTags = TxnUtil.parseCostBasisTag(secTxn)    # This will only provide tags where the txn(s) by uuid actually still exist in the entire MD TxnSet
+                cbTags = parseCostBasisTag(secTxn)              # This will provide all tags set on the record irrespective of whether they exist or not.
+
+                if cbTags is None: continue
+                for txnID in cbTags:
+                    if TxnUtil.getTxnByID(secTxns, txnID) is not None:
+                        newTags[txnID] = cbTags[txnID]
+                    else:
+                        lLotErrors = True
+                        lAnyTagChanges = True   # Essentially we skipped this tag and didn't add it to the dictionary...
+                        output += "... ERROR: Buy (id: %s) matched to sale (id: %s) dated: %s missing/invalid?\n" %(txnID,secTxn.getUUID(), secTxn.getDateInt())
+
+                if lAnyTagChanges:
+                    securityTxnsToFix[secTxn] = newTags
+
+        if not lLotErrors:
+            txt = "Congratulations. No Buy/Sell matched LOT errors detected"
+            myPrint("B", txt)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            return
+
+        output += "\n*** %s Buy/Sell matched LOT ERRORS EXIST ***\n" %(len(securityTxnsToFix))
+        ask = MyPopUpDialogBox(toolbox_frame_,
+                               "%s: %s Buy/Sell matched LOT errors exist..\n"
+                               "This utility will wipe the invalid LOT data from these records\n"
+                               "(You can then manually edit the LOT data afterwards using the LOT matching window)\n"
+                               "REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE FIX" %(_THIS_METHOD_NAME, len(securityTxnsToFix)),
+                               output,
+                               theTitle=_THIS_METHOD_NAME.upper(),
+                               lCancelButton=True,
+                               OKButtonText="PROCEED")
+        if not ask.go():
+            txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
+            myPrint("B",txt)
+            setDisplayStatus(txt, "R")
+            jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME.upper(), "Wipe invalid matched Buy/Sell LOT data?"):
+            return
+
+        output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH FIX OF INVALID LOT MATCHING DATA.....\n\n"
+
+        output += "Fixing Lot Matching data identified above for %s txns...:" %(len(securityTxnsToFix))
+        for secTxn in securityTxnsToFix:
+            newTag = ""
+            cbTags = securityTxnsToFix[secTxn]
+            for txnID in cbTags:
+                newTag += "{}:{};".format(txnID,cbTags[txnID])
+
+            pTxn = secTxn.getParentTxn()
+            pTxn.setEditingMode()
+
+            if debug: secTxn.setParameter(PARAMETER_KEY+PARAMETER_KEY_OLD_COST_BASIS,secTxn.getParameter(PARAMETER_KEY_COST_BASIS, None))
+            secTxn.setParameter(PARAMETER_KEY_COST_BASIS, newTag)
+            pTxn.syncItem()
+
+        for secAcct in allSecurityAccounts:
+            output += "Validating Cost Basis on all Security Sub Accounts (after the fix): %s\n" %(secAcct)
+            if InvestUtil.isCostBasisValid(secAcct):
+                output += "... Cost Basis reports as valid\n"
+            else:
+                output += "... Cost Basis reports as INVALID\n"
+
+        output += "\n\n%s transactions corrected (invalid LOT data has been wiped)...\n\n" %(len(securityTxnsToFix))
+        jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        txt = "%s: Completed. Please Check results and manually address any Buy/Sell LOT matching that needs to be resolved" %(_THIS_METHOD_NAME)
+        myPrint("B", txt)
+        setDisplayStatus(txt, "DG")
+        play_the_money_sound()
+        myPopupInformationBox(jif,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
@@ -18033,24 +18198,24 @@ now after saving the file, restart Moneydance
                                 RShrs = RInfo.getAvailableShares()
                                 if RShrs >= ShrsLeft:
                                     Buys += "{}:{};".format(Txn2.ID,ShrsLeft)
-                                    prettyBuys += "BUY-{}:{};".format(Txn2.DateInt,Txn.Obj.getAccount().getCurrencyType().getDoubleValue(ShrsLeft))
+                                    prettyBuys += "BUY-{}:{};".format(convertStrippedIntDateFormattedText(Txn2.DateInt),Txn.Obj.getAccount().getCurrencyType().getDoubleValue(ShrsLeft))
                                     ShrsLeft = 0
                                     break
                                 elif RShrs > 0:
                                     Buys += "{}:{};".format(Txn2.ID,RShrs)
-                                    prettyBuys += "BUY-{}:{};".format(Txn2.DateInt,Txn.Obj.getAccount().getCurrencyType().getDoubleValue(RShrs))
+                                    prettyBuys += "BUY-{}:{};".format(convertStrippedIntDateFormattedText(Txn2.DateInt),Txn.Obj.getAccount().getCurrencyType().getDoubleValue(RShrs))
                                     ShrsLeft -= RShrs
                         if ShrsLeft > 0:
-                            textLog+=("@@ WARNING! Came up short %s shares for ID='%s' on date=%s!\n" %(rpad(Txn.Obj.getAccount().getCurrencyType().getDoubleValue(ShrsLeft),12),Txn.ID,Txn.Date.strftime("%Y/%m/%d")))
+                            textLog+=("@@ WARNING! Came up short %s shares for ID='%s' on date=%s!\n" %(rpad(Txn.Obj.getAccount().getCurrencyType().getDoubleValue(ShrsLeft),12),Txn.ID,Txn.Date.strftime(convertMDShortDateFormat_strftimeFormat())))
                             WrngCnt += 1
                         if len(Buys) > 0:
                             Txn.Obj.setParameter("cost_basis",Buys)
                             Txn.Obj.syncItem()
                             Txn.Obj.getParentTxn().syncItem()
-                            textLog+=("cost_basis for the sale dated: %s of %s shares on %s set to '%s'\n" %(Txn.DateInt,rpad(Txn.Shares,12),Txn.Date.strftime("%Y/%m/%d"),prettyBuys))
+                            textLog+=("cost_basis for the sale dated: %s of %s shares on %s set to '%s'\n" %(convertStrippedIntDateFormattedText(Txn.DateInt),rpad(Txn.Shares,12),Txn.Date.strftime(convertMDShortDateFormat_strftimeFormat()),prettyBuys))
                     else:
                         if (InvestUtil.isSaleTransaction(Txn.Parent.getInvestTxnType())):
-                            textLog+=("skipped ZERO sale dated: %s of %s shares...'\n" %(Txn.DateInt,rpad(Txn.Shares,12)))
+                            textLog+=("skipped ZERO sale dated: %s of %s shares...'\n" %(convertStrippedIntDateFormattedText(Txn.DateInt),rpad(Txn.Shares,12)))
 
             return WrngCnt, textLog
 
@@ -18086,7 +18251,7 @@ now after saving the file, restart Moneydance
                 for Txn in Security.Txns:
                     if (InvestUtil.isSaleTransaction(Txn.Parent.getInvestTxnType())
                             and (Txn.Obj.getParameter("cost_basis", None) is not None)):
-                        output+=" > Found LOT tag on Sale record, when it should be None... Resetting to None (was SELL %s Shrs Dated:%s: %s)\n" %(rpad(Txn.Shares,12),Txn.DateInt,Txn.Obj.getParameter("cost_basis", None))
+                        output+=" > Found LOT tag on Sale record, when it should be None... Resetting to None (was SELL %s Shrs Dated:%s: %s)\n" %(rpad(Txn.Shares,12),convertStrippedIntDateFormattedText(Txn.DateInt),Txn.Obj.getParameter("cost_basis", None))
                         Txn.Obj.setParameter("cost_basis", None)
                         Txn.Obj.syncItem()
 
@@ -18131,7 +18296,7 @@ now after saving the file, restart Moneydance
             txt = "CONVERT STOCK FIFO: NOTE: MD is reporting that the cost basis for '%s' is VALID after the update.." %(accountSec)
         myPrint("B", txt); output += "\n%s\n" %(txt)
 
-        jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
         ask=MyPopUpDialogBox(jif,
                              theStatus="Please review results on security: %s" %(accountSec),
@@ -18180,7 +18345,7 @@ now after saving the file, restart Moneydance
             myPrint("B", txt)
 
 
-        jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         play_the_money_sound()
         myPopupInformationBox(jif, "REVIEW REPORT", "CONVERT STOCK FIFO", JOptionPane.WARNING_MESSAGE)
 
@@ -18205,74 +18370,90 @@ now after saving the file, restart Moneydance
         book = MD_REF.getCurrentAccountBook()
         date = datetime.datetime.today()
 
-        # diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: Scanning investments....",theTitle="SEARCH", theWidth=100, lModal=False,OKButtonText="WAIT")
-        # diag.go()
-        #
         output="\n\nANALYSING SHARES/SECURITIES WITH OPEN (Unconsumed LOTS)\n" \
                " ======================================================\n\n"
 
-        output+='Outstanding Tax Lots as of %s\n\n'%(date.strftime("%m/%d/%y"))
-        output+=("%s %s %s %s %s %s\n"
-                 %(pad("Buy Date",10),
-                   rpad("Buy Price",12),
-                   rpad("Avail. Shares",12),
-                   rpad("Cost Basis",12),
-                   rpad("Current Price",12),
-                   rpad("Current Value",14)))
+        output+='Outstanding Tax Lots as of %s\n\n'%(date.strftime(convertMDShortDateFormat_strftimeFormat()))
 
         iFound=0
-        for acct in AccountUtil.getAccountIterator(book):
-            if acct.getAccountType() ==  acct.AccountType.SECURITY:
-                if  not acct.getUsesAverageCost():
-                    if InvestUtil.getCostBasis(acct)  > 0:
-                        output+="\n%s\n\n" %(acct.getFullAccountName())
-                        totalCostBasis = float(0)
-                        totalAvailableShares = float(0)
-                        currentPrice = float(1)/float(acct.getCurrencyType().getRelativeRate())
-                        lotList = []
-                        lots = InvestUtil.getRemainingLots(book, acct, DateUtil.getStrippedDateInt())
+        for secAcct in AccountUtil.getAccountIterator(book):
+            if secAcct.getAccountType() !=  secAcct.AccountType.SECURITY: continue
+            if secAcct.getUsesAverageCost():                           continue
 
+            curr = secAcct.getCurrencyType()
+            rcurr = secAcct.getCurrencyType().getRelativeCurrency()
+
+            dpc = curr.getDecimalPlaces()
+            rdpc = rcurr.getDecimalPlaces()
+
+            dpc_divvy = Math.pow(10, dpc)
+            rdpc_divvy = Math.pow(10, dpc - rdpc)
+
+            if InvestUtil.getCostBasis(secAcct) > 0 or not InvestUtil.isCostBasisValid(secAcct):
+                output+="\nInvestment Account: %s Security: %s\n\n" %(secAcct.getParentAccount(), secAcct.getAccountName())
+                if not InvestUtil.isCostBasisValid(secAcct):
+                    output+="\n** COST BASIS IS INVALID** (you have sales not fully matched to buys)\n\n"
+
+                totalCostBasis = 0.0
+                totalAvailableShares = 0.0
+                currentPrice = 1.0 / secAcct.getCurrencyType().getRelativeRate()
+                lotList = []
+                lots = InvestUtil.getRemainingLots(book, secAcct, DateUtil.getStrippedDateInt())
+
+                # noinspection PyUnresolvedReferences
+                for transaction, availSharesTracker in lots.items():
+                    availableShares = availSharesTracker.getAvailableShares() / dpc_divvy
+                    if availableShares > 0:
+                        # t = book.getTransactionSet().getTxnByID(transaction)
+                        t = TxnUtil.getTxnByID(book.getTransactionSet(), transaction)
                         # noinspection PyUnresolvedReferences
-                        for transaction, availSharesTracker in lots.items():
-                            availableShares = float(availSharesTracker.getAvailableShares())/10000
-                            if availableShares > 0:
-                                t = book.getTransactionSet().getTxnByID(transaction)
-                                # noinspection PyUnresolvedReferences
-                                date = datetime.datetime.fromtimestamp(DateUtil.convertIntDateToLong(t.getDateInt()).time/1e3)
-                                adjustedBuyPrice = float(1)/acct.getCurrencyType().adjustRateForSplitsInt(t.getDateInt(), t.getRate())*100
-                                costBasis = availableShares*adjustedBuyPrice
-                                currentValue = currentPrice*availableShares
-                                totalCostBasis += costBasis
-                                totalAvailableShares += availableShares
-                                lotList.append(LotInfo(date, adjustedBuyPrice, availableShares, costBasis, currentPrice, currentValue))
-                        lotList.sort(key=lambda sort_l: sort_l.date)
-                        lotCount = 0
-                        for _lot in lotList:
-                            lotCount += 1
-                            output+=("%s %s %s %s %s %s\n"
-                                     %(pad(_lot.date.strftime("%m/%d/%y"),10),
-                                       rpad(_lot.buyPrice,12),
-                                       rpad(_lot.availableShares,12),
-                                       rpad(_lot.costBasis,12),
-                                       rpad(_lot.currentPrice,12),
-                                       rpad(_lot.currentValue,14)))
-                            iFound+=1
-                        if lotCount > 1:
-                            output+=("%s %s %s %s %s %s\n"
-                                     %(pad("",10),
-                                       rpad("",12),
-                                       rpad("----------",12),
-                                       rpad("----------",12),
-                                       rpad("",12),
-                                       rpad("----------",14)))
-                            output+=("%s %s %s %s %s %s\n"
-                                     %(pad("",10),
-                                       rpad("",12),
-                                       rpad(totalAvailableShares,12),
-                                       rpad(totalCostBasis,12),
-                                       rpad("",12),
-                                       rpad(totalAvailableShares*currentPrice,14)))
-                        output+="\n"
+                        date = datetime.datetime.fromtimestamp(DateUtil.convertIntDateToLong(t.getDateInt()).time / 1000)
+                        adjustedBuyPrice = 1.0 / secAcct.getCurrencyType().adjustRateForSplitsInt(t.getDateInt(), t.getRate()) * (rdpc_divvy)  # noqa
+                        costBasis = availableShares*adjustedBuyPrice
+                        currentValue = currentPrice*availableShares
+                        totalCostBasis += costBasis
+                        totalAvailableShares += availableShares
+                        lotList.append(LotInfo(date, adjustedBuyPrice, availableShares, costBasis, currentPrice, currentValue))
+                lotList.sort(key=lambda sort_l: sort_l.date)
+                lotCount = 0
+
+                output+=("%s %s %s %s %s %s\n"
+                         %(pad("Buy.Date",10),
+                           rpad("Buy.Price",12),
+                           rpad("Avail.Shares",14),
+                           rpad("Cost.Basis",14),
+                           rpad("Current.Price",14),
+                           rpad("Current.Value",14)))
+
+                for _lot in lotList:
+                    lotCount += 1
+                    output+=("%s %s %s %s %s %s\n"
+                             %(pad(_lot.date.strftime(convertMDShortDateFormat_strftimeFormat()),10),
+                               rpad(_lot.buyPrice,12),
+                               rpad(_lot.availableShares,14),
+                               rpad(_lot.costBasis,14),
+                               rpad(_lot.currentPrice,14),
+                               rpad(_lot.currentValue,14)))
+                    iFound+=1
+                output+=("%s %s %s %s %s %s\n"
+                         %(pad("",10),
+                           rpad("",12),
+                           rpad("----------",14),
+                           rpad("----------",14),
+                           rpad("",14),
+                           rpad("----------",14)))
+                if lotCount > 1:
+                    output+=("%s %s %s %s %s %s\n"
+                             %(pad("",10),
+                               rpad("",12),
+                               rpad(totalAvailableShares,14),
+                               rpad(totalCostBasis,14),
+                               rpad("",14),
+                               rpad(totalAvailableShares*currentPrice,14)))
+
+                output+=("%s %s\n\n" %(rpad("Current share balance:",(10+1+12)), rpad(secAcct.getBalance()/dpc_divvy,14)))
+
+                output+="\n"
         output+="\n<END>"
 
         # diag.kill()
@@ -18285,7 +18466,7 @@ now after saving the file, restart Moneydance
             toolbox_frame_.toFront()
             txt = "VIEW OPEN LOTS - Displaying %s open LOTS!" %(iFound)
             setDisplayStatus(txt, "B")
-            jif = QuickJFrame("VIEW OPEN LOTS",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("VIEW OPEN LOTS",output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -18851,7 +19032,7 @@ Now you will have a text readable version of the file you can open in a text edi
 <END>            
 """
 
-        jif = QuickJFrame("View Instructions:", instructions,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("View Instructions:", instructions,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         jif.setLocationRelativeTo(toolbox_frame_)
 
         if not myPopupAskQuestion(jif,
@@ -19334,7 +19515,7 @@ Now you will have a text readable version of the file you can open in a text edi
         txt = "Find my iOS Backup(s) found %s files, with %s possible Sync Encryption keys" %(iFound,len(syncPassphrases))
         setDisplayStatus(txt, "DG")
 
-        jif=QuickJFrame("LIST OF MONEYDANCE iOS Backups and Sync Encryption keys FOUND".upper(), niceFileList, lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif=QuickJFrame("LIST OF MONEYDANCE iOS Backups and Sync Encryption keys FOUND".upper(), niceFileList, lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
         myPopupInformationBox(jif, "%s Sync Encryption keys found...." %(len(syncPassphrases)), "iOS BACKUP SEARCH", JOptionPane.INFORMATION_MESSAGE)
 
@@ -20977,7 +21158,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
         output += ("Loaded %s (contains: %s entries, size: %sMBs). Oldest: %s, Newest: %s\n"
                   %(PROCESSED_FILES, len(processedTxnFiles), convertBytesMBs(os.path.getsize(fp)),
-                    DateUtil.convertLongDateToInt(oldestP), DateUtil.convertLongDateToInt(newestP)))
+                    convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(oldestP)),
+                    convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(newestP))))
 
         if lError or len(processedTxnFiles) < 1:
             if lError:
@@ -21054,13 +21236,15 @@ Now you will have a text readable version of the file you can open in a text edi
                 return
 
             DAYS_TO_KEEP = int(newDaysToKeep)
-            myPrint("DB", "Days to Keep set to %s" %DAYS_TO_KEEP)
+            myPrint("DB", "Days to Keep set to %s" %(DAYS_TO_KEEP))
             break
 
         todayDateInt = DateUtil.getStrippedDateInt()
         lookBackDateInt = DateUtil.incrementDate(todayDateInt, 0, 0, -(DAYS_TO_KEEP))
 
-        output += "\nDays to keep setting set as: %s. Today: %s. Purge up to Date: %s\n" %(DAYS_TO_KEEP, todayDateInt, lookBackDateInt)
+        output += "\nDays to keep setting set as: %s. Today: %s. Purge up to Date: %s\n" %(DAYS_TO_KEEP,
+                                                                                           convertStrippedIntDateFormattedText(todayDateInt),
+                                                                                           convertStrippedIntDateFormattedText(lookBackDateInt))
 
         output += "\n\n" \
                   "LISTING POTENTIAL PURGE TARGET FILES\n" \
@@ -21104,7 +21288,9 @@ Now you will have a text readable version of the file you can open in a text edi
         else:
             targetOutFilesForDeletion = sorted(targetOutFilesForDeletion, key=lambda sort_x: (sort_x.theDateInt))
             for target in targetOutFilesForDeletion:
-                output += "%s (processed: %s, modified: %s)\n" %(target.filename, target.theDateInt, getHumanReadableModifiedDateTimeFromFile(target.fullPath))
+                output += "%s (processed: %s, modified: %s)\n" %(target.filename,
+                                                                 convertStrippedIntDateFormattedText(target.theDateInt),
+                                                                 getHumanReadableModifiedDateTimeFromFile(target.fullPath))
 
         output += "\n%s targets...:\n" %(UPLOADBUFFER)
         targetUploadBufferForDeletion = []
@@ -21137,7 +21323,9 @@ Now you will have a text readable version of the file you can open in a text edi
         else:
             targetInFilesForDeletion = sorted(targetInFilesForDeletion, key=lambda sort_x: (sort_x.theDateInt))
             for target in targetInFilesForDeletion:
-                output += "%s (processed: %s, modified: %s)\n" %(target.filename, target.theDateInt, getHumanReadableModifiedDateTimeFromFile(target.fullPath))
+                output += "%s (processed: %s, modified: %s)\n" %(target.filename,
+                                                                 convertStrippedIntDateFormattedText(target.theDateInt),
+                                                                 getHumanReadableModifiedDateTimeFromFile(target.fullPath))
 
         # Scan 'archive' files (these are zip files containing .mdtxn files)
         output += "\n%s targets...:\n" %(ARCHIVE_PATH)
@@ -21161,7 +21349,10 @@ Now you will have a text readable version of the file you can open in a text edi
             targetArchiveFilesForDeletion = sorted(targetArchiveFilesForDeletion, key=lambda sort_x: (sort_x.newestProcessedInt))
             for target in targetArchiveFilesForDeletion:
                 output += "%s ZIPFile (contains oldest: %s, newest: %s; ZIPfile modified: %s)\n"\
-                          %(target.filename, target.oldestProcessedInt, target.newestProcessedInt, getHumanReadableModifiedDateTimeFromFile(target.fullPath))
+                          %(target.filename,
+                            convertStrippedIntDateFormattedText(target.oldestProcessedInt),
+                            convertStrippedIntDateFormattedText(target.newestProcessedInt),
+                            getHumanReadableModifiedDateTimeFromFile(target.fullPath))
 
 
         sizeOutDelete = sizeInDelete = sizeUploadBufferDelete = sizeArchiveFilesDelete = 0.0
@@ -22149,6 +22340,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 # We search Txns too as Splits by their UUID (for example) can only be found this way...
                 if obj is None: obj = MD_REF.getCurrentAccount().getBook().getTransactionSet().getTxnByID(uuid)
                 if obj is None: obj = MD_REF.getCurrentAccount().getBook().getTransactionSet().getTxnByID(uuid.lower()) # noqa
+                if obj is None: obj = TxnUtil.getTxnByID(MD_REF.getCurrentAccount().getBook().getTransactionSet(), uuid)
 
                 if obj is None: return
 
@@ -22815,7 +23007,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                     iFound+=1
                                     result.append("File >> Sz: %sMB Mod: %s Name: %s "
                                                   %(rpad(convertBytesMBs(os.path.getsize(os.path.join(root, name))),6),
-                                                    pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime('%Y-%m-%d %H:%M:%S'),11),
+                                                    pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),11),
                                                     os.path.join(root, name)))
                         for name in dirs:
                             fp = os.path.join(root,name)
@@ -22829,7 +23021,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                     save_list_of_found_files.append(fp)
                                     iFound+=1
                                 result.append("Dir >> Modified: %s %s"
-                                              %(pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime('%Y-%m-%d %H:%M:%S'),11),
+                                              %(pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),11),
                                               os.path.join(root, name)))
                     return result, iFound
 
@@ -23102,6 +23294,11 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_fix_nonlinked_security_records.setEnabled(GlobalVars.UPDATE_MODE)
                 user_fix_nonlinked_security_records.setForeground(getColorRed())
 
+                user_fix_invalidLotRecords = JRadioButton("FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid", False)
+                user_fix_invalidLotRecords.setToolTipText("Scans LOT matching data and detects where matched records are invalid (missing)... Allows you to fix by wiping the LOT data")
+                user_fix_invalidLotRecords.setEnabled(GlobalVars.UPDATE_MODE)
+                user_fix_invalidLotRecords.setForeground(getColorRed())
+
                 user_can_i_delete_security = JRadioButton("DIAG: Can I Delete a Security?", False)
                 user_can_i_delete_security.setToolTipText("This will tell you whether a Selected Security is in use and whether you can delete it in Moneydance")
 
@@ -23172,6 +23369,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters = JPanel(GridLayout(0, 1))
 
                 bg = ButtonGroup()
+                bg.add(user_fix_invalidLotRecords)
                 bg.add(user_show_open_share_lots)
                 bg.add(user_convert_stock_lot_FIFO)
                 bg.add(user_convert_stock_avg_cst_control)
@@ -23219,6 +23417,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_autofix_price_date)
                     userFilters.add(user_fix_price_date)
 
+                userFilters.add(user_fix_invalidLotRecords)
                 userFilters.add(user_convert_stock_lot_FIFO)
                 userFilters.add(user_convert_stock_avg_cst_control)
                 userFilters.add(user_fix_nonlinked_security_records)
@@ -23279,7 +23478,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.clearSelection()
 
                     options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,1000,500)
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,1000,525)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "Currency / Security Diagnostics, Tools, Fixes",
@@ -23349,6 +23548,10 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_show_open_share_lots.isSelected():
                         show_open_share_lots()
+                        return
+
+                    if user_fix_invalidLotRecords.isSelected():
+                        fix_invalidLotRecords()
                         return
 
                     if user_convert_stock_lot_FIFO.isSelected():
@@ -24071,13 +24274,13 @@ Now you will have a text readable version of the file you can open in a text edi
                             if thisFileSize>500000:
                                 listLargeFiles.append([fp,
                                                        thisFileSize,
-                                                       pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime('%Y-%m-%d %H:%M:%S'),11)])
+                                                       pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),11)])
                         else:
                             countNonValidFiles+=1
                             nonValidSize+=thisFileSize
                             listNonValidFiles.append([fp,
                                                       thisFileSize,
-                                                      pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime('%Y-%m-%d %H:%M:%S'),11)])
+                                                      pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),11)])
 
                 output+=("Dataset size:               %sMB\n" %(rpad(convertBytesMBs(total_size),12)))
                 output+=("- settings file size:       %sKB\n" %(rpad(convertBytesKBs(safe_settingsSize),12)))
@@ -24823,18 +25026,18 @@ Now you will have a text readable version of the file you can open in a text edi
                         myPrint("DB","@@ FYI - Toolbox upgrade to version %s (unsigned) is available from Author's code site.... @@" %(availableFromGitHubVersion))
 
                     else:
-                        myPrint("DB","I've checked and Toolbox is running latest version available: %s" %max(version_build,availableFromGitHubVersion))
+                        myPrint("DB","Toolbox is running latest version available: %s" %max(version_build,availableFromGitHubVersion))
 
             checkForREADONLY()
 
 
     if not i_am_an_extension_so_run_headless: print("""
-Script is analysing your moneydance & system settings....
+Script/extension is analysing your moneydance & system settings....
 ------------------------------------------------------------------------------
->> DISCLAIMER: This script has the ability to change your data
+>> DISCLAIMER: This script/extension has the ability to change your data
 >> Always perform backup first before making any changes!
->> The Author of this script can take no responsibility for any harm caused
->> If you do not accept this, please exit the script
+>> The Author of this script/extension can take no responsibility for any harm caused
+>> If you do not accept this, please exit the script/extension
 ------------------------------------------------------------------------------
 """)
 

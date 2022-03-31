@@ -9,12 +9,12 @@
     {
       "type" = "menu"
       "script_file" = "toolbox_move_merge_investment_txns.py"
-      "name" = "Toolbox: Move Investment Transactions"
+      "name" = "Toolbox: Move selected investment txns"
     }
     {
       "type" = "menu"
       "script_file" = "toolbox_total_selected_transactions.py"
-      "name" = "Toolbox: Total Selected Transactions"
+      "name" = "Toolbox: Total selected transactions"
     }
     {
       "type" = "initializer"
