@@ -6,7 +6,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2021 Stuart Beesley - StuWareSoftSystems
+# Copyright (c) 2021-2022 Stuart Beesley - StuWareSoftSystems
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -2464,11 +2464,38 @@ Visit: %s (Author's site)
 
     def convertBytesKBs(_size): return round((_size/(1000.0)),1)
 
-    def getHumanReadableDateTimeFromTimeStamp(_theTimeStamp):
-        return datetime.datetime.fromtimestamp(_theTimeStamp).strftime('%Y-%m-%d %H:%M:%S')
+    def convertMDShortDateFormat_strftimeFormat(lIncludeTime=False, lForceYYMMDDHMS=False):
+        """Returns a Python strftime format string in accordance with MD Preferences for Date Format"""
+        # https://strftime.org
 
-    def getHumanReadableModifiedDateTimeFromFile(_theFile):
-        return getHumanReadableDateTimeFromTimeStamp(os.path.getmtime(_theFile))
+        _MDFormat = MD_REF.getPreferences().getShortDateFormat()
+
+        rtnFormat = "%Y-%m-%d"
+
+        if lForceYYMMDDHMS:
+            lIncludeTime = True
+        else:
+            if _MDFormat == "MM/dd/yyyy":
+                rtnFormat = "%m/%d/%Y"
+            elif _MDFormat == "MM.dd.yyyy":
+                rtnFormat = "%m.%d.%Y"
+            elif _MDFormat == "yyyy/MM/dd":
+                rtnFormat = "%Y/%m/%d"
+            elif _MDFormat == "yyyy.MM.dd":
+                rtnFormat = "%Y.%m.%d"
+            elif _MDFormat == "dd/MM/yyyy":
+                rtnFormat = "%d/%m/%Y"
+            elif _MDFormat == "dd.MM.yyyy":
+                rtnFormat = "%d.%m.%Y"
+
+        if lIncludeTime: rtnFormat += " %H:%M:%S"
+        return rtnFormat
+
+    def getHumanReadableDateTimeFromTimeStamp(_theTimeStamp, lIncludeTime=False, lForceYYMMDDHMS=False):
+        return datetime.datetime.fromtimestamp(_theTimeStamp).strftime(convertMDShortDateFormat_strftimeFormat(lIncludeTime=lIncludeTime, lForceYYMMDDHMS=lForceYYMMDDHMS))
+
+    def getHumanReadableModifiedDateTimeFromFile(_theFile, lIncludeTime=True, lForceYYMMDDHMS=True):
+        return getHumanReadableDateTimeFromTimeStamp(os.path.getmtime(_theFile), lIncludeTime=lIncludeTime, lForceYYMMDDHMS=lForceYYMMDDHMS)
 
     def convertStrippedIntDateFormattedText(strippedDateInt, _format=None):
 
