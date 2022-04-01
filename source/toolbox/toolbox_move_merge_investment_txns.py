@@ -3214,7 +3214,7 @@ Visit: %s (Author's site)
                             output += "....... FILTER Security:     %s\n" %(user_filterSecurity.getSelectedItem().getAccountName())  # noqa
                             # output += ".......................:     Include where source of funds is Buy/Sell Xfr (from another account): %s\n" %(user_filterSecurityIncludeWhereSourceFundsToo.isSelected())
                         if lFilterByDate:
-                            output += "....... FILTER Date Range..: %s to %s\n" %(convertStrippedIntDateFormattedText(filterDateFrom, prefs.getShortDateFormat()), convertStrippedIntDateFormattedText(filterDateTo, prefs.getShortDateFormat()))
+                            output += "....... FILTER Date Range..: %s to %s\n" %(convertStrippedIntDateFormattedText(filterDateFrom), convertStrippedIntDateFormattedText(filterDateTo))
                         output += "\n"
 
                     if lAutoIgnoreAccountLoops or lAutoIgnoreAnyAvgCstLotFlagDifference or lAutoDeleteEmptySourceAccount or lAutoMergeCashBalances or lAutoForceSaveTrunkFile or lAutoForceDeleteSeparatedLotRecords:
@@ -3413,7 +3413,7 @@ Visit: %s (Author's site)
 
                         else:
                             # Should never happen!!
-                            txt = "Error: found a non-Parent / non-Split Txn - Cannot continue...:\n%s\nDate: %s\n" %(srcTxn.getSyncInfo().toMultilineHumanReadableString(), convertStrippedIntDateFormattedText(srcTxn.getDateInt(), prefs.getShortDateFormat()))
+                            txt = "Error: found a non-Parent / non-Split Txn - Cannot continue...:\n%s\nDate: %s\n" %(srcTxn.getSyncInfo().toMultilineHumanReadableString(), convertStrippedIntDateFormattedText(srcTxn.getDateInt()))
                             myPrint("B",txt)
                             txt2 = "%s: ERROR: Found a non-Parent / non-Split Txn - Cannot continue..." %(_THIS_METHOD_NAME)
                             setDisplayStatus(txt2, "R")
@@ -3424,7 +3424,7 @@ Visit: %s (Author's site)
                         pTxn = srcTxn.getParentTxn()
                         iCountLoops += 1
 
-                        output += ".. *** LOOP DETECTED %s %s %s %s ***\n" %(convertStrippedIntDateFormattedText(convertStrippedIntDateFormattedText(pTxn.getDateInt()), prefs.getShortDateFormat()),
+                        output += ".. *** LOOP DETECTED %s %s %s %s ***\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
                                                        pad(pTxn.getInvestTxnType().getIDString(),12),
                                                        pad(pTxn.getDescription()+pTxn.getMemo(),60),
                                                        rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
@@ -3797,7 +3797,7 @@ Visit: %s (Author's site)
                             srcTxn.setAccount(targetAccount)
                             srcTxn.setParameter(PARAMETER_KEY,True)
                             pTxn.syncItem()
-                            output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(convertStrippedIntDateFormattedText(pTxn.getDateInt()), prefs.getShortDateFormat()),
+                            output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
                                                            pad(pTxn.getInvestTxnType().getIDString(),12),
                                                            pad(pTxn.getDescription()+pTxn.getMemo(),60),
                                                            rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18))
@@ -3826,7 +3826,7 @@ Visit: %s (Author's site)
                         srcTxn.setAccount(targetAccount)
 
                         srcTxn.syncItem()
-                        output += ".. %s %s %s %s %s\n" %(convertStrippedIntDateFormattedText(convertStrippedIntDateFormattedText(srcTxn.getDateInt()), prefs.getShortDateFormat()),
+                        output += ".. %s %s %s %s %s\n" %(convertStrippedIntDateFormattedText(srcTxn.getDateInt()),
                                                           pad(srcTxn.getInvestTxnType().getIDString(),12),
                                                           pad(srcTxn.getDescription()+srcTxn.getMemo(),60),
                                                           rpad(sourceAccount.getCurrencyType().formatFancy(srcTxn.getValue(),MD_decimal),18),
