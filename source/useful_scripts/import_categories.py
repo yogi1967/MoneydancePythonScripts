@@ -2489,7 +2489,9 @@ Visit: %s (Author's site)
         # if _format is None: _format = "yyyy/MM/dd"
         if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
 
-        convertedDate = ""
+        if strippedDateInt is None or strippedDateInt == 0:
+            return "<not set>"
+
         try:
             c = Calendar.getInstance()
             dateFromInt = DateUtil.convertIntDateToLong(strippedDateInt)
@@ -2497,7 +2499,7 @@ Visit: %s (Author's site)
             dateFormatter = SimpleDateFormat(_format)
             convertedDate = dateFormatter.format(c.getTime())
         except:
-            pass
+            return "<error>"
 
         return convertedDate
 

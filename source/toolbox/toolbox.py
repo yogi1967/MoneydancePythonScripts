@@ -2816,7 +2816,9 @@ Visit: %s (Author's site)
         # if _format is None: _format = "yyyy/MM/dd"
         if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
 
-        convertedDate = ""
+        if strippedDateInt is None or strippedDateInt == 0:
+            return "<not set>"
+
         try:
             c = Calendar.getInstance()
             dateFromInt = DateUtil.convertIntDateToLong(strippedDateInt)
@@ -2824,7 +2826,7 @@ Visit: %s (Author's site)
             dateFormatter = SimpleDateFormat(_format)
             convertedDate = dateFormatter.format(c.getTime())
         except:
-            pass
+            return "<error>"
 
         return convertedDate
 
@@ -5053,13 +5055,13 @@ Visit: %s (Author's site)
             output += "\n\nMD User Representation of Data Held by this Account/OnlineTxnList record:\n"
             output += " ==========================================================================  \n"
             output += "%s %s\n" % (pad("getTxnCount():",50),                        selectedObject.getTxnCount()  )
-            output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),           selectedObject.getOFXLastTxnUpdate(), DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate())  )
+            output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),           selectedObject.getOFXLastTxnUpdate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate()))  )
             output += "%s %s\n" % (pad("hasOnlineAvailBalance():",50),              selectedObject.hasOnlineAvailBalance()  )
             output += "%s %s\n" % (pad("getOnlineAvailBalance():",50),              selectedObject.getOnlineAvailBalance()  )
-            output += "%s %s (%s)\n" % (pad("getOnlineAvailBalanceDate():",50),     selectedObject.getOnlineAvailBalanceDate(), DateUtil.convertLongDateToInt(selectedObject.getOnlineAvailBalanceDate())  )
+            output += "%s %s (%s)\n" % (pad("getOnlineAvailBalanceDate():",50),     selectedObject.getOnlineAvailBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineAvailBalanceDate()))  )
             output += "%s %s\n" % (pad("hasOnlineLedgerBalance():",50),             selectedObject.hasOnlineLedgerBalance()  )
             output += "%s %s\n" % (pad("getOnlineLedgerBalance():",50),             selectedObject.getOnlineLedgerBalance()  )
-            output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate())  )
+            output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate()))  )
 
         if isinstance(selectedObject, OnlinePayeeList):
             output += "\n\nMD User Representation of Data Held by this Account/OnlinePayeeList record:\n"
@@ -5356,7 +5358,7 @@ Visit: %s (Author's site)
                     OFX.append("getPasswdCharType(x)             %s" %(service.getPasswdCharType(x)               ))
                     OFX.append("getPasswdType(x)                 %s" %(service.getPasswdType(x)                   ))
 
-                OFX.append("getDateUpdated()                 %s (%s)" %(service.getDateUpdated(), DateUtil.convertLongDateToInt(service.getDateUpdated())))
+                OFX.append("getDateUpdated()                 %s (%s)" %(service.getDateUpdated(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(service.getDateUpdated()))))
                 OFX.append("getLastTransactionID()           %s" %(service.getLastTransactionID()                  ))
                 OFX.append("getMaxFITIDLength()              %s" %(service.getMaxFITIDLength()                     ))
                 OFX.append("getInvalidAcctTypes()            %s" %(service.getInvalidAcctTypes()                   ))
@@ -6335,7 +6337,8 @@ Visit: %s (Author's site)
                 setDisplayStatus(txt, "R")
                 return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,"CURRENCY/SECURITY - UPDATE 'price_date'","Update the current price hidden 'price_date' field to %s?" %(user_selectDateStart.getDateInt())):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,"CURRENCY/SECURITY - UPDATE 'price_date'",
+                                                 "Update the current price hidden 'price_date' field to %s?"%(convertStrippedIntDateFormattedText(user_selectDateStart.getDateInt()))):
             return
 
         newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
@@ -6347,7 +6350,7 @@ Visit: %s (Author's site)
         selectedCurrSec.obj.syncItem()                                                                                  # noqa
 
         play_the_money_sound()
-        _msg = "Edit of current price hidden 'price_date' field for curr/sec: %s successfully set to: %s (%s)" %(selectedCurrSec,newDate,user_selectDateStart.getDateInt())
+        _msg = "Edit of current price hidden 'price_date' field for curr/sec: %s successfully set to: %s (%s)" %(selectedCurrSec,newDate,convertStrippedIntDateFormattedText(user_selectDateStart.getDateInt()))
         setDisplayStatus(_msg, "R")
         myPrint("B", _msg)
         if isGoodRate(newestSnapshotPrice) and user_selectHistoryPrice and user_selectHistoryPrice.isSelected():
@@ -7696,7 +7699,7 @@ Please update any that you use before proceeding....
                     output += "\t" + "Decimal Places: %s\n" %(curr.getDecimalPlaces())
                     if curr.getHideInUI():
                         output += "\t" + "Hide in UI:     %s\n" %(curr.getHideInUI())
-                    output += "\t" + "Effective Date: %s\n" %(curr.getEffectiveDateInt())
+                    output += "\t" + "Effective Date: %s\n" %(convertStrippedIntDateFormattedText(curr.getEffectiveDateInt()))
                     if curr.getPrefix():
                         output += "\t" + "Prefix:         %s\n" %(curr.getPrefix())
                     if curr.getSuffix():
@@ -9025,11 +9028,11 @@ Please update any that you use before proceeding....
 
                 break   # Valid date
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Update the OFXLastTxnUpdate field to %s?" %(user_selectDateStart.getDateInt())):
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Update the OFXLastTxnUpdate field to %s?" %(convertStrippedIntDateFormattedText(user_selectDateStart.getDateInt()))):
                 return
 
             newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
-            newDateTxt = user_selectDateStart.getDateInt()
+            newDateTxt = convertStrippedIntDateFormattedText(user_selectDateStart.getDateInt())
 
         else:
 
@@ -11674,13 +11677,13 @@ Please update any that you use before proceeding....
                             output += "\nMD User Representation of Data Held by this Account/OnlineTxnList record:\n"
                             output += " ==========================================================================  \n"
                             output += "%s %s\n" % (pad("getTxnCount():",50),                        selectedObject.getTxnCount()  )
-                            output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),           selectedObject.getOFXLastTxnUpdate(), DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate())  )
+                            output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),           selectedObject.getOFXLastTxnUpdate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate()))  )
                             output += "%s %s\n" % (pad("hasOnlineAvailBalance():",50),              selectedObject.hasOnlineAvailBalance()  )
                             output += "%s %s\n" % (pad("getOnlineAvailBalance():",50),              selectedObject.getOnlineAvailBalance()  )
-                            output += "%s %s (%s)\n" % (pad("getOnlineAvailBalanceDate():",50),     selectedObject.getOnlineAvailBalanceDate(), DateUtil.convertLongDateToInt(selectedObject.getOnlineAvailBalanceDate())  )
+                            output += "%s %s (%s)\n" % (pad("getOnlineAvailBalanceDate():",50),     selectedObject.getOnlineAvailBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineAvailBalanceDate()))  )
                             output += "%s %s\n" % (pad("hasOnlineLedgerBalance():",50),             selectedObject.hasOnlineLedgerBalance()  )
                             output += "%s %s\n" % (pad("getOnlineLedgerBalance():",50),             selectedObject.getOnlineLedgerBalance()  )
-                            output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate())  )
+                            output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate()))  )
 
                         if isinstance(selectedObject, OnlinePayeeList):
                             output += "\nMD User Representation of Data Held by this Account/OnlinePayeeList record:\n"
@@ -11704,7 +11707,7 @@ Please update any that you use before proceeding....
                                 output += "%s %s\n" % (pad("Full Account Name:",50),                 selectedObject.getFullAccountName()                )
                                 output += "%s %s\n" % (pad("Account Type:",50),                      selectedObject.getAccountType()                    )
                                 output += "%s %s\n" % (pad("Account Description:",50),               selectedObject.getAccountDescription()             )
-                                output += "%s %s\n" % (pad("Account Start Date:",50),                selectedObject.getCreationDateInt()                )
+                                output += "%s %s\n" % (pad("Account Start Date:",50),                convertStrippedIntDateFormattedText(selectedObject.getCreationDateInt()))
                                 output += "%s %s\n" % (pad("Comment:",50),                           selectedObject.getComment()                        )
                                 output += "%s %s\n" % (pad("Account Number (Legacy):",50),           selectedObject.getAccountNum()                     )
                                 output += "%s %s\n" % (pad("Account Is Inactive:",50),               selectedObject.getAccountIsInactive()              )
@@ -11904,7 +11907,7 @@ Please update any that you use before proceeding....
                                 output += "%s %s\n" % (pad("Prefix:",50),               selectedObject.getPrefix()  )
                                 output += "%s %s\n" % (pad("Suffix:",50),               selectedObject.getSuffix()  )
                                 output += "%s %s\n" % (pad("Decimal Places:",50),       selectedObject.getDecimalPlaces()  )
-                                output += "%s %s\n" % (pad("Curr Start Date:",50),      selectedObject.getEffectiveDateInt()  )
+                                output += "%s %s\n" % (pad("Curr Start Date:",50),      convertStrippedIntDateFormattedText(selectedObject.getEffectiveDateInt())  )
 
                                 for convertTimeStamp in ["price_date"]:
                                     if selectedObject.getLongParameter(convertTimeStamp, 0) > 0:
@@ -14032,10 +14035,11 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "REVERSE ACCT TXN AMOUNTS", "ACCOUNT %s - REVERSE %s Txns' amounts between %s - %s?" %(selectedAccount,iTxnsFound,startDate,endDate)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "REVERSE ACCT TXN AMOUNTS", "ACCOUNT %s - REVERSE %s Txns' amounts between %s - %s?"
+                                                                                             %(selectedAccount,iTxnsFound,convertStrippedIntDateFormattedText(startDate),convertStrippedIntDateFormattedText(endDate))):
             return
 
-        myPrint("B","@@ User requested to REVERSE the (%s) Txn Amounts on Account %s between %s to %s - APPLYING UPDATE NOW...." %(iTxnsFound, selectedAccount, startDate, endDate))
+        myPrint("B","@@ User requested to REVERSE the (%s) Txn Amounts on Account %s between %s to %s - APPLYING UPDATE NOW...." %(iTxnsFound, selectedAccount, convertStrippedIntDateFormattedText(startDate), convertStrippedIntDateFormattedText(endDate)))
 
         MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
@@ -14066,7 +14070,7 @@ now after saving the file, restart Moneydance
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
         MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
-        txt = "REVERSE %s Txns Amounts on Account %s between %s - %s COMPLETED - PLEASE REVIEW" %(iTxnsFound,selectedAccount,startDate, endDate)
+        txt = "REVERSE %s Txns Amounts on Account %s between %s - %s COMPLETED - PLEASE REVIEW" %(iTxnsFound,selectedAccount,convertStrippedIntDateFormattedText(startDate), convertStrippedIntDateFormattedText(endDate))
         setDisplayStatus(txt, "R")
         myPrint("B", txt)
         play_the_money_sound()
@@ -14167,10 +14171,12 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "REVERSE ACCT TXN EXCHANGE RATES", "ACCOUNT %s - REVERSE %s Txns' exchange rates between %s - %s?" %(selectedAccount,iTxnsFound,startDate,endDate)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, "REVERSE ACCT TXN EXCHANGE RATES", "ACCOUNT %s - REVERSE %s Txns' exchange rates between %s - %s?"
+                                                                                                    %(selectedAccount,iTxnsFound,convertStrippedIntDateFormattedText(startDate),convertStrippedIntDateFormattedText(endDate))):
             return
 
-        myPrint("B","@@ User requested to REVERSE the (%s) Txn Exchange Rates on Account %s between %s to %s - APPLYING UPDATE NOW...." %(iTxnsFound, selectedAccount, startDate, endDate))
+        myPrint("B","@@ User requested to REVERSE the (%s) Txn Exchange Rates on Account %s between %s to %s - APPLYING UPDATE NOW...."
+                %(iTxnsFound, selectedAccount, convertStrippedIntDateFormattedText(startDate), convertStrippedIntDateFormattedText(endDate)))
 
         MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
@@ -14217,7 +14223,8 @@ now after saving the file, restart Moneydance
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
         MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
-        txt = "REVERSE %s Txns Exchange Rates on Account %s between %s - %s COMPLETED - PLEASE REVIEW" %(iTxnsFound,selectedAccount,startDate, endDate)
+        txt = "REVERSE %s Txns Exchange Rates on Account %s between %s - %s COMPLETED - PLEASE REVIEW"\
+              %(iTxnsFound,selectedAccount,convertStrippedIntDateFormattedText(startDate), convertStrippedIntDateFormattedText(endDate))
         setDisplayStatus(txt, "R")
         myPrint("B", txt)
         play_the_money_sound()
@@ -14835,7 +14842,7 @@ now after saving the file, restart Moneydance
             else: ThnTxt="PURGE"
 
             age_limit_date = DateUtil.incrementDate(DateUtil.getStrippedDateInt(), 0, 0, -(age_limit_days))
-            text = "\n>%s: %s'ing snapshots older than %s\n" %(_curr, ThnTxt, age_limit_date)
+            text = "\n>%s: %s'ing snapshots older than %s\n" %(_curr, ThnTxt, convertStrippedIntDateFormattedText(age_limit_date))
             text += "  %s BEFORE %s (snapshots: %s, splits: %s)\n"%(_curr, ThnTxt, _curr.getSnapshots().size(), _curr.getSplits().size())
             _snapshots = _curr.getSnapshots()
             old_snapshots = []
@@ -14875,7 +14882,7 @@ now after saving the file, restart Moneydance
                         or (THINMODE and DateUtil.calculateDaysBetween(last_date, snap_date) < max_days_between_thinned
                             and DateUtil.calculateDaysBetween(last_date, safetyDate) < max_days_between_thinned+1):  # This ensures there's no huge leap to the next date......
                     if lVerbose:
-                        text += "    *** delete snapshot dated %s\n"%(snap_date)
+                        text += "    *** delete snapshot dated %s\n" %(convertStrippedIntDateFormattedText(snap_date))
                     num_thinned += 1
                     if lDelete:
                         if lVerbose:
@@ -14885,7 +14892,7 @@ now after saving the file, restart Moneydance
                 else:
                     # don't thin this snapshot, and set the last seen date to it
                     if  lVerbose:
-                        text += "    > Not deleting snapshot dated %s (preserving 1 per interval specified)\n"%(snap_date)
+                        text += "    > Not deleting snapshot dated %s (preserving 1 per interval specified)\n" %(convertStrippedIntDateFormattedText(snap_date))
                     last_date = snap_date
                 _i+=1
 
@@ -15019,7 +15026,20 @@ now after saving the file, restart Moneydance
                        " >> purgeBaseONLY:            %s\n" \
                        " >> confirmedSaveTrunk:       %s\n" \
                        " >> VERBOSE:                  %s\n" \
-                       %(simulate, lPurgeMode, lThinMode, age_limit_days, DateUtil.incrementDate(DateUtil.getStrippedDateInt(), 0, 0, -(age_limit_days)),max_days_between_thinned, includeCurrencies, includeSecurities, purgeOrphans, purgeOrphansONLY, purgeBase, purgeBaseONLY, confirmedSaveTrunk, VERBOSE)
+                       %(simulate,
+                         lPurgeMode,
+                         lThinMode,
+                         age_limit_days,
+                         convertStrippedIntDateFormattedText(DateUtil.incrementDate(DateUtil.getStrippedDateInt(), 0, 0, -(age_limit_days))),
+                         max_days_between_thinned,
+                         includeCurrencies,
+                         includeSecurities,
+                         purgeOrphans,
+                         purgeOrphansONLY,
+                         purgeBase,
+                         purgeBaseONLY,
+                         confirmedSaveTrunk,
+                         VERBOSE)
 
         diagDisplay+="\n%s PRICE HISTORY\n" \
                      " =================\n" %(ThnPurgeTxt)
@@ -15211,7 +15231,7 @@ now after saving the file, restart Moneydance
                             inStream.close()
                             textRecords.append([txn.getAccount().getAccountType(), txn.getAccount().getAccountName(), txn.getDateInt(),
                                                 "%s %s %s %s %s .%s\n"
-                                                %(pad(str(txn.getAccount().getAccountType()),15),pad(txn.getAccount().getAccountName(),30),txn.getDateInt(),rpad(txn.getValue()/100.0,10),pad(txn.getDescription(),20),outputPath[len(exportFolder):])])
+                                                %(pad(str(txn.getAccount().getAccountType()),15),pad(txn.getAccount().getAccountName(),30),convertStrippedIntDateFormattedText(txn.getDateInt()),rpad(txn.getValue()/100.0,10),pad(txn.getDescription(),20),outputPath[len(exportFolder):])])
                         except:
                             myPrint("B","Error extracting file - will SKIP : %s" %(outputPath))
                             textLog+=("Error extracting file - will SKIP : %s\n" %(outputPath))
@@ -15883,7 +15903,7 @@ now after saving the file, restart Moneydance
                     else:
                         lLotErrors = True
                         lAnyTagChanges = True   # Essentially we skipped this tag and didn't add it to the dictionary...
-                        output += "... ERROR: Buy (id: %s) matched to sale (id: %s) dated: %s missing/invalid?\n" %(txnID,secTxn.getUUID(), secTxn.getDateInt())
+                        output += "... ERROR: Buy (id: %s) matched to sale (id: %s) dated: %s missing/invalid?\n" %(txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
 
                 if lAnyTagChanges:
                     securityTxnsToFix[secTxn] = newTags
@@ -17899,7 +17919,7 @@ now after saving the file, restart Moneydance
         for txn in txns:
             if txn.getOtherTxnCount() == 0:
                 output += pad(str(txn.getUUID()),50)+" "
-                output += "Date: "+pad(str(txn.getDateInt()),15)+" "
+                output += "Date: "+pad(convertStrippedIntDateFormattedText(txn.getDateInt()),15)+" "
                 output += pad(str(txn.getAccount()),25)+" "
                 output += pad(str(txn.getAccount().getAccountType()),25)+" "
                 output += pad(str(txn.getTransferType()),15)+" "
