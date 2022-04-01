@@ -274,8 +274,8 @@ else:
     # END COMMON IMPORTS ###################################################################################################
 
     # COMMON GLOBALS #######################################################################################################
-    global myParameters, myScriptName, _resetParameters, i_am_an_extension_so_run_headless, moneydanceIcon
-    global lPickle_version_warning, decimalCharSep, groupingCharSep, lIamAMac, lGlobalErrorDetected
+    global myParameters, myScriptName, i_am_an_extension_so_run_headless
+    global lPickle_version_warning, decimalCharSep, groupingCharSep, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
@@ -284,9 +284,7 @@ else:
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
     myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
     myParameters = {}                                                                                                   # noqa
-    _resetParameters = False                                                                                            # noqa
     lPickle_version_warning = False                                                                                     # noqa
-    lIamAMac = False                                                                                                    # noqa
     lGlobalErrorDetected = False																						# noqa
     MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
 
@@ -302,6 +300,7 @@ else:
             defaultDPI = 72     # NOTE: 72dpi is Java2D default for everything; just go with it. No easy way to change
             STATUS_LABEL = None
             DARK_GREEN = Color(0, 192, 0)
+            resetPickleParameters = False
             def __init__(self): pass    # Leave empty
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -499,7 +498,13 @@ Visit: %s (Author's site)
         except:
             pass
 
-        if not homeDir: homeDir = u"?"
+        if homeDir is None or homeDir == u"":
+            homeDir = MD_REF.getCurrentAccountBook().getRootFolder().getParent()  # Better than nothing!
+
+        if homeDir is None or homeDir == u"":
+            homeDir = u""
+
+        myPrint("DB", "Home Directory detected...:", homeDir)
         return homeDir
 
     def getDecimalPoint(lGetPoint=False, lGetGrouping=False):
@@ -1019,11 +1024,6 @@ Visit: %s (Author's site)
             if _theFile is None: return False
             return _theFile.getName().upper().endswith(self.ext)
 
-    try:
-        moneydanceIcon = MDImages.getImage(MD_REF.getSourceInformation().getIconResource())
-    except:
-        moneydanceIcon = None
-
     def MDDiag():
         global debug
         myPrint("D", "Moneydance Build:", MD_REF.getVersion(), "Build:", MD_REF.getBuild())
@@ -1153,36 +1153,8 @@ Visit: %s (Author's site)
         myPrint("D", 'os.environ.get("HOMEPATH")', os.environ.get("HOMEPATH"))
         return
 
-    def amIaMac():
-        return Platform.isOSX()
-
     myPrint("D", "I am user:", who_am_i())
     if debug: getHomeDir()
-    lIamAMac = amIaMac()
-
-    def myDir():
-        global lIamAMac
-        homeDir = None
-
-        try:
-            if lIamAMac:
-                homeDir = System.getProperty("UserHome")  # On a Mac in a Java VM, the homedir is hidden
-            else:
-                # homeDir = System.getProperty("user.home")
-                homeDir = os.path.expanduser("~")  # Should work on Unix and Windows
-                if homeDir is None or homeDir == "":
-                    homeDir = System.getProperty("user.home")
-                if homeDir is None or homeDir == "":
-                    homeDir = os.environ.get("HOMEPATH")
-        except:
-            pass
-
-        if homeDir is None or homeDir == "":
-            homeDir = MD_REF.getCurrentAccountBook().getRootFolder().getParent()  # Better than nothing!
-
-        myPrint("DB", "Home Directory selected...:", homeDir)
-        if homeDir is None: return ""
-        return homeDir
 
     # noinspection PyArgumentList
     class JTextFieldLimitYN(PlainDocument):
@@ -1225,11 +1197,11 @@ Visit: %s (Author's site)
         return str( theDelimiter )
 
     def get_StuWareSoftSystems_parameters_from_file(myFile="StuWareSoftSystems.dict"):
-        global debug, myParameters, lPickle_version_warning, version_build, _resetParameters                            # noqa
+        global debug, myParameters, lPickle_version_warning, version_build                            # noqa
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        if _resetParameters:
+        if GlobalVars.resetPickleParameters:
             myPrint("B", "User has specified to reset parameters... keeping defaults and skipping pickle()")
             myParameters = {}
             return
