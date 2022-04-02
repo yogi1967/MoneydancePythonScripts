@@ -327,7 +327,7 @@ else:
 
     # COMMON GLOBALS #######################################################################################################
     global myParameters, myScriptName, i_am_an_extension_so_run_headless
-    global lPickle_version_warning, decimalCharSep, groupingCharSep, lGlobalErrorDetected
+    global lPickle_version_warning, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
@@ -352,6 +352,8 @@ else:
             STATUS_LABEL = None
             DARK_GREEN = Color(0, 192, 0)
             resetPickleParameters = False
+            decimalCharSep = "."
+            groupingCharSep = ","
             def __init__(self): pass    # Leave empty
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -734,8 +736,8 @@ Visit: %s (Author's site)
         return u"error"
 
 
-    decimalCharSep = getDecimalPoint(lGetPoint=True)
-    groupingCharSep = getDecimalPoint(lGetGrouping=True)
+    GlobalVars.decimalCharSep = getDecimalPoint(lGetPoint=True);
+    GlobalVars.groupingCharSep = getDecimalPoint(lGetGrouping=True)
 
     def isMacDarkModeDetected():
         darkResponse = "LIGHT"
@@ -3178,8 +3180,8 @@ Visit: %s (Author's site)
 
         csvfilename = None
 
-        if decimalCharSep != "." and csvDelimiter == ",": csvDelimiter = ";"  # Override for EU countries or where decimal point is actually a comma...
-        myPrint("DB", "Decimal point:", decimalCharSep, "Grouping Separator", groupingCharSep, "CSV Delimiter set to:", csvDelimiter)
+        if GlobalVars.decimalCharSep != "." and csvDelimiter == ",": csvDelimiter = ";"  # Override for EU countries or where decimal point is actually a comma...
+        myPrint("DB", "Decimal point:", GlobalVars.decimalCharSep, "Grouping Separator", GlobalVars.groupingCharSep, "CSV Delimiter set to:", csvDelimiter)
 
         sdf = SimpleDateFormat("dd/MM/yyyy")
 
@@ -3862,12 +3864,12 @@ Visit: %s (Author's site)
                     if csvDelimiter == "" or (not (csvDelimiter in ";|,")):
                         myPrint("B", "Invalid Delimiter:", csvDelimiter, "selected. Overriding with:','")
                         csvDelimiter = ","
-                    if decimalCharSep == csvDelimiter:
+                    if GlobalVars.decimalCharSep == csvDelimiter:
                         myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:",
-                                decimalCharSep, " - Proceeding without file export!!")
+                                GlobalVars.decimalCharSep, " - Proceeding without file export!!")
                         lDisplayOnly = True
                         myPopupInformationBox(None, "ERROR - The CSV file delimiter: %s ""cannot be the same as your decimal point character: %s. "
-                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, decimalCharSep),
+                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, GlobalVars.decimalCharSep),
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     saveDropDownDateRange_EAR = dateDropdown.getSelectedItem()
@@ -4100,12 +4102,12 @@ Visit: %s (Author's site)
                     if csvDelimiter == "" or (not (csvDelimiter in ";|,")):
                         myPrint("B", "Invalid Delimiter:", csvDelimiter, "selected. Overriding with:','")
                         csvDelimiter = ","
-                    if decimalCharSep == csvDelimiter:
+                    if GlobalVars.decimalCharSep == csvDelimiter:
                         myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:",
-                                decimalCharSep, " - Proceeding without file export!!")
+                                GlobalVars.decimalCharSep, " - Proceeding without file export!!")
                         lDisplayOnly = True
                         myPopupInformationBox(None, "ERROR - The CSV file delimiter: %s ""cannot be the same as your decimal point character: %s. "
-                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, decimalCharSep),
+                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, GlobalVars.decimalCharSep),
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
@@ -4285,11 +4287,11 @@ Visit: %s (Author's site)
                     if csvDelimiter == "" or (not (csvDelimiter in ";|,")):
                         myPrint("B", "Invalid Delimiter:", csvDelimiter, "selected. Overriding with:','")
                         csvDelimiter = ","
-                    if decimalCharSep == csvDelimiter:
-                        myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:", decimalCharSep, " - Proceeding without file export!!")
+                    if GlobalVars.decimalCharSep == csvDelimiter:
+                        myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:", GlobalVars.decimalCharSep, " - Proceeding without file export!!")
                         lDisplayOnly = True
                         myPopupInformationBox(None, "ERROR - The CSV file delimiter: %s ""cannot be the same as your decimal point character: %s. "
-                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, decimalCharSep),
+                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, GlobalVars.decimalCharSep),
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
@@ -4512,11 +4514,11 @@ Visit: %s (Author's site)
                     if csvDelimiter == "" or (not (csvDelimiter in ";|,")):
                         myPrint("B", "Invalid Delimiter:", csvDelimiter, "selected. Overriding with:','")
                         csvDelimiter = ","
-                    if decimalCharSep == csvDelimiter:
-                        myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:", decimalCharSep, " - Proceeding without file export!!")
+                    if GlobalVars.decimalCharSep == csvDelimiter:
+                        myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:", GlobalVars.decimalCharSep, " - Proceeding without file export!!")
                         lDisplayOnly = True
                         myPopupInformationBox(None, "ERROR - The CSV file delimiter: %s ""cannot be the same as your decimal point character: %s. "
-                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, decimalCharSep),
+                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, GlobalVars.decimalCharSep),
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
@@ -4683,11 +4685,11 @@ Visit: %s (Author's site)
                     if csvDelimiter == "" or (not (csvDelimiter in ";|,")):
                         myPrint("B", "Invalid Delimiter:", csvDelimiter, "selected. Overriding with:','")
                         csvDelimiter = ","
-                    if decimalCharSep == csvDelimiter:
-                        myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:", decimalCharSep, " - Proceeding without file export!!")
+                    if GlobalVars.decimalCharSep == csvDelimiter:
+                        myPrint("B", "WARNING: The CSV file delimiter:", csvDelimiter, "cannot be the same as your decimal point character:", GlobalVars.decimalCharSep, " - Proceeding without file export!!")
                         lDisplayOnly = True
                         myPopupInformationBox(None, "ERROR - The CSV file delimiter: %s ""cannot be the same as your decimal point character: %s. "
-                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, decimalCharSep),
+                                                    "Proceeding without file export (i.e. I will do nothing)!!" %(csvDelimiter, GlobalVars.decimalCharSep),
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
@@ -4944,7 +4946,7 @@ Visit: %s (Author's site)
 
                 def do_stockglance2020():
                     global debug
-                    global decimalCharSep, lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
+                    global lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
                     global baseCurrency, sdf, rawDataTable, rawFooterTable, headingNames
                     global StockGlanceInstance  # holds the instance of StockGlance2020()
                     global _SHRS_FORMATTED, _SHRS_RAW, _PRICE_FORMATTED, _PRICE_RAW, _CVALUE_FORMATTED, _CVALUE_RAW, _BVALUE_FORMATTED, _BVALUE_RAW
@@ -5136,7 +5138,7 @@ Visit: %s (Author's site)
                                                     or (filterForSecurity.upper().strip() in curr.getTickerSymbol().upper().strip()) \
                                                     or (filterForSecurity.upper().strip() in curr.getName().upper().strip()):
                                                 myPrint("D", "Found Security..: ", curr, curr.getTickerSymbol(), " Curr: ", curr.getRelativeCurrency().getIDString(),
-                                                        " Price: ", price, " Qty: ", curr.formatSemiFancy(qty, decimalCharSep))
+                                                        " Price: ", price, " Qty: ", curr.formatSemiFancy(qty, GlobalVars.decimalCharSep))
 
                                                 securityCostBasis = self.CostBasisTotals.get(curr)
 
@@ -5196,7 +5198,7 @@ Visit: %s (Author's site)
                                                     entry = []
                                                     entry.append(curr.getTickerSymbol())  # c0
                                                     entry.append(curr.getName())  # c1
-                                                    entry.append(curr.formatSemiFancy(qtySplit, decimalCharSep))  # c2
+                                                    entry.append(curr.formatSemiFancy(qtySplit, GlobalVars.decimalCharSep))  # c2
                                                     entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))  # c3
                                                     entry.append(self.currXrate.getIDString())  # c4
                                                     x = None
@@ -5255,7 +5257,7 @@ Visit: %s (Author's site)
                                                 else:
                                                     entry.append(curr.getTickerSymbol())  # c0
                                                 entry.append(curr.getName())  # c1
-                                                entry.append(curr.formatSemiFancy(qty, decimalCharSep))  # c2
+                                                entry.append(curr.formatSemiFancy(qty, GlobalVars.decimalCharSep))  # c2
                                                 entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))  # c3
                                                 entry.append(self.currXrate.getIDString())  # c4
                                                 x = None
@@ -5339,7 +5341,7 @@ Visit: %s (Author's site)
                                                 myPrint("D", "Skipping non Filtered Security/Ticker:", curr, curr.getTickerSymbol())
                                         else:
                                             myPrint("D", "Skipping Security with 0 shares..: ", curr, curr.getTickerSymbol(),
-                                                    " Curr: ", curr.getRelativeCurrency().getIDString(), " Price: ", price, " Qty: ", curr.formatSemiFancy(qty, decimalCharSep))
+                                                    " Curr: ", curr.getRelativeCurrency().getIDString(), " Price: ", price, " Qty: ", curr.formatSemiFancy(qty, GlobalVars.decimalCharSep))
                                     else:
                                         myPrint("D", "Skipping non Filtered Security/Currency:", curr, curr.getTickerSymbol(), curr.getRelativeCurrency().getIDString())
                                 elif curr.getHideInUI() and curr.getCurrencyType() == CurrencyType.Type.SECURITY:
@@ -5516,8 +5518,6 @@ Visit: %s (Author's site)
                         # Render a currency with given number of fractional digits. NaN or null is an empty cell.
                         # noinspection PyMethodMayBeStatic
                         def myNumberFormatter(self, theNumber, useBase, exchangeCurr, baseCurr, noDecimals):
-                            global debug, decimalCharSep, groupingCharSep
-
                             noDecimalFormatter = NumberFormat.getNumberInstance()
                             noDecimalFormatter.setMinimumFractionDigits(0)
                             noDecimalFormatter.setMaximumFractionDigits(noDecimals)
@@ -5731,7 +5731,7 @@ Visit: %s (Author's site)
 
                                 if _getBalance != 0:  # we only want Securities with holdings
                                     if debug and not i_am_an_extension_so_run_headless: print("Processing Acct:", acct.getParentAccount(), "Share/Fund Qty Balances for Security: ", curr, curr.formatSemiFancy(
-                                        _getBalance, decimalCharSep), " Shares/Units")
+                                        _getBalance, GlobalVars.decimalCharSep), " Shares/Units")
 
                                     total = (0L if (total is None) else total) + _getBalance
                                     totals[curr] = total
@@ -5829,8 +5829,7 @@ Visit: %s (Author's site)
                                         self.lSortNumber = False
 
                                 def compare(self, str1, str2):
-                                    global decimalCharSep
-                                    validString = "-0123456789" + decimalCharSep  # Yes this will strip % sign too, but that still works
+                                    validString = "-0123456789" + GlobalVars.decimalCharSep  # Yes this will strip % sign too, but that still works
                                     if self.lSortNumber:
                                         # strip non numerics from string so can convert back to float - yes, a bit of a reverse hack
                                         conv_string1 = ""
@@ -5925,8 +5924,7 @@ Visit: %s (Author's site)
                                 super(DefaultTableCellRenderer, self).__init__()
 
                             def setValue(self, value):
-                                global decimalCharSep
-                                validString = "-0123456789" + decimalCharSep
+                                validString = "-0123456789" + GlobalVars.decimalCharSep
 
                                 self.setText(value)
 
@@ -6472,7 +6470,7 @@ Visit: %s (Author's site)
 
                         if not lDisplayOnly:
                             def ExportDataToFile():
-                                global debug, extract_data_frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version_build
+                                global debug, extract_data_frame_, rawDataTable, rawFooterTable, headingNames, csvfilename, csvDelimiter, version_build
                                 global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, myScriptName, lGlobalErrorDetected, lIncludeFutureBalances_SG2020
                                 global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
                                 global lWriteBOMToExportFile_SWSS
@@ -6652,7 +6650,7 @@ Visit: %s (Author's site)
 
                 def do_extract_reminders():
                     global debug
-                    global decimalCharSep, lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
+                    global lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
                     global baseCurrency, sdf, csvlines, csvheaderline, headerFormats
                     global table, focus, row, scrollpane, EditedReminderCheck, ReminderTable_Count, ExtractDetails_Count
 
@@ -7277,8 +7275,7 @@ Visit: %s (Author's site)
                                     self.lSortNumber = False
 
                             def compare(self, str1, str2):
-                                global decimalCharSep
-                                validString = "-0123456789" + decimalCharSep  # Yes this will strip % sign too, but that still works
+                                validString = "-0123456789" + GlobalVars.decimalCharSep  # Yes this will strip % sign too, but that still works
 
                                 if isinstance(str1, StoreDateInt) or isinstance(str2, StoreDateInt):
                                     if str1.getDateInt() > str2.getDateInt():
@@ -7370,14 +7367,12 @@ Visit: %s (Author's site)
                             super(DefaultTableCellRenderer, self).__init__()
 
                         def setValue(self, value):
-                            global decimalCharSep
-
                             if isinstance(value, (float,int)):
                                 if value < 0.0:
                                     self.setForeground(MD_REF.getUI().getColors().budgetAlertColor)
                                 else:
                                     self.setForeground(MD_REF.getUI().getColors().budgetHealthyColor)
-                                self.setText(baseCurrency.formatFancy(int(value*100), decimalCharSep, True))
+                                self.setText(baseCurrency.formatFancy(int(value*100), GlobalVars.decimalCharSep, True))
                             else:
                                 if isinstance(value, StoreDateInt):
                                     self.setText(value.getDateIntFormatted())
@@ -7631,7 +7626,7 @@ Visit: %s (Author's site)
 
                         if not lDisplayOnly:
                             def ExportDataToFile():
-                                global debug, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version_build, myScriptName
+                                global debug, csvfilename, csvDelimiter, version_build, myScriptName
                                 global sdf, userdateformat, csvlines, csvheaderline, lGlobalErrorDetected, extract_data_frame_
                                 global lWriteBOMToExportFile_SWSS
 
@@ -7791,7 +7786,7 @@ Visit: %s (Author's site)
 
                     def do_extract_account_registers():
                         global debug
-                        global decimalCharSep, lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
+                        global lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
                         global baseCurrency, sdf
                         global transactionTable, dataKeys, attachmentDir, relativePath
 
@@ -8336,7 +8331,7 @@ Visit: %s (Author's site)
 
 
                         def ExportDataToFile(statusMsg):
-                            global debug, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version_build, myScriptName
+                            global debug, csvfilename, csvDelimiter, version_build, myScriptName
                             global transactionTable, userdateformat, lGlobalErrorDetected
                             global lWriteBOMToExportFile_SWSS
                             global lAllTags_EAR, tagFilter_EAR
@@ -8594,7 +8589,7 @@ Visit: %s (Author's site)
 
                     def do_extract_investment_transactions():
                         global debug
-                        global decimalCharSep, lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
+                        global lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
                         global baseCurrency, sdf
                         global transactionTable, dataKeys, attachmentDir, relativePath
 
@@ -9024,7 +9019,7 @@ Visit: %s (Author's site)
                                 _row[dataKeys["_SHARES"][_COLUMN]] = securityCurr.getDoubleValue(securityTxn.getValue())
                                 _row[dataKeys["_PRICE"][_COLUMN]] = acctCurr.getDoubleValue(securityTxn.getAmount())
                                 _row[dataKeys["_AVGCOST"][_COLUMN]] = securityAcct.getUsesAverageCost()
-                                _row[dataKeys["_SECSHRHOLDING"][_COLUMN]] = securityCurr.formatSemiFancy(securityAcct.getBalance(),decimalCharSep)
+                                _row[dataKeys["_SECSHRHOLDING"][_COLUMN]] = securityCurr.formatSemiFancy(securityAcct.getBalance(),GlobalVars.decimalCharSep)
                             else:
                                 _row[dataKeys["_SECURITY"][_COLUMN]] = ""
                                 _row[dataKeys["_SECCURR"][_COLUMN]] = ""
@@ -9183,7 +9178,7 @@ Visit: %s (Author's site)
                                                      relatedCBTxn.getTransferType(),
                                                      relatedCBTxn.getOtherTxn(0).getInvestTxnType(),
                                                      relatedCBTxn.getDateInt(),
-                                                     acctCurr.formatSemiFancy(relatedCBTxn.getValue(), decimalCharSep),
+                                                     acctCurr.formatSemiFancy(relatedCBTxn.getValue(), GlobalVars.decimalCharSep),
                                                      acctCurr.getDoubleValue(relatedCBTxn.getAmount()),
                                                      ])
                                 # endfor
@@ -9320,7 +9315,7 @@ Visit: %s (Author's site)
 
 
                         def ExportDataToFile():
-                            global debug, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version_build, myScriptName
+                            global debug, csvfilename, csvDelimiter, version_build, myScriptName
                             global transactionTable, userdateformat, lGlobalErrorDetected
                             global lWriteBOMToExportFile_SWSS, lExtractAttachments_EIT, relativePath
 
@@ -9567,7 +9562,7 @@ Visit: %s (Author's site)
 
                     def do_extract_currency_history():
                         global debug
-                        global decimalCharSep, lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
+                        global lDidIUseAttachmentDir, csvfilename, myScriptName, lGlobalErrorDetected, lExit, lDisplayOnly
                         global sdf, csvlines
 
                         global __extract_data, extract_data_frame_, extract_filename
@@ -9662,7 +9657,7 @@ Visit: %s (Author's site)
                         currencyTable = list_currency_rate_history()
 
                         def ExportDataToFile(theTable, header):                                                                 # noqa
-                            global debug, csvfilename, decimalCharSep, groupingCharSep, csvDelimiter, version_build, myScriptName
+                            global debug, csvfilename, csvDelimiter, version_build, myScriptName
                             global sdf, userdateformat, lGlobalErrorDetected
                             global lWriteBOMToExportFile_SWSS
 

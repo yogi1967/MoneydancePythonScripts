@@ -278,7 +278,7 @@ else:
 
     # COMMON GLOBALS #######################################################################################################
     global myParameters, myScriptName, i_am_an_extension_so_run_headless
-    global lPickle_version_warning, decimalCharSep, groupingCharSep, lGlobalErrorDetected
+    global lPickle_version_warning, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
@@ -303,6 +303,8 @@ else:
             STATUS_LABEL = None
             DARK_GREEN = Color(0, 192, 0)
             resetPickleParameters = False
+            decimalCharSep = "."
+            groupingCharSep = ","
             def __init__(self): pass    # Leave empty
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -559,8 +561,8 @@ Visit: %s (Author's site)
         return u"error"
 
 
-    decimalCharSep = getDecimalPoint(lGetPoint=True)
-    groupingCharSep = getDecimalPoint(lGetGrouping=True)
+    GlobalVars.decimalCharSep = getDecimalPoint(lGetPoint=True)
+    GlobalVars.groupingCharSep = getDecimalPoint(lGetGrouping=True)
 
     def isMacDarkModeDetected():
         darkResponse = "LIGHT"

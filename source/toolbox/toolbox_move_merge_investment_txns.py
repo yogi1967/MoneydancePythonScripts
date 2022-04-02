@@ -271,7 +271,7 @@ else:
 
     # COMMON GLOBALS #######################################################################################################
     global myParameters, myScriptName, i_am_an_extension_so_run_headless
-    global lPickle_version_warning, decimalCharSep, groupingCharSep, lGlobalErrorDetected
+    global lPickle_version_warning, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
@@ -297,6 +297,8 @@ else:
             STATUS_LABEL = None
             DARK_GREEN = Color(0, 192, 0)
             resetPickleParameters = False
+            decimalCharSep = "."
+            groupingCharSep = ","
             def __init__(self): pass    # Leave empty
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##########################################################################
@@ -545,8 +547,8 @@ Visit: %s (Author's site)
         return u"error"
 
 
-    decimalCharSep = getDecimalPoint(lGetPoint=True)
-    groupingCharSep = getDecimalPoint(lGetGrouping=True)
+    GlobalVars.decimalCharSep = getDecimalPoint(lGetPoint=True)
+    GlobalVars.groupingCharSep = getDecimalPoint(lGetGrouping=True)
 
     def isMacDarkModeDetected():
         darkResponse = "LIGHT"
@@ -3663,7 +3665,7 @@ Visit: %s (Author's site)
                            "EXECUTE MOVE FROM %s to %s?" %(sourceAccount,targetAccount)):
                         txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                         output += "\n\n%s\n" %(txt)
-                        jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+                        QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
                         return
 
                     output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH MOVE/MERGE FROM %s to %s.....\n\n" %(sourceAccount, targetAccount)

@@ -289,7 +289,7 @@ else:
 
     # COMMON GLOBALS #######################################################################################################
     global myParameters, myScriptName, i_am_an_extension_so_run_headless
-    global lPickle_version_warning, decimalCharSep, groupingCharSep, lGlobalErrorDetected
+    global lPickle_version_warning, lGlobalErrorDetected
     global MYPYTHON_DOWNLOAD_URL
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
@@ -314,6 +314,8 @@ else:
             STATUS_LABEL = None
             DARK_GREEN = Color(0, 192, 0)
             resetPickleParameters = False
+            decimalCharSep = "."
+            groupingCharSep = ","
             def __init__(self): pass    # Leave empty
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -583,8 +585,8 @@ Visit: %s (Author's site)
         return u"error"
 
 
-    decimalCharSep = getDecimalPoint(lGetPoint=True)
-    groupingCharSep = getDecimalPoint(lGetGrouping=True)
+    GlobalVars.decimalCharSep = getDecimalPoint(lGetPoint=True)
+    GlobalVars.groupingCharSep = getDecimalPoint(lGetGrouping=True)
 
     def isMacDarkModeDetected():
         darkResponse = "LIGHT"
@@ -2881,7 +2883,7 @@ Visit: %s (Author's site)
                 myPrint("B", "ERROR in printing routines.....:"); dump_sys_error_to_md_console_and_errorlog()
             return
 
-        myPrint("DB", "Decimal point:", decimalCharSep, "Grouping Separator", groupingCharSep)
+        myPrint("DB", "Decimal point:", GlobalVars.decimalCharSep, "Grouping Separator", GlobalVars.groupingCharSep)
 
         sdf = SimpleDateFormat("dd/MM/yyyy")
 
@@ -3596,8 +3598,7 @@ Visit: %s (Author's site)
                             self.lSortNumber = False
 
                     def compare(self, str1, str2):
-                        global decimalCharSep
-                        validString = "-0123456789" + decimalCharSep  # Yes this will strip % sign too, but that still works
+                        validString = "-0123456789" + GlobalVars.decimalCharSep  # Yes this will strip % sign too, but that still works
 
                         # if debug: print str1, str2, self.lSortNumber, self.lSortRealNumber, type(str1), type(str2)
 
@@ -3683,14 +3684,12 @@ Visit: %s (Author's site)
                     super(DefaultTableCellRenderer, self).__init__()
 
                 def setValue(self, value):
-                    global decimalCharSep
-
                     if isinstance(value, (float,int)):
                         if value < 0.0:
                             self.setForeground(MD_REF.getUI().getColors().budgetAlertColor)
                         else:
                             self.setForeground(MD_REF.getUI().getColors().budgetHealthyColor)
-                        self.setText(baseCurrency.formatFancy(int(value*100), decimalCharSep, True))
+                        self.setText(baseCurrency.formatFancy(int(value*100), GlobalVars.decimalCharSep, True))
                     else:
                         self.setText(str(value))
 
