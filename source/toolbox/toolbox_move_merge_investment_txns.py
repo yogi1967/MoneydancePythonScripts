@@ -2849,6 +2849,8 @@ Visit: %s (Author's site)
 
             if not GlobalVars.selectedInvestmentTransactionsList:
                 myPrint("DB", "No selected Investment transactions (in focus) found.....")
+                myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,"No investment txns selected and/or no register in focus")
+                raise QuickAbortThisScriptException
             else:
                 GlobalVars.selectedInvestmentTransactionsList = sorted(GlobalVars.selectedInvestmentTransactionsList, key=lambda _x: (_x.getDateInt()))
 
@@ -2939,7 +2941,6 @@ Visit: %s (Author's site)
                 PARAMETER_KEY_OLD_COST_BASIS = ".old_cost_basis"
 
                 today = Calendar.getInstance()                                                                          # noqa
-                prefs = MD_REF.getPreferences()
 
                 if detect_non_hier_sec_acct_or_orphan_txns() > 0:
                     txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run Toolbox 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
@@ -3005,6 +3006,9 @@ Visit: %s (Author's site)
                 user_dateFieldEnd.setEnabled(False)                                                                     # noqa
                 user_dateFieldEnd.gotoToday()
 
+                user_ignoreNegativeShareBalances = JCheckBox("Auto IGNORE where the share balance (by security) of selected txns to move is negative?", False)
+                user_ignoreNegativeShareBalances.setToolTipText("Forces a move even if the selected txns total to a negative share balance (per security)")
+
                 user_ignoreAccountLoop = JCheckBox("Auto IGNORE any account 'Loops' and Merge anyway?", False)
                 user_ignoreAccountLoop.setToolTipText("Forces the move, even if a 'loop' is created (where to/from accounts are the same). FIX MANUALLY AFTERWARDS")
 
@@ -3049,6 +3053,7 @@ Visit: %s (Author's site)
                     filterPanel.add(JLabel(""))
 
                 filterPanel.add(JLabel("AUTO-PROCESSING OPTIONS:"))
+                filterPanel.add(user_ignoreNegativeShareBalances)
                 filterPanel.add(user_ignoreAvgCstLotFlagDifference)
                 filterPanel.add(user_forceDeleteSeparatedLotRecords)
                 filterPanel.add(user_ignoreAccountLoop)
@@ -3177,6 +3182,7 @@ Visit: %s (Author's site)
                 else:
                     lNeedsLotMatchSeparationTesting = False
 
+                lAutoIgnoreNegativeShareBalances = user_ignoreNegativeShareBalances.isSelected()
                 lAutoIgnoreAnyAvgCstLotFlagDifference = user_ignoreAvgCstLotFlagDifference.isSelected()
                 lAutoForceDeleteSeparatedLotRecords = user_forceDeleteSeparatedLotRecords.isSelected()
                 lAutoIgnoreAccountLoops = user_ignoreAccountLoop.isSelected()
@@ -3217,8 +3223,11 @@ Visit: %s (Author's site)
                             output += "....... FILTER Date Range..: %s to %s\n" %(convertStrippedIntDateFormattedText(filterDateFrom), convertStrippedIntDateFormattedText(filterDateTo))
                         output += "\n"
 
-                    if lAutoIgnoreAccountLoops or lAutoIgnoreAnyAvgCstLotFlagDifference or lAutoDeleteEmptySourceAccount or lAutoMergeCashBalances or lAutoForceSaveTrunkFile or lAutoForceDeleteSeparatedLotRecords:
+                    if lAutoIgnoreNegativeShareBalances or lAutoIgnoreAccountLoops or lAutoIgnoreAnyAvgCstLotFlagDifference or lAutoDeleteEmptySourceAccount or lAutoMergeCashBalances or lAutoForceSaveTrunkFile or lAutoForceDeleteSeparatedLotRecords:
                         output += "\nAUTO-PROCESSING OPTIONS selected...\n"
+
+                    if lAutoIgnoreNegativeShareBalances:
+                        output += "....... Selected transactions that total to a negative share balance (by security) will be auto-processed without warnings...\n"
 
                     if lAutoIgnoreAccountLoops:
                         output += "....... Transactions with circular account 'loops' will be auto-processed without warnings...\n"
@@ -3383,6 +3392,8 @@ Visit: %s (Author's site)
 
                     estimateTransactionsToMove = 0
 
+                    filteredSecTxnsToMove = {}  # Used later when validating security balances involved in the move
+
                     tmpTxns = GlobalVars.selectedInvestmentTransactionsList if (GlobalVars.selectedInvestmentTransactionsList) else sourceTxns
                     for srcTxn in tmpTxns:
 
@@ -3398,6 +3409,14 @@ Visit: %s (Author's site)
                                 continue
 
                         elif isinstance(srcTxn,ParentTxn):
+
+                            secTxn = TxnUtil.getSecurityPart(srcTxn)
+                            if secTxn is not None:
+                                secAcct = secTxn.getAccount()
+                                if secAcct not in filteredSecTxnsToMove:
+                                    filteredSecTxnsToMove[secAcct] = TxnSet()
+                                filteredSecTxnsToMove[secAcct].addTxn(secTxn)
+
                             xfrTxn = TxnUtil.getXfrPart(srcTxn)
                             feeTxn = TxnUtil.getCommissionPart(srcTxn)
                             incTxn = TxnUtil.getIncomePart(srcTxn)
@@ -3541,7 +3560,7 @@ Visit: %s (Author's site)
                                     securityTxnsToFix[secTxn] = newTags
 
                             onSweep += 1
-                    del lNeedsLotMatchSeparationTesting
+                    del lNeedsLotMatchSeparationTesting, fromTxnSecSet, toTxnSecSet
 
                     if lLotErrorsABORT:
                         output += "\n*** Buy/Sell matched LOTs ERRORS EXIST. Cannot proceed. PLEASE FIX & TRY AGAIN ***\n"
@@ -3571,6 +3590,45 @@ Visit: %s (Author's site)
 
 
                     ####################################################################################################
+                    # Look for where the total balance of shares being moved would be negative
+
+                    lMoveWouldCreateNegativeShareBalances = False
+                    output += "\nValidating that the total share balance (by security) of txns to move is not negative:\n"
+
+                    # Sweep from/to list checking for potential matched lot separation...
+                    for secAcct in sorted(filteredSecTxnsToMove, key=lambda _x: (_x.getAccountName().lower())):
+
+                        secTxns = filteredSecTxnsToMove[secAcct]        # type: TxnSet
+                        secTxns.sortByField(AccountUtil.DATE)           # Returns com.infinitekind.moneydance.model.TxnUtil.DATE_COMPARATOR : Comparator
+                        secTxns.setHoldBalances(True)
+                        secTxns.recalcBalances(0, False, False)
+
+                        lastPosn = secTxns.getSize()-1
+                        shareBalance = secTxns.getBalanceAt(lastPosn)
+                        output += "... Security: %s - moving txns with a share balance of %s %s\n" %(secAcct.getAccountName(),
+                                                                                                     secAcct.getCurrencyType().formatSemiFancy(shareBalance, MD_decimal),
+                                                                                                     "***" if shareBalance < 0 else "")
+                        if shareBalance < 0:
+                            lMoveWouldCreateNegativeShareBalances = True
+
+                    if not lMoveWouldCreateNegativeShareBalances:
+                        output += "... No negative share balances (by security detected) within the txns to move..\n"
+
+                    elif lAutoIgnoreNegativeShareBalances:
+                        output += "\n*** Check for negative share balances FAILED VALIDATION. The move/merge will move shares where the share balance of moved txns is negative ***\n\n"
+
+                    else:
+                        output += ">> Check for negative share balances FAILED VALIDATION. Txns to move contain negative share balances (by security)...\n\n"
+                        jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
+                        txt = "ERROR: Check for negative share balances FAILED VALIDATION - no changes made"
+                        myPrint("B", txt)
+                        setDisplayStatus(txt, "R")
+                        myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+                        return
+                    del lAutoIgnoreNegativeShareBalances, filteredSecTxnsToMove
+
+
+                    ####################################################################################################
                     # Check opening/starting cash balances
                     sourceRCurr = sourceAccount.getCurrencyType()
                     sourceStartBal = sourceAccount.getStartBalance()
@@ -3594,6 +3652,7 @@ Visit: %s (Author's site)
                                            OKButtonText="PROCEED")
                     if not ask.go():
                         txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
+                        output += "\n\n%s\n" %(txt)
                         myPrint("B",txt)
                         setDisplayStatus(txt, "R")
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
@@ -3602,6 +3661,9 @@ Visit: %s (Author's site)
 
                     if not confirm_backup_confirm_disclaimer(toolbox_move_merge_investment_txns_frame_, _THIS_METHOD_NAME.upper(),
                            "EXECUTE MOVE FROM %s to %s?" %(sourceAccount,targetAccount)):
+                        txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
+                        output += "\n\n%s\n" %(txt)
+                        jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
                         return
 
                     output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH MOVE/MERGE FROM %s to %s.....\n\n" %(sourceAccount, targetAccount)
