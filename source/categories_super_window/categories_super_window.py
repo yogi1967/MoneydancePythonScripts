@@ -30,7 +30,7 @@
 
 # build: 1000 - Initial Release
 # build: 1001 - Updated common code MyJFrame.dispose()
-# build: 1002 - ?
+# build: 1002 - Eliminated common code globals :->
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# orphan_attachments.py - build: 18 - January 2021 - Stuart Beesley
+# orphan_attachments.py - build: 19 - January 2021 - Stuart Beesley
 
 ###############################################################################
 # MIT License
@@ -41,6 +41,7 @@
 # build: 16 - Common code tweaks
 # build: 17 - Common code tweaks
 # build: 18 - Common code tweaks
+# build: 19 - Common code - eliminating globals
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -48,7 +49,7 @@
 
 # SET THESE LINES
 myModuleID = u"orphan_transactions"
-version_build = "18"
+version_build = "19"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

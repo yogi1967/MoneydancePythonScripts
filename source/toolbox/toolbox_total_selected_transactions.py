@@ -39,6 +39,7 @@
 # build: 1007 - Added <PREVIEW> tag to popup Dialog title if preview detected...
 # build: 1008 - Renamed to toolbox_total_selected_transactions.py and bundled within Toolbox as Extensions Menu option. Decommissioned extension
 # build: 1008 - Decommissioned separate extension
+# build: 1008 - Eliminated common code globals :->
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+

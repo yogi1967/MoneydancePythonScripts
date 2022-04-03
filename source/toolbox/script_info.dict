@@ -9,7 +9,7 @@
     {
       "type" = "menu"
       "script_file" = "toolbox_move_merge_investment_txns.py"
-      "name" = "Toolbox: Move selected investment txns"
+      "name" = "Toolbox: Move investment txns"
     }
     {
       "type" = "menu"

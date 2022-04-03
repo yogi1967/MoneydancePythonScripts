@@ -261,6 +261,8 @@
 # build: 1047 - Added 'FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid' function
 # build: 1047 - Updated / fixed / tweaked show_open_share_lots(); also tweaked common code to allow for when buddy scripts might run at same time...
 # build: 1047 - disabled check_for_old_StuWareSoftSystems_scripts() - can no longer be relevant....
+# build: 1047 - Eliminated common code globals :->
+# build: 1047 - Move/Merge investment txns disabled and now called via Extensions Menu directly...
 
 
 # todo - I don't think that show_open_share_lots() works properly - also dpc.....
@@ -23533,10 +23535,11 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
                 user_diagnose_fix_attachments.setForeground(getColorRed())
 
-                user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another", False)
+                user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another (DISABLED >> NOW RUN FROM EXTENSIONS MENU)", False)
                 user_move_invest_txns.setToolTipText("This allows you to move your investment transactions from one account into (merges with) another")
                 user_move_invest_txns.setEnabled(GlobalVars.UPDATE_MODE)
                 user_move_invest_txns.setForeground(getColorRed())
+                user_move_invest_txns.setEnabled(isToolboxUnlocked())
 
                 user_fix_non_hier_sec_acct_txns = JRadioButton("FIX: Non-Hierarchical Security Acct Txns (& detect Orphans) (fix_non-hierarchical_security_account_txns.py)", False)
                 user_fix_non_hier_sec_acct_txns.setToolTipText("This reviews your Investment Security Txns and fixes where the Account reference is cross-linked and incorrect (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)")
@@ -23604,7 +23607,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
 
                     options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,750,300)
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,850,300)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "Transaction(s) Diagnostics, Tools, Fixes",

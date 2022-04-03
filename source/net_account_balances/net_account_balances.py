@@ -80,6 +80,7 @@
 # Build: 1013 - Added Security currencies into currency display table... Allows shares to be used etc...
 # Build: 1013 - Fixes for 4069 Alpha onwards.. Calls to getUI() off the EDT are now (properly) blocked by MD.....
 # Build: 1013 - Fix when setting lastRefreshTriggerWasAccountModified and HPV.view is None (closing the GUI would error)
+# build: 1013 - Eliminated common code globals :->
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 

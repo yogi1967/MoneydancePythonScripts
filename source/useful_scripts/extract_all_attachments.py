@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_all_attachments.py build: 16 - Jan 2021 - Stuart Beesley StuWareSoftSystems
+# extract_all_attachments.py build: 17 - Jan 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -36,6 +36,7 @@
 # build: 14 - Common code tweaks - switch to new dynamic file chooser wrapper
 # build: 15 - Common code tweaks
 # build: 16 - Common code tweaks
+# build: 17 - Common code - eliminating globals
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -43,7 +44,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_all_attachments"
-version_build = "16"
+version_build = "17"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

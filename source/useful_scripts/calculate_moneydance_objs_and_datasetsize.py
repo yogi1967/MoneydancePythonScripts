@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# calculate_moneydance_objs_and_datasetsize.py build: 17 - Feb 2021 - Stuart Beesley StuWareSoftSystems
+# calculate_moneydance_objs_and_datasetsize.py build: 18 - Feb 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -35,6 +35,7 @@
 # build: 15 - Common code tweaks
 # build: 16 - Common code tweaks
 # build: 17 - Common code tweaks
+# build: 18 - Common code - eliminating globals
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -42,7 +43,7 @@
 
 # SET THESE LINES
 myModuleID = u"calculate_moneydance_objs_and_datasetsize"
-version_build = "17"
+version_build = "18"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

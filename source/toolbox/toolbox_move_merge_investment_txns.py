@@ -28,7 +28,7 @@
 ###############################################################################
 # Called by the Toolbox extension
 
-# build: 1000 - Initial Release
+# build: 1000 - Initial Release.
 
 # Allows the user to select investment transactions and then move them between accounts:
 # Can be called from the Extensions Menu (with/without txns selected); or from Toolbox menu
@@ -2669,6 +2669,8 @@ Visit: %s (Author's site)
             myPrint("DB",".. Main App Already within the EDT so calling naked...")
             MainAppRunnable().run()
 
+        lRunningFromToolboxOverride = False
+
         lRunningFromToolbox = False
         if u"toolbox_script_runner" in globals():
             global toolbox_script_runner
@@ -2827,10 +2829,12 @@ Visit: %s (Author's site)
                     myPrint("DB", "Failed to find JSplitPane in '%s'" %(foundTxnRegister))
 
             if not GlobalVars.selectedInvestmentTransactionsList:
-                msg = "No investment txns selected and/or no register in focus"
-                myPrint("DB", msg)
-                myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,msg)
-                raise QuickAbortThisScriptException
+                # msg = "No investment txns selected and/or no register in focus"
+                # myPrint("DB", msg)
+                # myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,msg)
+                # raise QuickAbortThisScriptException
+                lRunningFromToolboxOverride = True
+                lRunningFromToolbox = True
             else:
                 GlobalVars.selectedInvestmentTransactionsList = sorted(GlobalVars.selectedInvestmentTransactionsList, key=lambda _x: (_x.getDateInt()))
 
@@ -2913,7 +2917,7 @@ Visit: %s (Author's site)
 
                 _THIS_METHOD_NAME = "Move/Merge Investment Accounts"
 
-                if lRunningFromToolbox:
+                if lRunningFromToolbox and not lRunningFromToolboxOverride:
                     selectHomeScreen()      # Stops the LOT Control box popping up.....
 
                 PARAMETER_KEY = "toolbox_txn_merge"
@@ -3012,9 +3016,9 @@ Visit: %s (Author's site)
                 filterPanel = JPanel(GridLayout(0, 1))
                 filterPanel.add(labelMsg)
                 filterPanel.add(JLabel(""))
-                filterPanel.add(JLabel("Select the 'from' source Account"))
+                filterPanel.add(JLabel("Select the 'from' source Investment Account"))
                 filterPanel.add(user_selectSourceAccount)
-                filterPanel.add(JLabel("Select the target Account to move/merge txns into"))
+                filterPanel.add(JLabel("Select the target Investment Account to move/merge txns into"))
                 filterPanel.add(user_selectTargetAccount)
                 filterPanel.add(JLabel(""))
 
@@ -3094,7 +3098,7 @@ Visit: %s (Author's site)
 
                     userAction = JOptionPane.showOptionDialog(toolbox_move_merge_investment_txns_frame_,
                                                               filterPanel,
-                                                              "Select FILTER Options:",
+                                                              "%s: Select FILTER Options:" %(_THIS_METHOD_NAME.upper()),
                                                               JOptionPane.OK_CANCEL_OPTION,
                                                               JOptionPane.QUESTION_MESSAGE,
                                                               None,

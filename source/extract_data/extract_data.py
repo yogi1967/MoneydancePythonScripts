@@ -88,6 +88,7 @@
 # build: 1021 - Added <PREVIEW> tag to JFrame titlebar if detected...
 # build: 1021 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
 # build: 1022 - Changed JDateField to use user's date format
+# build: 1022 - Eliminated common code globals :->
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################

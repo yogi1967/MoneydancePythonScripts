@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# import_categories.py (build 6) - Author - Stuart Beesley - StuWareSoftSystems 2021
+# import_categories.py (build 7) - Author - Stuart Beesley - StuWareSoftSystems 2021
 
 # READ THIS FIRST:
 #
@@ -53,6 +53,7 @@
 # build: 4 - Common code tweaks; use file chooser wrapper
 # build: 5 - Common code tweaks
 # build: 6 - Common code tweaks
+# build: 7 - Common code - eliminating globals
 
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -61,7 +62,7 @@
 
 # SET THESE LINES
 myModuleID = u"import_categories"
-version_build = "6"
+version_build = "7"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

@@ -48,6 +48,7 @@
 # build: 1015 - Tweaked date format to use MD Preferences set by user
 # build: 1016 - Added <PREVIEW> title to main JFrame if preview build detected...
 # Build: 1016 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
+# build: 1016 - Eliminated common code globals :->
 
 # Displays Moneydance future reminders
 
