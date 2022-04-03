@@ -89,6 +89,7 @@
 # build: 1021 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
 # build: 1022 - Changed JDateField to use user's date format
 # build: 1022 - Eliminated common code globals :->
+# build: 1022 - Extract Account Registers. Include LOAN and LIABILITY accounts too..
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -3372,6 +3373,8 @@ Visit: %s (Author's site)
                         # noinspection PyUnresolvedReferences
                         if not (acct.getAccountType() == Account.AccountType.BANK
                                 or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                                or acct.getAccountType() == Account.AccountType.LOAN
+                                or acct.getAccountType() == Account.AccountType.LIABILITY
                                 or acct.getAccountType() == Account.AccountType.ASSET):
                             return False
 
@@ -7775,6 +7778,8 @@ Visit: %s (Author's site)
                                 # noinspection PyUnresolvedReferences
                                 if not (acct.getAccountType() == Account.AccountType.BANK
                                         or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                                        or acct.getAccountType() == Account.AccountType.LOAN
+                                        or acct.getAccountType() == Account.AccountType.LIABILITY
                                         or acct.getAccountType() == Account.AccountType.ASSET):
                                     return False
 
