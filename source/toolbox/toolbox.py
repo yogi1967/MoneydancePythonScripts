@@ -260,6 +260,7 @@
 # build: 1047 - Added check for critical 'java.io.tmpdir' folder
 # build: 1047 - Added 'FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid' function
 # build: 1047 - Updated / fixed / tweaked show_open_share_lots(); also tweaked common code to allow for when buddy scripts might run at same time...
+# build: 1047 - disabled check_for_old_StuWareSoftSystems_scripts() - can no longer be relevant....
 
 
 # todo - I don't think that show_open_share_lots() works properly - also dpc.....
@@ -304,6 +305,8 @@ else:
 from java.lang import System, Runnable
 from javax.swing import JFrame, SwingUtilities, SwingWorker
 from java.awt.event import WindowEvent
+
+class QuickAbortThisScriptException(Exception): pass
 
 class MyJFrame(JFrame):
 
@@ -511,19 +514,11 @@ else:
     # END COMMON IMPORTS ###################################################################################################
 
     # COMMON GLOBALS #######################################################################################################
-    global myParameters, myScriptName, i_am_an_extension_so_run_headless
-    global lPickle_version_warning, lGlobalErrorDetected
-    global MYPYTHON_DOWNLOAD_URL
+    # All common globals have now been eliminated :->
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
-    myParameters = {}                                                                                                   # noqa
-    lPickle_version_warning = False;                                                                                    # noqa
-    lGlobalErrorDetected = False																						# noqa
-    MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
-
     if "GlobalVars" in globals():   # Prevent wiping if 'buddy' extension - like Toolbox - is running too...
         global GlobalVars
     else:
@@ -539,7 +534,14 @@ else:
             resetPickleParameters = False
             decimalCharSep = "."
             groupingCharSep = ","
+            lGlobalErrorDetected = False
+            MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"
+            i_am_an_extension_so_run_headless = None
+            parametersLoadedFromFile = {}
+            thisScriptName = None
             def __init__(self): pass    # Leave empty
+
+    GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
@@ -662,11 +664,11 @@ else:
     # COMMON CODE ######################################################################################################
     # COMMON CODE ################# VERSION 106 ########################################################################
     # COMMON CODE ######################################################################################################
-    i_am_an_extension_so_run_headless = False                                                                           # noqa
+    GlobalVars.i_am_an_extension_so_run_headless = False
     try:
-        myScriptName = os.path.basename(__file__)
+        GlobalVars.thisScriptName = os.path.basename(__file__)
     except:
-        i_am_an_extension_so_run_headless = True                                                                        # noqa
+        GlobalVars.i_am_an_extension_so_run_headless = True
 
     scriptExit = """
 ----------------------------------------------------------------------------------------------------------------------
@@ -693,7 +695,7 @@ useful_scripts:                         Just unzip and select the script you wan
 
 Visit: %s (Author's site)
 ----------------------------------------------------------------------------------------------------------------------
-""" %(myScriptName, MYPYTHON_DOWNLOAD_URL)
+""" %(GlobalVars.thisScriptName, GlobalVars.MYPYTHON_DOWNLOAD_URL)
 
     def cleanup_references():
         global MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
@@ -743,8 +745,6 @@ Visit: %s (Author's site)
 
     # P=Display on Python Console, J=Display on MD (Java) Console Error Log, B=Both, D=If Debug Only print, DB=print both
     def myPrint(where, *args):
-        global myScriptName, debug, i_am_an_extension_so_run_headless
-
         if where[0] == "D" and not debug: return
 
         try:
@@ -754,7 +754,7 @@ Visit: %s (Author's site)
             printString = printString.strip()
 
             if where == "P" or where == "B" or where[0] == "D":
-                if not i_am_an_extension_so_run_headless:
+                if not GlobalVars.i_am_an_extension_so_run_headless:
                     try:
                         print(printString)
                     except:
@@ -764,11 +764,11 @@ Visit: %s (Author's site)
             if where == "J" or where == "B" or where == "DB":
                 dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
                 try:
-                    System.err.write(myScriptName + ":" + dt + ": ")
+                    System.err.write(GlobalVars.thisScriptName + ":" + dt + ": ")
                     System.err.write(printString)
                     System.err.write("\n")
                 except:
-                    System.err.write(myScriptName + ":" + dt + ": "+"Error writing to console")
+                    System.err.write(GlobalVars.thisScriptName + ":" + dt + ": "+"Error writing to console")
                     dump_sys_error_to_md_console_and_errorlog()
 
         except IllegalArgumentException:
@@ -812,11 +812,9 @@ Visit: %s (Author's site)
 
         return theText
 
-    myPrint("B", myScriptName, ": Python Script Initialising.......", "Build:", version_build)
+    myPrint("B", GlobalVars.thisScriptName, ": Python Script Initialising.......", "Build:", version_build)
 
     def getMonoFont():
-        global debug
-
         try:
             theFont = MD_REF.getUI().getFonts().code
             # if debug: myPrint("B","Success setting Font set to Moneydance code: %s" %theFont)
@@ -853,8 +851,6 @@ Visit: %s (Author's site)
         return homeDir
 
     def getDecimalPoint(lGetPoint=False, lGetGrouping=False):
-        global debug
-
         decimalFormat = DecimalFormat.getInstance()
         # noinspection PyUnresolvedReferences
         decimalSymbols = decimalFormat.getDecimalFormatSymbols()
@@ -976,9 +972,9 @@ Visit: %s (Author's site)
 
         if response == 2:
             myPrint("B", "User requested to create a backup before update/fix - calling moneydance 'Export Backup' routine...")
-            MD_REF.getUI().setStatus("%s is creating a backup...." %(myScriptName),-1.0)
+            MD_REF.getUI().setStatus("%s is creating a backup...." %(GlobalVars.thisScriptName),-1.0)
             MD_REF.getUI().saveToBackup(None)
-            MD_REF.getUI().setStatus("%s create (export) backup process completed...." %(myScriptName),0)
+            MD_REF.getUI().setStatus("%s create (export) backup process completed...." %(GlobalVars.thisScriptName),0)
             return True
 
         elif response == 1:
@@ -1081,7 +1077,6 @@ Visit: %s (Author's site)
                 self.lResult = lResult
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -1107,7 +1102,6 @@ Visit: %s (Author's site)
                 self.lResult = lResult
 
             def actionPerformed(self, event):
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -1131,7 +1125,6 @@ Visit: %s (Author's site)
                 self.lResult = lResult
 
             def actionPerformed(self, event):
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -1148,8 +1141,6 @@ Visit: %s (Author's site)
                 return
 
         def kill(self):
-
-            global debug
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -1172,12 +1163,9 @@ Visit: %s (Author's site)
             return
 
         def result(self):
-            global debug
             return self.lResult[0]
 
         def go(self):
-            global debug
-
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -1370,7 +1358,6 @@ Visit: %s (Author's site)
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():
-        global debug
         myPrint("D", "Moneydance Build:", MD_REF.getVersion(), "Build:", MD_REF.getBuild())
 
 
@@ -1379,8 +1366,6 @@ Visit: %s (Author's site)
     myPrint("DB","System file encoding is:", sys.getfilesystemencoding() )   # Not used, but interesting. Perhaps useful when switching between Windows/Macs and writing files...
 
     def checkVersions():
-        global debug
-
         lError = False
         plat_j = platform.system()
         plat_p = platform.python_implementation()
@@ -1542,13 +1527,13 @@ Visit: %s (Author's site)
         return str( theDelimiter )
 
     def get_StuWareSoftSystems_parameters_from_file(myFile="StuWareSoftSystems.dict"):
-        global debug, myParameters, lPickle_version_warning, version_build                            # noqa
+        global debug    # This global for debug must be here as we set it from loaded parameters
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         if GlobalVars.resetPickleParameters:
             myPrint("B", "User has specified to reset parameters... keeping defaults and skipping pickle()")
-            myParameters = {}
+            GlobalVars.parametersLoadedFromFile = {}
             return
 
         old_dict_filename = os.path.join("..", myFile)
@@ -1572,14 +1557,14 @@ Visit: %s (Author's site)
                 else:
                     load_string = load_file.read()
 
-                myParameters = pickle.loads(load_string)
+                GlobalVars.parametersLoadedFromFile = pickle.loads(load_string)
                 load_file.close()
             except FileNotFoundException:
                 myPrint("B", "Error: failed to find parameter file...")
-                myParameters = None
+                GlobalVars.parametersLoadedFromFile = None
             except EOFError:
                 myPrint("B", "Error: reached EOF on parameter file....")
-                myParameters = None
+                GlobalVars.parametersLoadedFromFile = None
             except:
                 myPrint("B","Error opening Pickle File (will try encrypted version) - Unexpected error ", sys.exc_info()[0])
                 myPrint("B","Error opening Pickle File (will try encrypted version) - Unexpected error ", sys.exc_info()[1])
@@ -1591,39 +1576,38 @@ Visit: %s (Author's site)
                     istr = local_storage.openFileForReading(old_dict_filename)
                     load_file = FileUtil.wrap(istr)
                     # noinspection PyTypeChecker
-                    myParameters = pickle.load(load_file)
+                    GlobalVars.parametersLoadedFromFile = pickle.load(load_file)
                     load_file.close()
                     myPrint("B","Success loading Encrypted Pickle file - will migrate to non encrypted")
-                    lPickle_version_warning = True
                 except:
                     myPrint("B","Opening Encrypted Pickle File - Unexpected error ", sys.exc_info()[0])
                     myPrint("B","Opening Encrypted Pickle File - Unexpected error ", sys.exc_info()[1])
                     myPrint("B","Error opening Pickle File - Line Number: ", sys.exc_info()[2].tb_lineno)
                     myPrint("B", "Error: Pickle.load() failed.... Is this a restored dataset? Will ignore saved parameters, and create a new file...")
-                    myParameters = None
+                    GlobalVars.parametersLoadedFromFile = None
 
-            if myParameters is None:
-                myParameters = {}
+            if GlobalVars.parametersLoadedFromFile is None:
+                GlobalVars.parametersLoadedFromFile = {}
                 myPrint("DB","Parameters did not load, will keep defaults..")
             else:
                 myPrint("DB","Parameters successfully loaded from file...")
         else:
             myPrint("J", "Parameter Pickle file does not exist - will use default and create new file..")
             myPrint("D", "Parameter Pickle file does not exist - will use default and create new file..")
-            myParameters = {}
+            GlobalVars.parametersLoadedFromFile = {}
 
-        if not myParameters: return
+        if not GlobalVars.parametersLoadedFromFile: return
 
-        myPrint("DB","myParameters read from file contains...:")
-        for key in sorted(myParameters.keys()):
-            myPrint("DB","...variable:", key, myParameters[key])
+        myPrint("DB","GlobalVars.parametersLoadedFromFile read from file contains...:")
+        for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
+            myPrint("DB","...variable:", key, GlobalVars.parametersLoadedFromFile[key])
 
-        if myParameters.get("debug") is not None: debug = myParameters.get("debug")
-        if myParameters.get("lUseMacFileChooser") is not None:
+        if GlobalVars.parametersLoadedFromFile.get("debug") is not None: debug = GlobalVars.parametersLoadedFromFile.get("debug")
+        if GlobalVars.parametersLoadedFromFile.get("lUseMacFileChooser") is not None:
             myPrint("B", "Detected old lUseMacFileChooser parameter/variable... Will delete it...")
-            myParameters.pop("lUseMacFileChooser", None)  # Old variable - not used - delete from parameter file
+            GlobalVars.parametersLoadedFromFile.pop("lUseMacFileChooser", None)  # Old variable - not used - delete from parameter file
 
-        myPrint("DB","Parameter file loaded if present and myParameters{} dictionary set.....")
+        myPrint("DB","Parameter file loaded if present and GlobalVars.parametersLoadedFromFile{} dictionary set.....")
 
         # Now load into memory!
         load_StuWareSoftSystems_parameters_into_memory()
@@ -1631,15 +1615,13 @@ Visit: %s (Author's site)
         return
 
     def save_StuWareSoftSystems_parameters_to_file(myFile="StuWareSoftSystems.dict"):
-        global debug, myParameters, lPickle_version_warning, version_build
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        if myParameters is None: myParameters = {}
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         # Don't forget, any parameters loaded earlier will be preserved; just add changed variables....
-        myParameters["__Author"] = "Stuart Beesley - (c) StuWareSoftSystems"
-        myParameters["debug"] = debug
+        GlobalVars.parametersLoadedFromFile["__Author"] = "Stuart Beesley - (c) StuWareSoftSystems"
+        GlobalVars.parametersLoadedFromFile["debug"] = debug
 
         dump_StuWareSoftSystems_parameters_from_memory()
 
@@ -1654,12 +1636,12 @@ Visit: %s (Author's site)
 
         try:
             save_file = FileUtil.wrap(ostr)
-            pickle.dump(myParameters, save_file, protocol=0)
+            pickle.dump(GlobalVars.parametersLoadedFromFile, save_file, protocol=0)
             save_file.close()
 
-            myPrint("DB","myParameters now contains...:")
-            for key in sorted(myParameters.keys()):
-                myPrint("DB","...variable:", key, myParameters[key])
+            myPrint("DB","GlobalVars.parametersLoadedFromFile now contains...:")
+            for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
+                myPrint("DB","...variable:", key, GlobalVars.parametersLoadedFromFile[key])
 
         except:
             myPrint("B", "Error - failed to create/write parameter file.. Ignoring and continuing.....")
@@ -2685,14 +2667,12 @@ Visit: %s (Author's site)
                 self.theFrame = theFrame
 
             def actionPerformed(self, event):
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
 
                 # Listener is already on the Swing EDT...
                 self.theFrame.dispose()
 
         def __init__(self, theFrame):
-            global debug, scriptExit
             self.theFrame = theFrame
 
         def go(self):
@@ -2735,7 +2715,7 @@ Visit: %s (Author's site)
                     _label2.setForeground(getColorBlue())
                     aboutPanel.add(_label2)
 
-                    _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(myScriptName, version_build), 800))
+                    _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(GlobalVars.thisScriptName, version_build), 800))
                     _label3.setForeground(getColorBlue())
                     aboutPanel.add(_label3)
 
@@ -2871,7 +2851,6 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def load_StuWareSoftSystems_parameters_into_memory():
-        global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
         global __TOOLBOX, lCopyAllToClipBoard_TB, lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
@@ -2879,40 +2858,35 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
 
-        if myParameters is None: myParameters = {}
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
-        if myParameters.get("__TOOLBOX") is not None: __TOOLBOX = myParameters.get("__TOOLBOX")
-        if myParameters.get("lCopyAllToClipBoard_TB") is not None: lCopyAllToClipBoard_TB = myParameters.get("lCopyAllToClipBoard_TB")
-        if myParameters.get("lIgnoreOutdatedExtensions_TB") is not None: lIgnoreOutdatedExtensions_TB = myParameters.get("lIgnoreOutdatedExtensions_TB")
-        if myParameters.get("lAutoPruneInternalBackups_TB") is not None: lAutoPruneInternalBackups_TB = myParameters.get("lAutoPruneInternalBackups_TB")
+        if GlobalVars.parametersLoadedFromFile.get("__TOOLBOX") is not None: __TOOLBOX = GlobalVars.parametersLoadedFromFile.get("__TOOLBOX")
+        if GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB") is not None: lCopyAllToClipBoard_TB = GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB")
+        if GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB") is not None: lIgnoreOutdatedExtensions_TB = GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB")
+        if GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB") is not None: lAutoPruneInternalBackups_TB = GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB")
 
         # No longer needed as button will be ever-present...
-        if myParameters.get("lGeekOutModeEnabled_TB") is not None: myParameters.pop("lGeekOutModeEnabled_TB")
+        if GlobalVars.parametersLoadedFromFile.get("lGeekOutModeEnabled_TB") is not None: GlobalVars.parametersLoadedFromFile.pop("lGeekOutModeEnabled_TB")
 
-        myPrint("DB","myParameters{} set into memory (as variables).....")
+        myPrint("DB","GlobalVars.parametersLoadedFromFile{} set into memory (as variables).....")
 
         return
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def dump_StuWareSoftSystems_parameters_from_memory():
-        global debug, myParameters, lPickle_version_warning, version_build
-
-        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-        global __TOOLBOX, lCopyAllToClipBoard_TB, lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         # NOTE: Parameters were loaded earlier on... Preserve existing, and update any used ones...
         # (i.e. other StuWareSoftSystems programs might be sharing the same file)
 
-        if myParameters is None: myParameters = {}
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
-        myParameters["__TOOLBOX"] = version_build
-        myParameters["lCopyAllToClipBoard_TB"] = lCopyAllToClipBoard_TB
-        myParameters["lIgnoreOutdatedExtensions_TB"] = lIgnoreOutdatedExtensions_TB
-        myParameters["lAutoPruneInternalBackups_TB"] = lAutoPruneInternalBackups_TB
+        GlobalVars.parametersLoadedFromFile["__TOOLBOX"] = version_build
+        GlobalVars.parametersLoadedFromFile["lCopyAllToClipBoard_TB"] = lCopyAllToClipBoard_TB
+        GlobalVars.parametersLoadedFromFile["lIgnoreOutdatedExtensions_TB"] = lIgnoreOutdatedExtensions_TB
+        GlobalVars.parametersLoadedFromFile["lAutoPruneInternalBackups_TB"] = lAutoPruneInternalBackups_TB
 
-        myPrint("DB","variables dumped from memory back into myParameters{}.....")
+        myPrint("DB","variables dumped from memory back into GlobalVars.parametersLoadedFromFile{}.....")
 
         return
 
@@ -2940,7 +2914,7 @@ Visit: %s (Author's site)
         except:
             pass  # If this fails, then MD is probably shutting down.......
 
-        if not i_am_an_extension_so_run_headless: print(scriptExit)
+        if not GlobalVars.i_am_an_extension_so_run_headless: print(scriptExit)
 
         cleanup_references()
 
@@ -3082,7 +3056,6 @@ Visit: %s (Author's site)
 
     # noinspection PyBroadException
     def downloadStuWareSoftSystemsExtensions( what ):
-        global i_am_an_extension_so_run_headless, debug
 
         myPrint("B","#########################################################################################################################################################")
         myPrint("B","### INFORMATION: Toolbox is connecting to the master Toolbox code repository to check if an updated version is available - IT IS NOT SENDING ANY DATA ###")
@@ -3157,8 +3130,6 @@ Visit: %s (Author's site)
             self.lQuickCheckOnly = lQuickCheckOnly
 
         def actionPerformed(self, event):
-            global toolbox_frame_, debug
-
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
             if not Platform.isOSX():
@@ -4389,9 +4360,11 @@ Visit: %s (Author's site)
             return "Toolbox build info Obj. Build: %s Disabled: %s {%s}" %(self.build,self.disable, self.obj)
 
     def download_toolbox_version_info():
-        global debug, TOOLBOX_STOP_NOW, TOOLBOX_VERSION_VALIDATION_URL, version_build
+
+        # These globals must be here as they are set here too...
+        global TOOLBOX_STOP_NOW
         global TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_BUILD
-        global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE, MYPYTHON_DOWNLOAD_URL
+        global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
 
         myPrint("B","##################################################################################################################################################")
         myPrint("B","### INFORMATION: Toolbox is connecting to the master Toolbox code repository to check version / build information - IT IS NOT SENDING ANY DATA ###")
@@ -4481,7 +4454,7 @@ Visit: %s (Author's site)
                     myPrint("DB"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
                     myPrint("DB"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
                     myPrint("DB"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
-                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(MYPYTHON_DOWNLOAD_URL))
+                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(GlobalVars.MYPYTHON_DOWNLOAD_URL))
 
                 TOOLBOX_STOP_NOW = moduleBuild.disable
                 if moduleBuild.TOOLBOX_MINIMUM_TESTED_MD_VERSION > 0:
@@ -4499,7 +4472,7 @@ Visit: %s (Author's site)
                 if len(moduleBuild.MD_EXTENSIONS_DIRECTORY_FILE) > 0:
                     MD_EXTENSIONS_DIRECTORY_FILE =          moduleBuild.MD_EXTENSIONS_DIRECTORY_FILE
                 if len(moduleBuild.MYPYTHON_DOWNLOAD_URL) > 0:
-                    MYPYTHON_DOWNLOAD_URL =                  moduleBuild.MYPYTHON_DOWNLOAD_URL
+                    GlobalVars.MYPYTHON_DOWNLOAD_URL =      moduleBuild.MYPYTHON_DOWNLOAD_URL
 
                 if debug:
                     myPrint("DB","Program variables are now...:")
@@ -4511,7 +4484,7 @@ Visit: %s (Author's site)
                     myPrint("DB"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
                     myPrint("DB"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
                     myPrint("DB"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
-                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(MYPYTHON_DOWNLOAD_URL))
+                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(GlobalVars.MYPYTHON_DOWNLOAD_URL))
 
                 if TOOLBOX_STOP_NOW:
                     myPrint("B","Uh-oh... disable has been set by the Developer for this build.... Toolbox must close... Sorry")
@@ -4527,7 +4500,6 @@ Visit: %s (Author's site)
         return
 
     def downloadExtensions():
-        global MD_EXTENSIONS_DIRECTORY_FILE
 
         myPrint("B","#######################################################################################################################################")
         myPrint("B","### INFORMATION: Toolbox is connecting to Infinite Kind servers to check for extension(s) version data - IT IS NOT SENDING ANY DATA ###")
@@ -5860,8 +5832,6 @@ Visit: %s (Author's site)
         def __init__(self): pass
 
         def actionPerformed(self, event):
-            global debug
-
             myPrint("D","In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
 
             ConsoleWindow.showConsoleWindow(MD_REF.getUI())
@@ -5942,15 +5912,13 @@ Visit: %s (Author's site)
             return
 
     def display_pickle():
-        global debug, myParameters
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        if myParameters is None: myParameters = {}
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         params = []
-        for key in sorted(myParameters.keys()):
-            params.append("Key: " + pad(safeStr(key),50) + " Type: " + pad(safeStr(type(myParameters[key])),20) + "Value: " + safeStr(myParameters[key]) + "\n")
+        for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
+            params.append("Key: " + pad(safeStr(key),50) + " Type: " + pad(safeStr(type(GlobalVars.parametersLoadedFromFile[key])), 20) + "Value: " + safeStr(GlobalVars.parametersLoadedFromFile[key]) + "\n")
 
         params.append("\n<END>")
 
@@ -6045,7 +6013,6 @@ Visit: %s (Author's site)
         return currOutput
 
     def can_I_delete_security():
-        global toolbox_frame_, debug
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         myPrint("B", "Script running to analyse whether you can delete a Security, or show where it's used....")
@@ -6943,7 +6910,7 @@ Visit: %s (Author's site)
             return [0,0]
 
     def check_for_updatable_extensions_on_startup():
-        global lIgnoreOutdatedExtensions_TB
+        global lIgnoreOutdatedExtensions_TB     # global must be here as we can set it
 
         Toolbox_version = 0
 
@@ -6992,81 +6959,78 @@ Visit: %s (Author's site)
 
         return Toolbox_version
 
-    def check_for_old_StuWareSoftSystems_scripts():
-        global lPickle_version_warning, myParameters, i_am_an_extension_so_run_headless, debug
-        global MYPYTHON_DOWNLOAD_URL
-
-        lVersionWarning = False
-
-        if not myParameters and not lPickle_version_warning:
-            return
-
-        displayData = "\nStuWareSoftSystems: ALERT INFORMATION ABOUT SCRIPTS:\n\n"
-
-        if lPickle_version_warning:
-            displayData += "I detected an older (encrypted) version of saved parameter file for use with my Python scripts\n"
-            displayData += ".... but no problem, I have updated / converted it.\n\n"
-
-        _MAJOR = 0
-        _MINOR = 1
-        iCountOldScripts = 0
-
-        if myParameters:
-
-            for key in sorted(myParameters.keys()):
-                if key.startswith("__") and key != "__Author":
-                    myPrint("DB","Decoding old script versions for key: %s version_build: %s" %(key,myParameters[key]))
-                    theVersion = extract_StuWareSoftSystems_version(myParameters[key])
-                    if key == "__extract_currency_history_csv":
-                        if theVersion[_MAJOR] <  1000:
-                            pass
-                        else: continue
-                    elif key.lower() == "__StockGlance2020".lower():
-                        if theVersion[_MAJOR] <  1000:
-                            pass
-                        else: continue
-                    elif key == "__extract_reminders_to_csv":     # Old key - renamed... but see if it's around....
-                        if theVersion[_MAJOR] <  1000:
-                            pass
-                        else: continue
-                    elif key == "__extract_reminders_csv":
-                        if theVersion[_MAJOR] <  1000:
-                            pass
-                        else: continue
-                    elif key == "__extract_investment_transactions":
-                        if theVersion[_MAJOR] <  1000:
-                            pass
-                        else: continue
-                    else: continue
-                    displayData+="ALERT: Script: %s is out of date - you have version_build: %s_%s\n" %(key,theVersion[_MAJOR],theVersion[_MINOR])
-                    myPrint("DB", "Script %s is out of date - PLEASE UPDATE"%key)
-                    iCountOldScripts+=1
-                    lVersionWarning = True
-
-
-        if lPickle_version_warning or lVersionWarning:
-            displayData+="""
-
-The current versions are available as Extensions from the MD Menu >> Manage Extensions.... 
-
-NOTE: extract_data is a consolidation of all prior extract scripts - including:
-- stockglance2020.py:                     
-- extract_reminders_csv.py:               
-- extract_currency_history_csv.py:        
-- extract_investment_transactions_csv.py: 
-- extract_account_registers_csv           
-
-Please update any that you use before proceeding....
-"""
-
-            jif = QuickJFrame("StuWareSoftSystems - Scripts alert!", displayData, 1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-
-            txt = "PLEASE UPDATE OLDER VERSIONS OF STUWARESOFTSYSTEMS SCRIPTS!..."
-            setDisplayStatus(txt, "B")
-
-            myPopupInformationBox(jif, "You have %s older StuWareSoftSystems scripts - please upgrade them!" %(iCountOldScripts), "STUWARESOFTSYSTEMS' SCRIPTS", JOptionPane.WARNING_MESSAGE)
-
-        return
+#     def check_for_old_StuWareSoftSystems_scripts():
+#         lVersionWarning = False
+#
+#         if not GlobalVars.parametersLoadedFromFile and not GlobalVars.lPickle_version_warning:
+#             return
+#
+#         displayData = "\nStuWareSoftSystems: ALERT INFORMATION ABOUT SCRIPTS:\n\n"
+#
+#         if GlobalVars.lPickle_version_warning:
+#             displayData += "I detected an older (encrypted) version of saved parameter file for use with my Python scripts\n"
+#             displayData += ".... but no problem, I have updated / converted it.\n\n"
+#
+#         _MAJOR = 0
+#         _MINOR = 1
+#         iCountOldScripts = 0
+#
+#         if GlobalVars.parametersLoadedFromFile:
+#
+#             for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
+#                 if key.startswith("__") and key != "__Author":
+#                     myPrint("DB","Decoding old script versions for key: %s version_build: %s" %(key,GlobalVars.parametersLoadedFromFile[key]))
+#                     theVersion = extract_StuWareSoftSystems_version(GlobalVars.parametersLoadedFromFile[key])
+#                     if key == "__extract_currency_history_csv":
+#                         if theVersion[_MAJOR] <  1000:
+#                             pass
+#                         else: continue
+#                     elif key.lower() == "__StockGlance2020".lower():
+#                         if theVersion[_MAJOR] <  1000:
+#                             pass
+#                         else: continue
+#                     elif key == "__extract_reminders_to_csv":     # Old key - renamed... but see if it's around....
+#                         if theVersion[_MAJOR] <  1000:
+#                             pass
+#                         else: continue
+#                     elif key == "__extract_reminders_csv":
+#                         if theVersion[_MAJOR] <  1000:
+#                             pass
+#                         else: continue
+#                     elif key == "__extract_investment_transactions":
+#                         if theVersion[_MAJOR] <  1000:
+#                             pass
+#                         else: continue
+#                     else: continue
+#                     displayData+="ALERT: Script: %s is out of date - you have version_build: %s_%s\n" %(key,theVersion[_MAJOR],theVersion[_MINOR])
+#                     myPrint("DB", "Script %s is out of date - PLEASE UPDATE"%key)
+#                     iCountOldScripts+=1
+#                     lVersionWarning = True
+#
+#
+#         if GlobalVars.lPickle_version_warning or lVersionWarning:
+#             displayData+="""
+#
+# The current versions are available as Extensions from the MD Menu >> Manage Extensions....
+#
+# NOTE: extract_data is a consolidation of all prior extract scripts - including:
+# - stockglance2020.py:
+# - extract_reminders_csv.py:
+# - extract_currency_history_csv.py:
+# - extract_investment_transactions_csv.py:
+# - extract_account_registers_csv
+#
+# Please update any that you use before proceeding....
+# """
+#
+#             jif = QuickJFrame("StuWareSoftSystems - Scripts alert!", displayData, 1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+#
+#             txt = "PLEASE UPDATE OLDER VERSIONS OF STUWARESOFTSYSTEMS SCRIPTS!..."
+#             setDisplayStatus(txt, "B")
+#
+#             myPopupInformationBox(jif, "You have %s older StuWareSoftSystems scripts - please upgrade them!" %(iCountOldScripts), "STUWARESOFTSYSTEMS' SCRIPTS", JOptionPane.WARNING_MESSAGE)
+#
+#         return
 
     def find_the_program_install_dir():
 
@@ -7191,7 +7155,8 @@ Please update any that you use before proceeding....
         # Securities should be set to Base (as None), or can be relative to another Currency (not Security)
         # Max relative relational depth is SEC>CURR>Base or CURR>Base
 
-        global fixRCurrencyCheck
+        global fixRCurrencyCheck      # global must be here as we set it
+
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         _THIS_METHOD_NAME = "Diagnose currencies / securities (including relative currencies)"
@@ -7987,8 +7952,6 @@ Please update any that you use before proceeding....
         return False
 
     def terminate_script():
-        global debug, toolbox_frame_, lGlobalErrorDetected
-
         myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
 
         try:
@@ -9536,8 +9499,6 @@ Please update any that you use before proceeding....
 
     # noinspection PyUnresolvedReferences
     def CUSIPFix():
-        global toolbox_frame_, debug
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         currID = "curr_id."
@@ -10559,8 +10520,6 @@ Please update any that you use before proceeding....
         MD_REF.getUI().exit()
 
     def forgetOFXImportLink():
-        global toolbox_frame_, debug
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(10))
@@ -10593,12 +10552,11 @@ Please update any that you use before proceeding....
         return
 
     def download_md_fiscal_setup_for_one_bank(bankID):
-        global globalSaveFI_data, MD_OFX_BANK_SETTINGS_DIR
 
         if globalSaveFI_data is None or len(globalSaveFI_data)<1:
             return
 
-        FI=MD_OFX_BANK_SETTINGS_DIR+bankID.strip()+".dct"
+        FI = MD_OFX_BANK_SETTINGS_DIR + bankID.strip() + ".dct"
         output = ""
         inx = None
 
@@ -10647,8 +10605,8 @@ Please update any that you use before proceeding....
 
     # noinspection PyUnresolvedReferences
     def download_md_fiscal_setup():
-        global globalSaveFI_data, globalSave_DEBUG_FI_data
-        global MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE
+
+        global globalSaveFI_data, globalSave_DEBUG_FI_data      # global must be here as we set them
 
         downloadInfo = StreamTable()
 
@@ -11388,8 +11346,6 @@ Please update any that you use before proceeding....
             return fm, pyObject
 
         def handleEvent(self, appEvent):
-            global debug
-
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
             myPrint("DB", "I am .handleEvent() within %s" %(classPrinter("MoneydanceAppListener", self.theFrame.MoneydanceAppListener)))
@@ -12392,7 +12348,6 @@ Please update any that you use before proceeding....
 
             # noinspection PyUnusedLocal
             def actionPerformed(self, event):
-                global debug
                 myPrint("DB", "Inner View File Frame shutting down....")
                 self.theFrame.dispose()     # Listener will already be on the EDT
                 return
@@ -12403,7 +12358,8 @@ Please update any that you use before proceeding....
             self.lFile = lFile
 
         def actionPerformed(self, event):
-            global toolbox_frame_, debug, myParameters, lIgnoreOutdatedExtensions_TB
+            global lIgnoreOutdatedExtensions_TB     # global must be here as we set this
+
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
             lViewExtensions=False
@@ -12633,7 +12589,7 @@ now after saving the file, restart Moneydance
                     if selectedWhat == what[_PICKLEDELALL]: lDelAll = True
 
                     if lDelAll:
-                        myParameters = {}
+                        GlobalVars.parametersLoadedFromFile = {}
                         txt = "STUWARESOFTSYSTEMS' PARAMETERS SAVED TO PICKLE FILE DELETED/RESET"
                         setDisplayStatus(txt, "DG")
                         myPrint("B", txt)
@@ -12665,7 +12621,7 @@ now after saving the file, restart Moneydance
                             myPopupInformationBox(jif, "ERROR: Key %s is NOT valid!" % addKey, "PICKLE: ADD", JOptionPane.ERROR_MESSAGE)
                             continue    # back to menu
 
-                        testKeyExists = myParameters.get(addKey)
+                        testKeyExists = GlobalVars.parametersLoadedFromFile.get(addKey)
 
                         if testKeyExists:
                             myPopupInformationBox(jif, "ERROR: Key %s already exists - cannot add - aborting..!" % addKey, "PICKLE: ADD", JOptionPane.ERROR_MESSAGE)
@@ -12686,7 +12642,7 @@ now after saving the file, restart Moneydance
                             myPopupInformationBox(toolbox_frame_, "ERROR: Key value %s is NOT valid!" % addValue, "PICKLE: ADD ", JOptionPane.ERROR_MESSAGE)
                             continue    # back to menu
 
-                        myParameters[addKey] = addValue
+                        GlobalVars.parametersLoadedFromFile[addKey] = addValue
                         myPrint("B","@@ PICKLEMODE: key: %s value: %s added @@" %(addKey,addValue))
                         myPopupInformationBox(jif,
                                               "SUCCESS: Key %s added!" % (addKey),
@@ -12694,7 +12650,7 @@ now after saving the file, restart Moneydance
                                               JOptionPane.WARNING_MESSAGE)
                         continue
 
-                    pickleKeys=sorted( myParameters.keys() )
+                    pickleKeys=sorted(GlobalVars.parametersLoadedFromFile.keys())
                     # OK, so we are changing or deleting
                     if lChg or lDelOne:
                         selectedKey = JOptionPane.showInputDialog(jif,
@@ -12706,7 +12662,7 @@ now after saving the file, restart Moneydance
                                                                   None)
                         if not selectedKey: continue
 
-                        value = myParameters.get(selectedKey)
+                        value = GlobalVars.parametersLoadedFromFile.get(selectedKey)
                         chgValue = None
 
                         if lChg:
@@ -12740,10 +12696,10 @@ now after saving the file, restart Moneydance
                                 continue    # back to menu
 
                         if lDelOne:
-                            myParameters.pop(selectedKey)
+                            GlobalVars.parametersLoadedFromFile.pop(selectedKey)
                         if lChg:
                             try:
-                                myParameters[selectedKey] = chgValue
+                                GlobalVars.parametersLoadedFromFile[selectedKey] = chgValue
                             except:
                                 myPopupInformationBox(jif,"ERROR: *set* Could not set Key value %s - type %s" %(chgValue,type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
                                 continue
@@ -13269,7 +13225,6 @@ now after saving the file, restart Moneydance
         return
 
     def fix_account_parent():
-        global toolbox_frame_, debug
 
         # fix_account_parent.py (and old check_root_structure.py)
 
@@ -13373,7 +13328,6 @@ now after saving the file, restart Moneydance
         return
 
     def fix_root_account_name():
-        global toolbox_frame_, debug
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -13423,7 +13377,6 @@ now after saving the file, restart Moneydance
 
     # noinspection PyUnresolvedReferences
     def force_change_account_type():
-        global toolbox_frame_, debug
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -13650,7 +13603,6 @@ now after saving the file, restart Moneydance
         MD_REF.getUI().exit()
 
     def fix_invalid_relative_currency_rates():
-        global toolbox_frame_, debug
 
         myPrint(u"D", u"In ", inspect.currentframe().f_code.co_name, u"()")
 
@@ -13744,7 +13696,6 @@ now after saving the file, restart Moneydance
         return
 
     def fix_invalid_price_history():
-        global toolbox_frame_, debug
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, u"()")
 
@@ -14236,7 +14187,7 @@ now after saving the file, restart Moneydance
         return
 
     def thin_price_history():
-        global toolbox_frame_, debug, lMustRestartAfterSnapChanges
+        global lMustRestartAfterSnapChanges         # global must be here as we set it
 
         # based on: price_history_thinner.py
         # (also includes elements from 2017_remove_orphaned_currency_history_entries.py)
@@ -14515,7 +14466,6 @@ now after saving the file, restart Moneydance
                 self.iOrphs=iOrphs
 
             def actionPerformed(self, event):                                                                   # noqa
-                global debug
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
 
                 the_simulate = None
@@ -18546,8 +18496,6 @@ now after saving the file, restart Moneydance
             return
 
     def display_passwords():
-        global toolbox_frame_, debug
-
         myPrint(u"D", u"In ", inspect.currentframe().f_code.co_name, u"()")
 
         MD_enc = MD_REF.getUI().getCurrentAccounts().getEncryptionKey()
@@ -18874,8 +18822,6 @@ now after saving the file, restart Moneydance
         return
 
     def find_IOS_sync_data():
-        global toolbox_frame_, debug, i_am_an_extension_so_run_headless
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if not(Platform.isOSX() or Platform.isWindows()):
@@ -19078,13 +19024,13 @@ Now you will have a text readable version of the file you can open in a text edi
 
             lContinueToEnd=False
 
-            if not i_am_an_extension_so_run_headless:
+            if not GlobalVars.i_am_an_extension_so_run_headless:
                 print "Searching for your iOS Backups (might be time consuming):.....",
 
             for root, dirs, files in os.walk(path):
 
                 if dotCounter % 1000 <1:
-                    if not i_am_an_extension_so_run_headless: print ".",
+                    if not GlobalVars.i_am_an_extension_so_run_headless: print ".",
 
                 if not dotCounter or (dotCounter % 10000 <1 and not lContinueToEnd):
 
@@ -19857,7 +19803,6 @@ Now you will have a text readable version of the file you can open in a text edi
         return
 
     def reset_window_positions():
-        global toolbox_frame_, debug
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         _RESETWINLOC    = 0
@@ -22278,7 +22223,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.theFrame = theFrame
 
             def actionPerformed(self, event):                                                                           # noqa
-                global debug, toolbox_frame_
                 myPrint("DB","In CloseAction().", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "DiagnosticDisplay() Frame shutting down....")
 
@@ -22348,7 +22292,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
 
                 # OFX BANKING MENU
 
@@ -22733,7 +22676,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug, i_am_an_extension_so_run_headless
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
@@ -22859,7 +22801,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     lContinueToEnd=False
 
-                    if not i_am_an_extension_so_run_headless:
+                    if not GlobalVars.i_am_an_extension_so_run_headless:
                         print "Searching for your %s Datasets (might be time consuming):."%theExtension,
 
                     exclude_these_dirs = []
@@ -22941,7 +22883,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if debug: myPrint("DB","Searching: %s" %(root))
 
                         if dotCounter % 1000 <1:
-                            if not i_am_an_extension_so_run_headless: print ".",
+                            if not GlobalVars.i_am_an_extension_so_run_headless: print ".",
 
                         if (not dotCounter
                                 or (dotCounter % 10000 <1 and not lContinueToEnd)
@@ -23095,8 +23037,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
-                global fixRCurrencyCheck
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
@@ -23258,8 +23198,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
-                global fixRCurrencyCheck
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
@@ -23575,9 +23513,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
-                global fixRCurrencyCheck
-
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 user_view_txn_sort = JRadioButton("View Register Transactional Sort Orders", False)
@@ -23729,9 +23664,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
-                global fixRCurrencyCheck
-
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 user_display_passwords = JRadioButton("Display Dataset Password/Hint and Sync Passphrase", False)
@@ -23920,9 +23852,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
-                global fixRCurrencyCheck
-
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 if not GlobalVars.ADVANCED_MODE: return
@@ -24129,8 +24058,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.theString = theString
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
-
                 # convert_secondary_to_primary_data_set
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
@@ -24185,8 +24112,6 @@ Now you will have a text readable version of the file you can open in a text edi
             def __init__(self): pass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug
-
                 # show_object_type_quantities.py
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
@@ -24323,8 +24248,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.callingClass = callingClass
 
             def actionPerformed(self, event):
-                global toolbox_frame_, debug, lCopyAllToClipBoard_TB
-                global lAutoPruneInternalBackups_TB
+                global debug, lCopyAllToClipBoard_TB, lAutoPruneInternalBackups_TB  # Global must be here as we set these variables
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
@@ -24507,8 +24431,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 return
 
         def openDisplay(self):
-            global toolbox_frame_, lPickle_version_warning, lCopyAllToClipBoard_TB, myParameters, lIgnoreOutdatedExtensions_TB, version_build
-            global lAutoPruneInternalBackups_TB, MYPYTHON_DOWNLOAD_URL
+            global toolbox_frame_   # global must be here as we define it here
 
             # ConsoleWindow.showConsoleWindow(MD_REF.getUI())
             advanced_mode_DEBUG(lForceON=True)
@@ -24999,7 +24922,7 @@ Now you will have a text readable version of the file you can open in a text edi
             except:
                 pass
 
-            check_for_old_StuWareSoftSystems_scripts()
+            # check_for_old_StuWareSoftSystems_scripts()
 
             _tb_extn_avail_version = check_for_updatable_extensions_on_startup()
 
@@ -25025,7 +24948,7 @@ Now you will have a text readable version of the file you can open in a text edi
             checkForREADONLY()
 
 
-    if not i_am_an_extension_so_run_headless: print("""
+    if not GlobalVars.i_am_an_extension_so_run_headless: print("""
 Script/extension is analysing your moneydance & system settings....
 ------------------------------------------------------------------------------
 >> DISCLAIMER: This script/extension has the ability to change your data
@@ -25104,8 +25027,6 @@ Script/extension is analysing your moneydance & system settings....
                         pass
 
                     def run(self):                                                                                      # noqa
-                        global debug, toolbox_frame_
-
                         myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
                         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -25129,7 +25050,7 @@ Script/extension is analysing your moneydance & system settings....
                 System.gc()
 
                 myPrint("P","-----------------------------------------------------------------------------------------------------------")
-                myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", myScriptName, " script ending (frame is open/running)......")
+                myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", GlobalVars.thisScriptName, " script ending (frame is open/running)......")
                 myPrint("P","-----------------------------------------------------------------------------------------------------------")
 
         else:

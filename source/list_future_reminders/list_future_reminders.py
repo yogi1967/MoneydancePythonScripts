@@ -82,6 +82,8 @@ from java.lang import System, Runnable
 from javax.swing import JFrame, SwingUtilities, SwingWorker
 from java.awt.event import WindowEvent
 
+class QuickAbortThisScriptException(Exception): pass
+
 class MyJFrame(JFrame):
 
     def __init__(self, frameTitle=None):
@@ -288,19 +290,11 @@ else:
     # END COMMON IMPORTS ###################################################################################################
 
     # COMMON GLOBALS #######################################################################################################
-    global myParameters, myScriptName, i_am_an_extension_so_run_headless
-    global lPickle_version_warning, lGlobalErrorDetected
-    global MYPYTHON_DOWNLOAD_URL
+    # All common globals have now been eliminated :->
     # END COMMON GLOBALS ###################################################################################################
     # COPY >> END
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    myScriptName = u"%s.py(Extension)" %myModuleID                                                                      # noqa
-    myParameters = {}                                                                                                   # noqa
-    lPickle_version_warning = False                                                                                     # noqa
-    lGlobalErrorDetected = False																						# noqa
-    MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"                                       # noqa
-
     if "GlobalVars" in globals():   # Prevent wiping if 'buddy' extension - like Toolbox - is running too...
         global GlobalVars
     else:
@@ -316,7 +310,14 @@ else:
             resetPickleParameters = False
             decimalCharSep = "."
             groupingCharSep = ","
+            lGlobalErrorDetected = False
+            MYPYTHON_DOWNLOAD_URL = "https://yogi1967.github.io/MoneydancePythonScripts/"
+            i_am_an_extension_so_run_headless = None
+            parametersLoadedFromFile = {}
+            thisScriptName = None
             def __init__(self): pass    # Leave empty
+
+    GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
@@ -360,11 +361,11 @@ else:
     # COMMON CODE ######################################################################################################
     # COMMON CODE ################# VERSION 106 ########################################################################
     # COMMON CODE ######################################################################################################
-    i_am_an_extension_so_run_headless = False                                                                           # noqa
+    GlobalVars.i_am_an_extension_so_run_headless = False
     try:
-        myScriptName = os.path.basename(__file__)
+        GlobalVars.thisScriptName = os.path.basename(__file__)
     except:
-        i_am_an_extension_so_run_headless = True                                                                        # noqa
+        GlobalVars.i_am_an_extension_so_run_headless = True
 
     scriptExit = """
 ----------------------------------------------------------------------------------------------------------------------
@@ -391,7 +392,7 @@ useful_scripts:                         Just unzip and select the script you wan
 
 Visit: %s (Author's site)
 ----------------------------------------------------------------------------------------------------------------------
-""" %(myScriptName, MYPYTHON_DOWNLOAD_URL)
+""" %(GlobalVars.thisScriptName, GlobalVars.MYPYTHON_DOWNLOAD_URL)
 
     def cleanup_references():
         global MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
@@ -441,8 +442,6 @@ Visit: %s (Author's site)
 
     # P=Display on Python Console, J=Display on MD (Java) Console Error Log, B=Both, D=If Debug Only print, DB=print both
     def myPrint(where, *args):
-        global myScriptName, debug, i_am_an_extension_so_run_headless
-
         if where[0] == "D" and not debug: return
 
         try:
@@ -452,7 +451,7 @@ Visit: %s (Author's site)
             printString = printString.strip()
 
             if where == "P" or where == "B" or where[0] == "D":
-                if not i_am_an_extension_so_run_headless:
+                if not GlobalVars.i_am_an_extension_so_run_headless:
                     try:
                         print(printString)
                     except:
@@ -462,11 +461,11 @@ Visit: %s (Author's site)
             if where == "J" or where == "B" or where == "DB":
                 dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
                 try:
-                    System.err.write(myScriptName + ":" + dt + ": ")
+                    System.err.write(GlobalVars.thisScriptName + ":" + dt + ": ")
                     System.err.write(printString)
                     System.err.write("\n")
                 except:
-                    System.err.write(myScriptName + ":" + dt + ": "+"Error writing to console")
+                    System.err.write(GlobalVars.thisScriptName + ":" + dt + ": "+"Error writing to console")
                     dump_sys_error_to_md_console_and_errorlog()
 
         except IllegalArgumentException:
@@ -510,11 +509,9 @@ Visit: %s (Author's site)
 
         return theText
 
-    myPrint("B", myScriptName, ": Python Script Initialising.......", "Build:", version_build)
+    myPrint("B", GlobalVars.thisScriptName, ": Python Script Initialising.......", "Build:", version_build)
 
     def getMonoFont():
-        global debug
-
         try:
             theFont = MD_REF.getUI().getFonts().code
             # if debug: myPrint("B","Success setting Font set to Moneydance code: %s" %theFont)
@@ -551,8 +548,6 @@ Visit: %s (Author's site)
         return homeDir
 
     def getDecimalPoint(lGetPoint=False, lGetGrouping=False):
-        global debug
-
         decimalFormat = DecimalFormat.getInstance()
         # noinspection PyUnresolvedReferences
         decimalSymbols = decimalFormat.getDecimalFormatSymbols()
@@ -674,9 +669,9 @@ Visit: %s (Author's site)
 
         if response == 2:
             myPrint("B", "User requested to perform Export Backup before update/fix - calling moneydance export backup routine...")
-            MD_REF.getUI().setStatus("%s performing an Export Backup...." %(myScriptName),-1.0)
+            MD_REF.getUI().setStatus("%s performing an Export Backup...." %(GlobalVars.thisScriptName),-1.0)
             MD_REF.getUI().saveToBackup(None)
-            MD_REF.getUI().setStatus("%s Export Backup completed...." %(myScriptName),0)
+            MD_REF.getUI().setStatus("%s Export Backup completed...." %(GlobalVars.thisScriptName),0)
             return True
 
         elif response == 1:
@@ -779,7 +774,6 @@ Visit: %s (Author's site)
                 self.lResult = lResult
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -805,7 +799,6 @@ Visit: %s (Author's site)
                 self.lResult = lResult
 
             def actionPerformed(self, event):
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -829,7 +822,6 @@ Visit: %s (Author's site)
                 self.lResult = lResult
 
             def actionPerformed(self, event):
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event)
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -846,8 +838,6 @@ Visit: %s (Author's site)
                 return
 
         def kill(self):
-
-            global debug
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -870,12 +860,9 @@ Visit: %s (Author's site)
             return
 
         def result(self):
-            global debug
             return self.lResult[0]
 
         def go(self):
-            global debug
-
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -1068,7 +1055,6 @@ Visit: %s (Author's site)
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():
-        global debug
         myPrint("D", "Moneydance Build:", MD_REF.getVersion(), "Build:", MD_REF.getBuild())
 
 
@@ -1077,8 +1063,6 @@ Visit: %s (Author's site)
     myPrint("DB","System file encoding is:", sys.getfilesystemencoding() )   # Not used, but interesting. Perhaps useful when switching between Windows/Macs and writing files...
 
     def checkVersions():
-        global debug
-
         lError = False
         plat_j = platform.system()
         plat_p = platform.python_implementation()
@@ -1240,13 +1224,13 @@ Visit: %s (Author's site)
         return str( theDelimiter )
 
     def get_StuWareSoftSystems_parameters_from_file(myFile="StuWareSoftSystems.dict"):
-        global debug, myParameters, lPickle_version_warning, version_build                            # noqa
+        global debug    # This global for debug must be here as we set it from loaded parameters
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         if GlobalVars.resetPickleParameters:
             myPrint("B", "User has specified to reset parameters... keeping defaults and skipping pickle()")
-            myParameters = {}
+            GlobalVars.parametersLoadedFromFile = {}
             return
 
         old_dict_filename = os.path.join("..", myFile)
@@ -1270,14 +1254,14 @@ Visit: %s (Author's site)
                 else:
                     load_string = load_file.read()
 
-                myParameters = pickle.loads(load_string)
+                GlobalVars.parametersLoadedFromFile = pickle.loads(load_string)
                 load_file.close()
             except FileNotFoundException:
                 myPrint("B", "Error: failed to find parameter file...")
-                myParameters = None
+                GlobalVars.parametersLoadedFromFile = None
             except EOFError:
                 myPrint("B", "Error: reached EOF on parameter file....")
-                myParameters = None
+                GlobalVars.parametersLoadedFromFile = None
             except:
                 myPrint("B","Error opening Pickle File (will try encrypted version) - Unexpected error ", sys.exc_info()[0])
                 myPrint("B","Error opening Pickle File (will try encrypted version) - Unexpected error ", sys.exc_info()[1])
@@ -1289,39 +1273,38 @@ Visit: %s (Author's site)
                     istr = local_storage.openFileForReading(old_dict_filename)
                     load_file = FileUtil.wrap(istr)
                     # noinspection PyTypeChecker
-                    myParameters = pickle.load(load_file)
+                    GlobalVars.parametersLoadedFromFile = pickle.load(load_file)
                     load_file.close()
                     myPrint("B","Success loading Encrypted Pickle file - will migrate to non encrypted")
-                    lPickle_version_warning = True
                 except:
                     myPrint("B","Opening Encrypted Pickle File - Unexpected error ", sys.exc_info()[0])
                     myPrint("B","Opening Encrypted Pickle File - Unexpected error ", sys.exc_info()[1])
                     myPrint("B","Error opening Pickle File - Line Number: ", sys.exc_info()[2].tb_lineno)
                     myPrint("B", "Error: Pickle.load() failed.... Is this a restored dataset? Will ignore saved parameters, and create a new file...")
-                    myParameters = None
+                    GlobalVars.parametersLoadedFromFile = None
 
-            if myParameters is None:
-                myParameters = {}
+            if GlobalVars.parametersLoadedFromFile is None:
+                GlobalVars.parametersLoadedFromFile = {}
                 myPrint("DB","Parameters did not load, will keep defaults..")
             else:
                 myPrint("DB","Parameters successfully loaded from file...")
         else:
             myPrint("J", "Parameter Pickle file does not exist - will use default and create new file..")
             myPrint("D", "Parameter Pickle file does not exist - will use default and create new file..")
-            myParameters = {}
+            GlobalVars.parametersLoadedFromFile = {}
 
-        if not myParameters: return
+        if not GlobalVars.parametersLoadedFromFile: return
 
-        myPrint("DB","myParameters read from file contains...:")
-        for key in sorted(myParameters.keys()):
-            myPrint("DB","...variable:", key, myParameters[key])
+        myPrint("DB","parametersLoadedFromFile read from file contains...:")
+        for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
+            myPrint("DB","...variable:", key, GlobalVars.parametersLoadedFromFile[key])
 
-        if myParameters.get("debug") is not None: debug = myParameters.get("debug")
-        if myParameters.get("lUseMacFileChooser") is not None:
+        if GlobalVars.parametersLoadedFromFile.get("debug") is not None: debug = GlobalVars.parametersLoadedFromFile.get("debug")
+        if GlobalVars.parametersLoadedFromFile.get("lUseMacFileChooser") is not None:
             myPrint("B", "Detected old lUseMacFileChooser parameter/variable... Will delete it...")
-            myParameters.pop("lUseMacFileChooser", None)  # Old variable - not used - delete from parameter file
+            GlobalVars.parametersLoadedFromFile.pop("lUseMacFileChooser", None)  # Old variable - not used - delete from parameter file
 
-        myPrint("DB","Parameter file loaded if present and myParameters{} dictionary set.....")
+        myPrint("DB","Parameter file loaded if present and parametersLoadedFromFile{} dictionary set.....")
 
         # Now load into memory!
         load_StuWareSoftSystems_parameters_into_memory()
@@ -1329,15 +1312,13 @@ Visit: %s (Author's site)
         return
 
     def save_StuWareSoftSystems_parameters_to_file(myFile="StuWareSoftSystems.dict"):
-        global debug, myParameters, lPickle_version_warning, version_build
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        if myParameters is None: myParameters = {}
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         # Don't forget, any parameters loaded earlier will be preserved; just add changed variables....
-        myParameters["__Author"] = "Stuart Beesley - (c) StuWareSoftSystems"
-        myParameters["debug"] = debug
+        GlobalVars.parametersLoadedFromFile["__Author"] = "Stuart Beesley - (c) StuWareSoftSystems"
+        GlobalVars.parametersLoadedFromFile["debug"] = debug
 
         dump_StuWareSoftSystems_parameters_from_memory()
 
@@ -1352,12 +1333,12 @@ Visit: %s (Author's site)
 
         try:
             save_file = FileUtil.wrap(ostr)
-            pickle.dump(myParameters, save_file, protocol=0)
+            pickle.dump(GlobalVars.parametersLoadedFromFile, save_file, protocol=0)
             save_file.close()
 
-            myPrint("DB","myParameters now contains...:")
-            for key in sorted(myParameters.keys()):
-                myPrint("DB","...variable:", key, myParameters[key])
+            myPrint("DB","parametersLoadedFromFile now contains...:")
+            for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
+                myPrint("DB","...variable:", key, GlobalVars.parametersLoadedFromFile[key])
 
         except:
             myPrint("B", "Error - failed to create/write parameter file.. Ignoring and continuing.....")
@@ -2383,14 +2364,12 @@ Visit: %s (Author's site)
                 self.theFrame = theFrame
 
             def actionPerformed(self, event):
-                global debug
                 myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
 
                 # Listener is already on the Swing EDT...
                 self.theFrame.dispose()
 
         def __init__(self, theFrame):
-            global debug, scriptExit
             self.theFrame = theFrame
 
         def go(self):
@@ -2433,7 +2412,7 @@ Visit: %s (Author's site)
                     _label2.setForeground(getColorBlue())
                     aboutPanel.add(_label2)
 
-                    _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(myScriptName, version_build), 800))
+                    _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(GlobalVars.thisScriptName, version_build), 800))
                     _label3.setForeground(getColorBlue())
                     aboutPanel.add(_label3)
 
@@ -2569,7 +2548,6 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def load_StuWareSoftSystems_parameters_into_memory():
-        global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
         global __list_future_reminders, _column_widths_LFR, daysToLookForward_LFR
@@ -2577,20 +2555,19 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
 
-        if myParameters is None: myParameters = {}
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
-        if myParameters.get("__list_future_reminders") is not None: __list_future_reminders = myParameters.get("__list_future_reminders")
+        if GlobalVars.parametersLoadedFromFile.get("__list_future_reminders") is not None: __list_future_reminders = GlobalVars.parametersLoadedFromFile.get("__list_future_reminders")
 
-        if myParameters.get("_column_widths_LFR") is not None: _column_widths_LFR = myParameters.get("_column_widths_LFR")
-        if myParameters.get("daysToLookForward_LFR") is not None: daysToLookForward_LFR = myParameters.get("daysToLookForward_LFR")
+        if GlobalVars.parametersLoadedFromFile.get("_column_widths_LFR") is not None: _column_widths_LFR = GlobalVars.parametersLoadedFromFile.get("_column_widths_LFR")
+        if GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR") is not None: daysToLookForward_LFR = GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR")
 
-        myPrint("DB","myParameters{} set into memory (as variables).....")
+        myPrint("DB","parametersLoadedFromFile{} set into memory (as variables).....")
 
         return
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def dump_StuWareSoftSystems_parameters_from_memory():
-        global debug, myParameters, lPickle_version_warning, version_build
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
         global __list_future_reminders, _column_widths_LFR, daysToLookForward_LFR
@@ -2600,13 +2577,13 @@ Visit: %s (Author's site)
         # NOTE: Parameters were loaded earlier on... Preserve existing, and update any used ones...
         # (i.e. other StuWareSoftSystems programs might be sharing the same file)
 
-        if myParameters is None: myParameters = {}
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
-        myParameters["__list_future_reminders"] = version_build
-        myParameters["_column_widths_LFR"] = _column_widths_LFR
-        myParameters["daysToLookForward_LFR"] = daysToLookForward_LFR
+        GlobalVars.parametersLoadedFromFile["__list_future_reminders"] = version_build
+        GlobalVars.parametersLoadedFromFile["_column_widths_LFR"] = _column_widths_LFR
+        GlobalVars.parametersLoadedFromFile["daysToLookForward_LFR"] = daysToLookForward_LFR
 
-        myPrint("DB","variables dumped from memory back into myParameters{}.....")
+        myPrint("DB","variables dumped from memory back into parametersLoadedFromFile{}.....")
 
         return
 
@@ -2630,11 +2607,11 @@ Visit: %s (Author's site)
             destroyOldFrames(myModuleID)
 
         try:
-            MD_REF.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(myScriptName),0)
+            MD_REF.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(GlobalVars.thisScriptName),0)
         except:
             pass  # If this fails, then MD is probably shutting down.......
 
-        if not i_am_an_extension_so_run_headless: print(scriptExit)
+        if not GlobalVars.i_am_an_extension_so_run_headless: print(scriptExit)
 
         cleanup_references()
 
@@ -2643,7 +2620,7 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
-    MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(myScriptName),0)
+    MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
 
     GlobalVars.md_dateFormat = MD_REF.getPreferences().getShortDateFormat()
 
@@ -2651,8 +2628,8 @@ Visit: %s (Author's site)
         def __init__(self):
             pass
 
-        def run(self):                                                                                                      # noqa
-            global debug, list_future_reminders_frame_
+        def run(self):                                                                                                  # noqa
+            global list_future_reminders_frame_     # global as defined here
 
             myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
@@ -2694,8 +2671,8 @@ Visit: %s (Author's site)
             self.menu = menu
 
         def actionPerformed(self, event):																				# noqa
-            global list_future_reminders_frame_, debug
-            global _column_widths_LFR, daysToLookForward_LFR, saveStatusLabel
+            global debug                                                                # global as set here
+            global _column_widths_LFR, daysToLookForward_LFR, saveStatusLabel           # global as set here
 
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
@@ -2927,8 +2904,7 @@ Visit: %s (Author's site)
                     cal.add(Calendar.DAY_OF_MONTH, 1)
 
             def build_the_data_file(ind):
-                global sdf, csvlines, csvheaderline, myScriptName, baseCurrency, headerFormats
-                global debug, ExtractDetails_Count, daysToLookForward_LFR
+                global csvlines, csvheaderline, baseCurrency, headerFormats, ExtractDetails_Count   # global as set here
 
                 ExtractDetails_Count += 1
 
@@ -3200,7 +3176,7 @@ Visit: %s (Author's site)
 
                 # noinspection PyUnusedLocal
                 def columnMarginChanged(self, e):
-                    global _column_widths_LFR
+                    global _column_widths_LFR       # global as set here
 
                     sourceModel = self.sourceTable.getColumnModel()
 
@@ -3345,8 +3321,6 @@ Visit: %s (Author's site)
 
                 # noinspection PyMethodMayBeStatic
                 def handleEvent(self, appEvent):
-                    global debug
-
                     myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
                     myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
                     myPrint("DB", "I am .handleEvent() within %s" %(classPrinter("MoneydanceAppListener", self.theFrame.MoneydanceAppListener)))
@@ -3407,7 +3381,6 @@ Visit: %s (Author's site)
                     self.theFrame = theFrame        # type: MyJFrame
 
                 def windowClosing(self, WindowEvent):                         												# noqa
-                    global debug
                     myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
                     terminate_script()
@@ -3440,7 +3413,7 @@ Visit: %s (Author's site)
                 # noinspection PyMethodMayBeStatic
                 # noinspection PyUnusedLocal
                 def windowGainedFocus(self, WindowEvent):																# noqa
-                    global focus, table, row, debug, EditedReminderCheck
+                    global focus, EditedReminderCheck   # global as set here
 
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -3464,7 +3437,7 @@ Visit: %s (Author's site)
                 # noinspection PyMethodMayBeStatic
                 # noinspection PyUnusedLocal
                 def windowLostFocus(self, WindowEvent):																	# noqa
-                    global focus, table, row, debug
+                    global focus, row       # global as set here
 
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -3482,7 +3455,8 @@ Visit: %s (Author's site)
             class MouseListener(MouseAdapter):
                 # noinspection PyMethodMayBeStatic
                 def mousePressed(self, event):
-                    global table, row, debug
+                    global row      # global as set here
+
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
                     clicks = event.getClickCount()
                     if clicks == 2:
@@ -3498,7 +3472,8 @@ Visit: %s (Author's site)
                 # noinspection PyMethodMayBeStatic
                 # noinspection PyUnusedLocal
                 def actionPerformed(self, event):
-                    global focus, table, row, debug
+                    global row      # global as set here
+
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
                     row = table.getSelectedRow()
                     index = table.getValueAt(row, 0)
@@ -3510,7 +3485,6 @@ Visit: %s (Author's site)
                 # noinspection PyMethodMayBeStatic
                 # noinspection PyUnusedLocal
                 def actionPerformed(self, event):
-                    global list_future_reminders_frame_, debug
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
                     terminate_script()
 
@@ -3529,7 +3503,6 @@ Visit: %s (Author's site)
 
                 # noinspection PyMethodMayBeStatic
                 def extract_or_close(self):
-                    global list_future_reminders_frame_, debug
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
                     myPrint("D", "inside ExtractMenuAction() ;->")
 
@@ -3542,7 +3515,8 @@ Visit: %s (Author's site)
 
                 # noinspection PyMethodMayBeStatic
                 def refresh(self):
-                    global list_future_reminders_frame_, table, row, debug
+                    global row      # global as set here
+
                     row = 0  # reset to row 1
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "\npre-extract details(1), row: ", row)
                     build_the_data_file(1)  # Re-extract data
@@ -3557,7 +3531,6 @@ Visit: %s (Author's site)
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
                 def __init__(self, tableModel):
-                    global debug
                     super(JTable, self).__init__(tableModel)
                     self.fixTheRowSorter()
 
@@ -3570,7 +3543,6 @@ Visit: %s (Author's site)
                 # noinspection PyUnusedLocal
                 # noinspection PyMethodMayBeStatic
                 def getCellRenderer(self, row, column):																	# noqa
-                    global headerFormats
 
                     if column == 0:
                         renderer = MyPlainNumberRenderer()
@@ -3678,8 +3650,6 @@ Visit: %s (Author's site)
             # This copies the standard class and just changes the colour to RED if it detects a negative - leaves field intact
             # noinspection PyArgumentList
             class MyNumberRenderer(DefaultTableCellRenderer):
-                global baseCurrency
-
                 def __init__(self):
                     super(DefaultTableCellRenderer, self).__init__()
 
@@ -3705,8 +3675,6 @@ Visit: %s (Author's site)
 
             # noinspection PyArgumentList
             class MyPlainNumberRenderer(DefaultTableCellRenderer):
-                global baseCurrency
-
                 def __init__(self):
                     super(DefaultTableCellRenderer, self).__init__()
 
@@ -3714,8 +3682,8 @@ Visit: %s (Author's site)
                     self.setText(str(value))
 
             def ReminderTable(tabledata, ind):
-                global list_future_reminders_frame_, scrollpane, table, row, debug, ReminderTable_Count, csvheaderline, lDisplayOnly
-                global _column_widths_LFR, daysToLookForward_LFR, saveStatusLabel
+                global list_future_reminders_frame_, scrollpane, table, row, ReminderTable_Count    # global as set here
+                global _column_widths_LFR, saveStatusLabel                                          # global as set here
 
                 ReminderTable_Count += 1
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", ind, "  - On iteration/call: ", ReminderTable_Count)
@@ -4014,7 +3982,8 @@ Visit: %s (Author's site)
                 return newdate
 
             def ShowEditForm(item):
-                global debug, EditedReminderCheck
+                global EditedReminderCheck  # global as set here
+
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
                 reminders = MD_REF.getCurrentAccount().getBook().getReminders()
                 reminder = reminders.getAllReminders()[item-1]
@@ -4036,7 +4005,7 @@ Visit: %s (Author's site)
                 table.requestFocus()
 
             else:
-                myPopupInformationBox(list_future_reminders_frame_, "You have no reminders to display!", myScriptName)
+                myPopupInformationBox(list_future_reminders_frame_, "You have no reminders to display!", GlobalVars.thisScriptName)
                 cleanup_actions(list_future_reminders_frame_)
     except:
         crash_txt = "ERROR - List_Future_Reminders has crashed. Please review MD Menu>Help>Console Window for details".upper()
