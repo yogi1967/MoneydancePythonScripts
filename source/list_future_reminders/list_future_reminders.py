@@ -49,6 +49,7 @@
 # build: 1016 - Added <PREVIEW> title to main JFrame if preview build detected...
 # Build: 1016 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
 # build: 1016 - Eliminated common code globals :->
+# build: 1016 - Added QuickSearch box/filter
 
 # Displays Moneydance future reminders
 
@@ -333,6 +334,11 @@ else:
     from java.lang import String, Number
     from com.infinitekind.util import StringUtils
     from com.moneydance.apps.md.controller import AppEventListener
+    from com.moneydance.awt import QuickSearchField
+    from javax.swing.event import DocumentListener
+    from java.awt.event import FocusAdapter
+    from javax.swing import RowFilter
+
     exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     global Book
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
@@ -914,7 +920,7 @@ Visit: %s (Author's site)
                     displayJText.setLineWrap(False)
                     displayJText.setWrapStyleWord(False)
 
-                    _popupPanel=JPanel()
+                    _popupPanel = JPanel()
 
                     # maxHeight = 500
                     _popupPanel.setLayout(GridLayout(0,1))
@@ -3890,6 +3896,7 @@ Visit: %s (Author's site)
                 if ind == 0:
                     scrollpane = JScrollPane(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS)  # On first call, create the scrollpane
                     scrollpane.setBorder(CompoundBorder(MatteBorder(1, 1, 1, 1, MD_REF.getUI().getColors().hudBorderColor), EmptyBorder(0, 0, 0, 0)))
+                    scrollpane.setBackground((MD_REF.getUI().getColors()).defaultBackground)
                 # scrollpane.setPreferredSize(Dimension(frame_width-20, frame_height-20	))
 
                 table.setPreferredScrollableViewportSize(Dimension(frame_width-20, frame_height-100))
@@ -3898,7 +3905,48 @@ Visit: %s (Author's site)
                 #
                 scrollpane.setViewportView(table)
                 if ind == 0:
-                    list_future_reminders_frame_.add(scrollpane)
+
+                    # noinspection PyUnusedLocal
+                    class MyDocListener(DocumentListener):
+                        def __init__(self, _theSearchField):
+                            self._theSearchField = _theSearchField
+                        def changedUpdate(self, evt):   self.searchFiltersUpdated()
+                        def removeUpdate(self, evt):    self.searchFiltersUpdated()
+                        def insertUpdate(self, evt):    self.searchFiltersUpdated()
+                        def searchFiltersUpdated(self):
+                            myPrint("DB", "within searchFiltersUpdated()")
+                            _searchFilter = self._theSearchField.getText().strip()
+                            sorter = table.getRowSorter()
+                            if len(_searchFilter) < 1:
+                                sorter.setRowFilter(None)                                                               # noqa
+                            else:
+                                sorter.setRowFilter(RowFilter.regexFilter("(?i)" + _searchFilter))                      # noqa
+
+                    # noinspection PyUnusedLocal
+                    class MyFocusAdapter(FocusAdapter):
+                        def __init__(self, _searchField, _document):
+                            self._searchField = _searchField
+                            self._document = _document
+                        def focusGained(self, e): self._searchField.setCaretPosition(self._document.getLength())
+
+                    mySearchField = QuickSearchField()
+                    document = mySearchField.getDocument()                                                              # noqa
+                    document.addDocumentListener(MyDocListener(mySearchField))
+                    mySearchField.addFocusListener(MyFocusAdapter(mySearchField,document))                              # noqa
+
+                    searchPanel = JPanel(GridBagLayout())
+                    searchPanel.setBorder(EmptyBorder(10, 15, 15, 15))
+                    searchPanel.add(mySearchField,GridC.getc().xy(0,0).fillx().insets(0,10,0,10))
+
+                    p = JPanel(BorderLayout())
+                    p.add(scrollpane, "Center")
+                    p.add(searchPanel, "South")
+
+                    list_future_reminders_frame_.getContentPane().setLayout(BorderLayout())
+                    list_future_reminders_frame_.getContentPane().add(p, "Center")
+
+                    # list_future_reminders_frame_.add(scrollpane)
+
                     list_future_reminders_frame_.pack()
                     list_future_reminders_frame_.setLocationRelativeTo(None)
 
