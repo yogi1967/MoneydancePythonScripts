@@ -92,6 +92,7 @@
 # build: 1022 - Extract Account Registers. Include LOAN and LIABILITY accounts too..
 # build: 1023 - Added lWriteParametersToExportFile_SWSS by user request (GitHub: Michael Thompson)
 # build: 1023 - Bug fix for .getSubAccounts() - as of build 4069 this is an unmodifiable list; also trap SwingWorker errors
+# build: 1023 - Added lOmitLOTDataFromExtract_EIT to Extract Investment Txns to allow user to omit LOT matching data from extract
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -415,7 +416,7 @@ else:
 
     # from extract_investment_transactions_csv
     global lIncludeOpeningBalances, lAdjustForSplits
-    global lExtractAttachments_EIT
+    global lExtractAttachments_EIT, lOmitLOTDataFromExtract_EIT
 
     # from stockglance2020
     global lIncludeCashBalances, _column_widths_SG2020
@@ -491,7 +492,8 @@ else:
     # from extract_investment_transactions_csv
     lIncludeOpeningBalances = True                                                                                      # noqa
     lAdjustForSplits = True                                                                                             # noqa
-    lExtractAttachments_EIT=False                                                                                       # noqa
+    lExtractAttachments_EIT = False                                                                                     # noqa
+    lOmitLOTDataFromExtract_EIT = False                                                                                 # noqa
 
     # from stockglance2020
     lIncludeCashBalances = False                                                                                        # noqa
@@ -2725,7 +2727,7 @@ Visit: %s (Author's site)
         global lAllCategories_EAR, categoriesFilter_EAR
 
         # extract_investment_transactions_csv
-        global lIncludeOpeningBalances, lAdjustForSplits, lExtractAttachments_EIT
+        global lIncludeOpeningBalances, lAdjustForSplits, lExtractAttachments_EIT, lOmitLOTDataFromExtract_EIT
 
         # extract_currency_history_csv
         global lSimplify_ECH, userdateStart_ECH, userdateEnd_ECH, hideHiddenCurrencies_ECH
@@ -2797,6 +2799,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("lIncludeOpeningBalances") is not None: lIncludeOpeningBalances = GlobalVars.parametersLoadedFromFile.get("lIncludeOpeningBalances")
         if GlobalVars.parametersLoadedFromFile.get("lAdjustForSplits") is not None: lAdjustForSplits = GlobalVars.parametersLoadedFromFile.get("lAdjustForSplits")
         if GlobalVars.parametersLoadedFromFile.get("lExtractAttachments_EIT") is not None: lExtractAttachments_EIT = GlobalVars.parametersLoadedFromFile.get("lExtractAttachments_EIT")                                                                                  # noqa
+        if GlobalVars.parametersLoadedFromFile.get("lOmitLOTDataFromExtract_EIT") is not None: lOmitLOTDataFromExtract_EIT = GlobalVars.parametersLoadedFromFile.get("lOmitLOTDataFromExtract_EIT")                                                                                  # noqa
 
         # extract_currency_history_csv
         if GlobalVars.parametersLoadedFromFile.get("lSimplify_ECH") is not None: lSimplify_ECH = GlobalVars.parametersLoadedFromFile.get("lSimplify_ECH")
@@ -2872,6 +2875,7 @@ Visit: %s (Author's site)
 
         # extract_investment_transactions_csv
         GlobalVars.parametersLoadedFromFile["lExtractAttachments_EIT"] = lExtractAttachments_EIT
+        GlobalVars.parametersLoadedFromFile["lOmitLOTDataFromExtract_EIT"] = lOmitLOTDataFromExtract_EIT
         GlobalVars.parametersLoadedFromFile["lIncludeOpeningBalances"] = lIncludeOpeningBalances
         GlobalVars.parametersLoadedFromFile["lAdjustForSplits"] = lAdjustForSplits
 
@@ -3952,6 +3956,10 @@ Visit: %s (Author's site)
                 elif userdateformat == "%Y%m%d": user_dateformat.setSelectedItem("yyyymmdd")
                 else: user_dateformat.setSelectedItem("yyyy/mm/dd")
 
+                labelOmitLOTDataFromExtract_EIT = JLabel("Omit Buy/Sell LOT Matching Data from extract file")
+                user_lOmitLOTDataFromExtract_EIT = JCheckBox("", lOmitLOTDataFromExtract_EIT)
+                user_lOmitLOTDataFromExtract_EIT.setName("user_lOmitLOTDataFromExtract_EIT")
+
                 labelAttachments = JLabel("Extract & Download Attachments?")
                 user_selectExtractAttachments = JCheckBox("", lExtractAttachments_EIT)
                 user_selectExtractAttachments.setName("user_selectExtractAttachments")
@@ -3990,6 +3998,8 @@ Visit: %s (Author's site)
                 userFilters.add(user_selectOpeningBalances)
                 userFilters.add(label8)
                 userFilters.add(user_selectAdjustSplits)
+                userFilters.add(labelOmitLOTDataFromExtract_EIT)
+                userFilters.add(user_lOmitLOTDataFromExtract_EIT)
                 userFilters.add(labelAttachments)
                 userFilters.add(user_selectExtractAttachments)
                 userFilters.add(label9)
@@ -4033,6 +4043,7 @@ Visit: %s (Author's site)
                             "Filter Accts:", user_selectAccounts.getText(),
                             "Incl Open Bals:", user_selectOpeningBalances.isSelected(),
                             "Adj Splits:", user_selectAdjustSplits.isSelected(),
+                            "OmitLOTData:", user_lOmitLOTDataFromExtract_EIT.isSelected(),
                             "DownldAttachments:", user_selectExtractAttachments.isSelected(),
                             "User Date Format:", user_dateformat.getSelectedItem(),
                             "Strip ASCII:", user_selectStripASCII.isSelected(),
@@ -4067,6 +4078,7 @@ Visit: %s (Author's site)
 
                     lIncludeOpeningBalances = user_selectOpeningBalances.isSelected()
                     lAdjustForSplits = user_selectAdjustSplits.isSelected()
+                    lOmitLOTDataFromExtract_EIT = user_lOmitLOTDataFromExtract_EIT.isSelected()
                     lExtractAttachments_EIT = user_selectExtractAttachments.isSelected()
 
                     if user_dateformat.getSelectedItem() == "dd/mm/yyyy": userdateformat = "%d/%m/%Y"
@@ -4137,6 +4149,11 @@ Visit: %s (Author's site)
                         myPrint("B", "Script will adjust for Stock Splits...")
                     else:
                         myPrint("B", "Not adjusting for Stock Splits...")
+
+                    if lOmitLOTDataFromExtract_EIT:
+                        myPrint("B", "Script will OMIT Buy/Sell LOT matching data from extract file...")
+                    else:
+                        myPrint("B", "Buy/Sell LOT matching data will be included in the extract file...")
 
                     myPrint("B", "user date format....:", userdateformat)
 
@@ -9159,20 +9176,22 @@ Visit: %s (Author's site)
                                 _row[dataKeys["_AVGCOST"][_COLUMN]] = securityAcct.getUsesAverageCost()
 
                             if securityTxn and cbTags:
-                                lots = []
-                                for cbKey in cbTags.keys():
-                                    relatedCBTxn = rootbook.getTransactionSet().getTxnByID(cbKey)
-                                    if relatedCBTxn is not None:
-                                        lots.append([cbKey,
-                                                     relatedCBTxn.getTransferType(),
-                                                     relatedCBTxn.getOtherTxn(0).getInvestTxnType(),
-                                                     relatedCBTxn.getDateInt(),
-                                                     acctCurr.formatSemiFancy(relatedCBTxn.getValue(), GlobalVars.decimalCharSep),
-                                                     acctCurr.getDoubleValue(relatedCBTxn.getAmount()),
-                                                     ])
-                                # endfor
-                                if len(lots) > 0:
-                                    _row[dataKeys["_LOTS"][_COLUMN]] = lots
+                                if not lOmitLOTDataFromExtract_EIT:
+                                    lots = []
+                                    for cbKey in cbTags.keys():
+                                        relatedCBTxn = rootbook.getTransactionSet().getTxnByID(cbKey)
+                                        if relatedCBTxn is not None:
+                                            lots.append([cbKey,
+                                                         relatedCBTxn.getTransferType(),
+                                                         relatedCBTxn.getOtherTxn(0).getInvestTxnType(),
+                                                         relatedCBTxn.getDateInt(),
+                                                         acctCurr.formatSemiFancy(relatedCBTxn.getValue(), GlobalVars.decimalCharSep),
+                                                         acctCurr.getDoubleValue(relatedCBTxn.getAmount()),
+                                                         ])
+                                    # endfor
+                                    if len(lots) > 0:
+                                        _row[dataKeys["_LOTS"][_COLUMN]] = lots
+                                    # endif
                                 # endif
                             # endif
 
@@ -9407,6 +9426,7 @@ Visit: %s (Author's site)
                                         writer.writerow(["Include Opening Balances...: %s" %(lIncludeOpeningBalances)])
                                         writer.writerow(["Adjust for Splits..........: %s" %(lAdjustForSplits)])
                                         writer.writerow(["Split Securities by Account: %s" %(userdateformat)])
+                                        writer.writerow(["Omit LOT matching data.....: %s" %(lOmitLOTDataFromExtract_EIT)])
                                         writer.writerow(["Download Attachments.......: %s" %(lExtractAttachments_EIT)])
 
                                 myPrint("B", "CSV file " + csvfilename + " created, records written, and file closed..")
