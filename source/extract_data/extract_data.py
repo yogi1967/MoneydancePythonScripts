@@ -90,6 +90,7 @@
 # build: 1022 - Changed JDateField to use user's date format
 # build: 1022 - Eliminated common code globals :->
 # build: 1022 - Extract Account Registers. Include LOAN and LIABILITY accounts too..
+# build: 1023 - Added lWriteParametersToExportFile_SWSS by user request (GitHub: Michael Thompson)
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -401,7 +402,7 @@ else:
     global lStripASCII, scriptpath, csvDelimiter, userdateformat, lWriteBOMToExportFile_SWSS
     global hideInactiveAccounts, hideHiddenAccounts, hideHiddenSecurities
     global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lAllCurrency, filterForCurrency
-    global whichDefaultExtractToRun_SWSS
+    global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS
 
     # from extract_account_registers_csv
     global lIncludeSubAccounts_EAR
@@ -458,6 +459,7 @@ else:
     attachmentDir = ""                                                                                                  # noqa
     lDidIUseAttachmentDir = False                                                                                       # noqa
     lWriteBOMToExportFile_SWSS = True                                                                                   # noqa
+    lWriteParametersToExportFile_SWSS = True                                                                            # noqa
     hideInactiveAccounts = True                                                                                         # noqa
     hideHiddenAccounts = True                                                                                           # noqa
     lAllAccounts = True                                                                                                 # noqa
@@ -2711,7 +2713,7 @@ Visit: %s (Author's site)
         global lAllCurrency, filterForCurrency
         global hideHiddenSecurities, lAllSecurity, filterForSecurity
         global hideInactiveAccounts, hideHiddenAccounts, lAllAccounts, filterForAccounts
-        global whichDefaultExtractToRun_SWSS
+        global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS
 
         # extract_account_registers_csv
         global lIncludeOpeningBalances_EAR
@@ -2772,6 +2774,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("userdateformat") is not None: userdateformat = GlobalVars.parametersLoadedFromFile.get("userdateformat")
         if GlobalVars.parametersLoadedFromFile.get("lWriteBOMToExportFile_SWSS") is not None: lWriteBOMToExportFile_SWSS = GlobalVars.parametersLoadedFromFile.get("lWriteBOMToExportFile_SWSS")                                                                                  # noqa
         if GlobalVars.parametersLoadedFromFile.get("whichDefaultExtractToRun_SWSS") is not None: whichDefaultExtractToRun_SWSS = GlobalVars.parametersLoadedFromFile.get("whichDefaultExtractToRun_SWSS")                                                                                  # noqa
+        if GlobalVars.parametersLoadedFromFile.get("lWriteParametersToExportFile_SWSS") is not None: lWriteParametersToExportFile_SWSS = GlobalVars.parametersLoadedFromFile.get("lWriteParametersToExportFile_SWSS")                                                                                  # noqa
 
         # extract_account_registers_csv
         if GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR") is not None: lIncludeSubAccounts_EAR = GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR")
@@ -2825,39 +2828,6 @@ Visit: %s (Author's site)
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def dump_StuWareSoftSystems_parameters_from_memory():
-
-        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-
-        # common
-        global __extract_data
-        global lWriteBOMToExportFile_SWSS, userdateformat, lStripASCII, csvDelimiter, scriptpath
-        global lAllCurrency, filterForCurrency
-        global hideHiddenSecurities, lAllSecurity, filterForSecurity
-        global hideInactiveAccounts, hideHiddenAccounts, lAllAccounts, filterForAccounts
-        global whichDefaultExtractToRun_SWSS
-
-        # extract_account_registers_csv
-        global lIncludeOpeningBalances_EAR
-        global userdateStart_EAR, userdateEnd_EAR, lIncludeSubAccounts_EAR
-        global lAllTags_EAR, tagFilter_EAR, lExtractAttachments_EAR
-        global saveDropDownAccountUUID_EAR, lIncludeInternalTransfers_EAR, saveDropDownDateRange_EAR
-        global lAllText_EAR, textFilter_EAR
-        global lAllCategories_EAR, categoriesFilter_EAR
-
-        # extract_investment_transactions_csv
-        global lIncludeOpeningBalances, lAdjustForSplits, lExtractAttachments_EIT
-
-        # extract_currency_history_csv
-        global lSimplify_ECH, userdateStart_ECH, userdateEnd_ECH, hideHiddenCurrencies_ECH
-
-        # stockglance2020
-        global lIncludeCashBalances
-        global lSplitSecuritiesByAccount, lExcludeTotalsFromCSV, _column_widths_SG2020, lIncludeFutureBalances_SG2020
-        global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
-
-        # extract_reminders_csv
-        global _column_widths_ERTC
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         # NOTE: Parameters were loaded earlier on... Preserve existing, and update any used ones...
@@ -2870,6 +2840,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["lStripASCII"] = lStripASCII
         GlobalVars.parametersLoadedFromFile["csvDelimiter"] = csvDelimiter
         GlobalVars.parametersLoadedFromFile["lWriteBOMToExportFile_SWSS"] = lWriteBOMToExportFile_SWSS
+        GlobalVars.parametersLoadedFromFile["lWriteParametersToExportFile_SWSS"] = lWriteParametersToExportFile_SWSS
         GlobalVars.parametersLoadedFromFile["whichDefaultExtractToRun_SWSS"] = whichDefaultExtractToRun_SWSS
         GlobalVars.parametersLoadedFromFile["userdateformat"] = userdateformat
         GlobalVars.parametersLoadedFromFile["hideInactiveAccounts"] = hideInactiveAccounts
@@ -3621,6 +3592,10 @@ Visit: %s (Author's site)
                 user_selectBOM = JCheckBox("", lWriteBOMToExportFile_SWSS)
                 user_selectBOM.setName("user_selectBOM")
 
+                labelExportParameters = JLabel("Write parameters out to file (added as rows at EOF)?")
+                user_ExportParameters = JCheckBox("", lWriteParametersToExportFile_SWSS)
+                user_ExportParameters.setName("user_ExportParameters")
+
                 labelDEBUG = JLabel("Turn DEBUG Verbose messages on?")
                 user_selectDEBUG = JCheckBox("", debug)
                 user_selectDEBUG.setName("user_selectDEBUG")
@@ -3674,6 +3649,8 @@ Visit: %s (Author's site)
                 userFilters.add(user_selectDELIMITER)
                 userFilters.add(labelBOM)
                 userFilters.add(user_selectBOM)
+                userFilters.add(labelExportParameters)
+                userFilters.add(user_ExportParameters)
                 userFilters.add(labelDEBUG)
                 userFilters.add(user_selectDEBUG)
 
@@ -3792,6 +3769,7 @@ Visit: %s (Author's site)
                             "User Date Format:", user_dateformat.getSelectedItem(),
                             "Strip ASCII:", user_selectStripASCII.isSelected(),
                             "Write BOM to file:", user_selectBOM.isSelected(),
+                            "Write Parameters to end of exported file:", user_ExportParameters.isSelected(),
                             "Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
                             "CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
                     # endif
@@ -3803,6 +3781,8 @@ Visit: %s (Author's site)
                     lIncludeInternalTransfers_EAR = user_selectIncludeTransfers.isSelected()
                     lExtractAttachments_EAR = user_selectExtractAttachments.isSelected()
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
+                    lWriteParametersToExportFile_SWSS = user_ExportParameters.isSelected()
+
                     lStripASCII = user_selectStripASCII.isSelected()
                     debug = user_selectDEBUG.isSelected()
 
@@ -3970,6 +3950,9 @@ Visit: %s (Author's site)
                 labelBOM = JLabel("Write BOM (Byte Order Mark) to file (helps Excel open files)?")
                 user_selectBOM = JCheckBox("", lWriteBOMToExportFile_SWSS)
 
+                labelExportParameters = JLabel("Write parameters out to file (added as rows at EOF)?")
+                user_ExportParameters = JCheckBox("", lWriteParametersToExportFile_SWSS)
+
                 label12 = JLabel("Turn DEBUG Verbose messages on?")
                 user_selectDEBUG = JCheckBox("", debug)
 
@@ -4000,6 +3983,8 @@ Visit: %s (Author's site)
                 userFilters.add(user_selectDELIMITER)
                 userFilters.add(labelBOM)
                 userFilters.add(user_selectBOM)
+                userFilters.add(labelExportParameters)
+                userFilters.add(user_ExportParameters)
                 userFilters.add(label12)
                 userFilters.add(user_selectDEBUG)
 
@@ -4090,6 +4075,7 @@ Visit: %s (Author's site)
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
+                    lWriteParametersToExportFile_SWSS = user_ExportParameters.isSelected()
 
                     debug = user_selectDEBUG.isSelected()
 
@@ -4178,6 +4164,9 @@ Visit: %s (Author's site)
                 labelBOM = JLabel("Write BOM (Byte Order Mark) to file (helps Excel open files)?")
                 user_selectBOM = JCheckBox("", lWriteBOMToExportFile_SWSS)
 
+                labelExportParameters = JLabel("Write parameters out to file (added as rows at EOF)?")
+                user_ExportParameters = JCheckBox("", lWriteParametersToExportFile_SWSS)
+
                 label4 = JLabel("Turn DEBUG Verbose messages on?")
                 user_selectDEBUG = JCheckBox("", debug)
 
@@ -4203,6 +4192,8 @@ Visit: %s (Author's site)
                 userFilters.add(user_selectDELIMITER)
                 userFilters.add(labelBOM)
                 userFilters.add(user_selectBOM)
+                userFilters.add(labelExportParameters)
+                userFilters.add(user_ExportParameters)
                 userFilters.add(label4)
                 userFilters.add(user_selectDEBUG)
 
@@ -4243,6 +4234,7 @@ Visit: %s (Author's site)
                             "End date:", user_selectDateEnd.getDateInt(),
                             "Strip ASCII:", user_selectStripASCII.isSelected(),
                             "Write BOM to file:", user_selectBOM.isSelected(),
+                            "Write Parameters to end of exported file:", user_ExportParameters.isSelected(),
                             "Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
                             "CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
                     # endif
@@ -4274,6 +4266,7 @@ Visit: %s (Author's site)
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
+                    lWriteParametersToExportFile_SWSS = user_ExportParameters.isSelected()
 
                     debug = user_selectDEBUG.isSelected()
                     myPrint("DB", "DEBUG turned ON")
@@ -4357,6 +4350,9 @@ Visit: %s (Author's site)
                 labelBOM = JLabel("Write BOM (Byte Order Mark) to file (helps Excel open files)?")
                 user_selectBOM = JCheckBox("", lWriteBOMToExportFile_SWSS)
 
+                labelExportParameters = JLabel("Write parameters out to file (added as rows at EOF)?")
+                user_ExportParameters = JCheckBox("", lWriteParametersToExportFile_SWSS)
+
                 label10 = JLabel("Turn DEBUG Verbose messages on?")
                 user_selectDEBUG = JCheckBox("", debug)
 
@@ -4393,6 +4389,8 @@ Visit: %s (Author's site)
                 userFilters.add(user_selectDELIMITER)
                 userFilters.add(labelBOM)
                 userFilters.add(user_selectBOM)
+                userFilters.add(labelExportParameters)
+                userFilters.add(user_ExportParameters)
                 userFilters.add(label10)
                 userFilters.add(user_selectDEBUG)
 
@@ -4439,6 +4437,7 @@ Visit: %s (Author's site)
                                 ", Reset Columns:", user_selectResetColumns.isSelected(),
                                 ", Strip ASCII:", user_selectStripASCII.isSelected(),
                                 ", Write BOM to file:", user_selectBOM.isSelected(),
+                                ", Write Parameters to end of exported file:", user_ExportParameters.isSelected(),
                                 ", Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
                                 ", CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
 
@@ -4501,6 +4500,7 @@ Visit: %s (Author's site)
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
+                    lWriteParametersToExportFile_SWSS = user_ExportParameters.isSelected()
 
                     debug = user_selectDEBUG.isSelected()
                     myPrint("DB", "DEBUG turned on")
@@ -4587,6 +4587,9 @@ Visit: %s (Author's site)
                 labelBOM = JLabel("Write BOM (Byte Order Mark) to file (helps Excel open files)?")
                 user_selectBOM = JCheckBox("", lWriteBOMToExportFile_SWSS)
 
+                labelExportParameters = JLabel("Write parameters out to file (added as rows at EOF)?")
+                user_ExportParameters = JCheckBox("", lWriteParametersToExportFile_SWSS)
+
                 label4 = JLabel("Turn DEBUG Verbose messages on?")
                 user_selectDEBUG = JCheckBox("", debug)
 
@@ -4602,6 +4605,8 @@ Visit: %s (Author's site)
                 userFilters.add(user_selectDELIMITER)
                 userFilters.add(labelBOM)
                 userFilters.add(user_selectBOM)
+                userFilters.add(labelExportParameters)
+                userFilters.add(user_ExportParameters)
                 userFilters.add(label4)
                 userFilters.add(user_selectDEBUG)
 
@@ -4642,6 +4647,7 @@ Visit: %s (Author's site)
                                 "Reset Columns", user_selectResetColumns.isSelected(),
                                 "Strip ASCII:", user_selectStripASCII.isSelected(),
                                 "Write BOM to file:", user_selectBOM.isSelected(),
+                                "Write Parameters to end of exported file:", user_ExportParameters.isSelected(),
                                 "Verbose Debug Messages: ", user_selectDEBUG.isSelected(),
                                 "CSV File Delimiter:", user_selectDELIMITER.getSelectedItem())
                     # endif
@@ -4672,6 +4678,7 @@ Visit: %s (Author's site)
                                               "INVALID FILE DELIMITER", theMessageType=JOptionPane.ERROR_MESSAGE)
 
                     lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
+                    lWriteParametersToExportFile_SWSS = user_ExportParameters.isSelected()
 
                     myPrint("B", "User Parameters...")
                     myPrint("B", "user date format....:", userdateformat)
@@ -4776,9 +4783,10 @@ Visit: %s (Author's site)
             csvfilename = None
 
             if not lDisplayOnly:  # i.e. we have asked for a file export - so get the filename - Always False in this script1
-                myPrint("B","Strip non-ASCII characters.: %s" %(lStripASCII))
-                myPrint("B","Add BOM to front of file...: %s" %(lWriteBOMToExportFile_SWSS))
-                myPrint("B","CSV Export Delimiter.......: %s" %(csvDelimiter))
+                myPrint("B","Strip non-ASCII characters.....: %s" %(lStripASCII))
+                myPrint("B","Add BOM to front of file.......: %s" %(lWriteBOMToExportFile_SWSS))
+                myPrint("B","Write Parameters to end of file: %s" %(lWriteParametersToExportFile_SWSS))
+                myPrint("B","CSV Export Delimiter...........: %s" %(csvDelimiter))
 
                 if lExcludeTotalsFromCSV:
                     myPrint("B",  "Exclude Totals from CSV (to assist Pivot tables)..: %s" %(lExcludeTotalsFromCSV))
@@ -6500,31 +6508,32 @@ Visit: %s (Author's site)
                                                     raise Exception("Aborting")
                                                 # ENDIF
                                         # NEXT
-                                        today = Calendar.getInstance()
-                                        writer.writerow([""])
-                                        writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
-                                                         + version_build
-                                                         + ")  Moneydance Python Script - Date of Extract: "
-                                                         + str(sdf.format(today.getTime()))])
+                                        if lWriteParametersToExportFile_SWSS:
+                                            today = Calendar.getInstance()
+                                            writer.writerow([""])
+                                            writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
+                                                             + version_build
+                                                             + ")  Moneydance Python Script - Date of Extract: "
+                                                             + str(sdf.format(today.getTime()))])
 
-                                        writer.writerow([""])
-                                        writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
+                                            writer.writerow([""])
+                                            writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
 
-                                        writer.writerow([""])
-                                        writer.writerow(["User Parameters..."])
+                                            writer.writerow([""])
+                                            writer.writerow(["User Parameters..."])
 
-                                        writer.writerow(["Hiding Hidden Securities...: %s" %(hideHiddenSecurities)])
-                                        writer.writerow(["Hiding Inactive Accounts...: %s" %(hideInactiveAccounts)])
-                                        writer.writerow(["Hiding Hidden Accounts.....: %s" %(hideHiddenAccounts)])
-                                        writer.writerow(["Security filter............: %s '%s'" %(lAllSecurity,filterForSecurity)])
-                                        writer.writerow(["Account filter.............: %s '%s'" %(lAllAccounts,filterForAccounts)])
-                                        writer.writerow(["Currency filter............: %s '%s'" %(lAllCurrency,filterForCurrency)])
-                                        writer.writerow(["Include Cash Balances......: %s" %(lIncludeCashBalances)])
-                                        writer.writerow(["Include Future Balances....: %s" %(lIncludeFutureBalances_SG2020)])
-                                        writer.writerow(["Use Current Price..........: %s (False means use the latest dated price history price)" %(lUseCurrentPrice_SG2020)])
-                                        writer.writerow(["Max Price dpc Rounding.....: %s" %(maxDecimalPlacesRounding_SG2020)])
-                                        writer.writerow(["Split Securities by Account: %s" %(lSplitSecuritiesByAccount)])
-                                        writer.writerow(["Extract Totals from CSV....: %s" %(lExcludeTotalsFromCSV)])
+                                            writer.writerow(["Hiding Hidden Securities...: %s" %(hideHiddenSecurities)])
+                                            writer.writerow(["Hiding Inactive Accounts...: %s" %(hideInactiveAccounts)])
+                                            writer.writerow(["Hiding Hidden Accounts.....: %s" %(hideHiddenAccounts)])
+                                            writer.writerow(["Security filter............: %s '%s'" %(lAllSecurity,filterForSecurity)])
+                                            writer.writerow(["Account filter.............: %s '%s'" %(lAllAccounts,filterForAccounts)])
+                                            writer.writerow(["Currency filter............: %s '%s'" %(lAllCurrency,filterForCurrency)])
+                                            writer.writerow(["Include Cash Balances......: %s" %(lIncludeCashBalances)])
+                                            writer.writerow(["Include Future Balances....: %s" %(lIncludeFutureBalances_SG2020)])
+                                            writer.writerow(["Use Current Price..........: %s (False means use the latest dated price history price)" %(lUseCurrentPrice_SG2020)])
+                                            writer.writerow(["Max Price dpc Rounding.....: %s" %(maxDecimalPlacesRounding_SG2020)])
+                                            writer.writerow(["Split Securities by Account: %s" %(lSplitSecuritiesByAccount)])
+                                            writer.writerow(["Extract Totals from CSV....: %s" %(lExcludeTotalsFromCSV)])
 
                                     myPrint("B", "CSV file " + csvfilename + " created, records written, and file closed..")
 
@@ -7654,19 +7663,20 @@ Visit: %s (Author's site)
                                                 ConsoleWindow.showConsoleWindow(MD_REF.getUI())
                                                 raise Exception("Aborting")
                                         # NEXT
-                                        today = Calendar.getInstance()
-                                        writer.writerow([""])
-                                        writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
-                                                         + version_build
-                                                         + ")  Moneydance Python Script - Date of Extract: "
-                                                         + str(sdf.format(today.getTime()))])
+                                        if lWriteParametersToExportFile_SWSS:
+                                            today = Calendar.getInstance()
+                                            writer.writerow([""])
+                                            writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
+                                                             + version_build
+                                                             + ")  Moneydance Python Script - Date of Extract: "
+                                                             + str(sdf.format(today.getTime()))])
 
-                                        writer.writerow([""])
-                                        writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
+                                            writer.writerow([""])
+                                            writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
 
-                                        writer.writerow([""])
-                                        writer.writerow(["User Parameters..."])
-                                        writer.writerow(["Date format................: %s" %(userdateformat)])
+                                            writer.writerow([""])
+                                            writer.writerow(["User Parameters..."])
+                                            writer.writerow(["Date format................: %s" %(userdateformat)])
 
                                     myPrint("B", "CSV file " + csvfilename + " created, records written, and file closed..")
 
@@ -8289,7 +8299,6 @@ Visit: %s (Author's site)
                         def ExportDataToFile(statusMsg):
                             global csvfilename, csvDelimiter
                             global transactionTable, userdateformat
-                            global lWriteBOMToExportFile_SWSS
                             global lAllTags_EAR, tagFilter_EAR
                             global lAllText_EAR, textFilter_EAR
                             global lAllCategories_EAR, categoriesFilter_EAR
@@ -8369,39 +8378,40 @@ Visit: %s (Author's site)
                                         ConsoleWindow.showConsoleWindow(MD_REF.getUI())
                                         raise Exception("Aborting")
 
-                                    today = Calendar.getInstance()
-                                    writer.writerow([""])
-                                    writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
-                                                     + version_build
-                                                     + ")  Moneydance Python Script - Date of Extract: "
-                                                     + str(sdf.format(today.getTime()))])
+                                    if lWriteParametersToExportFile_SWSS:
+                                        today = Calendar.getInstance()
+                                        writer.writerow([""])
+                                        writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
+                                                         + version_build
+                                                         + ")  Moneydance Python Script - Date of Extract: "
+                                                         + str(sdf.format(today.getTime()))])
 
-                                    writer.writerow([""])
-                                    writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
+                                        writer.writerow([""])
+                                        writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
 
-                                    writer.writerow([""])
-                                    writer.writerow(["User Parameters..."])
+                                        writer.writerow([""])
+                                        writer.writerow(["User Parameters..."])
 
-                                    if dropDownAccount_EAR:
-                                        # noinspection PyUnresolvedReferences
-                                        writer.writerow(["Dropdown Account selected..: %s" %(dropDownAccount_EAR.getAccountName())])
-                                        writer.writerow(["Include Sub Accounts.......: %s" %(lIncludeSubAccounts_EAR)])
-                                    else:
-                                        writer.writerow(["Hiding Inactive Accounts...: %s" %(hideInactiveAccounts)])
-                                        writer.writerow(["Hiding Hidden Accounts.....: %s" %(hideHiddenAccounts)])
-                                        writer.writerow(["Account filter.............: %s '%s'" %(lAllAccounts,filterForAccounts)])
-                                        writer.writerow(["Currency filter............: %s '%s'" %(lAllCurrency,filterForCurrency)])
+                                        if dropDownAccount_EAR:
+                                            # noinspection PyUnresolvedReferences
+                                            writer.writerow(["Dropdown Account selected..: %s" %(dropDownAccount_EAR.getAccountName())])
+                                            writer.writerow(["Include Sub Accounts.......: %s" %(lIncludeSubAccounts_EAR)])
+                                        else:
+                                            writer.writerow(["Hiding Inactive Accounts...: %s" %(hideInactiveAccounts)])
+                                            writer.writerow(["Hiding Hidden Accounts.....: %s" %(hideHiddenAccounts)])
+                                            writer.writerow(["Account filter.............: %s '%s'" %(lAllAccounts,filterForAccounts)])
+                                            writer.writerow(["Currency filter............: %s '%s'" %(lAllCurrency,filterForCurrency)])
 
-                                    writer.writerow(["Include Opening Balances...: %s" %(lIncludeOpeningBalances_EAR)])
-                                    # writer.writerow(["Include Acct Transfers.....: %s" %(lIncludeInternalTransfers_EAR)])
-                                    writer.writerow(["Tag filter.................: %s '%s'" %(lAllTags_EAR,tagFilter_EAR)])
-                                    writer.writerow(["Text filter................: %s '%s'" %(lAllText_EAR,textFilter_EAR)])
-                                    writer.writerow(["Category filter............: %s '%s'" %(lAllCategories_EAR,categoriesFilter_EAR)])
-                                    writer.writerow(["Download Attachments.......: %s" %(lExtractAttachments_EAR)])
-                                    writer.writerow(["Date range.................: %s" %(saveDropDownDateRange_EAR)])
-                                    writer.writerow(["Selected Start Date........: %s" %(userdateStart_EAR)])
-                                    writer.writerow(["Selected End Date..........: %s" %(userdateEnd_EAR)])
-                                    writer.writerow(["user date format...........: %s" %(userdateformat)])
+                                        writer.writerow(["Include Opening Balances...: %s" %(lIncludeOpeningBalances_EAR)])
+                                        # writer.writerow(["Include Acct Transfers.....: %s" %(lIncludeInternalTransfers_EAR)])
+                                        writer.writerow(["Tag filter.................: %s '%s'" %(lAllTags_EAR,tagFilter_EAR)])
+                                        writer.writerow(["Text filter................: %s '%s'" %(lAllText_EAR,textFilter_EAR)])
+                                        writer.writerow(["Category filter............: %s '%s'" %(lAllCategories_EAR,categoriesFilter_EAR)])
+                                        writer.writerow(["Download Attachments.......: %s" %(lExtractAttachments_EAR)])
+                                        writer.writerow(["Date range.................: %s" %(saveDropDownDateRange_EAR)])
+                                        writer.writerow(["Selected Start Date........: %s" %(userdateStart_EAR)])
+                                        writer.writerow(["Selected End Date..........: %s" %(userdateEnd_EAR)])
+                                        writer.writerow(["user date format...........: %s" %(userdateformat)])
 
                                 myPrint("B", "CSV file " + csvfilename + " created, records written, and file closed..")
 
@@ -9267,10 +9277,6 @@ Visit: %s (Author's site)
 
 
                         def ExportDataToFile():
-                            global csvfilename, csvDelimiter
-                            global transactionTable, userdateformat
-                            global lWriteBOMToExportFile_SWSS, lExtractAttachments_EIT, relativePath
-
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
                             headings = []
@@ -9347,29 +9353,30 @@ Visit: %s (Author's site)
                                         ConsoleWindow.showConsoleWindow(MD_REF.getUI())
                                         raise Exception("Aborting")
 
-                                    today = Calendar.getInstance()
-                                    writer.writerow([""])
-                                    writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
-                                                     + version_build
-                                                     + ")  Moneydance Python Script - Date of Extract: "
-                                                     + str(sdf.format(today.getTime()))])
+                                    if lWriteParametersToExportFile_SWSS:
+                                        today = Calendar.getInstance()
+                                        writer.writerow([""])
+                                        writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
+                                                         + version_build
+                                                         + ")  Moneydance Python Script - Date of Extract: "
+                                                         + str(sdf.format(today.getTime()))])
 
-                                    writer.writerow([""])
-                                    writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
+                                        writer.writerow([""])
+                                        writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
 
-                                    writer.writerow([""])
-                                    writer.writerow(["User Parameters..."])
+                                        writer.writerow([""])
+                                        writer.writerow(["User Parameters..."])
 
-                                    writer.writerow(["Hiding Hidden Securities...: %s" %(hideHiddenSecurities)])
-                                    writer.writerow(["Hiding Inactive Accounts...: %s" %(hideInactiveAccounts)])
-                                    writer.writerow(["Hiding Hidden Accounts.....: %s" %(hideHiddenAccounts)])
-                                    writer.writerow(["Security filter............: %s '%s'" %(lAllSecurity,filterForSecurity)])
-                                    writer.writerow(["Account filter.............: %s '%s'" %(lAllAccounts,filterForAccounts)])
-                                    writer.writerow(["Currency filter............: %s '%s'" %(lAllCurrency,filterForCurrency)])
-                                    writer.writerow(["Include Opening Balances...: %s" %(lIncludeOpeningBalances)])
-                                    writer.writerow(["Adjust for Splits..........: %s" %(lAdjustForSplits)])
-                                    writer.writerow(["Split Securities by Account: %s" %(userdateformat)])
-                                    writer.writerow(["Download Attachments.......: %s" %(lExtractAttachments_EIT)])
+                                        writer.writerow(["Hiding Hidden Securities...: %s" %(hideHiddenSecurities)])
+                                        writer.writerow(["Hiding Inactive Accounts...: %s" %(hideInactiveAccounts)])
+                                        writer.writerow(["Hiding Hidden Accounts.....: %s" %(hideHiddenAccounts)])
+                                        writer.writerow(["Security filter............: %s '%s'" %(lAllSecurity,filterForSecurity)])
+                                        writer.writerow(["Account filter.............: %s '%s'" %(lAllAccounts,filterForAccounts)])
+                                        writer.writerow(["Currency filter............: %s '%s'" %(lAllCurrency,filterForCurrency)])
+                                        writer.writerow(["Include Opening Balances...: %s" %(lIncludeOpeningBalances)])
+                                        writer.writerow(["Adjust for Splits..........: %s" %(lAdjustForSplits)])
+                                        writer.writerow(["Split Securities by Account: %s" %(userdateformat)])
+                                        writer.writerow(["Download Attachments.......: %s" %(lExtractAttachments_EIT)])
 
                                 myPrint("B", "CSV file " + csvfilename + " created, records written, and file closed..")
 
@@ -9604,9 +9611,7 @@ Visit: %s (Author's site)
 
                         currencyTable = list_currency_rate_history()
 
-                        def ExportDataToFile(theTable, header):                                                         # noqa
-                            global csvfilename, csvDelimiter, userdateformat, lWriteBOMToExportFile_SWSS
-
+                        def ExportDataToFile(theTable, _header):
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
                             _CURRNAME = 0
@@ -9636,7 +9641,7 @@ Visit: %s (Author's site)
                                     for col in range(0, len(row)):
                                         row[col] = fixFormatsStr(row[col])
 
-                            theTable.insert(0,header)  # Insert Column Headings at top of list. A bit rough and ready, not great coding, but a short list...!
+                            theTable.insert(0,_header)  # Insert Column Headings at top of list. A bit rough and ready, not great coding, but a short list...!
 
                             # Write the theTable to a file
                             myPrint("B", "Opening file and writing ", len(theTable), " records")
@@ -9675,22 +9680,23 @@ Visit: %s (Author's site)
                                             raise Exception("Aborting")
 
                                         # NEXT
-                                        today = Calendar.getInstance()
-                                        writer.writerow([""])
-                                        writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
-                                                         + version_build
-                                                         + ")  Moneydance Python Script - Date of Extract: "
-                                                         + str(sdf.format(today.getTime()))])
+                                        if lWriteParametersToExportFile_SWSS:
+                                            today = Calendar.getInstance()
+                                            writer.writerow([""])
+                                            writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
+                                                             + version_build
+                                                             + ")  Moneydance Python Script - Date of Extract: "
+                                                             + str(sdf.format(today.getTime()))])
 
-                                        writer.writerow([""])
-                                        writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
+                                            writer.writerow([""])
+                                            writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()) ])
 
-                                        writer.writerow([""])
-                                        writer.writerow(["User Parameters..."])
-                                        writer.writerow(["Simplify Extract...........: %s" %(lSimplify_ECH)])
-                                        writer.writerow(["Hiding Hidden Currencies...: %s" %(hideHiddenCurrencies_ECH)])
-                                        writer.writerow(["Date format................: %s" %(userdateformat)])
-                                        writer.writerow(["Date Range Selected........: "+str(userdateStart_ECH) + " to " +str(userdateEnd_ECH)])
+                                            writer.writerow([""])
+                                            writer.writerow(["User Parameters..."])
+                                            writer.writerow(["Simplify Extract...........: %s" %(lSimplify_ECH)])
+                                            writer.writerow(["Hiding Hidden Currencies...: %s" %(hideHiddenCurrencies_ECH)])
+                                            writer.writerow(["Date format................: %s" %(userdateformat)])
+                                            writer.writerow(["Date Range Selected........: "+str(userdateStart_ECH) + " to " +str(userdateEnd_ECH)])
 
                                     else:
                                         # Simplify is for my tester 'buddy' DerekKent23 - it's actually an MS Money Import format
