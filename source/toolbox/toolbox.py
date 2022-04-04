@@ -23535,7 +23535,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
                 user_diagnose_fix_attachments.setForeground(getColorRed())
 
-                user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another (DISABLED >> NOW RUN FROM EXTENSIONS MENU)", False)
+                # user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another (DISABLED >> NOW RUN FROM EXTENSIONS MENU)", False)
+                user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions >> NOW RUN FROM EXTENSIONS MENU <<", False)
                 user_move_invest_txns.setToolTipText("This allows you to move your investment transactions from one account into (merges with) another")
                 user_move_invest_txns.setEnabled(GlobalVars.UPDATE_MODE)
                 user_move_invest_txns.setForeground(getColorRed())

@@ -313,6 +313,7 @@ else:
     from javax.swing import DefaultComboBoxModel
     from java.awt.event import ItemListener, ItemEvent
     from java.lang import Long                                                                                          # noqa
+    from com.moneydance.awt import JCurrencyField
     # >>> END THIS SCRIPT'S IMPORTS ####################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ########################################################################################
@@ -2685,6 +2686,8 @@ Visit: %s (Author's site)
             raise QuickAbortThisScriptException
 
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
+        MD_comma = "," if (MD_decimal == ".") else "."
+        currencyTable = MD_REF.getCurrentAccountBook().getCurrencies()
 
         def isPreviewBuild():
             if MD_EXTENSION_LOADER is not None:
@@ -2975,10 +2978,6 @@ Visit: %s (Author's site)
                 user_filterSecurity.setEnabled(False)
                 user_filterSecurity.setToolTipText("Select the single Security to filter and move")
 
-                user_filterSecurityIncludeWhereSourceFundsToo = JCheckBox("Include Cash Xfrs in/out where Security Buy/Sell Xfr was the original source", False)
-                user_filterSecurityIncludeWhereSourceFundsToo.setEnabled(False)
-                user_filterSecurityIncludeWhereSourceFundsToo.setToolTipText("Include cash where Security was Buy/Sell (another account) Xfr to/from Source")
-
                 user_enableDateRangeFilter = JCheckBox("Enable Date Range Filters?", False)
                 user_enableDateRangeFilter.setName("ENABLE_DATE_RANGE_FILTER")
                 user_enableDateRangeFilter.setToolTipText("When enabled, allows you to filter the transactions to move to a date range")
@@ -3005,12 +3004,25 @@ Visit: %s (Author's site)
                 user_deleteEmptySourceAccount = JCheckBox("Auto DELETE Empty Source Account (only actions if empty after processing)?", False)
                 user_deleteEmptySourceAccount.setToolTipText("Delete the Source account after the move if it's empty")
 
-                user_mergeCashBalances = JCheckBox("Auto MERGE Source Account's Opening Cash balance to Target's?",
-                                                   False if GlobalVars.selectedInvestmentTransactionsList else True)
-                user_mergeCashBalances.setToolTipText("Move any opening/starting cash balance over to the target account")
+                user_mergeCashBalances = JCheckBox("Auto MERGE Source Account's Opening Cash balance to Target's? (Specify amount to move below)",
+                                                   False if (GlobalVars.selectedInvestmentTransactionsList) else True)
+                user_mergeCashBalances.setName("MOVE_CASH_BALANCE")
+                user_mergeCashBalances.setToolTipText("Move the specified amount of opening/starting cash balance over to the target account")
+
+                srcAcct = user_selectSourceAccount.getSelectedItem()      # type: Account
+                if isinstance(srcAcct, Account): pass
+
+                user_cashBalanceToMove = JCurrencyField(14, srcAcct.getCurrencyType(), currencyTable, MD_decimal, MD_comma)
+                user_cashBalanceToMove.setValue(srcAcct.getStartBalance())
+                user_cashBalanceToMove.setToolTipText("Enter the amount of the source acct's opening cash balance to move to target account")   # noqa
+                user_cashBalanceToMove.setEnabled(user_mergeCashBalances.isSelected())                                                          # noqa
+                del srcAcct
+
+                user_forceAllowResultingNegativeCashBalance = JCheckBox("Auto allow Source Account's Cash balance to go negative?", False)
+                user_forceAllowResultingNegativeCashBalance.setToolTipText("Allows the source acct's cash balance to go negative as a result of the move")
 
                 user_forceTrunkSave = JCheckBox("Auto SAVE-TRUNK - Immediately flush all changes back to disk (Use when making large changes)?",
-                                                False if GlobalVars.selectedInvestmentTransactionsList else True)
+                                                False if (GlobalVars.selectedInvestmentTransactionsList) else True)
                 user_forceTrunkSave.setToolTipText("A good idea for large moves. Not needed for small moves.")
 
                 filterPanel = JPanel(GridLayout(0, 1))
@@ -3027,7 +3039,6 @@ Visit: %s (Author's site)
                     filterPanel.add(user_enableSecurityFilter)
                     filterPanel.add(JLabel("Select the Security to FILTER:"))
                     filterPanel.add(user_filterSecurity)
-                    # filterPanel.add(user_filterSecurityIncludeWhereSourceFundsToo)
                     filterPanel.add(JLabel(""))
                     filterPanel.add(user_enableDateRangeFilter)
                     filterPanel.add(JLabel("FILTER Range Start Date:"))
@@ -3043,20 +3054,22 @@ Visit: %s (Author's site)
                 filterPanel.add(user_ignoreAccountLoop)
                 filterPanel.add(user_deleteEmptySourceAccount)
                 filterPanel.add(user_mergeCashBalances)
+                filterPanel.add(user_cashBalanceToMove)
+                filterPanel.add(user_forceAllowResultingNegativeCashBalance)
                 filterPanel.add(user_forceTrunkSave)
 
                 class MyItemListener(ItemListener):
-                    def __init__(self, selectSource, selectTarget, enableSecurityFilter, filterSecurity, filterSecurityIncludeWhereSourceFundsToo, enableDateRangeFilter, dateFieldStart, dateFieldEnd, forceTrunkSave, mergeCashBalances):
+                    def __init__(self, selectSource, selectTarget, enableSecurityFilter, filterSecurity, enableDateRangeFilter, dateFieldStart, dateFieldEnd, forceTrunkSave, mergeCashBalances, _cashBalanceToMove):
                         self.selectSource = selectSource
                         self.selectTarget = selectTarget
                         self.enableSecurityFilter = enableSecurityFilter
                         self.filterSecurity = filterSecurity
-                        self.filterSecurityIncludeWhereSourceFundsToo = filterSecurityIncludeWhereSourceFundsToo
                         self.enableDateRangeFilter = enableDateRangeFilter
                         self.dateFieldStart = dateFieldStart
                         self.dateFieldEnd = dateFieldEnd
                         self.forceTrunkSave = forceTrunkSave
                         self.mergeCashBalances = mergeCashBalances
+                        self.cashBalanceToMove = _cashBalanceToMove
 
                     def itemStateChanged(self, e):
                         if ((e.getSource().getName() == "SELECT_SOURCE_ACCOUNT" and e.getStateChange() == ItemEvent.SELECTED)
@@ -3065,9 +3078,11 @@ Visit: %s (Author's site)
                             for sAcct in self.selectSource.getSelectedItem().getSubAccounts(): subAccts.append(StoreAccountSecurity(sAcct))
                             self.filterSecurity.setModel(DefaultComboBoxModel(subAccts))
 
+                            if e.getSource().getName() == "SELECT_SOURCE_ACCOUNT":
+                                self.cashBalanceToMove.setValue(e.getSource().getSelectedItem().getStartBalance())
+
                         if e.getSource().getName() == "ENABLE_SECURITY_FILTER":
                             self.filterSecurity.setEnabled(e.getSource().isSelected())
-                            self.filterSecurityIncludeWhereSourceFundsToo.setEnabled(e.getSource().isSelected())
                             if not e.getSource().isSelected(): self.filterSecurity.setModel(DefaultComboBoxModel([]))
                             self.forceTrunkSave.setSelected(not self.enableSecurityFilter.isSelected() and not self.enableDateRangeFilter.isSelected())
                             self.mergeCashBalances.setSelected(not self.enableSecurityFilter.isSelected() and not self.enableDateRangeFilter.isSelected())
@@ -3077,20 +3092,24 @@ Visit: %s (Author's site)
                             self.forceTrunkSave.setSelected(not self.enableSecurityFilter.isSelected() and not self.enableDateRangeFilter.isSelected())
                             self.mergeCashBalances.setSelected(not self.enableSecurityFilter.isSelected() and not self.enableDateRangeFilter.isSelected())
 
-                if lRunningFromToolbox:
-                    myItemListener = MyItemListener(user_selectSourceAccount,
-                                                    user_selectTargetAccount,
-                                                    user_enableSecurityFilter,
-                                                    user_filterSecurity,
-                                                    user_filterSecurityIncludeWhereSourceFundsToo,
-                                                    user_enableDateRangeFilter,
-                                                    user_dateFieldStart,
-                                                    user_dateFieldEnd,
-                                                    user_forceTrunkSave,
-                                                    user_mergeCashBalances)
-                    user_selectSourceAccount.addItemListener(myItemListener)
-                    user_enableSecurityFilter.addItemListener(myItemListener)
-                    user_enableDateRangeFilter.addItemListener(myItemListener)
+                        if e.getSource().getName() == "MOVE_CASH_BALANCE":
+                            self.cashBalanceToMove.setEnabled(e.getSource().isSelected())
+
+
+                myItemListener = MyItemListener(user_selectSourceAccount,
+                                                user_selectTargetAccount,
+                                                user_enableSecurityFilter,
+                                                user_filterSecurity,
+                                                user_enableDateRangeFilter,
+                                                user_dateFieldStart,
+                                                user_dateFieldEnd,
+                                                user_forceTrunkSave,
+                                                user_mergeCashBalances,
+                                                user_cashBalanceToMove)
+                user_selectSourceAccount.addItemListener(myItemListener)
+                user_enableSecurityFilter.addItemListener(myItemListener)
+                user_enableDateRangeFilter.addItemListener(myItemListener)
+                user_mergeCashBalances.addItemListener(myItemListener)
 
                 _options = ["Cancel", "PROCEED"]
 
@@ -3138,6 +3157,17 @@ Visit: %s (Author's site)
                         myPopupInformationBox(toolbox_move_merge_investment_txns_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                         continue
 
+                    if user_mergeCashBalances.isSelected():
+                        srcAcct = user_selectSourceAccount.getSelectedItem()       # type: Account
+                        if isinstance(srcAcct, Account): pass
+                        moveCashAmt = user_cashBalanceToMove.getValue()
+
+                        if moveCashAmt <= 0 or moveCashAmt > srcAcct.getStartBalance():
+                            txt = "%s: ERROR - Amount of opening cash balance to move to target is invalid, zero, or greater than amount held!" %(_THIS_METHOD_NAME)
+                            myPopupInformationBox(toolbox_move_merge_investment_txns_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+                            continue
+                        del srcAcct, moveCashAmt
+
                     break
 
                 del _options, filterPanel, toListAccount, allInvestmentAccounts, MyItemListener, sCurr, tCurr
@@ -3149,7 +3179,6 @@ Visit: %s (Author's site)
                 if isinstance(targetAccount, Account): pass
 
                 lFilterSecurities = user_enableSecurityFilter.isSelected()
-                lFilterSecurityIncludeWhereSourceFundsToo = user_filterSecurityIncludeWhereSourceFundsToo.isSelected()
                 filterSecurityList = [user_filterSecurity.getSelectedItem().getAccount()] if lFilterSecurities else []  # noqa
 
                 lFilterByDate = user_enableDateRangeFilter.isSelected()
@@ -3172,8 +3201,14 @@ Visit: %s (Author's site)
                 lAutoIgnoreAccountLoops = user_ignoreAccountLoop.isSelected()
                 lAutoDeleteEmptySourceAccount = user_deleteEmptySourceAccount.isSelected()
                 lAutoMergeCashBalances = user_mergeCashBalances.isSelected()
-                lAutoForceSaveTrunkFile = user_forceTrunkSave.isSelected()
 
+                if not lAutoMergeCashBalances:
+                    cashBalanceToMove = 0
+                else:
+                    cashBalanceToMove = user_cashBalanceToMove.getValue()
+
+                lAutoForceAllowResultingNegativeCashBalance = user_forceAllowResultingNegativeCashBalance.isSelected()
+                lAutoForceSaveTrunkFile = user_forceTrunkSave.isSelected()
 
                 sourceTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(sourceAccount)
 
@@ -3207,7 +3242,7 @@ Visit: %s (Author's site)
                             output += "....... FILTER Date Range..: %s to %s\n" %(convertStrippedIntDateFormattedText(filterDateFrom), convertStrippedIntDateFormattedText(filterDateTo))
                         output += "\n"
 
-                    if lAutoIgnoreNegativeShareBalances or lAutoIgnoreAccountLoops or lAutoIgnoreAnyAvgCstLotFlagDifference or lAutoDeleteEmptySourceAccount or lAutoMergeCashBalances or lAutoForceSaveTrunkFile or lAutoForceDeleteSeparatedLotRecords:
+                    if lAutoIgnoreNegativeShareBalances or lAutoIgnoreAccountLoops or lAutoIgnoreAnyAvgCstLotFlagDifference or lAutoDeleteEmptySourceAccount or lAutoMergeCashBalances or lAutoForceSaveTrunkFile or lAutoForceDeleteSeparatedLotRecords or lAutoForceAllowResultingNegativeCashBalance:
                         output += "\nAUTO-PROCESSING OPTIONS selected...\n"
 
                     if lAutoIgnoreNegativeShareBalances:
@@ -3226,7 +3261,11 @@ Visit: %s (Author's site)
                         output += "....... Source account will be auto-deleted after a successful merge if it's empty with no outstanding opening cash balance...\n"
 
                     if lAutoMergeCashBalances:
-                        output += "....... Any Opening Cash balance in Source Account will be auto added to Target Account's opening cash balance...\n"
+                        output += "....... Specified amount of the Opening Cash balance in Source Account will be auto added to Target Account's opening cash balance...\n"
+                        output += "....... Will move %s of the cash balance into target...\n" %(sourceAccount.getCurrencyType().formatFancy(cashBalanceToMove,MD_decimal))
+
+                    if lAutoForceAllowResultingNegativeCashBalance:
+                        output += "....... Allow source account's cash balance to go negative as a result of the move...\n"
 
                     if lAutoForceSaveTrunkFile:
                         output += "....... Trunk File will be saved too ...\n"
@@ -3237,7 +3276,7 @@ Visit: %s (Author's site)
                     output += "Source Account: %s\n" %(sourceAccount.getFullAccountName())
                     output += "Target Account: %s\n\n" %(targetAccount.getFullAccountName())
 
-                    def check_txn_matches_filter(_txn, _lFilterSecurities, _lFilterSecurityIncludeWhereSourceFundsToo, _lFilterByDate, _filterSecurityList, _filterDateFrom, _filterDateTo):
+                    def check_txn_matches_filter(_txn, _lFilterSecurities, _lFilterByDate, _filterSecurityList, _filterDateFrom, _filterDateTo):
                         """Checks a Transaction to see if it matches filters"""
 
                         if GlobalVars.selectedInvestmentTransactionsList:      return True
@@ -3246,9 +3285,6 @@ Visit: %s (Author's site)
                         if _lFilterByDate:
                             if _txn.getDateInt() < _filterDateFrom or _txn.getDateInt() > _filterDateTo:      return False
                             if not _lFilterSecurities:                                                        return True
-
-                        # if  isinstance(_txn, SplitTxn) and not _lFilterSecurityIncludeWhereSourceFundsToo:   return False
-                        # Code below would need to be fixed to check for account/curr, not account if source elsewhere...
 
                         _secTxn = TxnUtil.getSecurityPart(_txn.getParentTxn())    # getParent on a ParentTxn returns itself...
                         if _secTxn is None:                              return False
@@ -3260,7 +3296,7 @@ Visit: %s (Author's site)
                     if GlobalVars.selectedInvestmentTransactionsList or (lFilterByDate and not lFilterSecurities):
                         tmpTxns = GlobalVars.selectedInvestmentTransactionsList if (GlobalVars.selectedInvestmentTransactionsList) else sourceTxns
                         for filteredTxn in tmpTxns:
-                            if check_txn_matches_filter(filteredTxn, lFilterSecurities, lFilterSecurityIncludeWhereSourceFundsToo, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
+                            if check_txn_matches_filter(filteredTxn, lFilterSecurities, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
                                 if isinstance(filteredTxn, ParentTxn):  # Splits will be a cash transfer and do not need a target security account
                                     secTxn = TxnUtil.getSecurityPart(filteredTxn)
                                     if secTxn is not None:
@@ -3381,7 +3417,7 @@ Visit: %s (Author's site)
                     tmpTxns = GlobalVars.selectedInvestmentTransactionsList if (GlobalVars.selectedInvestmentTransactionsList) else sourceTxns
                     for srcTxn in tmpTxns:
 
-                        if not check_txn_matches_filter(srcTxn, lFilterSecurities, lFilterSecurityIncludeWhereSourceFundsToo, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
+                        if not check_txn_matches_filter(srcTxn, lFilterSecurities, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
                             continue
 
                         estimateTransactionsToMove += 1
@@ -3492,7 +3528,7 @@ Visit: %s (Author's site)
                                 if txn in GlobalVars.selectedInvestmentTransactionsList:
                                     lMoveThisTxn = True
                             else:
-                                if check_txn_matches_filter(txn, lFilterSecurities, lFilterSecurityIncludeWhereSourceFundsToo, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
+                                if check_txn_matches_filter(txn, lFilterSecurities, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
                                     lMoveThisTxn = True
 
                             if lMoveThisTxn:
@@ -3643,6 +3679,56 @@ Visit: %s (Author's site)
                         output += "\nSource starting cash balance: %s\n" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))
                         output += "\nTarget starting cash balance: %s\n" %(targetRCurr.formatSemiFancy(targetStartBal,MD_decimal))
 
+                    if cashBalanceToMove > 0:
+                        output += "User has requested to move %s of source acct's starting cash balance, and add into target's...\n\n" %(sourceAccount.getCurrencyType().formatFancy(cashBalanceToMove,MD_decimal))
+                    else:
+                        output += "Source Account's starting cash balance will NOT be moved into target's\n\n"
+
+                    if sourceStartBal != 0 and lAutoDeleteEmptySourceAccount and (sourceStartBal - cashBalanceToMove) > 0:
+                        txt = "NOTE: Source account cannot be auto-deleted post merge as it would be left with a cash starting balance (disabling auto-delete Source Account option OFF)..."
+                        output += "%s\n\n" %(txt)
+                        lAutoDeleteEmptySourceAccount = False
+
+                    ####################################################################################################
+                    # Validate for a resultant negative cash balance
+                    if not lAutoForceAllowResultingNegativeCashBalance:
+
+                        fromResultantTxnSet = TxnSet()
+
+                        output += "\nValidating against a negative cash balance in the source account as a result of the move/merge:\n"
+                        for txn in sourceTxns:
+                            lMoveThisTxn = False
+                            if GlobalVars.selectedInvestmentTransactionsList:
+                                if txn in GlobalVars.selectedInvestmentTransactionsList:
+                                    lMoveThisTxn = True
+                            else:
+                                if check_txn_matches_filter(txn, lFilterSecurities, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
+                                    lMoveThisTxn = True
+
+                            if not lMoveThisTxn: fromResultantTxnSet.addTxn(txn)
+
+                        fromResultantTxnSet.setHoldBalances(True)
+                        resultantSourceOpeningCashBalance = sourceStartBal - cashBalanceToMove
+                        fromResultantTxnSet.recalcBalances(resultantSourceOpeningCashBalance, False, False)
+
+                        if fromResultantTxnSet.getSize() > 0:
+                            lastPosn = fromResultantTxnSet.getSize()-1
+                            estimatedNewSourceCashBalance = fromResultantTxnSet.getBalanceAt(lastPosn)
+                        else:
+                            estimatedNewSourceCashBalance = resultantSourceOpeningCashBalance
+
+                        if estimatedNewSourceCashBalance < 0:
+                            output += ">> Check for resultant negative cash balance in source account FAILED VALIDATION. Would result in a negative cash balance of: %s\n\n" %(sourceAccount.getCurrencyType().formatFancy(estimatedNewSourceCashBalance, MD_decimal))
+                            jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
+                            txt = "ERROR: Check for source account negative cash balance (after move) FAILED VALIDATION - no changes made"
+                            myPrint("B", txt)
+                            setDisplayStatus(txt, "R")
+                            myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+                            return
+
+                        output += "... No resultant negative cash balance in source detected...\n\n"
+                        del fromResultantTxnSet
+
                     output += "\n\n>> %s TRANSACTIONS WILL BE MOVED (out of %s in Source Account) <<\n\n" %(estimateTransactionsToMove, countSourceBefore)
 
                     ask = MyPopUpDialogBox(toolbox_move_merge_investment_txns_frame_,
@@ -3669,21 +3755,6 @@ Visit: %s (Author's site)
 
                     output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH MOVE/MERGE FROM %s to %s.....\n\n" %(sourceAccount, targetAccount)
 
-                    lAddCashBalances = False
-                    if sourceStartBal != 0:
-                        if (lAutoMergeCashBalances or
-                                myPopupAskQuestion(toolbox_move_merge_investment_txns_frame_,"%s: - CASH BALANCES" %(_THIS_METHOD_NAME.upper()),"Do you want me to add source acct's starting cash balance of %s into target's?" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal)))):
-                            lAddCashBalances = True
-                            output += "User requested to add source acct's starting cash balance into target's...\n\n"
-                        else:
-                            output += "User DECLINED to add source acct's starting cash balance into target's... It will therefore be left behind...\n\n"
-                    del lAutoMergeCashBalances
-
-                    if sourceStartBal != 0 and not lAddCashBalances and lAutoDeleteEmptySourceAccount:
-                        txt = "NOTE: Source account cannot be auto-deleted post merge as it would be left with a cash starting balance (disabling auto-delete Source Account option OFF)..."
-                        # myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,"%s: - STARTING CASH BALANCE(S)" %(_THIS_METHOD_NAME.upper()))
-                        output += "%s\n\n" %(txt)
-                        lAutoDeleteEmptySourceAccount = False
 
                     ################
                     # LET'S DO IT! #
@@ -3773,21 +3844,23 @@ Visit: %s (Author's site)
                     MD_REF.getUI().setSuspendRefresh(True)
 
                     # Start by adding any Account Starting Cash Balances....
-                    if lAddCashBalances:
-                        txt = "Adding source starting cash balance: %s to target's: %s = %s (and setting Source's starting cash balance to zero)"\
-                              %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal),
-                                targetRCurr.formatSemiFancy(targetStartBal,MD_decimal),
-                                targetRCurr.formatSemiFancy(sourceStartBal+targetStartBal,MD_decimal))
+                    if cashBalanceToMove != 0:
+                        txt = "Moving %s from source starting cash balance of %s (leaving %s) into target's (original = %s) resulting in %s"\
+                              %(sourceRCurr.formatFancy(cashBalanceToMove,MD_decimal),
+                                sourceRCurr.formatFancy(sourceStartBal,MD_decimal),
+                                sourceRCurr.formatFancy((sourceStartBal - cashBalanceToMove),MD_decimal),
+                                targetRCurr.formatFancy(targetStartBal,MD_decimal),
+                                targetRCurr.formatFancy((targetStartBal + cashBalanceToMove),MD_decimal))
 
                         myPrint("B", txt); output += "%s\n" %(txt)
 
                         targetAccount.setEditingMode()
-                        targetAccount.setStartBalance(sourceStartBal+targetStartBal)
+                        targetAccount.setStartBalance(targetStartBal + cashBalanceToMove)
                         targetAccount.setParameter(PARAMETER_KEY,True)
                         targetAccount.syncItem()
 
                         sourceAccount.setEditingMode()
-                        sourceAccount.setStartBalance(0)
+                        sourceAccount.setStartBalance(sourceStartBal - cashBalanceToMove)
                         sourceAccount.setParameter(PARAMETER_KEY,True)
                         sourceAccount.syncItem()
 
@@ -3849,7 +3922,7 @@ Visit: %s (Author's site)
                     tmpTxns = GlobalVars.selectedInvestmentTransactionsList if (GlobalVars.selectedInvestmentTransactionsList) else copyTxns
                     for srcTxn in tmpTxns:
 
-                        if not check_txn_matches_filter(srcTxn, lFilterSecurities, lFilterSecurityIncludeWhereSourceFundsToo, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
+                        if not check_txn_matches_filter(srcTxn, lFilterSecurities, lFilterByDate, filterSecurityList, filterDateFrom, filterDateTo):
                             continue
 
                         GlobalVars.countTxnsMoved += 1
