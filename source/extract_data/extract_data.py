@@ -91,6 +91,7 @@
 # build: 1022 - Eliminated common code globals :->
 # build: 1022 - Extract Account Registers. Include LOAN and LIABILITY accounts too..
 # build: 1023 - Added lWriteParametersToExportFile_SWSS by user request (GitHub: Michael Thompson)
+# build: 1023 - Bug fix for .getSubAccounts() - as of build 4069 this is an unmodifiable list; also trap SwingWorker errors
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -3355,21 +3356,37 @@ Visit: %s (Author's site)
 
                         return True
 
+                class StoreAccount:
+                    def __init__(self, _acct):
+                        if not isinstance(_acct, Account): raise Exception("Error: Object: %s(%s) is not an Account Object!" %(_acct, type(_acct)))
+                        self.acct = _acct
+
+                    def getAccount(self): return self.acct
+
+                    def __str__(self):      return "%s : %s" %(self.getAccount().getAccountType(), self.getAccount().getAccountName())
+                    def __repr__(self):     return self.__str__()
+                    def toString(self):     return self.__str__()
+
 
                 labelSelectOneAccount = JLabel("Select One Account here....")
-                acctList = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(),MyAcctFilterForDropdown())
+                mdAcctList = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(),MyAcctFilterForDropdown())
                 textToUse = "<NONE SELECTED - USE FILTERS BELOW>"
+
+                acctList = ArrayList()
                 acctList.add(0,textToUse)
-                accountDropdown = JComboBox(acctList.toArray())
+                for getAcct in mdAcctList: acctList.add(StoreAccount(getAcct))
+                del mdAcctList
+
+                accountDropdown = JComboBox(acctList)
                 accountDropdown.setName("accountDropdown")
 
                 if saveDropDownAccountUUID_EAR != "":
                     findAccount = AccountUtil.findAccountWithID(MD_REF.getRootAccount(), saveDropDownAccountUUID_EAR)
-                    if findAccount:
-                        try:
-                            accountDropdown.setSelectedItem(findAccount)
-                        except:
-                            pass
+                    if findAccount is not None:
+                        for acctObj in acctList:
+                            if isinstance(acctObj, StoreAccount) and acctObj.getAccount() == findAccount:
+                                accountDropdown.setSelectedItem(acctObj)
+                                break
 
                 labelFilterAccounts = JLabel("Filter for Accounts containing text '...' (or ALL):")
                 user_selectAccounts = JTextField(12)
@@ -3721,7 +3738,7 @@ Visit: %s (Author's site)
                             user_includeSubAccounts.setForeground(getColorRed())
                             accountDropdown.setForeground(getColorRed())
                             continue
-                    elif isinstance(accountDropdown.getSelectedItem(),(Account)):
+                    elif isinstance(accountDropdown.getSelectedItem(),(StoreAccount)):
 
                         if (user_selectAccounts.getText() != "ALL" or user_selectCurrency.getText() != "ALL"
                                 or (not user_hideInactiveAccounts.isSelected()) or (not user_hideHiddenAccounts.isSelected())):
@@ -3833,8 +3850,8 @@ Visit: %s (Author's site)
 
                     saveDropDownDateRange_EAR = dateDropdown.getSelectedItem()
 
-                    if isinstance(accountDropdown.getSelectedItem(), Account):
-                        dropDownAccount_EAR = accountDropdown.getSelectedItem()
+                    if isinstance(accountDropdown.getSelectedItem(), StoreAccount):
+                        dropDownAccount_EAR = accountDropdown.getSelectedItem().getAccount()                            # noqa
                         # noinspection PyUnresolvedReferences
                         saveDropDownAccountUUID_EAR = dropDownAccount_EAR.getUUID()
                         labelIncludeSubAccounts = user_includeSubAccounts.isSelected()
@@ -7835,7 +7852,7 @@ Visit: %s (Author's site)
                         if dropDownAccount_EAR:
                             if lIncludeSubAccounts_EAR:
                                 # noinspection PyUnresolvedReferences
-                                validAccountList = dropDownAccount_EAR.getSubAccounts()
+                                validAccountList = ArrayList(dropDownAccount_EAR.getSubAccounts())
                             else:
                                 validAccountList = ArrayList()
                             validAccountList.add(0,dropDownAccount_EAR)
@@ -8299,6 +8316,7 @@ Visit: %s (Author's site)
                         def ExportDataToFile(statusMsg):
                             global csvfilename, csvDelimiter
                             global transactionTable, userdateformat
+                            global lWriteBOMToExportFile_SWSS
                             global lAllTags_EAR, tagFilter_EAR
                             global lAllText_EAR, textFilter_EAR
                             global lAllCategories_EAR, categoriesFilter_EAR
@@ -8530,15 +8548,24 @@ Visit: %s (Author's site)
                             myPrint("DB", "In ExtractAccountRegistersSwingWorker()", inspect.currentframe().f_code.co_name, "()")
                             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
                             myPrint("DB", "... Calling do_extract_account_registers()")
-                            do_extract_account_registers()
+
+                            try:
+                                do_extract_account_registers()
+                            except:
+                                myPrint("B","@@ ERROR Detected in do_extract_account_registers()")
+                                dump_sys_error_to_md_console_and_errorlog()
+                                return False
+
                             return True
 
                         # noinspection PyMethodMayBeStatic
                         def done(self):
                             myPrint("DB", "In ExtractAccountRegistersSwingWorker()", inspect.currentframe().f_code.co_name, "()")
                             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-                            self.get()     # wait for task to complete
-                            cleanup_actions(extract_data_frame_)
+                            if self.get():     # wait for task to complete
+                                cleanup_actions(extract_data_frame_)
+                            else:
+                                myPopupInformationBox(extract_data_frame_, "ERROR: do_extract_account_registers() has failed (review console)!","ERROR", JOptionPane.ERROR_MESSAGE)
 
                     myPrint("DB",".. Running ExtractAccountRegistersSwingWorker() via SwingWorker...")
                     sw = ExtractAccountRegistersSwingWorker()
@@ -9277,6 +9304,10 @@ Visit: %s (Author's site)
 
 
                         def ExportDataToFile():
+                            global csvfilename, csvDelimiter
+                            global transactionTable, userdateformat
+                            global lWriteBOMToExportFile_SWSS, lExtractAttachments_EIT, relativePath
+
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
                             headings = []
@@ -9495,15 +9526,23 @@ Visit: %s (Author's site)
                             myPrint("DB", "In ExtractInvestmentTxnsSwingWorker()", inspect.currentframe().f_code.co_name, "()")
                             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
                             myPrint("DB", "... Calling do_extract_investment_transactions()")
-                            do_extract_investment_transactions()
+                            try:
+                                do_extract_investment_transactions()
+                            except:
+                                myPrint("B","@@ ERROR Detected in do_extract_investment_transactions()")
+                                dump_sys_error_to_md_console_and_errorlog()
+                                return False
+
                             return True
 
                         # noinspection PyMethodMayBeStatic
                         def done(self):
                             myPrint("DB", "In ExtractInvestmentTxnsSwingWorker()", inspect.currentframe().f_code.co_name, "()")
                             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-                            self.get()     # wait for task to complete
-                            cleanup_actions(extract_data_frame_)
+                            if self.get():     # wait for task to complete
+                                cleanup_actions(extract_data_frame_)
+                            else:
+                                myPopupInformationBox(extract_data_frame_, "ERROR: do_extract_account_registers() has failed (review console)!","ERROR", JOptionPane.ERROR_MESSAGE)
 
                     myPrint("DB",".. Running do_extract_investment_transactions() via SwingWorker...")
                     sw = ExtractInvestmentTxnsSwingWorker()
@@ -9611,7 +9650,9 @@ Visit: %s (Author's site)
 
                         currencyTable = list_currency_rate_history()
 
-                        def ExportDataToFile(theTable, _header):
+                        def ExportDataToFile(theTable, _header):                                                         # noqa
+                            global csvfilename, csvDelimiter, userdateformat, lWriteBOMToExportFile_SWSS
+
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
                             _CURRNAME = 0
@@ -9778,15 +9819,24 @@ Visit: %s (Author's site)
                             myPrint("DB", "In ExtractCurrencyHistorySwingWorker()", inspect.currentframe().f_code.co_name, "()")
                             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
                             myPrint("DB", "... Calling do_extract_currency_history()")
-                            do_extract_currency_history()
+
+                            try:
+                                do_extract_currency_history()
+                            except:
+                                myPrint("B","@@ ERROR Detected in do_extract_currency_history()")
+                                dump_sys_error_to_md_console_and_errorlog()
+                                return False
+
                             return True
 
                         # noinspection PyMethodMayBeStatic
                         def done(self):
                             myPrint("DB", "In ExtractCurrencyHistorySwingWorker()", inspect.currentframe().f_code.co_name, "()")
                             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-                            self.get()     # wait for task to complete
-                            cleanup_actions(extract_data_frame_)
+                            if self.get():     # wait for task to complete
+                                cleanup_actions(extract_data_frame_)
+                            else:
+                                myPopupInformationBox(extract_data_frame_, "ERROR: do_extract_account_registers() has failed (review console)!","ERROR", JOptionPane.ERROR_MESSAGE)
 
                     myPrint("DB",".. Running ExtractCurrencyHistorySwingWorker() via SwingWorker...")
                     sw = ExtractCurrencyHistorySwingWorker()
