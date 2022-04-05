@@ -3047,15 +3047,15 @@ Visit: %s (Author's site)
                     filterPanel.add(user_dateFieldEnd)
                     filterPanel.add(JLabel(""))
 
-                filterPanel.add(JLabel("AUTO-PROCESSING OPTIONS:"))
+                filterPanel.add(JLabel("PROCESSING OPTIONS:"))
+                filterPanel.add(user_mergeCashBalances)
+                filterPanel.add(user_cashBalanceToMove)
+                filterPanel.add(user_forceAllowResultingNegativeCashBalance)
                 filterPanel.add(user_ignoreNegativeShareBalances)
                 filterPanel.add(user_ignoreAvgCstLotFlagDifference)
                 filterPanel.add(user_forceDeleteSeparatedLotRecords)
                 filterPanel.add(user_ignoreAccountLoop)
                 filterPanel.add(user_deleteEmptySourceAccount)
-                filterPanel.add(user_mergeCashBalances)
-                filterPanel.add(user_cashBalanceToMove)
-                filterPanel.add(user_forceAllowResultingNegativeCashBalance)
                 filterPanel.add(user_forceTrunkSave)
 
                 class MyItemListener(ItemListener):
@@ -3135,8 +3135,9 @@ Visit: %s (Author's site)
                         myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                         continue
 
-                    if MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(user_selectSourceAccount.getSelectedItem()).getSize() < 1:
-                        txt = "%s: ERROR - Source Account has no transactions" %(_THIS_METHOD_NAME)
+                    if (MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(user_selectSourceAccount.getSelectedItem()).getSize() < 1
+                            and (user_selectSourceAccount.getSelectedItem().getStartBalance() == 0 or not user_mergeCashBalances.isSelected())):    # noqa
+                        txt = "%s: ERROR - Source Account has no transactions and no opening cash balance to move" %(_THIS_METHOD_NAME)
                         myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                         continue
 
