@@ -52,6 +52,7 @@
 # build: 1016 - Added QuickSearch box/filter; also pop up record next reminder windows when double-clicked. Right-click edit reminder
 # build: 1016 - Chucked in the kitchen sink too. Added Account Name.. Added Reminder Listeners, dumped the 'old' stuff...
 # build: 1016 - Chucked in the kitchen sink too. Added Account Name.. Added Reminder Listeners, dumped the 'old' stuff...
+# build: 1016 - lAllowEscapeExitApp_SWSS to allow/block escape from exiting the app
 
 # Displays Moneydance future reminders
 
@@ -351,6 +352,9 @@ else:
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
 
+    # Saved to parameters file - common
+    global lAllowEscapeExitApp_SWSS
+
     # Saved to parameters file
     global __list_future_reminders, _column_widths_LFR, daysToLookForward_LFR
 
@@ -364,6 +368,7 @@ else:
     # NOTE: You  can override in the pop-up screen
     _column_widths_LFR = []                                                                                          	# noqa
     daysToLookForward_LFR = 365                                                                                         # noqa
+    lAllowEscapeExitApp_SWSS = True                                                                                     # noqa
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
     # COPY >> START
@@ -2558,6 +2563,9 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def load_StuWareSoftSystems_parameters_into_memory():
 
+        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD - Common variables
+        global lAllowEscapeExitApp_SWSS
+
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
         global __list_future_reminders, _column_widths_LFR, daysToLookForward_LFR
 
@@ -2567,6 +2575,8 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         if GlobalVars.parametersLoadedFromFile.get("__list_future_reminders") is not None: __list_future_reminders = GlobalVars.parametersLoadedFromFile.get("__list_future_reminders")
+
+        if GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS") is not None: lAllowEscapeExitApp_SWSS = GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS")
 
         if GlobalVars.parametersLoadedFromFile.get("_column_widths_LFR") is not None: _column_widths_LFR = GlobalVars.parametersLoadedFromFile.get("_column_widths_LFR")
         if GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR") is not None: daysToLookForward_LFR = GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR")
@@ -2578,9 +2588,6 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def dump_StuWareSoftSystems_parameters_from_memory():
 
-        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-        global __list_future_reminders, _column_widths_LFR, daysToLookForward_LFR
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         # NOTE: Parameters were loaded earlier on... Preserve existing, and update any used ones...
@@ -2589,6 +2596,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         GlobalVars.parametersLoadedFromFile["__list_future_reminders"] = version_build
+        GlobalVars.parametersLoadedFromFile["lAllowEscapeExitApp_SWSS"] = lAllowEscapeExitApp_SWSS
         GlobalVars.parametersLoadedFromFile["_column_widths_LFR"] = _column_widths_LFR
         GlobalVars.parametersLoadedFromFile["daysToLookForward_LFR"] = daysToLookForward_LFR
 
@@ -2715,6 +2723,7 @@ Visit: %s (Author's site)
 
         def actionPerformed(self, event):																				# noqa
             global debug                                                                # global as set here
+            global lAllowEscapeExitApp_SWSS                                             # global as set here
             global _column_widths_LFR, daysToLookForward_LFR                            # global as set here
 
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
@@ -2756,6 +2765,16 @@ Visit: %s (Author's site)
                 myPrint("B","DEBUG is now set to: %s" %(debug))
 
             # ##########################################################################################################
+            if event.getActionCommand().lower().startswith("allow escape"):
+                lAllowEscapeExitApp_SWSS = not lAllowEscapeExitApp_SWSS
+                if lAllowEscapeExitApp_SWSS:
+                    list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+                else:
+                    list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
+
+                myPrint("B","Escape key can exit the app's main screen: %s" %(lAllowEscapeExitApp_SWSS))
+
+            # ##########################################################################################################
             if event.getActionCommand().lower().startswith("reset"):
                 _column_widths_LFR = []
                 RefreshMenuAction().refresh()
@@ -2773,6 +2792,7 @@ Visit: %s (Author's site)
             # Save parameters now...
             if (event.getActionCommand().lower().startswith("change look")
                     or event.getActionCommand().lower().startswith("debug")
+                    or event.getActionCommand().lower().startswith("allow escape")
                     or event.getActionCommand().lower().startswith("reset")):
                 try:
                     save_StuWareSoftSystems_parameters_to_file()
@@ -3830,7 +3850,10 @@ Visit: %s (Author's site)
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
-                    list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+                    if lAllowEscapeExitApp_SWSS:
+                        list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+
                     list_future_reminders_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
 
 
@@ -3868,6 +3891,12 @@ Visit: %s (Author's site)
                     menuItemL.addActionListener(DoTheMenu())
                     menuItemL.setEnabled(True)
                     menuO.add(menuItemL)
+
+                    menuItemEsc = JCheckBoxMenuItem("Allow Escape to Exit")
+                    menuItemEsc.setToolTipText("When enabled, allows the Escape key to exit the main screen")
+                    menuItemEsc.addActionListener(DoTheMenu())
+                    menuItemEsc.setSelected(lAllowEscapeExitApp_SWSS)
+                    menuO.add(menuItemEsc)
 
                     menuItemRC = JMenuItem("Reset default Column Widths")
                     menuItemRC.setToolTipText("Reset default Column Widths")
