@@ -93,6 +93,7 @@
 # build: 1023 - Added lWriteParametersToExportFile_SWSS by user request (GitHub: Michael Thompson)
 # build: 1023 - Bug fix for .getSubAccounts() - as of build 4069 this is an unmodifiable list; also trap SwingWorker errors
 # build: 1023 - Added lOmitLOTDataFromExtract_EIT to Extract Investment Txns to allow user to omit LOT matching data from extract
+# build: 1023 - Added lAllowEscapeExitApp_SWSS to allow/block escape key exiting main app's window;  Tweaked the JMenuBar() to say "MENU"
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -404,7 +405,7 @@ else:
     global lStripASCII, scriptpath, csvDelimiter, userdateformat, lWriteBOMToExportFile_SWSS
     global hideInactiveAccounts, hideHiddenAccounts, hideHiddenSecurities
     global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lAllCurrency, filterForCurrency
-    global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS
+    global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
     # from extract_account_registers_csv
     global lIncludeSubAccounts_EAR
@@ -472,6 +473,7 @@ else:
     lAllCurrency = True                                                                                                 # noqa
     filterForCurrency = "ALL"                                                                                           # noqa
     whichDefaultExtractToRun_SWSS = None                                                                                # noqa
+    lAllowEscapeExitApp_SWSS = True                                                                                     # noqa
 
     # from extract_account_registers_csv
     lIncludeSubAccounts_EAR = False                                                                                     # noqa
@@ -2716,7 +2718,7 @@ Visit: %s (Author's site)
         global lAllCurrency, filterForCurrency
         global hideHiddenSecurities, lAllSecurity, filterForSecurity
         global hideInactiveAccounts, hideHiddenAccounts, lAllAccounts, filterForAccounts
-        global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS
+        global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
         # extract_account_registers_csv
         global lIncludeOpeningBalances_EAR
@@ -2778,6 +2780,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("lWriteBOMToExportFile_SWSS") is not None: lWriteBOMToExportFile_SWSS = GlobalVars.parametersLoadedFromFile.get("lWriteBOMToExportFile_SWSS")                                                                                  # noqa
         if GlobalVars.parametersLoadedFromFile.get("whichDefaultExtractToRun_SWSS") is not None: whichDefaultExtractToRun_SWSS = GlobalVars.parametersLoadedFromFile.get("whichDefaultExtractToRun_SWSS")                                                                                  # noqa
         if GlobalVars.parametersLoadedFromFile.get("lWriteParametersToExportFile_SWSS") is not None: lWriteParametersToExportFile_SWSS = GlobalVars.parametersLoadedFromFile.get("lWriteParametersToExportFile_SWSS")                                                                                  # noqa
+        if GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS") is not None: lAllowEscapeExitApp_SWSS = GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS")                                                                                  # noqa
 
         # extract_account_registers_csv
         if GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR") is not None: lIncludeSubAccounts_EAR = GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR")
@@ -2846,6 +2849,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["lWriteBOMToExportFile_SWSS"] = lWriteBOMToExportFile_SWSS
         GlobalVars.parametersLoadedFromFile["lWriteParametersToExportFile_SWSS"] = lWriteParametersToExportFile_SWSS
         GlobalVars.parametersLoadedFromFile["whichDefaultExtractToRun_SWSS"] = whichDefaultExtractToRun_SWSS
+        GlobalVars.parametersLoadedFromFile["lAllowEscapeExitApp_SWSS"] = lAllowEscapeExitApp_SWSS
         GlobalVars.parametersLoadedFromFile["userdateformat"] = userdateformat
         GlobalVars.parametersLoadedFromFile["hideInactiveAccounts"] = hideInactiveAccounts
         GlobalVars.parametersLoadedFromFile["hideHiddenAccounts"] = hideHiddenAccounts
@@ -5013,10 +5017,11 @@ Visit: %s (Author's site)
 
                     class DoTheMenu(AbstractAction):
 
-                        def __init__(self, menu):
-                            self.menu = menu
+                        def __init__(self): pass
 
                         def actionPerformed(self, event):																				# noqa
+                            global lAllowEscapeExitApp_SWSS     # global as we can set this here
+
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                             if event.getActionCommand().lower().startswith("page setup"):
@@ -5024,6 +5029,16 @@ Visit: %s (Author's site)
 
                             if event.getActionCommand().lower().startswith("about"):
                                 AboutThisScript(extract_data_frame_).go()
+
+                            if event.getActionCommand().lower().startswith("allow escape"):
+                                lAllowEscapeExitApp_SWSS = not lAllowEscapeExitApp_SWSS
+                                if lAllowEscapeExitApp_SWSS:
+                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+                                else:
+                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
+
+                                # Note: save_StuWareSoftSystems_parameters_to_file() is called within terminate_script() - so will save on exit
+                                myPrint("B","Escape key can exit the app's main screen: %s" %(lAllowEscapeExitApp_SWSS))
 
                             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                             return
@@ -6131,7 +6146,10 @@ Visit: %s (Author's site)
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut),  "close-window")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
-                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+                            if lAllowEscapeExitApp_SWSS:
+                                extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
                             extract_data_frame_.getRootPane().getActionMap().put("close-window", self.CloseAction())
 
                             extract_data_frame_.addWindowListener(self.WindowListener(extract_data_frame_))
@@ -6333,19 +6351,25 @@ Visit: %s (Author's site)
                             printButton.addActionListener(self.PrintJTable(extract_data_frame_, self.table, "StockGlance2020", self.footerTable))
 
                             mb = JMenuBar()
-                            menuH = JMenu("<html><B>ABOUT</b></html>")
+                            menuH = JMenu("<html><B>MENU</b></html>")
                             # menuH = JMenu("ABOUT")
                             menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
                             menuItemA = JMenuItem("About")
                             menuItemA.setToolTipText("About...")
-                            menuItemA.addActionListener(DoTheMenu(menuH)); menuItemA.setEnabled(True)
+                            menuItemA.addActionListener(DoTheMenu())
                             menuH.add(menuItemA)
 
                             menuItemPS = JMenuItem("Page Setup")
                             menuItemPS.setToolTipText("Printer Page Setup...")
-                            menuItemPS.addActionListener(DoTheMenu(menuH)); menuItemPS.setEnabled(True)
+                            menuItemPS.addActionListener(DoTheMenu())
                             menuH.add(menuItemPS)
+
+                            menuItemEsc = JCheckBoxMenuItem("Allow Escape to Exit")
+                            menuItemEsc.setToolTipText("When enabled, allows the Escape key to exit the main screen")
+                            menuItemEsc.addActionListener(DoTheMenu())
+                            menuItemEsc.setSelected(lAllowEscapeExitApp_SWSS)
+                            menuH.add(menuItemEsc)
 
                             mb.add(menuH)
 
@@ -6707,10 +6731,11 @@ Visit: %s (Author's site)
 
                     class DoTheMenu(AbstractAction):
 
-                        def __init__(self, menu):
-                            self.menu = menu
+                        def __init__(self): pass
 
                         def actionPerformed(self, event):																# noqa
+                            global lAllowEscapeExitApp_SWSS     # global as we can set this here
+
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                             if event.getActionCommand().lower().startswith("page setup"):
@@ -6724,6 +6749,16 @@ Visit: %s (Author's site)
 
                             if event.getActionCommand() == "About":
                                 AboutThisScript(extract_data_frame_).go()
+
+                            if event.getActionCommand().lower().startswith("allow escape"):
+                                lAllowEscapeExitApp_SWSS = not lAllowEscapeExitApp_SWSS
+                                if lAllowEscapeExitApp_SWSS:
+                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+                                else:
+                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
+
+                                # Note: save_StuWareSoftSystems_parameters_to_file() is called within terminate_script() - so will save on exit
+                                myPrint("B","Escape key can exit the app's main screen: %s" %(lAllowEscapeExitApp_SWSS))
 
                             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                             return
@@ -7469,7 +7504,10 @@ Visit: %s (Author's site)
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut),  "close-window")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                             extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
-                            extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+                            if lAllowEscapeExitApp_SWSS:
+                                extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
                             extract_data_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
 
                             extract_data_frame_.addWindowFocusListener(WL)
@@ -7494,19 +7532,30 @@ Visit: %s (Author's site)
 
                             mb = JMenuBar()
 
-                            menuO = JMenu("<html><B>OPTIONS</b></html>")
+                            menuO = JMenu("<html><B>MENU</b></html>")
                             # menuO = JMenu("OPTIONS")
                             menuO.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuO.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
+                            menuItemA = JMenuItem("About")
+                            menuItemA.setToolTipText("About...")
+                            menuItemA.addActionListener(DoTheMenu())
+                            menuO.add(menuItemA)
+
                             menuItemR = JMenuItem("Refresh Data/Default Sort")
                             menuItemR.setToolTipText("Refresh (re-extract) the data, revert to default sort  order....")
-                            menuItemR.addActionListener(DoTheMenu(menuO)); menuItemR.setEnabled(True)
+                            menuItemR.addActionListener(DoTheMenu())
                             menuO.add(menuItemR)
 
                             menuItemPS = JMenuItem("Page Setup")
                             menuItemPS.setToolTipText("Printer Page Setup....")
-                            menuItemPS.addActionListener(DoTheMenu(menuO)); menuItemPS.setEnabled(True)
+                            menuItemPS.addActionListener(DoTheMenu())
                             menuO.add(menuItemPS)
+
+                            menuItemEsc = JCheckBoxMenuItem("Allow Escape to Exit")
+                            menuItemEsc.setToolTipText("When enabled, allows the Escape key to exit the main screen")
+                            menuItemEsc.addActionListener(DoTheMenu())
+                            menuItemEsc.setSelected(lAllowEscapeExitApp_SWSS)
+                            menuO.add(menuItemEsc)
 
                             if not lDisplayOnly:
                                 menuItemE = JMenuItem("Extract to CSV")
@@ -7515,23 +7564,10 @@ Visit: %s (Author's site)
                                 menuItemE = JMenuItem("Close Window")
                                 menuItemE.setToolTipText("Exit and close the window")
 
-                            menuItemE.addActionListener(DoTheMenu(menuO))
-                            menuItemE.setEnabled(True)
+                            menuItemE.addActionListener(DoTheMenu())
                             menuO.add(menuItemE)
 
                             mb.add(menuO)
-
-                            menuH = JMenu("<html><B>ABOUT</b></html>")
-                            # menuH = JMenu("ABOUT")
-                            menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
-
-                            menuItemA = JMenuItem("About")
-                            menuItemA.setToolTipText("About...")
-                            menuItemA.addActionListener(DoTheMenu(menuH))
-                            menuItemA.setEnabled(True)
-                            menuH.add(menuItemA)
-
-                            mb.add(menuH)
 
                             mb.add(Box.createHorizontalGlue())
                             mb.add(printButton)

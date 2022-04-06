@@ -52,7 +52,7 @@
 # build: 1016 - Added QuickSearch box/filter; also pop up record next reminder windows when double-clicked. Right-click edit reminder
 # build: 1016 - Chucked in the kitchen sink too. Added Account Name.. Added Reminder Listeners, dumped the 'old' stuff...
 # build: 1016 - Chucked in the kitchen sink too. Added Account Name.. Added Reminder Listeners, dumped the 'old' stuff...
-# build: 1016 - lAllowEscapeExitApp_SWSS to allow/block escape from exiting the app
+# build: 1016 - lAllowEscapeExitApp_SWSS to allow/block escape from exiting the app; Tweaked the JMenuBar() to say "MENU"
 
 # Displays Moneydance future reminders
 
@@ -3876,20 +3876,23 @@ Visit: %s (Author's site)
 
                     mb = JMenuBar()
 
-                    menuO = JMenu("<html><B>OPTIONS</b></html>")
+                    menuO = JMenu("<html><B>MENU</b></html>")
                     # menuO = JMenu("OPTIONS")
                     menuO.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuO.setBackground(SetupMDColors.BACKGROUND_REVERSED)
+
+                    menuItemA = JMenuItem("About")
+                    menuItemA.setToolTipText("About...")
+                    menuItemA.addActionListener(DoTheMenu())
+                    menuO.add(menuItemA)
 
                     menuItemR = JMenuItem("Refresh Data/Default Sort")
                     menuItemR.setToolTipText("Refresh (re-extract) the data, revert to default sort  order....")
                     menuItemR.addActionListener(DoTheMenu())
-                    menuItemR.setEnabled(True)
                     menuO.add(menuItemR)
 
                     menuItemL = JMenuItem("Change look forward days")
                     menuItemL.setToolTipText("Change the days to look forward")
                     menuItemL.addActionListener(DoTheMenu())
-                    menuItemL.setEnabled(True)
                     menuO.add(menuItemL)
 
                     menuItemEsc = JCheckBoxMenuItem("Allow Escape to Exit")
@@ -3901,7 +3904,6 @@ Visit: %s (Author's site)
                     menuItemRC = JMenuItem("Reset default Column Widths")
                     menuItemRC.setToolTipText("Reset default Column Widths")
                     menuItemRC.addActionListener(DoTheMenu())
-                    menuItemRC.setEnabled(True)
                     menuO.add(menuItemRC)
 
                     menuItemDEBUG = JCheckBoxMenuItem("Debug")
@@ -3913,28 +3915,14 @@ Visit: %s (Author's site)
                     menuItemPS = JMenuItem("Page Setup")
                     menuItemPS.setToolTipText("Printer Page Setup....")
                     menuItemPS.addActionListener(DoTheMenu())
-                    menuItemPS.setEnabled(True)
                     menuO.add(menuItemPS)
 
                     menuItemE = JMenuItem("Close Window")
                     menuItemE.setToolTipText("Exit and close the window")
                     menuItemE.addActionListener(DoTheMenu())
-                    menuItemE.setEnabled(True)
                     menuO.add(menuItemE)
 
                     mb.add(menuO)
-
-                    menuH = JMenu("<html><B>ABOUT</b></html>")
-                    # menuH = JMenu("ABOUT")
-                    menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
-
-                    menuItemA = JMenuItem("About")
-                    menuItemA.setToolTipText("About...")
-                    menuItemA.addActionListener(DoTheMenu())
-                    menuItemA.setEnabled(True)
-                    menuH.add(menuItemA)
-
-                    mb.add(menuH)
 
                     mb.add(Box.createHorizontalGlue())
                     mb.add(printButton)
