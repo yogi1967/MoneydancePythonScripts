@@ -183,12 +183,12 @@ class GenericVisibleRunnable(Runnable):
                 self.theFrame.setExtendedState(JFrame.NORMAL)
             self.theFrame.toFront()
 
-def getMyJFrame( moduleName ):
+def getMyJFrame(moduleName):
     try:
         frames = JFrame.getFrames()
         for fr in frames:
             if (fr.getName().lower().startswith(u"%s_main" %moduleName)
-                    and type(fr).__name__ == MyJFrame.__name__                         # isinstance() won't work across namespaces
+                    and (type(fr).__name__ == MyJFrame.__name__ or type(fr).__name__ == u"MyCOAWindow")  # isinstance() won't work across namespaces
                     and fr.isActiveInMoneydance):
                 _msg = "%s: Found live frame: %s (MyJFrame() version: %s)\n" %(myModuleID,fr.getName(),fr.myJFrameVersion)
                 print(_msg); System.err.write(_msg)
@@ -206,9 +206,10 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(extract_data_frame_, MyJFrame)        # EDIT THIS
-            and extract_data_frame_.isActiveInMoneydance):       # EDIT THIS
-        frameToResurrect = extract_data_frame_                   # EDIT THIS
+            and (isinstance(extract_data_frame_, MyJFrame)                 # EDIT THIS
+                 or type(extract_data_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
+            and extract_data_frame_.isActiveInMoneydance):                 # EDIT THIS
+        frameToResurrect = extract_data_frame_                             # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
@@ -5033,7 +5034,7 @@ Visit: %s (Author's site)
                             if event.getActionCommand().lower().startswith("allow escape"):
                                 lAllowEscapeExitApp_SWSS = not lAllowEscapeExitApp_SWSS
                                 if lAllowEscapeExitApp_SWSS:
-                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
                                 else:
                                     extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
 
@@ -6753,7 +6754,7 @@ Visit: %s (Author's site)
                             if event.getActionCommand().lower().startswith("allow escape"):
                                 lAllowEscapeExitApp_SWSS = not lAllowEscapeExitApp_SWSS
                                 if lAllowEscapeExitApp_SWSS:
-                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+                                    extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
                                 else:
                                     extract_data_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
 

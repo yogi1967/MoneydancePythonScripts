@@ -129,12 +129,12 @@ class GenericVisibleRunnable(Runnable):
                 self.theFrame.setExtendedState(JFrame.NORMAL)
             self.theFrame.toFront()
 
-def getMyJFrame( moduleName ):
+def getMyJFrame(moduleName):
     try:
         frames = JFrame.getFrames()
         for fr in frames:
             if (fr.getName().lower().startswith(u"%s_main" %moduleName)
-                    and type(fr).__name__ == MyJFrame.__name__                         # isinstance() won't work across namespaces
+                    and (type(fr).__name__ == MyJFrame.__name__ or type(fr).__name__ == u"MyCOAWindow")  # isinstance() won't work across namespaces
                     and fr.isActiveInMoneydance):
                 _msg = "%s: Found live frame: %s (MyJFrame() version: %s)\n" %(myModuleID,fr.getName(),fr.myJFrameVersion)
                 print(_msg); System.err.write(_msg)
@@ -152,9 +152,10 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(ofx_populate_multiple_userids_frame_, MyJFrame)        # EDIT THIS
-            and ofx_populate_multiple_userids_frame_.isActiveInMoneydance):       # EDIT THIS
-        frameToResurrect = ofx_populate_multiple_userids_frame_                   # EDIT THIS
+            and (isinstance(ofx_populate_multiple_userids_frame_, MyJFrame)                 # EDIT THIS
+                 or type(ofx_populate_multiple_userids_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
+            and ofx_populate_multiple_userids_frame_.isActiveInMoneydance):                 # EDIT THIS
+        frameToResurrect = ofx_populate_multiple_userids_frame_                             # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )

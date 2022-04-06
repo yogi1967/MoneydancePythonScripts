@@ -33,6 +33,7 @@
 # build: 1001 - Updated common code MyJFrame.dispose()
 # build: 1002 - Eliminated common code globals :->
 # build: 1003 - Renamed to accounts_categories_mega_search_window and allow both Accounts & Categories...
+# build: 1003 -
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -124,12 +125,12 @@ class GenericVisibleRunnable(Runnable):
                 self.theFrame.setExtendedState(JFrame.NORMAL)
             self.theFrame.toFront()
 
-def getMyJFrame( moduleName ):
+def getMyJFrame(moduleName):
     try:
         frames = JFrame.getFrames()
         for fr in frames:
             if (fr.getName().lower().startswith(u"%s_main" %moduleName)
-                    and type(fr).__name__ == MyJFrame.__name__                         # isinstance() won't work across namespaces
+                    and (type(fr).__name__ == MyJFrame.__name__ or type(fr).__name__ == u"MyCOAWindow")  # isinstance() won't work across namespaces
                     and fr.isActiveInMoneydance):
                 _msg = "%s: Found live frame: %s (MyJFrame() version: %s)\n" %(myModuleID,fr.getName(),fr.myJFrameVersion)
                 print(_msg); System.err.write(_msg)
@@ -147,9 +148,10 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(accounts_categories_mega_search_window_frame_, MyJFrame)        # EDIT THIS
-            and accounts_categories_mega_search_window_frame_.isActiveInMoneydance):       # EDIT THIS
-        frameToResurrect = accounts_categories_mega_search_window_frame_                   # EDIT THIS
+            and (isinstance(accounts_categories_mega_search_window_frame_, MyJFrame)                 # EDIT THIS
+                 or type(accounts_categories_mega_search_window_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
+            and accounts_categories_mega_search_window_frame_.isActiveInMoneydance):                 # EDIT THIS
+        frameToResurrect = accounts_categories_mega_search_window_frame_                             # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
@@ -281,6 +283,9 @@ else:
     
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
+    global lAllowEscapeExitApp_SWSS
+    lAllowEscapeExitApp_SWSS = True                                                                                     # noqa
+
     if "GlobalVars" in globals():   # Prevent wiping if 'buddy' extension - like Toolbox - is running too...
         global GlobalVars
     else:
@@ -2534,7 +2539,8 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def load_StuWareSoftSystems_parameters_into_memory():
-        pass
+        global lAllowEscapeExitApp_SWSS
+        if GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS") is not None: lAllowEscapeExitApp_SWSS = GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS")
         return
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
@@ -2671,7 +2677,8 @@ Visit: %s (Author's site)
         mySearchField = QuickSearchField()
 
         class MyCOAWindow(COAWindow):
-            def __init__(self, _ui, _currentAccount, _catAcctSearch, _newAcctTypes, _prefix, _showBalances, _mySearchField):
+            """Extends the MD Internal Window that can display Accounts / Categories. This presents both combined with a search field"""
+            def __init__(self, _ui, _currentAccount, _catAcctSearch, _newAcctTypes, _prefix, _showBalances, _mySearchField, _lSelectAccts, _lSelectCats):
                 self._ui = _ui
                 self._currentAccount = _currentAccount
                 self._catAcctSearch = _catAcctSearch
@@ -2679,14 +2686,17 @@ Visit: %s (Author's site)
                 self._prefix = _prefix
                 self._showBalances = _showBalances
                 self.mySearchField = _mySearchField
+                self._lSelectAccts = _lSelectAccts
+                self._lSelectCats = _lSelectCats
                 document = self.mySearchField.getDocument()
                 document.addDocumentListener(MyDocListener(self))
                 self.mySearchField.addFocusListener(MyFocusAdapter(self.mySearchField,document))
                 super(COAWindow, self).__init__(self._ui, self._currentAccount, self._catAcctSearch, self._newAcctTypes, self._prefix, self._showBalances)  # noqa
 
-                # Pop in an Escape key to close window ;->
-                saveCloseAction = self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(KeyEvent.VK_W, MoneydanceGUI.ACCELERATOR_MASK))
-                self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), saveCloseAction)
+                if lAllowEscapeExitApp_SWSS:
+                    # Pop in an Escape key to close window ;->
+                    saveCloseAction = self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(KeyEvent.VK_W, MoneydanceGUI.ACCELERATOR_MASK))
+                    self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), saveCloseAction)
 
                 # Java cannot do multiple Inheritance, so cannot also extend MyJFrame... Make do....
                 self.myJFrameVersion = 2
@@ -2704,19 +2714,31 @@ Visit: %s (Author's site)
 
                 gui = MD_REF.getUI()
                 if gui is not None:
-                    myPrint("DB", "MD Gui Detected... Attempting to swap in my own catWin")
-                    p_catWin = gui.getClass().getDeclaredField("catWin")
-                    p_catWin.setAccessible(True)
-                    p_catWinObject = p_catWin.get(gui)
+                    myPrint("DB", "MD Gui Detected... Attempting to swap in my own coaWin / catWin")
 
-                    if p_catWinObject is not None:
-                        myPrint("DB", "MD Gui catWin already set/open... Disposing.....")
-                        p_catWinObject.dispose()
+                    for swapWin in ["catWin", "coaWin"]:
 
-                    myPrint("DB", "Swapping in my own catWin...")
-                    p_catWin.set(gui, self)
-                    p_catWin.setAccessible(False)
+                        if not (self._lSelectAccts and self._lSelectCats):
+                            if not self._lSelectAccts and swapWin == "coaWin": continue
+                            if not self._lSelectCats and swapWin == "catWin": continue
 
+                        p_coa_cat_Win = gui.getClass().getDeclaredField(swapWin)
+                        p_coa_cat_Win.setAccessible(True)
+                        p_coa_cat_WinObject = p_coa_cat_Win.get(gui)
+
+                        if p_coa_cat_WinObject is not None:
+                            myPrint("DB", "MD Gui %s already set/open... Disposing....." %(swapWin))
+                            p_coa_cat_WinObject.dispose()
+
+                        myPrint("DB", "Swapping in my own %s..." %(swapWin))
+                        p_coa_cat_Win.set(gui, self)
+                        p_coa_cat_Win.setAccessible(False)
+
+
+            def dispose(self):
+                myPrint("DB", "within dispose() - will call (super) original dispose")
+                self.isActiveInMoneydance = False
+                super(self.__class__, self).dispose()
 
             def searchFiltersUpdated(self):
                 myPrint("DB", "within searchFiltersUpdated()")
@@ -2747,24 +2769,26 @@ Visit: %s (Author's site)
                 # prefixForPosnSaves = "gui.cat_window_"            # Categories
                 prefixForPosnSaves = "gui.coa_cat_mega_window_"     # Save my own window settings
 
-                catWin = MyCOAWindow(MD_REF.getUI(), currentAccount, catAcctSearch, newAcctTypes, prefixForPosnSaves, True, mySearchField)
+                coa_cat_Win = MyCOAWindow(MD_REF.getUI(), currentAccount, catAcctSearch, newAcctTypes, prefixForPosnSaves, True, mySearchField, lSelectAccounts, lSelectCategories)
 
                 titleTxt = ""
                 if lSelectAccounts:   titleTxt += u"Accounts %s" %(u"& " if lSelectCategories else "")
                 if lSelectCategories: titleTxt += u"Categories "
                 titleTxt += u"Mega Search Window   %s" %(titleExtraTxt)
-                catWin.setTitle(titleTxt)
+                coa_cat_Win.setTitle(titleTxt)
 
-                accounts_categories_mega_search_window_frame_ = catWin
+                accounts_categories_mega_search_window_frame_ = coa_cat_Win
                 accounts_categories_mega_search_window_frame_.setName(u"%s_main" %(myModuleID))
 
-                theControlPanel = huntPanelWithButtons(catWin, 0)
+                theControlPanel = huntPanelWithButtons(coa_cat_Win, 0)
                 if theControlPanel is not None:
                     myPrint("DB", "@@ FOUND CONTROL PANEL @@", theControlPanel, type(theControlPanel))
                     theControlPanel.add(mySearchField,GridC.getc().xy(0,1).colspan(7).fillx().insets(0,10,0,5))
                     # theControlPanel.add(mySearchField,GridC.getc().xy(0,1).insets(0,10,0,5))
                     theControlPanel.validate()
+
                     accounts_categories_mega_search_window_frame_.setVisible(True)
+                    accounts_categories_mega_search_window_frame_.isActiveInMoneydance = True
 
                     myPrint("DB","Main JFrame %s for application created.." %(accounts_categories_mega_search_window_frame_.getName()))
                 else:
@@ -2782,8 +2806,11 @@ Visit: %s (Author's site)
         myPrint("B","FINISHED....")
         cleanup_actions()
 
+    except QuickAbortThisScriptException:
+        myPrint("DB", "Caught Exception: QuickAbortThisScriptException... Doing nothing...")
+
     except:
-        crash_txt = "ERROR - accounts_categories_mega_search_window has crashed. Please review MD Menu>Help>Console Window for details".upper()
+        crash_txt = ("ERROR - %s has crashed. Please review MD Menu>Help>Console Window for details" %(myModuleID)).upper()
         myPrint("B",crash_txt)
         crash_output = dump_sys_error_to_md_console_and_errorlog(True)
         jif = QuickJFrame("ERROR - Categories Super Window:",crash_output).show_the_frame()
