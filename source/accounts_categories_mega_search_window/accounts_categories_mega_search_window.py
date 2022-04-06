@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 # categories_super_window.py build: 1002 - November 2021 - Stuart Beesley StuWareSoftSystems
+# Renamed to: accounts_categories_mega_search_window.py build: 1003 - April 2022 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -31,6 +32,7 @@
 # build: 1000 - Initial Release
 # build: 1001 - Updated common code MyJFrame.dispose()
 # build: 1002 - Eliminated common code globals :->
+# build: 1003 - Renamed to accounts_categories_mega_search_window and allow both Accounts & Categories...
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -39,8 +41,8 @@
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
 # SET THESE LINES
-myModuleID = u"categories_super_window"
-version_build = "1002"
+myModuleID = u"accounts_categories_mega_search_window"
+version_build = "1003"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -48,7 +50,7 @@ if u"debug" in globals():
     global debug
 else:
     debug = False
-global categories_super_window_frame_
+global accounts_categories_mega_search_window_frame_
 # SET LINES ABOVE ^^^^
 
 # COPY >> START
@@ -145,9 +147,9 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and isinstance(categories_super_window_frame_, MyJFrame)        # EDIT THIS
-            and categories_super_window_frame_.isActiveInMoneydance):       # EDIT THIS
-        frameToResurrect = categories_super_window_frame_                   # EDIT THIS
+            and isinstance(accounts_categories_mega_search_window_frame_, MyJFrame)        # EDIT THIS
+            and accounts_categories_mega_search_window_frame_.isActiveInMoneydance):       # EDIT THIS
+        frameToResurrect = accounts_categories_mega_search_window_frame_                   # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
@@ -2594,25 +2596,62 @@ Visit: %s (Author's site)
 
         class MyAcctFilter(AcctFilter):
 
-            def __init__(self):
+            def __init__(self, lCats=False, lAccounts=False, lRoot=False):
                 self.searchFilter = ""
+                self.lCats = lCats
+                self.lAccounts = lAccounts
+                self.lRoot = lRoot
 
             def matches(self, acct):
                 if (acct is None): return False
-                # noinspection PyUnresolvedReferences
-                if acct.getAccountType() == Account.AccountType.EXPENSE or acct.getAccountType() == Account.AccountType.INCOME:
-                    if self.searchFilter != "":
-                        if self.searchFilter.strip().lower() not in acct.getAccountName().lower():
-                            return False
-                    return True
-                else:
-                    return False
+
+                if not self.lCats and not self.lAccounts and not self.lRoot: return False
+
+                if self.searchFilter != "":
+                    if self.searchFilter.strip().lower() not in acct.getAccountName().lower():
+                        return False
+
+                if self.lRoot:
+                    # noinspection PyUnresolvedReferences
+                    if (acct.getAccountType() == Account.AccountType.ROOT):
+                        return True
+
+                if self.lCats:
+                    # noinspection PyUnresolvedReferences
+                    if (acct.getAccountType() == Account.AccountType.EXPENSE
+                            or acct.getAccountType() == Account.AccountType.INCOME):
+                        return True
+
+                if self.lAccounts:
+                    # noinspection PyUnresolvedReferences
+                    if (acct.getAccountType() == Account.AccountType.BANK
+                            or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                            or acct.getAccountType() == Account.AccountType.INVESTMENT
+                            or acct.getAccountType() == Account.AccountType.ASSET
+                            or acct.getAccountType() == Account.AccountType.LIABILITY
+                            or acct.getAccountType() == Account.AccountType.LOAN):
+                        return True
+                return False
 
             def format(self, acct): return acct.getIndentedName()
 
-        catAcctSearch = MyAcctFilter()
-        # noinspection PyUnresolvedReferences
-        newAcctTypes = [Account.AccountType.EXPENSE, Account.AccountType.INCOME]
+        lSelectRoot = True
+        lSelectAccounts = True
+        lSelectCategories = True
+        if not lSelectRoot and not lSelectAccounts and not lSelectCategories: raise Exception("ERROR: Nothing selected!?")
+
+        catAcctSearch = MyAcctFilter(lCats=lSelectCategories,lAccounts=lSelectAccounts,lRoot=lSelectRoot)
+
+        newAcctTypes = []
+        if lSelectCategories:
+            # noinspection PyUnresolvedReferences
+            for atype in [Account.AccountType.EXPENSE, Account.AccountType.INCOME]:
+                newAcctTypes.append(atype)
+
+        if lSelectAccounts:
+            # noinspection PyUnresolvedReferences
+            for atype in [Account.AccountType.BANK, Account.AccountType.CREDIT_CARD, Account.AccountType.INVESTMENT, Account.AccountType.ASSET, Account.AccountType.LIABILITY, Account.AccountType.LOAN]:
+                newAcctTypes.append(atype)
 
         # noinspection PyUnusedLocal
         class MyDocListener(DocumentListener):
@@ -2645,6 +2684,7 @@ Visit: %s (Author's site)
                 self.mySearchField.addFocusListener(MyFocusAdapter(self.mySearchField,document))
                 super(COAWindow, self).__init__(self._ui, self._currentAccount, self._catAcctSearch, self._newAcctTypes, self._prefix, self._showBalances)  # noqa
 
+                # Pop in an Escape key to close window ;->
                 saveCloseAction = self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(KeyEvent.VK_W, MoneydanceGUI.ACCELERATOR_MASK))
                 self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), saveCloseAction)
 
@@ -2696,18 +2736,27 @@ Visit: %s (Author's site)
             def __init__(self): pass
 
             def run(self):                                                                                              # noqa
-                global categories_super_window_frame_       # global as it's set here
+                global accounts_categories_mega_search_window_frame_       # global as it's set here
 
                 myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                 titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
 
-                catWin = MyCOAWindow(MD_REF.getUI(), currentAccount, catAcctSearch, newAcctTypes, "gui.cat_window_", True, mySearchField)
-                catWin.setTitle("Categories Super Window   %s" %(titleExtraTxt))
+                # prefixForPosnSaves = "gui.coa_window_"            # Accounts
+                # prefixForPosnSaves = "gui.cat_window_"            # Categories
+                prefixForPosnSaves = "gui.coa_cat_mega_window_"     # Save my own window settings
 
-                categories_super_window_frame_ = catWin
-                categories_super_window_frame_.setName(u"%s_main" %(myModuleID))
+                catWin = MyCOAWindow(MD_REF.getUI(), currentAccount, catAcctSearch, newAcctTypes, prefixForPosnSaves, True, mySearchField)
+
+                titleTxt = ""
+                if lSelectAccounts:   titleTxt += u"Accounts %s" %(u"& " if lSelectCategories else "")
+                if lSelectCategories: titleTxt += u"Categories "
+                titleTxt += u"Mega Search Window   %s" %(titleExtraTxt)
+                catWin.setTitle(titleTxt)
+
+                accounts_categories_mega_search_window_frame_ = catWin
+                accounts_categories_mega_search_window_frame_.setName(u"%s_main" %(myModuleID))
 
                 theControlPanel = huntPanelWithButtons(catWin, 0)
                 if theControlPanel is not None:
@@ -2715,9 +2764,9 @@ Visit: %s (Author's site)
                     theControlPanel.add(mySearchField,GridC.getc().xy(0,1).colspan(7).fillx().insets(0,10,0,5))
                     # theControlPanel.add(mySearchField,GridC.getc().xy(0,1).insets(0,10,0,5))
                     theControlPanel.validate()
-                    categories_super_window_frame_.setVisible(True)
+                    accounts_categories_mega_search_window_frame_.setVisible(True)
 
-                    myPrint("DB","Main JFrame %s for application created.." %(categories_super_window_frame_.getName()))
+                    myPrint("DB","Main JFrame %s for application created.." %(accounts_categories_mega_search_window_frame_.getName()))
                 else:
                     myPrint("DB", "ERROR: Control Panel NOT found")
                     txt = "Error: Sorry could not launch Category Super Window"
@@ -2734,7 +2783,7 @@ Visit: %s (Author's site)
         cleanup_actions()
 
     except:
-        crash_txt = "ERROR - categories_super_window has crashed. Please review MD Menu>Help>Console Window for details".upper()
+        crash_txt = "ERROR - accounts_categories_mega_search_window has crashed. Please review MD Menu>Help>Console Window for details".upper()
         myPrint("B",crash_txt)
         crash_output = dump_sys_error_to_md_console_and_errorlog(True)
         jif = QuickJFrame("ERROR - Categories Super Window:",crash_output).show_the_frame()

@@ -5,7 +5,7 @@
 
 from java.lang import System
 
-_THIS_IS_ = u"categories_super_window"
+_THIS_IS_ = u"accounts_categories_mega_search_window"
 
 global debug, myPrint, myModuleID, destroyOldFrames
 if ("debug" not in globals()

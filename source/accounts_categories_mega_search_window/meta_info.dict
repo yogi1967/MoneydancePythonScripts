@@ -1,12 +1,12 @@
 {
-  "id" = "categories_super_window"
+  "id" = "accounts_categories_mega_search_window"
   "extension_type" = "python"
   "vendor" = "Stuart Beesley - StuWareSoftSystems"
   "module_build" = "1002"
   "minbuild" = "3056"
   "vendor_url" = "https://yogi1967.github.io/MoneydancePythonScripts/"
-  "module_name" = "Categories Super Window"
-  "module_desc" = "Clone of Tools>Categories with Search capability"
+  "module_name" = "Accounts & Categories Mega Search Window"
+  "module_desc" = "Clone of Tools>Accounts/Categories [combined] with Search capability"
   "mac_sandbox_friendly" = "true"
   "news" = "Initial Release..."
 }
