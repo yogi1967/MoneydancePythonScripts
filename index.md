@@ -77,7 +77,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
     - extract_investment_transactions_csv   Extract investment transactions to csv
     - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/categories_super_window.zip">**^^Categories Super Window**: Clones MD Menu> Tools>Categories and adds a Quick Search box/capability.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/accounts_categories_mega_search_window.zip">**^^Accounts & Categories Mega Search Window**: Clones MD Menu> Tools>Accounts/Categories (combined) and adds a Quick Search box/capability.
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**List Future Reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
