@@ -4015,7 +4015,7 @@ Visit: %s (Author's site)
                     searchPanel = JPanel(GridBagLayout())
                     searchPanel.setBorder(EmptyBorder(2, 2, 2, 2))
 
-                    searchPanel.add(GlobalVars.mySearchField,GridC.getc().xy(0,0).padx(50).fillx().west().insets(0,2,0,2))
+                    searchPanel.add(GlobalVars.mySearchField,GridC.getc().xy(0,0).padx(50).fillx().wx(1.0).west().insets(0,2,0,2))
 
                     btnChangeLookForward = JButton("Change Look Forward Days")
                     btnChangeLookForward.setToolTipText("Changes the current 'Look forward [x] days' setting...")
