@@ -17644,22 +17644,23 @@ now after saving the file, restart Moneydance
 
                 if fields.hasSecurity and fields.security is None:
                     iOrphans += 1
-                    txt = "ERROR: Txn for 'Orphaned' Security %s found within Investment Account %s! (Have you force removed a Security with linked TXNs?\n" \
+                    txt = "ERROR: Txn for 'Orphaned' Security %s found within Investment Account %s! (old QIF import or you have force removed a Security with linked TXNs?\n" \
                           "txn:\n%s\n" %(fields.security, _acct, _txn.getSyncInfo().toMultilineHumanReadableString())
                     output += "\n%s\n" %(txt); myPrint("B",txt)
 
             if iOrphans:
-                txt = "ERROR: %s investment txn(s) with 'Orphaned'securities detected (probably User Force Removal of Security from Investment Account)" %(iOrphans)
+                txt = "ERROR: %s investment txn(s) with 'Orphaned'securities detected (probably an old QIF import or User has force removed a Security from this Investment Account)" %(iOrphans)
                 output += "\n%s\n" %(txt); myPrint("B",txt)
                 output += "\n<ABORTED>"
                 setDisplayStatus(txt, "R")
                 jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
                 MyPopUpDialogBox(jif,txt,
-                                 "It's highly likely that you have clicked 'Actions' > 'Remove Security' from an Investment Account..\n"
+                                 "It's highly likely that you have: either a) old QIF Import data (that was improperly imported)... or\n"
+                                 "b) you have clicked 'Actions' > 'Remove Security' from an Investment Account..\n"
                                  ".. and that this Security had linked Transactions... You would have been warned and asked to respond 'yes'\n"
                                  ".. this will have deleted Buy/Sell TXNs and partially removed the Security from other TXNs like buy/Sell/Xfr etc\n"
-                                 ".. these are now illogical and damaged records.... The data is lost and not recoverable. Toolbox CANNOT REPAIR!\n"
-                                 ">> You will need to restore, and or manually edit and repair the TXNs with your own knowledge of what was lost...",
+                                 "- These are 'illogical' and 'damaged' records.... The security data is lost and not recoverable. Toolbox CANNOT REPAIR!\n"
+                                 ">> You will need to restore, or manually edit and repair the TXNs with your own knowledge of what security was lost...",
                                  theTitle=_THIS_METHOD_NAME,OKButtonText="ACKNOWLEDGED",lAlertLevel=1).go()
                 return
 
@@ -24557,7 +24558,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 convertSecondary_button.setForeground(Color.WHITE)
                 convertSecondary_button.addActionListener(self.ConvertSecondaryButtonAction(displayString))
                 convertSecondary_button.setVisible(False)
-                displayPanel.add(convertSecondary_button);
+                displayPanel.add(convertSecondary_button)
 
             if (not check_for_dropbox_folder()):
                 createMoneydanceSyncFolder_button = JButton("<html><center><B>FIX: Create Dropbox<BR>Sync Folder</B></center></html>")
@@ -24566,7 +24567,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 createMoneydanceSyncFolder_button.setForeground(Color.WHITE)
                 createMoneydanceSyncFolder_button.addActionListener(self.MakeDropBoxSyncFolder(createMoneydanceSyncFolder_button))
                 createMoneydanceSyncFolder_button.setVisible(False)
-                displayPanel.add(createMoneydanceSyncFolder_button);
+                displayPanel.add(createMoneydanceSyncFolder_button)
 
             lTabbingModeNeedsChanging = False
             if (Platform.isOSX() and Platform.isOSXVersionAtLeast("10.16")
@@ -24579,7 +24580,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 fixTabbingMode_button.setForeground(Color.WHITE)
                 fixTabbingMode_button.addActionListener(DetectAndChangeMacTabbingMode(False))
                 fixTabbingMode_button.setVisible(False)
-                displayPanel.add(fixTabbingMode_button);
+                displayPanel.add(fixTabbingMode_button)
 
             if MD_REF.getCurrentAccount().getBook().getLocalStorage().getStr("migrated.netsync.dropbox.fileid", None):
                 FixDropboxOneWaySync_button = JButton("<html><center><B>FIX: Remove Legacy Dropbox<BR>Migrated Sync Key</B></center></html>")
@@ -24588,7 +24589,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 FixDropboxOneWaySync_button.setForeground(Color.WHITE)
                 FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button))
                 FixDropboxOneWaySync_button.setVisible(False)
-                displayPanel.add(FixDropboxOneWaySync_button);
+                displayPanel.add(FixDropboxOneWaySync_button)
 
             # end of instant fix buttons
 
