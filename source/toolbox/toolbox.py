@@ -24390,14 +24390,16 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     GlobalVars.ADVANCED_MODE = not GlobalVars.ADVANCED_MODE
 
-                    # components = self.displayPanel.getComponents()
-                    # for theComponent in components:
-                    #     if isinstance(theComponent, JButton):
-                    #         # noinspection PyUnresolvedReferences
-                    #         buttonText = theComponent.getLabel().strip().upper()
-                    #
-                    #         if ("ADVANCED" in buttonText):
-                    #             theComponent.setVisible(GlobalVars.ADVANCED_MODE)
+                    components = self.displayPanel.getComponents()
+                    for theComponent in components:
+                        if isinstance(theComponent, JButton):
+                            # noinspection PyUnresolvedReferences
+                            buttonText = theComponent.getLabel().strip().upper()
+                            if ("ADVANCED" in buttonText):
+                                # theComponent.setVisible(GlobalVars.ADVANCED_MODE)
+                                theComponent.setText("<html><center><B>ADVANCED MODE</B></center></html>" if (GlobalVars.ADVANCED_MODE) else "<html><center>ADVANCED MODE</center></html>")
+                                theComponent.setForeground(Color.WHITE if (GlobalVars.ADVANCED_MODE) else MD_REF.getUI().getColors().defaultTextForeground)
+                                theComponent.setBackground(Color.RED if (GlobalVars.ADVANCED_MODE) else Color.LIGHT_GRAY)
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Update Mode":
@@ -24555,7 +24557,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 convertSecondary_button.setForeground(Color.WHITE)
                 convertSecondary_button.addActionListener(self.ConvertSecondaryButtonAction(displayString))
                 convertSecondary_button.setVisible(False)
-                displayPanel.add(convertSecondary_button)
+                displayPanel.add(convertSecondary_button);
 
             if (not check_for_dropbox_folder()):
                 createMoneydanceSyncFolder_button = JButton("<html><center><B>FIX: Create Dropbox<BR>Sync Folder</B></center></html>")
@@ -24564,7 +24566,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 createMoneydanceSyncFolder_button.setForeground(Color.WHITE)
                 createMoneydanceSyncFolder_button.addActionListener(self.MakeDropBoxSyncFolder(createMoneydanceSyncFolder_button))
                 createMoneydanceSyncFolder_button.setVisible(False)
-                displayPanel.add(createMoneydanceSyncFolder_button)
+                displayPanel.add(createMoneydanceSyncFolder_button);
 
             lTabbingModeNeedsChanging = False
             if (Platform.isOSX() and Platform.isOSXVersionAtLeast("10.16")
@@ -24577,7 +24579,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 fixTabbingMode_button.setForeground(Color.WHITE)
                 fixTabbingMode_button.addActionListener(DetectAndChangeMacTabbingMode(False))
                 fixTabbingMode_button.setVisible(False)
-                displayPanel.add(fixTabbingMode_button)
+                displayPanel.add(fixTabbingMode_button);
 
             if MD_REF.getCurrentAccount().getBook().getLocalStorage().getStr("migrated.netsync.dropbox.fileid", None):
                 FixDropboxOneWaySync_button = JButton("<html><center><B>FIX: Remove Legacy Dropbox<BR>Migrated Sync Key</B></center></html>")
@@ -24586,7 +24588,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 FixDropboxOneWaySync_button.setForeground(Color.WHITE)
                 FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button))
                 FixDropboxOneWaySync_button.setVisible(False)
-                displayPanel.add(FixDropboxOneWaySync_button)
+                displayPanel.add(FixDropboxOneWaySync_button);
 
             # end of instant fix buttons
 
@@ -24632,11 +24634,11 @@ Now you will have a text readable version of the file you can open in a text edi
             CuriousViewInternalSettings_button.addActionListener(CuriousViewInternalSettingsButtonAction())
             displayPanel.add(CuriousViewInternalSettings_button)
 
-            advancedMenu_button = JButton("<html><center><B>ADVANCED MODE</B></center></html>")
+            advancedMenu_button = JButton("<html><center>ADVANCED MODE</center></html>")
             advancedMenu_button.setToolTipText("Menu containing 'Advanced' Tools...")
             advancedMenu_button.addActionListener(self.AdvancedMenuButtonAction())
-            advancedMenu_button.setBackground(Color.RED)
-            advancedMenu_button.setForeground(Color.WHITE)
+            # advancedMenu_button.setBackground(Color.RED)
+            # advancedMenu_button.setForeground(Color.WHITE)
             # advancedMenu_button.setVisible(False)
             displayPanel.add(advancedMenu_button)
 
