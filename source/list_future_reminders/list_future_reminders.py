@@ -53,6 +53,7 @@
 # build: 1016 - Chucked in the kitchen sink too. Added Account Name.. Added Reminder Listeners, dumped the 'old' stuff...
 # build: 1016 - Chucked in the kitchen sink too. Added Account Name.. Added Reminder Listeners, dumped the 'old' stuff...
 # build: 1016 - lAllowEscapeExitApp_SWSS to allow/block escape from exiting the app; Tweaked the JMenuBar() to say "MENU"
+# build: 1016 - pushing .setEscapeKeyCancels(True) to the popup dialogs....
 
 # Displays Moneydance future reminders
 
@@ -329,7 +330,6 @@ else:
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
     import threading
-    from com.moneydance.apps.md.view.gui import EditRemindersWindow
     from java.awt.event import MouseAdapter
     from java.util import Comparator
     from javax.swing import SortOrder, ListSelectionModel, JPopupMenu
@@ -342,10 +342,17 @@ else:
     from com.moneydance.awt import QuickSearchField
     from java.awt.event import FocusAdapter
     from javax.swing import RowFilter
+
+    # from com.moneydance.apps.md.view.gui import EditRemindersWindow
     from com.moneydance.apps.md.view.gui import LoanTxnReminderNotificationWindow
     from com.moneydance.apps.md.view.gui import TxnReminderNotificationWindow
     from com.moneydance.apps.md.view.gui import BasicReminderNotificationWindow
+
+    from com.moneydance.apps.md.view.gui import LoanTxnReminderInfoWindow
+    from com.moneydance.apps.md.view.gui import TxnReminderInfoWindow
+    from com.moneydance.apps.md.view.gui import BasicReminderInfoWindow
     from com.infinitekind.moneydance.model import ReminderListener
+    # from com.moneydance.apps.md.view.gui import MoneydanceGUI
 
     exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
     global Book     # Keep this here for above import
@@ -2689,7 +2696,24 @@ Visit: %s (Author's site)
         GlobalVars.saveSelectedRowIndex = GlobalVars.saveJTable.getSelectedRow()
         GlobalVars.saveLastReminderObj = GlobalVars.saveJTable.getValueAt(GlobalVars.saveSelectedRowIndex, 0)
 
-        EditRemindersWindow.editReminder(None, MD_REF.getUI(), GlobalVars.saveLastReminderObj)
+        # EditRemindersWindow.editReminder(None, MD_REF.getUI(), GlobalVars.saveLastReminderObj)
+
+        r = GlobalVars.saveLastReminderObj
+        book = MD_REF.getCurrentAccountBook()
+        reminderSet = MD_REF.getUI().getCurrentBook().getReminders()
+        # noinspection PyUnresolvedReferences
+        if r.getReminderType() == Reminder.Type.TRANSACTION:
+            if r.isLoanReminder():
+                win = LoanTxnReminderInfoWindow(MD_REF.getUI(), list_future_reminders_frame_, r, book, r.getTransaction().getSplit(0).getAccount())
+            else:
+                win = TxnReminderInfoWindow(MD_REF.getUI(), list_future_reminders_frame_, r, reminderSet.getAccountBook())
+        # noinspection PyUnresolvedReferences
+        elif r.getReminderType() == Reminder.Type.NOTE:
+            win = BasicReminderInfoWindow(MD_REF.getUI(), r, reminderSet, list_future_reminders_frame_)
+        else: raise Exception("Unknown reminder class: " + r.getClass())
+
+        win.setEscapeKeyCancels(True)
+        win.setVisible(True)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -2716,6 +2740,7 @@ Visit: %s (Author's site)
                 win = BasicReminderNotificationWindow(MD_REF.getUI(), book, GlobalVars.saveLastReminderObj, rdate, True, list_future_reminders_frame_)
             else: raise Exception("ERROR: Unknown Reminder type")
 
+            win.setEscapeKeyCancels(True)
             win.setVisible(True)
 
     class DoTheMenu(AbstractAction):
@@ -2769,7 +2794,7 @@ Visit: %s (Author's site)
             if event.getActionCommand().lower().startswith("allow escape"):
                 lAllowEscapeExitApp_SWSS = not lAllowEscapeExitApp_SWSS
                 if lAllowEscapeExitApp_SWSS:
-                    list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+                    list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
                 else:
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
 
@@ -3853,7 +3878,7 @@ Visit: %s (Author's site)
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
 
                     if lAllowEscapeExitApp_SWSS:
-                        list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window");
+                        list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
 
                     list_future_reminders_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
 

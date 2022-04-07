@@ -2967,8 +2967,15 @@ Visit: %s (Author's site)
                 if not lRunningFromToolbox:
                     user_selectSourceAccount.setSelectedItem(GlobalVars.selectedInvestmentTransactionsList[0].getAccount())
                     user_selectSourceAccount.setEnabled(False)
+                else:
+                    user_selectSourceAccount.setSelectedIndex(-1)
 
-                user_selectTargetAccount = JComboBox(toListAccount)
+                if not lRunningFromToolbox:
+                    user_selectTargetAccount = JComboBox(toListAccount)
+                else:
+                    user_selectTargetAccount = JComboBox([])
+                user_selectTargetAccount.setSelectedIndex(-1)
+
                 user_selectTargetAccount.setToolTipText("This is the target/destination for the transactions to be moved into")
 
                 user_enableSecurityFilter = JCheckBox("Enable Filter by Security?", False)
@@ -3013,8 +3020,13 @@ Visit: %s (Author's site)
                 srcAcct = user_selectSourceAccount.getSelectedItem()      # type: Account
                 if isinstance(srcAcct, Account): pass
 
-                user_cashBalanceToMove = JCurrencyField(14, srcAcct.getCurrencyType(), currencyTable, MD_decimal, MD_comma)
-                user_cashBalanceToMove.setValue(srcAcct.getStartBalance())
+                if srcAcct is None:
+                    user_cashBalanceToMove = JCurrencyField(14, None, currencyTable, MD_decimal, MD_comma)
+                else:
+                    user_cashBalanceToMove = JCurrencyField(14, srcAcct.getCurrencyType(), currencyTable, MD_decimal, MD_comma)
+                    user_cashBalanceToMove.setValue(srcAcct.getStartBalance())
+
+                user_cashBalanceToMove.setEmptyIfZero(True)
                 user_cashBalanceToMove.setToolTipText("Enter the amount of the source acct's opening cash balance to move to target account")   # noqa
                 user_cashBalanceToMove.setEnabled(user_mergeCashBalances.isSelected())                                                          # noqa
                 del srcAcct
@@ -3076,11 +3088,21 @@ Visit: %s (Author's site)
                         if ((e.getSource().getName() == "SELECT_SOURCE_ACCOUNT" and e.getStateChange() == ItemEvent.SELECTED)
                                 or (e.getSource().getName() == "ENABLE_SECURITY_FILTER" and e.getSource().isSelected())):
                             subAccts = []
-                            for sAcct in self.selectSource.getSelectedItem().getSubAccounts(): subAccts.append(StoreAccountSecurity(sAcct))
+                            if self.selectSource.getSelectedItem() is not None:
+                                for sAcct in self.selectSource.getSelectedItem().getSubAccounts(): subAccts.append(StoreAccountSecurity(sAcct))
                             self.filterSecurity.setModel(DefaultComboBoxModel(subAccts))
+                            self.filterSecurity.setSelectedIndex(-1)
 
                             if e.getSource().getName() == "SELECT_SOURCE_ACCOUNT":
+                                self.cashBalanceToMove.setCurrencyType(e.getSource().getSelectedItem().getCurrencyType())
                                 self.cashBalanceToMove.setValue(e.getSource().getSelectedItem().getStartBalance())
+
+                                if lRunningFromToolbox:
+                                    _toListAccount = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(23))
+                                    _toListAccount.remove(e.getSource().getSelectedItem())
+                                    self.selectTarget.setModel(DefaultComboBoxModel(_toListAccount))
+                                    self.selectTarget.setSelectedIndex(-1)
+
 
                         if e.getSource().getName() == "ENABLE_SECURITY_FILTER":
                             self.filterSecurity.setEnabled(e.getSource().isSelected())
@@ -3130,6 +3152,11 @@ Visit: %s (Author's site)
                         setDisplayStatus(txt, "B")
                         # myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                         return
+
+                    if user_selectSourceAccount.getSelectedItem() is None or user_selectTargetAccount.getSelectedItem() is None:
+                        txt = "%s: ERROR - Please select a source and target account" %(_THIS_METHOD_NAME)
+                        myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                        continue
 
                     if user_selectSourceAccount.getSelectedItem() == user_selectTargetAccount.getSelectedItem():
                         txt = "%s: ERROR - source and target account must be different" %(_THIS_METHOD_NAME)
@@ -3372,10 +3399,16 @@ Visit: %s (Author's site)
                         trgSec = find_src_sec_in_target(srcSec.getCurrencyType())
                         if trgSec:
                             if trgSec.getUsesAverageCost() != srcSec.getUsesAverageCost():
+                                insertTxt = ("Source Investment/Security %s uses %s, but Target %s is different - uses %s"
+                                                %(srcSec,
+                                                  ("Average Cost Control" if (srcSec.getUsesAverageCost()) else "Lot Control"),
+                                                  trgSec,
+                                                  ("Average Cost Control" if (trgSec.getUsesAverageCost()) else "Lot Control")))
+
                                 if lAutoIgnoreAnyAvgCstLotFlagDifference:
-                                    output += "WARNING: Security %s Source & Target UsesAverageCost does NOT match (%s vs %s) - WILL MERGE ANYWAY - CHECK RESULTS MANUALLY AFTER PROCESSING!\n" %(srcSec,srcSec.getUsesAverageCost(),trgSec.getUsesAverageCost())
+                                    output += "WARNING: %s - WILL MERGE ANYWAY - CHECK RESULTS MANUALLY AFTER PROCESSING!\n" %(insertTxt)
                                 else:
-                                    txt = "Error: Security %s Source & Target UsesAverageCost does NOT match (%s vs %s) - Aborting" %(srcSec,srcSec.getUsesAverageCost(),trgSec.getUsesAverageCost())
+                                    txt = "Error: %s - Aborting" %(insertTxt)
                                     myPrint("DB",txt)
                                     setDisplayStatus(txt, "R")
                                     myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -3537,7 +3570,11 @@ Visit: %s (Author's site)
                                 toTxnSecSet.addTxn(secTxn)
                             else:
                                 fromTxnSecSet.addTxn(secTxn)
-                        output += "... Security records being checked: From Txns: %s, To Txns: %s\n" %(fromTxnSecSet.getSize(), toTxnSecSet.getSize())                                
+
+                        output += ("... Security records being checked (total: %s): Records that will remain(From) Txns: %s, Records being moved(To) Txns: %s\n"
+                                      %((fromTxnSecSet.getSize() + toTxnSecSet.getSize()),
+                                        fromTxnSecSet.getSize(),
+                                        toTxnSecSet.getSize()))
                         
                         # Reverse sanity check....
                         if GlobalVars.selectedInvestmentTransactionsList:
@@ -3557,26 +3594,34 @@ Visit: %s (Author's site)
                                 newTags = {}
                                 lAnyTagChanges = False
 
-                                cbTags = TxnUtil.parseCostBasisTag(secTxn)  # The MD Version ignores where the uuid does not exist...
+                                cbTags = TxnUtil.parseCostBasisTag(secTxn)  # The MD Version ignores where the uuid does not exist... (and thus we don't really care)
                                 if cbTags is None: continue
                                 for txnID in cbTags:
                                     checkIDWithinFrom  = TxnUtil.getTxnByID(fromTxnSecSet, txnID)
                                     checkIDWithinTo    = TxnUtil.getTxnByID(toTxnSecSet, txnID)
                                     checkIDWithinOther = checkIDWithinTo if (onSweep == 0) else checkIDWithinFrom
+                                    checkIDWithinSame = checkIDWithinTo if (onSweep != 0) else checkIDWithinFrom
                                     if checkIDWithinFrom is None and checkIDWithinTo is None:
                                         # This might not ever trigger unless using my own parseCostBasisTag() method...
                                         lLotErrorsABORT = True
-                                        output += "... ERROR: Buy (id: %s) matched to sale (id: %s) dated: %s missing/invalid?\n" %(txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        output += "... ERROR:    Buy (id: %s) matched to sale (id: %s) dated: %s missing/invalid?\n" %(txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
                                     elif checkIDWithinFrom is not None and checkIDWithinTo is not None:
                                         lLotErrorsABORT = True
-                                        output += "... ERROR: Buy (id: %s) matched to sale (id: %s) dated: %s appears in BOTH to and from txn sets?\n" %(txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
-                                    elif checkIDWithinOther is not None:
+                                        output += "... ERROR:    Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s appears in BOTH to and from txn sets?\n"\
+                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinFrom.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                    elif checkIDWithinOther is not None and cbTags[txnID] != 0:
                                         lMoveWouldSeparateMatchedLOTs = True
                                         lAnyTagChanges = True   # Essentially we skipped this tag and didn't add it to the dictionary...
-                                        output += "... ERROR: Buy (id: %s) matched to sale (id: %s) dated: %s would be separated by this move!\n" %(txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        output += "... ERROR:    Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s would be separated by this move!\n"\
+                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinOther.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                    elif checkIDWithinOther is not None and cbTags[txnID] == 0:  # Yup - you can get records matched with a ZERO qty... Ignore these
+                                        lAnyTagChanges = True   # Silently ignore - Essentially we skipped this tag and didn't add it to the dictionary...
+                                        output += "... IGNORING: Buy (id: %s dated: %s) ZERO matched to sale (id: %s) dated: %s would be separated by this move! Will be ignored/deleted\n"\
+                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinOther.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
                                     else:
                                         newTags[txnID] = cbTags[txnID]
-                                        output += "... VALID: Buy (id: %s) matched to sale (id: %s) dated: %s is not being separated\n" %(txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        output += "... VALID:    Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s is not being separated\n"\
+                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinSame.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
 
                                 if lAnyTagChanges:
                                     securityTxnsToFix[secTxn] = newTags
@@ -3604,7 +3649,7 @@ Visit: %s (Author's site)
                     else:
                         output += "... Buy/Sell matched LOTs FAILED VALIDATION. Matched txns would be separated...\n\n"
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
-                        txt = "ERROR: Buy/Sell matched LOTs FAILED VALIDATION - no changes made"
+                        txt = "ERROR: Buy/Sell matched LOTs FAILED VALIDATION (refer logfile for details) - no changes made"
                         myPrint("B", txt)
                         setDisplayStatus(txt, "R")
                         myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)

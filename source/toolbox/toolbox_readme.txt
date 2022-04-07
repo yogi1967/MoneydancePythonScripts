@@ -21,10 +21,10 @@ PLEASE ALWAYS BACKUP YOUR DATA FIRST! You  can use the Create Backup (green) but
 PURPOSE
 
 To enable the User to self-diagnose problems, or access key diagnostics to enable support to help
-- Basic mode:                    The default mode. Very safe and contains useful / view options only
-- Update Mode:                   Allows running of fixes/updates. CAN CHANGE DATA (you will always be asked to confirm first)
-- Advanced Mode:                 Enables 'advanced' features. USE WITH CARE!
-- Expert View Internal Settings: View technical information/settings in various places (this is readonly)
+- Basic mode:                       The default mode. Very safe and contains useful / view options only
+- Update Mode:                      Allows running of fixes/updates. CAN CHANGE DATA (you will always be asked to confirm first)
+- Advanced Mode:                    Enables 'advanced' features. USE WITH CARE!
+- Curious? View Internal Settings:  View technical information/settings in various places (this is readonly)
 
 - The Toolbox offers the option to Backup first  - ALWAYS BACKUP (But this is your choice!)
 - The Toolbox will *ALWAYS* make a copy of config.dict, custom theme file, LocalStorage() ./safe/settings before any changes
@@ -151,7 +151,7 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - Extract your Attachments (this decrypts and extracts your attachments to a directory of your choice) (export_all_attachments.py)
         - DIAGnostics - Analise your  attachments (and Detect Orphans)
 
-Menu - EXPERT: VIEW INTERNAL SETTINGS (Read-Only - very safe)
+Menu - CURIOUS? VIEW INTERNAL SETTINGS (Read-Only - very safe)
     >> Allows you to view internal / raw settings / data
     - Search for a key/data (in most places  - but not txns)
     - Show ROOT Account's Parameter Keys and data

@@ -62,7 +62,8 @@ NOTE:
 import sys                                                                                                              # noqa
 
 ################### `set these variables ##########################################
-mdDataFolder = "/Users/Stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/TEST_HEADLESS_LAUNCH.moneydance"
+# mdDataFolder = "/Users/Stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/TEST_HEADLESS_LAUNCH.moneydance"
+mdDataFolder = "/Users/stu/Downloads/jpype/moneydanceissue/Development.moneydance"
 MD_PATH = "../Moneydance_jars/"       # include moneydance.jar and mdpython.jar
 ################### `set these variables ##########################################
 
@@ -114,7 +115,7 @@ USE_JAVA17 = "YES"
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
 if USE_JAVA17 == "YES":
     JAVA_HOME = "/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
-    javafx = "%s/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib" %(my_user_path)
+    javafx = "%s/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.2/lib " %(my_user_path)
 else:
     JAVA_HOME = "%s/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home" %(my_user_path)
     javafx = "%s/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib" %(my_user_path)
@@ -122,7 +123,7 @@ else:
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing).
-md_version=" 2021.2 (3095)"
+md_version=" 2022.3 (4069) ALPHA"
 
 # Where are the MD jar files
 md_jars="/Applications/Moneydance${md_version}.app/Contents/Java"
@@ -289,8 +290,13 @@ for security in securities:
 print("Finished peeking at data....")
 # theMain.showURL("invokeAndQuitURI")
 
-print("Calling saveCurrentAccount()")
-mdMain.saveCurrentAccount()
+# print("Calling saveCurrentAccount()")
+# print(mdMain.saveCurrentAccount())
+
+print("Calling .save()")
+print(accountBook.save())
+
+
 
 print("Calling shutdown()")
 mdMain.shutdown()

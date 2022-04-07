@@ -263,6 +263,8 @@
 # build: 1047 - disabled check_for_old_StuWareSoftSystems_scripts() - can no longer be relevant....
 # build: 1047 - Eliminated common code globals :->
 # build: 1047 - Move/Merge investment txns disabled and now called via Extensions Menu directly...
+# build: 1047 - Rename Expert: View internal settings - to Curious? View internal settings; Now not Magenta, just normal colour
+# build: 1047 - Make Advanced Mode Button always there, just with options disabled...
 
 
 # todo - I don't think that show_open_share_lots() works properly - also dpc.....
@@ -10762,7 +10764,7 @@ Visit: %s (Author's site)
 
         return
 
-    def get_the_objects_for_expert_view_and_advanced_edit(objWhat, selectedObjType, titleStr, lForceOneTxn):
+    def get_the_objects_for_curious_view_and_advanced_edit(objWhat, selectedObjType, titleStr, lForceOneTxn):
 
         # Yes, I know, repeated from calling function.... EDIT IN BOTH PLACES!
         # You need to edit the below in the sub def function too!!! (sorry ;-> )
@@ -11425,7 +11427,7 @@ Visit: %s (Author's site)
         del _storage
         return _authenticationCache
 
-    class ExpertViewInternalSettingsButtonAction(AbstractAction):
+    class CuriousViewInternalSettingsButtonAction(AbstractAction):
 
         def __init__(self, lOFX=False, EDIT_MODE=False):
             self.lOFX = lOFX
@@ -11519,17 +11521,17 @@ Visit: %s (Author's site)
             else:
                 selectedWhat = JOptionPane.showInputDialog(toolbox_frame_,
                                                            "Select the type of Key data you want to view",
-                                                           "EXPERT VIEW: INTERNAL SETTINGS",
+                                                           "CURIOUS? VIEW: INTERNAL SETTINGS",
                                                            JOptionPane.INFORMATION_MESSAGE,
                                                            MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                            what,
                                                            None)
                 if not selectedWhat:
-                    txt = "EXPERT VIEW: INTERNAL SETTINGS: No data type was selected to view.."
+                    txt = "CURIOUS? VIEW: INTERNAL SETTINGS: No data type was selected to view.."
                     setDisplayStatus(txt, "B")
                     return
 
-            myPrint("J", "EXPERT VIEW: INTERNAL SETTINGS. User has requested to view: %s"%selectedWhat)
+            myPrint("J", "CURIOUS? VIEW: INTERNAL SETTINGS. User has requested to view: %s"%selectedWhat)
 
             lObject = False
             selectedObject = None                                                                               # noqa
@@ -11546,24 +11548,24 @@ Visit: %s (Author's site)
 
                 selectedSearch = JOptionPane.showInputDialog(toolbox_frame_,
                                                              "SEARCH: Keys or Key Data?",
-                                                             "EXPERT VIEW: INTERNAL SETTINGS",
+                                                             "CURIOUS? VIEW: INTERNAL SETTINGS",
                                                              JOptionPane.INFORMATION_MESSAGE,
                                                              MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
                                                              ["Keys","Key Data"],
                                                              None)
                 if not selectedSearch:
-                    txt = "EXPERT VIEW: INTERNAL SETTINGS: No Search type selected"
+                    txt = "CURIOUS? VIEW: INTERNAL SETTINGS: No Search type selected"
                     setDisplayStatus(txt, "B")
                     return
 
                 if selectedSearch == "Keys": lKeys = True
                 elif selectedSearch == "Key Data": lKeyData = True
                 else:
-                    raise(Exception("EXPERT VIEW: INTERNAL SETTINGS: ERROR: Unknown Search Key type selected!?"))
+                    raise(Exception("CURIOUS? VIEW: INTERNAL SETTINGS: ERROR: Unknown Search Key type selected!?"))
 
-                searchWhat = myPopupAskForInput(toolbox_frame_, "EXPERT VIEW: INTERNAL SETTINGS: SEARCH", "%s:" % selectedSearch, "Enter the (partial) string to search for within %s..." % selectedSearch, "", False)
+                searchWhat = myPopupAskForInput(toolbox_frame_, "CURIOUS? VIEW: INTERNAL SETTINGS: SEARCH", "%s:" % selectedSearch, "Enter the (partial) string to search for within %s..." % selectedSearch, "", False)
                 if not searchWhat or searchWhat == "":
-                    txt = "EXPERT VIEW: INTERNAL SETTINGS: No Search data selected"
+                    txt = "CURIOUS? VIEW: INTERNAL SETTINGS: No Search data selected"
                     setDisplayStatus(txt, "B")
                     return
                 searchWhat=searchWhat.strip()
@@ -11571,7 +11573,7 @@ Visit: %s (Author's site)
             if selectedWhat == what[_OBJKEYS]:
                 lObject = True
 
-                titleText="EXPERT VIEW: INTERNAL SETTINGS"
+                titleText="CURIOUS? VIEW: INTERNAL SETTINGS"
                 moreText="VIEW"
                 lFindInAdvancedMode=False
                 if self.EDIT_MODE:
@@ -11593,7 +11595,7 @@ Visit: %s (Author's site)
 
                 baseCurr = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
 
-                objects, lReportDefaultsSelected = get_the_objects_for_expert_view_and_advanced_edit(objWhat, selectedObjType,"%s" %(titleText), lFindInAdvancedMode)
+                objects, lReportDefaultsSelected = get_the_objects_for_curious_view_and_advanced_edit(objWhat, selectedObjType, "%s" % (titleText), lFindInAdvancedMode)
                 if self.EDIT_MODE:
                     return objects
                 else:
@@ -12223,12 +12225,12 @@ Visit: %s (Author's site)
 
             output += "<END>\n"
 
-            jif = QuickJFrame("Expert View Internal Settings...: %s" % selectedWhat, output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+            jif = QuickJFrame("Curious? View Internal Settings...: %s" % selectedWhat, output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
             if self.lOFX:
                 return jif
             else:
-                txt = "I hope you enjoyed Expertly Viewing Internal Settings...: %s" %(selectedWhat)
+                txt = "I hope you enjoyed Curiously Viewing Internal Settings...: %s" %(selectedWhat)
                 setDisplayStatus(txt, "DG")
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -20405,7 +20407,7 @@ Now you will have a text readable version of the file you can open in a text edi
             setDisplayStatus(txt, "R")
             return
 
-        objSelecter = ExpertViewInternalSettingsButtonAction(lOFX=False, EDIT_MODE=True)
+        objSelecter = CuriousViewInternalSettingsButtonAction(lOFX=False, EDIT_MODE=True)
         theObject = objSelecter.actionPerformed("")  # type: list
         del objSelecter
 
@@ -22509,7 +22511,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     #     OFXDEBUGToggle()
 
                     if user_searchOFXData.isSelected():
-                        viewer = ExpertViewInternalSettingsButtonAction(lOFX=True)
+                        viewer = CuriousViewInternalSettingsButtonAction(lOFX=True)
                         viewer.actionPerformed("")
                         del viewer
                         txt = "OFX: Your OFX Bank related settings have been searched and displayed...."
@@ -23859,78 +23861,96 @@ Now you will have a text readable version of the file you can open in a text edi
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                if not GlobalVars.ADVANCED_MODE: return
+                # if not GlobalVars.ADVANCED_MODE: return
+
+                user_ofx_features = JRadioButton("OFX Advanced Mode Options appear in 'MENU: Online Banking (OFX) Tools'...", False)
+                user_ofx_features.setEnabled(False)
 
                 user_advanced_mode_edit_prefs = JRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False)
                 user_advanced_mode_edit_prefs.setToolTipText("This allows you to MODIFY (add/change/delete) config.dict and LocalStorage() (./safe/settings) keys..... CAN UPDATE DATA")
                 user_advanced_mode_edit_prefs.setForeground(getColorRed())
+                user_advanced_mode_edit_prefs.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_edit_param_keys = JRadioButton("ADD/CHG/DEL Database Object (ie Account, Currency, any object)", False)
                 user_advanced_edit_param_keys.setToolTipText("This allows you to MODIFY (add/change/delete) an Object's Parameter keys..... CAN UPDATE DATA - ONLY USE IF YOU KNOW WHAT YOU ARE DOING")
                 user_advanced_edit_param_keys.setForeground(getColorRed())
+                user_advanced_edit_param_keys.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_delete_int_ext_files = JRadioButton("DELETE Files from Filelist and DISK", False)
                 user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
                 user_advanced_delete_int_ext_files.setForeground(getColorRed())
+                user_advanced_delete_int_ext_files.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_toggle_DEBUG = JRadioButton("Toggle Moneydance DEBUG", False)
                 user_advanced_toggle_DEBUG.setToolTipText("This will toggle Moneydance's internal DEBUG setting(s) ON/OFF.....")
                 user_advanced_toggle_DEBUG.setForeground(getColorRed())
+                user_advanced_toggle_DEBUG.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_toggle_other_DEBUGs = JRadioButton("Toggle Other Moneydance DEBUGs", False)
                 user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
                 user_advanced_toggle_other_DEBUGs.setForeground(getColorRed())
+                user_advanced_toggle_other_DEBUGs.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_extract_from_storage = JRadioButton("Extract a File from LocalStorage", False)
                 user_advanced_extract_from_storage.setToolTipText("This allows you to select & extract (decrypt) a file from inside LocalStorage (copied to TMP dir)..... FILE SELF DESTRUCTS AFTER RESTART")
                 user_advanced_extract_from_storage.setForeground(getColorRed())
+                user_advanced_extract_from_storage.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_extract_from_sync = JRadioButton("Peek at an encrypted file located in your Sync Folder...", False)
                 user_advanced_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
                 user_advanced_extract_from_sync.setForeground(getColorRed())
+                user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_shrink_dataset = JRadioButton("Shrink Dataset size", False)
                 user_advanced_shrink_dataset.setToolTipText("This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...")
                 user_advanced_shrink_dataset.setForeground(getColorRed())
+                user_advanced_shrink_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_import_to_storage = JRadioButton("Import a File back into LocalStorage", False)
                 user_advanced_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
                 user_advanced_import_to_storage.setForeground(getColorRed())
+                user_advanced_import_to_storage.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_save_trunk = JRadioButton("Save Trunk File (Flush all in-memory changes & dataset to disk)", False)
                 user_advanced_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart). UPDATES YOUR DATASET")
                 user_advanced_save_trunk.setForeground(getColorRed())
+                user_advanced_save_trunk.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_advanced_sync_push = JRadioButton("Force a refresh/PUSH of your local dataset to Sync.", False)
                 user_advanced_sync_push.setToolTipText("Push new Sync data (and rebuild remote copies). Use with care! UPDATES YOUR DATASET")
                 user_advanced_sync_push.setForeground(getColorRed())
+                user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_force_sync_off = JRadioButton("Force DISABLE/turn Sync OFF", False)
                 user_force_sync_off.setToolTipText("This sets your Sync method to None - all other settings are preserved. You can turn it back on again later - UPDATES YOUR DATASET")
                 user_force_sync_off.setForeground(getColorRed())
+                user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_force_reset_sync_settings = JRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False)
                 user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
                 user_force_reset_sync_settings.setForeground(getColorRed())
+                user_force_reset_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_restore_archive_retain_sync_settings = JRadioButton("Restore an archive file, and RETAIN Sync settings (USE WITH CARE, CAN CHANGE SYNC DATA)", False)
                 user_restore_archive_retain_sync_settings.setToolTipText("Restores a .moneydancearchive file, RETAINS Sync settings (but turns Sync off - you can then manually turn it back on again")
                 user_restore_archive_retain_sync_settings.setForeground(getColorRed())
+                user_restore_archive_retain_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
 
                 user_demote_primary_to_secondary = JRadioButton("DEMOTE Primary dataset back to a Secondary Node", False)
                 user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
-                user_demote_primary_to_secondary.setEnabled(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
+                user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
                 user_demote_primary_to_secondary.setForeground(getColorRed())
 
                 lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
                 user_advanced_suppress_dropbox_warning = JRadioButton("Suppress File in Dropbox Warning", False)
                 user_advanced_suppress_dropbox_warning.setToolTipText("This allows you to suppress the 'Your file seems to be in a shared folder (Dropbox)' warning")
-                user_advanced_suppress_dropbox_warning.setEnabled(lDropbox and not lSuppressed)
+                user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and lDropbox and not lSuppressed)
                 user_advanced_suppress_dropbox_warning.setForeground(getColorRed())
 
                 userFilters = JPanel(GridLayout(0, 1))
 
                 bg = ButtonGroup()
+                bg.add(user_ofx_features)
                 bg.add(user_advanced_toggle_DEBUG)
                 bg.add(user_advanced_toggle_other_DEBUGs)
                 bg.add(user_advanced_extract_from_storage)
@@ -23949,7 +23969,12 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_advanced_suppress_dropbox_warning)
                 bg.clearSelection()
 
-                userFilters.add(JLabel(" "))
+                if not GlobalVars.ADVANCED_MODE:
+                    jlbl = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
+                    jlbl.setForeground(getColorRed())
+                    userFilters.add(jlbl)
+                else:
+                    userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("--- READONLY / NON-UPDATE FUNCTIONS ---"))
                 userFilters.add(user_advanced_toggle_DEBUG)
                 userFilters.add(user_advanced_toggle_other_DEBUGs)
@@ -23957,6 +23982,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_advanced_extract_from_sync)
                 userFilters.add(JLabel(" "))
                 userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                userFilters.add(user_ofx_features)
                 userFilters.add(user_advanced_shrink_dataset)
                 userFilters.add(user_advanced_save_trunk)
                 userFilters.add(user_demote_primary_to_secondary)
@@ -23977,11 +24003,11 @@ Now you will have a text readable version of the file you can open in a text edi
                 while True:
 
                     lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
-                    user_advanced_suppress_dropbox_warning.setEnabled(lDropbox and not lSuppressed)
-                    user_demote_primary_to_secondary.setEnabled(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
-                    user_advanced_sync_push.setEnabled(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
-                    user_force_sync_off.setEnabled(not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE))
-                    user_advanced_extract_from_sync.setEnabled(MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None)
+                    user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and (lDropbox and not lSuppressed))
+                    user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+                    user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+                    user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
+                    user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None))
 
                     bg.clearSelection()
 
@@ -24364,14 +24390,14 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     GlobalVars.ADVANCED_MODE = not GlobalVars.ADVANCED_MODE
 
-                    components = self.displayPanel.getComponents()
-                    for theComponent in components:
-                        if isinstance(theComponent, JButton):
-                            # noinspection PyUnresolvedReferences
-                            buttonText = theComponent.getLabel().strip().upper()
-
-                            if ("ADVANCED" in buttonText):
-                                theComponent.setVisible(GlobalVars.ADVANCED_MODE)
+                    # components = self.displayPanel.getComponents()
+                    # for theComponent in components:
+                    #     if isinstance(theComponent, JButton):
+                    #         # noinspection PyUnresolvedReferences
+                    #         buttonText = theComponent.getLabel().strip().upper()
+                    #
+                    #         if ("ADVANCED" in buttonText):
+                    #             theComponent.setVisible(GlobalVars.ADVANCED_MODE)
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Update Mode":
@@ -24599,19 +24625,19 @@ Now you will have a text readable version of the file you can open in a text edi
             transactionMenu_button.addActionListener(self.TransactionMenuButtonAction())
             displayPanel.add(transactionMenu_button)
 
-            ExpertViewInternalSettings_button = JButton("<html><center>EXPERT: View<BR>Internal Settings</center></html>")
-            ExpertViewInternalSettings_button.setToolTipText("This allows you to display very Technical Information on the Moneydance System and many key objects..... READONLY")
-            ExpertViewInternalSettings_button.setBackground(Color.MAGENTA)
-            ExpertViewInternalSettings_button.setForeground(Color.WHITE)
-            ExpertViewInternalSettings_button.addActionListener(ExpertViewInternalSettingsButtonAction())
-            displayPanel.add(ExpertViewInternalSettings_button)
+            CuriousViewInternalSettings_button = JButton("<html><center>CURIOUS?<BR>View Internal Settings</center></html>")
+            CuriousViewInternalSettings_button.setToolTipText("This allows you to display very Technical Information on the Moneydance System and many key objects..... READONLY")
+            # CuriousViewInternalSettings_button.setBackground(Color.MAGENTA)
+            # CuriousViewInternalSettings_button.setForeground(Color.WHITE)
+            CuriousViewInternalSettings_button.addActionListener(CuriousViewInternalSettingsButtonAction())
+            displayPanel.add(CuriousViewInternalSettings_button)
 
             advancedMenu_button = JButton("<html><center><B>ADVANCED MODE</B></center></html>")
             advancedMenu_button.setToolTipText("Menu containing 'Advanced' Tools...")
             advancedMenu_button.addActionListener(self.AdvancedMenuButtonAction())
             advancedMenu_button.setBackground(Color.RED)
             advancedMenu_button.setForeground(Color.WHITE)
-            advancedMenu_button.setVisible(False)
+            # advancedMenu_button.setVisible(False)
             displayPanel.add(advancedMenu_button)
 
             components = displayPanel.getComponents()

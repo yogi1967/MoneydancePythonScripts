@@ -59,9 +59,9 @@ NOTE:
 """
 
 ################### `set these variables ##########################################
-lUsePassphrase = True
+lUsePassphrase = False
 myEncryptionPassphrase = u"secret"
-mdDataFolder = "/Users/Stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/TEST_HEADLESS_LAUNCH.moneydance"
+mdDataFolder = "/Users/stu/Downloads/jpype/moneydanceissue/Development.moneydance"
 MD_PATH = "../Moneydance_jars/"       # include moneydance.jar and mdpython.jar
 ################### `set these variables ##########################################
 
@@ -206,11 +206,48 @@ for security in securities:
     except:
         pass
 
+
+########################################################################################################################
+from com.infinitekind.moneydance.model import ParentTxn, SplitTxn
+from com.infinitekind.util import DateUtil
+
+accountBook = wrapper.getBook()
+root_account = accountBook.getRootAccount()
+account = root_account.getAccountByName('Transferwise')
+
+desc = "Test Txn - hello"
+checknumber = "1234"
+memo = "this is a memo"
+transdate = 20220203
+amount = -222
+rate = 1.0
+category = account.getDefaultCategory()
+
+new_txn = ParentTxn.makeParentTxn(accountBook, transdate, transdate, DateUtil.getUniqueCurrentTimeMillis(), checknumber,
+                                  account, desc, memo, -1, 30)
+txn_split = SplitTxn.makeSplitTxn(new_txn, amount, rate, category, memo, -1, 0)
+new_txn.addSplit(txn_split)
+
+print("------")
+print("TxnSet count before:", accountBook.getTransactionSet().getTransactionCount())
+new_txn.syncItem()
+print(new_txn.getSyncInfo().toMultilineHumanReadableString())
+print("------")
+print("Did I find txn in TxnSet?", new_txn in accountBook.getTransactionSet())
+print("TxnSet count after:", accountBook.getTransactionSet().getTransactionCount())
+print("------")
+########################################################################################################################
+
+
+
 print("Finished peeking at data....")
 # theMain.showURL("invokeAndQuitURI")
 
-print("Calling saveCurrentAccount()")
-mdMain.saveCurrentAccount()
+# print("Calling saveCurrentAccount()")
+# print(mdMain.saveCurrentAccount())
+
+print("Calling .save()")
+print(accountBook.save())
 
 # print("Calling shutdown()")
 # mdMain.shutdown()

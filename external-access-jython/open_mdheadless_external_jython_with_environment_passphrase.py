@@ -54,7 +54,7 @@ NOTE:
 """
 
 # ################## `set these default variables or use command line arguments ##########################################
-mdDataFolder = "/Users/Stu/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents/TEST_HEADLESS_LAUNCH.moneydance"
+mdDataFolder = "/Users/stu/Downloads/jpype/moneydanceissue/Development.moneydance"
 # ################## `set these variables ################################################################################
 
 import sys
@@ -99,7 +99,7 @@ print("Importing useful Moneydance Classes...")
 from com.infinitekind.moneydance.model import ParentTxn, CurrencyType, Account
 # from com.infinitekind.moneydance.model import AccountBook, Account, MoneydanceSyncableItem, TxnSet, TxnUtil, AbstractTxn, SplitTxn, CurrencySnapshot, CurrencyTable, CurrencyUtil
 
-print("Importing useful Java Classes...")
+print("Importing useful man Classes...")
 from java.io import File
 # from java.lang import System
 
@@ -170,6 +170,41 @@ for security in securities:
               .format(security.getName(), ticker, dateInt, price))
     except:
         pass
+
+
+########################################################################################################################
+from com.infinitekind.moneydance.model import ParentTxn, SplitTxn
+from com.moneydance.apps.md.controller import AccountBookWrapper
+from com.infinitekind.util import DateUtil
+
+accountBook = wrapper.getBook()
+root_account = accountBook.getRootAccount()
+account = root_account.getAccountByName('Transferwise')
+
+desc = "Test Txn - hello"
+checknumber = "1234"
+memo = "this is a memo"
+transdate = 20220203
+amount = -222
+rate = 1.0
+category = account.getDefaultCategory()
+
+new_txn = ParentTxn.makeParentTxn(accountBook, transdate, transdate, DateUtil.getUniqueCurrentTimeMillis(), checknumber,
+                                  account, desc, memo, -1, 30)
+txn_split = SplitTxn.makeSplitTxn(new_txn, amount, rate, category, memo, -1, 0)
+new_txn.addSplit(txn_split)
+
+print("------")
+print("TxnSet count before:", accountBook.getTransactionSet().getTransactionCount())
+new_txn.syncItem()
+print(new_txn.getSyncInfo().toMultilineHumanReadableString())
+print("------")
+print("Did I find txn in TxnSet?", new_txn in accountBook.getTransactionSet())
+print("TxnSet count after:", accountBook.getTransactionSet().getTransactionCount())
+print("------")
+########################################################################################################################
+
+
 
 
 # theMain.showURL("invokeAndQuitURI")

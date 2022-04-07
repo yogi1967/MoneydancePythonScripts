@@ -32,9 +32,9 @@
 
 # MD2021.2(3088): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
 #                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
-export md_passphrase=secret
-#unset md_passphrase
-#unset md_passphrase
+#export md_passphrase=secret
+unset md_passphrase
+unset md_passphrase
 #export md_passphrase_filename=secret
 
 
@@ -43,7 +43,7 @@ USE_JAVA17="YES"
 
 # set to "" for standard app install name (I add the version and build to the app name when installing).
 #md_version=""
-md_version=" 2022.2 (4060)"
+md_version=" 2022.3 (4069) ALPHA"
 
 # Edit the necessary install locations for JDK and JavaFX below
 
@@ -93,7 +93,7 @@ echo "My user path: ${my_user_path}"
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
 if [ "${USE_JAVA17}" = "YES" ]; then
   export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
-  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.1/lib"
+  javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.2/lib"
 else
   export JAVA_HOME="${my_user_path}/Library/Java/JavaVirtualMachines/adopt-openjdk-15.0.2/Contents/Home"
   javafx="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-15.0.1/lib"
@@ -103,7 +103,7 @@ export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
 
 jython=jython
-export JYTHON_HOME="${my_user_path}/jython2.7.2"
+export JYTHON_HOME="/Users/stu/.pyenv/versions/jython-2.7.2"
 #export JYTHONPATH=?
 
 modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
@@ -170,9 +170,9 @@ ${jython} \
   -J-Xmx2G \
   -J-Ddummyarg1=arg1 \
   -J-Ddummyarg2=arg2 \
-  $* &>"$console_file"
+  $*
 
-open "$console_file"
+#open "$console_file"
 
 echo "changing tabbing mode to fullscreen"
 defaults write -g AppleWindowTabbingMode -string fullscreen
