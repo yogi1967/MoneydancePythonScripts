@@ -592,7 +592,7 @@ else:
     from com.moneydance.apps.md.controller.sync import MDSyncCipher
     from com.moneydance.apps.md.controller import ModuleLoader, ModuleMetaData, LocalStorageCipher, Common, BalanceType
     from com.moneydance.apps.md.controller.io import FileUtils, AccountBookUtil
-    from java.awt import GraphicsEnvironment, Desktop, Event
+    from java.awt import GraphicsEnvironment, Desktop, Event, GridBagConstraints                                        # noqa
 
     from com.infinitekind.util import StreamTable, StreamVector, IOUtils, StringUtils, CustomDateFormat
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
@@ -657,7 +657,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4070                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4071                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -668,7 +668,7 @@ else:
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
-    # COMMON CODE ################# VERSION 106 ########################################################################
+    # COMMON CODE ################# VERSION 107 ########################################################################
     # COMMON CODE ######################################################################################################
     GlobalVars.i_am_an_extension_so_run_headless = False
     try:
@@ -24500,7 +24500,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
             class MyJButton(JButton):
                 def __init__(self, *args, **kwargs):
-                    self.btnSize = kwargs.pop("btnSize", Dimension(200,40))
+                    self.btnSize = Dimension(170,40)
+                    self.maxBtnSize = Dimension(170,80)
                     self.advancedCapable = kwargs.pop("advancedCapable", False)
                     self.updateCapable = kwargs.pop("updateCapable", False)
                     self.adhocButton = kwargs.pop("adhocButton", False)
@@ -24510,6 +24511,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     self.setBorderPainted(False)
                     self.setOpaque(True)
                     self.setMinimumSize(self.btnSize)
+                    self.setMaximumSize(self.maxBtnSize)
                     self.setPreferredSize(self.btnSize)
                     self.setColorsAndVisibility()
 
@@ -24637,7 +24639,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 GlobalVars.allButtonsList.append(fixTabbingMode_button)
 
             if MD_REF.getCurrentAccount().getBook().getLocalStorage().getStr("migrated.netsync.dropbox.fileid", None):
-                FixDropboxOneWaySync_button = MyJButton("<html><center>FIX: Remove Legacy Dropbox<BR>Migrated Sync Key</center></html>", adhocButton=True)
+                FixDropboxOneWaySync_button = MyJButton("<html><center>FIX: Remove Legacy<BR>Dropbox Sync Key</center></html>", adhocButton=True)
                 FixDropboxOneWaySync_button.setToolTipText("This removes the key 'migrated.netsync.dropbox.fileid' to fix Dropbox One-way & iCloud Syncing issues (reset_sync_and_dropbox_settings.py)")
                 FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button))
                 FixDropboxOneWaySync_button.setVisible(False)
@@ -24661,7 +24663,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     onRow += 1
                 btn = GlobalVars.allButtonsList[iButton]
                 colInsetFiller = 5 if onCol >= 4 else 0
-                mainPnl.add(btn, GridC.getc(onCol, onRow).leftInset(colLeftInset).rightInset(colInsetFiller).topInset(topInset).fillboth().pady(ipady))
+                mainPnl.add(btn, GridC.getc(onCol, onRow).wx(0.1).wy(2.0).leftInset(colLeftInset).rightInset(colInsetFiller).topInset(topInset).filly())
                 onCol += 1
 
             # ----------------------------------------------------------------------------------------------------------
@@ -24699,7 +24701,7 @@ Now you will have a text readable version of the file you can open in a text edi
             onCol = 0
             onRow += 1
             colSpan = 6
-            mainPnl.add(self.myScrollPane, GridC.getc(onCol, onRow).fillboth().colspan(colSpan).wx(1.0).wy(1.0))
+            mainPnl.add(self.myScrollPane, GridC.getc(onCol, onRow).fillboth().colspan(colSpan).wx(1.0).wy(99.0))
 
             keyToUse = shortcut
             if Platform.isWindows():
@@ -24860,7 +24862,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             # toolbox_frame_.add(mainPnl)
             toolbox_frame_.getContentPane().setLayout(BorderLayout())
-            toolbox_frame_.getContentPane().add(mainPnl, BorderLayout.CENTER);
+            toolbox_frame_.getContentPane().add(mainPnl, BorderLayout.CENTER)
 
             toolbox_frame_.pack()
             toolbox_frame_.setLocationRelativeTo(None)
