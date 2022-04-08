@@ -29,6 +29,14 @@ if [ "$1" = "" ]; then
   exit 1
 fi
 
+if [ "$2" = "push" ]; then
+  PUSHME="YES"
+  echo "@@@ Will push to fmodules folder"
+else
+  PUSHME="NO"
+  echo "@@@ NO PUSH TO fmodules folder [default]"
+fi
+
 if ! test -f "./build/extension-build.sh"; then
   echo "@@ PLEASE RUN FROM THE PROJECT's ROOT directory! @@"
   exit 1
@@ -541,4 +549,14 @@ if [ "${EXTN_NAME}" = "useful_scripts" ]; then
     read -p "Press any key to continue..."
   fi
 
+fi
+
+if [ "${PUSHME}" = "YES" ]; then
+  echo "@@ Pushing MXT over to fmodules directory..."
+  my_user_path=~
+  cp "${MXT}" "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/fmodules"
+  if [ $? -ne 0 ]; then
+    echo ">> ERROR Pushing MXT to fmodules folder!"
+    exit 40
+  fi
 fi

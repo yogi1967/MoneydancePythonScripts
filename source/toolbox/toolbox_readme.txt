@@ -167,7 +167,7 @@ Menu - CURIOUS? VIEW INTERNAL SETTINGS (Read-Only - very safe)
 
 ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
     All basic mode settings plus:
-    - These first four buttons will appear only if they are necessary / possible in your system
+    - These four buttons will only appear if they are necessary / possible in your system, on the last button row
         - FIX - Make me a Primary Dataset (convert from Secondary dataset to enable Sync) (convert_secondary_to_primary_data_set.py)
         - FIX - Create Dropbox Sync Folder (creates the missing .moneydancesync folder if missing from Dropbox)
         - FIX - Check / fix MacOS Tabbing Mode on Big Sur (when set to always). It will allow you to change it to fullscreen or manual/never.

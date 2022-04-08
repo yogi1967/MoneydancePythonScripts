@@ -264,7 +264,7 @@
 # build: 1047 - Eliminated common code globals :->
 # build: 1047 - Move/Merge investment txns disabled and now called via Extensions Menu directly...
 # build: 1047 - Rename Expert: View internal settings - to Curious? View internal settings; Now not Magenta, just normal colour
-# build: 1047 - Make Advanced Mode Button always there, just with options disabled...
+# build: 1047 - Make Advanced Mode Button always there, just with options disabled...; switch to GridBagLayout for a slicker display
 
 
 # todo - I don't think that show_open_share_lots() works properly - also dpc.....
@@ -636,6 +636,7 @@ else:
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
     global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MDPLUS_BUILD
 
+    GlobalVars.allButtonsList = []
     GlobalVars.TOOLBOX_UNLOCK = False
     GlobalVars.SCRIPT_RUNNING_LOCK = threading.Lock()
 
@@ -656,7 +657,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4069                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4070                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -1717,7 +1718,8 @@ Visit: %s (Author's site)
 
         if GlobalVars.STATUS_LABEL is None or not isinstance(GlobalVars.STATUS_LABEL, JLabel): return
 
-        GlobalVars.STATUS_LABEL.setText((_theStatus).ljust(800, " "))
+        # GlobalVars.STATUS_LABEL.setText((_theStatus).ljust(800, " "))
+        GlobalVars.STATUS_LABEL.setText((_theStatus))
 
         if _theColor is None or _theColor == "": _theColor = "X"
         _theColor = _theColor.upper()
@@ -22169,20 +22171,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 theList.append([k,v])
         return theList
 
-    class MyJPanel(JPanel):
-
-        def __init__(self, layout, panel_name):
-            self.panel_name = panel_name
-            super(JPanel, self).__init__(layout)                                                                        # noqa
-
-        def updateUI(self):
-            myPrint("DB", "In %s.%s() - JPanel: '%s'" %(self, inspect.currentframe().f_code.co_name, self.panel_name))
-            super(MyJPanel, self).updateUI()                                                                            # noqa
-            # Here I should call .setBackground() and .setForeground() with updated MD Colors....
-            # But I have not done so yet.... For now, just restart the Extension/MD to refresh after Theme change...
-            # self.setBackground(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.defaultBackground)
-            # self.setForeground(NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().colors.defaultTextForeground)
-
     class DiagnosticDisplay():
 
         def __init__(self):
@@ -24377,7 +24365,6 @@ Now you will have a text readable version of the file you can open in a text edi
                                 setDisplayStatus(txt, "R")
 
                                 event.getSource().setSelected(False)
-
                                 return
 
                             myPrint("B","@@ ADVANCED MODE ENABLED. config.dict and safe/settings have been backed up...! @@")
@@ -24390,17 +24377,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         myPrint("B",txt)
 
                     GlobalVars.ADVANCED_MODE = not GlobalVars.ADVANCED_MODE
-
-                    components = self.displayPanel.getComponents()
-                    for theComponent in components:
-                        if isinstance(theComponent, JButton):
-                            # noinspection PyUnresolvedReferences
-                            buttonText = theComponent.getLabel().strip().upper()
-                            if ("ADVANCED" in buttonText):
-                                # theComponent.setVisible(GlobalVars.ADVANCED_MODE)
-                                theComponent.setText("<html><center><B>ADVANCED MODE</B></center></html>" if (GlobalVars.ADVANCED_MODE) else "<html><center>ADVANCED MODE</center></html>")
-                                theComponent.setForeground(Color.WHITE if (GlobalVars.ADVANCED_MODE) else MD_REF.getUI().getColors().defaultTextForeground)
-                                theComponent.setBackground(Color.RED if (GlobalVars.ADVANCED_MODE) else Color.LIGHT_GRAY)
+                    for btn in GlobalVars.allButtonsList: btn.setColorsAndVisibility()
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Update Mode":
@@ -24415,10 +24392,9 @@ Now you will have a text readable version of the file you can open in a text edi
                         backup = BackupButtonAction("Would you like to create a backup before enabling UPDATE mode?")
                         backup.actionPerformed(None)
 
-                        txt = "UPDATE MODE ENABLED - RED BUTTONS CAN CHANGE YOUR DATA - %s+I for Help" %(MD_REF.getUI().ACCELERATOR_MASK_STR)
+                        txt = "UPDATE MODE ENABLED - RED BUTTONS CAN CHANGE YOUR DATA (%s+I for Help)" %(MD_REF.getUI().ACCELERATOR_MASK_STR)
                         setDisplayStatus(txt, "R")
 
-                        newMenuColor = getColorRed()
                         GlobalVars.UPDATE_MODE = True
 
                     else:
@@ -24426,28 +24402,12 @@ Now you will have a text readable version of the file you can open in a text edi
                         txt = "BASIC MODE IN OPERATION (Update mode NOT enabled)"
                         setDisplayStatus(txt, "DG")
 
-                        newMenuColor = MD_REF.getUI().getColors().defaultTextForeground
                         GlobalVars.UPDATE_MODE = False
 
                     event.getSource().setSelected(GlobalVars.UPDATE_MODE)
 
-                    components = self.displayPanel.getComponents()
-                    for theComponent in components:
-                        if isinstance(theComponent, JButton):
-                            # noinspection PyUnresolvedReferences
-                            buttonText = theComponent.getLabel().strip().upper()
+                    for btn in GlobalVars.allButtonsList: btn.setColorsAndVisibility()
 
-                            if  "ADVANCED" in buttonText:
-                                pass
-                            elif("FIX" in buttonText
-                                  or "FONTS" in buttonText
-                                  or "RESET" in buttonText
-                                  or "DELETE" in buttonText
-                                  or "FORGET" in buttonText):
-                                theComponent.setVisible(GlobalVars.UPDATE_MODE)
-
-                            if "MENU:".upper() in buttonText.upper():
-                                theComponent.setForeground(newMenuColor)
 
                 # Save parameters now...
                 if (event.getActionCommand() == "Copy all Output to Clipboard"
@@ -24472,12 +24432,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
             screenSize = Toolkit.getDefaultToolkit().getScreenSize()
 
-            button_width = 230
-            button_height = 40
-
-            frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.95,0))))
-            frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.95,0))))
-
             # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
             toolbox_frame_ = MyJFrame(u"Toolbox - Infinite Kind (co-authored by StuWareSoftSystems)... (%s+I for Help) - DATASET: %s" % (MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
             toolbox_frame_.setName(u"%s_main" %myModuleID)
@@ -24490,9 +24444,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
             displayString = buildDiagText()
 
-            GlobalVars.STATUS_LABEL = JLabel(("Infinite Kind (Moneydance) support tool >> DIAG STATUS: BASIC MODE RUNNING... - %s+I for Help (check out the Toolbox menu for more options/modes/features)"%MD_REF.getUI().ACCELERATOR_MASK_STR).ljust(800, " "), JLabel.LEFT)
-            # GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).headerBorder, 2))
+            GlobalVars.STATUS_LABEL = JLabel("Infinite Kind (Moneydance) support tool >> DIAG STATUS: BASIC MODE RUNNING...", JLabel.LEFT)
             GlobalVars.STATUS_LABEL.setForeground(GlobalVars.DARK_GREEN)
+            GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).headerBorder, 2))
 
             try:
                 if lCopyAllToClipBoard_TB:
@@ -24522,163 +24476,230 @@ Now you will have a text readable version of the file you can open in a text edi
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, shortcut), "display-help")
             toolbox_frame_.getRootPane().getActionMap().put("display-help", ViewFileButtonAction("display_help()", "HELP DOCUMENTATION", lFile=False))
 
+            frame_width = min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.95,0))))
+            frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.95,0))))
+
             toolbox_frame_.setPreferredSize(Dimension(frame_width, frame_height))
 
             # if MD_REF.getUI().firstMainFrame.getExtendedState() != JFrame.ICONIFIED:
             #     toolbox_frame_.setExtendedState(MD_REF.getUI().firstMainFrame.getExtendedState())
             # else:
             #     toolbox_frame_.setExtendedState(JFrame.MAXIMIZED_BOTH)
-            #
+
             toolbox_frame_.setExtendedState(JFrame.NORMAL)
 
-            displayPanel = JPanel()
-            displayPanel.setLayout(FlowLayout(FlowLayout.LEFT))
-
-            # displayPanel.setPreferredSize(Dimension(frame_width - 30, 180))
-            displayPanel.setPreferredSize(Dimension(0, 180))
+            mainPnl = JPanel(GridBagLayout())
 
             if lAutoPruneInternalBackups_TB:
                 prune_internal_backups(lStartup=True)
             else:
                 myPrint("J","Auto-prune of internal backups of config.dict, custom_theme.properties, ./safe/settings files is disabled... so no action")
 
+            # --------------------------------------------------------------------------------------------------
             # START OF BUTTONS
-            backup_button = JButton("<html><center><B>CREATE BACKUP</B></center></html>")
+
+            class MyJButton(JButton):
+                def __init__(self, *args, **kwargs):
+                    self.btnSize = kwargs.pop("btnSize", Dimension(200,40))
+                    self.advancedCapable = kwargs.pop("advancedCapable", False)
+                    self.updateCapable = kwargs.pop("updateCapable", False)
+                    self.adhocButton = kwargs.pop("adhocButton", False)
+                    self.backupButton = kwargs.pop("backupButton", False)
+
+                    super(JButton, self).__init__(*args)
+                    self.setBorderPainted(False)
+                    self.setOpaque(True)
+                    self.setMinimumSize(self.btnSize)
+                    self.setPreferredSize(self.btnSize)
+                    self.setColorsAndVisibility()
+
+                def setColorsAndVisibility(self):
+
+                    if self.isBackupButton():
+                        self.setForeground(Color.WHITE)
+                        self.setBackground(GlobalVars.DARK_GREEN)
+                        self.setFont(self.getFont().deriveFont(Font.BOLD))
+                        return
+
+                    if self.isAdhocButton():
+                        self.setForeground(Color.WHITE)
+                        self.setBackground(Color.ORANGE)
+                        self.setFont(self.getFont().deriveFont(Font.BOLD))
+                        self.setVisible(GlobalVars.UPDATE_MODE)
+                        return
+
+                    if self.isAdvancedCapable() and GlobalVars.ADVANCED_MODE and not self.isUpdateCapable():
+                        self.setForeground(Color.WHITE)
+                        self.setBackground(Color.RED)
+                        self.setFont(self.getFont().deriveFont(Font.BOLD))
+                        return
+
+                    if ((self.isUpdateCapable() and GlobalVars.UPDATE_MODE)
+                            or (self.isAdvancedCapable() and GlobalVars.ADVANCED_MODE)):
+                        self.setForeground(getColorRed())
+                    else:
+                        self.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
+
+                    self.setFont(self.getFont().deriveFont(Font.PLAIN))
+                    self.setBackground(Color.LIGHT_GRAY)
+
+
+                def isBackupButton(self): return self.backupButton
+                def isAdhocButton(self): return self.adhocButton
+                def isAdvancedCapable(self): return self.advancedCapable
+                def isUpdateCapable(self): return self.updateCapable
+
+                def updateUI(self):
+                    super(MyJButton, self).updateUI()
+
+                def getPreferredSize(self):
+                    return self.btnSize
+
+
+            backup_button = MyJButton("<html><center>CREATE BACKUP</center></html>", backupButton=True)
             backup_button.setToolTipText("This will allow you to take a backup of your Moneydance Dataset")
-            backup_button.setBackground(GlobalVars.DARK_GREEN)
-            backup_button.setForeground(Color.WHITE)
             backup_button.addActionListener(BackupButtonAction("Confirm you want to create a backup (same as MD Menu>File>Export Backup)?"))
-            displayPanel.add(backup_button)
+            GlobalVars.allButtonsList.append(backup_button)
+
+            analiseDatasetSize_button = MyJButton("<html><center>Analyse Dataset<BR>Objs, Size & Files</center></html>")
+            analiseDatasetSize_button.setToolTipText("This quickly analyse the contents of your dataset and show you your Object counts, file sizes, what's taking space, and non-valid files...(show_object_type_quantities.py)")
+            analiseDatasetSize_button.addActionListener(self.AnalyseDatasetSizeButtonAction())
+            GlobalVars.allButtonsList.append(analiseDatasetSize_button)
+
+            findDataset_button = MyJButton("<html><center>Find My Dataset(s)<BR>and Backups</center></html>")
+            findDataset_button.setToolTipText("This will search your hard disk for copies of your Moneydance Dataset(s) - incl Backups.... NOTE: Can be CPU & time intensive..!")
+            findDataset_button.addActionListener(self.FindDatasetButtonAction())
+            GlobalVars.allButtonsList.append(findDataset_button)
+
+            generalToolsMenu_button = MyJButton("<html><center>MENU: General<BR>tools</center></html>", updateCapable=True)
+            generalToolsMenu_button.setToolTipText("Menu containing a variety of general Diagnostics, Fixes and Tools...")
+            generalToolsMenu_button.addActionListener(self.GeneralToolsMenuButtonAction())
+            GlobalVars.allButtonsList.append(generalToolsMenu_button)
+
+            onlineBankingTools_button = MyJButton("<html><center>MENU: Online Banking<BR>(OFX) Tools</center></html>", updateCapable=True, advancedCapable=True)
+            onlineBankingTools_button.setToolTipText("A selection of tools for Online Banking - SOME OPTIONS CAN CHANGE DATA!")
+            onlineBankingTools_button.addActionListener(self.OnlineBankingToolsButtonAction())
+            GlobalVars.allButtonsList.append(onlineBankingTools_button)
+
+            # ----------------------------------------------------------------------------------------------------------
+
+            currencySecurityMenu_button = MyJButton("<html><center>MENU: Currency<BR>& Security tools</center></html>", updateCapable=True)
+            currencySecurityMenu_button.setToolTipText("Menu containing Currency/Security Diagnostics, Fixes and Tools...")
+            currencySecurityMenu_button.addActionListener(self.CurrencySecurityMenuButtonAction())
+            GlobalVars.allButtonsList.append(currencySecurityMenu_button)
+
+            accountsCategoryMenu_button = MyJButton("<html><center>MENU: Accounts<BR>& Categories tools</center></html>", updateCapable=True)
+            accountsCategoryMenu_button.setToolTipText("Menu containing Account and Category Diagnostics, Fixes and Tools...")
+            accountsCategoryMenu_button.addActionListener(self.AccountsCategoriesMenuButtonAction())
+            GlobalVars.allButtonsList.append(accountsCategoryMenu_button)
+
+            transactionMenu_button = MyJButton("<html><center>MENU: Transactions<BR>tools</center></html>", updateCapable=True)
+            transactionMenu_button.setToolTipText("Menu containing Transactional Diagnostics, Fixes and Tools...")
+            transactionMenu_button.addActionListener(self.TransactionMenuButtonAction())
+            GlobalVars.allButtonsList.append(transactionMenu_button)
+
+            CuriousViewInternalSettings_button = MyJButton("<html><center>CURIOUS?<BR>View Internal Settings</center></html>")
+            CuriousViewInternalSettings_button.setToolTipText("This allows you to display very Technical Information on the Moneydance System and many key objects..... READONLY")
+            CuriousViewInternalSettings_button.addActionListener(CuriousViewInternalSettingsButtonAction())
+            GlobalVars.allButtonsList.append(CuriousViewInternalSettings_button)
+
+            advancedMenu_button = MyJButton("<html><center>ADVANCED MODE</center></html>", advancedCapable=True)
+            advancedMenu_button.setToolTipText("Menu containing 'Advanced' Tools...")
+            advancedMenu_button.addActionListener(self.AdvancedMenuButtonAction())
+            GlobalVars.allButtonsList.append(advancedMenu_button)
+
+            # ----------------------------------------------------------------------------------------------------------
 
             # These are instant fix buttons
             if (not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()):
-                convertSecondary_button = JButton("<html><center><B>FIX: Make me a<BR>Primary dataset</B></center></html>")
+                convertSecondary_button = MyJButton("<html><center>FIX: Make me a<BR>Primary dataset</center></html>", adhocButton=True)
                 convertSecondary_button.setToolTipText("Promotes this Dataset a Primary / Master Dataset. Enables Sync options. (typically after restore from a synchronised secondary dataset/backup). THIS CHANGES DATA!")
-                convertSecondary_button.setBackground(Color.ORANGE)
-                convertSecondary_button.setForeground(Color.WHITE)
                 convertSecondary_button.addActionListener(self.ConvertSecondaryButtonAction(displayString))
                 convertSecondary_button.setVisible(False)
-                displayPanel.add(convertSecondary_button)
+                GlobalVars.allButtonsList.append(convertSecondary_button)
 
             if (not check_for_dropbox_folder()):
-                createMoneydanceSyncFolder_button = JButton("<html><center><B>FIX: Create Dropbox<BR>Sync Folder</B></center></html>")
+                createMoneydanceSyncFolder_button = MyJButton("<html><center>FIX: Create Dropbox<BR>Sync Folder</center></html>", adhocButton=True)
                 createMoneydanceSyncFolder_button.setToolTipText("This will allow you to add the missing .moneydancesync folder in Dropbox. THIS CREATES A FOLDER!")
-                createMoneydanceSyncFolder_button.setBackground(Color.ORANGE)
-                createMoneydanceSyncFolder_button.setForeground(Color.WHITE)
                 createMoneydanceSyncFolder_button.addActionListener(self.MakeDropBoxSyncFolder(createMoneydanceSyncFolder_button))
                 createMoneydanceSyncFolder_button.setVisible(False)
-                displayPanel.add(createMoneydanceSyncFolder_button)
+                GlobalVars.allButtonsList.append(createMoneydanceSyncFolder_button)
 
             lTabbingModeNeedsChanging = False
             if (Platform.isOSX() and Platform.isOSXVersionAtLeast("10.16")
                     and int(MD_REF.getBuild()) < 3065
                     and not DetectAndChangeMacTabbingMode(True).actionPerformed("quick check")):
                 lTabbingModeNeedsChanging = True
-                fixTabbingMode_button = JButton("<html><center><B>FIX: MacOS<BR>Tabbing Mode</B></center></html>")
+                fixTabbingMode_button = MyJButton("<html><center>FIX: MacOS<BR>Tabbing Mode</center></html>", adhocButton=True)
                 fixTabbingMode_button.setToolTipText("This allows you to check/fix your MacOS Tabbing Setting")
-                fixTabbingMode_button.setBackground(Color.ORANGE)
-                fixTabbingMode_button.setForeground(Color.WHITE)
                 fixTabbingMode_button.addActionListener(DetectAndChangeMacTabbingMode(False))
                 fixTabbingMode_button.setVisible(False)
-                displayPanel.add(fixTabbingMode_button)
+                GlobalVars.allButtonsList.append(fixTabbingMode_button)
 
             if MD_REF.getCurrentAccount().getBook().getLocalStorage().getStr("migrated.netsync.dropbox.fileid", None):
-                FixDropboxOneWaySync_button = JButton("<html><center><B>FIX: Remove Legacy Dropbox<BR>Migrated Sync Key</B></center></html>")
+                FixDropboxOneWaySync_button = MyJButton("<html><center>FIX: Remove Legacy Dropbox<BR>Migrated Sync Key</center></html>", adhocButton=True)
                 FixDropboxOneWaySync_button.setToolTipText("This removes the key 'migrated.netsync.dropbox.fileid' to fix Dropbox One-way & iCloud Syncing issues (reset_sync_and_dropbox_settings.py)")
-                FixDropboxOneWaySync_button.setBackground(Color.ORANGE)
-                FixDropboxOneWaySync_button.setForeground(Color.WHITE)
                 FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button))
                 FixDropboxOneWaySync_button.setVisible(False)
-                displayPanel.add(FixDropboxOneWaySync_button)
+                GlobalVars.allButtonsList.append(FixDropboxOneWaySync_button)
 
             # end of instant fix buttons
+            # ----------------------------------------------------------------------------------------------------------
 
-            analiseDatasetSize_button = JButton("<html><center>Analyse Dataset<BR>Objs, Size & Files</center></html>")
-            analiseDatasetSize_button.setToolTipText("This quickly analyse the contents of your dataset and show you your Object counts, file sizes, what's taking space, and non-valid files...(show_object_type_quantities.py)")
-            analiseDatasetSize_button.addActionListener(self.AnalyseDatasetSizeButtonAction())
-            displayPanel.add(analiseDatasetSize_button)
+            ipady = 0                                                                                                   # noqa
+            ipadx = 0                                                                                                   # noqa
+            topInset = 5                                                                                                # noqa
+            colLeftInset = 5                                                                                            # noqa
+            colRightInset = 5                                                                                           # noqa
+            colInsetFiller = 0                                                                                          # noqa
 
-            findDataset_button = JButton("<html><center>Find My Dataset(s)<BR>and Backups</center></html>")
-            findDataset_button.setToolTipText("This will search your hard disk for copies of your Moneydance Dataset(s) - incl Backups.... NOTE: Can be CPU & time intensive..!")
-            findDataset_button.addActionListener(self.FindDatasetButtonAction())
-            displayPanel.add(findDataset_button)
+            onCol = 0
+            onRow = 0
+            for iButton in range(0,len(GlobalVars.allButtonsList)):
+                if onCol >= 5:
+                    onCol = 0
+                    onRow += 1
+                btn = GlobalVars.allButtonsList[iButton]
+                colInsetFiller = 5 if onCol >= 4 else 0
+                mainPnl.add(btn, GridC.getc(onCol, onRow).leftInset(colLeftInset).rightInset(colInsetFiller).topInset(topInset).fillboth().pady(ipady))
+                onCol += 1
 
-            generalToolsMenu_button = JButton("<html><center>MENU: General<BR>tools</center></html>")
-            generalToolsMenu_button.setToolTipText("Menu containing a variety of general Diagnostics, Fixes and Tools...")
-            generalToolsMenu_button.addActionListener(self.GeneralToolsMenuButtonAction())
-            displayPanel.add(generalToolsMenu_button)
+            # ----------------------------------------------------------------------------------------------------------
 
-            onlineBankingTools_button = JButton("<html><center>MENU: Online Banking<BR>(OFX) Tools</center></html>")
-            onlineBankingTools_button.setToolTipText("A selection of tools for Online Banking - SOME OPTIONS CAN CHANGE DATA!")
-            onlineBankingTools_button.addActionListener(self.OnlineBankingToolsButtonAction())
-            displayPanel.add(onlineBankingTools_button)
-
-            currencySecurityMenu_button = JButton("<html><center>MENU: Currency<BR>& Security tools</center></html>")
-            currencySecurityMenu_button.setToolTipText("Menu containing Currency/Security Diagnostics, Fixes and Tools...")
-            currencySecurityMenu_button.addActionListener(self.CurrencySecurityMenuButtonAction())
-            displayPanel.add(currencySecurityMenu_button)
-
-            accountsCategoryMenu_button = JButton("<html><center>MENU: Accounts<BR>& Categories tools</center></html>")
-            accountsCategoryMenu_button.setToolTipText("Menu containing Account and Category Diagnostics, Fixes and Tools...")
-            accountsCategoryMenu_button.addActionListener(self.AccountsCategoriesMenuButtonAction())
-            displayPanel.add(accountsCategoryMenu_button)
-
-            transactionMenu_button = JButton("<html><center>MENU: Transactions<BR>tools</center></html>")
-            transactionMenu_button.setToolTipText("Menu containing Transactional Diagnostics, Fixes and Tools...")
-            transactionMenu_button.addActionListener(self.TransactionMenuButtonAction())
-            displayPanel.add(transactionMenu_button)
-
-            CuriousViewInternalSettings_button = JButton("<html><center>CURIOUS?<BR>View Internal Settings</center></html>")
-            CuriousViewInternalSettings_button.setToolTipText("This allows you to display very Technical Information on the Moneydance System and many key objects..... READONLY")
-            # CuriousViewInternalSettings_button.setBackground(Color.MAGENTA)
-            # CuriousViewInternalSettings_button.setForeground(Color.WHITE)
-            CuriousViewInternalSettings_button.addActionListener(CuriousViewInternalSettingsButtonAction())
-            displayPanel.add(CuriousViewInternalSettings_button)
-
-            advancedMenu_button = JButton("<html><center>ADVANCED MODE</center></html>")
-            advancedMenu_button.setToolTipText("Menu containing 'Advanced' Tools...")
-            advancedMenu_button.addActionListener(self.AdvancedMenuButtonAction())
-            # advancedMenu_button.setBackground(Color.RED)
-            # advancedMenu_button.setForeground(Color.WHITE)
-            # advancedMenu_button.setVisible(False)
-            displayPanel.add(advancedMenu_button)
-
-            components = displayPanel.getComponents()
-            for theComponent in components:
-                if isinstance(theComponent, JButton):
-                    theComponent.setPreferredSize(Dimension(button_width, button_height))
-                    theComponent.setBorderPainted(False)
-                    theComponent.setOpaque(True)
-                    if not (theComponent.getBackground() == Color.MAGENTA
-                        or theComponent.getBackground() == Color.RED
-                            or theComponent.getBackground() == Color.ORANGE
-                                or theComponent.getBackground() == GlobalVars.DARK_GREEN):
-                        theComponent.setBackground(Color.LIGHT_GRAY)
+            onCol = 0
+            onRow += 1
 
             myDiagText = JTextArea(displayString)
             myDiagText.setEditable(False)
             myDiagText.setLineWrap(True)
             myDiagText.setWrapStyleWord(True)
-            myDiagText.setFont( getMonoFont() )
+            myDiagText.setFont(getMonoFont())
 
             mySearchAction = SearchAction(toolbox_frame_,myDiagText)
             toolbox_frame_.getRootPane().getActionMap().put("search-window", mySearchAction)
 
-            jSep = JSeparator()
-            jSep.setPreferredSize(Dimension(frame_width-30,3))
-            displayPanel.add(jSep)
-            displayPanel.add(GlobalVars.STATUS_LABEL)
+            topInset = 5
+            botInset = 5
+            ipady = 15
+            ipadx = 5
+            colSpan = 5
+            colInsetFiller = 5
+
+            mainPnl.add(GlobalVars.STATUS_LABEL,
+                                     GridC.getc(onCol, onRow).pady(ipady).padx(ipadx).leftInset(colLeftInset).rightInset(colInsetFiller).fillx().colspan(colSpan).topInset(topInset).bottomInset(botInset))
+            # ----------------------------------------------------------------------------------------------------------
 
             self.myScrollPane = JScrollPane(myDiagText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-            # self.myScrollPane.setPreferredSize(Dimension(frame_width - 30, frame_height - displayPanel.getPreferredSize().height))
+            # self.myScrollPane.setPreferredSize(Dimension(frame_width - 30, frame_height - mainPnl.getPreferredSize().height))
             self.myScrollPane.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).mainPanelBorderColor, 1))
             self.myScrollPane.setViewportBorder(EmptyBorder(1, 5, 5, 5))
             self.myScrollPane.setOpaque(False)
             self.myScrollPane.setWheelScrollingEnabled(True)
 
-            mainPnl = MyJPanel(BorderLayout(), "%s: MyJPanel(): Main GUI Parent JPanel" %(myModuleID))
-            mainPnl.add(displayPanel, BorderLayout.NORTH)
-            mainPnl.add(self.myScrollPane, BorderLayout.CENTER)
+            onCol = 0
+            onRow += 1
+            colSpan = 6
+            mainPnl.add(self.myScrollPane, GridC.getc(onCol, onRow).fillboth().colspan(colSpan).wx(1.0).wy(1.0))
 
             keyToUse = shortcut
             if Platform.isWindows():
@@ -24704,7 +24725,7 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItem0 = JCheckBoxMenuItem("Update Mode")
             menuItem0.setMnemonic(KeyEvent.VK_U)
             menuItem0.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, keyToUse))
-            menuItem0.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItem0.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItem0.setToolTipText("Enables UPDATE (Fix Mode) >> can update data/settings...")
             menuItem0.setSelected(False)
             menu1.add(menuItem0)
@@ -24712,7 +24733,7 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemA = JCheckBoxMenuItem("Advanced Mode")      # (Previously Hacker mode)
             menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, (keyToUse | Event.SHIFT_MASK)))
-            menuItemA.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItemA.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemA.setToolTipText("Enables 'ADVANCED' Mode - Do not do this unless you know what you are doing... Allows you to update data!")
             menuItemA.setSelected(False)
             menu1.add(menuItemA)
@@ -24720,21 +24741,21 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemC = JCheckBoxMenuItem("Copy all Output to Clipboard")
             menuItemC.setMnemonic(KeyEvent.VK_O)  # Can't think of a spare letter to use!!!!
             menuItemC.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, keyToUse))
-            menuItemC.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItemC.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemC.setToolTipText("When selected copies the output of all displays to Clipboard")
             menuItemC.setSelected(lCopyAllToClipBoard_TB)
             menu1.add(menuItemC)
 
             menuItemD = JCheckBoxMenuItem("Debug")
             menuItemD.setMnemonic(KeyEvent.VK_D)
-            menuItemD.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItemD.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemD.setToolTipText("Enables script to output debug information - technical stuff - readonly")
             menuItemD.setSelected(debug)
             menu1.add(menuItemD)
 
             menuItemP = JCheckBoxMenuItem("Auto Prune Internal Backups")
             menuItemP.setMnemonic(KeyEvent.VK_B)
-            menuItemP.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItemP.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemP.setToolTipText("Enables auto pruning of the internal backups that Toolbox makes of config.dict, custom_theme.properties, and ./safe/settings")
             menuItemP.setSelected(lAutoPruneInternalBackups_TB)
             menu1.add(menuItemP)
@@ -24749,7 +24770,7 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemPS = JMenuItem("Page Setup")
             menuItemPS.setMnemonic(KeyEvent.VK_P)
             menuItemPS.setToolTipText("Printer Page Setup")
-            menuItemPS.addActionListener(self.DoTheMenu(displayPanel, menu1, self))
+            menuItemPS.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemPS.setEnabled(True)
             menu1.add(menuItemPS)
 
@@ -24762,7 +24783,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             mb.add(menu1)
 
-            menuH = JMenu("<html><B>HELP</b></html>")
+            menuH = JMenu("<html><B>Help/About</b></html>")
             # menuH = JMenu("HELP")
             menuH.setMnemonic(KeyEvent.VK_I)
             menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
@@ -24771,20 +24792,20 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemH.setMnemonic(KeyEvent.VK_I)
             menuItemH.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I, keyToUse))
             menuItemH.setToolTipText("Display Help")
-            menuItemH.addActionListener(self.DoTheMenu(displayPanel, menuH, self))
+            menuItemH.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
             menuItemH.setEnabled(True)
             menuH.add(menuItemH)
 
             menuItemA = JMenuItem("About Toolbox")
             menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setToolTipText("About...")
-            menuItemA.addActionListener(self.DoTheMenu(displayPanel, menuH, self))
+            menuItemA.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
             menuItemA.setEnabled(True)
             menuH.add(menuItemA)
 
             menuItemAMD = JMenuItem("About Moneydance")
             menuItemAMD.setToolTipText("About...")
-            menuItemAMD.addActionListener(self.DoTheMenu(displayPanel, menuH, self))
+            menuItemAMD.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
             menuItemAMD.setEnabled(True)
             menuH.add(menuItemAMD)
 
@@ -24837,9 +24858,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
             toolbox_frame_.setJMenuBar(mb)
 
-            # toolbox_frame_.add(displayPanel)
+            # toolbox_frame_.add(mainPnl)
             toolbox_frame_.getContentPane().setLayout(BorderLayout())
-            toolbox_frame_.getContentPane().add(mainPnl, BorderLayout.CENTER)
+            toolbox_frame_.getContentPane().add(mainPnl, BorderLayout.CENTER);
 
             toolbox_frame_.pack()
             toolbox_frame_.setLocationRelativeTo(None)
