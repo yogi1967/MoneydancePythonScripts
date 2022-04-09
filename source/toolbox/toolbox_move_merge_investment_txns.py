@@ -3115,7 +3115,7 @@ Visit: %s (Author's site)
                     filterPanel.add(user_dateFieldEnd)
                     filterPanel.add(JLabel(""))
 
-                filterPanel.add(JLabel("PROCESSING OPTIONS:"))
+                filterPanel.add(JLabel("PROCESSING OPTIONS: [Leave all as default to validate the move first]"))
                 filterPanel.add(user_mergeCashBalances)
                 filterPanel.add(user_cashBalanceToMove)
                 filterPanel.add(user_forceAllowResultingNegativeCashBalance)
@@ -3250,8 +3250,8 @@ Visit: %s (Author's site)
                         if isinstance(srcAcct, Account): pass
                         moveCashAmt = user_cashBalanceToMove.getValue()
 
-                        if moveCashAmt <= 0 or moveCashAmt > srcAcct.getStartBalance():
-                            txt = "%s: ERROR - Amount of opening cash balance to move to target is invalid, zero, or greater than amount held!" %(_THIS_METHOD_NAME)
+                        if moveCashAmt < 0 or moveCashAmt > srcAcct.getStartBalance():
+                            txt = "%s: ERROR - Amount of opening cash balance to move to target is invalid, negative, or greater than amount held!" %(_THIS_METHOD_NAME)
                             myPopupInformationBox(toolbox_move_merge_investment_txns_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                             continue
                         del srcAcct, moveCashAmt
@@ -3295,6 +3295,7 @@ Visit: %s (Author's site)
                     cashBalanceToMove = 0
                 else:
                     cashBalanceToMove = user_cashBalanceToMove.getValue()
+                    if cashBalanceToMove == 0: lAutoMergeCashBalances = False
 
                 lAutoForceAllowResultingNegativeCashBalance = user_forceAllowResultingNegativeCashBalance.isSelected()
                 lAutoForceSaveTrunkFile = user_forceTrunkSave.isSelected()
@@ -3727,6 +3728,7 @@ Visit: %s (Author's site)
                         myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                         return
 
+                    del lMoveWouldSeparateMatchedLOTs
 
                     ####################################################################################################
                     # Look for where the total balance of shares being moved would be negative
@@ -3843,12 +3845,12 @@ Visit: %s (Author's site)
                         output += "\nSource starting cash balance: %s\n" %(sourceRCurr.formatSemiFancy(sourceStartBal,MD_decimal))
                         output += "\nTarget starting cash balance: %s\n" %(targetRCurr.formatSemiFancy(targetStartBal,MD_decimal))
 
-                    if cashBalanceToMove > 0:
+                    if cashBalanceToMove != 0:
                         output += "User has requested to move %s of source acct's starting cash balance, and add into target's...\n\n" %(sourceAccount.getCurrencyType().formatFancy(cashBalanceToMove,MD_decimal))
                     else:
                         output += "Source Account's starting cash balance will NOT be moved into target's\n\n"
 
-                    if sourceStartBal != 0 and lAutoDeleteEmptySourceAccount and (sourceStartBal - cashBalanceToMove) > 0:
+                    if sourceStartBal != 0 and lAutoDeleteEmptySourceAccount and (sourceStartBal - cashBalanceToMove) != 0:
                         txt = "NOTE: Source account cannot be auto-deleted post merge as it would be left with a cash starting balance (disabling auto-delete Source Account option OFF)..."
                         output += "%s\n\n" %(txt)
                         lAutoDeleteEmptySourceAccount = False
@@ -4119,6 +4121,9 @@ Visit: %s (Author's site)
                                         if (theSplit.getParameter(PARAMETER_KEY_COST_BASIS, None) is not None):
                                             if debug: theSplit.setParameter(PARAMETER_KEY+PARAMETER_KEY_OLD_COST_BASIS,theSplit.getParameter(PARAMETER_KEY_COST_BASIS, None))
                                             theSplit.setParameter(PARAMETER_KEY_COST_BASIS, None)
+
+                                            # If we just wiped the cost basis tags, then just remove them from the list to fix next...
+                                            if theSplit in securityTxnsToFix: securityTxnsToFix.pop(theSplit)
 
                                 # Update the account and thus finally move the security
                                 theSplit.setAccount(trgSec)
