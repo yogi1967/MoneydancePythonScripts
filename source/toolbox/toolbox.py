@@ -24567,7 +24567,7 @@ Now you will have a text readable version of the file you can open in a text edi
             class MyJButton(JButton):
                 def __init__(self, *args, **kwargs):
                     self.btnSize = Dimension(170,40)
-                    self.maxBtnSize = Dimension(170,80)
+                    # self.maxBtnSize = Dimension(170,80)
                     self.advancedCapable = kwargs.pop("advancedCapable", False)
                     self.updateCapable = kwargs.pop("updateCapable", False)
                     self.adhocButton = kwargs.pop("adhocButton", False)
@@ -24577,14 +24577,17 @@ Now you will have a text readable version of the file you can open in a text edi
                     self.setBorderPainted(False)
                     self.setOpaque(True)
                     self.setMinimumSize(self.btnSize)
-                    self.setMaximumSize(self.maxBtnSize)
+                    # self.setMaximumSize(self.maxBtnSize)
                     self.setPreferredSize(self.btnSize)
                     self.setColorsAndVisibility()
+
+                # def getPreferredSize(self):
+                #     return self.btnSize
 
                 def setColorsAndVisibility(self):
 
                     normalFG = MD_REF.getUI().getColors().defaultTextForeground
-                    normalBG = MD_REF.getUI().getColors().secondaryTextFG  # Just works across all themes better than 'defaultTextForeground'
+                    # normalBG = MD_REF.getUI().getColors().secondaryTextFG  # Just works across all themes better than 'defaultTextForeground'
                     normalBG = Color.LIGHT_GRAY
 
                     backupFG = MD_REF.getUI().getColors().hudFG
@@ -24641,7 +24644,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     self.setFont(self.getFont().deriveFont(Font.PLAIN))
                     self.setBackground(normalBG)
 
-
                 def isBackupButton(self): return self.backupButton
                 def isAdhocButton(self): return self.adhocButton
                 def isAdvancedCapable(self): return self.advancedCapable
@@ -24650,9 +24652,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 def updateUI(self):
                     super(MyJButton, self).updateUI()
                     self.setColorsAndVisibility()
-
-                def getPreferredSize(self):
-                    return self.btnSize
 
 
             backup_button = MyJButton("<html><center>CREATE BACKUP</center></html>", backupButton=True)
@@ -24760,7 +24759,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     onRow += 1
                 btn = GlobalVars.allButtonsList[iButton]
                 colInsetFiller = 5 if onCol >= 4 else 0
-                mainPnl.add(btn, GridC.getc(onCol, onRow).wx(0.1).wy(2.0).leftInset(colLeftInset).rightInset(colInsetFiller).topInset(topInset).filly())
+                mainPnl.add(btn, GridC.getc(onCol, onRow).wx(0.1).wy(4.0).leftInset(colLeftInset).rightInset(colInsetFiller).topInset(topInset).fillboth())
                 onCol += 1
 
             # ----------------------------------------------------------------------------------------------------------
