@@ -99,8 +99,8 @@ Toolbox also installs two new Extensions Menu options (which allow the user to s
     - Toolbox: Total Selected Transactions
 
 TOOLBAR / MENU BAR Contains the following:
-    - Toolbox Options Menu
-    - Help menu
+    - Toolbox Options menu
+    - Help/About menu
     - Button: Launch Console Window (opens the Moneydance Help>Show Console Window)
     - Button: Save Console Log (to a file of your choosing)
     - Button: Open MD Folder (Preferences, Themes, Console log, Dataset, Extensions, Auto-backup folder, last backup folder[, Sync Dir][, Install Dir])
@@ -166,7 +166,7 @@ Menu - CURIOUS? VIEW INTERNAL SETTINGS (Read-Only - very safe)
     - Show all Operating System Environment Variables
 
 ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
-    All basic mode settings plus:
+    All basic mode settings plus (note the text of buttons turn red when update mode enabled):
     - These four buttons will only appear if they are necessary / possible in your system, on the last button row
         - FIX - Make me a Primary Dataset (convert from Secondary dataset to enable Sync) (convert_secondary_to_primary_data_set.py)
         - FIX - Create Dropbox Sync Folder (creates the missing .moneydancesync folder if missing from Dropbox)
@@ -237,7 +237,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Reverse Transaction Amounts between dates (reverse_txn_amounts.py)
         - FIX - Reverse Transaction Exchange rates between dates (reverse_txn_amounts.py)
 
-ALT-SHIFT-M - Menu - ADVANCED MODE
+ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
     >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
     - Toggle other known DEBUG settings on (extra messages in Console)
     - Toggle all internal Moneydance DEBUG settings ON/OFF (same as viewing console)

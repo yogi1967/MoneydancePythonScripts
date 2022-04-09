@@ -576,6 +576,48 @@ Visit: %s (Author's site)
         except: pass
         return False
 
+    def isMDThemeCustomizable():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if currentTheme.isCustomizable(): return True
+        except: pass
+        return False
+
+    def isMDThemeHighContrast():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "high_contrast" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeDefault():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "default" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeClassic():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "classic" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeSolarizedLight():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "solarized_light" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeSolarizedDark():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "solarized_dark" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
     def isMDThemeFlatDark():
         try:
             currentTheme = MD_REF.getUI().getCurrentTheme()

@@ -265,6 +265,7 @@
 # build: 1047 - Move/Merge investment txns disabled and now called via Extensions Menu directly...
 # build: 1047 - Rename Expert: View internal settings - to Curious? View internal settings; Now not Magenta, just normal colour
 # build: 1047 - Make Advanced Mode Button always there, just with options disabled...; switch to GridBagLayout for a slicker display
+# build: 1047 - Added Preferences Listener... Will abort Toolbox if Preferences Updated...
 
 
 # todo - I don't think that show_open_share_lots() works properly - also dpc.....
@@ -598,20 +599,18 @@ else:
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
     from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AccountBook, AbstractTxn
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
-    from com.infinitekind.tiksync import SyncRecord
-    from com.infinitekind.tiksync import SyncableItem
+    from com.infinitekind.tiksync import SyncRecord, SyncableItem
 
     from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
-    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow
-
-    from com.moneydance.apps.md.view.gui import ConsoleWindow
+    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow
     from com.infinitekind.tiksync import Syncer
+    from com.moneydance.apps.md.controller import PreferencesListener
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from com.moneydance.apps.md.view.gui import MDAccountProxy
     from java.lang import Integer, String, Long
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
+    from com.moneydance.awt import JCurrencyField                                                                       # noqa
 
     from java.net import URL, URLEncoder, URLDecoder                                                                    # noqa
 
@@ -918,6 +917,48 @@ Visit: %s (Author's site)
             currentTheme = MD_REF.getUI().getCurrentTheme()
             if isMDThemeFlatDark(): return False                    # Flat Dark pretends to be Darcula!
             if "darcula" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeCustomizable():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if currentTheme.isCustomizable(): return True
+        except: pass
+        return False
+
+    def isMDThemeHighContrast():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "high_contrast" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeDefault():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "default" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeClassic():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "classic" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeSolarizedLight():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "solarized_light" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeSolarizedDark():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "solarized_dark" in currentTheme.getThemeID(): return True
         except: pass
         return False
 
@@ -22171,15 +22212,25 @@ Now you will have a text readable version of the file you can open in a text edi
                 theList.append([k,v])
         return theList
 
-    class DiagnosticDisplay():
+    class DiagnosticDisplay(PreferencesListener):
 
         def __init__(self):
             self.myScrollPane = None
+            self.theFrame = None
+            self.moduleID = myModuleID
+
+        def preferencesUpdated(self):
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            myPrint("B","Your MD Preferences have been updated... I am closing Toolbox... Please relaunch if you want to use it...")
+            SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.theFrame))
+            myPrint("DB","Back from calling GenericWindowClosingRunnable to push a WINDOW_CLOSING Event (via the Swing EDT) to %s...." %(self.moduleID))
 
         class WindowListener(WindowAdapter):
 
-            def __init__(self, theFrame):
+            def __init__(self, theFrame, callingClass):
                 self.theFrame = theFrame        # type: MyJFrame
+                self.callingClass = callingClass
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
                 myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
@@ -22209,6 +22260,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPrint("DB","@@ Called HomePageView.unload() and Removed reference to HomePageView %s from MyJFrame()...@@\n" %(classPrinter("HomePageView", self.theFrame.HomePageViewObj)))
                     self.theFrame.HomePageViewObj = None
 
+                myPrint("DB", "Removing Preferences listener:", self.callingClass)
+                MD_REF.getPreferences().removeListener(self.callingClass)
+
                 cleanup_actions(self.theFrame)
 
         class CloseAction(AbstractAction):
@@ -22233,7 +22287,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 myPrint("DB","In UnlockAction().", inspect.currentframe().f_code.co_name, "()")
 
                 if GlobalVars.TOOLBOX_UNLOCK:
-                    txt = "@@@ Toolbox is already Unlocked... ReLocking the (Tool)box! @@@"
+                    txt = "@@@ Toolbox is already Unlocked... RELOCKING Toolbox! @@@"
                     sColor = "B"
                     GlobalVars.TOOLBOX_UNLOCK = False
                     self.theFrame.setTitle(self.saveTitle)
@@ -22241,7 +22295,16 @@ Now you will have a text readable version of the file you can open in a text edi
                     v = int(float(MD_REF.getVersion())); b = int(float(MD_REF.getBuild())); c = v+b
                     response = myPopupAskForInput(self.theFrame,"@@ UNLOCK TOOLBOX @@", "PASSWORD:", "Enter the password to unlock powerful features",
                                           defaultValue=None,isPassword=True,theMessageType=JOptionPane.ERROR_MESSAGE)
-                    if response is not None and StringUtils.isInteger(response) and int(response) == c:
+                    lCorrect = False
+
+                    if response is not None:
+                        if StringUtils.isInteger(response) and int(response) == c:
+                            lCorrect = True
+                        if StringUtils.looksLikeFormula(response):
+                            if int(StringUtils.parseFormula(response, MD_REF.getPreferences().getDecimalChar())) == c:
+                                lCorrect = True
+
+                    if lCorrect:
                         txt = "@@@ Toolbox UNLOCKED @@@"
                         sColor = "R"
                         GlobalVars.TOOLBOX_UNLOCK = True
@@ -22249,6 +22312,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     else:
                         txt = "@@@ Toolbox NOT Unlocked @@@"
                         sColor = "B"
+
                 setDisplayStatus(txt, sColor); myPrint("B",txt)
                 return
 
@@ -22294,7 +22358,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_UNLOCKMDPlusDiagnostic = JRadioButton("UNLOCKED - Moneydance+ Diagnostics (READONLY)", False)
                 user_UNLOCKMDPlusDiagnostic.setToolTipText("When Toolbox is unlocked, will display extra MD+ Diagnostics - DO NOT SHARE WITH OTHERS!")
                 user_UNLOCKMDPlusDiagnostic.setEnabled(isToolboxUnlocked() and isMDPlusEnabledBuild())
-                user_UNLOCKMDPlusDiagnostic.setForeground(Color.ORANGE)
+                # user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().futureTxnIndicator)
+                user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().accountIconTint)
 
                 user_searchOFXData = JRadioButton("Search for stored OFX related data", False)
                 user_searchOFXData.setToolTipText("This searches for Online Banking (OFX) related setup information in most places...")
@@ -24435,6 +24500,7 @@ Now you will have a text readable version of the file you can open in a text edi
             # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
             toolbox_frame_ = MyJFrame(u"Toolbox - Infinite Kind (co-authored by StuWareSoftSystems)... (%s+I for Help) - DATASET: %s" % (MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
             toolbox_frame_.setName(u"%s_main" %myModuleID)
+            self.theFrame = toolbox_frame_
 
             if (not Platform.isOSX()):
                 MD_REF.getUI().getImages()
@@ -24446,7 +24512,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             GlobalVars.STATUS_LABEL = JLabel("Infinite Kind (Moneydance) support tool >> DIAG STATUS: BASIC MODE RUNNING...", JLabel.LEFT)
             GlobalVars.STATUS_LABEL.setForeground(GlobalVars.DARK_GREEN)
-            GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).headerBorder, 2))
+            GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder(MD_REF.getUI().getColors().headerBorder, 2))
 
             try:
                 if lCopyAllToClipBoard_TB:
@@ -24465,7 +24531,7 @@ Now you will have a text readable version of the file you can open in a text edi
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F,  shortcut), "search-window")
             toolbox_frame_.getRootPane().getActionMap().put("close-window", self.CloseAction(toolbox_frame_))
-            toolbox_frame_.addWindowListener(self.WindowListener(toolbox_frame_))
+            toolbox_frame_.addWindowListener(self.WindowListener(toolbox_frame_, self))
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "display-pickle")
             toolbox_frame_.getRootPane().getActionMap().put("display-pickle", ViewFileButtonAction("display_pickle()", "StuWareSoftSystems Pickle Parameter File", lFile=False))
@@ -24517,33 +24583,63 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 def setColorsAndVisibility(self):
 
+                    normalFG = MD_REF.getUI().getColors().defaultTextForeground
+                    normalBG = MD_REF.getUI().getColors().secondaryTextFG  # Just works across all themes better than 'defaultTextForeground'
+                    normalBG = Color.LIGHT_GRAY
+
+                    backupFG = MD_REF.getUI().getColors().hudFG
+                    backupBG = getColorDarkGreen()
+                    backupBOLD = True
+
+                    adhocFG = getColorRed()
+                    adhocBG = normalBG
+                    adhocBOLD = False
+
+                    advancedEnabledFG = MD_REF.getUI().getColors().hudFG
+                    advancedEnabledBG = getColorRed()
+                    advancedEnabledBOLD = True
+
+                    updateEnabledFG = getColorRed()
+                    updateEnabledBOLD = False
+
+                    if isMDThemeDark() or isMacDarkModeDetected(): pass
+                    elif isMDThemeVAQua(): pass
+                    elif isMDThemeDefault(): pass
+                    elif isMDThemeClassic(): pass
+                    elif isMDThemeHighContrast(): pass
+                    elif isMDThemeSolarizedLight(): pass
+                    elif isMDThemeSolarizedDark(): pass
+                    elif isMDThemeCustomizable(): pass
+
+
                     if self.isBackupButton():
-                        self.setForeground(Color.WHITE)
-                        self.setBackground(GlobalVars.DARK_GREEN)
-                        self.setFont(self.getFont().deriveFont(Font.BOLD))
+                        self.setForeground(backupFG)
+                        self.setBackground(backupBG)
+                        if backupBOLD: self.setFont(self.getFont().deriveFont(Font.BOLD))
                         return
 
                     if self.isAdhocButton():
-                        self.setForeground(Color.WHITE)
-                        self.setBackground(Color.ORANGE)
-                        self.setFont(self.getFont().deriveFont(Font.BOLD))
+                        self.setForeground(adhocFG)
+                        self.setBackground(adhocBG)
+                        if adhocBOLD: self.setFont(self.getFont().deriveFont(Font.BOLD))
                         self.setVisible(GlobalVars.UPDATE_MODE)
                         return
 
                     if self.isAdvancedCapable() and GlobalVars.ADVANCED_MODE and not self.isUpdateCapable():
-                        self.setForeground(Color.WHITE)
-                        self.setBackground(Color.RED)
-                        self.setFont(self.getFont().deriveFont(Font.BOLD))
+                        self.setForeground(advancedEnabledFG)
+                        self.setBackground(advancedEnabledBG)
+                        if advancedEnabledBOLD: self.setFont(self.getFont().deriveFont(Font.BOLD))
                         return
 
                     if ((self.isUpdateCapable() and GlobalVars.UPDATE_MODE)
                             or (self.isAdvancedCapable() and GlobalVars.ADVANCED_MODE)):
-                        self.setForeground(getColorRed())
+                        self.setForeground(updateEnabledFG)
+                        if updateEnabledBOLD: self.setFont(self.getFont().deriveFont(Font.BOLD))
                     else:
-                        self.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
+                        self.setForeground(normalFG)
 
                     self.setFont(self.getFont().deriveFont(Font.PLAIN))
-                    self.setBackground(Color.LIGHT_GRAY)
+                    self.setBackground(normalBG)
 
 
                 def isBackupButton(self): return self.backupButton
@@ -24553,6 +24649,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 def updateUI(self):
                     super(MyJButton, self).updateUI()
+                    self.setColorsAndVisibility()
 
                 def getPreferredSize(self):
                     return self.btnSize
@@ -24686,6 +24783,7 @@ Now you will have a text readable version of the file you can open in a text edi
             ipadx = 5
             colSpan = 5
             colInsetFiller = 5
+            colLeftInset = 5
 
             mainPnl.add(GlobalVars.STATUS_LABEL,
                                      GridC.getc(onCol, onRow).pady(ipady).padx(ipadx).leftInset(colLeftInset).rightInset(colInsetFiller).fillx().colspan(colSpan).topInset(topInset).bottomInset(botInset))
@@ -24766,14 +24864,12 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemF.setMnemonic(KeyEvent.VK_F)
             menuItemF.setToolTipText("Finds text within the main display window..")
             menuItemF.addActionListener(mySearchAction)
-            menuItemF.setEnabled(True)
             menu1.add(menuItemF)
 
             menuItemPS = JMenuItem("Page Setup")
             menuItemPS.setMnemonic(KeyEvent.VK_P)
             menuItemPS.setToolTipText("Printer Page Setup")
             menuItemPS.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
-            menuItemPS.setEnabled(True)
             menu1.add(menuItemPS)
 
             menuItem2 = JMenuItem("Exit")
@@ -24795,20 +24891,17 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemH.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I, keyToUse))
             menuItemH.setToolTipText("Display Help")
             menuItemH.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
-            menuItemH.setEnabled(True)
             menuH.add(menuItemH)
 
             menuItemA = JMenuItem("About Toolbox")
             menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setToolTipText("About...")
             menuItemA.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
-            menuItemA.setEnabled(True)
             menuH.add(menuItemA)
 
             menuItemAMD = JMenuItem("About Moneydance")
             menuItemAMD.setToolTipText("About...")
             menuItemAMD.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
-            menuItemAMD.setEnabled(True)
             menuH.add(menuItemAMD)
 
             mb.add(menuH)
@@ -24878,6 +24971,9 @@ Now you will have a text readable version of the file you can open in a text edi
             toolbox_frame_.setVisible(True)     # already on the EDT
             toolbox_frame_.toFront()            # already on the EDT
             toolbox_frame_.isActiveInMoneydance = True
+
+            myPrint("DB","Adding Preferences Listener:", self)
+            MD_REF.getPreferences().addListener(self)
 
             if Platform.isOSX():
                 System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)

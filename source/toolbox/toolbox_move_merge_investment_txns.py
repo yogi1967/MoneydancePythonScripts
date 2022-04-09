@@ -576,6 +576,48 @@ Visit: %s (Author's site)
         except: pass
         return False
 
+    def isMDThemeCustomizable():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if currentTheme.isCustomizable(): return True
+        except: pass
+        return False
+
+    def isMDThemeHighContrast():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "high_contrast" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeDefault():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "default" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeClassic():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "classic" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeSolarizedLight():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "solarized_light" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
+    def isMDThemeSolarizedDark():
+        try:
+            currentTheme = MD_REF.getUI().getCurrentTheme()
+            if "solarized_dark" in currentTheme.getThemeID(): return True
+        except: pass
+        return False
+
     def isMDThemeFlatDark():
         try:
             currentTheme = MD_REF.getUI().getCurrentTheme()
@@ -3009,6 +3051,19 @@ Visit: %s (Author's site)
                 user_forceDeleteSeparatedLotRecords = JCheckBox("Auto delete any related LOT records on txns moved that separate matched Buy/Sell LOTs?", False)
                 user_forceDeleteSeparatedLotRecords.setToolTipText("Delete LOT records where Buys/Sell txns have been matched, and would be separated. MANUALLY REMATCH LOTS AFTERWARDS")
 
+                _WIPE_OPTIONS = ["CHECK/WARN: Validate for where Txns contain matched LOT records when the target uses Average Cost Control",
+                                 "IGNORE PROBLEM(s): Copy any existing matched LOT records unchanged when target uses Average Cost Control",
+                                 "WIPE: Delete any matched LOT records from txns being moved when target uses Average Cost Control"]
+                _WIPE_CHECK = 0
+                _WIPE_IGNORE = 1
+                _WIPE_WIPE = 2
+
+                # user_forceWipeLotRecordsWhenTargetAverageCost = JCheckBox("Auto force wipe matched LOT data from txns being moved when target using average cost control", False)
+                lblWipeLots = JLabel("Select option when target uses 'average cost control' and txns being moved contain matched LOT data:")
+                user_forceWipeLotRecordsWhenTargetAverageCost = JComboBox(_WIPE_OPTIONS)
+                user_forceWipeLotRecordsWhenTargetAverageCost.setToolTipText("If a txn being moved has matched LOT data, but the target using average cost, then remove the LOT matching data")
+                user_forceWipeLotRecordsWhenTargetAverageCost.setSelectedItem(_WIPE_OPTIONS[_WIPE_CHECK])
+
                 user_deleteEmptySourceAccount = JCheckBox("Auto DELETE Empty Source Account (only actions if empty after processing)?", False)
                 user_deleteEmptySourceAccount.setToolTipText("Delete the Source account after the move if it's empty")
 
@@ -3067,12 +3122,14 @@ Visit: %s (Author's site)
                 filterPanel.add(user_ignoreNegativeShareBalances)
                 filterPanel.add(user_ignoreAvgCstLotFlagDifference)
                 filterPanel.add(user_forceDeleteSeparatedLotRecords)
+                filterPanel.add(lblWipeLots)
+                filterPanel.add(user_forceWipeLotRecordsWhenTargetAverageCost)
                 filterPanel.add(user_ignoreAccountLoop)
                 filterPanel.add(user_deleteEmptySourceAccount)
                 filterPanel.add(user_forceTrunkSave)
 
                 class MyItemListener(ItemListener):
-                    def __init__(self, selectSource, selectTarget, enableSecurityFilter, filterSecurity, enableDateRangeFilter, dateFieldStart, dateFieldEnd, forceTrunkSave, mergeCashBalances, _cashBalanceToMove):
+                    def __init__(self, selectSource, selectTarget, enableSecurityFilter, filterSecurity, enableDateRangeFilter, dateFieldStart, dateFieldEnd, forceTrunkSave, mergeCashBalances, _cashBalanceToMove, forceWipeLotRecordsWhenTargetAverageCost):
                         self.selectSource = selectSource
                         self.selectTarget = selectTarget
                         self.enableSecurityFilter = enableSecurityFilter
@@ -3083,6 +3140,7 @@ Visit: %s (Author's site)
                         self.forceTrunkSave = forceTrunkSave
                         self.mergeCashBalances = mergeCashBalances
                         self.cashBalanceToMove = _cashBalanceToMove
+                        self.forceWipeLotRecordsWhenTargetAverageCost = forceWipeLotRecordsWhenTargetAverageCost
 
                     def itemStateChanged(self, e):
                         if ((e.getSource().getName() == "SELECT_SOURCE_ACCOUNT" and e.getStateChange() == ItemEvent.SELECTED)
@@ -3128,7 +3186,8 @@ Visit: %s (Author's site)
                                                 user_dateFieldEnd,
                                                 user_forceTrunkSave,
                                                 user_mergeCashBalances,
-                                                user_cashBalanceToMove)
+                                                user_cashBalanceToMove,
+                                                user_forceWipeLotRecordsWhenTargetAverageCost)
                 user_selectSourceAccount.addItemListener(myItemListener)
                 user_enableSecurityFilter.addItemListener(myItemListener)
                 user_enableDateRangeFilter.addItemListener(myItemListener)
@@ -3227,6 +3286,7 @@ Visit: %s (Author's site)
                 lAutoIgnoreNegativeShareBalances = user_ignoreNegativeShareBalances.isSelected()
                 lAutoIgnoreAnyAvgCstLotFlagDifference = user_ignoreAvgCstLotFlagDifference.isSelected()
                 lAutoForceDeleteSeparatedLotRecords = user_forceDeleteSeparatedLotRecords.isSelected()
+                iAutoForceWipeLotRecordsWhenTargetAverageCostOption = user_forceWipeLotRecordsWhenTargetAverageCost.getSelectedIndex()
                 lAutoIgnoreAccountLoops = user_ignoreAccountLoop.isSelected()
                 lAutoDeleteEmptySourceAccount = user_deleteEmptySourceAccount.isSelected()
                 lAutoMergeCashBalances = user_mergeCashBalances.isSelected()
@@ -3271,7 +3331,15 @@ Visit: %s (Author's site)
                             output += "....... FILTER Date Range..: %s to %s\n" %(convertStrippedIntDateFormattedText(filterDateFrom), convertStrippedIntDateFormattedText(filterDateTo))
                         output += "\n"
 
-                    if lAutoIgnoreNegativeShareBalances or lAutoIgnoreAccountLoops or lAutoIgnoreAnyAvgCstLotFlagDifference or lAutoDeleteEmptySourceAccount or lAutoMergeCashBalances or lAutoForceSaveTrunkFile or lAutoForceDeleteSeparatedLotRecords or lAutoForceAllowResultingNegativeCashBalance:
+                    if (lAutoIgnoreNegativeShareBalances
+                            or lAutoIgnoreAccountLoops
+                            or lAutoIgnoreAnyAvgCstLotFlagDifference
+                            or lAutoDeleteEmptySourceAccount
+                            or lAutoMergeCashBalances
+                            or lAutoForceSaveTrunkFile
+                            or lAutoForceDeleteSeparatedLotRecords
+                            or lAutoForceAllowResultingNegativeCashBalance
+                            or iAutoForceWipeLotRecordsWhenTargetAverageCostOption > 0):
                         output += "\nAUTO-PROCESSING OPTIONS selected...\n"
 
                     if lAutoIgnoreNegativeShareBalances:
@@ -3285,6 +3353,10 @@ Visit: %s (Author's site)
 
                     if lAutoIgnoreAnyAvgCstLotFlagDifference:
                         output += "....... Securities where source and target Cost Basis Avg Cost and Lot Control flags differ will be auto-moved without warnings (preserving any LOT data)...\n"
+
+                    if iAutoForceWipeLotRecordsWhenTargetAverageCostOption:
+                        output += "....... Check for matched LOT data that exists on moved txns to where target account uses average cost controlled - Option selected: '%s'\n"\
+                                  %(_WIPE_OPTIONS[iAutoForceWipeLotRecordsWhenTargetAverageCostOption])
 
                     if lAutoDeleteEmptySourceAccount:
                         output += "....... Source account will be auto-deleted after a successful merge if it's empty with no outstanding opening cash balance...\n"
@@ -3702,15 +3774,60 @@ Visit: %s (Author's site)
                         output += "\n*** Check for negative share balances FAILED VALIDATION. The move/merge will move shares where the share balance of moved txns is negative ***\n\n"
 
                     else:
-                        output += ">> Check for negative share balances FAILED VALIDATION. Txns to move contain negative share balances (by security)...\n\n"
+                        txt = "Check for negative share balances FAILED VALIDATION"
+                        output += ">> %s. Txns to move contain negative share balances (by security)...\n\n" %(txt)
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
-                        txt = "ERROR: Check for negative share balances FAILED VALIDATION - no changes made"
+                        txt = "ERROR: %s - no changes made" %(txt)
                         myPrint("B", txt)
                         setDisplayStatus(txt, "R")
                         myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                         return
-                    del lAutoIgnoreNegativeShareBalances, filteredSecTxnsToMove
+                    del lAutoIgnoreNegativeShareBalances
 
+
+                    ####################################################################################################
+                    # Look for where the txn to move contains matched LOT data and the target is average cost control...
+
+                    lMoveWouldMoveLOTDataToCostControlSecurity = False
+                    output += "\nValidating that transactions to move do not contain matched LOT data (when target security is using 'Average Cost Control'):\n"
+
+                    # Sweep from/to list checking for potential matched lot separation...
+                    for secAcct in sorted(filteredSecTxnsToMove, key=lambda _x: (_x.getAccountName().lower())):
+
+                        trgSec = find_src_sec_in_target(secAcct.getCurrencyType())
+                        if not trgSec.getUsesAverageCost(): continue
+
+                        secTxns = filteredSecTxnsToMove[secAcct]        # type: TxnSet
+                        secTxns.sortByField(AccountUtil.DATE)           # Returns com.infinitekind.moneydance.model.TxnUtil.DATE_COMPARATOR : Comparator
+
+                        for txn in secTxns:
+                            cbTags = TxnUtil.parseCostBasisTag(txn)
+                            if cbTags is None or len(cbTags) < 1: continue
+                            lMoveWouldMoveLOTDataToCostControlSecurity = True
+                            output += ("... Security: %s - Sell txn dated: %s contains matched LOT data but target uses Average Cost Control. \n"
+                                       %(secAcct.getAccountName(), convertStrippedIntDateFormattedText(txn.getDateInt())))
+                        del secTxns
+
+                    if not lMoveWouldMoveLOTDataToCostControlSecurity:
+                        output += "... Validation passed OK..\n"
+                        iAutoForceWipeLotRecordsWhenTargetAverageCostOption = False
+
+                    elif iAutoForceWipeLotRecordsWhenTargetAverageCostOption == _WIPE_WIPE:
+                        output += "\n*** Check for matched LOT data when target uses average cost control FAILED VALIDATION. The move/merge will WIPE/REMOVE matched LOT data from txns being moved where target account uses average cost control ***\n\n"
+
+                    elif iAutoForceWipeLotRecordsWhenTargetAverageCostOption == _WIPE_IGNORE:
+                        output += "\n*** Check for matched LOT data when target uses average cost control FAILED VALIDATION. The move/merge will RETAIN the matched LOT data on txns being moved even where target account uses average cost control ***\n\n"
+
+                    else:
+                        txt = "Check for matched LOT data when target uses average cost control - FAILED VALIDATION"
+                        output += ">> %s. Txns to move contain matched LOT data (select 'IGNORE' or 'WIPE' processing option to force this move through)...\n\n" %(txt)
+                        jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
+                        txt = "ERROR: %s - no changes made" %(txt)
+                        myPrint("B", txt)
+                        setDisplayStatus(txt, "R")
+                        myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+                        return
+                    del filteredSecTxnsToMove, lMoveWouldMoveLOTDataToCostControlSecurity
 
                     ####################################################################################################
                     # Check opening/starting cash balances
@@ -3996,13 +4113,14 @@ Visit: %s (Author's site)
                             if theSrcSplitAcct.getAccountType() == Account.AccountType.SECURITY:
                                 trgSec = find_src_sec_in_target(theSrcSplitAcct.getCurrencyType())
 
-                                # if lAutoIgnoreAnyAvgCstLotFlagDifference and trgSec.getUsesAverageCost() != theSrcSplitAcct.getUsesAverageCost():
-                                #     if InvestUtil.isSaleTransaction(srcTxn.getParentTxn().getInvestTxnType()):
-                                #         if (trgSec.getUsesAverageCost() and theSplit.getParameter(PARAMETER_KEY_COST_BASIS, None) is not None):
-                                #             if debug: theSplit.setParameter(PARAMETER_KEY+PARAMETER_KEY_OLD_COST_BASIS,theSplit.getParameter(PARAMETER_KEY_COST_BASIS, None))
-                                #             theSplit.setParameter(PARAMETER_KEY_COST_BASIS, None)
-                                #             lWipedLOTS = True
+                                # Wipe option will remove LOT matching data. Thus IGNORE will do nothing and carry the info across
+                                if iAutoForceWipeLotRecordsWhenTargetAverageCostOption == _WIPE_WIPE and trgSec.getUsesAverageCost():
+                                    if InvestUtil.isSaleTransaction(srcTxn.getParentTxn().getInvestTxnType()):
+                                        if (theSplit.getParameter(PARAMETER_KEY_COST_BASIS, None) is not None):
+                                            if debug: theSplit.setParameter(PARAMETER_KEY+PARAMETER_KEY_OLD_COST_BASIS,theSplit.getParameter(PARAMETER_KEY_COST_BASIS, None))
+                                            theSplit.setParameter(PARAMETER_KEY_COST_BASIS, None)
 
+                                # Update the account and thus finally move the security
                                 theSplit.setAccount(trgSec)
 
                         srcTxn.setParameter(PARAMETER_KEY,True)
