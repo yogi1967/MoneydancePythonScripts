@@ -130,7 +130,7 @@ Method 2: Using Python and JPype (sets up the JVM as part of the script) - See f
 ---
 If you like my tools you can donate to support my work via PayPal (completely optional)<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=M2NQXMRTWUKBQ" rel="nofollow"><img src="https://www.paypalobjects.com/en_GB/i/btn/btn_donate_LG.gif" alt="Donate" style="max-width: 100%;"></a>
----
+
 
 
 _(site last updated 10th April 2022)_
