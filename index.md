@@ -1,5 +1,10 @@
 ## Welcome to my site for Moneydance Extensions and Scripts written in Python
 
+
+<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=M2NQXMRTWUKBQ" rel="nofollow"><img src="https://www.paypalobjects.com/en_GB/i/btn/btn_donate_SM.gif" alt="Donate" data-canonical-src="https://img.shields.io/badge/Donate-PayPal-green.svg" style="max-width: 100%;"></a>
+
+
+
 _Author: Stuart Beesley - StuWareSoftSystems_
 
 _NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE! (but I do use all my scripts on my own live dataset...)_
