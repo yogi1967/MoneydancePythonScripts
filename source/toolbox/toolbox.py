@@ -1443,8 +1443,19 @@ Visit: %s (Author's site)
     checkVersions()
 
     def setDefaultFonts():
+        """Grabs the MD defaultText font, reduces default size down to below 18, sets UIManager defaults (if runtime extension, will probably error, so I catch and skip)"""
+        if MD_REF_UI is None: return
 
-        myFont = MD_REF.getUI().getFonts().defaultText
+        # If a runtime extension, then this may fail, depending on timing... Just ignore and return...
+        try:
+            myFont = MD_REF.getUI().getFonts().defaultText
+        except:
+            myPrint("B","ERROR trying to call .getUI().getFonts().defaultText - skipping setDefaultFonts()")
+            return
+
+        if myFont is None:
+            myPrint("B","WARNING: In setDefaultFonts(): calling .getUI().getFonts().defaultText has returned None (but moneydance_ui was set) - skipping setDefaultFonts()")
+            return
 
         if myFont.getSize()>18:
             try:
@@ -1510,15 +1521,11 @@ Visit: %s (Author's site)
         myPrint("DB",".setDefaultFonts() successfully executed...")
         return
 
-    if MD_REF_UI is not None:
-        setDefaultFonts()
+    setDefaultFonts()
 
     def who_am_i():
-        try:
-            username = System.getProperty("user.name")
-        except:
-            username = "???"
-
+        try: username = System.getProperty("user.name")
+        except: username = "???"
         return username
 
     def getHomeDir():
