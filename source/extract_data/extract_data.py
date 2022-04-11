@@ -283,8 +283,7 @@ else:
 
     from org.python.core.util import FileUtil
 
-    from java.lang import Thread
-    from java.lang import IllegalArgumentException
+    from java.lang import Thread, IllegalArgumentException, String
 
     from com.moneydance.util import Platform
     from com.moneydance.awt import JTextPanel, GridC, JDateField
@@ -313,7 +312,7 @@ else:
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
-    from java.util import Date
+    from java.util import Date, Locale
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
@@ -386,7 +385,7 @@ else:
     from javax.swing.table import DefaultTableCellRenderer, DefaultTableModel, TableRowSorter
     from javax.swing.border import CompoundBorder, MatteBorder
     from javax.swing.event import TableColumnModelListener
-    from java.lang import String, Number
+    from java.lang import Number
     from com.moneydance.apps.md.controller import AppEventListener
     from com.infinitekind.util import StringUtils
     exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
@@ -831,19 +830,26 @@ Visit: %s (Author's site)
             except: pass
         return False
 
+    def isIntelX86_32bit():
+        """Detect Intel x86 32bit system"""
+        return String(System.getProperty("os.arch", "null").strip()).toLowerCase(Locale.ROOT) == "x86"
+
+    def getMDIcon(startingIcon=None, lAlwaysGetIcon=False):
+        if lAlwaysGetIcon or isIntelX86_32bit():
+            return MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+        return startingIcon
+
     # JOptionPane.DEFAULT_OPTION, JOptionPane.YES_NO_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.OK_CANCEL_OPTION
     # JOptionPane.ERROR_MESSAGE, JOptionPane.INFORMATION_MESSAGE, JOptionPane.WARNING_MESSAGE, JOptionPane.QUESTION_MESSAGE, JOptionPane.PLAIN_MESSAGE
 
-    # Copies MD_REF.getUI().showInfoMessage
+    # Copies MD_REF.getUI().showInfoMessage (but a newer version now exists in MD internal code)
     def myPopupInformationBox(theParent=None, theMessage="What no message?!", theTitle="Info", theMessageType=JOptionPane.INFORMATION_MESSAGE):
 
-        if theParent is None:
-            if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
-                JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType, icon_to_use)
-                return
-        JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType)
-        return
+        if theParent is None and (theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE):
+            icon = getMDIcon(lAlwaysGetIcon=True)
+        else:
+            icon = getMDIcon(None)
+        JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType, icon)
 
     def wrapLines(message, numChars=40):
         charCount = 0
@@ -867,19 +873,19 @@ Visit: %s (Author's site)
                                                 "PERFORM BACKUP BEFORE UPDATE?",
                                                 0,
                                                 JOptionPane.WARNING_MESSAGE,
-                                                None,
+                                                getMDIcon(),
                                                 _options,
                                                 _options[0])
 
         if response == 2:
-            myPrint("B", "User requested to perform Export Backup before update/fix - calling moneydance export backup routine...")
-            MD_REF.getUI().setStatus("%s performing an Export Backup...." %(GlobalVars.thisScriptName),-1.0)
+            myPrint("B", "User requested to create a backup before update/fix - calling moneydance 'Export Backup' routine...")
+            MD_REF.getUI().setStatus("%s is creating a backup...." %(GlobalVars.thisScriptName),-1.0)
             MD_REF.getUI().saveToBackup(None)
-            MD_REF.getUI().setStatus("%s Export Backup completed...." %(GlobalVars.thisScriptName),0)
+            MD_REF.getUI().setStatus("%s create (export) backup process completed...." %(GlobalVars.thisScriptName),0)
             return True
 
         elif response == 1:
-            myPrint("B", "User DECLINED to perform Export Backup before update/fix...!")
+            myPrint("B", "User DECLINED to create a backup before update/fix...!")
             if not lReturnTheTruth:
                 return True
 
@@ -892,10 +898,10 @@ Visit: %s (Author's site)
                            theOptionType=JOptionPane.YES_NO_OPTION,
                            theMessageType=JOptionPane.QUESTION_MESSAGE):
 
-        icon_to_use = None
-        if theParent is None:
-            if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+        if theParent is None and (theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE):
+            icon = getMDIcon(lAlwaysGetIcon=True)
+        else:
+            icon = getMDIcon(None)
 
         # question = wrapLines(theQuestion)
         question = theQuestion
@@ -904,8 +910,7 @@ Visit: %s (Author's site)
                                                theTitle,
                                                theOptionType,
                                                theMessageType,
-                                               icon_to_use)  # getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"))
-
+                                               icon)
         return result == 0
 
     # Copies Moneydance .askForQuestion
@@ -917,10 +922,10 @@ Visit: %s (Author's site)
                            isPassword=False,
                            theMessageType=JOptionPane.INFORMATION_MESSAGE):
 
-        icon_to_use = None
-        if theParent is None:
-            if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+        if theParent is None and (theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE):
+            icon = getMDIcon(lAlwaysGetIcon=True)
+        else:
+            icon = getMDIcon(None)
 
         p = JPanel(GridBagLayout())
         defaultText = None
@@ -945,7 +950,7 @@ Visit: %s (Author's site)
                                           theTitle,
                                           JOptionPane.OK_CANCEL_OPTION,
                                           theMessageType,
-                                          icon_to_use) == 0):
+                                          icon) == 0):
             return field.getText()
         return None
 
@@ -1883,7 +1888,7 @@ Visit: %s (Author's site)
                                                     "Search for text",
                                                     JOptionPane.OK_CANCEL_OPTION,
                                                     JOptionPane.QUESTION_MESSAGE,
-                                                    None,
+                                                    getMDIcon(None),
                                                     _search_options,
                                                     defaultDirection)
 
@@ -3239,7 +3244,7 @@ Visit: %s (Author's site)
                                                            "EXTRACT DATA: SELECT OPTION",
                                                            JOptionPane.OK_CANCEL_OPTION,
                                                            JOptionPane.QUESTION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            options,
                                                            options[0]))
                 if userAction != 1:
@@ -3745,7 +3750,7 @@ Visit: %s (Author's site)
                                                                userFilters, "EXTRACT ACCOUNT REGISTERS: Set Script Parameters....",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[1]))
                     if userAction != 1:
                         myPrint("B", "User Cancelled Parameter selection.. Will abort..")
@@ -4076,7 +4081,7 @@ Visit: %s (Author's site)
                 userAction = (JOptionPane.showOptionDialog(extract_data_frame_, userFilters, "EXTRACT INVESTMENT TRANSACTIONS: Set Script Parameters....",
                                                            JOptionPane.OK_CANCEL_OPTION,
                                                            JOptionPane.QUESTION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            options, options[1]))
                 if userAction == 1:  # Export
                     myPrint("DB", "Export chosen")
@@ -4295,7 +4300,7 @@ Visit: %s (Author's site)
                     userAction = (JOptionPane.showOptionDialog(extract_data_frame_, userFilters, "EXTRACT CURRENCY HISTORY: Set Script Parameters....",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[1]))
                     if userAction != 1:
                         myPrint("B", "User Cancelled Parameter selection.. Will abort..")
@@ -4491,7 +4496,7 @@ Visit: %s (Author's site)
                                                            "StockGlance2020 - Summarise Stocks/Funds: Set Script Parameters....",
                                                            JOptionPane.OK_CANCEL_OPTION,
                                                            JOptionPane.QUESTION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            options,
                                                            options[2]))
                 if userAction == 1:  # Display & Export
@@ -4707,7 +4712,7 @@ Visit: %s (Author's site)
                                                             "EXTRACT REMINDERS: Set Script Parameters....",
                                                             JOptionPane.OK_CANCEL_OPTION,
                                                             JOptionPane.QUESTION_MESSAGE,
-                                                            MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                            getMDIcon(lAlwaysGetIcon=True),
                                                             options,
                                                             options[2])
                               )

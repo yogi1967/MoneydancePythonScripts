@@ -266,9 +266,8 @@
 # build: 1047 - Rename Expert: View internal settings - to Curious? View internal settings; Now not Magenta, just normal colour
 # build: 1047 - Make Advanced Mode Button always there, just with options disabled...; switch to GridBagLayout for a slicker display
 # build: 1047 - Added Preferences Listener... Will abort Toolbox if Preferences Updated...
+# build: 1047 - Added getMDIcon() and Intel X86 32bit check/fix - attempt to stop Java 17 crashing
 
-
-# todo - I don't think that show_open_share_lots() works properly - also dpc.....
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
@@ -468,8 +467,7 @@ else:
 
     from org.python.core.util import FileUtil
 
-    from java.lang import Thread
-    from java.lang import IllegalArgumentException
+    from java.lang import Thread, IllegalArgumentException, String
 
     from com.moneydance.util import Platform
     from com.moneydance.awt import JTextPanel, GridC, JDateField
@@ -498,7 +496,7 @@ else:
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
-    from java.util import Date
+    from java.util import Date, Locale
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
@@ -560,7 +558,7 @@ else:
     from collections import OrderedDict
 
     from org.python.core import PySystemState
-    from java.util import Timer, TimerTask, Locale, Map, HashMap
+    from java.util import Timer, TimerTask, Map, HashMap
     from java.util.zip import ZipInputStream, ZipEntry
 
     # renamed in MD build 3067
@@ -608,7 +606,7 @@ else:
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Integer, String, Long
+    from java.lang import Integer, Long
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
     from com.moneydance.awt import JCurrencyField                                                                       # noqa
 
@@ -977,19 +975,26 @@ Visit: %s (Author's site)
             except: pass
         return False
 
+    def isIntelX86_32bit():
+        """Detect Intel x86 32bit system"""
+        return String(System.getProperty("os.arch", "null").strip()).toLowerCase(Locale.ROOT) == "x86"
+
+    def getMDIcon(startingIcon=None, lAlwaysGetIcon=False):
+        if lAlwaysGetIcon or isIntelX86_32bit():
+            return MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+        return startingIcon
+
     # JOptionPane.DEFAULT_OPTION, JOptionPane.YES_NO_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.OK_CANCEL_OPTION
     # JOptionPane.ERROR_MESSAGE, JOptionPane.INFORMATION_MESSAGE, JOptionPane.WARNING_MESSAGE, JOptionPane.QUESTION_MESSAGE, JOptionPane.PLAIN_MESSAGE
 
-    # Copies MD_REF.getUI().showInfoMessage
+    # Copies MD_REF.getUI().showInfoMessage (but a newer version now exists in MD internal code)
     def myPopupInformationBox(theParent=None, theMessage="What no message?!", theTitle="Info", theMessageType=JOptionPane.INFORMATION_MESSAGE):
 
-        if theParent is None:
-            if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
-                JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType, icon_to_use)
-                return
-        JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType)
-        return
+        if theParent is None and (theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE):
+            icon = getMDIcon(lAlwaysGetIcon=True)
+        else:
+            icon = getMDIcon(None)
+        JOptionPane.showMessageDialog(theParent, JTextPanel(theMessage), theTitle, theMessageType, icon)
 
     def wrapLines(message, numChars=40):
         charCount = 0
@@ -1013,7 +1018,7 @@ Visit: %s (Author's site)
                                                 "PERFORM BACKUP BEFORE UPDATE?",
                                                 0,
                                                 JOptionPane.WARNING_MESSAGE,
-                                                None,
+                                                getMDIcon(),
                                                 _options,
                                                 _options[0])
 
@@ -1038,10 +1043,10 @@ Visit: %s (Author's site)
                            theOptionType=JOptionPane.YES_NO_OPTION,
                            theMessageType=JOptionPane.QUESTION_MESSAGE):
 
-        icon_to_use = None
-        if theParent is None:
-            if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+        if theParent is None and (theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE):
+            icon = getMDIcon(lAlwaysGetIcon=True)
+        else:
+            icon = getMDIcon(None)
 
         # question = wrapLines(theQuestion)
         question = theQuestion
@@ -1050,8 +1055,7 @@ Visit: %s (Author's site)
                                                theTitle,
                                                theOptionType,
                                                theMessageType,
-                                               icon_to_use)  # getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"))
-
+                                               icon)
         return result == 0
 
     # Copies Moneydance .askForQuestion
@@ -1063,10 +1067,10 @@ Visit: %s (Author's site)
                            isPassword=False,
                            theMessageType=JOptionPane.INFORMATION_MESSAGE):
 
-        icon_to_use = None
-        if theParent is None:
-            if theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE:
-                icon_to_use=MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png")
+        if theParent is None and (theMessageType == JOptionPane.PLAIN_MESSAGE or theMessageType == JOptionPane.INFORMATION_MESSAGE):
+            icon = getMDIcon(lAlwaysGetIcon=True)
+        else:
+            icon = getMDIcon(None)
 
         p = JPanel(GridBagLayout())
         defaultText = None
@@ -1091,7 +1095,7 @@ Visit: %s (Author's site)
                                           theTitle,
                                           JOptionPane.OK_CANCEL_OPTION,
                                           theMessageType,
-                                          icon_to_use) == 0):
+                                          icon) == 0):
             return field.getText()
         return None
 
@@ -2030,7 +2034,7 @@ Visit: %s (Author's site)
                                                     "Search for text",
                                                     JOptionPane.OK_CANCEL_OPTION,
                                                     JOptionPane.QUESTION_MESSAGE,
-                                                    None,
+                                                    getMDIcon(None),
                                                     _search_options,
                                                     defaultDirection)
 
@@ -3264,7 +3268,7 @@ Visit: %s (Author's site)
             selectedMode = JOptionPane.showInputDialog(toolbox_frame_,
                                                         "TABBING MODE", "Select the new Tabbing Mode?",
                                                         JOptionPane.WARNING_MESSAGE,
-                                                        MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                        getMDIcon(lAlwaysGetIcon=True),
                                                         mode_options,
                                                         None)
             if selectedMode is None:
@@ -3798,7 +3802,8 @@ Visit: %s (Author's site)
 
         textArray.append(u"MD Debug Mode:                       %s" %(MD_REF.DEBUG))
         textArray.append(u"Beta Features:                       %s" %(MD_REF.BETA_FEATURES))
-        textArray.append(u"Architecture:                        %s" %(System.getProperty(u"os.arch")))
+        textArray.append(u"Architecture:                        %s%s" %(System.getProperty(u"os.arch"),
+                                                                        u" (Intel 32-bit)" if isIntelX86_32bit() else u""))
 
         if theExtn and theExtn[1].strip() != u"":
             textArray.append(u"File Extension:                      %s" %theExtn[1])
@@ -5032,7 +5037,7 @@ Visit: %s (Author's site)
                                                        "Select the type of Online data you want to view",
                                                        "OFX View Online Data",
                                                        JOptionPane.INFORMATION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        objWhat,
                                                        None)
             if not selectedObjType:
@@ -5053,7 +5058,7 @@ Visit: %s (Author's site)
                                                        "Select the Acct to view Online Data:",
                                                        "Select ACCOUNT",
                                                        JOptionPane.INFORMATION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        accountsListForOlTxns,
                                                        None)  # type: Account
             if not selectedAcct: continue
@@ -5859,7 +5864,7 @@ Visit: %s (Author's site)
             selectedOption = JOptionPane.showInputDialog(toolbox_frame_,
                                                          _THIS_METHOD_NAME.upper(), "Select Option:",
                                                          JOptionPane.INFORMATION_MESSAGE,
-                                                         MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                         getMDIcon(lAlwaysGetIcon=True),
                                                          options, None)
             if not selectedOption: return
 
@@ -6029,7 +6034,7 @@ Visit: %s (Author's site)
         selectedCurrency = JOptionPane.showInputDialog(toolbox_frame_,
                                                        "Select Security", "Select the security to analyse",
                                                        JOptionPane.INFORMATION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        currs,
                                                        None)
         if selectedCurrency is None:
@@ -6093,7 +6098,7 @@ Visit: %s (Author's site)
         selectedSecurity = JOptionPane.showInputDialog(toolbox_frame_,
                                                        "Select Security", "Select the security to analyse",
                                                        JOptionPane.INFORMATION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        securities,
                                                        None)
         if selectedSecurity is None:
@@ -6256,7 +6261,7 @@ Visit: %s (Author's site)
                                                       "Select the Currency/Security to edit the current price hidden 'price_date' field:",
                                                       "Edit price_date - Select CURRENCY/SECURITY",
                                                       JOptionPane.INFORMATION_MESSAGE,
-                                                      MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                      getMDIcon(lAlwaysGetIcon=True),
                                                       currs,
                                                       None)
         if not selectedCurrSec:
@@ -6342,7 +6347,7 @@ Visit: %s (Author's site)
                                                   "Enter new current price hidden 'price_date' / price/rate fields:",
                                                   JOptionPane.OK_CANCEL_OPTION,
                                                   JOptionPane.QUESTION_MESSAGE,
-                                                  None,
+                                                  getMDIcon(None),
                                                   options,
                                                   options[0])
 
@@ -6449,7 +6454,7 @@ Visit: %s (Author's site)
         selectedOption = JOptionPane.showInputDialog(toolbox_frame_,
                                                        displayText[0], displayText[1],
                                                        JOptionPane.INFORMATION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        options,                                                         # noqa
                                                        None)
 
@@ -7001,7 +7006,7 @@ Visit: %s (Author's site)
                                                     u"OUTDATED EXTENSIONS",
                                                     0,
                                                     JOptionPane.QUESTION_MESSAGE,
-                                                    None,
+                                                    getMDIcon(None),
                                                     options,
                                                     options[0])
 
@@ -7298,7 +7303,7 @@ Visit: %s (Author's site)
                                                            _THIS_METHOD_NAME.upper(),
                                                            JOptionPane.OK_CANCEL_OPTION,
                                                            JOptionPane.QUESTION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            options, options[0]))
                 if userAction != 1:
                     txt = "'%s' - No changes made....." %(_THIS_METHOD_NAME.upper())
@@ -8072,7 +8077,7 @@ Visit: %s (Author's site)
                                               _theQuestion,
                                               _theTitle,
                                               JOptionPane.INFORMATION_MESSAGE,
-                                              MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                              getMDIcon(lAlwaysGetIcon=True),
                                               newServiceList,
                                               None)             # type: StoreService
 
@@ -8278,7 +8283,7 @@ Visit: %s (Author's site)
                                                      "Select an Authentication Key to edit",
                                                      _THIS_METHOD_NAME,
                                                      JOptionPane.INFORMATION_MESSAGE,
-                                                     MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                     getMDIcon(lAlwaysGetIcon=True),
                                                      saveAuthKeys,
                                                      None)      # type: StoreAuthKeyData
         if not selectedAuthKeyRecord:
@@ -8598,7 +8603,7 @@ Visit: %s (Author's site)
                                                            "What you want to do?",
                                                            "OFX USERID/ClientUID MANAGEMENT",
                                                            JOptionPane.INFORMATION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            what,
                                                            None)
             else:
@@ -8606,7 +8611,7 @@ Visit: %s (Author's site)
                                                            "What you want to do?",
                                                            "OFX USERID/ClientUIDs MANAGEMENT",
                                                            JOptionPane.INFORMATION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            [what[_ADDONE]],
                                                            None)
 
@@ -8641,7 +8646,7 @@ Visit: %s (Author's site)
                                                              "Select a UserID/ClientUIDs to %s" %(do_what),
                                                              "OFX USERID/ClientUIDs MANAGEMENT",
                                                              JOptionPane.INFORMATION_MESSAGE,
-                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             getMDIcon(lAlwaysGetIcon=True),
                                                              userIDKeys,
                                                              None)
                 if not selectedUserIDKey:
@@ -8986,7 +8991,7 @@ Visit: %s (Author's site)
                                                    "Select the Acct to alter the OFXLastTxnUpdate date field:",
                                                    "OFX OFXLastTxnUpdate - Select ACCOUNT",
                                                    JOptionPane.INFORMATION_MESSAGE,
-                                                   MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                   getMDIcon(lAlwaysGetIcon=True),
                                                    accountsListForOlTxns,
                                                    None)
         if not selectedAcct:
@@ -9030,7 +9035,7 @@ Visit: %s (Author's site)
                                                           "Select new Date for the OFXLastTxnUpdate field:",
                                                           JOptionPane.OK_CANCEL_OPTION,
                                                           JOptionPane.QUESTION_MESSAGE,
-                                                          None,
+                                                          getMDIcon(None),
                                                           options,
                                                           options[0])
 
@@ -9218,7 +9223,7 @@ Visit: %s (Author's site)
                                                    "Select the Acct to alter the Online Txn List record:",
                                                    "Select ACCOUNT",
                                                    JOptionPane.INFORMATION_MESSAGE,
-                                                   MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                   getMDIcon(lAlwaysGetIcon=True),
                                                    accountsListForOlTxns,
                                                    None)
         if not selectedAcct:
@@ -9242,7 +9247,7 @@ Visit: %s (Author's site)
                                                          "What type of change to OnlineTxnList record do you want to make?",
                                                          "OFX CHANGE OnlineTxns",
                                                          JOptionPane.WARNING_MESSAGE,
-                                                         None,
+                                                         getMDIcon(None),
                                                          _options,
                                                          None)
 
@@ -9363,7 +9368,7 @@ Visit: %s (Author's site)
                                                        "Online Banking (OFX) AUTHENTICATION MANAGEMENT",
                                                        JOptionPane.OK_CANCEL_OPTION,
                                                        JOptionPane.QUESTION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        options, options[0]))
 
             if userAction != 1:
@@ -9437,7 +9442,7 @@ Visit: %s (Author's site)
                                                        "What you want to do?",
                                                        "OFX COOKIE MANAGEMENT",
                                                        JOptionPane.INFORMATION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        what,
                                                        None)
             if not selectedWhat:
@@ -9466,7 +9471,7 @@ Visit: %s (Author's site)
                                                              "Select a Cookie to %s" %(do_what),
                                                              "OFX COOKIE MANAGEMENT",
                                                              JOptionPane.INFORMATION_MESSAGE,
-                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             getMDIcon(lAlwaysGetIcon=True),
                                                              allCookieStrings,
                                                              None)
                 if not selectedCookie: continue
@@ -9603,7 +9608,7 @@ Visit: %s (Author's site)
                                                            "Select the security to add CUSIP data",
                                                            "FIX CUSIP",
                                                            JOptionPane.INFORMATION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            allSecs,
                                                            None)
 
@@ -9620,7 +9625,7 @@ Visit: %s (Author's site)
                                                            "Select the security with CUSIP data to view/change",
                                                            "FIX CUSIP",
                                                            JOptionPane.INFORMATION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            dropdownSecs,
                                                            None)
 
@@ -9656,7 +9661,7 @@ Visit: %s (Author's site)
                                                          "Select CUSIP Option you want to action",
                                                          "FIX CUSIP",
                                                          JOptionPane.INFORMATION_MESSAGE,
-                                                         MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                         getMDIcon(lAlwaysGetIcon=True),
                                                          options,
                                                          None)
 
@@ -9695,7 +9700,7 @@ Visit: %s (Author's site)
                                                                  "Select the security to move the CUSIP data to:",
                                                                  "FIX CUSIP",
                                                                  JOptionPane.INFORMATION_MESSAGE,
-                                                                 MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                                 getMDIcon(lAlwaysGetIcon=True),
                                                                  dropdownSecsMoveTo,
                                                                  None)
 
@@ -9763,7 +9768,7 @@ Visit: %s (Author's site)
                                                                      "Select the CUSIP to edit:",
                                                                      "FIX CUSIP",
                                                                      JOptionPane.INFORMATION_MESSAGE,
-                                                                     MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                                     getMDIcon(lAlwaysGetIcon=True),
                                                                      listData,
                                                                      None)
 
@@ -10582,7 +10587,7 @@ Visit: %s (Author's site)
                                                       "Select an account (only these have remembered links)",
                                                       "FORGET OFX banking link",
                                                       JOptionPane.WARNING_MESSAGE,
-                                                      None,
+                                                      getMDIcon(None),
                                                       accounts.toArray(),
                                                       None)
         if not selectedAccount:
@@ -10772,7 +10777,7 @@ Visit: %s (Author's site)
                                                      "Select Bank Profile to view specific setup data",
                                                       "VIEW SPECIFIC SETUP DATA",
                                                       JOptionPane.INFORMATION_MESSAGE,
-                                                      None,
+                                                      getMDIcon(lAlwaysGetIcon=True),
                                                       globalSaveFI_data,
                                                       None)
             if selectedID:
@@ -11001,7 +11006,7 @@ Visit: %s (Author's site)
                                                              "Select the Acct to find Online Data about:",
                                                              "Select ACCOUNT",
                                                              JOptionPane.INFORMATION_MESSAGE,
-                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             getMDIcon(lAlwaysGetIcon=True),
                                                              accountsListForOlTxns,
                                                              None)
                 if not selectedAcct:
@@ -11056,7 +11061,7 @@ Visit: %s (Author's site)
                                                           "%s: Select Date %sfor TXNs (less is better)" %(titleStr,dateTxt),
                                                           JOptionPane.OK_CANCEL_OPTION,
                                                           JOptionPane.QUESTION_MESSAGE,
-                                                          None,
+                                                          getMDIcon(None),
                                                           options,
                                                           options[1])
 
@@ -11156,7 +11161,7 @@ Visit: %s (Author's site)
                                                              "Select the specific Txn to %s" %(titleStr),
                                                              "Select Specific Txn",
                                                              JOptionPane.INFORMATION_MESSAGE,
-                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             getMDIcon(lAlwaysGetIcon=True),
                                                              storeTheTxns,
                                                              None)
 
@@ -11168,7 +11173,7 @@ Visit: %s (Author's site)
                                                              "Select the specific Object to %s" %(titleStr),
                                                              "Select Specific Object",
                                                              JOptionPane.INFORMATION_MESSAGE,
-                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             getMDIcon(lAlwaysGetIcon=True),
                                                              objects,
                                                              None)
                 objects  = [selectedObject]
@@ -11217,7 +11222,7 @@ Visit: %s (Author's site)
                                                            "Select the default/internal location Dataset to DELETE from disk",
                                                            "ADVANCED - DELETE FROM DISK",
                                                            JOptionPane.ERROR_MESSAGE,
-                                                           None,
+                                                           getMDIcon(None),
                                                            filesToRemove,
                                                            None)
 
@@ -11316,7 +11321,7 @@ Visit: %s (Author's site)
                                                            "Select the 'External' (non-default) file reference to remove",
                                                            "ADVANCED",
                                                            JOptionPane.WARNING_MESSAGE,
-                                                           None,
+                                                           getMDIcon(None),
                                                            filesToRemove,
                                                            None)
 
@@ -11573,7 +11578,7 @@ Visit: %s (Author's site)
                                                            "Select the type of Key data you want to view",
                                                            "CURIOUS? VIEW: INTERNAL SETTINGS",
                                                            JOptionPane.INFORMATION_MESSAGE,
-                                                           MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                           getMDIcon(lAlwaysGetIcon=True),
                                                            what,
                                                            None)
                 if not selectedWhat:
@@ -11600,7 +11605,7 @@ Visit: %s (Author's site)
                                                              "SEARCH: Keys or Key Data?",
                                                              "CURIOUS? VIEW: INTERNAL SETTINGS",
                                                              JOptionPane.INFORMATION_MESSAGE,
-                                                             MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             getMDIcon(lAlwaysGetIcon=True),
                                                              ["Keys","Key Data"],
                                                              None)
                 if not selectedSearch:
@@ -11635,7 +11640,7 @@ Visit: %s (Author's site)
                                                               "Select the type of Object you want to %s" %(moreText),
                                                               "%s" %(titleText),
                                                               JOptionPane.INFORMATION_MESSAGE,
-                                                              MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                              getMDIcon(lAlwaysGetIcon=True),
                                                               objWhat,
                                                               None)
                 if not selectedObjType:
@@ -12626,7 +12631,7 @@ now after saving the file, restart Moneydance
                                                                "Select the type of change you want to make?",
                                                                "STUWARESOFTSYSTEMS' SAVED PARAMETERS PICKLE FILE",
                                                                JOptionPane.WARNING_MESSAGE,
-                                                               None,
+                                                               getMDIcon(None),
                                                                what,
                                                                None)
 
@@ -12712,7 +12717,7 @@ now after saving the file, restart Moneydance
                                                                   "Select the key/setting you want to %s" % (text),
                                                                   "PICKLE",
                                                                   JOptionPane.WARNING_MESSAGE,
-                                                                  None,
+                                                                  getMDIcon(None),
                                                                   pickleKeys,
                                                                   None)
                         if not selectedKey: continue
@@ -12860,7 +12865,7 @@ now after saving the file, restart Moneydance
                                                        "Select the Acct edit the shouldBeIncludedInNetWorth() setting",
                                                        _THIS_METHOD_NAME.upper(),
                                                        JOptionPane.INFORMATION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        newAccounts,
                                                        None)
             if not selectedAcct: break
@@ -12879,7 +12884,7 @@ now after saving the file, restart Moneydance
                                                        "Select whether to include/exclude this account in the default NW Home Screen Widget & Titlebar Graph",
                                                        _THIS_METHOD_NAME.upper()+" for: %s" %(selectedAcct.getAccountName()),
                                                        JOptionPane.WARNING_MESSAGE,
-                                                       None,
+                                                       getMDIcon(None),
                                                        options,
                                                        current)
             if not selectedIncludeInNW: continue
@@ -13467,7 +13472,7 @@ now after saving the file, restart Moneydance
                                                       "Select the Account to FORCE change its Type",
                                                       "FORCE CHANGE ACCOUNT's TYPE",
                                                       JOptionPane.WARNING_MESSAGE,
-                                                      None,
+                                                      getMDIcon(None),
                                                       newAccounts,
                                                       None)  # type: StoreAccountList
         if not selectedAccount:
@@ -13495,7 +13500,7 @@ now after saving the file, restart Moneydance
                                                    "Select the new Account Type",
                                                    "FORCE CHANGE ACCOUNT's TYPE",
                                                    JOptionPane.WARNING_MESSAGE,
-                                                   None,
+                                                   getMDIcon(None),
                                                    possTypes,
                                                    None)  # type: Account.AccountType
         if not selectedType:
@@ -13608,7 +13613,7 @@ now after saving the file, restart Moneydance
                                                            "Select a currency to assign to *ALL* accounts",
                                                            "FORCE CHANGE ALL ACCOUNT's CURRENCIES",
                                                            JOptionPane.ERROR_MESSAGE,
-                                                           None,
+                                                           getMDIcon(None),
                                                            currencies,
                                                            None)  # type: CurrencyType
 
@@ -13891,7 +13896,7 @@ now after saving the file, restart Moneydance
                                                       "Select the Account to FORCE change currency",
                                                       "FORCE CHANGE ACCOUNT's CURRENCY",
                                                       JOptionPane.WARNING_MESSAGE,
-                                                      None,
+                                                      getMDIcon(None),
                                                       newAccounts,
                                                       None)  # type: StoreAccountList
         if not selectedAccount:
@@ -13909,7 +13914,7 @@ now after saving the file, restart Moneydance
                                                        "Old Currency: %s >> Select the new currency for the account" %(selectedAccount.getCurrencyType()),                    # noqa
                                                        "FORCE CHANGE ACCOUNT's CURRENCY",
                                                        JOptionPane.ERROR_MESSAGE,
-                                                       None,
+                                                       getMDIcon(None),
                                                        currencies,
                                                        None)  # type: CurrencyType
         if not selectedCurrency:
@@ -13997,7 +14002,7 @@ now after saving the file, restart Moneydance
                                                       "Select the Account to REVERSE Transactional Amounts",
                                                       "REVERSE ACCOUNT's TXN AMOUNTS",
                                                       JOptionPane.WARNING_MESSAGE,
-                                                      None,
+                                                      getMDIcon(None),
                                                       newAccounts,
                                                       None)  # type: StoreAccountList
 
@@ -14010,7 +14015,7 @@ now after saving the file, restart Moneydance
         selectedAccount = selectedAccount.obj       # type: Account
 
         dateField = JDateField(MD_REF.getUI())
-        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Starting Date for reverse", JOptionPane.OK_CANCEL_OPTION)==JOptionPane.OK_OPTION:
+        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Starting Date for reverse", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, getMDIcon(None))==JOptionPane.OK_OPTION:
             txt = "User did not select start date - no changes made"
             setDisplayStatus(txt, "B")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -14019,7 +14024,7 @@ now after saving the file, restart Moneydance
 
         dateField.gotoToday()
 
-        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Ending Date for reverse", JOptionPane.OK_CANCEL_OPTION)==JOptionPane.OK_OPTION:
+        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select Ending Date for reverse", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, getMDIcon(None))==JOptionPane.OK_OPTION:
             txt = "User did not select end date - no changes made"
             setDisplayStatus(txt, "B")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -14122,7 +14127,7 @@ now after saving the file, restart Moneydance
                                                       "Select the Account to REVERSE Transactional Exchange Rates",
                                                       "REVERSE ACCOUNT's TXN EXCHANGE RATES",
                                                       JOptionPane.WARNING_MESSAGE,
-                                                      None,
+                                                      getMDIcon(None),
                                                       newAccounts,
                                                       None)  # type: StoreAccountList
 
@@ -14135,7 +14140,7 @@ now after saving the file, restart Moneydance
         selectedAccount = selectedAccount.obj       # type: Account
 
         dateField = JDateField(MD_REF.getUI())
-        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select STARTING Date for reverse", JOptionPane.OK_CANCEL_OPTION)==JOptionPane.OK_OPTION:
+        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select STARTING Date for reverse", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, getMDIcon(None))==JOptionPane.OK_OPTION:
             txt = "User did not select start date - no changes made"
             setDisplayStatus(txt, "B")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -14144,7 +14149,7 @@ now after saving the file, restart Moneydance
 
         dateField.gotoToday()
 
-        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select ENDING Date for reverse", JOptionPane.OK_CANCEL_OPTION)==JOptionPane.OK_OPTION:
+        if not JOptionPane.showConfirmDialog(toolbox_frame_, dateField, "Select ENDING Date for reverse", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, getMDIcon(None))==JOptionPane.OK_OPTION:
             txt = "User did not select end date - no changes made"
             setDisplayStatus(txt, "B")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -14674,7 +14679,7 @@ now after saving the file, restart Moneydance
                                                        "THIN PRICE HISTORY",
                                                        JOptionPane.OK_CANCEL_OPTION,
                                                        JOptionPane.QUESTION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        options, options[0]))
             if userAction != 1:
                 txt = "THIN PRICE HISTORY - No changes made....."
@@ -15635,7 +15640,7 @@ now after saving the file, restart Moneydance
                                                                  "Select an Orphan to View",
                                                                  "VIEW ORPHAN (Escape or Cancel to exit)",
                                                                  JOptionPane.WARNING_MESSAGE,
-                                                                 None,
+                                                                 getMDIcon(None),
                                                                  orphanList,
                                                                  None)
                     if not selectedOrphan:
@@ -15784,7 +15789,7 @@ now after saving the file, restart Moneydance
                                                       "Select the Security that's not properly linked to it's master'",
                                                       "DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
                                                       JOptionPane.WARNING_MESSAGE,
-                                                      None,
+                                                      getMDIcon(None),
                                                       nonLinkedSecurityAccounts,
                                                       None)
 
@@ -15812,7 +15817,7 @@ now after saving the file, restart Moneydance
                                                     "Select the target Security to link to this record",
                                                     "DETECT/FIX NON-PROPERLY LINKED SECURITY SUB ACCTS",
                                                     JOptionPane.INFORMATION_MESSAGE,
-                                                    None,
+                                                    getMDIcon(None),
                                                     securities,
                                                     None)
 
@@ -16043,8 +16048,8 @@ now after saving the file, restart Moneydance
                                                         "Select Security to edit Decimal Places",
                                                         _THIS_METHOD_NAME.upper(),
                                                         JOptionPane.WARNING_MESSAGE,
-                                                        None,
-                                                         allSecurities,
+                                                        getMDIcon(None),
+                                                        allSecurities,
                                                         None)                                                           # type: StoreSecurity
 
             if not securityToEdit:
@@ -16183,7 +16188,7 @@ now after saving the file, restart Moneydance
                                                                    "Select the Decimal REDUCTION Strategy?",
                                                                    _THIS_METHOD_NAME.upper(),
                                                                    JOptionPane.WARNING_MESSAGE,
-                                                                   None,
+                                                                   getMDIcon(None),
                                                                    options,
                                                                    None)
 
@@ -16858,7 +16863,7 @@ now after saving the file, restart Moneydance
                                                          "Select Ticker / Security set to merge (sorted by Name, Ticker, ID)",
                                                         _THIS_METHOD_NAME.upper(),
                                                          JOptionPane.INFORMATION_MESSAGE,
-                                                         None,
+                                                         getMDIcon(None),
                                                          listDuplicateTickers,
                                                          None)                                                              # type: StoreTickerData
             del listDuplicateTickers
@@ -16877,7 +16882,7 @@ now after saving the file, restart Moneydance
                                                            "Select the Security that will be the final master (sorted by Name, Ticker, ID)",
                                                            _THIS_METHOD_NAME.upper(),
                                                            JOptionPane.INFORMATION_MESSAGE,
-                                                           None,
+                                                           getMDIcon(None),
                                                            quickSecurityDropdownList,
                                                            None)  # type: StoreSecurity
 
@@ -17143,7 +17148,7 @@ now after saving the file, restart Moneydance
                                                                "Select the Price History Strategy?",
                                                                "%s - PRICE HISTORY" %(_THIS_METHOD_NAME.upper()),
                                                                JOptionPane.INFORMATION_MESSAGE,
-                                                               None,
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options,
                                                                None)
 
@@ -17242,7 +17247,7 @@ now after saving the file, restart Moneydance
                                                             "Select the hidden CUSIP to keep/use in the new Master Security?",
                                                             "%s - HIDDEN CUSIP DATA" % (_THIS_METHOD_NAME.upper()),
                                                             JOptionPane.INFORMATION_MESSAGE,
-                                                            None,
+                                                            getMDIcon(lAlwaysGetIcon=True),
                                                             allUniqueCUSIPsPicklist,
                                                             None)
 
@@ -17999,7 +18004,7 @@ now after saving the file, restart Moneydance
                                                  "Select a LOT Controlled Acct/Stock to convert to Avg Cost Control",
                                                  "CONVERT ACCT/STOCK TO Avg Cst Ctrl",
                                                  JOptionPane.INFORMATION_MESSAGE,
-                                                 MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                 getMDIcon(lAlwaysGetIcon=True),
                                                  accountsList,
                                                  None)
 
@@ -18100,7 +18105,7 @@ now after saving the file, restart Moneydance
                                                  "Select an Avg Cost Controlled Acct/Stock to convert to LOT/FiFo",
                                                  "CONVERT STOCK FIFO",
                                                  JOptionPane.INFORMATION_MESSAGE,
-                                                 MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                 getMDIcon(lAlwaysGetIcon=True),
                                                  accountsList,
                                                  None)
 
@@ -18517,7 +18522,7 @@ now after saving the file, restart Moneydance
                                                          "Select the Folder you would like to open",
                                                          "Select Folder",
                                                          JOptionPane.INFORMATION_MESSAGE,
-                                                         MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                         getMDIcon(lAlwaysGetIcon=True),
                                                          locations,
                                                          None)
             if not selectedFolder:
@@ -18687,7 +18692,7 @@ now after saving the file, restart Moneydance
                                                          "What type of change do you want to make?",
                                                          "ALTER FONTS",
                                                          JOptionPane.WARNING_MESSAGE,
-                                                         None,
+                                                         getMDIcon(None),
                                                          _options,
                                                          None)
 
@@ -18764,7 +18769,7 @@ now after saving the file, restart Moneydance
                                                              "New Font Selection options for: %s?" %theKey,
                                                              "ALTER FONTS",
                                                              JOptionPane.WARNING_MESSAGE,
-                                                             None,
+                                                             getMDIcon(None),
                                                              _options,
                                                              None)
 
@@ -18778,7 +18783,7 @@ now after saving the file, restart Moneydance
                                                                "Select new Font to set for %s" %theKey,
                                                                "ALTER FONTS",
                                                                JOptionPane.WARNING_MESSAGE,
-                                                               None,
+                                                               getMDIcon(None),
                                                                theFonts,
                                                                None)
                     if not selectedFont:
@@ -19096,7 +19101,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                             "SEARCH COMPUTER FOR iOS BACKUP(s)",
                                                             0,
                                                             JOptionPane.QUESTION_MESSAGE,
-                                                            None,
+                                                            getMDIcon(None),
                                                             options,
                                                             options[2])
                     if response == 0:
@@ -19636,7 +19641,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                        "IMPORT QIF (Older MD Function)",
                                                        JOptionPane.OK_CANCEL_OPTION,
                                                        JOptionPane.QUESTION_MESSAGE,
-                                                       MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                       getMDIcon(lAlwaysGetIcon=True),
                                                        options, options[0]))
             if userAction != 1:
                 txt = "%s: - User aborted - No changes made....." %(_THIS_METHOD_NAME)
@@ -19877,7 +19882,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                 "Select the Window display setting(s) to RESET",
                                                 "RESET WINDOW DISPLAY SETTINGS",
                                                 JOptionPane.WARNING_MESSAGE,
-                                                None,
+                                                getMDIcon(None),
                                                 what,
                                                 None)
         if not resetWhat:
@@ -20489,7 +20494,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                        "Select the option for the modification (on %s)?" %(theObject),
                                                        "ADVANCED",
                                                        JOptionPane.WARNING_MESSAGE,
-                                                       None,
+                                                       getMDIcon(None),
                                                        what,
                                                        None)
 
@@ -20616,7 +20621,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                           "Select the %s Parameter you want to %s" % (theObject,text),
                                                           "ADVANCED",
                                                           JOptionPane.WARNING_MESSAGE,
-                                                          None,
+                                                          getMDIcon(None),
                                                           paramKeys,
                                                           None)
                 if not selectedKey: continue
@@ -20711,7 +20716,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                      "Select the option you require",
                                                      "ADVANCED: DELETE INT/EXT DATASET",
                                                      JOptionPane.WARNING_MESSAGE,
-                                                     MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                     getMDIcon(lAlwaysGetIcon=True),
                                                      options,
                                                      None)
 
@@ -20801,7 +20806,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                        "Select the Key data / option to modify",
                                                        "ADVANCED",
                                                        JOptionPane.WARNING_MESSAGE,
-                                                       None,
+                                                       getMDIcon(None),
                                                        what,
                                                        None)
 
@@ -20912,7 +20917,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                           "Select the %s key/setting you want to %s" % (fileType,text),
                                                           "ADVANCED",
                                                           JOptionPane.WARNING_MESSAGE,
-                                                          None,
+                                                          getMDIcon(None),
                                                           prefs,
                                                           None)
                 if not selectedKey: continue
@@ -21854,7 +21859,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                   "Select the DEBUG Setting you want to view/toggle",
                                                   "ADVANCED: OTHER DEBUG",
                                                   JOptionPane.INFORMATION_MESSAGE,
-                                                  MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                  getMDIcon(lAlwaysGetIcon=True),
                                                   debugKeys,
                                                   None)
 
@@ -22545,7 +22550,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                "Online Banking (OFX) Tools",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[0]))
                     if userAction != 1:
                         txt = "Online Banking (OFX) Tools - No changes made....."
@@ -22766,7 +22771,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                 "WHAT TYPE OF DATASET?",
                                                                 "Choose Datasets or Backups",
                                                                 JOptionPane.INFORMATION_MESSAGE,
-                                                                MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                                getMDIcon(lAlwaysGetIcon=True),
                                                                 whatType,
                                                                 None)
                 if selectedWhat is None:
@@ -22805,7 +22810,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                             "Select the Search start folder",
                                                             "WHERE TO SEARCH FROM",
                                                             JOptionPane.INFORMATION_MESSAGE,
-                                                            MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                            getMDIcon(lAlwaysGetIcon=True),
                                                             whereFrom,
                                                             None)
                 if selectedStart is None:
@@ -22963,7 +22968,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                     "SEARCH COMPUTER FOR MONEYDANCE DATASET(s)",
                                                                     JOptionPane.YES_NO_OPTION,
                                                                     JOptionPane.QUESTION_MESSAGE,
-                                                                    None,
+                                                                    getMDIcon(None),
                                                                     options,
                                                                     options[2],
                                                                     timeOutSeconds * 1000,
@@ -23210,7 +23215,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                "Accounts / Categories Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[0]))
                     if userAction != 1:
                         return
@@ -23482,7 +23487,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                "Currency / Security Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[0]))
                     if userAction != 1:
                         return
@@ -23678,7 +23683,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                "Transaction(s) Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[0]))
                     if userAction != 1:
                         return
@@ -23848,7 +23853,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                "General Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[0]))
                     if userAction != 1:
                         return
@@ -24079,7 +24084,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                "ADVANCED - Diagnostics, Tools, Fixes",
                                                                JOptionPane.OK_CANCEL_OPTION,
                                                                JOptionPane.QUESTION_MESSAGE,
-                                                               MD_REF.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                               getMDIcon(lAlwaysGetIcon=True),
                                                                options, options[0]))
                     if userAction != 1:
                         return
