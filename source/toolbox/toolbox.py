@@ -267,6 +267,7 @@
 # build: 1047 - Make Advanced Mode Button always there, just with options disabled...; switch to GridBagLayout for a slicker display
 # build: 1047 - Added Preferences Listener... Will abort Toolbox if Preferences Updated...
 # build: 1047 - Added getMDIcon() and Intel X86 32bit check/fix - attempt to stop Java 17 crashing
+# build: 1047 - Make popup Menu scrollpanes / JOptionPane resizeable
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 
@@ -612,7 +613,7 @@ else:
 
     from java.net import URL, URLEncoder, URLDecoder                                                                    # noqa
 
-    from java.awt.event import ComponentAdapter, ItemListener, ItemEvent                                                # noqa
+    from java.awt.event import ComponentAdapter, ItemListener, ItemEvent, HierarchyListener                             # noqa
 
     from java.util import UUID
 
@@ -2985,18 +2986,28 @@ Visit: %s (Author's site)
     # Prevent usage later on... We use MD_REF
     del moneydance
 
-    class MyJScrollPaneForJOptionPane(JScrollPane):               # Allows a scrollable menu in JOptionPane
+    class MyJScrollPaneForJOptionPane(JScrollPane, HierarchyListener):   # Allows a scrollable/resizeable menu in JOptionPane
         def __init__(self, _component, _max_w=800, _max_h=600):
             super(JScrollPane, self).__init__(_component)
             self.maxWidth = _max_w
             self.maxHeight = _max_h
             self.borders = 90
             self.screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+            self.setOpaque(False)
+            self.setViewportBorder(EmptyBorder(5, 5, 5, 5))
+            self.addHierarchyListener(self)
 
         def getPreferredSize(self):
             frame_width = int(round((toolbox_frame_.getSize().width - self.borders) *.9,0))
             frame_height = int(round((toolbox_frame_.getSize().height - self.borders) *.9,0))
             return Dimension(min(self.maxWidth, frame_width), min(self.maxHeight, frame_height))
+
+        def hierarchyChanged(self, e):
+            if e: pass
+            dialog = SwingUtilities.getWindowAncestor(self)
+            if isinstance(dialog, Dialog):
+                if not dialog.isResizable():
+                    dialog.setResizable(True)
 
     def getTheSetting(what, _padLength=0):
         _x = MD_REF.getPreferences().getSetting(what, None)

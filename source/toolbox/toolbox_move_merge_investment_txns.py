@@ -249,7 +249,7 @@ else:
 
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets
-    from java.awt.event import KeyEvent, WindowAdapter, InputEvent
+    from java.awt.event import KeyEvent, WindowAdapter, InputEvent, HierarchyListener
     from java.util import Date, Locale
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
@@ -317,6 +317,7 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ####################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ########################################################################################
+    GlobalVars.extn_param_shownHelpFile_MIT = None
     # >>> END THIS SCRIPT'S GLOBALS ####################################################################################
 
 
@@ -2566,16 +2567,32 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def load_StuWareSoftSystems_parameters_into_memory():
-        pass
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+        myPrint("DB", "Loading variables into memory...")
+
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
+
+        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
+        if GlobalVars.parametersLoadedFromFile.get("extn_param_shownHelpFile_MIT") is not None:
+            GlobalVars.extn_param_shownHelpFile_MIT = GlobalVars.parametersLoadedFromFile.get("extn_param_shownHelpFile_MIT")
+
+        myPrint("DB","parametersLoadedFromFile{} set into memory (as variables).....:", GlobalVars.parametersLoadedFromFile)
         return
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def dump_StuWareSoftSystems_parameters_from_memory():
-        pass
+        # NOTE: Parameters were loaded earlier on... Preserve existing, and update any used ones...
+        # (i.e. other StuWareSoftSystems programs might be sharing the same file)
+
+        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
+
+        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
+        GlobalVars.parametersLoadedFromFile["extn_param_shownHelpFile_MIT"] = GlobalVars.extn_param_shownHelpFile_MIT
+
+        myPrint("DB","variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
         return
 
-    # Just grab debug etc... Nothing extra
-    get_StuWareSoftSystems_parameters_from_file()
+    get_StuWareSoftSystems_parameters_from_file(myFile="%s_extension.dict" %(myModuleID))
 
     # clear up any old left-overs....
     destroyOldFrames(myModuleID)
@@ -2759,6 +2776,7 @@ Visit: %s (Author's site)
         GlobalVars.selectedInvestmentTransactionsList = []
         GlobalVars.theMDFrame = None
         GlobalVars.lCopyAllToClipBoard_TB = lRunningFromToolbox
+        GlobalVars.helpFileData = None
 
         if not lRunningFromToolbox:
 
@@ -2968,13 +2986,16 @@ Visit: %s (Author's site)
 
                     return False
 
-            class MyJScrollPaneForJOptionPane(JScrollPane):               # Allows a scrollable menu in JOptionPane
+            class MyJScrollPaneForJOptionPane(JScrollPane, HierarchyListener):    # Allows a scrollable/resizeable menu in JOptionPane
                 def __init__(self, _component, _max_w=800, _max_h=600):
                     super(JScrollPane, self).__init__(_component)
 
                     self.maxWidth = _max_w
                     self.maxHeight = _max_h
                     self.borders = 90
+                    self.setOpaque(False)
+                    self.setViewportBorder(EmptyBorder(5, 5, 5, 5))
+                    self.addHierarchyListener(self)
 
                 def getPreferredSize(self):
                     screenSize = Toolkit.getDefaultToolkit().getScreenSize()
@@ -2982,6 +3003,20 @@ Visit: %s (Author's site)
                     frame_height = int(round((screenSize.height - self.borders) *.9,0))
                     return Dimension(min(self.maxWidth, frame_width), min(self.maxHeight, frame_height))
 
+                def hierarchyChanged(self, e):
+                    if e: pass
+                    dialog = SwingUtilities.getWindowAncestor(self)
+                    if isinstance(dialog, Dialog):
+                        if not dialog.isResizable():
+                            dialog.setResizable(True)
+
+
+            if MD_EXTENSION_LOADER:
+                try:
+                    GlobalVars.helpFileData = load_text_from_stream_file(MD_EXTENSION_LOADER.getResourceAsStream("/%s_readme.txt" %(myModuleID)))
+                    myPrint("DB","Contents loaded from /%s_readme.txt" %(myModuleID))
+                except:
+                    myPrint("B","@@ Error loading contents from /%s_readme.txt" %(myModuleID))
 
             def move_merge_investment_txns():
 
@@ -2992,6 +3027,12 @@ Visit: %s (Author's site)
 
                 if lRunningFromToolbox and not lRunningFromToolboxOverride:
                     selectHomeScreen()      # Stops the LOT Control box popping up.....
+
+                if not GlobalVars.extn_param_shownHelpFile_MIT:
+                    QuickJFrame("%s: Help / guide (FIRST EXECUTION OF EXTENSION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
+                    GlobalVars.extn_param_shownHelpFile_MIT = True
+                    save_StuWareSoftSystems_parameters_to_file(myFile="%s_extension.dict" %(myModuleID))
+                    return
 
                 PARAMETER_KEY = "toolbox_txn_merge"
                 PARAMETER_KEY_COST_BASIS = "cost_basis"
@@ -3075,7 +3116,7 @@ Visit: %s (Author's site)
                 user_ignoreAvgCstLotFlagDifference = JCheckBox("Auto IGNORE any differences between Avg Cst & LOT Control flags and Merge anyway?", False)
                 user_ignoreAvgCstLotFlagDifference.setToolTipText("Force the move even when Lot Control and Average Cost flags are different between Securities (leaves matched lot data untouched")
 
-                user_forceDeleteSeparatedLotRecords = JCheckBox("Auto delete any related LOT records on txns moved that separate matched Buy/Sell LOTs?", False)
+                user_forceDeleteSeparatedLotRecords = JCheckBox("Auto DELETE any related LOT records on txns moved that separate matched Buy/Sell LOTs?", False)
                 user_forceDeleteSeparatedLotRecords.setToolTipText("Delete LOT records where Buys/Sell txns have been matched, and would be separated. MANUALLY REMATCH LOTS AFTERWARDS")
 
                 _WIPE_OPTIONS = ["CHECK/WARN: Validate for where Txns contain matched LOT records when the target uses Average Cost Control",
@@ -3094,10 +3135,10 @@ Visit: %s (Author's site)
                 user_deleteEmptySourceAccount = JCheckBox("Auto DELETE Empty Source Account (only actions if empty after processing)?", False)
                 user_deleteEmptySourceAccount.setToolTipText("Delete the Source account after the move if it's empty")
 
-                user_mergeCashBalances = JCheckBox("Auto MERGE Source Account's Opening Cash balance to Target's? (Specify amount to move below)",
+                user_mergeCashBalances = JCheckBox("Auto MERGE Source Account's initial [cash] balance to Target's? (Specify amount to move below)",
                                                    False if (GlobalVars.selectedInvestmentTransactionsList) else True)
                 user_mergeCashBalances.setName("MOVE_CASH_BALANCE")
-                user_mergeCashBalances.setToolTipText("Move the specified amount of opening/starting cash balance over to the target account")
+                user_mergeCashBalances.setToolTipText("Move the specified amount of initial [cash] balance over to the target account")
 
                 srcAcct = user_selectSourceAccount.getSelectedItem()      # type: Account
                 if isinstance(srcAcct, Account): pass
@@ -3109,11 +3150,11 @@ Visit: %s (Author's site)
                     user_cashBalanceToMove.setValue(srcAcct.getStartBalance())
 
                 user_cashBalanceToMove.setEmptyIfZero(True)
-                user_cashBalanceToMove.setToolTipText("Enter the amount of the source acct's opening cash balance to move to target account")   # noqa
+                user_cashBalanceToMove.setToolTipText("Enter the amount of the source acct's initial [cash] balance to move to target account")   # noqa
                 user_cashBalanceToMove.setEnabled(user_mergeCashBalances.isSelected())                                                          # noqa
                 del srcAcct
 
-                user_forceAllowResultingNegativeCashBalance = JCheckBox("Auto allow Source Account's Cash balance to go negative?", False)
+                user_forceAllowResultingNegativeCashBalance = JCheckBox("Auto ALLOW Source Account's Cash balance to go negative?", False)
                 user_forceAllowResultingNegativeCashBalance.setToolTipText("Allows the source acct's cash balance to go negative as a result of the move")
 
                 user_forceTrunkSave = JCheckBox("Auto SAVE-TRUNK - Immediately flush all changes back to disk (Use when making large changes)?",
@@ -3221,10 +3262,10 @@ Visit: %s (Author's site)
                 user_mergeCashBalances.addItemListener(myItemListener)
 
                 _options = ["Cancel", "PROCEED"]
+                if GlobalVars.helpFileData: _options.append("HELP/GUIDE")
 
                 while True:
-
-                    jsp = MyJScrollPaneForJOptionPane(filterPanel,850,750)
+                    jsp = MyJScrollPaneForJOptionPane(filterPanel,850, 700 if (lRunningFromToolbox) else 450)
                     userAction = JOptionPane.showOptionDialog(toolbox_move_merge_investment_txns_frame_,
                                                               jsp,
                                                               "%s: Select FILTER Options:" %(_THIS_METHOD_NAME.upper()),
@@ -3234,10 +3275,14 @@ Visit: %s (Author's site)
                                                               _options,
                                                               _options[0])
 
-                    if userAction != 1:
+                    if userAction < 1:
                         txt = "%s: User did not select Move/Merge options - no changes made" %(_THIS_METHOD_NAME)
                         setDisplayStatus(txt, "B")
                         # myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                        return
+
+                    if userAction > 1:
+                        QuickJFrame("%s: Help / guide" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
                         return
 
                     if user_selectSourceAccount.getSelectedItem() is None or user_selectTargetAccount.getSelectedItem() is None:
@@ -3252,7 +3297,7 @@ Visit: %s (Author's site)
 
                     if (MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(user_selectSourceAccount.getSelectedItem()).getSize() < 1
                             and (user_selectSourceAccount.getSelectedItem().getStartBalance() == 0 or not user_mergeCashBalances.isSelected())):    # noqa
-                        txt = "%s: ERROR - Source Account has no transactions and no opening cash balance to move" %(_THIS_METHOD_NAME)
+                        txt = "%s: ERROR - Source Account has no transactions and no initial [cash] balance to move" %(_THIS_METHOD_NAME)
                         myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                         continue
 
@@ -3279,7 +3324,7 @@ Visit: %s (Author's site)
                         moveCashAmt = user_cashBalanceToMove.getValue()
 
                         if moveCashAmt < 0 or moveCashAmt > srcAcct.getStartBalance():
-                            txt = "%s: ERROR - Amount of opening cash balance to move to target is invalid, negative, or greater than amount held!" %(_THIS_METHOD_NAME)
+                            txt = "%s: ERROR - Amount of initial [cash] balance to move to target is invalid, negative, or greater than amount held!" %(_THIS_METHOD_NAME)
                             myPopupInformationBox(toolbox_move_merge_investment_txns_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                             continue
                         del srcAcct, moveCashAmt
@@ -3388,10 +3433,10 @@ Visit: %s (Author's site)
                                   %(_WIPE_OPTIONS[iAutoForceWipeLotRecordsWhenTargetAverageCostOption])
 
                     if lAutoDeleteEmptySourceAccount:
-                        output += "....... Source account will be auto-deleted after a successful merge if it's empty with no outstanding opening cash balance...\n"
+                        output += "....... Source account will be auto-deleted after a successful merge if it's empty with no outstanding initial [cash] balance...\n"
 
                     if lAutoMergeCashBalances:
-                        output += "....... Specified amount of the Opening Cash balance in Source Account will be auto added to Target Account's opening cash balance...\n"
+                        output += "....... Specified amount of the initial [cash] balance in Source Account will be auto added to Target Account's initial [cash] balance...\n"
                         output += "....... Will move %s of the cash balance into target...\n" %(sourceAccount.getCurrencyType().formatFancy(cashBalanceToMove,MD_decimal))
 
                     if lAutoForceAllowResultingNegativeCashBalance:
@@ -3464,7 +3509,7 @@ Visit: %s (Author's site)
                                 myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,_txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                                 return None, None
                             else:
-                                _txt = "Error: %s found non SECURITY account %s within %s? - Aborting" %(_txtSource, acct,fromWhere)
+                                _txt = "Error: %s found non SECURITY account %s within %s? - ABORTING" %(_txtSource, acct,fromWhere)
                                 myPrint("DB",_txt)
                                 setDisplayStatus(txt, "R")
                                 myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,_txt,theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -3509,10 +3554,13 @@ Visit: %s (Author's site)
                                 if lAutoIgnoreAnyAvgCstLotFlagDifference:
                                     output += "WARNING: %s - WILL MERGE ANYWAY - CHECK RESULTS MANUALLY AFTER PROCESSING!\n" %(insertTxt)
                                 else:
+                                    output += "\nRefer to section '[Auto IGNORE any differences between Avg Cst & LOT Control flags and Merge anyway?] (^^1)' in the Help/Guide\n\n"
+                                    QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
+                                    jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                                     txt = "Error: %s - Aborting" %(insertTxt)
                                     myPrint("DB",txt)
                                     setDisplayStatus(txt, "R")
-                                    myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                                    myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                                     return
                             else:
                                 output += "Matched: %s to %s >> UsesAverageCost=%s\n" %(srcSec, trgSec, srcSec.getUsesAverageCost())
@@ -3527,7 +3575,6 @@ Visit: %s (Author's site)
                         myPopupInformationBox(toolbox_move_merge_investment_txns_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                         return
                     output += "\nConfirmed that source and target accounts use the same currency: %s\n" %(sourceAccount.getCurrencyType())
-
 
                     targetTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(targetAccount)
 
@@ -3614,6 +3661,8 @@ Visit: %s (Author's site)
 
                     else:
                         output += "\n*** to/from accounts checked... %s account 'loops' could exist if we proceed with move/merge... ABORTING - NO CHANGES MADE\n" %(iCountLoops)
+                        output += "\nRefer to section '[Auto IGNORE any account 'Loops' and Merge anyway?]' in the Help/Guide\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s Txns to move/merge includes the target account - would cause account 'loop(s)' - no changes made" %(iCountLoops)
                         myPrint("B", txt)
@@ -3705,24 +3754,26 @@ Visit: %s (Author's site)
                                     if checkIDWithinFrom is None and checkIDWithinTo is None:
                                         # This might not ever trigger unless using my own parseCostBasisTag() method...
                                         lLotErrorsABORT = True
-                                        output += "... ERROR:    Buy (id: %s) matched to sale (id: %s) dated: %s missing/invalid?\n" %(txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        output += "... ERROR:    '%s' Buy (id: %s) matched to sale (id: %s) dated: %s missing/invalid?\n"\
+                                                  %(pad(secTxn.getAccount().getAccountName(),50),txnID,secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
                                     elif checkIDWithinFrom is not None and checkIDWithinTo is not None:
                                         lLotErrorsABORT = True
-                                        output += "... ERROR:    Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s appears in BOTH to and from txn sets?\n"\
-                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinFrom.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        output += "... ERROR:    '%s' Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s appears in BOTH to and from txn sets?\n"\
+                                                  %(pad(secTxn.getAccount().getAccountName(),50),txnID,convertStrippedIntDateFormattedText(checkIDWithinFrom.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
                                     elif checkIDWithinOther is not None and cbTags[txnID] != 0:
                                         lMoveWouldSeparateMatchedLOTs = True
                                         lAnyTagChanges = True   # Essentially we skipped this tag and didn't add it to the dictionary...
-                                        output += "... ERROR:    Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s would be separated by this move!\n"\
-                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinOther.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        output += "... ERROR:    '%s' Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s would be separated by this move!\n"\
+                                                  %(pad(secTxn.getAccount().getAccountName(),50),txnID,convertStrippedIntDateFormattedText(checkIDWithinOther.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
                                     elif checkIDWithinOther is not None and cbTags[txnID] == 0:  # Yup - you can get records matched with a ZERO qty... Ignore these
                                         lAnyTagChanges = True   # Silently ignore - Essentially we skipped this tag and didn't add it to the dictionary...
-                                        output += "... IGNORING: Buy (id: %s dated: %s) ZERO matched to sale (id: %s) dated: %s would be separated by this move! Will be ignored/deleted\n"\
-                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinOther.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        output += "... IGNORING: '%s' Buy (id: %s dated: %s) ZERO matched to sale (id: %s) dated: %s would be separated by this move! Will be ignored/deleted\n"\
+                                                  %(pad(secTxn.getAccount().getAccountName(),50),txnID,convertStrippedIntDateFormattedText(checkIDWithinOther.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
                                     else:
                                         newTags[txnID] = cbTags[txnID]
-                                        output += "... VALID:    Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s is not being separated\n"\
-                                                  %(txnID,convertStrippedIntDateFormattedText(checkIDWithinSame.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
+                                        if debug:
+                                            output += "... VALID:    '%s' Buy (id: %s dated: %s) matched to sale (id: %s) dated: %s is not being separated\n"\
+                                                      %(pad(secTxn.getAccount().getAccountName(),50),txnID,convertStrippedIntDateFormattedText(checkIDWithinSame.getDateInt()),secTxn.getUUID(), convertStrippedIntDateFormattedText(secTxn.getDateInt()))
 
                                 if lAnyTagChanges:
                                     securityTxnsToFix[secTxn] = newTags
@@ -3733,6 +3784,8 @@ Visit: %s (Author's site)
                     if lLotErrorsABORT:
                         output += "\n*** Buy/Sell matched LOTs ERRORS EXIST. Cannot proceed. PLEASE FIX & TRY AGAIN ***\n"
                         output += "\n*** TOOLBOX 'FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid' can wipe missing/invalid LOT matching records ***\n"
+                        output += "\nRefer to section '[Auto DELETE any related LOT records on txns moved that separate matched Buy/Sell LOTs?] (^^2)' in the Help/Guide\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: Buy/Sell matched LOTs ERRORS EXIST. Cannot proceed. PLEASE FIX & TRY AGAIN (Toolbox might help) - no changes made"
                         myPrint("B", txt)
@@ -3748,9 +3801,12 @@ Visit: %s (Author's site)
                         output += "\n*** Buy/Sell matched LOTs FAILED VALIDATION. The move/merge will auto-wipe LOT matching records where txns are being separated. PLEASE FIX LOT DATA MANUALLY LATER ***\n\n"
 
                     else:
-                        output += "... Buy/Sell matched LOTs FAILED VALIDATION. Matched txns would be separated...\n\n"
+                        txt = "Buy/Sell matched LOTs FAILED VALIDATION"
+                        output += "... %s. Matched txns would be separated...\n" %(txt)
+                        output += "\nRefer to section '[Auto DELETE any related LOT records on txns moved that separate matched Buy/Sell LOTs?] (^^2)' in the Help/Guide\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
-                        txt = "ERROR: Buy/Sell matched LOTs FAILED VALIDATION (refer logfile for details) - no changes made"
+                        txt = "ERROR: %s (refer logfile for details) - no changes made" %(txt)
                         myPrint("B", txt)
                         setDisplayStatus(txt, "R")
                         myPopupInformationBox(jif, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -3806,6 +3862,8 @@ Visit: %s (Author's site)
                     else:
                         txt = "Check for negative share balances FAILED VALIDATION"
                         output += ">> %s. Txns to move contain negative share balances (by security)...\n\n" %(txt)
+                        output += "\nRefer to section '[Auto IGNORE where the share balance (by security) of selected txns to move is negative?]' in the Help/Guide\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
                         myPrint("B", txt)
@@ -3850,7 +3908,9 @@ Visit: %s (Author's site)
 
                     else:
                         txt = "Check for matched LOT data when target uses average cost control - FAILED VALIDATION"
-                        output += ">> %s. Txns to move contain matched LOT data (select 'IGNORE' or 'WIPE' processing option to force this move through)...\n\n" %(txt)
+                        output += ">> %s. Txns to move contain matched LOT data (select 'IGNORE' or 'WIPE' in the option drop down. Either will do to force this move through)...\n\n" %(txt)
+                        output += "\nRefer to section '[Select option when target uses 'average cost control' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
                         myPrint("B", txt)
@@ -3861,7 +3921,7 @@ Visit: %s (Author's site)
 
 
                     ####################################################################################################
-                    # Check opening/starting cash balances
+                    # Check initial [cash] balances
                     sourceRCurr = sourceAccount.getCurrencyType()
                     sourceStartBal = sourceAccount.getStartBalance()
 
@@ -3903,17 +3963,19 @@ Visit: %s (Author's site)
                             if not lMoveThisTxn: fromResultantTxnSet.addTxn(txn)
 
                         fromResultantTxnSet.setHoldBalances(True)
-                        resultantSourceOpeningCashBalance = sourceStartBal - cashBalanceToMove
-                        fromResultantTxnSet.recalcBalances(resultantSourceOpeningCashBalance, False, False)
+                        resultantSourceInitialCashBalance = sourceStartBal - cashBalanceToMove
+                        fromResultantTxnSet.recalcBalances(resultantSourceInitialCashBalance, False, False)
 
                         if fromResultantTxnSet.getSize() > 0:
                             lastPosn = fromResultantTxnSet.getSize()-1
                             estimatedNewSourceCashBalance = fromResultantTxnSet.getBalanceAt(lastPosn)
                         else:
-                            estimatedNewSourceCashBalance = resultantSourceOpeningCashBalance
+                            estimatedNewSourceCashBalance = resultantSourceInitialCashBalance
 
                         if estimatedNewSourceCashBalance < 0:
                             output += ">> Check for resultant negative cash balance in source account FAILED VALIDATION. Would result in a negative cash balance of: %s\n\n" %(sourceAccount.getCurrencyType().formatFancy(estimatedNewSourceCashBalance, MD_decimal))
+                            output += "\nRefer to section '[Auto ALLOW Source Account's Cash balance to go negative?]' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
+                            QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData).show_the_frame()
                             jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                             txt = "ERROR: Check for source account negative cash balance (after move) FAILED VALIDATION - no changes made"
                             myPrint("B", txt)
