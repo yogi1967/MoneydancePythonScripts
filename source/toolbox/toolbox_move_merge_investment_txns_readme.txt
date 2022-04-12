@@ -18,18 +18,18 @@ much, other than before and after valuations may change if something is updating
 
 At launch, this extension checks for data consistency before allowing you to proceed. If you see the following message:
 'ERROR - Cross-linked (or Orphaned) security txns detected..', then you have a data issue that needs fixing before
-proceeding. Toolbox 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' can do this for you. Rarely
+proceeding. Toolbox 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' can do this for you. Rarely
 if you have force deleted a security from an account (or if you have one-sided, old, QIF imported txns) then Toolbox may
 not be able to correct the situation. If this occurs, reach out for guidance, but you will have to manually correct your
 data first.
 
 This extension performs extensive validation before doing anything. It will not proceed if anything fails validation
 (see below for details). Irrespective, after you click PROCEED, after validation, the extension pauses, shows you the
-log, and asks if you want to proceed. It also offers you the opportunity to perform a backup. Once the move has occured,
+log and asks if you want to proceed. It also offers you the opportunity to perform a backup. Once the move has occurred,
 an updated log will appear for your perusal.
 
-All that has to (pre)exist for a move is the target investment account. It can be completely new/empty. Equsally, it does
-not matter if the target account aready holds many securities and transactions. This extension will take care of
+All that has to (pre)exist for a move, is the target investment account. It can be completely new/empty. Equally, it does
+not matter if the target account already holds many securities and transactions. This extension will take care of
 assigning new securities into the target account if necessary.
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -41,12 +41,12 @@ This is because they can hold many (invisible) splits, including: cash txfr, inc
 
 Securities are configured with a 'Cost Basis' as either Average Cost controlled, or LOT controlled using the
 Investment Account's 'Securities Detail' page > 'Edit Security' button. The default is Average Cost control and often
-this setting is never actually set by the user as it can easily be over looked. The cost basis setting can be configured
+this setting is never actually set by the user as it can easily be overlooked. The cost basis setting can be configured
 by investment account, and can be different across accounts.
 
-The purpose of the cost basis setting controls how Moneydance calculates the cost basis of your shares. This is critical
-for calculating capital gains and tax reports. Simplistically speaking, when using average cost, the average purchase
-price of your Buys are used to calculate the cost basis, and then your Sells use the calcualated average.
+The purpose of the cost basis setting is to determine how Moneydance calculates the cost basis of your shares. This is
+critical for calculating capital gains and tax reports. Simplistically speaking, when using average cost, the average
+purchase price of your Buys are used to calculate the cost basis, and then your Sells use the calculated average.
 
 However, when using LOT control you match Sells to Buys (matched 'sets') using the 'Edit Lots' button. In this scenario,
 your cost basis is calculated per matched set. Sells can be matched to many different buys. Buys can be partially sold
@@ -60,9 +60,9 @@ pre-existing matching data will again be visible in the Edit Lots window.
 
 The cost basis setting is important and very relevant to this extension. This is because if you move transactions from
 investment account A to B, and A uses LOT control and B uses average cost (for example), then the extn needs to know how
-to handle the underlying (hidden) LOT matching data. In this scenario, should you keep the LOT matching data and copy it
-across, or dump the matching data as average cost control in the target account does not actually require it? The
-processing options allow you to decide on the approach you want to take.
+to handle the underlying (hidden) LOT matching data. In this scenario, you need to determine if you should keep the LOT
+matching data and copy it across, or dump the matching data as average cost control in the target account does not
+actually require it? The processing options allow you to decide on the approach you want to take.
 
 Similarly, if you are moving a subset of transactions containing LOT matching data, you need to ensure that you move
 matched sets and that you do not separate Sells from the matched Buy transactions. This extension will detect and warn
@@ -82,7 +82,7 @@ INITIATION:
 You start the extension by selecting the Moneydance Extensions Menu and selecting: Toolbox: Move investment transactions
 
 There are two modes of operation:
-1. Move all transactions, or filter by Security, or date range. Ensure no transactions are selected before executing.
+1. Move all transactions, or filter by Security, and/or date range. Ensure no transactions are selected before executing
 2. Select any number of transactions within an investment account register that you want to move BEFORE running the extn
 >> The options presented will change depending on the mode of operation you have selected.
 
@@ -159,7 +159,8 @@ moved where. THIS SETTING INTERACTS WITH THE OTHER COST BASIS OPTIONS.
   > CHECK/WARN [Default] Validates for where Txns contain matched LOT records when the target uses Average Cost Control
     Validation ensures that when txns are being moved from source using LOT control, to target using average cost,
     that the source txn (per security) does not contain (hidden) LOT matching data. If it does, then the move will be
-    blocked by default. You are able to force the move to occur, but you must decide on how to handle.
+    blocked by default. You are able to force the move to occur, but you must decide on how this is handled by using one
+    of the other two options in this drop down.
 
   > IGNORE PROBLEM(s): Copy any existing matched LOT records unchanged when target uses Average Cost Control
     If this option is selected, then any (pre)existing (hidden) LOT data will simply be copied across to the target
@@ -179,7 +180,7 @@ moved where. THIS SETTING INTERACTS WITH THE OTHER COST BASIS OPTIONS.
 
 [Auto IGNORE any account 'Loops' and Merge anyway?]
 Investment accounts can transfer cash to/from another investment account. This can be via Xfr, SellXfr, BuyXfr txns. If
-for example, you have Xfrs occuring to/from investment account A to/from B and you move txns from A to B, then you will
+for example, you have Xfrs occurring to/from investment account A to/from B and you move txns from A to B, then you will
 end up with transactions in B that are Xfrs to/from itself (i.e. B to/from B). This is referred to as a 'loop' and is
 completely illogical. If you select this option, then you will force the move to occur and you will create txn 'loops'.
 You can do this, and then manually edit the txns afterwards to correct the situation. Or you can edit the txn before the
@@ -201,7 +202,7 @@ of txns then it would be a good idea to select this option.
 
 ------------------------------------------------------------------------------------------------------------------------
 Author: Stuart Beesley - StuWareSoftSystems 2022
-Credit: Derek Kent(23) for his extensive texting and many hours on this project!
+Credit: Derek Kent(23) for his extensive testing and many hours on this project!
 ------------------------------------------------------------------------------------------------------------------------
 Thanks for reading...
 

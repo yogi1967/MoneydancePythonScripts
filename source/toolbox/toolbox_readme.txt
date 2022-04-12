@@ -1,7 +1,7 @@
 The Infinite Kind (Moneydance) - Co-authored by Stuart Beesley in collaboration with Moneydance as a support tool
 
 Original Author: Stuart Beesley - StuWareSoftSystems (Nov 2020 thru April 2022 - a lockdown project ~1000 coding hours)
-Credit: Derek Kent(23) for his extensive texting and many hours on this project!
+Credit: Derek Kent(23) for his extensive testing and many hours on this project!
         Also thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 
 Get more Scripts/Extensions from: https://yogi1967.github.io/MoneydancePythonScripts/
@@ -232,7 +232,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
     - MENU: Transactions tools
         - Move/Merge Investment transactions from one account into another. DISABLED >> NOW RUN FROM EXTENSIONS MENU (you can pre-select register txns first)
         - FIX - Diagnose Attachments - DELETE Orphan attachments (allows you to delete Orphan attachments from Disk ** Syncing must be disabled **)
-        - FIX - Non Hierarchical Security Account Txns (cross-linked securities) (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)
+        - FIX - Non-Hierarchical Security Acct Txns (& detect Orphans) (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)
         - FIX - Delete One-Sided Txns (delete_invalid_txns.py)
         - FIX - Reverse Transaction Amounts between dates (reverse_txn_amounts.py)
         - FIX - Reverse Transaction Exchange rates between dates (reverse_txn_amounts.py)

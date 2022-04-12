@@ -886,7 +886,7 @@ Visit: %s (Author's site)
             self.lResult = [None]
             if not self.theMessage.endswith("\n"): self.theMessage+="\n"
             if self.OKButtonText == "": self.OKButtonText="OK"
-            if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
+            # if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
             if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
         class WindowListener(WindowAdapter):
@@ -993,7 +993,7 @@ Visit: %s (Author's site)
                 def __init__(self, callingClass):
                     self.callingClass = callingClass
 
-                def run(self):                                                                                          # noqa
+                def run(self):                                                                                                      # noqa
 
                     myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
                     myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
@@ -1084,25 +1084,29 @@ Visit: %s (Author's site)
 
                     if self.callingClass.lAlertLevel>=2:
                         # internalScrollPane.setBackground(Color.RED)
-                        # theJText.setBackground(Color.RED)
-                        # theJText.setForeground(Color.BLACK)
                         displayJText.setBackground(Color.RED)
                         displayJText.setForeground(Color.BLACK)
+                        displayJText.setOpaque(True)
                         _popupPanel.setBackground(Color.RED)
                         _popupPanel.setForeground(Color.BLACK)
+                        _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.RED)
-                        myScrollPane.setBackground(Color.RED)
+                        buttonPanel.setOpaque(True)
+                        # myScrollPane.setBackground(Color.RED)
+                        # myScrollPane.setOpaque(True)
 
                     elif self.callingClass.lAlertLevel>=1:
                         # internalScrollPane.setBackground(Color.YELLOW)
-                        # theJText.setBackground(Color.YELLOW)
-                        # theJText.setForeground(Color.BLACK)
                         displayJText.setBackground(Color.YELLOW)
                         displayJText.setForeground(Color.BLACK)
+                        displayJText.setOpaque(True)
                         _popupPanel.setBackground(Color.YELLOW)
                         _popupPanel.setForeground(Color.BLACK)
+                        _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.YELLOW)
-                        myScrollPane.setBackground(Color.RED)
+                        buttonPanel.setOpaque(True)
+                        # myScrollPane.setBackground(Color.YELLOW)
+                        # myScrollPane.setOpaque(True)
 
                     self.callingClass._popup_d.add(_popupPanel)
                     self.callingClass._popup_d.pack()
@@ -1124,7 +1128,8 @@ Visit: %s (Author's site)
 
         # Seems to cause a crash on Virtual Machine with no Audio - so just in case....
         try:
-            MD_REF.getUI().getSounds().playSound("cash_register.wav")
+            if MD_REF.getPreferences().getSetting("beep_on_transaction_change", "y") == "y":
+                MD_REF.getUI().getSounds().playSound("cash_register.wav")
         except:
             pass
 
@@ -2226,7 +2231,7 @@ Visit: %s (Author's site)
             self.lJumpToEnd = lJumpToEnd
             self.lWrapText = lWrapText
             self.lQuitMDAfterClose = lQuitMDAfterClose
-            if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
+            # if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
             if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
         class QJFWindowListener(WindowAdapter):
@@ -2343,7 +2348,7 @@ Visit: %s (Author's site)
                     # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)%s"
                                               %( MD_REF.getUI().ACCELERATOR_MASK_STR,
-                                                 ("" if not self.callingClass.lQuitMDAfterClose else " >> MD WILL QUIT AFTER VIEWING THIS <<")))
+                                                ("" if not self.callingClass.lQuitMDAfterClose else  " >> MD WILL QUIT AFTER VIEWING THIS <<")))
 
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
@@ -2373,13 +2378,15 @@ Visit: %s (Author's site)
                     internalScrollPane = JScrollPane(theJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
                     if self.callingClass.lAlertLevel>=2:
-                        internalScrollPane.setBackground(Color.RED)
+                        # internalScrollPane.setBackground(Color.RED)
                         theJText.setBackground(Color.RED)
                         theJText.setForeground(Color.BLACK)
+                        theJText.setOpaque(True)
                     elif self.callingClass.lAlertLevel>=1:
-                        internalScrollPane.setBackground(Color.YELLOW)
+                        # internalScrollPane.setBackground(Color.YELLOW)
                         theJText.setBackground(Color.YELLOW)
                         theJText.setForeground(Color.BLACK)
+                        theJText.setOpaque(True)
 
                     jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
