@@ -94,6 +94,7 @@
 # build: 1023 - Bug fix for .getSubAccounts() - as of build 4069 this is an unmodifiable list; also trap SwingWorker errors
 # build: 1023 - Added lOmitLOTDataFromExtract_EIT to Extract Investment Txns to allow user to omit LOT matching data from extract
 # build: 1023 - Added lAllowEscapeExitApp_SWSS to allow/block escape key exiting main app's window;  Tweaked the JMenuBar() to say "MENU"
+# build: 1023 - Upgraded the Edit Reminders popup so that escape will cancel the popup dialog window.
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -310,7 +311,7 @@ else:
     from javax.swing.event import AncestorListener
 
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
-    from java.awt import BorderLayout, Dialog, Insets
+    from java.awt import BorderLayout, Dialog, Insets, Point
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
     from java.util import Date, Locale
 
@@ -325,7 +326,7 @@ else:
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
                          AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
-                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
+                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent, GridLayout,
                          WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread, SwingWorker)): pass
     if codecs.BOM_UTF8 is not None: pass
     if csv.QUOTE_ALL is not None: pass
@@ -378,7 +379,16 @@ else:
     # from stockglance2020 and extract_reminders_csv
     from java.awt.event import AdjustmentListener
     from java.text import NumberFormat, SimpleDateFormat
-    from com.moneydance.apps.md.view.gui import EditRemindersWindow
+
+    from com.moneydance.apps.md.view.gui import EditRemindersWindow                                                     # noqa
+    from com.moneydance.apps.md.view.gui import LoanTxnReminderNotificationWindow                                       # noqa
+    from com.moneydance.apps.md.view.gui import TxnReminderNotificationWindow                                           # noqa
+    from com.moneydance.apps.md.view.gui import BasicReminderNotificationWindow                                         # noqa
+    from com.moneydance.apps.md.view.gui import LoanTxnReminderInfoWindow                                               # noqa
+    from com.moneydance.apps.md.view.gui import TxnReminderInfoWindow                                                   # noqa
+    from com.moneydance.apps.md.view.gui import BasicReminderInfoWindow                                                 # noqa
+    from com.infinitekind.moneydance.model import ReminderListener                                                      # noqa
+
     from java.awt.event import MouseAdapter
     from java.util import Comparator
     from javax.swing import SortOrder, ListSelectionModel
@@ -957,11 +967,21 @@ Visit: %s (Author's site)
     # APPLICATION_MODAL, DOCUMENT_MODAL, MODELESS, TOOLKIT_MODAL
     class MyPopUpDialogBox():
 
-        def __init__(self, theParent=None, theStatus="", theMessage="", theWidth=200, theTitle="Info", lModal=True, lCancelButton=False, OKButtonText="OK", lAlertLevel=0):
+        def __init__(self,
+                     theParent=None,
+                     theStatus="",
+                     theMessage="",
+                     maxSize=Dimension(0,0),
+                     theTitle="Info",
+                     lModal=True,
+                     lCancelButton=False,
+                     OKButtonText="OK",
+                     lAlertLevel=0):
+
             self.theParent = theParent
             self.theStatus = theStatus
             self.theMessage = theMessage
-            self.theWidth = max(80,theWidth)
+            self.maxSize = maxSize
             self.theTitle = theTitle
             self.lModal = lModal
             self.lCancelButton = lCancelButton
@@ -1090,7 +1110,7 @@ Visit: %s (Author's site)
                         self.callingClass.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
                         self.callingClass.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
                         self.callingClass.fakeJFrame.setUndecorated(True)
-                        self.callingClass.fakeJFrame.setVisible( False )
+                        self.callingClass.fakeJFrame.setVisible(False)
                         if not Platform.isOSX():
                             self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
@@ -1100,6 +1120,16 @@ Visit: %s (Author's site)
                     else:
                         # noinspection PyUnresolvedReferences
                         self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.MODELESS)
+
+                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+
+                    if isinstance(self.callingClass.maxSize, Dimension)\
+                            and self.callingClass.maxSize.height and self.callingClass.maxSize.width:
+                        frame_width = min(screenSize.width-20, self.callingClass.maxSize.width)
+                        frame_height = min(screenSize.height-20, self.callingClass.maxSize.height)
+                        self.callingClass._popup_d.setPreferredSize(Dimension(frame_width,frame_height))
+
+                    self.callingClass._popup_d.getContentPane().setLayout(BorderLayout())
 
                     self.callingClass._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
 
@@ -1117,28 +1147,27 @@ Visit: %s (Author's site)
                         self.callingClass._popup_d.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     displayJText = JTextArea(self.callingClass.theMessage)
-                    displayJText.setFont( getMonoFont() )
+                    displayJText.setFont(getMonoFont())
                     displayJText.setEditable(False)
                     displayJText.setLineWrap(False)
                     displayJText.setWrapStyleWord(False)
 
-                    _popupPanel=JPanel()
+                    _popupPanel = JPanel(BorderLayout())
 
                     # maxHeight = 500
-                    _popupPanel.setLayout(GridLayout(0,1))
                     _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
 
+
                     if self.callingClass.theStatus:
-                        _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
+                        _statusPnl = JPanel(BorderLayout())
+                        _label1 = JLabel(self.callingClass.theStatus)
                         _label1.setForeground(getColorBlue())
-                        _popupPanel.add(_label1)
+                        _label1.setBorder(EmptyBorder(8, 0, 8, 0))
+                        _popupPanel.add(_label1, BorderLayout.NORTH)
 
                     myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-                    if displayJText.getLineCount()>5:
-                        myScrollPane.setWheelScrollingEnabled(True)
-                        _popupPanel.add(myScrollPane)
-                    else:
-                        _popupPanel.add(displayJText)
+                    myScrollPane.setWheelScrollingEnabled(True)
+                    _popupPanel.add(myScrollPane, BorderLayout.CENTER)
 
                     buttonPanel = JPanel()
                     if self.callingClass.lModal or self.callingClass.lCancelButton:
@@ -1150,7 +1179,9 @@ Visit: %s (Author's site)
                             cancel_button.setBackground(Color.LIGHT_GRAY)
                             cancel_button.setBorderPainted(False)
                             cancel_button.setOpaque(True)
-                            cancel_button.addActionListener( self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
+                            cancel_button.setBorder(EmptyBorder(8, 8, 8, 8))
+
+                            cancel_button.addActionListener(self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
                             buttonPanel.add(cancel_button)
 
                         if self.callingClass.lModal:
@@ -1163,10 +1194,11 @@ Visit: %s (Author's site)
                             ok_button.setBackground(Color.LIGHT_GRAY)
                             ok_button.setBorderPainted(False)
                             ok_button.setOpaque(True)
+                            ok_button.setBorder(EmptyBorder(8, 8, 8, 8))
                             ok_button.addActionListener( self.callingClass.OKButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame, self.callingClass.lResult) )
                             buttonPanel.add(ok_button)
 
-                        _popupPanel.add(buttonPanel)
+                        _popupPanel.add(buttonPanel, BorderLayout.SOUTH)
 
                     if self.callingClass.lAlertLevel>=2:
                         # internalScrollPane.setBackground(Color.RED)
@@ -1178,8 +1210,6 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.RED)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.RED)
-                        # myScrollPane.setOpaque(True)
 
                     elif self.callingClass.lAlertLevel>=1:
                         # internalScrollPane.setBackground(Color.YELLOW)
@@ -1191,10 +1221,8 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.YELLOW)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.YELLOW)
-                        # myScrollPane.setOpaque(True)
 
-                    self.callingClass._popup_d.add(_popupPanel)
+                    self.callingClass._popup_d.add(_popupPanel, BorderLayout.CENTER)
                     self.callingClass._popup_d.pack()
                     self.callingClass._popup_d.setLocationRelativeTo(None)
                     self.callingClass._popup_d.setVisible(True)  # Keeping this modal....
@@ -2308,7 +2336,16 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True, lQuitMDAfterClose=False):
+        def __init__(self,
+                     title,
+                     output,
+                     lAlertLevel=0,
+                     copyToClipboard=False,
+                     lJumpToEnd=False,
+                     lWrapText=True,
+                     lQuitMDAfterClose=False,
+                     screenLocation=None,
+                     lAutoSize=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
@@ -2317,6 +2354,8 @@ Visit: %s (Author's site)
             self.lJumpToEnd = lJumpToEnd
             self.lWrapText = lWrapText
             self.lQuitMDAfterClose = lQuitMDAfterClose
+            self.screenLocation = screenLocation
+            self.lAutoSize = lAutoSize
             # if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
             if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
@@ -2474,7 +2513,8 @@ Visit: %s (Author's site)
                         theJText.setForeground(Color.BLACK)
                         theJText.setOpaque(True)
 
-                    jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
+                    if not self.callingClass.lAutoSize:
+                        jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
                     SetupMDColors.updateUI()
 
@@ -2551,7 +2591,11 @@ Visit: %s (Author's site)
                     jInternalFrame.add(internalScrollPane)
 
                     jInternalFrame.pack()
-                    jInternalFrame.setLocationRelativeTo(None)
+                    if self.callingClass.screenLocation and isinstance(self.callingClass.screenLocation, Point):
+                        jInternalFrame.setLocation(self.callingClass.screenLocation)
+                    else:
+                        jInternalFrame.setLocationRelativeTo(None)
+
                     jInternalFrame.setVisible(True)
 
                     if Platform.isOSX():
@@ -4986,7 +5030,7 @@ Visit: %s (Author's site)
                             try:
                                 os.mkdir(attachmentDir)
                                 myPrint("B", "Successfully created Attachment Directory: %s" %attachmentDir)
-                                MyPopUpDialogBox(extract_data_frame_, theStatus="I have created Attachment Directory:", theMessage=attachmentDir, theWidth=200, theTitle="Info", lModal=True).go()
+                                MyPopUpDialogBox(extract_data_frame_, theStatus="I have created Attachment Directory:", theMessage=attachmentDir, theTitle="Info", lModal=True).go()
 
                             except:
                                 myPrint("B", "Sorry - Failed to create Attachment Directory: %s",attachmentDir)
@@ -7710,8 +7754,28 @@ Visit: %s (Author's site)
                         reminders = MD_REF.getCurrentAccount().getBook().getReminders()
                         reminder = reminders.getAllReminders()[item-1]
                         myPrint("D", "Calling MD EditRemindersWindow() function...")
-                        EditRemindersWindow.editReminder(None, MD_REF.getUI(), reminder)
+
+                        # EditRemindersWindow.editReminder(None, MD_REF.getUI(), reminder)
+
+                        r = reminder
+                        book = MD_REF.getCurrentAccountBook()
+                        reminderSet = MD_REF.getUI().getCurrentBook().getReminders()
+                        # noinspection PyUnresolvedReferences
+                        if r.getReminderType() == Reminder.Type.TRANSACTION:
+                            if r.isLoanReminder():
+                                win = LoanTxnReminderInfoWindow(MD_REF.getUI(), extract_data_frame_, r, book, r.getTransaction().getSplit(0).getAccount())
+                            else:
+                                win = TxnReminderInfoWindow(MD_REF.getUI(), extract_data_frame_, r, reminderSet.getAccountBook())
+                        # noinspection PyUnresolvedReferences
+                        elif r.getReminderType() == Reminder.Type.NOTE:
+                            win = BasicReminderInfoWindow(MD_REF.getUI(), r, reminderSet, extract_data_frame_)
+                        else: raise Exception("Unknown reminder class: " + r.getClass())
+
+                        win.setEscapeKeyCancels(True)
+                        win.setVisible(True)
+
                         EditedReminderCheck = True
+
                         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                         return
 
@@ -7983,7 +8047,7 @@ Visit: %s (Author's site)
                             myPrint("DB","%s Accounts selected in filters" %len(validAccountList))
                             for element in validAccountList: myPrint("D","...selected acct: %s" %element)
 
-                        _msg = MyPopUpDialogBox(extract_data_frame_, "PLEASE WAIT....", "", 100, "Building Database", False)
+                        _msg = MyPopUpDialogBox(extract_data_frame_, theStatus="PLEASE WAIT....", theTitle="Building Database", lModal=False)
                         _msg.go()
 
                         _COLUMN = 0
@@ -8628,11 +8692,11 @@ Visit: %s (Author's site)
                                         xtra_msg="\n(with an error creating the zip file - review console / log for messages)"
 
                                 MyPopUpDialogBox(extract_data_frame_,
-                                                 "Your extract has been created as requested:",
-                                                 "With %s rows and %s attachments downloaded %s\n"
+                                                 theStatus="Your extract has been created as requested:",
+                                                 theMessage="With %s rows and %s attachments downloaded %s\n"
                                                  "\n(... and %s Attachment Errors...)" % (len(transactionTable),iCountAttachmentsDownloaded, xtra_msg,iAttachmentErrors),
-                                                 200,
-                                                 GlobalVars.thisScriptName, lModal=True).go()
+                                                 theTitle=GlobalVars.thisScriptName,
+                                                 lModal=True).go()
 
                                 try:
                                     helper_EAR = MD_REF.getPlatformHelper()
@@ -9611,11 +9675,11 @@ Visit: %s (Author's site)
                                         xtra_msg="\n(with an error creating the zip file - review console / log for messages)"
 
                                 MyPopUpDialogBox(extract_data_frame_,
-                                                 "Your extract has been created as requested:",
-                                                 "With %s rows and %s attachments downloaded %s\n"
+                                                 theStatus="Your extract has been created as requested:",
+                                                 theMessage="With %s rows and %s attachments downloaded %s\n"
                                                  "\n(... and %s Attachment Errors...)" % (len(transactionTable),iCountAttachmentsDownloaded, xtra_msg,iAttachmentErrors),
-                                                 200,
-                                                 GlobalVars.thisScriptName, lModal=True).go()
+                                                 theTitle=GlobalVars.thisScriptName,
+                                                 lModal=True).go()
 
                                 try:
                                     helper_EIT = MD_REF.getPlatformHelper()

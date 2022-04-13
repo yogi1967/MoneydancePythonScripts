@@ -248,7 +248,7 @@ else:
     from javax.swing.event import AncestorListener
 
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
-    from java.awt import BorderLayout, Dialog, Insets
+    from java.awt import BorderLayout, Dialog, Insets, Point
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent, HierarchyListener
     from java.util import Date, Locale
 
@@ -263,7 +263,7 @@ else:
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
                          AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
-                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
+                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent, GridLayout,
                          WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread, SwingWorker)): pass
     if codecs.BOM_UTF8 is not None: pass
     if csv.QUOTE_ALL is not None: pass
@@ -760,11 +760,21 @@ Visit: %s (Author's site)
     # APPLICATION_MODAL, DOCUMENT_MODAL, MODELESS, TOOLKIT_MODAL
     class MyPopUpDialogBox():
 
-        def __init__(self, theParent=None, theStatus="", theMessage="", theWidth=200, theTitle="Info", lModal=True, lCancelButton=False, OKButtonText="OK", lAlertLevel=0):
+        def __init__(self,
+                     theParent=None,
+                     theStatus="",
+                     theMessage="",
+                     maxSize=Dimension(0,0),
+                     theTitle="Info",
+                     lModal=True,
+                     lCancelButton=False,
+                     OKButtonText="OK",
+                     lAlertLevel=0):
+
             self.theParent = theParent
             self.theStatus = theStatus
             self.theMessage = theMessage
-            self.theWidth = max(80,theWidth)
+            self.maxSize = maxSize
             self.theTitle = theTitle
             self.lModal = lModal
             self.lCancelButton = lCancelButton
@@ -893,7 +903,7 @@ Visit: %s (Author's site)
                         self.callingClass.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
                         self.callingClass.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
                         self.callingClass.fakeJFrame.setUndecorated(True)
-                        self.callingClass.fakeJFrame.setVisible( False )
+                        self.callingClass.fakeJFrame.setVisible(False)
                         if not Platform.isOSX():
                             self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
@@ -903,6 +913,16 @@ Visit: %s (Author's site)
                     else:
                         # noinspection PyUnresolvedReferences
                         self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.MODELESS)
+
+                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+
+                    if isinstance(self.callingClass.maxSize, Dimension)\
+                            and self.callingClass.maxSize.height and self.callingClass.maxSize.width:
+                        frame_width = min(screenSize.width-20, self.callingClass.maxSize.width)
+                        frame_height = min(screenSize.height-20, self.callingClass.maxSize.height)
+                        self.callingClass._popup_d.setPreferredSize(Dimension(frame_width,frame_height))
+
+                    self.callingClass._popup_d.getContentPane().setLayout(BorderLayout())
 
                     self.callingClass._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
 
@@ -920,28 +940,27 @@ Visit: %s (Author's site)
                         self.callingClass._popup_d.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     displayJText = JTextArea(self.callingClass.theMessage)
-                    displayJText.setFont( getMonoFont() )
+                    displayJText.setFont(getMonoFont())
                     displayJText.setEditable(False)
                     displayJText.setLineWrap(False)
                     displayJText.setWrapStyleWord(False)
 
-                    _popupPanel=JPanel()
+                    _popupPanel = JPanel(BorderLayout())
 
                     # maxHeight = 500
-                    _popupPanel.setLayout(GridLayout(0,1))
                     _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
 
+
                     if self.callingClass.theStatus:
-                        _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
+                        _statusPnl = JPanel(BorderLayout())
+                        _label1 = JLabel(self.callingClass.theStatus)
                         _label1.setForeground(getColorBlue())
-                        _popupPanel.add(_label1)
+                        _label1.setBorder(EmptyBorder(8, 0, 8, 0))
+                        _popupPanel.add(_label1, BorderLayout.NORTH)
 
                     myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-                    if displayJText.getLineCount()>5:
-                        myScrollPane.setWheelScrollingEnabled(True)
-                        _popupPanel.add(myScrollPane)
-                    else:
-                        _popupPanel.add(displayJText)
+                    myScrollPane.setWheelScrollingEnabled(True)
+                    _popupPanel.add(myScrollPane, BorderLayout.CENTER)
 
                     buttonPanel = JPanel()
                     if self.callingClass.lModal or self.callingClass.lCancelButton:
@@ -953,7 +972,9 @@ Visit: %s (Author's site)
                             cancel_button.setBackground(Color.LIGHT_GRAY)
                             cancel_button.setBorderPainted(False)
                             cancel_button.setOpaque(True)
-                            cancel_button.addActionListener( self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
+                            cancel_button.setBorder(EmptyBorder(8, 8, 8, 8))
+
+                            cancel_button.addActionListener(self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
                             buttonPanel.add(cancel_button)
 
                         if self.callingClass.lModal:
@@ -966,10 +987,11 @@ Visit: %s (Author's site)
                             ok_button.setBackground(Color.LIGHT_GRAY)
                             ok_button.setBorderPainted(False)
                             ok_button.setOpaque(True)
+                            ok_button.setBorder(EmptyBorder(8, 8, 8, 8))
                             ok_button.addActionListener( self.callingClass.OKButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame, self.callingClass.lResult) )
                             buttonPanel.add(ok_button)
 
-                        _popupPanel.add(buttonPanel)
+                        _popupPanel.add(buttonPanel, BorderLayout.SOUTH)
 
                     if self.callingClass.lAlertLevel>=2:
                         # internalScrollPane.setBackground(Color.RED)
@@ -981,8 +1003,6 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.RED)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.RED)
-                        # myScrollPane.setOpaque(True)
 
                     elif self.callingClass.lAlertLevel>=1:
                         # internalScrollPane.setBackground(Color.YELLOW)
@@ -994,10 +1014,8 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.YELLOW)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.YELLOW)
-                        # myScrollPane.setOpaque(True)
 
-                    self.callingClass._popup_d.add(_popupPanel)
+                    self.callingClass._popup_d.add(_popupPanel, BorderLayout.CENTER)
                     self.callingClass._popup_d.pack()
                     self.callingClass._popup_d.setLocationRelativeTo(None)
                     self.callingClass._popup_d.setVisible(True)  # Keeping this modal....
@@ -2111,7 +2129,16 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True, lQuitMDAfterClose=False):
+        def __init__(self,
+                     title,
+                     output,
+                     lAlertLevel=0,
+                     copyToClipboard=False,
+                     lJumpToEnd=False,
+                     lWrapText=True,
+                     lQuitMDAfterClose=False,
+                     screenLocation=None,
+                     lAutoSize=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
@@ -2120,6 +2147,8 @@ Visit: %s (Author's site)
             self.lJumpToEnd = lJumpToEnd
             self.lWrapText = lWrapText
             self.lQuitMDAfterClose = lQuitMDAfterClose
+            self.screenLocation = screenLocation
+            self.lAutoSize = lAutoSize
             # if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
             if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
@@ -2277,7 +2306,8 @@ Visit: %s (Author's site)
                         theJText.setForeground(Color.BLACK)
                         theJText.setOpaque(True)
 
-                    jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
+                    if not self.callingClass.lAutoSize:
+                        jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
                     SetupMDColors.updateUI()
 
@@ -2354,7 +2384,11 @@ Visit: %s (Author's site)
                     jInternalFrame.add(internalScrollPane)
 
                     jInternalFrame.pack()
-                    jInternalFrame.setLocationRelativeTo(None)
+                    if self.callingClass.screenLocation and isinstance(self.callingClass.screenLocation, Point):
+                        jInternalFrame.setLocation(self.callingClass.screenLocation)
+                    else:
+                        jInternalFrame.setLocationRelativeTo(None)
+
                     jInternalFrame.setVisible(True)
 
                     if Platform.isOSX():
@@ -3017,17 +3051,6 @@ Visit: %s (Author's site)
                         if not dialog.isResizable():
                             dialog.setResizable(True)
 
-            def helpFileQJF(*args, **kwargs):
-                screenSize = Toolkit.getDefaultToolkit().getScreenSize()
-                borders = 90
-                frame_width = int(round((screenSize.width - borders) *.95,0))
-                frame_height = int(round((screenSize.height - borders) *.95,0))
-
-                jif = QuickJFrame(*args, **kwargs).show_the_frame()
-                jif.setPreferredSize(Dimension(min(1100,frame_width), frame_height))
-                jif.setLocation(10,10)
-                jif.pack()
-
             if MD_EXTENSION_LOADER:
                 try:
                     GlobalVars.helpFileData = load_text_from_stream_file(MD_EXTENSION_LOADER.getResourceAsStream("/%s_readme.txt" %(myModuleID)))
@@ -3046,7 +3069,7 @@ Visit: %s (Author's site)
                     selectHomeScreen()      # Stops the LOT Control box popping up.....
 
                 if not GlobalVars.extn_param_shownHelpFile_MIT:
-                    helpFileQJF("%s: Help / guide (FIRST EXECUTION OF EXTENSION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                    QuickJFrame("%s: Help / guide (FIRST EXECUTION OF EXTENSION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                     GlobalVars.extn_param_shownHelpFile_MIT = True
                     save_StuWareSoftSystems_parameters_to_file(myFile="%s_extension.dict" %(myModuleID))
                     return
@@ -3299,7 +3322,7 @@ Visit: %s (Author's site)
                         return
 
                     if userAction > 1:
-                        helpFileQJF("%s: Help / guide" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                        QuickJFrame("%s: Help / guide" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                         return
 
                     if user_selectSourceAccount.getSelectedItem() is None or user_selectTargetAccount.getSelectedItem() is None:
@@ -3572,7 +3595,8 @@ Visit: %s (Author's site)
                                     output += "WARNING: %s - WILL MERGE ANYWAY - CHECK RESULTS MANUALLY AFTER PROCESSING!\n" %(insertTxt)
                                 else:
                                     output += "\nRefer to section '[Auto IGNORE any differences between Avg Cst & LOT Control flags and Merge anyway?] (^^1)' in the Help/Guide\n\n"
-                                    helpFileQJF("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                                    output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
+                                    QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                                     jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                                     txt = "Error: %s - Aborting" %(insertTxt)
                                     myPrint("DB",txt)
@@ -3679,7 +3703,8 @@ Visit: %s (Author's site)
                     else:
                         output += "\n*** to/from accounts checked... %s account 'loops' could exist if we proceed with move/merge... ABORTING - NO CHANGES MADE\n" %(iCountLoops)
                         output += "\nRefer to section '[Auto IGNORE any account 'Loops' and Merge anyway?]' in the Help/Guide\n\n"
-                        helpFileQJF("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                        output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s Txns to move/merge includes the target account - would cause account 'loop(s)' - no changes made" %(iCountLoops)
                         myPrint("B", txt)
@@ -3802,7 +3827,8 @@ Visit: %s (Author's site)
                         output += "\n*** Buy/Sell matched LOTs ERRORS EXIST. Cannot proceed. PLEASE FIX & TRY AGAIN ***\n"
                         output += "\n*** TOOLBOX 'FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid' can wipe missing/invalid LOT matching records ***\n"
                         output += "\nRefer to section '[Auto DELETE any related LOT records on txns moved that separate matched Buy/Sell LOTs?] (^^2)' in the Help/Guide\n\n"
-                        helpFileQJF("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                        output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: Buy/Sell matched LOTs ERRORS EXIST. Cannot proceed. PLEASE FIX & TRY AGAIN (Toolbox might help) - no changes made"
                         myPrint("B", txt)
@@ -3821,7 +3847,8 @@ Visit: %s (Author's site)
                         txt = "Buy/Sell matched LOTs FAILED VALIDATION"
                         output += "... %s. Matched txns would be separated...\n" %(txt)
                         output += "\nRefer to section '[Auto DELETE any related LOT records on txns moved that separate matched Buy/Sell LOTs?] (^^2)' in the Help/Guide\n\n"
-                        helpFileQJF("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                        output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s (refer logfile for details) - no changes made" %(txt)
                         myPrint("B", txt)
@@ -3880,7 +3907,7 @@ Visit: %s (Author's site)
                         txt = "Check for negative share balances FAILED VALIDATION"
                         output += ">> %s. Txns to move contain negative share balances (by security)...\n\n" %(txt)
                         output += "\nRefer to section '[Auto IGNORE where the share balance (by security) of selected txns to move is negative?]' in the Help/Guide\n\n"
-                        helpFileQJF("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
                         myPrint("B", txt)
@@ -3927,7 +3954,7 @@ Visit: %s (Author's site)
                         txt = "Check for matched LOT data when target uses average cost control - FAILED VALIDATION"
                         output += ">> %s. Txns to move contain matched LOT data (select 'IGNORE' or 'WIPE' in the option drop down. Either will do to force this move through)...\n\n" %(txt)
                         output += "\nRefer to section '[Select option when target uses 'average cost control' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
-                        helpFileQJF("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
                         myPrint("B", txt)
@@ -3992,7 +4019,7 @@ Visit: %s (Author's site)
                         if estimatedNewSourceCashBalance < 0:
                             output += ">> Check for resultant negative cash balance in source account FAILED VALIDATION. Would result in a negative cash balance of: %s\n\n" %(sourceAccount.getCurrencyType().formatFancy(estimatedNewSourceCashBalance, MD_decimal))
                             output += "\nRefer to section '[Auto ALLOW Source Account's Cash balance to go negative?]' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
-                            helpFileQJF("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False)
+                            QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
                             jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                             txt = "ERROR: Check for source account negative cash balance (after move) FAILED VALIDATION - no changes made"
                             myPrint("B", txt)
@@ -4107,7 +4134,6 @@ Visit: %s (Author's site)
                     pleaseWait = MyPopUpDialogBox(toolbox_move_merge_investment_txns_frame_,
                                                   "Please wait: executing move/merge right now..",
                                                   theTitle=_THIS_METHOD_NAME.upper(),
-                                                  theWidth=100,
                                                   lModal=False,
                                                   OKButtonText="WAIT")
                     pleaseWait.go()
@@ -4412,7 +4438,6 @@ Visit: %s (Author's site)
                         pleaseWait = MyPopUpDialogBox(toolbox_move_merge_investment_txns_frame_,
                                                       "Please wait: Flushing dataset (and these move/merge txns) back to disk.....",
                                                       theTitle=_THIS_METHOD_NAME.upper(),
-                                                      theWidth=100,
                                                       lModal=False,
                                                       OKButtonText="WAIT")
                         pleaseWait.go()

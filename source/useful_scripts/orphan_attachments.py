@@ -258,7 +258,7 @@ else:
     from javax.swing.event import AncestorListener
 
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
-    from java.awt import BorderLayout, Dialog, Insets
+    from java.awt import BorderLayout, Dialog, Insets, Point
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
     from java.util import Date, Locale
 
@@ -273,7 +273,7 @@ else:
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
                          AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
-                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
+                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent, GridLayout,
                          WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread, SwingWorker)): pass
     if codecs.BOM_UTF8 is not None: pass
     if csv.QUOTE_ALL is not None: pass
@@ -760,11 +760,21 @@ Visit: %s (Author's site)
     # APPLICATION_MODAL, DOCUMENT_MODAL, MODELESS, TOOLKIT_MODAL
     class MyPopUpDialogBox():
 
-        def __init__(self, theParent=None, theStatus="", theMessage="", theWidth=200, theTitle="Info", lModal=True, lCancelButton=False, OKButtonText="OK", lAlertLevel=0):
+        def __init__(self,
+                     theParent=None,
+                     theStatus="",
+                     theMessage="",
+                     maxSize=Dimension(0,0),
+                     theTitle="Info",
+                     lModal=True,
+                     lCancelButton=False,
+                     OKButtonText="OK",
+                     lAlertLevel=0):
+
             self.theParent = theParent
             self.theStatus = theStatus
             self.theMessage = theMessage
-            self.theWidth = max(80,theWidth)
+            self.maxSize = maxSize
             self.theTitle = theTitle
             self.lModal = lModal
             self.lCancelButton = lCancelButton
@@ -893,7 +903,7 @@ Visit: %s (Author's site)
                         self.callingClass.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
                         self.callingClass.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
                         self.callingClass.fakeJFrame.setUndecorated(True)
-                        self.callingClass.fakeJFrame.setVisible( False )
+                        self.callingClass.fakeJFrame.setVisible(False)
                         if not Platform.isOSX():
                             self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
@@ -903,6 +913,16 @@ Visit: %s (Author's site)
                     else:
                         # noinspection PyUnresolvedReferences
                         self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.MODELESS)
+
+                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+
+                    if isinstance(self.callingClass.maxSize, Dimension)\
+                            and self.callingClass.maxSize.height and self.callingClass.maxSize.width:
+                        frame_width = min(screenSize.width-20, self.callingClass.maxSize.width)
+                        frame_height = min(screenSize.height-20, self.callingClass.maxSize.height)
+                        self.callingClass._popup_d.setPreferredSize(Dimension(frame_width,frame_height))
+
+                    self.callingClass._popup_d.getContentPane().setLayout(BorderLayout())
 
                     self.callingClass._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
 
@@ -920,28 +940,27 @@ Visit: %s (Author's site)
                         self.callingClass._popup_d.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     displayJText = JTextArea(self.callingClass.theMessage)
-                    displayJText.setFont( getMonoFont() )
+                    displayJText.setFont(getMonoFont())
                     displayJText.setEditable(False)
                     displayJText.setLineWrap(False)
                     displayJText.setWrapStyleWord(False)
 
-                    _popupPanel=JPanel()
+                    _popupPanel = JPanel(BorderLayout())
 
                     # maxHeight = 500
-                    _popupPanel.setLayout(GridLayout(0,1))
                     _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
 
+
                     if self.callingClass.theStatus:
-                        _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
+                        _statusPnl = JPanel(BorderLayout())
+                        _label1 = JLabel(self.callingClass.theStatus)
                         _label1.setForeground(getColorBlue())
-                        _popupPanel.add(_label1)
+                        _label1.setBorder(EmptyBorder(8, 0, 8, 0))
+                        _popupPanel.add(_label1, BorderLayout.NORTH)
 
                     myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-                    if displayJText.getLineCount()>5:
-                        myScrollPane.setWheelScrollingEnabled(True)
-                        _popupPanel.add(myScrollPane)
-                    else:
-                        _popupPanel.add(displayJText)
+                    myScrollPane.setWheelScrollingEnabled(True)
+                    _popupPanel.add(myScrollPane, BorderLayout.CENTER)
 
                     buttonPanel = JPanel()
                     if self.callingClass.lModal or self.callingClass.lCancelButton:
@@ -953,7 +972,9 @@ Visit: %s (Author's site)
                             cancel_button.setBackground(Color.LIGHT_GRAY)
                             cancel_button.setBorderPainted(False)
                             cancel_button.setOpaque(True)
-                            cancel_button.addActionListener( self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
+                            cancel_button.setBorder(EmptyBorder(8, 8, 8, 8))
+
+                            cancel_button.addActionListener(self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
                             buttonPanel.add(cancel_button)
 
                         if self.callingClass.lModal:
@@ -966,10 +987,11 @@ Visit: %s (Author's site)
                             ok_button.setBackground(Color.LIGHT_GRAY)
                             ok_button.setBorderPainted(False)
                             ok_button.setOpaque(True)
+                            ok_button.setBorder(EmptyBorder(8, 8, 8, 8))
                             ok_button.addActionListener( self.callingClass.OKButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame, self.callingClass.lResult) )
                             buttonPanel.add(ok_button)
 
-                        _popupPanel.add(buttonPanel)
+                        _popupPanel.add(buttonPanel, BorderLayout.SOUTH)
 
                     if self.callingClass.lAlertLevel>=2:
                         # internalScrollPane.setBackground(Color.RED)
@@ -981,8 +1003,6 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.RED)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.RED)
-                        # myScrollPane.setOpaque(True)
 
                     elif self.callingClass.lAlertLevel>=1:
                         # internalScrollPane.setBackground(Color.YELLOW)
@@ -994,10 +1014,8 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.YELLOW)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.YELLOW)
-                        # myScrollPane.setOpaque(True)
 
-                    self.callingClass._popup_d.add(_popupPanel)
+                    self.callingClass._popup_d.add(_popupPanel, BorderLayout.CENTER)
                     self.callingClass._popup_d.pack()
                     self.callingClass._popup_d.setLocationRelativeTo(None)
                     self.callingClass._popup_d.setVisible(True)  # Keeping this modal....
@@ -2111,7 +2129,16 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True, lQuitMDAfterClose=False):
+        def __init__(self,
+                     title,
+                     output,
+                     lAlertLevel=0,
+                     copyToClipboard=False,
+                     lJumpToEnd=False,
+                     lWrapText=True,
+                     lQuitMDAfterClose=False,
+                     screenLocation=None,
+                     lAutoSize=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
@@ -2120,6 +2147,8 @@ Visit: %s (Author's site)
             self.lJumpToEnd = lJumpToEnd
             self.lWrapText = lWrapText
             self.lQuitMDAfterClose = lQuitMDAfterClose
+            self.screenLocation = screenLocation
+            self.lAutoSize = lAutoSize
             # if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
             if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
@@ -2277,7 +2306,8 @@ Visit: %s (Author's site)
                         theJText.setForeground(Color.BLACK)
                         theJText.setOpaque(True)
 
-                    jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
+                    if not self.callingClass.lAutoSize:
+                        jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
                     SetupMDColors.updateUI()
 
@@ -2354,7 +2384,11 @@ Visit: %s (Author's site)
                     jInternalFrame.add(internalScrollPane)
 
                     jInternalFrame.pack()
-                    jInternalFrame.setLocationRelativeTo(None)
+                    if self.callingClass.screenLocation and isinstance(self.callingClass.screenLocation, Point):
+                        jInternalFrame.setLocation(self.callingClass.screenLocation)
+                    else:
+                        jInternalFrame.setLocationRelativeTo(None)
+
                     jInternalFrame.setVisible(True)
 
                     if Platform.isOSX():
@@ -2617,9 +2651,10 @@ Visit: %s (Author's site)
 
     MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
 
-    scanningMsg = MyPopUpDialogBox(None,"Please wait: searching Database and filesystem for attachments..",
+    scanningMsg = MyPopUpDialogBox(None,
+                                   "Please wait: searching Database and filesystem for attachments..",
                                    theTitle="ATTACHMENT(S) SEARCH",
-                                   theWidth=100, lModal=False,OKButtonText="WAIT")
+                                   lModal=False,OKButtonText="WAIT")
     scanningMsg.go()
 
     myPrint("P", "Scanning database for attachment data..")
@@ -2906,7 +2941,7 @@ Visit: %s (Author's site)
         theMsg = MyPopUpDialogBox(jif,
                                "You have %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2)),
                                   msgStr +"CLICK TO VIEW ORPHANS, or CANCEL TO EXIT",
-                                  200,"ORPHANED ATTACHMENTS",
+                                  theTitle="ORPHANED ATTACHMENTS",
                                   lCancelButton=True,
                                   OKButtonText="CLICK TO VIEW",
                                   lAlertLevel=1)
@@ -2914,7 +2949,7 @@ Visit: %s (Author's site)
         theMsg = MyPopUpDialogBox(jif,
                                "You have %s missing attachment(s) referenced on Moneydance Txns!" % (iAttachmentsNotInLS),
                                   msgStr,
-                                  200,"MISSING ATTACHMENTS",
+                                  theTitle="MISSING ATTACHMENTS",
                                   lCancelButton=False,
                                   OKButtonText="OK",
                                   lAlertLevel=1)

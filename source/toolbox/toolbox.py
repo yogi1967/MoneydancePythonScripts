@@ -269,6 +269,8 @@
 # build: 1047 - Added getMDIcon() and Intel X86 32bit check/fix - attempt to stop Java 17 crashing
 # build: 1047 - Make popup Menu scrollpanes / JOptionPane resizeable; fix MyPopUpDialog and QuickJFrame alert colors on Mac/Vaqua
 # build: 1047 - Fixed where lIgnoreOutdatedExtensions_TB wasn't being saved...
+# build: 1047 - Common code all: Updated MyPopupDialogBox() so that screen layout is much better...
+# build: 1047 - Common code all: Updated QuickJFrame() with location and autosize options...
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 
@@ -496,7 +498,7 @@ else:
     from javax.swing.event import AncestorListener
 
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
-    from java.awt import BorderLayout, Dialog, Insets
+    from java.awt import BorderLayout, Dialog, Insets, Point
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
     from java.util import Date, Locale
 
@@ -511,7 +513,7 @@ else:
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
                          AccountUtil, AcctFilter, CurrencyType, Account, TxnUtil, JScrollPane, WindowConstants, JFrame,
-                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent,
+                         JComponent, KeyStroke, AbstractAction, UIManager, Color, Dimension, Toolkit, KeyEvent, GridLayout,
                          WindowAdapter, CustomDateFormat, SimpleDateFormat, Insets, FileDialog, Thread, SwingWorker)): pass
     if codecs.BOM_UTF8 is not None: pass
     if csv.QUOTE_ALL is not None: pass
@@ -1104,11 +1106,21 @@ Visit: %s (Author's site)
     # APPLICATION_MODAL, DOCUMENT_MODAL, MODELESS, TOOLKIT_MODAL
     class MyPopUpDialogBox():
 
-        def __init__(self, theParent=None, theStatus="", theMessage="", theWidth=200, theTitle="Info", lModal=True, lCancelButton=False, OKButtonText="OK", lAlertLevel=0):
+        def __init__(self,
+                     theParent=None,
+                     theStatus="",
+                     theMessage="",
+                     maxSize=Dimension(0,0),
+                     theTitle="Info",
+                     lModal=True,
+                     lCancelButton=False,
+                     OKButtonText="OK",
+                     lAlertLevel=0):
+
             self.theParent = theParent
             self.theStatus = theStatus
             self.theMessage = theMessage
-            self.theWidth = max(80,theWidth)
+            self.maxSize = maxSize
             self.theTitle = theTitle
             self.lModal = lModal
             self.lCancelButton = lCancelButton
@@ -1237,7 +1249,7 @@ Visit: %s (Author's site)
                         self.callingClass.fakeJFrame.setName(u"%s_fake_dialog" %(myModuleID))
                         self.callingClass.fakeJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
                         self.callingClass.fakeJFrame.setUndecorated(True)
-                        self.callingClass.fakeJFrame.setVisible( False )
+                        self.callingClass.fakeJFrame.setVisible(False)
                         if not Platform.isOSX():
                             self.callingClass.fakeJFrame.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
@@ -1247,6 +1259,16 @@ Visit: %s (Author's site)
                     else:
                         # noinspection PyUnresolvedReferences
                         self.callingClass._popup_d = JDialog(self.callingClass.theParent, self.callingClass.theTitle, Dialog.ModalityType.MODELESS)
+
+                    screenSize = Toolkit.getDefaultToolkit().getScreenSize()
+
+                    if isinstance(self.callingClass.maxSize, Dimension)\
+                            and self.callingClass.maxSize.height and self.callingClass.maxSize.width:
+                        frame_width = min(screenSize.width-20, self.callingClass.maxSize.width)
+                        frame_height = min(screenSize.height-20, self.callingClass.maxSize.height)
+                        self.callingClass._popup_d.setPreferredSize(Dimension(frame_width,frame_height))
+
+                    self.callingClass._popup_d.getContentPane().setLayout(BorderLayout())
 
                     self.callingClass._popup_d.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
 
@@ -1264,28 +1286,27 @@ Visit: %s (Author's site)
                         self.callingClass._popup_d.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     displayJText = JTextArea(self.callingClass.theMessage)
-                    displayJText.setFont( getMonoFont() )
+                    displayJText.setFont(getMonoFont())
                     displayJText.setEditable(False)
                     displayJText.setLineWrap(False)
                     displayJText.setWrapStyleWord(False)
 
-                    _popupPanel=JPanel()
+                    _popupPanel = JPanel(BorderLayout())
 
                     # maxHeight = 500
-                    _popupPanel.setLayout(GridLayout(0,1))
                     _popupPanel.setBorder(EmptyBorder(8, 8, 8, 8))
 
+
                     if self.callingClass.theStatus:
-                        _label1 = JLabel(pad(self.callingClass.theStatus,self.callingClass.theWidth-20))
+                        _statusPnl = JPanel(BorderLayout())
+                        _label1 = JLabel(self.callingClass.theStatus)
                         _label1.setForeground(getColorBlue())
-                        _popupPanel.add(_label1)
+                        _label1.setBorder(EmptyBorder(8, 0, 8, 0))
+                        _popupPanel.add(_label1, BorderLayout.NORTH)
 
                     myScrollPane = JScrollPane(displayJText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-                    if displayJText.getLineCount()>5:
-                        myScrollPane.setWheelScrollingEnabled(True)
-                        _popupPanel.add(myScrollPane)
-                    else:
-                        _popupPanel.add(displayJText)
+                    myScrollPane.setWheelScrollingEnabled(True)
+                    _popupPanel.add(myScrollPane, BorderLayout.CENTER)
 
                     buttonPanel = JPanel()
                     if self.callingClass.lModal or self.callingClass.lCancelButton:
@@ -1297,7 +1318,9 @@ Visit: %s (Author's site)
                             cancel_button.setBackground(Color.LIGHT_GRAY)
                             cancel_button.setBorderPainted(False)
                             cancel_button.setOpaque(True)
-                            cancel_button.addActionListener( self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
+                            cancel_button.setBorder(EmptyBorder(8, 8, 8, 8))
+
+                            cancel_button.addActionListener(self.callingClass.CancelButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame,self.callingClass.lResult) )
                             buttonPanel.add(cancel_button)
 
                         if self.callingClass.lModal:
@@ -1310,10 +1333,11 @@ Visit: %s (Author's site)
                             ok_button.setBackground(Color.LIGHT_GRAY)
                             ok_button.setBorderPainted(False)
                             ok_button.setOpaque(True)
+                            ok_button.setBorder(EmptyBorder(8, 8, 8, 8))
                             ok_button.addActionListener( self.callingClass.OKButtonAction(self.callingClass._popup_d, self.callingClass.fakeJFrame, self.callingClass.lResult) )
                             buttonPanel.add(ok_button)
 
-                        _popupPanel.add(buttonPanel)
+                        _popupPanel.add(buttonPanel, BorderLayout.SOUTH)
 
                     if self.callingClass.lAlertLevel>=2:
                         # internalScrollPane.setBackground(Color.RED)
@@ -1325,8 +1349,6 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.RED)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.RED)
-                        # myScrollPane.setOpaque(True)
 
                     elif self.callingClass.lAlertLevel>=1:
                         # internalScrollPane.setBackground(Color.YELLOW)
@@ -1338,10 +1360,8 @@ Visit: %s (Author's site)
                         _popupPanel.setOpaque(True)
                         buttonPanel.setBackground(Color.YELLOW)
                         buttonPanel.setOpaque(True)
-                        # myScrollPane.setBackground(Color.YELLOW)
-                        # myScrollPane.setOpaque(True)
 
-                    self.callingClass._popup_d.add(_popupPanel)
+                    self.callingClass._popup_d.add(_popupPanel, BorderLayout.CENTER)
                     self.callingClass._popup_d.pack()
                     self.callingClass._popup_d.setLocationRelativeTo(None)
                     self.callingClass._popup_d.setVisible(True)  # Keeping this modal....
@@ -2456,7 +2476,16 @@ Visit: %s (Author's site)
 
     class QuickJFrame():
 
-        def __init__(self, title, output, lAlertLevel=0, copyToClipboard=False, lJumpToEnd=False, lWrapText=True, lQuitMDAfterClose=False):
+        def __init__(self,
+                     title,
+                     output,
+                     lAlertLevel=0,
+                     copyToClipboard=False,
+                     lJumpToEnd=False,
+                     lWrapText=True,
+                     lQuitMDAfterClose=False,
+                     screenLocation=None,
+                     lAutoSize=False):
             self.title = title
             self.output = output
             self.lAlertLevel = lAlertLevel
@@ -2465,6 +2494,8 @@ Visit: %s (Author's site)
             self.lJumpToEnd = lJumpToEnd
             self.lWrapText = lWrapText
             self.lQuitMDAfterClose = lQuitMDAfterClose
+            self.screenLocation = screenLocation
+            self.lAutoSize = lAutoSize
             # if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
             if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
@@ -2622,7 +2653,8 @@ Visit: %s (Author's site)
                         theJText.setForeground(Color.BLACK)
                         theJText.setOpaque(True)
 
-                    jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
+                    if not self.callingClass.lAutoSize:
+                        jInternalFrame.setPreferredSize(Dimension(frame_width, frame_height))
 
                     SetupMDColors.updateUI()
 
@@ -2699,7 +2731,11 @@ Visit: %s (Author's site)
                     jInternalFrame.add(internalScrollPane)
 
                     jInternalFrame.pack()
-                    jInternalFrame.setLocationRelativeTo(None)
+                    if self.callingClass.screenLocation and isinstance(self.callingClass.screenLocation, Point):
+                        jInternalFrame.setLocation(self.callingClass.screenLocation)
+                    else:
+                        jInternalFrame.setLocationRelativeTo(None)
+
                     jInternalFrame.setVisible(True)
 
                     if Platform.isOSX():
@@ -3776,8 +3812,7 @@ Visit: %s (Author's site)
                              u"Toolbox cannot fix this for you - please review your console logs\n"
                              u"and contact the online support forum for help....\n"
                              u"(if you find a fix, please inform the Toolbox author)",
-                             150,
-                             u"DROPBOX ERROR",
+                             theTitle=u"DROPBOX ERROR",
                              lModal=False,
                              lAlertLevel=2).go()
 
@@ -4953,7 +4988,7 @@ Visit: %s (Author's site)
             outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
 
         outputDates += "\n<END>"
-        QuickJFrame("LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        QuickJFrame("LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
 
 
     def OFX_view_CUSIP_settings():
@@ -5027,7 +5062,7 @@ Visit: %s (Author's site)
 
         txt = "%s: - Displaying Security hidden CUSIP Settings" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "B")
-        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
         del securities
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -6680,7 +6715,7 @@ Visit: %s (Author's site)
 
         if not autofix: output += "\n<END>"
 
-        jif = QuickJFrame("DIAGNOSE SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("DIAGNOSE SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
         if lMustRunFixCurrenciesFirst:
             txt = "@@ ERROR: old format Currency record(s) detected (review output). Consider running Fix relative currencies option @@"
@@ -6768,7 +6803,7 @@ Visit: %s (Author's site)
         output += "\n<END>\n"
 
         jif = QuickJFrame("AUTOFIX SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output,
-                          copyToClipboard=lCopyAllToClipBoard_TB, lQuitMDAfterClose=True).show_the_frame()
+                          copyToClipboard=lCopyAllToClipBoard_TB, lQuitMDAfterClose=True, lWrapText=False, lAutoSize=True).show_the_frame()
 
         _msg = "AUTOFIX: %s records fixed" %(len(currs_to_fix))
         setDisplayStatus(_msg, "DG")
@@ -7018,7 +7053,7 @@ Visit: %s (Author's site)
         if not lIgnoreOutdatedExtensions_TB:
             txt = u"ALERT - YOU HAVE %s EXTENSION(S) THAT CAN BE UPGRADED!..." %(howMany)
             setDisplayStatus(txt, "B")
-            jif = QuickJFrame(u"EXTENSIONS ALERT!", displayData, 1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(u"EXTENSIONS ALERT!", displayData, lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
             options=[u"OK (keep reminding me)",u"OK - DON'T TELL ME AGAIN ON STARTUP!"]
             response = JOptionPane.showOptionDialog(jif,
                                                     u"INFO: You have %s older Extensions that can be upgraded" %howMany,
@@ -7788,7 +7823,7 @@ Visit: %s (Author's site)
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -7859,7 +7894,7 @@ Visit: %s (Author's site)
         if iWarnings: alertLevel = 1
         if lNeedFixScript: alertLevel = 2
 
-        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lQuitMDAfterClose=lFix).show_the_frame()
+        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lQuitMDAfterClose=lFix, lAutoSize=True).show_the_frame()
 
         setDisplayStatus(txt, statusColor)
         myPopupInformationBox(jif, txt, theTitle=_THIS_METHOD_NAME.upper(), theMessageType=msgType)
@@ -8555,7 +8590,6 @@ Visit: %s (Author's site)
                          "at the select financial institution selection window, please select:\n"
                          "%s" %(USAA_PROFILE_NAME),
                          theTitle=_THIS_METHOD_NAME,
-                         theWidth=125,
                          OKButtonText="SUCCESS").go()
 
         jif.dispose()
@@ -9459,7 +9493,6 @@ Visit: %s (Author's site)
             MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Your current cookies are:",
                              theMessage=msgStr,
-                             theWidth=300,
                              theTitle="OFX COOKIE MANAGEMENT",
                              OKButtonText="CONTINUE").go()
 
@@ -9560,9 +9593,10 @@ Visit: %s (Author's site)
         if (props_ofx_debug is not None and props_ofx_debug!="false"):
             toggleText = "OFF"
 
-        ask = MyPopUpDialogBox(toolbox_frame_,"OFX DEBUG CONSOLE STATUS:",
+        ask = MyPopUpDialogBox(toolbox_frame_,
+                               "OFX DEBUG CONSOLE STATUS:",
                                'System.getProperty("%s") currently set to: %s\n'%(key,props_ofx_debug),
-                               200,"TOGGLE MONEYDANCE INTERNAL OFX DEBUG",
+                               theTitle="TOGGLE MONEYDANCE INTERNAL OFX DEBUG",
                                lCancelButton=True,OKButtonText="SET to %s" %toggleText)
         if not ask.go():
             txt = "ADVANCED MODE: NO CHANGES MADE TO OFX DEBUG CONSOLE!"
@@ -10701,7 +10735,7 @@ Visit: %s (Author's site)
 
         if globalSaveFI_data is None or len(globalSaveFI_data)<1:
 
-            wait = MyPopUpDialogBox(toolbox_frame_,"PLEASE WAIT - RETRIEVING FISCAL SETUP DATA...",theWidth=100,lModal=False)
+            wait = MyPopUpDialogBox(toolbox_frame_,"PLEASE WAIT - RETRIEVING FISCAL SETUP DATA...",lModal=False)
             wait.go()
 
             myPrint("B","###################################################################################################################################################")
@@ -12617,7 +12651,7 @@ now after saving the file, restart Moneydance
             if self.lFile:
                 jif = QuickJFrame("View " + self.displayText + " file: " + x, displayFile,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             else:
-                jif = QuickJFrame("View " + self.displayText + " data", displayFile,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=lWrap).show_the_frame()
+                jif = QuickJFrame("View " + self.displayText + " data", displayFile,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=lWrap,lAutoSize=True).show_the_frame()
 
             jif.toFront()
 
@@ -12862,7 +12896,7 @@ now after saving the file, restart Moneydance
 
         txt = "%s: - Displaying NetWorth Settings" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "B")
-        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         del allAccounts
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -14455,7 +14489,6 @@ now after saving the file, restart Moneydance
                                         "If you don't follow this sequence, then as you purge, previously hidden records will start appearing\n"
                                         "..(inside or outside the purge/thin window date range you selected)\n"
                                         "(NOTE: Any 'Orphans' that start appearing are harmless, it means they've become visible)",
-                             theWidth=180,
                              theTitle="THIN/PURGE PRICE HISTORY",
                              OKButtonText="ACKNOWLEDGE",lAlertLevel=1).go()
 
@@ -15048,9 +15081,10 @@ now after saving the file, restart Moneydance
         if simulate: x="SIMULATE"
         else: x="DATABASE UPDATE"
 
-        purgingMsg = MyPopUpDialogBox(toolbox_frame_,"Please wait: Processing your %s request (%s).." %(ThnPurgeTxt,x),
+        purgingMsg = MyPopUpDialogBox(toolbox_frame_,
+                                      "Please wait: Processing your %s request (%s).." %(ThnPurgeTxt,x),
                                       theTitle="FIX - Thin/Purge",
-                                      theWidth=100, lModal=False,OKButtonText="WAIT")
+                                      lModal=False,OKButtonText="WAIT")
         purgingMsg.go()
 
         diagDisplay += "\n\n *** EXECUTING %s PRICE HISTORY ***\n" %(ThnPurgeTxt)
@@ -15160,13 +15194,17 @@ now after saving the file, restart Moneydance
         jif = QuickJFrame("Price History Analysis", diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB,
                           lQuitMDAfterClose=(not simulate and lMustRestartAfterSnapChanges)).show_the_frame()
         if simulate:
-            MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed" %(ThnPurgeTxt,x),"",200,"THIN/PRUNE PRICE HISTORY").go()
+            MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed" %(ThnPurgeTxt,x),"",theTitle="THIN/PRUNE PRICE HISTORY").go()
         else:
             if totalChangesMade > 0:
                 play_the_money_sound()
-                MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed %s changes - RESTART OF MONEYDANCE REQUIRED - MD WILL QUIT AFTER VIEWING THIS OUTPUT" %(ThnPurgeTxt,x,totalChangesMade),"",200,"THIN/PRUNE PRICE HISTORY").go()
+                MyPopUpDialogBox(jif,
+                                 "%s PRICE HISTORY - %s >> Successfully executed %s changes - RESTART OF MONEYDANCE REQUIRED - MD WILL QUIT AFTER VIEWING THIS OUTPUT" %(ThnPurgeTxt,x,totalChangesMade),
+                                 theTitle="THIN/PRUNE PRICE HISTORY").go()
             else:
-                MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed - NO CHANGES NECESSARY / MADE" %(ThnPurgeTxt,x),"",200,"THIN/PRUNE PRICE HISTORY").go()
+                MyPopUpDialogBox(jif,
+                                 "%s PRICE HISTORY - %s >> Successfully executed - NO CHANGES NECESSARY / MADE" %(ThnPurgeTxt,x),
+                                 theTitle="THIN/PRUNE PRICE HISTORY").go()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
@@ -15183,7 +15221,6 @@ now after saving the file, restart Moneydance
                              ">> Extension: 'Extract Data' available from MD menu >> Manage Extensions\n"
                              "Please select a directory to extract attachments to...\n"
                              "I will create a sub-directory called 'EXTRACT_MD_ATTACHMENTS-x' (I will append a unique number)",
-                             theWidth=225,
                              theTitle=_THIS_METHOD_NAME,
                              OKButtonText="PROCEED", lCancelButton=True)
         if not ask.go():
@@ -15245,7 +15282,6 @@ now after saving the file, restart Moneydance
             pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                           "Please wait: extracting attachments..",
                                           theTitle=_THIS_METHOD_NAME,
-                                          theWidth=100,
                                           lModal=False,
                                           OKButtonText="WAIT")
             pleaseWait.go()
@@ -15330,11 +15366,11 @@ now after saving the file, restart Moneydance
                              "Then re-enable Sync, Wait for Sync to complete, then re-enable Sync on secondary devices...\n"
                              "<GOOD LUCK!>",
                              theTitle="ATTACHMENT ANALYSIS & DELETION OF ORPHANS",
-                             theWidth=100, lModal=True,OKButtonText="ACKNOWLEDGE")
+                             lModal=True,OKButtonText="ACKNOWLEDGE")
 
         scanningMsg = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching Database and filesystem for attachments..",
                                        theTitle="ATTACHMENT(S) SEARCH",
-                                       theWidth=100, lModal=False,OKButtonText="WAIT")
+                                       lModal=False,OKButtonText="WAIT")
         scanningMsg.go()
 
         myPrint("P", "Scanning database for attachment data..")
@@ -15629,7 +15665,7 @@ now after saving the file, restart Moneydance
                 theMsg = MyPopUpDialogBox(jif,
                                        "You have %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2)),
                                           msgStr,
-                                          200,"ORPHANED ATTACHMENTS",
+                                          theTitle="ORPHANED ATTACHMENTS",
                                           lCancelButton=False,
                                           OKButtonText="OK",
                                           lAlertLevel=1)
@@ -15637,7 +15673,7 @@ now after saving the file, restart Moneydance
                 theMsg = MyPopUpDialogBox(jif,
                                        "You have %s Orphan attachment(s) found, taking up %sMBs" % (iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2)),
                                           msgStr +"CLICK TO VIEW ORPHANS, or CANCEL TO EXIT",
-                                          200,"ORPHANED ATTACHMENTS",
+                                          theTitle="ORPHANED ATTACHMENTS",
                                           lCancelButton=True,
                                           OKButtonText="CLICK TO VIEW",
                                           lAlertLevel=1)
@@ -15645,7 +15681,7 @@ now after saving the file, restart Moneydance
             theMsg = MyPopUpDialogBox(jif,
                                    "You have %s missing attachment(s) referenced on Moneydance Txns!" % (iAttachmentsNotInLS),
                                       msgStr,
-                                      200,"MISSING ATTACHMENTS",
+                                      theTitle="MISSING ATTACHMENTS",
                                       lCancelButton=False,
                                       OKButtonText="OK",
                                       lAlertLevel=1)
@@ -15656,7 +15692,7 @@ now after saving the file, restart Moneydance
             theMsg = MyPopUpDialogBox(jif,
                                       x,
                                       msgStr,
-                                      200,"ATTACHMENTS STATUS",
+                                      theTitle="ATTACHMENTS STATUS",
                                       lCancelButton=False,
                                       OKButtonText="OK",
                                       lAlertLevel=0)
@@ -16308,7 +16344,6 @@ now after saving the file, restart Moneydance
             pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                           "Please wait: executing %s right now.." %(_THIS_METHOD_NAME),
                                           theTitle=_THIS_METHOD_NAME.upper(),
-                                          theWidth=100,
                                           lModal=False,
                                           OKButtonText="WAIT")
             pleaseWait.go()
@@ -16534,7 +16569,6 @@ now after saving the file, restart Moneydance
                 pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                               "Please wait: Flushing dataset (and %s) back to disk....." %(_THIS_METHOD_NAME),
                                               theTitle=_THIS_METHOD_NAME.upper(),
-                                              theWidth=100,
                                               lModal=False,
                                               OKButtonText="WAIT")
                 pleaseWait.go()
@@ -17358,7 +17392,6 @@ now after saving the file, restart Moneydance
             pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                           "Please wait: executing 'duplicate' security merge right now..",
                                           theTitle=_THIS_METHOD_NAME.upper(),
-                                          theWidth=100,
                                           lModal=False,
                                           OKButtonText="WAIT")
             pleaseWait.go()
@@ -17638,7 +17671,6 @@ now after saving the file, restart Moneydance
                 pleaseWait = MyPopUpDialogBox(toolbox_frame_,
                                               "Please wait: Flushing dataset (and merge actions) back to disk.....",
                                               theTitle=_THIS_METHOD_NAME.upper(),
-                                              theWidth=100,
                                               lModal=False,
                                               OKButtonText="WAIT")
                 pleaseWait.go()
@@ -17739,14 +17771,17 @@ now after saving the file, restart Moneydance
                 output += "\n<ABORTED>"
                 setDisplayStatus(txt, "R")
                 jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
-                MyPopUpDialogBox(jif,txt,
+                MyPopUpDialogBox(jif,
+                                 txt,
                                  "It's highly likely that you have: either a) old QIF Import data (that was improperly imported)... or\n"
                                  "b) you have clicked 'Actions' > 'Remove Security' from an Investment Account..\n"
                                  ".. and that this Security had linked Transactions... You would have been warned and asked to respond 'yes'\n"
                                  ".. this will have deleted Buy/Sell TXNs and partially removed the Security from other TXNs like buy/Sell/Xfr etc\n"
                                  "- These are 'illogical' and 'damaged' records.... The security data is lost and not recoverable. Toolbox CANNOT REPAIR!\n"
                                  ">> You will need to restore, or manually edit and repair the TXNs with your own knowledge of what security was lost...",
-                                 theTitle=_THIS_METHOD_NAME,OKButtonText="ACKNOWLEDGED",lAlertLevel=1).go()
+                                 theTitle=_THIS_METHOD_NAME,
+                                 OKButtonText="ACKNOWLEDGED",
+                                 lAlertLevel=1).go()
                 return
 
             else:
@@ -18102,7 +18137,6 @@ now after saving the file, restart Moneydance
         MyPopUpDialogBox(toolbox_frame_,
                          theStatus="Security %s converted to Average Cost Control (I wiped %s LOT records - shown below)" %(accountSec,iErrors),
                          theMessage="%s" %(listWiped),
-                         theWidth=200,
                          theTitle="CONVERT ACCT/STOCK TO Avg Cst Ctrl",
                          lAlertLevel=1).go()
 
@@ -18163,7 +18197,6 @@ now after saving the file, restart Moneydance
                                     "3. If you are not happy, I can reset the Security back to Avg Cost Control (removing/resetting LOT tags)\n"
                                     "4. I will restore wiped (incorrect) LOT tags back to the saved data from step 1.\n"
                                     "** You will be asked to confirm and perform a backup then proceed in the next step....",
-                         theWidth=200,
                          theTitle="CONVERT STOCK FIFO",
                          OKButtonText="I HAVE READ THIS",
                          lAlertLevel=1).go()
@@ -18340,7 +18373,6 @@ now after saving the file, restart Moneydance
                                         "To reset the security back to Avg Cost Control and reset/remove these altered LOT records select CANCEL\n"
                                         "(NOTE: I will put the LOT records back to the same state before this script ran)"
                                         "[OK KEEP RESULTS] will accept these changes" %(cbMessageValidIndicator),
-                             theWidth=200,
                              theTitle="CONVERT STOCK FIFO",
                              OKButtonText="OK KEEP RESULTS",
                              lCancelButton=True,
@@ -18707,7 +18739,7 @@ now after saving the file, restart Moneydance
                              '"mono_font" currently set to %s  (Used for mainly numbers)\n'
                              '"code_font" currently set to %s  (the Moneybot / Python Font >> IMPACTS OUTPUT COLUMN ALIGNMENT <<)\n'
                              '"print.font_name" currently set to %s' %(display_main,display_mono,display_code,display_print),
-                             150,"FONTS",OKButtonText="CONTINUE").go()
+                             theTitle="FONTS",OKButtonText="CONTINUE").go()
 
             _options=["MAIN: CHANGE SETTING",
                       "MAIN: DELETE SETTING",
@@ -19105,7 +19137,7 @@ Now you will have a text readable version of the file you can open in a text edi
             return
 
         theIKReference = "c8c8dcebf5eab9bb14012e7df9ff46aa1d333a7c"  # WARNING, this may change? Might have to switch to finding the key..!
-        diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching iOS Backup(s)..",theTitle="SEARCH", theWidth=100, lModal=False,OKButtonText="WAIT")
+        diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching iOS Backup(s)..",theTitle="SEARCH", lModal=False,OKButtonText="WAIT")
         diag.go()
 
         def findIOSBackup(pattern, path):
@@ -19740,7 +19772,6 @@ Now you will have a text readable version of the file you can open in a text edi
         ask=MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Please confirm parameters:",
                              theMessage=theMsg,
-                             theWidth=225,
                              theTitle="QIF IMPORT",
                              OKButtonText="PROCEED",
                              lCancelButton=True)
@@ -20277,7 +20308,6 @@ Now you will have a text readable version of the file you can open in a text edi
                              theMessage="Moneydance support states that you should NEVER store your dataset in Dropbox.\n"
                                         "... and that you should store your dataset locally and use Moneydance's built-in syncing instead to share across computers and devices.\n"
                                         "THEREFORE YOU PROCEED AT ENTIRELY YOUR OWN RISK AND ACCEPT THAT STORING IN DROPBOX MIGHT DAMAGE YOUR DATA!",
-                             theWidth=200,
                              theTitle="SUPPRESS DROPBOX WARNING",
                              lCancelButton=True,
                              OKButtonText="ACCEPT RISK",
@@ -20429,7 +20459,7 @@ Now you will have a text readable version of the file you can open in a text edi
                          "... and then 'checking for txn logs...'....\n"
                          "When it's finished, hopefully with no errors, then RESTART MD. <GOOD LUCK!>",
                          theTitle=_THIS_METHOD_NAME,
-                         theWidth=160, lModal=True,OKButtonText="ACKNOWLEDGE").go()
+                         lModal=True,OKButtonText="ACKNOWLEDGE").go()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
@@ -20442,7 +20472,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         ask = MyPopUpDialogBox(toolbox_frame_,"Next Check Number Algorithm look-back Threshold:",
                                'System.getProperty("%s") currently set to: %s\n'%(key,props_lookback_days),
-                               200,"NEXT CHEQUE NUMBER ALGORITHM",
+                               theTitle="NEXT CHEQUE NUMBER ALGORITHM",
                                lCancelButton=True,OKButtonText="CHANGE")
         if not ask.go():
             txt = "ADVANCED MODE: NO CHANGES MADE TO NEXT CHECK NUMBER LOOK-BACK THRESHOLD"
@@ -20783,7 +20813,6 @@ Now you will have a text readable version of the file you can open in a text edi
         ask=MyPopUpDialogBox(toolbox_frame_,
                              "For Your Information",
                              theText,
-                             theWidth=225,
                              theTitle="ADVANCED: REMOVE ENTRIES/DATASETS",
                              OKButtonText="I AGREE - PROCEED", lCancelButton=True,
                              lAlertLevel=2)
@@ -21227,7 +21256,7 @@ Now you will have a text readable version of the file you can open in a text edi
                          "PRIOR TO RUNNING THIS, IDEALLY RESTART MD, & ENSURE THAT QUOTE LOADER/Q&ER EXTNS, IMPORTS & BANK DOWNLOADS ARE **NOT** RUNNING\n"
                          "<GOOD LUCK>" %(DAYS_TO_KEEP),
                          theTitle=_THIS_METHOD_NAME,
-                         theWidth=160, lModal=True,OKButtonText="ACKNOWLEDGE").go()
+                         lModal=True,OKButtonText="ACKNOWLEDGE").go()
 
         lPurgeOutDir = False
         if syncFolder is None:
@@ -21239,7 +21268,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                         "(i.e. if you have temporarily disabled Sync, click Cancel)\n"
                                         "If you click 'PURGE-OUT', you can still enable a NEW Sync relationship at a later date....\n"
                                         "(clicking 'Cancel' means Do NOT purge 'out' directory...)",
-                                        theTitle=_THIS_METHOD_NAME, theWidth=150, lCancelButton=True, OKButtonText="PURGE-OUT")
+                                        theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="PURGE-OUT")
             if theMsg.go():
                 output += "User confirmed that Sync is not being used and to proceed with purge of '%s'..\n" %(OUTGOING_PATH)
                 lPurgeOutDir = True
@@ -21426,7 +21455,7 @@ Now you will have a text readable version of the file you can open in a text edi
                          txt1,
                          txt2,
                          theTitle=_THIS_METHOD_NAME,
-                         theWidth=100, lModal=True,OKButtonText="ACKNOWLEDGE").go()
+                         lModal=True,OKButtonText="ACKNOWLEDGE").go()
 
 
         if not confirm_backup_confirm_disclaimer(jif,
@@ -21843,7 +21872,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                    'OnlineTxnMerger.DEBUG                  currently set to: %s\n'
                                    'Syncer.DEBUG                           currently set to: %s\n'
                                    %(md_debug,key,props_debug,OFXConnection.DEBUG_MESSAGES,MoneybotURLStreamHandlerFactory.DEBUG,OnlineTxnMerger.DEBUG,Syncer.DEBUG),
-                                   200,"TOGGLE MONEYDANCE INTERNAL DEBUG",
+                                   theTitle="TOGGLE MONEYDANCE INTERNAL DEBUG",
                                    lCancelButton=True,OKButtonText="SET ALL to %s" %toggleText)
             if not ask.go():
                 txt = "ADVANCED MODE: NO CHANGES MADE TO DEBUG!"
@@ -21906,7 +21935,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         ask = MyPopUpDialogBox(toolbox_frame_,"OTHER DEBUG STATUS:",
                                "%s currently set to: %s" %(selectedKey, currentSetting),
-                               200,"TOGGLE THIS MONEYDANCE INTERNAL OTHER DEBUG",
+                               theTitle="TOGGLE THIS MONEYDANCE INTERNAL OTHER DEBUG",
                                lCancelButton=True,OKButtonText="SET to %s" %(not currentSetting))
         if not ask.go():
             txt = "ADVANCED MODE: NO CHANGES MADE TO OTHER DEBUG!"
@@ -22075,7 +22104,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                "... NOTE: Whilst the settings are retained, Syncing will be left turned off...\n"
                                "... So you must visit the File/Syncing menu and select the Sync option to continue...\n\n"
                                "You might use this when you have txns in the Sync 'system' from another device, that you want applied to this dataset\n",
-                               250,"INSTRUCTIONS",
+                               theTitle="INSTRUCTIONS",
                                lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
         if not ask.go():
             txt = "Instructions rejected - no changes made"
@@ -22887,7 +22916,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
 
-                diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching..",theTitle=_THIS_METHOD_NAME, theWidth=100, lModal=False,OKButtonText="WAIT")
+                diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching..",theTitle=_THIS_METHOD_NAME, lModal=False,OKButtonText="WAIT")
                 diag.go()
 
                 save_list_of_found_files=[]
@@ -25028,8 +25057,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  "%s\n" 
                                                  "Review console for details and correct problem"
                                                         %(return_critical_javaio_temp_dir_msg()),
-                                                 120,
-                                                 "ERROR - JAVA TEMP FOLDER",
+                                                 theTitle="ERROR - JAVA TEMP FOLDER",
                                                  OKButtonText="ACKNOWLEDGE",
                                                  lAlertLevel=2,
                                                  lModal=True).go()
@@ -25043,8 +25071,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  "- or you have restored it from a backup/sync copy.\n" 
                                                  "If these statements are true / OK, then ignore this message...\n" 
                                                  ">>Otherwise, to convert to Primary, select Update Mode.",
-                                                 120,
-                                                 "SECONDARY DATASET/NODE",
+                                                 theTitle="SECONDARY DATASET/NODE",
                                                  OKButtonText="ACKNOWLEDGE",
                                                  lAlertLevel=1,
                                                  lModal=True).go()
@@ -25108,8 +25135,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                          "...and this may be creating a new dataset everytime as a result... and so on....\n"
                                          ">> If so, please correct your file opening procedure <<\n"
                                          "(But, if you're happy with your procedure & dataset name, then ignore this alert)",
-                                         140,
-                                         "POTENTIAL IMPROPER OPENING OF BACKUP FILES",
+                                         theTitle="POTENTIAL IMPROPER OPENING OF BACKUP FILES",
                                          OKButtonText="ACKNOWLEDGE",
                                          lAlertLevel=1,
                                          lModal=True).go()
@@ -25131,7 +25157,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         myPrint("B","@@ Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu @@" %_tb_extn_avail_version)
                         theStr = "You are running version %s\n" %version_build
                         theStr += "Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu\n" %_tb_extn_avail_version
-                        MyPopUpDialogBox(toolbox_frame_,"Toolbox Version:",theStr,200,"UPGRADE AVAILABLE",OKButtonText="Acknowledge").go()
+                        MyPopUpDialogBox(toolbox_frame_,"Toolbox Version:",theStr,theTitle="UPGRADE AVAILABLE",OKButtonText="Acknowledge").go()
 
                     elif availableFromGitHubVersion > int(version_build) and availableFromGitHubVersion > _tb_extn_avail_version:
                         myPrint("DB","@@ FYI - Toolbox upgrade to version %s (unsigned) is available from Author's code site.... @@" %(availableFromGitHubVersion))
