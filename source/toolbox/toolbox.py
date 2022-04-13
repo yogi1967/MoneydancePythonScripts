@@ -268,6 +268,7 @@
 # build: 1047 - Added Preferences Listener... Will abort Toolbox if Preferences Updated...
 # build: 1047 - Added getMDIcon() and Intel X86 32bit check/fix - attempt to stop Java 17 crashing
 # build: 1047 - Make popup Menu scrollpanes / JOptionPane resizeable; fix MyPopUpDialog and QuickJFrame alert colors on Mac/Vaqua
+# build: 1047 - Fixed where lIgnoreOutdatedExtensions_TB wasn't being saved...
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 
@@ -7031,6 +7032,12 @@ Visit: %s (Author's site)
             if response:
                 myPrint(u"B",u"User requested to ignore Outdated warning extensions going forward..... Acknowledged!!")
                 lIgnoreOutdatedExtensions_TB = True
+                try:
+                    save_StuWareSoftSystems_parameters_to_file()
+                except:
+                    myPrint(u"B", u"Error - failed to save parameters to pickle file...!")
+                    dump_sys_error_to_md_console_and_errorlog()
+
         else:
             txt = u"ALERT - YOU HAVE %s EXTENSION(S) THAT CAN BE UPGRADED!...STARTUP POPUP WARNINGS SUPPRESSED (by you)" %(howMany)
             setDisplayStatus(txt, "B")
@@ -12625,6 +12632,11 @@ now after saving the file, restart Moneydance
                     setDisplayStatus(txt, "B")
                     myPrint("B", txt)
                     lIgnoreOutdatedExtensions_TB = False
+                    try:
+                        save_StuWareSoftSystems_parameters_to_file()
+                    except:
+                        myPrint("B", "Error - failed to save parameters to pickle file...!")
+                        dump_sys_error_to_md_console_and_errorlog()
 
             if lDisplayPickle:
 
