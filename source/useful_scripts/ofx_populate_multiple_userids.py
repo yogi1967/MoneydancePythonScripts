@@ -2429,88 +2429,76 @@ Visit: %s (Author's site)
 
             return (self.returnFrame)
 
-    class AboutThisScript():
-
-        class CloseAboutAction(AbstractAction):
-
-            def __init__(self, theFrame):
-                self.theFrame = theFrame
-
-            def actionPerformed(self, event):
-                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
-
-                # Listener is already on the Swing EDT...
-                self.theFrame.dispose()
+    class AboutThisScript(AbstractAction, Runnable):
 
         def __init__(self, theFrame):
             self.theFrame = theFrame
+            self.aboutDialog = None
+
+        def actionPerformed(self, event):
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
+            self.aboutDialog.dispose()  # Listener is already on the Swing EDT...
 
         def go(self):
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
-            class MyAboutRunnable(Runnable):
-                def __init__(self, callingClass):
-                    self.callingClass = callingClass
-
-                def run(self):                                                                                                      # noqa
-
-                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
-                    myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-
-                    # noinspection PyUnresolvedReferences
-                    about_d = JDialog(self.callingClass.theFrame, "About", Dialog.ModalityType.MODELESS)
-
-                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
-                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
-                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
-                    about_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-
-                    about_d.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAboutAction(about_d))
-
-                    about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
-
-                    if (not Platform.isMac()):
-                        # MD_REF.getUI().getImages()
-                        about_d.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
-
-                    aboutPanel=JPanel()
-                    aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
-                    aboutPanel.setPreferredSize(Dimension(1120, 550))
-
-                    _label1 = JLabel(pad("Author: Stuart Beesley", 800))
-                    _label1.setForeground(getColorBlue())
-                    aboutPanel.add(_label1)
-
-                    _label2 = JLabel(pad("StuWareSoftSystems (2020-2021)", 800))
-                    _label2.setForeground(getColorBlue())
-                    aboutPanel.add(_label2)
-
-                    _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(GlobalVars.thisScriptName, version_build), 800))
-                    _label3.setForeground(getColorBlue())
-                    aboutPanel.add(_label3)
-
-                    displayString=scriptExit
-                    displayJText = JTextArea(displayString)
-                    displayJText.setFont( getMonoFont() )
-                    displayJText.setEditable(False)
-                    displayJText.setLineWrap(False)
-                    displayJText.setWrapStyleWord(False)
-                    displayJText.setMargin(Insets(8, 8, 8, 8))
-
-                    aboutPanel.add(displayJText)
-
-                    about_d.add(aboutPanel)
-
-                    about_d.pack()
-                    about_d.setLocationRelativeTo(None)
-                    about_d.setVisible(True)
-
             if not SwingUtilities.isEventDispatchThread():
                 myPrint("DB",".. Not running within the EDT so calling via MyAboutRunnable()...")
-                SwingUtilities.invokeAndWait(MyAboutRunnable(self))
+                SwingUtilities.invokeAndWait(self)
             else:
                 myPrint("DB",".. Already within the EDT so calling naked...")
-                MyAboutRunnable(self).run()
+                self.run()
+
+        def run(self):                                                                                                  # noqa
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+            # noinspection PyUnresolvedReferences
+            self.aboutDialog = JDialog(self.theFrame, "About", Dialog.ModalityType.MODELESS)
+
+            shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+            self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+            self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+            self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+            self.aboutDialog.getRootPane().getActionMap().put("close-window", self)
+            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+
+            if (not Platform.isMac()):
+                # MD_REF.getUI().getImages()
+                self.aboutDialog.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+
+            aboutPanel = JPanel()
+            aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
+            aboutPanel.setPreferredSize(Dimension(1120, 550))
+
+            _label1 = JLabel(pad("Author: Stuart Beesley", 800))
+            _label1.setForeground(getColorBlue())
+            aboutPanel.add(_label1)
+
+            _label2 = JLabel(pad("StuWareSoftSystems (2020-2022)", 800))
+            _label2.setForeground(getColorBlue())
+            aboutPanel.add(_label2)
+
+            _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(GlobalVars.thisScriptName, version_build), 800))
+            _label3.setForeground(getColorBlue())
+            aboutPanel.add(_label3)
+
+            displayString=scriptExit
+            displayJText = JTextArea(displayString)
+            displayJText.setFont( getMonoFont() )
+            displayJText.setEditable(False)
+            displayJText.setLineWrap(False)
+            displayJText.setWrapStyleWord(False)
+            displayJText.setMargin(Insets(8, 8, 8, 8))
+
+            aboutPanel.add(displayJText)
+
+            self.aboutDialog.add(aboutPanel)
+
+            self.aboutDialog.pack()
+            self.aboutDialog.setLocationRelativeTo(None)
+            self.aboutDialog.setVisible(True)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 

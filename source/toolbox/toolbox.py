@@ -273,6 +273,7 @@
 # build: 1047 - Common code all: Updated QuickJFrame() with location and autosize options...
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
+# todo - fix vmoptions file name to match .exe
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
@@ -602,9 +603,8 @@ else:
     from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AccountBook, AbstractTxn
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
     from com.infinitekind.tiksync import SyncRecord, SyncableItem
-
     from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
-    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow
+    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
     from com.infinitekind.tiksync import Syncer
     from com.moneydance.apps.md.controller import PreferencesListener
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
@@ -2763,88 +2763,76 @@ Visit: %s (Author's site)
 
             return (self.returnFrame)
 
-    class AboutThisScript():
-
-        class CloseAboutAction(AbstractAction):
-
-            def __init__(self, theFrame):
-                self.theFrame = theFrame
-
-            def actionPerformed(self, event):
-                myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
-
-                # Listener is already on the Swing EDT...
-                self.theFrame.dispose()
+    class AboutThisScript(AbstractAction, Runnable):
 
         def __init__(self, theFrame):
             self.theFrame = theFrame
+            self.aboutDialog = None
+
+        def actionPerformed(self, event):
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event:", event)
+            self.aboutDialog.dispose()  # Listener is already on the Swing EDT...
 
         def go(self):
             myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
-            class MyAboutRunnable(Runnable):
-                def __init__(self, callingClass):
-                    self.callingClass = callingClass
-
-                def run(self):                                                                                                      # noqa
-
-                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
-                    myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-
-                    # noinspection PyUnresolvedReferences
-                    about_d = JDialog(self.callingClass.theFrame, "About", Dialog.ModalityType.MODELESS)
-
-                    shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
-                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
-                    about_d.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
-                    about_d.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
-
-                    about_d.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAboutAction(about_d))
-
-                    about_d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)  # The CloseAction() and WindowListener() will handle dispose() - else change back to DISPOSE_ON_CLOSE
-
-                    if (not Platform.isMac()):
-                        # MD_REF.getUI().getImages()
-                        about_d.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
-
-                    aboutPanel=JPanel()
-                    aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
-                    aboutPanel.setPreferredSize(Dimension(1120, 550))
-
-                    _label1 = JLabel(pad("Author: Stuart Beesley", 800))
-                    _label1.setForeground(getColorBlue())
-                    aboutPanel.add(_label1)
-
-                    _label2 = JLabel(pad("StuWareSoftSystems (2020-2021)", 800))
-                    _label2.setForeground(getColorBlue())
-                    aboutPanel.add(_label2)
-
-                    _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(GlobalVars.thisScriptName, version_build), 800))
-                    _label3.setForeground(getColorBlue())
-                    aboutPanel.add(_label3)
-
-                    displayString=scriptExit
-                    displayJText = JTextArea(displayString)
-                    displayJText.setFont( getMonoFont() )
-                    displayJText.setEditable(False)
-                    displayJText.setLineWrap(False)
-                    displayJText.setWrapStyleWord(False)
-                    displayJText.setMargin(Insets(8, 8, 8, 8))
-
-                    aboutPanel.add(displayJText)
-
-                    about_d.add(aboutPanel)
-
-                    about_d.pack()
-                    about_d.setLocationRelativeTo(None)
-                    about_d.setVisible(True)
-
             if not SwingUtilities.isEventDispatchThread():
                 myPrint("DB",".. Not running within the EDT so calling via MyAboutRunnable()...")
-                SwingUtilities.invokeAndWait(MyAboutRunnable(self))
+                SwingUtilities.invokeAndWait(self)
             else:
                 myPrint("DB",".. Already within the EDT so calling naked...")
-                MyAboutRunnable(self).run()
+                self.run()
+
+        def run(self):                                                                                                  # noqa
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+            # noinspection PyUnresolvedReferences
+            self.aboutDialog = JDialog(self.theFrame, "About", Dialog.ModalityType.MODELESS)
+
+            shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+            self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
+            self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
+            self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
+
+            self.aboutDialog.getRootPane().getActionMap().put("close-window", self)
+            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+
+            if (not Platform.isMac()):
+                # MD_REF.getUI().getImages()
+                self.aboutDialog.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+
+            aboutPanel = JPanel()
+            aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
+            aboutPanel.setPreferredSize(Dimension(1120, 550))
+
+            _label1 = JLabel(pad("Author: Stuart Beesley", 800))
+            _label1.setForeground(getColorBlue())
+            aboutPanel.add(_label1)
+
+            _label2 = JLabel(pad("StuWareSoftSystems (2020-2022)", 800))
+            _label2.setForeground(getColorBlue())
+            aboutPanel.add(_label2)
+
+            _label3 = JLabel(pad("Script/Extension: %s (build: %s)" %(GlobalVars.thisScriptName, version_build), 800))
+            _label3.setForeground(getColorBlue())
+            aboutPanel.add(_label3)
+
+            displayString=scriptExit
+            displayJText = JTextArea(displayString)
+            displayJText.setFont( getMonoFont() )
+            displayJText.setEditable(False)
+            displayJText.setLineWrap(False)
+            displayJText.setWrapStyleWord(False)
+            displayJText.setMargin(Insets(8, 8, 8, 8))
+
+            aboutPanel.add(displayJText)
+
+            self.aboutDialog.add(aboutPanel)
+
+            self.aboutDialog.pack()
+            self.aboutDialog.setLocationRelativeTo(None)
+            self.aboutDialog.setVisible(True)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -4339,10 +4327,13 @@ Visit: %s (Author's site)
         for i in range(0, len(memz)):
             memz[i] = memz[i] + "\n"
         memz = "".join(memz)
-        return memz
+
+        QuickJFrame("Memorized Reports and Graphs", memz, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     def view_extensions_details():
-        theData = []                                                                                                    # noqa
+        global lIgnoreOutdatedExtensions_TB     # Global as we set this here
+
+        theData = []
 
         theData.append("EXTENSION(s) DETAILS")
         theData.append(" =====================\n")
@@ -4423,7 +4414,26 @@ Visit: %s (Author's site)
         for i in range(0, len(theData)):
             theData[i] = theData[i] + "\n"
         theData = "".join(theData)
-        return theData
+
+        jif = QuickJFrame("View Extension(s) details / data", theData, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+
+        if lIgnoreOutdatedExtensions_TB:
+            if myPopupAskQuestion(jif,
+                                  "CHECK FOR OUTDATED EXTENSIONS",
+                                  "Turn startup warnings back on for Outdated Extensions?",
+                                  JOptionPane.YES_NO_OPTION,
+                                  JOptionPane.QUESTION_MESSAGE):
+
+                txt = "OUTDATED EXTENSIONS - Startup warnings re-enabled"
+                setDisplayStatus(txt, "B")
+                myPrint("B", txt)
+                lIgnoreOutdatedExtensions_TB = False
+                try:
+                    save_StuWareSoftSystems_parameters_to_file()
+                except:
+                    myPrint("B", "Error - failed to save parameters to pickle file...!")
+                    dump_sys_error_to_md_console_and_errorlog()
+
 
     class ToolboxBuildInfo:
 
@@ -4811,7 +4821,8 @@ Visit: %s (Author's site)
         for i in range(0, len(theSortData)):
             theSortData[i] = theSortData[i] + "\n"
         theSortData = "".join(theSortData)
-        return theSortData
+
+        QuickJFrame("Register TXN Sort Orders etc", theSortData, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     def view_check_num_settings():
         try:
@@ -4890,7 +4901,7 @@ Visit: %s (Author's site)
         for i in range(0, len(theData)):
             theData[i] = theData[i] + "\n"
         theData = "".join(theData)
-        return theData
+        QuickJFrame("View Check Number Settings:", theData, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     def isUserEncryptionPassphraseSet():
         try:
@@ -5553,44 +5564,51 @@ Visit: %s (Author's site)
 
         return fis
 
-    def display_help():
+    class DisplayHelp(AbstractAction):
 
-        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+        def __init__(self): pass
 
-        localHelpFileStream = None                                                                                      # noqa
-        stream = None                                                                                                   # noqa
+        def actionPerformed(self, event):                                                                               # noqa
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        if MD_EXTENSION_LOADER is None:
-            localHelpFileStream = load_help_file()
-            if localHelpFileStream is None:
-                if debug:
-                    return "moneydance_extension_loader is None:\nInternal mxt and also local Help file not found (please run as extension)\n(note: feature only enabled from Moneydance build 3051 onwards)"
+            def getHelpData():
+                localHelpFileStream = None                                                                              # noqa
+                stream = None                                                                                           # noqa
+
+                if MD_EXTENSION_LOADER is None:
+                    localHelpFileStream = load_help_file()
+                    if localHelpFileStream is None:
+                        if debug:
+                            return "moneydance_extension_loader is None:\nInternal mxt and also local Help file not found (please run as extension)\n(note: feature only enabled from Moneydance build 3051 onwards)"
+                        else:
+                            return "Internal mxt and also local Help file not found (please run as extension)\n(note: feature only enabled from Moneydance build 3051 onwards)"
+
+                if MD_EXTENSION_LOADER is not None:
+                    stream = MD_EXTENSION_LOADER.getResourceAsStream("/%s_readme.txt" %(myModuleID))
+                    if stream is None:
+                        localHelpFileStream = load_help_file()
+                        if localHelpFileStream is None:
+                            if debug:
+                                return "getResourceAsStream() returned None:\nInternal mxt and also local Help file not found (please run as extension)"
+                            else:
+                                return "Internal mxt and also local Help file not found (please run as extension)"
+
+                if stream is not None:
+                    myPrint("DB",".. loading help file from mxt internal stream")
+                    return load_text_from_stream_file(stream)
+
+                elif localHelpFileStream is not None:
+                    myPrint("DB",".. loading help file from local file stored with the .py file")
+                    return load_text_from_stream_file(localHelpFileStream)
+
                 else:
-                    return "Internal mxt and also local Help file not found (please run as extension)\n(note: feature only enabled from Moneydance build 3051 onwards)"
-
-        if MD_EXTENSION_LOADER is not None:
-            stream = MD_EXTENSION_LOADER.getResourceAsStream("/%s_readme.txt" %(myModuleID))
-            if stream is None:
-                localHelpFileStream = load_help_file()
-                if localHelpFileStream is None:
                     if debug:
-                        return "getResourceAsStream() returned None:\nInternal mxt and also local Help file not found (please run as extension)"
+                        return "all streams are None:\nInternal mxt and also local Help file not found (please run as extension)"
                     else:
                         return "Internal mxt and also local Help file not found (please run as extension)"
 
-        if stream is not None:
-            myPrint("DB",".. loading help file from mxt internal stream")
-            help_data = load_text_from_stream_file(stream)
-        elif localHelpFileStream is not None:
-            myPrint("DB",".. loading help file from local file stored with the .py file")
-            help_data = load_text_from_stream_file(localHelpFileStream)
-        else:
-            if debug:
-                return "all streams are None:\nInternal mxt and also local Help file not found (please run as extension)"
-            else:
-                return "Internal mxt and also local Help file not found (please run as extension)"
-
-        return help_data
+            output = getHelpData()
+            QuickJFrame("HELP DOCUMENTATION", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     # noinspection PyArgumentList
     class MyTxnSearchFilter(TxnSearch):
@@ -6025,20 +6043,193 @@ Visit: %s (Author's site)
 
             return
 
-    def display_pickle():
-        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
+    class DisplayPickleFile(AbstractAction):
 
-        if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
+        def __init__(self): pass
 
-        params = []
-        for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
-            params.append("Key: " + pad(safeStr(key),50) + " Type: " + pad(safeStr(type(GlobalVars.parametersLoadedFromFile[key])), 20) + "Value: " + safeStr(GlobalVars.parametersLoadedFromFile[key]) + "\n")
+        # noinspection PyUnusedLocal
+        def actionPerformed(self, event):
+            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        params.append("\n<END>")
+            if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
-        params = "".join(params)
+            params = []
+            for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
+                params.append("Key: " + pad(safeStr(key),50) + " Type: " + pad(safeStr(type(GlobalVars.parametersLoadedFromFile[key])), 20) + "Value: " + safeStr(GlobalVars.parametersLoadedFromFile[key]) + "\n")
 
-        return params
+            params.append("\n<END>")
+            params = "".join(params)
+
+            jif = QuickJFrame("StuWareSoftSystems Pickle Parameter File:", params, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+
+            if not myPopupAskQuestion(jif,
+                                      "STUWARESOFTSYSTEMS' SAVED PARAMETERS PICKLE FILE",
+                                      "Would you like to RESET/DELETE/EDIT saved parameters?",
+                                      JOptionPane.YES_NO_OPTION,
+                                      JOptionPane.WARNING_MESSAGE):
+                return
+
+            _PICKLEDELALL          = 0
+            _PICKLECHGONE          = 1
+            _PICKLEDELONE          = 2
+            _PICKLEADDONE          = 3
+
+            what = ["PICKLE: DELETE ALL","PICKLE: CHANGE one variable","PICKLE: DELETE one variable", "PICKLE: ADD one variable"]
+
+            while True:
+
+                lAdd = lChg = lDelAll = lDelOne = False
+                selectedWhat = JOptionPane.showInputDialog(jif,
+                                                           "Select the type of change you want to make?",
+                                                           "STUWARESOFTSYSTEMS' SAVED PARAMETERS PICKLE FILE",
+                                                           JOptionPane.WARNING_MESSAGE,
+                                                           getMDIcon(None),
+                                                           what,
+                                                           None)
+
+                if not selectedWhat:
+                    try:
+                        save_StuWareSoftSystems_parameters_to_file()
+                    except:
+                        myPrint("B", "Error - failed to save parameters to pickle file...!")
+                        dump_sys_error_to_md_console_and_errorlog()
+                    return
+
+                if selectedWhat == what[_PICKLEADDONE]: lAdd = True
+                if selectedWhat == what[_PICKLECHGONE]: lChg = True
+                if selectedWhat == what[_PICKLEDELONE]: lDelOne = True
+                if selectedWhat == what[_PICKLEDELALL]: lDelAll = True
+
+                if lDelAll:
+                    GlobalVars.parametersLoadedFromFile = {}
+                    txt = "STUWARESOFTSYSTEMS' PARAMETERS SAVED TO PICKLE FILE DELETED/RESET"
+                    setDisplayStatus(txt, "DG")
+                    myPrint("B", txt)
+
+                    try:
+                        save_StuWareSoftSystems_parameters_to_file()
+                    except:
+                        myPrint("B", "Error - failed to save parameters to pickle file...!")
+                        dump_sys_error_to_md_console_and_errorlog()
+                    return
+
+                text = ""
+                if lChg: text = "CHANGE"
+                if lDelOne: text = "DELETE"
+
+                if lAdd:
+                    addKey = myPopupAskForInput(jif,
+                                                "PICKLE: ADD KEY",
+                                                "KEY NAME:",
+                                                "Carefully enter the name of the key you want to add (cAseMaTTers!) - STRINGS ONLY:",
+                                                "",
+                                                False,
+                                                JOptionPane.WARNING_MESSAGE)
+
+                    if not addKey or len(addKey.strip()) < 1: continue
+                    addKey = addKey.strip()
+
+                    if not check_if_key_string_valid(addKey):
+                        myPopupInformationBox(jif, "ERROR: Key %s is NOT valid!" % addKey, "PICKLE: ADD", JOptionPane.ERROR_MESSAGE)
+                        continue    # back to menu
+
+                    testKeyExists = GlobalVars.parametersLoadedFromFile.get(addKey)
+
+                    if testKeyExists:
+                        myPopupInformationBox(jif, "ERROR: Key %s already exists - cannot add - aborting..!" % addKey, "PICKLE: ADD", JOptionPane.ERROR_MESSAGE)
+                        continue    # back to menu
+
+                    addValue = myPopupAskForInput(jif,
+                                                  "PICKLE: ADD KEY VALUE",
+                                                  "KEY VALUE:",
+                                                  "Carefully enter the key value you want to add (STRINGS ONLY!):",
+                                                  "",
+                                                  False,
+                                                  JOptionPane.WARNING_MESSAGE)
+
+                    if not addValue or len(addValue.strip()) <1: continue
+                    addValue = addValue.strip()
+
+                    if not check_if_key_data_string_valid(addValue):
+                        myPopupInformationBox(toolbox_frame_, "ERROR: Key value %s is NOT valid!" % addValue, "PICKLE: ADD ", JOptionPane.ERROR_MESSAGE)
+                        continue    # back to menu
+
+                    GlobalVars.parametersLoadedFromFile[addKey] = addValue
+                    myPrint("B","@@ PICKLEMODE: key: %s value: %s added @@" %(addKey,addValue))
+                    myPopupInformationBox(jif,
+                                          "SUCCESS: Key %s added!" % (addKey),
+                                          "PICKLE: ADD ",
+                                          JOptionPane.WARNING_MESSAGE)
+                    continue
+
+                pickleKeys=sorted(GlobalVars.parametersLoadedFromFile.keys())
+                # OK, so we are changing or deleting
+                if lChg or lDelOne:
+                    selectedKey = JOptionPane.showInputDialog(jif,
+                                                              "Select the key/setting you want to %s" % (text),
+                                                              "PICKLE",
+                                                              JOptionPane.WARNING_MESSAGE,
+                                                              getMDIcon(None),
+                                                              pickleKeys,
+                                                              None)
+                    if not selectedKey: continue
+
+                    value = GlobalVars.parametersLoadedFromFile.get(selectedKey)
+                    chgValue = None
+
+                    if lChg:
+                        chgValue = myPopupAskForInput(jif,
+                                                      "PICKLE: CHANGE KEY VALUE",
+                                                      "KEY VALUE:",
+                                                      "Carefully enter the new key value (as type: %s):" %type(value),
+                                                      str(value),
+                                                      False,
+                                                      JOptionPane.WARNING_MESSAGE)
+
+                        if not chgValue or len(chgValue.strip()) <1 or chgValue == value: continue
+                        chgValue = chgValue.strip()
+
+                        if isinstance(value, (int, float, bool, list)):
+                            try:
+                                if isinstance(eval(chgValue), type(value) ):
+                                    chgValue = eval(chgValue)
+                                else:
+                                    myPopupInformationBox(jif,"ERROR: you must match the variable type to %s" %(type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
+                                    continue
+                            except:
+                                myPopupInformationBox(jif,"ERROR: *EVAL* Could not set Key value %s - type %s" %(chgValue,type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
+                                continue
+                        elif isinstance(value,(str,unicode)):
+                            if not check_if_key_data_string_valid(chgValue):
+                                myPopupInformationBox(jif,"ERROR: Key value %s is NOT valid!" %chgValue,"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
+                                continue    # back to menu
+                        else:
+                            myPopupInformationBox(jif,"SORRY: I cannot change Key value %s as it's type %s" %(chgValue,type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
+                            continue    # back to menu
+
+                    if lDelOne:
+                        GlobalVars.parametersLoadedFromFile.pop(selectedKey)
+                    if lChg:
+                        try:
+                            GlobalVars.parametersLoadedFromFile[selectedKey] = chgValue
+                        except:
+                            myPopupInformationBox(jif,"ERROR: *set* Could not set Key value %s - type %s" %(chgValue,type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
+                            continue
+
+                    if lDelOne:
+                        myPrint("B","@@ PICKLEMODE: key: %s DELETED (old value: %s) @@" %(selectedKey,value))
+                        myPopupInformationBox(jif,
+                                              "SUCCESS: key: %s DELETED (old value: %s)" %(selectedKey,value),
+                                              "PICKlE: DELETE",
+                                              JOptionPane.WARNING_MESSAGE)
+                    if lChg:
+                        myPrint("B","@@ PICKLERMODE: key: %s CHANGED to %s @@" %(selectedKey,chgValue))
+                        myPopupInformationBox(jif,
+                                              "SUCCESS: key: %s CHANGED to %s" %(selectedKey,chgValue),
+                                              "PICKLE: CHANGE",
+                                              JOptionPane.WARNING_MESSAGE)
+                    continue
+
 
     def can_I_delete_currency():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -6123,8 +6314,8 @@ Visit: %s (Author's site)
 
         currOutput += "\n<END>"
 
+        QuickJFrame("CAN I DELETE A CURRENCY?", currOutput, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return currOutput
 
     def can_I_delete_security():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -6207,8 +6398,8 @@ Visit: %s (Author's site)
         setDisplayStatus(txt, "R")
 
         output += "\n<END>"
+        QuickJFrame("CAN I DELETE A SECURITY?", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return output
 
     def list_security_currency_decimal_places():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -6292,8 +6483,8 @@ Visit: %s (Author's site)
         txt = "DIAG: Currency/Security Decimal Places report executed"
         setDisplayStatus(txt, "DG")
 
+        QuickJFrame("LIST SECURITY / CURRENCY DECIMAL PLACES", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return output
 
     def manually_edit_price_date_field():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -12471,98 +12662,39 @@ Visit: %s (Author's site)
                 self.theFrame.dispose()     # Listener will already be on the EDT
                 return
 
-        def __init__(self, theFile, displayText, lFile=True):
+        def __init__(self, theFile, displayText):
             self.theFile = theFile
             self.displayText = displayText
-            self.lFile = lFile
 
         def actionPerformed(self, event):
-            global lIgnoreOutdatedExtensions_TB     # global must be here as we set this
-
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
-            lViewExtensions=False
-            lDisplayPickle=False
-
-            lWrap = True
 
             x = safeStr(self.theFile)
 
-            if x == "display_pickle()":
-                x = display_pickle()
-                lDisplayPickle=True
-                lWrap = False
+            myPrint("DB", "User requested to view " + self.displayText + " file...")
+            if not os.path.exists(x):
+                txt = "Sorry - " + self.displayText + " file does not exist or is not available to view!?: " + x
+                setDisplayStatus(txt, "R")
+                return
 
-            if x == "display_help()":
-                x = display_help()
-                lWrap = False
+            try:
+                with open(x, "r") as myFile:
+                    displayFile = myFile.readlines()
 
-            if x == "get_list_memorised_reports()":
-                x = get_list_memorised_reports()
-                lWrap = False
+                # If VMOptions, stick a "'" at the beginning for clipboard to Excel to work OK
+                if lCopyAllToClipBoard_TB and x.lower().endswith(".vmoptions"):
+                    newDisplayFile=[]
+                    for line in displayFile:
+                        line ="'"+line
+                        newDisplayFile.append(line)
+                    displayFile = newDisplayFile
+                else:
+                    displayFile.append("\n<END>")
 
-            if x == "get_register_txn_sort_orders()":
-                x = get_register_txn_sort_orders()
-                lWrap = False
-
-            if x == "view_check_num_settings()":
-                x = view_check_num_settings()
-                lWrap = False
-
-            if x == "view_extensions_details()":
-                x = view_extensions_details()
-                lViewExtensions=True
-                lWrap = False
-
-            if x == "can_I_delete_security()":
-                x = can_I_delete_security()
-                if not x: return
-
-            if x == "can_I_delete_currency()":
-                x = can_I_delete_currency()
-                if not x: return
-
-            if x == "list_security_currency_decimal_places()":
-                x = list_security_currency_decimal_places()
-                lWrap = False
-                if not x: return
-
-            if not self.lFile:
-                myPrint("DB", "User requested to view " + self.displayText + " data...")
-                if not x or x == "":
-                    if x:
-                        txt = "Sorry - " + self.displayText + " data is empty!?: " + x
-                        setDisplayStatus(txt, "R")
-                    return
-            else:
-                myPrint("DB", "User requested to view " + self.displayText + " file...")
-                if not os.path.exists(x):
-                    txt = "Sorry - " + self.displayText + " file does not exist or is not available to view!?: " + x
-                    setDisplayStatus(txt, "R")
-                    return
-
-            if not self.lFile:
-                displayFile = x
-            else:
-                try:
-                    with open(x, "r") as myFile:
-                        displayFile = myFile.readlines()
-                    # displayFile = '\n'.join(displayFile)
-
-                    # If VMOptions, stick a "'" at the beginning for clipboard to Excel to work OK
-                    if lCopyAllToClipBoard_TB and x.lower().endswith(".vmoptions"):
-                        newDisplayFile=[]
-                        for line in displayFile:
-                            line ="'"+line
-                            newDisplayFile.append(line)
-                        displayFile = newDisplayFile
-                    else:
-                        displayFile.append("\n<END>")
-
-                    displayFile = ''.join(displayFile)
-                except:
-                    displayFile = "Sorry - error opening file...."
-                    dump_sys_error_to_md_console_and_errorlog()
+                displayFile = ''.join(displayFile)
+            except:
+                displayFile = "Sorry - error opening file...."
+                dump_sys_error_to_md_console_and_errorlog()
 
             if x.lower().endswith(".vmoptions"):
                 displayFile += """
@@ -12648,203 +12780,10 @@ now after saving the file, restart Moneydance
                     pass
                 time.sleep(0.5)
 
-            if self.lFile:
-                jif = QuickJFrame("View " + self.displayText + " file: " + x, displayFile,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-            else:
-                jif = QuickJFrame("View " + self.displayText + " data", displayFile,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=lWrap,lAutoSize=True).show_the_frame()
-
+            jif = QuickJFrame("View " + self.displayText + " file: " + x, displayFile, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             jif.toFront()
 
-            if lViewExtensions and lIgnoreOutdatedExtensions_TB:
-                if myPopupAskQuestion(jif,
-                                      "OUTDATED EXTENSIONS",
-                                      "Turn startup warnings back on for Outdated Extns?",
-                                      JOptionPane.YES_NO_OPTION,
-                                      JOptionPane.QUESTION_MESSAGE):
-
-                    txt = "OUTDATED EXTENSIONS - Startup warnings re-enabled"
-                    setDisplayStatus(txt, "B")
-                    myPrint("B", txt)
-                    lIgnoreOutdatedExtensions_TB = False
-                    try:
-                        save_StuWareSoftSystems_parameters_to_file()
-                    except:
-                        myPrint("B", "Error - failed to save parameters to pickle file...!")
-                        dump_sys_error_to_md_console_and_errorlog()
-
-            if lDisplayPickle:
-
-                if not myPopupAskQuestion(jif,
-                                          "STUWARESOFTSYSTEMS' SAVED PARAMETERS PICKLE FILE",
-                                          "Would you like to RESET/DELETE/EDIT saved parameters?",
-                                          JOptionPane.YES_NO_OPTION,
-                                          JOptionPane.WARNING_MESSAGE):
-                    return
-
-                _PICKLEDELALL          = 0
-                _PICKLECHGONE          = 1
-                _PICKLEDELONE          = 2
-                _PICKLEADDONE          = 3
-
-                what = ["PICKLE: DELETE ALL","PICKLE: CHANGE one variable","PICKLE: DELETE one variable", "PICKLE: ADD one variable"]
-
-                while True:
-
-                    lAdd = lChg = lDelAll = lDelOne = False
-                    selectedWhat = JOptionPane.showInputDialog(jif,
-                                                               "Select the type of change you want to make?",
-                                                               "STUWARESOFTSYSTEMS' SAVED PARAMETERS PICKLE FILE",
-                                                               JOptionPane.WARNING_MESSAGE,
-                                                               getMDIcon(None),
-                                                               what,
-                                                               None)
-
-                    if not selectedWhat:
-                        try:
-                            save_StuWareSoftSystems_parameters_to_file()
-                        except:
-                            myPrint("B", "Error - failed to save parameters to pickle file...!")
-                            dump_sys_error_to_md_console_and_errorlog()
-                        return
-
-                    if selectedWhat == what[_PICKLEADDONE]: lAdd = True
-                    if selectedWhat == what[_PICKLECHGONE]: lChg = True
-                    if selectedWhat == what[_PICKLEDELONE]: lDelOne = True
-                    if selectedWhat == what[_PICKLEDELALL]: lDelAll = True
-
-                    if lDelAll:
-                        GlobalVars.parametersLoadedFromFile = {}
-                        txt = "STUWARESOFTSYSTEMS' PARAMETERS SAVED TO PICKLE FILE DELETED/RESET"
-                        setDisplayStatus(txt, "DG")
-                        myPrint("B", txt)
-
-                        try:
-                            save_StuWareSoftSystems_parameters_to_file()
-                        except:
-                            myPrint("B", "Error - failed to save parameters to pickle file...!")
-                            dump_sys_error_to_md_console_and_errorlog()
-                        return
-
-                    text = ""
-                    if lChg: text = "CHANGE"
-                    if lDelOne: text = "DELETE"
-
-                    if lAdd:
-                        addKey = myPopupAskForInput(jif,
-                                                    "PICKLE: ADD KEY",
-                                                    "KEY NAME:",
-                                                    "Carefully enter the name of the key you want to add (cAseMaTTers!) - STRINGS ONLY:",
-                                                    "",
-                                                    False,
-                                                    JOptionPane.WARNING_MESSAGE)
-
-                        if not addKey or len(addKey.strip()) < 1: continue
-                        addKey = addKey.strip()
-
-                        if not check_if_key_string_valid(addKey):
-                            myPopupInformationBox(jif, "ERROR: Key %s is NOT valid!" % addKey, "PICKLE: ADD", JOptionPane.ERROR_MESSAGE)
-                            continue    # back to menu
-
-                        testKeyExists = GlobalVars.parametersLoadedFromFile.get(addKey)
-
-                        if testKeyExists:
-                            myPopupInformationBox(jif, "ERROR: Key %s already exists - cannot add - aborting..!" % addKey, "PICKLE: ADD", JOptionPane.ERROR_MESSAGE)
-                            continue    # back to menu
-
-                        addValue = myPopupAskForInput(jif,
-                                                      "PICKLE: ADD KEY VALUE",
-                                                      "KEY VALUE:",
-                                                      "Carefully enter the key value you want to add (STRINGS ONLY!):",
-                                                      "",
-                                                      False,
-                                                      JOptionPane.WARNING_MESSAGE)
-
-                        if not addValue or len(addValue.strip()) <1: continue
-                        addValue = addValue.strip()
-
-                        if not check_if_key_data_string_valid(addValue):
-                            myPopupInformationBox(toolbox_frame_, "ERROR: Key value %s is NOT valid!" % addValue, "PICKLE: ADD ", JOptionPane.ERROR_MESSAGE)
-                            continue    # back to menu
-
-                        GlobalVars.parametersLoadedFromFile[addKey] = addValue
-                        myPrint("B","@@ PICKLEMODE: key: %s value: %s added @@" %(addKey,addValue))
-                        myPopupInformationBox(jif,
-                                              "SUCCESS: Key %s added!" % (addKey),
-                                              "PICKLE: ADD ",
-                                              JOptionPane.WARNING_MESSAGE)
-                        continue
-
-                    pickleKeys=sorted(GlobalVars.parametersLoadedFromFile.keys())
-                    # OK, so we are changing or deleting
-                    if lChg or lDelOne:
-                        selectedKey = JOptionPane.showInputDialog(jif,
-                                                                  "Select the key/setting you want to %s" % (text),
-                                                                  "PICKLE",
-                                                                  JOptionPane.WARNING_MESSAGE,
-                                                                  getMDIcon(None),
-                                                                  pickleKeys,
-                                                                  None)
-                        if not selectedKey: continue
-
-                        value = GlobalVars.parametersLoadedFromFile.get(selectedKey)
-                        chgValue = None
-
-                        if lChg:
-                            chgValue = myPopupAskForInput(jif,
-                                                          "PICKLE: CHANGE KEY VALUE",
-                                                          "KEY VALUE:",
-                                                          "Carefully enter the new key value (as type: %s):" %type(value),
-                                                          str(value),
-                                                          False,
-                                                          JOptionPane.WARNING_MESSAGE)
-
-                            if not chgValue or len(chgValue.strip()) <1 or chgValue == value: continue
-                            chgValue = chgValue.strip()
-
-                            if isinstance(value, (int, float, bool, list)):
-                                try:
-                                    if isinstance(eval(chgValue), type(value) ):
-                                        chgValue = eval(chgValue)
-                                    else:
-                                        myPopupInformationBox(jif,"ERROR: you must match the variable type to %s" %(type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
-                                        continue
-                                except:
-                                    myPopupInformationBox(jif,"ERROR: *EVAL* Could not set Key value %s - type %s" %(chgValue,type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
-                                    continue
-                            elif isinstance(value,(str,unicode)):
-                                if not check_if_key_data_string_valid(chgValue):
-                                    myPopupInformationBox(jif,"ERROR: Key value %s is NOT valid!" %chgValue,"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
-                                    continue    # back to menu
-                            else:
-                                myPopupInformationBox(jif,"SORRY: I cannot change Key value %s as it's type %s" %(chgValue,type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
-                                continue    # back to menu
-
-                        if lDelOne:
-                            GlobalVars.parametersLoadedFromFile.pop(selectedKey)
-                        if lChg:
-                            try:
-                                GlobalVars.parametersLoadedFromFile[selectedKey] = chgValue
-                            except:
-                                myPopupInformationBox(jif,"ERROR: *set* Could not set Key value %s - type %s" %(chgValue,type(value)),"PICKLE: CHANGE",JOptionPane.ERROR_MESSAGE)
-                                continue
-
-                        if lDelOne:
-                            myPrint("B","@@ PICKLEMODE: key: %s DELETED (old value: %s) @@" %(selectedKey,value))
-                            myPopupInformationBox(jif,
-                                                  "SUCCESS: key: %s DELETED (old value: %s)" %(selectedKey,value),
-                                                  "PICKlE: DELETE",
-                                                  JOptionPane.WARNING_MESSAGE)
-                        if lChg:
-                            myPrint("B","@@ PICKLERMODE: key: %s CHANGED to %s @@" %(selectedKey,chgValue))
-                            myPopupInformationBox(jif,
-                                                  "SUCCESS: key: %s CHANGED to %s" %(selectedKey,chgValue),
-                                                  "PICKLE: CHANGE",
-                                                  JOptionPane.WARNING_MESSAGE)
-                        continue
-
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-            return
-
 
     def view_shouldBeIncludedInNetWorth_settings():
 
@@ -23282,8 +23221,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
                     if user_view_check_number_settings.isSelected():
-                        x = ViewFileButtonAction("view_check_num_settings()", "Check Number Settings etc", lFile=False)
-                        x.actionPerformed(None)
+                        view_check_num_settings()
                         return
 
                     if user_view_zero_bal_cats.isSelected():
@@ -23554,18 +23492,15 @@ Now you will have a text readable version of the file you can open in a text edi
                     selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
                     if user_can_i_delete_security.isSelected():
-                        x = ViewFileButtonAction("can_I_delete_security()", "CAN I DELETE A SECURITY?", lFile=False)
-                        x.actionPerformed(None)
+                        can_I_delete_security()
                         return
 
                     if user_can_i_delete_currency.isSelected():
-                        x = ViewFileButtonAction("can_I_delete_currency()", "CAN I DELETE A CURRENCY?", lFile=False)
-                        x.actionPerformed(None)
+                        can_I_delete_currency()
                         return
 
                     if user_list_curr_sec_dpc.isSelected():
-                        x=ViewFileButtonAction("list_security_currency_decimal_places()", "LIST SECURITY CURRENCY DECIMAL PLACES", lFile=False)
-                        x.actionPerformed(None)
+                        list_security_currency_decimal_places()
                         return
 
                     if user_diag_price_date.isSelected():
@@ -23750,8 +23685,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
                     if user_view_txn_sort.isSelected():
-                        x = ViewFileButtonAction("get_register_txn_sort_orders()", "Register TXN Sort Orders etc", lFile=False)
-                        x.actionPerformed(None)
+                        get_register_txn_sort_orders()
                         return
 
                     if user_extract_attachments.isSelected():
@@ -23941,13 +23875,11 @@ Now you will have a text readable version of the file you can open in a text edi
                         return
 
                     if user_view_extensions_details.isSelected():
-                        x = ViewFileButtonAction("view_extensions_details()", "Extension(s) details etc", lFile=False)
-                        x.actionPerformed(None)
+                        view_extensions_details()
                         return
 
                     if user_view_memorised_reports.isSelected():
-                        x = ViewFileButtonAction("get_list_memorised_reports()", "Memorized Reports and Graphs", lFile=False)
-                        x.actionPerformed(None)
+                        get_list_memorised_reports()
                         return
 
                     if user_find_sync_password_in_ios_backups.isSelected():
@@ -24414,8 +24346,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Help":
-                    viewHelp = ViewFileButtonAction("display_help()", "HELP DOCUMENTATION", lFile=False)
-                    viewHelp.actionPerformed(None)
+                    DisplayHelp().actionPerformed(None)
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "About Toolbox":
@@ -24423,7 +24354,11 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "About Moneydance":
-                    MD_REF.getUI().showAbout()
+                    # MD_REF.getUI().showAbout()
+                    abtWin = AboutWindow(MD_REF.getUI(), toolbox_frame_)
+                    abtWin.setEscapeKeyCancels(True)
+                    abtWin.setVisible(True)
+
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Auto Prune Internal Backups":
@@ -24605,13 +24540,13 @@ Now you will have a text readable version of the file you can open in a text edi
             toolbox_frame_.addWindowListener(self.WindowListener(toolbox_frame_, self))
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "display-pickle")
-            toolbox_frame_.getRootPane().getActionMap().put("display-pickle", ViewFileButtonAction("display_pickle()", "StuWareSoftSystems Pickle Parameter File", lFile=False))
+            toolbox_frame_.getRootPane().getActionMap().put("display-pickle", DisplayPickleFile())
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_U, (shortcut | Event.SHIFT_MASK)), "display-UUID")
             toolbox_frame_.getRootPane().getActionMap().put("display-UUID", self.DisplayUUID(toolbox_frame_))
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, shortcut), "display-help")
-            toolbox_frame_.getRootPane().getActionMap().put("display-help", ViewFileButtonAction("display_help()", "HELP DOCUMENTATION", lFile=False))
+            toolbox_frame_.getRootPane().getActionMap().put("display-help", DisplayHelp())
 
             frame_width = min(1024, min(screenSize.width-20, max(1024,int(round(MD_REF.getUI().firstMainFrame.getSize().width *.95,0)))))
             frame_height = min(screenSize.height-20, max(768, int(round(MD_REF.getUI().firstMainFrame.getSize().height *.95,0))))
