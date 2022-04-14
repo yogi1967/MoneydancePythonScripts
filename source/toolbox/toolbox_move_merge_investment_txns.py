@@ -3057,7 +3057,7 @@ Visit: %s (Author's site)
                     selectHomeScreen()      # Stops the LOT Control box popping up.....
 
                 if not GlobalVars.extn_param_shownHelpFile_MIT:
-                    QuickJFrame("%s: Help / guide (FIRST EXECUTION OF EXTENSION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                    QuickJFrame("%s: Help / guide (FIRST EXECUTION OF EXTENSION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                     GlobalVars.extn_param_shownHelpFile_MIT = True
                     save_StuWareSoftSystems_parameters_to_file(myFile="%s_extension.dict" %(myModuleID))
                     return
@@ -3310,7 +3310,7 @@ Visit: %s (Author's site)
                         return
 
                     if userAction > 1:
-                        QuickJFrame("%s: Help / guide" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                        QuickJFrame("%s: Help / guide" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         return
 
                     if user_selectSourceAccount.getSelectedItem() is None or user_selectTargetAccount.getSelectedItem() is None:
@@ -3584,7 +3584,7 @@ Visit: %s (Author's site)
                                 else:
                                     output += "\nRefer to section '[Auto IGNORE any differences between Avg Cst & LOT Control flags and Merge anyway?] (^^1)' in the Help/Guide\n\n"
                                     output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
-                                    QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                                    QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                                     jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                                     txt = "Error: %s - Aborting" %(insertTxt)
                                     myPrint("DB",txt)
@@ -3692,7 +3692,7 @@ Visit: %s (Author's site)
                         output += "\n*** to/from accounts checked... %s account 'loops' could exist if we proceed with move/merge... ABORTING - NO CHANGES MADE\n" %(iCountLoops)
                         output += "\nRefer to section '[Auto IGNORE any account 'Loops' and Merge anyway?]' in the Help/Guide\n\n"
                         output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
-                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s Txns to move/merge includes the target account - would cause account 'loop(s)' - no changes made" %(iCountLoops)
                         myPrint("B", txt)
@@ -3816,7 +3816,7 @@ Visit: %s (Author's site)
                         output += "\n*** TOOLBOX 'FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid' can wipe missing/invalid LOT matching records ***\n"
                         output += "\nRefer to section '[Auto DELETE any related LOT records on txns moved that separate matched Buy/Sell LOTs?] (^^2)' in the Help/Guide\n\n"
                         output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
-                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: Buy/Sell matched LOTs ERRORS EXIST. Cannot proceed. PLEASE FIX & TRY AGAIN (Toolbox might help) - no changes made"
                         myPrint("B", txt)
@@ -3836,7 +3836,7 @@ Visit: %s (Author's site)
                         output += "... %s. Matched txns would be separated...\n" %(txt)
                         output += "\nRefer to section '[Auto DELETE any related LOT records on txns moved that separate matched Buy/Sell LOTs?] (^^2)' in the Help/Guide\n\n"
                         output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
-                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s (refer logfile for details) - no changes made" %(txt)
                         myPrint("B", txt)
@@ -3895,7 +3895,7 @@ Visit: %s (Author's site)
                         txt = "Check for negative share balances FAILED VALIDATION"
                         output += ">> %s. Txns to move contain negative share balances (by security)...\n\n" %(txt)
                         output += "\nRefer to section '[Auto IGNORE where the share balance (by security) of selected txns to move is negative?]' in the Help/Guide\n\n"
-                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
                         myPrint("B", txt)
@@ -3942,7 +3942,7 @@ Visit: %s (Author's site)
                         txt = "Check for matched LOT data when target uses average cost control - FAILED VALIDATION"
                         output += ">> %s. Txns to move contain matched LOT data (select 'IGNORE' or 'WIPE' in the option drop down. Either will do to force this move through)...\n\n" %(txt)
                         output += "\nRefer to section '[Select option when target uses 'average cost control' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
-                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                        QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
                         myPrint("B", txt)
@@ -4007,7 +4007,7 @@ Visit: %s (Author's site)
                         if estimatedNewSourceCashBalance < 0:
                             output += ">> Check for resultant negative cash balance in source account FAILED VALIDATION. Would result in a negative cash balance of: %s\n\n" %(sourceAccount.getCurrencyType().formatFancy(estimatedNewSourceCashBalance, MD_decimal))
                             output += "\nRefer to section '[Auto ALLOW Source Account's Cash balance to go negative?]' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
-                            QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True)
+                            QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                             jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                             txt = "ERROR: Check for source account negative cash balance (after move) FAILED VALIDATION - no changes made"
                             myPrint("B", txt)
