@@ -271,6 +271,8 @@
 # build: 1047 - Fixed where lIgnoreOutdatedExtensions_TB wasn't being saved...
 # build: 1047 - Common code all: Updated MyPopupDialogBox() so that screen layout is much better...
 # build: 1047 - Common code all: Updated QuickJFrame() with location and autosize options...
+# build: 1047 - Decommissioned the option to restore an archive and retain sync settings. This now exists in 2022.3(4072)
+# build: 1047 - Added DetectInvalidWindowLocations() to look for window locations 'offscreen'
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - fix vmoptions file name to match .exe
@@ -590,21 +592,21 @@ else:
 
     from com.google.gson import Gson
 
-    from com.moneydance.apps.md.controller import AccountBookWrapper, MDException, Util, AppEventListener
+    from com.moneydance.apps.md.controller import AccountBookWrapper, MDException, Util, AppEventListener               # noqa
 
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller.sync import MDSyncCipher
     from com.moneydance.apps.md.controller import ModuleLoader, ModuleMetaData, LocalStorageCipher, Common, BalanceType
     from com.moneydance.apps.md.controller.io import FileUtils, AccountBookUtil
-    from java.awt import GraphicsEnvironment, Desktop, Event, GridBagConstraints                                        # noqa
+    from java.awt import GraphicsEnvironment, Rectangle, GraphicsDevice, Desktop, Event, GridBagConstraints             # noqa
 
     from com.infinitekind.util import StreamTable, StreamVector, IOUtils, StringUtils, CustomDateFormat
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
-    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AccountBook, AbstractTxn
+    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AccountBook, AbstractTxn    # noqa
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
     from com.infinitekind.tiksync import SyncRecord, SyncableItem
+    from com.moneydance.apps.md.view.gui import MainFrame, OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
     from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
-    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
     from com.infinitekind.tiksync import Syncer
     from com.moneydance.apps.md.controller import PreferencesListener
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
@@ -658,7 +660,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4071                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4072                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -3355,6 +3357,117 @@ Visit: %s (Author's site)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             MD_REF.getUI().exit()
+
+    class DetectInvalidWindowLocations(AbstractAction):
+
+        def __init__(self, lQuickCheckOnly):
+            self.lQuickCheckOnly = lQuickCheckOnly
+
+        def actionPerformed(self, event):
+            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+            _THIS_METHOD_NAME = "Detect Invalid window locations".upper()
+
+            virtualBounds = Rectangle(0, 0, 0, 0)
+            ge = GraphicsEnvironment.getLocalGraphicsEnvironment()  # type: GraphicsEnvironment
+            lstGDs = ge.getScreenDevices()                          # type: [GraphicsDevice]
+            for gd in lstGDs:
+                print gd, gd.getDefaultConfiguration(), gd.getDefaultConfiguration().getBounds()
+                virtualBounds.add(gd.getDefaultConfiguration().getBounds())
+
+            output = "%s:\n" \
+                     "---------------------------------\n" %(_THIS_METHOD_NAME)
+
+            txt = "*** Found: %s screens, with Virtual Bounds of: %s" %(len(lstGDs), virtualBounds)
+
+            output += "%s\n\n" %(txt)
+            myPrint("DB", txt)
+
+            prefs = MD_REF.getPreferences()
+
+            invalidLocns = []
+            extraLocations = ["security_list_loc", "curr_list_loc", "checknum_settings", "ext_mgmt_winloc", "mbot.loc"]
+            prefSt, prefKeys = read_preferences_file(True)
+            for theKey in prefKeys:
+                value = prefSt.get(theKey)
+                if not check_for_window_display_data(theKey, value): continue
+                if not check_for_just_locations_window_display_data(theKey, value): continue
+                livePrefValue = prefs.getXYSetting(theKey, 0, 0)
+                if theKey.startswith("gui.") or theKey in extraLocations:
+                    if livePrefValue.x == 0 and livePrefValue.y == 0: continue
+                    if livePrefValue.x > virtualBounds.width or livePrefValue.y > virtualBounds.height:
+                        invalidLocns.append(theKey)
+                        txt = "Found INVALID location outside current virtual bounds: %s (%s)" %(theKey, livePrefValue)
+                        output += "%s\n" %(txt)
+                        myPrint("DB", txt)
+            output += "\n"
+
+            if self.lQuickCheckOnly:
+                if invalidLocns:
+                    myPrint("B","*** %s invalid saved window locations detected (use 'UPDATE MODE' to zap these)...." %(len(invalidLocns)))
+                    return True
+
+                myPrint("B","No invalid saved window locations detected....")
+                return False
+
+            if not invalidLocns:
+                output += "NO INVALID LOCATIONS DETECTED - no changes made\n<END>\n"
+                QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+                return False
+
+            output += "ALERT: %s invalid saved window locations detected\n\n" %(len(invalidLocns))
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
+
+            ask = MyPopUpDialogBox(jif,
+                                   theStatus="%s invalid saved window locations have been detected!" %(len(invalidLocns)),
+                                   theMessage=output,
+                                   theTitle=_THIS_METHOD_NAME,
+                                   lAlertLevel=1,
+                                   lCancelButton=True,
+                                   OKButtonText="ZAP INVALID LOCATIONS")
+            if not ask.go():
+                txt = "%s: User declined to zap invalid saved window locations - no changes made" %(_THIS_METHOD_NAME)
+                setDisplayStatus(txt, "B")
+                return
+
+            disclaimer = myPopupAskForInput(jif,
+                                            theTitle=_THIS_METHOD_NAME,
+                                            theFieldLabel="DISCLAIMER:",
+                                            theFieldDescription="Are you really sure you want to zap %s invalid saved window locations? Type 'IAGREE' to continue.." %(len(invalidLocns)),
+                                            defaultValue="NO",
+                                            theMessageType=JOptionPane.WARNING_MESSAGE)
+
+            if not disclaimer == 'IAGREE':
+                txt = "%s: User declined the disclaimer - no changes made...." %(_THIS_METHOD_NAME)
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            if not backup_config_dict():
+                txt = "%s: ERROR making backup of config.dict - no changes made!" %(_THIS_METHOD_NAME)
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
+
+            jif.dispose()
+            output += "User accepted disclaimer and is proceeding with zap of invalid window locations...\n\n"
+
+            output += "Closing Open Secondary Frames....\n"
+            for sWin in MD_REF.getUI().getSecondaryWindows():
+                if isinstance(sWin, MainFrame): continue
+                sWin.goAway()
+
+            for locKey in list(invalidLocns):
+                output += "Zapping: %s\n" %(locKey)
+                MD_REF.getPreferences().setSetting(locKey, None)
+            MD_REF.savePreferences()
+
+            txt = "%s: %s invalid saved window locations zapped.... MONEYDANCE WILL EXIT - PLEASE RELAUNCH MD" %(_THIS_METHOD_NAME, len(invalidLocns))
+            output += "\n\n%s\n<END>" %(txt)
+            jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False,lAutoSize=True,lQuitMDAfterClose=True).show_the_frame()
+            setDisplayStatus(txt, "R")
+            play_the_money_sound()
+            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
     def find_other_datasets():
         output = ""
@@ -20201,15 +20314,15 @@ Now you will have a text readable version of the file you can open in a text edi
 
         theNewViewFrame = get_set_config(st, tk, False, lAll, lWinLocations, lRegFilters, lRegViews)
 
-        if not myPopupAskQuestion(theNewViewFrame,
-                                  "RESET WINDOW DISPLAY SETTINGS",
-                                  "WARNING: Have you closed all Account Register windows and made sure only the Main Home Screen / Summary page is visible first??",
-                                  JOptionPane.YES_NO_OPTION,
-                                  JOptionPane.WARNING_MESSAGE):
-            txt = "WARNING: Close all Account Register Windows and make sure only the Main Home Screen Summary/Dashboard is visible before running the Reset Windows Sizes!"
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(theNewViewFrame,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
+        # if not myPopupAskQuestion(theNewViewFrame,
+        #                           "RESET WINDOW DISPLAY SETTINGS",
+        #                           "WARNING: Have you closed all Account Register windows and made sure only the Main Home Screen / Summary page is visible first??",
+        #                           JOptionPane.YES_NO_OPTION,
+        #                           JOptionPane.WARNING_MESSAGE):
+        #     txt = "WARNING: Close all Account Register Windows and make sure only the Main Home Screen Summary/Dashboard is visible before running the Reset Windows Sizes!"
+        #     setDisplayStatus(txt, "R")
+        #     myPopupInformationBox(theNewViewFrame,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        #     return
 
         if not confirm_backup_confirm_disclaimer(theNewViewFrame, "RESET WINDOW DISPLAY SETTINGS", "%s data?" %(resetWhat)):
             return
@@ -20226,6 +20339,11 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(theNewViewFrame,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
+        # closing open windows....
+        for sWin in MD_REF.getUI().getSecondaryWindows():
+            if isinstance(sWin, MainFrame): continue
+            sWin.goAway()
+
         # DO THE RESET HERE
         get_set_config(st, tk, True, lAll, lWinLocations, lRegFilters, lRegViews)
 
@@ -20236,9 +20354,8 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("B", "SUCCESS - %s data reset in config.dict config file, internally by Account & Local Storage...." %(resetWhat))
         txt = "OK - %s settings forgotten.... RESTART MD!" %(resetWhat)
         setDisplayStatus(txt, "R")
-        myPopupInformationBox(theNewViewFrame, "SUCCESS - %s - RESTART MONEYDANCE" %(resetWhat), "RESET WINDOW DISPLAY SETTINGS", JOptionPane.WARNING_MESSAGE)
-
-        return
+        myPopupInformationBox(theNewViewFrame, "SUCCESS - %s - MONEYDANCE WILL NOW RESTART" %(resetWhat), "RESET WINDOW DISPLAY SETTINGS", JOptionPane.WARNING_MESSAGE)
+        MD_REF.getUI().exit()
 
     def advanced_mode_suppress_dropbox_warning():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -22013,171 +22130,172 @@ Now you will have a text readable version of the file you can open in a text edi
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
         MD_REF.getUI().exit()
 
-    def restore_archive_retain_sync_settings():
-        # com.moneydance.apps.md.view.gui.MoneydanceGUI.openFile(File)
-
-        _PARAM_KEY = "netsync.sync_type"
-        _NONE = "none"
-
-        _SYNC_KEYS = [  "netsync.dropbox.fileid",
-                        "netsync.sync_type",
-                        "netsync.subpath",
-                        "netsync.dropbox_enabled",
-                        "netsync.synckey",
-                        "ext.netsync.settings",
-                        "netsync.guid",
-                        "migrated.netsync.dropbox.fileid",
-                        "migrated.ext.netsync.settings",                                                                   # Extra from here
-                        "migrated.netsync.dropbox_enabled",
-                        "migrated.netsync.guid",
-                        "migrated.netsync.synckey"
-                        ]
-
-        _THIS_METHOD_NAME = "RESTORE ARCHIVE (RETAIN SYNC SETTINGS)"
-
-        ask = MyPopUpDialogBox(None, "Allows you to restore a .moneydancearchive file and RETAIN Sync Settings",
-                               "The normal File/Restore from Backup option will wipe out your Sync settings\n"
-                               "... This means the restored dataset will not reconnect and pick up syncing where it was before\n"
-                               "... You would get a brand new Sync relationship and have to reconnect devices to this new Sync\n\n"
-                               "This feature allows you to retain your Sync settings, and it will then sync from the point of backup\n"
-                               "... NOTE: Whilst the settings are retained, Syncing will be left turned off...\n"
-                               "... So you must visit the File/Syncing menu and select the Sync option to continue...\n\n"
-                               "You might use this when you have txns in the Sync 'system' from another device, that you want applied to this dataset\n",
-                               theTitle="INSTRUCTIONS",
-                               lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
-        if not ask.go():
-            txt = "Instructions rejected - no changes made"
-            setDisplayStatus(txt, "B"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        theTitle = "Select archive file to restore and retain sync settings)"
-        archiveFilename = getFileFromFileChooser(toolbox_frame_,    # Parent frame or None
-                                                 get_home_dir(),    # Starting path
-                                                 None,              # Default Filename
-                                                 theTitle,          # Title
-                                                 False,             # Multi-file selection mode
-                                                 True,              # True for Open/Load, False for Save
-                                                 True,              # True = Files, else Dirs
-                                                 None,              # Load/Save button text, None for defaults
-                                                 "moneydancearchive",  # File filter (non Mac only). Example: "txt" or "qif"
-                                                 lAllowTraversePackages=False,
-                                                 lForceJFC=False,
-                                                 lForceFD=False,
-                                                 lAllowNewFolderButton=False,
-                                                 lAllowOptionsButton=True)
-
-        if archiveFilename is None or archiveFilename == "":
-            txt = "%s: User chose to cancel or no file selected >>  So no Restore will be performed... " %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        if not archiveFilename.endswith(".moneydancearchive"):
-            txt = "%s: ERROR - Must select a file with '.moneydancearchive' extension - No Restore will be performed... " %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "B"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        fileToOpen = File(archiveFilename)
-        baseFilename = StringUtils.stripExtension(fileToOpen.getName())
-
-        tmpFolder = IOUtils.createTempFolder()
-        myPrint("DB","Temp folder: %s" %(tmpFolder.getCanonicalPath()))
-
-        IOUtils.openZip(fileToOpen, tmpFolder.getAbsolutePath())
-        myPrint("DB","Zip file opened....")
-
-        class MyFilenameFilter(FilenameFilter):
-            def accept(self, _dir, name): return String(name).endsWith(".moneydance")
-
-        zipContents = tmpFolder.list(MyFilenameFilter())
-        if (zipContents is None or len(zipContents) <= 0):
-            txt = "%s: ERROR: Archive (zip) appears empty? So no Restore will be performed... " %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
-
-        tmpMDFile = File(tmpFolder, zipContents[0])
-        newBookFile = AccountBook.getUnusedFileNameWithBase(AccountBookUtil.DEFAULT_FOLDER_CONTAINER, baseFilename)
-        myPrint("B","Archive to restore: %s" %(fileToOpen.getCanonicalPath()))
-        myPrint("B","New Name:           %s" %(newBookFile.getCanonicalPath()))
-
-        if not myPopupAskQuestion(toolbox_frame_,_THIS_METHOD_NAME, "CONFIRM you want to proceed to restore archive and retain Sync settings?"):
-            txt = "%s: User DECLINED TO PROCEED - no action taken" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "B"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
-            return
-
-        if not tmpMDFile.renameTo(newBookFile):
-            try: IOUtils.copyFolder(tmpMDFile, newBookFile)
-            except:
-                txt = "%s: ERROR: copy/move of tmp folder failed (review console)... " %(_THIS_METHOD_NAME)
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                dump_sys_error_to_md_console_and_errorlog()
-                myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-        archiveWrapper = AccountBookWrapper.wrapperForFolder(newBookFile)
-        if archiveWrapper is None:
-            try: IOUtils.deleteFolder(newBookFile)
-            except: dump_sys_error_to_md_console_and_errorlog()
-            txt = "%s: ERROR: Failed to set AccountBookWrapper.wrapperForFolder on restored file... " %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
-
-        passwordCallback = MD_REF.getUI().getSecretKeyCallback(archiveWrapper)
-
-        iLoop = 0
-        lFailed = True
-        while True:
-            iLoop += 1
-            if iLoop > 3: break
-            try:
-                if archiveWrapper.loadLocalStorage(passwordCallback): lFailed = False
-                break
-            except MDException as mde:
-                if mde.getCode() == 1004:
-                    MD_REF.getUI().showErrorMessage("The password you have entered is invalid.  Please try again.")
-                    continue
-                else:
-                    dump_sys_error_to_md_console_and_errorlog()
-                    break
-            except:
-                dump_sys_error_to_md_console_and_errorlog()
-                break
-
-        if lFailed:
-            try: IOUtils.deleteFolder(newBookFile)
-            except: dump_sys_error_to_md_console_and_errorlog()
-            txt = "%s: ERROR: Failed to load local storage for restored dataset... " %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-            return
-
-        archiveBook = archiveWrapper.getBook()
-        storage = archiveBook.getLocalStorage()
-        saveSyncSetting = storage.getString(_PARAM_KEY, _NONE)
-
-        myPrint("B", "List of all 'Sync' Keys preserved in the Restored Dataset..:")
-        for sKey in _SYNC_KEYS: myPrint("B", "Key %s  Value: '%s'" %(pad(sKey,40), storage.getString(sKey, "NOT SET")))
-        myPrint("B", "<END OF PRESERVED SYNC KEYS>")
-
-        myPrint("B", "@@@ Setting Sync in restored dataset to %s" %(_NONE))
-        storage.put(_PARAM_KEY, _NONE)
-        storage.put("_toolbox", "Restored & preserved Sync settings (type was: %s)...." %(saveSyncSetting))
-        archiveBook.getLocalStorage().save()
-
-        myPopupInformationBox(toolbox_frame_,"SUCCESS! ABOUT TO OPEN THE RESTORED DATASET (You need to set Sync to: '%s') - YOU MAY BE ASKED FOR YOUR PASSWORD AGAIN" %(saveSyncSetting),_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
-        myPrint("B","Opening restored Dataset: %s" %(newBookFile.getCanonicalPath()))
-        txt = "%s: SUCCESS: Dataset restored, open manually (and change Sync Method to: %s)" %(_THIS_METHOD_NAME, saveSyncSetting)
-        setDisplayStatus(txt, "B"); myPrint("B", txt)
-        if not MD_REF.getUI().openFile(newBookFile):    # This will trigger Toolbox to close too....
-            txt = "%s: ERROR: Failed to open the restored file... Please open the file manually?" %(_THIS_METHOD_NAME)
-            setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-        return
+    # Decomissioned as of 2022.3(4072)
+    # def restore_archive_retain_sync_settings():
+    #     # com.moneydance.apps.md.view.gui.MoneydanceGUI.openFile(File)
+    #
+    #     _PARAM_KEY = "netsync.sync_type"
+    #     _NONE = "none"
+    #
+    #     _SYNC_KEYS = [  "netsync.dropbox.fileid",
+    #                     "netsync.sync_type",
+    #                     "netsync.subpath",
+    #                     "netsync.dropbox_enabled",
+    #                     "netsync.synckey",
+    #                     "ext.netsync.settings",
+    #                     "netsync.guid",
+    #                     "migrated.netsync.dropbox.fileid",
+    #                     "migrated.ext.netsync.settings",                                                                   # Extra from here
+    #                     "migrated.netsync.dropbox_enabled",
+    #                     "migrated.netsync.guid",
+    #                     "migrated.netsync.synckey"
+    #                     ]
+    #
+    #     _THIS_METHOD_NAME = "RESTORE ARCHIVE (RETAIN SYNC SETTINGS)"
+    #
+    #     ask = MyPopUpDialogBox(None, "Allows you to restore a .moneydancearchive file and RETAIN Sync Settings",
+    #                            "The normal File/Restore from Backup option will wipe out your Sync settings\n"
+    #                            "... This means the restored dataset will not reconnect and pick up syncing where it was before\n"
+    #                            "... You would get a brand new Sync relationship and have to reconnect devices to this new Sync\n\n"
+    #                            "This feature allows you to retain your Sync settings, and it will then sync from the point of backup\n"
+    #                            "... NOTE: Whilst the settings are retained, Syncing will be left turned off...\n"
+    #                            "... So you must visit the File/Syncing menu and select the Sync option to continue...\n\n"
+    #                            "You might use this when you have txns in the Sync 'system' from another device, that you want applied to this dataset\n",
+    #                            theTitle="INSTRUCTIONS",
+    #                            lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
+    #     if not ask.go():
+    #         txt = "Instructions rejected - no changes made"
+    #         setDisplayStatus(txt, "B"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+    #         return
+    #
+    #     theTitle = "Select archive file to restore and retain sync settings)"
+    #     archiveFilename = getFileFromFileChooser(toolbox_frame_,    # Parent frame or None
+    #                                              get_home_dir(),    # Starting path
+    #                                              None,              # Default Filename
+    #                                              theTitle,          # Title
+    #                                              False,             # Multi-file selection mode
+    #                                              True,              # True for Open/Load, False for Save
+    #                                              True,              # True = Files, else Dirs
+    #                                              None,              # Load/Save button text, None for defaults
+    #                                              "moneydancearchive",  # File filter (non Mac only). Example: "txt" or "qif"
+    #                                              lAllowTraversePackages=False,
+    #                                              lForceJFC=False,
+    #                                              lForceFD=False,
+    #                                              lAllowNewFolderButton=False,
+    #                                              lAllowOptionsButton=True)
+    #
+    #     if archiveFilename is None or archiveFilename == "":
+    #         txt = "%s: User chose to cancel or no file selected >>  So no Restore will be performed... " %(_THIS_METHOD_NAME)
+    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+    #         return
+    #
+    #     if not archiveFilename.endswith(".moneydancearchive"):
+    #         txt = "%s: ERROR - Must select a file with '.moneydancearchive' extension - No Restore will be performed... " %(_THIS_METHOD_NAME)
+    #         setDisplayStatus(txt, "B"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+    #         return
+    #
+    #     fileToOpen = File(archiveFilename)
+    #     baseFilename = StringUtils.stripExtension(fileToOpen.getName())
+    #
+    #     tmpFolder = IOUtils.createTempFolder()
+    #     myPrint("DB","Temp folder: %s" %(tmpFolder.getCanonicalPath()))
+    #
+    #     IOUtils.openZip(fileToOpen, tmpFolder.getAbsolutePath())
+    #     myPrint("DB","Zip file opened....")
+    #
+    #     class MyFilenameFilter(FilenameFilter):
+    #         def accept(self, _dir, name): return String(name).endsWith(".moneydance")
+    #
+    #     zipContents = tmpFolder.list(MyFilenameFilter())
+    #     if (zipContents is None or len(zipContents) <= 0):
+    #         txt = "%s: ERROR: Archive (zip) appears empty? So no Restore will be performed... " %(_THIS_METHOD_NAME)
+    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #         return
+    #
+    #     tmpMDFile = File(tmpFolder, zipContents[0])
+    #     newBookFile = AccountBook.getUnusedFileNameWithBase(AccountBookUtil.DEFAULT_FOLDER_CONTAINER, baseFilename)
+    #     myPrint("B","Archive to restore: %s" %(fileToOpen.getCanonicalPath()))
+    #     myPrint("B","New Name:           %s" %(newBookFile.getCanonicalPath()))
+    #
+    #     if not myPopupAskQuestion(toolbox_frame_,_THIS_METHOD_NAME, "CONFIRM you want to proceed to restore archive and retain Sync settings?"):
+    #         txt = "%s: User DECLINED TO PROCEED - no action taken" %(_THIS_METHOD_NAME)
+    #         setDisplayStatus(txt, "B"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+    #         return
+    #
+    #     if not tmpMDFile.renameTo(newBookFile):
+    #         try: IOUtils.copyFolder(tmpMDFile, newBookFile)
+    #         except:
+    #             txt = "%s: ERROR: copy/move of tmp folder failed (review console)... " %(_THIS_METHOD_NAME)
+    #             setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #             dump_sys_error_to_md_console_and_errorlog()
+    #             myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             return
+    #
+    #     archiveWrapper = AccountBookWrapper.wrapperForFolder(newBookFile)
+    #     if archiveWrapper is None:
+    #         try: IOUtils.deleteFolder(newBookFile)
+    #         except: dump_sys_error_to_md_console_and_errorlog()
+    #         txt = "%s: ERROR: Failed to set AccountBookWrapper.wrapperForFolder on restored file... " %(_THIS_METHOD_NAME)
+    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #         return
+    #
+    #     passwordCallback = MD_REF.getUI().getSecretKeyCallback(archiveWrapper)
+    #
+    #     iLoop = 0
+    #     lFailed = True
+    #     while True:
+    #         iLoop += 1
+    #         if iLoop > 3: break
+    #         try:
+    #             if archiveWrapper.loadLocalStorage(passwordCallback): lFailed = False
+    #             break
+    #         except MDException as mde:
+    #             if mde.getCode() == 1004:
+    #                 MD_REF.getUI().showErrorMessage("The password you have entered is invalid.  Please try again.")
+    #                 continue
+    #             else:
+    #                 dump_sys_error_to_md_console_and_errorlog()
+    #                 break
+    #         except:
+    #             dump_sys_error_to_md_console_and_errorlog()
+    #             break
+    #
+    #     if lFailed:
+    #         try: IOUtils.deleteFolder(newBookFile)
+    #         except: dump_sys_error_to_md_console_and_errorlog()
+    #         txt = "%s: ERROR: Failed to load local storage for restored dataset... " %(_THIS_METHOD_NAME)
+    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #         return
+    #
+    #     archiveBook = archiveWrapper.getBook()
+    #     storage = archiveBook.getLocalStorage()
+    #     saveSyncSetting = storage.getString(_PARAM_KEY, _NONE)
+    #
+    #     myPrint("B", "List of all 'Sync' Keys preserved in the Restored Dataset..:")
+    #     for sKey in _SYNC_KEYS: myPrint("B", "Key %s  Value: '%s'" %(pad(sKey,40), storage.getString(sKey, "NOT SET")))
+    #     myPrint("B", "<END OF PRESERVED SYNC KEYS>")
+    #
+    #     myPrint("B", "@@@ Setting Sync in restored dataset to %s" %(_NONE))
+    #     storage.put(_PARAM_KEY, _NONE)
+    #     storage.put("_toolbox", "Restored & preserved Sync settings (type was: %s)...." %(saveSyncSetting))
+    #     archiveBook.getLocalStorage().save()
+    #
+    #     myPopupInformationBox(toolbox_frame_,"SUCCESS! ABOUT TO OPEN THE RESTORED DATASET (You need to set Sync to: '%s') - YOU MAY BE ASKED FOR YOUR PASSWORD AGAIN" %(saveSyncSetting),_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
+    #     myPrint("B","Opening restored Dataset: %s" %(newBookFile.getCanonicalPath()))
+    #     txt = "%s: SUCCESS: Dataset restored, open manually (and change Sync Method to: %s)" %(_THIS_METHOD_NAME, saveSyncSetting)
+    #     setDisplayStatus(txt, "B"); myPrint("B", txt)
+    #     if not MD_REF.getUI().openFile(newBookFile):    # This will trigger Toolbox to close too....
+    #         txt = "%s: ERROR: Failed to open the restored file... Please open the file manually?" %(_THIS_METHOD_NAME)
+    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #     return
 
     def checkForREADONLY():
 
@@ -23988,11 +24106,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_force_reset_sync_settings.setForeground(getColorRed())
                 user_force_reset_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_restore_archive_retain_sync_settings = JRadioButton("Restore an archive file, and RETAIN Sync settings (USE WITH CARE, CAN CHANGE SYNC DATA)", False)
-                user_restore_archive_retain_sync_settings.setToolTipText("Restores a .moneydancearchive file, RETAINS Sync settings (but turns Sync off - you can then manually turn it back on again")
-                user_restore_archive_retain_sync_settings.setForeground(getColorRed())
-                user_restore_archive_retain_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
-
                 user_demote_primary_to_secondary = JRadioButton("DEMOTE Primary dataset back to a Secondary Node", False)
                 user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
                 user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
@@ -24021,7 +24134,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_advanced_sync_push)
                 bg.add(user_force_sync_off)
                 bg.add(user_force_reset_sync_settings)
-                bg.add(user_restore_archive_retain_sync_settings)
                 bg.add(user_demote_primary_to_secondary)
                 bg.add(user_advanced_suppress_dropbox_warning)
                 bg.clearSelection()
@@ -24046,7 +24158,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_advanced_sync_push)
                 userFilters.add(user_force_sync_off)
                 userFilters.add(user_force_reset_sync_settings)
-                userFilters.add(user_restore_archive_retain_sync_settings)
                 userFilters.add(user_advanced_import_to_storage)
                 userFilters.add(user_advanced_mode_edit_prefs)
                 userFilters.add(user_advanced_edit_param_keys)
@@ -24125,9 +24236,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_force_reset_sync_settings.isSelected():
                         advanced_mode_force_reset_sync_settings()
-
-                    if user_restore_archive_retain_sync_settings.isSelected():
-                        restore_archive_retain_sync_settings()
 
                     if user_demote_primary_to_secondary.isSelected():
                         advanced_mode_demote_primary_to_secondary()
@@ -24740,6 +24848,15 @@ Now you will have a text readable version of the file you can open in a text edi
                 fixTabbingMode_button.setVisible(False)
                 GlobalVars.allButtonsList.append(fixTabbingMode_button)
 
+            lWindowLocationsNeedZapping = False
+            if (DetectInvalidWindowLocations(True).actionPerformed("quick_check")):
+                lWindowLocationsNeedZapping = True
+                fixInvalidWindowLocations_button = MyJButton("<html><center>FIX: Zap Invalid<BR>Window Locations</center></html>", adhocButton=True)
+                fixInvalidWindowLocations_button.setToolTipText("This will zap any invalid window locations detected (i.e. they are 'off-screen')")
+                fixInvalidWindowLocations_button.addActionListener(DetectInvalidWindowLocations(False))
+                fixInvalidWindowLocations_button.setVisible(False)
+                GlobalVars.allButtonsList.append(fixInvalidWindowLocations_button)
+
             if MD_REF.getCurrentAccount().getBook().getLocalStorage().getStr("migrated.netsync.dropbox.fileid", None):
                 FixDropboxOneWaySync_button = MyJButton("<html><center>FIX: Remove Legacy<BR>Dropbox Sync Key</center></html>", adhocButton=True)
                 FixDropboxOneWaySync_button.setToolTipText("This removes the key 'migrated.netsync.dropbox.fileid' to fix Dropbox One-way & iCloud Syncing issues (reset_sync_and_dropbox_settings.py)")
@@ -25017,14 +25134,18 @@ Now you will have a text readable version of the file you can open in a text edi
                 if countCachedTxns > 0:
 
                     if debug:
-                        myPopupInformationBox(toolbox_frame_,
-                                              "You appear to have %s Accounts\n"
-                                              "with %s cached OFX downloaded bank transactions.\n"
-                                              "These should not really be there.\n"
-                                              "Consider using Online Banking (OFX) Tools menu to delete cached OnlineTxnList txns"
-                                              %(countCachedAccount, countCachedTxns),
-                                              "ALERT: Cached OnlineTxnList records exist",
-                                              JOptionPane.WARNING_MESSAGE)
+                        MyPopUpDialogBox(toolbox_frame_,
+                                         theStatus="Cached OFX downloaded bank transactions exist:",
+                                         theMessage="You appear to have %s Accounts\n"
+                                                    "with %s cached OFX downloaded bank transactions.\n"
+                                                    "These should not really be there.\n"
+                                                    "Consider using Online Banking (OFX) Tools menu to delete cached OnlineTxnList txns"
+                                                    %(countCachedAccount, countCachedTxns),
+                                         theTitle="ALERT: Cached OnlineTxnList records exist",
+                                         OKButtonText="ACKNOWLEDGE",
+                                         lAlertLevel=1,
+                                         lModal=True).go()
+
                     else:
                         myPrint("J","")
                         myPrint("B","#########################################################################################################################################################")
@@ -25039,22 +25160,41 @@ Now you will have a text readable version of the file you can open in a text edi
 
             # Check to see if Tabbing mode needs changing on a MAc
             if lTabbingModeNeedsChanging:
-                myPopupInformationBox(toolbox_frame_,
-                                      "Your Mac has 'Tabbing Mode' set to 'always'\n" +
-                                      "- You can find this in Settings>General>Prefer tabs:,\n" +
-                                      "- THIS CAUSES STRANGE MONEYDANCE FREEZES.\n" +
-                                      ">> To change this setting now, use UPDATE Mode...\n" +
-                                      "........\n",
-                                      "MacOS TABBING MODE WARNING",
-                                      JOptionPane.ERROR_MESSAGE)
+                MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus="MacOS TABBING MODE WARNING:",
+                                 theMessage="Your Mac has 'Tabbing Mode' set to 'always'\n"
+                                            "- You can find this in Settings>General>Prefer tabs:,\n"
+                                            "- THIS CAUSES STRANGE MONEYDANCE FREEZES.\n"
+                                            ">> To change this setting now, use UPDATE Mode...\n"
+                                            "........\n",
+                                 theTitle="MacOS TABBING MODE WARNING",
+                                 OKButtonText="ACKNOWLEDGE",
+                                 lAlertLevel=1,
+                                 lModal=True).go()
 
+
+            # Check to see if any windows are off-screen
+            if lWindowLocationsNeedZapping:
+                MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus="INVALID WINDOW LOCATIONS WARNING:",
+                                 theMessage="Toolbox has detected that you have at least one saved\n"
+                                            "Moneydance window location that is invalid / 'off-screen'.\n"
+                                            ">> To zap these invalid settings, use UPDATE Mode...\n"
+                                            "........\n",
+                                 theTitle="INVALID WINDOW LOCATIONS WARNING",
+                                 OKButtonText="ACKNOWLEDGE",
+                                 lAlertLevel=1,
+                                 lModal=True).go()
             # Check whether UserHome is missing - probably on a development platform
             if Platform.isOSX() and System.getProperty(u"UserHome") is None:
-                myPopupInformationBox(toolbox_frame_,
-                                      "Your Mac's System Property 'UserHome' is not set\n" +
-                                      "Some features in Toolbox may not work as expected",
-                                      "MacOS UserHome Warning",
-                                      JOptionPane.WARNING_MESSAGE)
+                MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus="MacOS UserHome Warning:",
+                                 theMessage="Your Mac's System Property 'UserHome' is not set\n"
+                                            "Some features in Toolbox may not work as expected",
+                                 theTitle="MacOS UserHome Warning",
+                                 OKButtonText="ACKNOWLEDGE",
+                                 lAlertLevel=1,
+                                 lModal=True).go()
 
             # Check for repeated opening of backup files
             try:

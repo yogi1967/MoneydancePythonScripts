@@ -169,6 +169,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
     All basic mode settings plus (note the text of buttons turn red when update mode enabled):
     - These four buttons will only appear if they are necessary / possible in your system, on the last button row
         - FIX - Make me a Primary Dataset (convert from Secondary dataset to enable Sync) (convert_secondary_to_primary_data_set.py)
+        - FIX - Zap Invalid Window Locations (Appears if any of your saved windows are 'off screen')
         - FIX - Create Dropbox Sync Folder (creates the missing .moneydancesync folder if missing from Dropbox)
         - FIX - Check / fix MacOS Tabbing Mode on Big Sur (when set to always). It will allow you to change it to fullscreen or manual/never.
                 More information here: https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac
@@ -254,7 +255,6 @@ ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
     - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
     - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
     - Force reset Sync settings (This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync)
-    - Restore an archive file, and RETAIN Sync settings (the default File/Restore will wipe out your Sync settings)
     - DEMOTE your Primary Sync dataset/node back to a Secondary Node
     - Suppress the "Your file seems to be in a shared folder (Dropbox)" warning... (optional when condition exists)
 
