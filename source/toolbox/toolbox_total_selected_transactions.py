@@ -1398,7 +1398,7 @@ Visit: %s (Author's site)
 
         return
 
-    def get_time_stamp_as_nice_text(timeStamp, _format=None):
+    def get_time_stamp_as_nice_text(timeStamp, _format=None, lUseHHMMSS=True):
 
         if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
 
@@ -1406,7 +1406,8 @@ Visit: %s (Author's site)
         try:
             c = Calendar.getInstance()
             c.setTime(Date(timeStamp))
-            dateFormatter = SimpleDateFormat("%s HH:mm:ss(.SSS) Z z zzzz" %(_format))
+            longHHMMSSText = " HH:mm:ss(.SSS) Z z zzzz" if (lUseHHMMSS) else ""
+            dateFormatter = SimpleDateFormat("%s%s" %(_format, longHHMMSSText))
             humanReadableDate = dateFormatter.format(c.getTime())
         except: pass
         return humanReadableDate

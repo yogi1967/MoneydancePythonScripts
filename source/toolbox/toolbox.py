@@ -274,6 +274,7 @@
 # build: 1047 - Decommissioned the option to restore an archive and retain sync settings. This now exists in 2022.3(4072)
 # build: 1047 - Added DetectInvalidWindowLocations() to look for window locations 'offscreen'
 # build: 1047 - Added 'View your accounts' calculated reconcile window auto 'as of' date' feature
+# build: 1047 - Updated common code all .get_time_stamp_as_nice_text() with useHHMMSS parameter
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - fix vmoptions file name to match .exe
