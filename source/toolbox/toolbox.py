@@ -273,6 +273,7 @@
 # build: 1047 - Common code all: Updated QuickJFrame() with location and autosize options...
 # build: 1047 - Decommissioned the option to restore an archive and retain sync settings. This now exists in 2022.3(4072)
 # build: 1047 - Added DetectInvalidWindowLocations() to look for window locations 'offscreen'
+# build: 1047 - Added 'View your accounts' calculated reconcile window auto 'as of' date' feature
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - fix vmoptions file name to match .exe
@@ -1740,7 +1741,7 @@ Visit: %s (Author's site)
 
         return
 
-    def get_time_stamp_as_nice_text(timeStamp, _format=None):
+    def get_time_stamp_as_nice_text(timeStamp, _format=None, lUseHHMMSS=True):
 
         if _format is None: _format = MD_REF.getPreferences().getShortDateFormat()
 
@@ -1748,7 +1749,8 @@ Visit: %s (Author's site)
         try:
             c = Calendar.getInstance()
             c.setTime(Date(timeStamp))
-            dateFormatter = SimpleDateFormat("%s HH:mm:ss(.SSS) Z z zzzz" %(_format))
+            longHHMMSSText = " HH:mm:ss(.SSS) Z z zzzz" if (lUseHHMMSS) else ""
+            dateFormatter = SimpleDateFormat("%s%s" %(_format, longHHMMSSText))
             humanReadableDate = dateFormatter.format(c.getTime())
         except: pass
         return humanReadableDate
@@ -5113,6 +5115,97 @@ Visit: %s (Author's site)
 
         outputDates += "\n<END>"
         QuickJFrame("LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
+
+
+    def OFX_view_reconcile_AsOf_Dates():
+
+        # Code copied from com.moneydance.apps.md.view.gui.PreReconcilerWindow
+
+        _THIS_METHOD_NAME = "OFX - View accounts' calculated reconcile 'as_of' dates".upper()
+        _KEY_ASOF_PREF = "gen.rec_asof_enabled"
+
+        output = "\n%s\n" \
+                 "--------------------------------------------\n\n" %(_THIS_METHOD_NAME)
+
+        allActiveAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(0))
+
+        count = 0
+
+        if len(allActiveAccounts) < 1:
+            output += "No active Bank/Credit card/Investment accounts found\n\n"
+
+        else:
+
+            wait = MyPopUpDialogBox(toolbox_frame_,theStatus="PLEASE WAIT - CALCULATING THE AS_OF DATES...", theTitle="PLEASE WAIT",lModal=False)
+            wait.go()
+
+            output += "Processing %s active accounts\n\n" %(len(allActiveAccounts))
+            output += "Diagnosing the Reconcile: as_of date:\n\n"
+
+            MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
+            for acct in allActiveAccounts:
+                txns = acct.getDownloadedTxns()
+
+                if acct.getPreference(_KEY_ASOF_PREF, None) is None:
+                    asOfPref = "<not set>"  # Deliberately find out if not set
+                else:
+                    asOfPref = acct.getPreferenceBoolean(_KEY_ASOF_PREF, True)
+
+                lastUpdate = txns.getOnlineLedgerBalanceDate()
+
+                val_ledgerDate = txns.getOnlineLedgerBalanceDate()
+                val_lastTxnUpdateDate = txns.getOFXLastTxnUpdate()
+
+                if lastUpdate == 0:
+                    lastUpdate = txns.getOFXLastTxnUpdate()
+
+                tset = acct.getBook().getTransactionSet()
+
+                # This is the moneydance code
+                if lastUpdate == 0:
+                    txnDate = 0
+                    for txn in tset.iterableTxns():
+                        if not acct.isAncestorOf(txn.getAccount()): continue
+                        if txn.getDateInt() <= txnDate or not TxnUtil.wasTxnDownloaded(txn): continue
+                        txnDate = txn.getDateInt()
+                    if txnDate != 0:
+                        lastUpdate = Util.convertIntDateToLong(txnDate).getTime()
+
+                # Do it again so we can show the last txn date too
+                txnDate = 0
+                txnLastUpdate = None
+                for txn in tset.iterableTxns():
+                    if not acct.isAncestorOf(txn.getAccount()): continue
+                    if txn.getDateInt() <= txnDate or not TxnUtil.wasTxnDownloaded(txn): continue
+                    txnDate = txn.getDateInt()
+                if txnDate != 0:
+                    txnLastUpdate = Util.convertIntDateToLong(txnDate).getTime()
+
+                hasAsOfOption = lastUpdate != 0
+                if not hasAsOfOption: continue
+                asOfEnabled = True
+                asOfDate = lastUpdate
+                asOfEndBalance = txns.getOnlineLedgerBalance()
+                count += 1
+
+                output += "Account: %s\n" %(acct.getFullAccountName())
+                output += "   as_of enabled:           %s\n" %(safeStr(asOfEnabled))
+                output += "   calculated 'as_of' date: %s\n" %(get_time_stamp_as_nice_text(asOfDate, lUseHHMMSS=False))
+                output += "   as_of end balance:       %s\n" %("" if asOfEndBalance == 0 else rpad(acct.getCurrencyType().formatFancy(asOfEndBalance,MD_decimal),10))
+                output += "         as_of Preference:                %s\n" %(pad(asOfPref,9))
+                output += "         OFXLedgerDate:                   %s\n" %("" if val_ledgerDate == 0 else get_time_stamp_as_nice_text(val_ledgerDate, lUseHHMMSS=False))
+                output += "         OFXLastTxnDownloadDate:          %s\n" %("" if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
+                output += "         Most Recent Downloaded Txn Date: %s\n" %("" if txnLastUpdate == 0 else get_time_stamp_as_nice_text(txnLastUpdate, lUseHHMMSS=False))
+                output += "\n"
+
+            wait.kill()
+
+        if count < 1: output += "No enabled as_of dates were detected\n\n"
+
+        output += "\n<END>"
+
+        QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
 
     def OFX_view_CUSIP_settings():
@@ -22507,6 +22600,9 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_viewAllLastTxnDownloadDates = JRadioButton("View all your OFX last download txn dates (for all accounts)", False)
                 user_viewAllLastTxnDownloadDates.setToolTipText("View all your OFX last download txn dates (across all accounts)")
 
+                user_viewReconcileAsOfDates = JRadioButton("View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)", False)
+                user_viewReconcileAsOfDates.setToolTipText("Displays how the reconcile as_of date is calculated for your active accounts")
+
                 user_toggleMDDebug = JRadioButton("Toggle Moneydance Debug (ONLY use for debugging)", False)
                 user_toggleMDDebug.setToolTipText("This toggles Moneydance's internal DEBUG(s) on/off. When ON you get more messages in the Console Log (the same as opening console)")
 
@@ -22600,6 +22696,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_view_CUSIP_settings)
                 bg.add(user_viewOnlineTxnsPayeesPayments)
                 bg.add(user_viewAllLastTxnDownloadDates)
+                bg.add(user_viewReconcileAsOfDates)
                 bg.add(user_cookieManagement)
                 bg.add(user_exportMDPlusProfile)
                 bg.add(user_importMDPlusProfile)
@@ -22627,6 +22724,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_view_CUSIP_settings)
                 userFilters.add(user_viewOnlineTxnsPayeesPayments)
                 userFilters.add(user_viewAllLastTxnDownloadDates)
+                userFilters.add(user_viewReconcileAsOfDates)
                 userFilters.add(user_toggleMDDebug)
                 # userFilters.add(user_toggleOFXDebug)
                 userFilters.add(JLabel(" "))
@@ -22660,7 +22758,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 while True:
                     options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,775,650)
+                    jsp = MyJScrollPaneForJOptionPane(userFilters,775,700)
                     userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                jsp,
                                                                "Online Banking (OFX) Tools",
@@ -22743,6 +22841,12 @@ Now you will have a text readable version of the file you can open in a text edi
                     if user_viewAllLastTxnDownloadDates.isSelected():
                         OFX_view_all_last_txn_download_dates()
                         txt = "OFX: All your last txn download txn dates have been retrieved and displayed...."
+                        setDisplayStatus(txt, "B")
+                        return
+
+                    if user_viewReconcileAsOfDates.isSelected():
+                        OFX_view_reconcile_AsOf_Dates()
+                        txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
                         setDisplayStatus(txt, "B")
                         return
 

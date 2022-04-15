@@ -3895,6 +3895,7 @@ Visit: %s (Author's site)
                         txt = "Check for negative share balances FAILED VALIDATION"
                         output += ">> %s. Txns to move contain negative share balances (by security)...\n\n" %(txt)
                         output += "\nRefer to section '[Auto IGNORE where the share balance (by security) of selected txns to move is negative?]' in the Help/Guide\n\n"
+                        output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
                         QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
@@ -3942,6 +3943,7 @@ Visit: %s (Author's site)
                         txt = "Check for matched LOT data when target uses average cost control - FAILED VALIDATION"
                         output += ">> %s. Txns to move contain matched LOT data (select 'IGNORE' or 'WIPE' in the option drop down. Either will do to force this move through)...\n\n" %(txt)
                         output += "\nRefer to section '[Select option when target uses 'average cost control' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
+                        output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
                         QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                         jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                         txt = "ERROR: %s - no changes made" %(txt)
@@ -4007,6 +4009,7 @@ Visit: %s (Author's site)
                         if estimatedNewSourceCashBalance < 0:
                             output += ">> Check for resultant negative cash balance in source account FAILED VALIDATION. Would result in a negative cash balance of: %s\n\n" %(sourceAccount.getCurrencyType().formatFancy(estimatedNewSourceCashBalance, MD_decimal))
                             output += "\nRefer to section '[Auto ALLOW Source Account's Cash balance to go negative?]' and txns being moved contain matched LOT data] (^^3)' in the Help/Guide\n\n"
+                            output += "\n** NOTE: When making another move attempt, ensure any option you were previously advised to select are reselected...\n\n"
                             QuickJFrame("%s: Help / guide (FAILED VALIDATION)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
                             jif = QuickJFrame(_THIS_METHOD_NAME,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False).show_the_frame()
                             txt = "ERROR: Check for source account negative cash balance (after move) FAILED VALIDATION - no changes made"

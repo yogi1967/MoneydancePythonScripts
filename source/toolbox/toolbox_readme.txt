@@ -133,7 +133,8 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - View full list of all MD's Bank dynamic setup profiles (and then select one to view specific details)
         - View your Security's hidden CUSIP settings (These link your downloads on Investment Securities to MD Securities)
         - View your Online saved Txns, Payees, Payments
-        - View all your OFX last download txn dates (for all accounts)
+        - View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)
+        - View your accounts' calculated reconcile window auto 'as of' date (active accounts only)
         - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
     - MENU: Accounts & Categories tools
         - View Check number settings
