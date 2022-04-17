@@ -76,7 +76,9 @@ TIPS:
 - Moving txns where both the source and target security use average cost control is a simple scenario.
 - Moving from/to different cost basis types causes complexity.
 - Moving from/to LOT controlled securities can be simple, as long as you don't separate Buys from Sells.
-
+- You can only move all/part of an investment account's initial [cash] balance from Source to Target as part of a
+  transaction move. I.e. You cannot move the initial [cash] balance with no transactions. You should do this manually.
+  Use Moneydance > highlight the investment account in the side bar > ACCOUNT > EDIT ACCOUNT to adjust initial balance.
 ------------------------------------------------------------------------------------------------------------------------
 INITIATION:
 You start the extension by selecting the Moneydance Extensions Menu and selecting: Toolbox: Move investment transactions
@@ -138,7 +140,11 @@ move would not leave the source account with a negative cash balance. This optio
 [Auto IGNORE where the share balance (by security) of selected txns to move is negative?]
 Validation ensures that the total share balance (per security) of transactions being moved is not negative. It also
 ensures that the move would not leave the source account with a negative share balance (per security). This option
-allows you to force the move to occur.
+allows you to force the move to occur. Note: When highlighting one or more transactions in a Source account, for a given
+security, the total number of shares of all selected Buy plus all selected Sell transactions must not be negative or the
+move will be blocked by ‘a negative share balances FAILED VALIDATION’. The move will blocked even if after the move the
+resultant number of shares would have been positive in both Source and Target accounts. Select this option to allow the
+move.
 
 [Auto IGNORE any differences between Avg Cst & LOT Control flags and Merge anyway?]                                (^^1)
 Validation ensures that the source and target securities have the same cost basis setting. This option allows you to
