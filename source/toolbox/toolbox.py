@@ -1019,6 +1019,21 @@ Visit: %s (Author's site)
             result+=ch
         return result
 
+    def doesUserAcceptDisclaimer(theParent, theTitle, disclaimerQuestion):
+        disclaimer = myPopupAskForInput(theParent,
+                                        theTitle,
+                                        "DISCLAIMER:",
+                                        "%s Type 'IAGREE' to continue.." %(disclaimerQuestion),
+                                        "NO",
+                                        False,
+                                        JOptionPane.ERROR_MESSAGE)
+        agreed = (disclaimer == "IAGREE")
+        if agreed:
+            myPrint("B", "%s: User AGREED to disclaimer question: '%s'" %(theTitle, disclaimerQuestion))
+        else:
+            myPrint("B", "%s: User DECLINED disclaimer question: '%s' - no action/changes made" %(theTitle, disclaimerQuestion))
+        return agreed
+
     def myPopupAskBackup(theParent=None, theMessage="What no message?!", lReturnTheTruth=False):
 
         _options=["STOP", "PROCEED WITHOUT BACKUP", "DO BACKUP NOW"]
@@ -1044,6 +1059,36 @@ Visit: %s (Author's site)
                 return True
 
         return False
+
+    def confirm_backup_confirm_disclaimer(theFrame, theTitleToDisplay, theAction):
+
+        if not myPopupAskQuestion(theFrame,
+                                  theTitle=theTitleToDisplay,
+                                  theQuestion=theAction,
+                                  theOptionType=JOptionPane.YES_NO_OPTION,
+                                  theMessageType=JOptionPane.ERROR_MESSAGE):
+
+            txt = "'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction)
+            setDisplayStatus(txt, "R")
+            myPrint("B", txt)
+            myPopupInformationBox(theFrame,"User did not agree to proceed - no changes made...","NO UPDATE",JOptionPane.ERROR_MESSAGE)
+            return False
+
+        if not myPopupAskBackup(theFrame, "Would you like to perform a backup before %s" %(theTitleToDisplay)):
+            txt = "'%s' - User chose to exit without the fix/update...."%(theTitleToDisplay)
+            setDisplayStatus(txt, "R")
+            myPrint("B","'%s' User aborted at the backup prompt to '%s' - no changes made" %(theTitleToDisplay, theAction))
+            myPopupInformationBox(theFrame,"User aborted at the backup prompt - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
+            return False
+
+        if not doesUserAcceptDisclaimer(theFrame, theTitleToDisplay, theAction):
+            setDisplayStatus("'%s' - User declined the disclaimer - no changes made...." %(theTitleToDisplay), "R")
+            myPrint("B","'%s' User did not say accept Disclaimer to '%s' - no changes made" %(theTitleToDisplay, theAction))
+            myPopupInformationBox(theFrame,"User did not accept Disclaimer - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
+            return False
+
+        myPrint("B","'%s' - User has been offered opportunity to create a backup and they accepted the DISCLAIMER on Action: %s - PROCEEDING" %(theTitleToDisplay, theAction))
+        return True
 
     # Copied MD_REF.getUI().askQuestion
     def myPopupAskQuestion(theParent=None,
@@ -3346,15 +3391,7 @@ Visit: %s (Author's site)
                 myPopupInformationBox(toolbox_frame_,txt)
                 return
 
-            disclaimer = myPopupAskForInput(toolbox_frame_,
-                                            "TABBING MODE",
-                                            "DISCLAIMER:",
-                                            "Are you really sure you want to change MacOS system setting>>Tabbing Mode? Type 'IAGREE' to continue..",
-                                            "NO",
-                                            False,
-                                            JOptionPane.ERROR_MESSAGE)
-
-            if not disclaimer == 'IAGREE':
+            if not doesUserAcceptDisclaimer(toolbox_frame_, "TABBING MODE", "Are you really sure you want to change MacOS system setting>>Tabbing Mode?"):
                 txt = "Change Mac Tabbing Mode - User declined the disclaimer - no changes made...."
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -3454,14 +3491,7 @@ Visit: %s (Author's site)
                 setDisplayStatus(txt, "B")
                 return
 
-            disclaimer = myPopupAskForInput(jif,
-                                            theTitle=_THIS_METHOD_NAME,
-                                            theFieldLabel="DISCLAIMER:",
-                                            theFieldDescription="Are you really sure you want to zap %s invalid saved window locations? Type 'IAGREE' to continue.." %(len(invalidLocns)),
-                                            defaultValue="NO",
-                                            theMessageType=JOptionPane.WARNING_MESSAGE)
-
-            if not disclaimer == 'IAGREE':
+            if not doesUserAcceptDisclaimer(jif, _THIS_METHOD_NAME, "Are you really sure you want to zap %s invalid saved window locations?" %(len(invalidLocns))):
                 txt = "%s: User declined the disclaimer - no changes made...." %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -8522,44 +8552,6 @@ Visit: %s (Author's site)
             myPrint("B","Error. Final dispose failed....?")
             dump_sys_error_to_md_console_and_errorlog()
 
-
-    def confirm_backup_confirm_disclaimer(theFrame, theTitleToDisplay, theAction):
-
-        if not myPopupAskQuestion(theFrame,
-                                  theTitle=theTitleToDisplay,
-                                  theQuestion=theAction,
-                                  theOptionType=JOptionPane.YES_NO_OPTION,
-                                  theMessageType=JOptionPane.ERROR_MESSAGE):
-
-            txt = "'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
-            myPopupInformationBox(theFrame,"User did not agree to proceed - no changes made...","NO UPDATE",JOptionPane.ERROR_MESSAGE)
-            return False
-
-        if not myPopupAskBackup(theFrame, "Would you like to perform a backup before %s" %(theTitleToDisplay)):
-            txt = "'%s' - User chose to exit without the fix/update...."%(theTitleToDisplay)
-            setDisplayStatus(txt, "R")
-            myPrint("B","'%s' User aborted at the backup prompt to '%s' - no changes made" %(theTitleToDisplay, theAction))
-            myPopupInformationBox(theFrame,"User aborted at the backup prompt - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
-            return False
-
-        disclaimer = myPopupAskForInput(theFrame,
-                                        theTitle=theTitleToDisplay,
-                                        theFieldLabel="DISCLAIMER:",
-                                        theFieldDescription="Are you really sure you want to '%s' Type 'IAGREE' to continue.." %(theAction),
-                                        defaultValue="NO",
-                                        isPassword=False,
-                                        theMessageType=JOptionPane.ERROR_MESSAGE)
-
-        if not disclaimer == 'IAGREE':
-            setDisplayStatus("'%s' - User declined the disclaimer - no changes made...." %(theTitleToDisplay), "R")
-            myPrint("B","'%s' User did not say accept Disclaimer to '%s' - no changes made" %(theTitleToDisplay, theAction))
-            myPopupInformationBox(theFrame,"User did not accept Disclaimer - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
-            return False
-
-        myPrint("B","'%s' - User has been offered opportunity to create a backup and they accepted the DISCLAIMER on Action: %s - PROCEEDING" %(theTitleToDisplay, theAction))
-        return True
 
     def getUserSelectedServiceProfile(_theFrame, _theTitle, _theQuestion, lIncludePlaidWhenUnlocked=False):
 
@@ -19092,14 +19084,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        disclaimer = myPopupAskForInput(toolbox_frame_,
-                                        "DELETE MD custom Theme file",
-                                        "DISCLAIMER:",
-                                        "Type 'IAGREE' to DELETE custom theme file",
-                                        "NO",
-                                        False,
-                                        JOptionPane.ERROR_MESSAGE)
-        if disclaimer != "IAGREE":
+        if not doesUserAcceptDisclaimer(toolbox_frame_, "DELETE MD custom Theme file", "DELETE custom theme file?"):
             txt = "User declined to agree to disclaimer >> custom Theme file!"
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -20608,15 +20593,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             break
 
-        disclaimer = myPopupAskForInput(toolbox_frame_,
-                                        _THIS_METHOD_NAME,
-                                        "DISCLAIMER:",
-                                        "Are you really sure you want to create a clone of current dataset? Type 'IAGREE' to continue..",
-                                        "NO",
-                                        False,
-                                        JOptionPane.ERROR_MESSAGE)
-
-        if not disclaimer == 'IAGREE':
+        if not doesUserAcceptDisclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Are you really sure you want to create a clone of current dataset?"):
             txt = "%s: User declined the disclaimer - no changes made...." %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -21522,14 +21499,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPopupInformationBox(toolbox_frame_, "ERROR: Key value %s is NOT valid!" % addValue, "ADVANCED: ADD TO %s" % fileType, JOptionPane.ERROR_MESSAGE)
                     continue    # back to ADVANCED menu
 
-                disclaimer = myPopupAskForInput(toolbox_frame_,
-                                                "ADVANCED: ADD KEY VALUE TO %s" % fileType,
-                                                "DISCLAIMER:",
-                                                "Type 'IAGREE' to add key: %s with value: %s" % (addKey,addValue),
-                                                "NO",
-                                                False,
-                                                JOptionPane.ERROR_MESSAGE)
-                if disclaimer == "IAGREE":
+                if doesUserAcceptDisclaimer(toolbox_frame_, "ADVANCED: ADD KEY VALUE TO %s" %(fileType), "Add key: '%s' with value: '%s'?" %(addKey,addValue)):
                     if lConfigDict:
                         MD_REF.getUI().getPreferences().setSetting(addKey,addValue)
                         MD_REF.savePreferences()                # Flush all in memory settings to config.dict file on disk
@@ -21630,25 +21600,10 @@ Now you will have a text readable version of the file you can open in a text edi
                         myPopupInformationBox(jif,"ERROR: Key value %s is NOT valid!" %chgValue,"ADVANCED: CHANGE IN %s" %fileType,JOptionPane.ERROR_MESSAGE)
                         continue    # back to ADVANCED menu
 
-                disclaimer = None
-                if lDel:
-                    disclaimer = myPopupAskForInput(jif,
-                                                    "ADVANCED: %s KEY VALUE IN %s" %(text,fileType),
-                                                    "DISCLAIMER:",
-                                                    "Type 'IAGREE' to %s key: %s (with old value: %s)" %(text,selectedKey,value),
-                                                    "NO",
-                                                    False,
-                                                    JOptionPane.ERROR_MESSAGE)
-                if lChg:
-                    disclaimer = myPopupAskForInput(jif,
-                                                    "ADVANCED: %s KEY VALUE IN %s" %(text,fileType),
-                                                    "DISCLAIMER:",
-                                                    "Type 'IAGREE' to %s key: %s to new value: %s" %(text,selectedKey,chgValue),
-                                                    "NO",
-                                                    False,
-                                                    JOptionPane.ERROR_MESSAGE)
-
-                if disclaimer == "IAGREE":
+                agreed = False
+                if lDel: agreed = doesUserAcceptDisclaimer(jif, "ADVANCED: %s KEY VALUE IN %s" %(text,fileType), "%s key: %s (with old value: %s)?" %(text,selectedKey,value))
+                if lChg: agreed = doesUserAcceptDisclaimer(jif, "ADVANCED: %s KEY VALUE IN %s" %(text,fileType), "%s key: %s to new value: %s?" %(text,selectedKey,chgValue))
+                if agreed:
                     if lConfigDict:
                         if lDel:
                             MD_REF.getUI().getPreferences().setSetting(selectedKey,None)
@@ -24814,16 +24769,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                       JOptionPane.YES_NO_OPTION,
                                       JOptionPane.ERROR_MESSAGE):
 
-                    disclaimer = myPopupAskForInput(toolbox_frame_,
-                                                    "MAKE this SECONDARY a PRIMARY/MASTER NODE",
-                                                    "DISCLAIMER:",
-                                                    "Are you really sure you want to change this secondary into the Primary? Type 'IAGREE' to continue..",
-                                                    "NO",
-                                                    False,
-                                                    JOptionPane.ERROR_MESSAGE)
-
-                    if disclaimer == 'IAGREE':
-
+                    if doesUserAcceptDisclaimer(toolbox_frame_, "MAKE this SECONDARY a PRIMARY/MASTER NODE", "Are you really sure you want to change this secondary into the Primary?"):
                         if not backup_local_storage_settings():
                             txt = "MAKE ME PRIMARY: ERROR making backup of LocalStorage() ./safe/settings - NO CHANGES MADE!"
                             setDisplayStatus(txt, "R")
