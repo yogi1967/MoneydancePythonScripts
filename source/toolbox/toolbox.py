@@ -276,6 +276,7 @@
 # build: 1047 - Added 'View your accounts' calculated reconcile window auto 'as of' date' feature
 # build: 1047 - Updated common code all .get_time_stamp_as_nice_text() with useHHMMSS parameter
 # build: 1047 - added 'Clone Dataset's structure' feature (stage-1, just structure, purge data)
+# build: 1047 - added internal sync UUID to main diagnostic display screen
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - fix vmoptions file name to match .exe
@@ -3868,6 +3869,14 @@ Visit: %s (Author's site)
         textArray.append(u"")
         x, y = calculateMoneydanceDatasetSize(True)
         textArray.append(u"Dataset size: %sMBs (%s files)\n" %(x,y))
+
+        storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
+        fileUUID = storage.getStr(u"netsync.dropbox.fileid", u"MISSING")
+        migratedFileUUID = storage.getStr(u"migrated.netsync.dropbox.fileid", u"")
+        textArray.append(u"Dataset internal UUID: %s" %(fileUUID))
+        if migratedFileUUID != "":
+            textArray.append(u"Dataset old migrated UUID: %s" %(migratedFileUUID))
+        del storage
 
         textArray.append(count_database_objects())
 
