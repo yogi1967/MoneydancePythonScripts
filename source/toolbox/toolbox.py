@@ -20569,25 +20569,56 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(toolbox_frame_, "ERROR: AccountBook is missing?",theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
+        currentName = MD_REF.getCurrentAccountBook().getName().strip()
+
+        fCurrentFilePath = MD_REF.getCurrentAccount().getBook().getRootFolder()
+        currentFilePath = fCurrentFilePath.getCanonicalPath()
+
+        newName = AccountBook.stripNonFilenameSafeCharacters(currentName+"_CLONE_%s" %(System.currentTimeMillis()))
+
+        while True:
+            userRequestedNewName = myPopupAskForInput(toolbox_frame_,
+                                                      theTitle=_THIS_METHOD_NAME,
+                                                      theFieldLabel="CLONED DATASET NAME:",
+                                                      theFieldDescription="Enter a new name for the cloned dataset",
+                                                      defaultValue=newName)
+
+            if userRequestedNewName is None or userRequestedNewName == "":
+                txt = "No name entered for cloned dataset - no changes made"
+                myPopupInformationBox(toolbox_frame_,txt)
+                setDisplayStatus(txt, "R")
+                return
+
+            newName = AccountBook.stripNonFilenameSafeCharacters(userRequestedNewName)
+            newNamePath = os.path.join(os.path.dirname(currentFilePath),newName + Common.ACCOUNT_BOOK_EXTENSION)
+            fNewNamePath = File(newNamePath)
+
+            if fNewNamePath.exists():
+                myPopupInformationBox(toolbox_frame_, "ERROR: new cloned file name: %s already exists?" %(newName),theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
+                continue
+
+            break
+
+        disclaimer = myPopupAskForInput(toolbox_frame_,
+                                        _THIS_METHOD_NAME,
+                                        "DISCLAIMER:",
+                                        "Are you really sure you want to create a clone of current dataset? Type 'IAGREE' to continue..",
+                                        "NO",
+                                        False,
+                                        JOptionPane.ERROR_MESSAGE)
+
+        if not disclaimer == 'IAGREE':
+            txt = "%s: User declined the disclaimer - no changes made...." %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
         _msgPad = 100
         _msg = pad("Please wait:",_msgPad,padChar=".")
         diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
         diag.go()
 
         try:
-            currentName = MD_REF.getCurrentAccountBook().getName().strip()
-
-            fCurrentFilePath = MD_REF.getCurrentAccount().getBook().getRootFolder()
-            currentFilePath = fCurrentFilePath.getCanonicalPath()
-
-            newName = AccountBook.stripNonFilenameSafeCharacters(currentName+"_%s" %(System.currentTimeMillis()))
-            newNamePath = os.path.join(os.path.dirname(currentFilePath),newName + Common.ACCOUNT_BOOK_EXTENSION)
-            fNewNamePath = File(newNamePath)
-
-            if fNewNamePath.exists():
-                myPopupInformationBox(toolbox_frame_, "ERROR: new cloned file: %s already exists?" %(newNamePath),theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
             output += "Current dataset file path:    %s\n" %(fCurrentFilePath.getCanonicalPath())
             output += "New cloned dataset file path: %s\n" %(fNewNamePath.getCanonicalPath())
 
