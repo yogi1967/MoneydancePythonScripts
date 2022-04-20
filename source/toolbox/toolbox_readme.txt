@@ -191,8 +191,8 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
         - Cleanup missing Online Banking Links (NOTE: This is always called when running 'Delete OFX Banking Logon Profile / Service' above
         - Reset/Fix/Edit/Add CUSIP Banking Link. This is the link for downloaded securities.... (remove_ofx_security_bindings.py and change-security-cusip.py)
-        - Update OFXLastTxnUpdate Last Download Date for Online Txns (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
-        - Delete single cached OnlineTxnList record/Txns
+        - Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
+        - Delete Single cached OnlineTxnList Record/Txns
         - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
         - OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)
             - SUBMENU: OFX Authentication Management
@@ -252,7 +252,7 @@ ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
     - Remove Int/Ext Files from File-list.
         >> External locations > Edits config.dict to remove references to external files for File/open - AND ALLOWS YOU TO DELETE THE FILES TOO
         >> Default / Internal locations > ALLOWS YOU TO DELETE THE Dataset from disk (this then removes it from the File/Open menu)
-    - Clone Dataset's structure [and balances[from date]] - Copy dataset keeping structures. Optionally copy balances & txns from a date.
+    - Clone Dataset's structure (purge transactional data) - Copy dataset keeping structures, purging all transactional data.
     - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
     - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
     - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
