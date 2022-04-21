@@ -20546,10 +20546,6 @@ Now you will have a text readable version of the file you can open in a text edi
         _THIS_METHOD_NAME = "ADVANCED: Clone Dataset".upper()
         PARAMETER_KEY = "toolbox_clone_dataset"
 
-        # lKeepBalances = True
-        # keepTxnsAfterDate = None
-        lRemoveAllTxns = True
-        lRemovePriceHistory = True
 
         output = "%s:\n" \
                  "%s\n\n" %(_THIS_METHOD_NAME, ("-" * (len(_THIS_METHOD_NAME)+1)))
@@ -20563,32 +20559,78 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(toolbox_frame_, "ERROR: AccountBook is missing?",theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
-        currentName = MD_REF.getCurrentAccountBook().getName().strip()
+        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
+        currentName = currentBook.getName().strip()
 
         fCurrentFilePath = MD_REF.getCurrentAccount().getBook().getRootFolder()
         currentFilePath = fCurrentFilePath.getCanonicalPath()
 
-        newName = AccountBook.stripNonFilenameSafeCharacters(currentName+"_CLONE_%s" %(System.currentTimeMillis()))
+        # newName = AccountBook.stripNonFilenameSafeCharacters(currentName+"_CLONE_%s" %(System.currentTimeMillis()))
+        newName = AccountBook.stripNonFilenameSafeCharacters(currentName+"_CLONE")
+
+        lbl_cloneName = JLabel("Enter the name for the cloned dataset:")
+        user_cloneName = JTextField(newName)
+
+        user_zeroAcctOpeningBalances = JCheckBox("Zero all account / category opening balances?", True)
+        user_zeroAcctOpeningBalances.setToolTipText("When enabled, will reset account and category inital/opening balances to zero")
+
+        user_purgeAllTransactions = JCheckBox("Purge all transactions?", True)
+        user_purgeAllTransactions.setToolTipText("When enabled, purges all transactions from the clone")
+
+        user_purgeSnapHistory = JCheckBox("Purge all security price & currency rate history (keep current and most recent one)?", True)
+        user_purgeSnapHistory.setToolTipText("When enabled, purges security price & currency rate history (leaving current price/rate and most recent price/rate)")
+
+        filterPanel = JPanel(GridLayout(0, 1))
+        filterPanel.add(lbl_cloneName)
+        filterPanel.add(user_cloneName)
+        filterPanel.add(JLabel(""))
+        filterPanel.add(user_zeroAcctOpeningBalances)
+        filterPanel.add(user_purgeAllTransactions)
+        filterPanel.add(user_purgeSnapHistory)
+
+        _options = ["Cancel", "CLONE"]
 
         while True:
-            userRequestedNewName = myPopupAskForInput(toolbox_frame_,
-                                                      theTitle=_THIS_METHOD_NAME,
-                                                      theFieldLabel="CLONED DATASET NAME:",
-                                                      theFieldDescription="Enter a new name for the cloned dataset",
-                                                      defaultValue=newName)
+            jsp = MyJScrollPaneForJOptionPane(filterPanel,850, 175)
 
-            if userRequestedNewName is None or userRequestedNewName == "":
-                txt = "No name entered for cloned dataset - no changes made"
-                myPopupInformationBox(toolbox_frame_,txt)
+            userAction = JOptionPane.showOptionDialog(toolbox_frame_,
+                                                      jsp,
+                                                      "%s: Select CLONE Options:" %(_THIS_METHOD_NAME.upper()),
+                                                      JOptionPane.OK_CANCEL_OPTION,
+                                                      JOptionPane.QUESTION_MESSAGE,
+                                                      getMDIcon(None),
+                                                      _options,
+                                                      _options[0])
+
+            if userAction < 1:
+                txt = "%s: User did not select clone options - no changes made" %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt)
                 return
 
-            newName = AccountBook.stripNonFilenameSafeCharacters(userRequestedNewName)
+            # userRequestedNewName = myPopupAskForInput(toolbox_frame_,
+            #                                           theTitle=_THIS_METHOD_NAME,
+            #                                           theFieldLabel="CLONED DATASET NAME:",
+            #                                           theFieldDescription="Enter a new name for the cloned dataset",
+            #                                           defaultValue=newName)
+            #
+            # if userRequestedNewName is None or userRequestedNewName == "":
+            #     txt = "No name entered for cloned dataset - no changes made"
+            #     myPopupInformationBox(toolbox_frame_,txt)
+            #     setDisplayStatus(txt, "R")
+            #     return
+
+            newName = AccountBook.stripNonFilenameSafeCharacters(user_cloneName.getText())
             newNamePath = os.path.join(os.path.dirname(currentFilePath),newName + Common.ACCOUNT_BOOK_EXTENSION)
             fNewNamePath = File(newNamePath)
 
-            if fNewNamePath.exists():
-                myPopupInformationBox(toolbox_frame_, "ERROR: new cloned file name: %s already exists?" %(newName),theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
+            if newName is None or newName == "" or fNewNamePath.exists():
+                myPopupInformationBox(toolbox_frame_, "ERROR: new cloned file name: '%s' invalid or already exists?" %(newName),theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
+                continue
+
+            if not user_zeroAcctOpeningBalances.isSelected() and not user_purgeAllTransactions.isSelected() and not user_purgeSnapHistory.isSelected():
+                myPopupInformationBox(toolbox_frame_, "ERROR: Nothing selected to remove whilst cloning (pointless!)?",theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
                 continue
 
             break
@@ -20598,6 +20640,19 @@ Now you will have a text readable version of the file you can open in a text edi
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
+
+        # lKeepBalances = True
+        # keepTxnsAfterDate = None
+        lZeroOpeningBalances = user_zeroAcctOpeningBalances.isSelected()
+        lRemoveAllTxns = user_purgeAllTransactions.isSelected()
+        lRemoveAllSnapHistory = user_purgeSnapHistory.isSelected()
+
+        output += "CLONE PROCESSING OPTIONS:\n" \
+                  "-------------------------\n"
+        output += "Purge all transactions:                           %s\n" %(lRemoveAllTxns)
+        output += "Purge all security price & currency rate history: %s\n" %(lRemoveAllSnapHistory)
+        output += "Zero all accounts/categories' opening balances:   %s\n" %(lZeroOpeningBalances)
+        output += "\n"
 
         _msgPad = 100
         _msg = pad("Please wait:",_msgPad,padChar=".")
@@ -20614,7 +20669,7 @@ Now you will have a text readable version of the file you can open in a text edi
             MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
 
             output += "Saving current dataset back to disk (trunk)\n"
-            MD_REF.getCurrentAccount().getBook().saveTrunkFile()    # Save dataset too before backup
+            currentBook.saveTrunkFile()    # Save dataset too before backup
 
 
             class MyFilenameFilter(FilenameFilter):
@@ -20722,9 +20777,12 @@ Now you will have a text readable version of the file you can open in a text edi
                     dump_sys_error_to_md_console_and_errorlog()
                     raise
 
+            cloneTime = System.currentTimeMillis()
             newRoot = newBook.getRootAccount()
-            newRoot.setParameter(PARAMETER_KEY, safeStr(DateUtil.getStrippedDateInt()))
-            newRoot.setComment("This dataset was cloned by the Toolbox extension on: %s" %(safeStr(DateUtil.getStrippedDateInt())))
+
+            newRoot.setParameter(PARAMETER_KEY, safeStr(cloneTime))
+            newRoot.setComment("This dataset was cloned by the Toolbox extension on: %s (%s)"
+                               %(convertStrippedIntDateFormattedText(DateUtil.getStrippedDateInt()), cloneTime))
             if newRoot.getAccountName().strip() != newBook.getName():
                 output += "Updating new root's account name to: '%s'\n" %(newBook.getName())
                 newRoot.setAccountName(newBook.getName())
@@ -20755,11 +20813,10 @@ Now you will have a text readable version of the file you can open in a text edi
             for skey in SYNC_KEYS: newStorage.remove(skey)                                                                  # noqa
             newStorage.put("netsync.dropbox.fileid", UUID.randomUUID())
             newStorage.put("_is_master_node", True)
-            newStorage.put(PARAMETER_KEY, safeStr(DateUtil.getStrippedDateInt()))
+            newStorage.put(PARAMETER_KEY, safeStr(cloneTime))
             newStorage.save()
             if newRoot is not None:
                 for skey in SYNC_KEYS: newRoot.removeParameter(skey)
-
             output += "Clone's Sync settings have been reset and the internal UUID set to: '%s'\n" %(newStorage.getStr("netsync.dropbox.fileid","<ERROR>"))
 
             # MD_REF.setCurrentBook(newWrapper)
@@ -20769,15 +20826,20 @@ Now you will have a text readable version of the file you can open in a text edi
             MD_REF.getUI().updateOpenFilesMenus()
             output += "Updated 'open files' menu...\n"
 
-            # _msg = pad("Please wait: Modifying cloned accounts..",_msgPad,padChar=".")
-            # diag.updateMessages(newTitle=_msg, newStatus=_msg)
-            #
-            # allAccounts = AccountUtil.allMatchesForSearch(newBook, AcctFilter.ACTIVE_ACCOUNTS_FILTER)
-            # for acct in allAccounts:
-            #     output += "Modifying: %s\n" %(acct)
-            #     acct.setComment("Stu was here!")
-            #     newBook.logModifiedItem(acct)
-            #     # acct.syncItem()
+            if lZeroOpeningBalances:
+                _msg = pad("Please wait: Zeroing account/category opening balances..",_msgPad,padChar=".")
+                diag.updateMessages(newTitle=_msg, newStatus=_msg)
+
+                allAccounts = AccountUtil.allMatchesForSearch(newBook, AcctFilter.ALL_ACCOUNTS_FILTER)
+                for acct in allAccounts:
+                    currentInitialBal = acct.getStartBalance()
+                    if currentInitialBal != 0:
+                        rCurr = acct.getCurrencyType()
+                        output += "Setting account's initial / opening balance to zero (was: %s): %s\n"\
+                                  %(rCurr.formatFancy(currentInitialBal, MD_decimal), acct)
+                        acct.setStartBalance(0)
+                        newBook.logModifiedItem(acct)
+                        # acct.syncItem()
 
             # noinspection PyArgumentList
             class MyCloneTxnSearchFilter(TxnSearch):
@@ -20818,15 +20880,14 @@ Now you will have a text readable version of the file you can open in a text edi
                             attachmentsToDelete.append(attachTag)
                 tsList = ArrayList()
                 ts.copyInto(tsList)
-                if not newBook.logRemovedItems(tsList): raise Exception("Bugger")
+                if not newBook.logRemovedItems(tsList): raise Exception("ERROR: newBook.logRemovedItems(tsList) returned false?")
 
                 if len(attachmentsToDelete):
                     output += "Deleting %s attachments from clone...\n" %(len(attachmentsToDelete))
                     for attachment in attachmentsToDelete:
                         fAttachFile = File(attachment)
-                        if not fAttachFile.exists: raise Exception("Bugger")
-                        # output += "... Deleting: %s\n" %(fAttachFile)
-                        fAttachFile.delete()
+                        if fAttachFile.exists():
+                            fAttachFile.delete()
 
                     if removeEmptyDirs(os.path.join(newBook.getRootFolder().getCanonicalPath(), "safe")):
                         output += "Successfully removed empty attachment folders...\n"
@@ -20835,34 +20896,40 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 output += "Mass delete of %s txns and %s attachments took: %s seconds\n" %(ts.getSize(), len(attachmentsToDelete), (System.currentTimeMillis() - startTimeMs) / 1000.0)
 
-            if lRemovePriceHistory:
+            if lRemoveAllSnapHistory:
                 startTimeMs = System.currentTimeMillis()
 
-                _msg = pad("Please wait: Purging Price History..",_msgPad,padChar=".")
+                _msg = pad("Please wait: Purging security price / currency rate history..",_msgPad,padChar=".")
                 diag.updateMessages(newTitle=_msg, newStatus=_msg)
 
-                allSecurities = []
                 keepSnaps = []
-                allCurrencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
+
+                allCurrencies = newBook.getCurrencies().getAllCurrencies()
                 allSnaps = newBook.getItemsWithType(CurrencySnapshot.SYNCABLE_TYPE_VALUE)
-                for curr in allCurrencies:
-                    if curr.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                       # noqa
-                    allSecurities.append(curr)
-                for sec in allSecurities:
-                    secSnapshots = sec.getSnapshots()
+
+                iCountSecurities = iCountCurrencies = 0
+
+                for curSec in allCurrencies:
+                    if curSec.getCurrencyType() == CurrencyType.Type.SECURITY: iCountSecurities += 1                    # noqa
+                    if curSec.getCurrencyType() == CurrencyType.Type.CURRENCY: iCountCurrencies += 1                    # noqa
+                    secSnapshots = curSec.getSnapshots()
                     if len(secSnapshots) > 0: keepSnaps.append(secSnapshots[-1])
-                output += "Price history ('csnaps') before: %s, Securities: %s\n" %(allSnaps.size(), len(allSecurities))
-                for snap in keepSnaps:
-                    allSnaps.remove(snap)
+
+                output += "Currency rate / Security price history ('csnaps') before purge: %s (%s currencies, %s securities)\n"\
+                          %(allSnaps.size(), iCountCurrencies, iCountSecurities)
+
+                for snap in keepSnaps: allSnaps.remove(snap)
+
                 output += "Price history - keeping: %s 'csnaps', deleting: %s 'csnaps'\n" %(len(keepSnaps), allSnaps.size())
 
-                if not newBook.logRemovedItems(allSnaps): raise Exception("Bugger")
+                if not newBook.logRemovedItems(allSnaps): raise Exception("ERROR: newBook.logRemovedItems(allSnaps) returned false?")
 
-                output += "Mass delete of %s price history 'csnaps' took: %s seconds\n" %(allSnaps.size(), (System.currentTimeMillis() - startTimeMs) / 1000.0)
+                output += "Mass delete of %s currency rate / security price history 'csnaps' took: %s seconds\n"\
+                          %(allSnaps.size(), (System.currentTimeMillis() - startTimeMs) / 1000.0)
 
             newBook.setRecalcBalances(True)
 
-            if not newBook.save(): raise Exception("ERROR: cloned AccountBook .save() failed")
+            if not newBook.save(): raise Exception("ERROR: cloned AccountBook .save() returned false")
 
             # myPrint("B", "Syncer: %s, isSyncing: %s, isRunningInBackground: %s" %(newBookSyncer, newBookSyncer.isSyncing(), newBookSyncer.isRunningInBackground()))
             newBookSyncer.stopSyncing()
