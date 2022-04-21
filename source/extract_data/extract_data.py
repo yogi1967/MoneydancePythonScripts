@@ -95,6 +95,7 @@
 # build: 1023 - Added lOmitLOTDataFromExtract_EIT to Extract Investment Txns to allow user to omit LOT matching data from extract
 # build: 1023 - Added lAllowEscapeExitApp_SWSS to allow/block escape key exiting main app's window;  Tweaked the JMenuBar() to say "MENU"
 # build: 1023 - Upgraded the Edit Reminders popup so that escape will cancel the popup dialog window.
+# build: 1023 - Added showRawItemDetails() to reminders popup right-click menu
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -391,7 +392,7 @@ else:
 
     from java.awt.event import MouseAdapter
     from java.util import Comparator
-    from javax.swing import SortOrder, ListSelectionModel
+    from javax.swing import SortOrder, ListSelectionModel, JPopupMenu
     from javax.swing.table import DefaultTableCellRenderer, DefaultTableModel, TableRowSorter
     from javax.swing.border import CompoundBorder, MatteBorder
     from javax.swing.event import TableColumnModelListener
@@ -6892,6 +6893,11 @@ Visit: %s (Author's site)
 
                             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
+                            if event.getActionCommand().lower().startswith("show reminder"):
+                                reminders = MD_REF.getCurrentAccount().getBook().getReminders()
+                                reminder = reminders.getAllReminders()[table.getValueAt(row, 0) - 1]
+                                MD_REF.getUI().showRawItemDetails(reminder, extract_data_frame_)
+
                             if event.getActionCommand().lower().startswith("page setup"):
                                 pageSetup()
 
@@ -7365,6 +7371,18 @@ Visit: %s (Author's site)
                     WL = WindowListener(extract_data_frame_)
 
                     class MouseListener(MouseAdapter):
+
+                        # noinspection PyMethodMayBeStatic
+                        def mouseClicked(self, event):
+                            global table, row, debug
+                            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+                            # Select the row when right-click initiated
+                            point = event.getPoint()
+                            row = table.rowAtPoint(point)
+                            table.setRowSelectionInterval(row, row)
+                            myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
                         # noinspection PyMethodMayBeStatic
                         def mousePressed(self, event):
                             global table, row, debug
@@ -7375,7 +7393,6 @@ Visit: %s (Author's site)
                                 index = table.getValueAt(row, 0)
                                 ShowEditForm(index)
                             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                            return
 
                     ML = MouseListener()
 
@@ -7759,7 +7776,14 @@ Visit: %s (Author's site)
 
                         # table.setAutoCreateRowSorter(True) # DON'T DO THIS - IT WILL OVERRIDE YOUR NICE CUSTOM SORT
 
+
+                        popupMenu = JPopupMenu()
+                        showDetails = JMenuItem("Show Reminder's raw details")
+                        showDetails.addActionListener(DoTheMenu())
+                        popupMenu.add(showDetails)
+
                         table.addMouseListener(ML)
+                        table.setComponentPopupMenu(popupMenu)
 
                         if ind == 0:
                             scrollpane = JScrollPane(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS)  # On first call, create the scrollpane

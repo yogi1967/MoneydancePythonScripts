@@ -54,6 +54,7 @@
 # build: 1016 - Chucked in the kitchen sink too. Added Account Name.. Added Reminder Listeners, dumped the 'old' stuff...
 # build: 1016 - lAllowEscapeExitApp_SWSS to allow/block escape from exiting the app; Tweaked the JMenuBar() to say "MENU"
 # build: 1016 - pushing .setEscapeKeyCancels(True) to the popup dialogs....
+# build: 1016 - added showRawItemDetails() to popup right-click menu....
 
 # Displays Moneydance future reminders
 
@@ -2898,6 +2899,10 @@ Visit: %s (Author's site)
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
             # ##########################################################################################################
+            if event.getActionCommand().lower().startswith("show reminder"):
+                MD_REF.getUI().showRawItemDetails(GlobalVars.saveJTable.getValueAt(GlobalVars.saveSelectedRowIndex, 0), list_future_reminders_frame_)
+
+            # ##########################################################################################################
             if event.getActionCommand().lower().startswith("edit reminder"):
                 ShowEditForm()
 
@@ -4138,6 +4143,10 @@ Visit: %s (Author's site)
                 editReminder = JMenuItem("Edit Reminder")
                 editReminder.addActionListener(DoTheMenu())
                 popupMenu.add(editReminder)
+
+                showDetails = JMenuItem("Show Reminder's raw details")
+                showDetails.addActionListener(DoTheMenu())
+                popupMenu.add(showDetails)
 
                 GlobalVars.saveJTable.addMouseListener(MyMouseListener)
                 GlobalVars.saveJTable.setComponentPopupMenu(popupMenu)
