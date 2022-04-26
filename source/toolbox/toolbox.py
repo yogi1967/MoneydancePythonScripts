@@ -272,11 +272,12 @@
 # build: 1047 - Common code all: Updated MyPopupDialogBox() so that screen layout is much better...
 # build: 1047 - Common code all: Updated QuickJFrame() with location and autosize options...
 # build: 1047 - Decommissioned the option to restore an archive and retain sync settings. This now exists in 2022.3(4072)
-# build: 1047 - Added DetectInvalidWindowLocations() to look for window locations 'offscreen'
+# build: 1047 - Added DetectInvalidWindowLocations() to look for window locations 'offscreen' (Now fixed in 4073 using my code ;-> )
 # build: 1047 - Added 'View your accounts' calculated reconcile window auto 'as of' date' feature
 # build: 1047 - Updated common code all .get_time_stamp_as_nice_text() with useHHMMSS parameter
 # build: 1047 - added 'Clone Dataset's structure' feature (stage-1, just structure, purge data)
 # build: 1047 - added internal sync UUID to main diagnostic display screen
+# build: 1047 - added toolbox_invoke.py script... collaborated with Mike Bray to 'listen' to QL update events
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - fix vmoptions file name to match .exe
@@ -664,7 +665,7 @@ else:
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4072                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4073                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -2862,7 +2863,7 @@ Visit: %s (Author's site)
             self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
 
             self.aboutDialog.getRootPane().getActionMap().put("close-window", self)
-            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
 
             if (not Platform.isMac()):
                 # MD_REF.getUI().getImages()
@@ -3000,6 +3001,21 @@ Visit: %s (Author's site)
             FPSRunnable().run()
         return
 
+    def decodeCommand(passedEvent):
+        param = ""
+        uri = passedEvent
+        command = uri
+        theIdx = uri.find('?')
+        if(theIdx>=0):
+            command = uri[:theIdx]
+            param = uri[theIdx+1:]
+        else:
+            theIdx = uri.find(':')
+            if(theIdx>=0):
+                command = uri[:theIdx]
+                param = uri[theIdx+1:]
+        return command, param
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3076,6 +3092,16 @@ Visit: %s (Author's site)
 
         cleanup_references()
 
+    # .moneydance_invoke_called() is used via the _invoke.py script as defined in script_info.dict. Not used for runtime extensions
+    def moneydance_invoke_called(theCommand):
+        # ... modify as required to handle .showURL() events sent to this extension/script...
+        myPrint("B","INVOKE - Received extension command: '%s'" %(theCommand))
+        cmd, param = decodeCommand(theCommand)
+        try:
+            if not DetectQuoteLoader.updateStatus(cmd, param):
+                setDisplayStatus("Received unknown event command ('%s' : '%s')" %(cmd, param), "B")
+        except: pass
+
     GlobalVars.defaultPrintLandscape = True
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
@@ -3083,6 +3109,138 @@ Visit: %s (Author's site)
 
     # Prevent usage later on... We use MD_REF
     del moneydance
+
+    class DetectQuoteLoader:
+
+        EXTENSION_ID_TO_CHECK = myModuleID
+
+        MD_CMD_STR = "moneydance:fmodule"
+        QL_ID = "securityquoteload"
+        QL_ID_MIN_VER = 3047                                # The build where QL included the listener
+
+        QL_CMD_LISTENER_REGISTER = "registerlistener"
+        QL_CMD_LISTENER_DEREGISTER = "deregisterlistener"
+
+        QL_MSG_UPDATE_START = "qlstartupdate"
+        QL_MSG_UPDATE_FINISH = "qlfinishupdate"
+
+        QL_MSG_QUOTES_START = "qlstartquotes"
+        QL_MSG_QUOTES_FINISH = "qlfinishquotes"
+
+        QL_CMD_ASK_ISUPDATING = "isqlupdating"
+        QL_REPLY_YES_UPDATING = "answerupdates"
+        QL_REPLY_YES_QUOTES = "answerquotes"
+        QL_REPLY_NO = "answerno"
+
+        QL_DETECTED = False
+        QL_UPDATE_RUNNING = False
+
+        def __init__(self): raise Exception("ERROR - Should not create instance of this class!")
+
+        @staticmethod
+        def setExtensionID(newID): DetectQuoteLoader.EXTENSION_ID_TO_CHECK = newID
+
+        @staticmethod
+        def getExtensionID(): return DetectQuoteLoader.EXTENSION_ID_TO_CHECK
+
+        @staticmethod
+        def updateStatus(commandStr, paramStr):
+            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            if commandStr in [DetectQuoteLoader.QL_MSG_QUOTES_START,
+                              DetectQuoteLoader.QL_MSG_UPDATE_START,
+                              DetectQuoteLoader.QL_REPLY_YES_UPDATING,
+                              DetectQuoteLoader.QL_REPLY_YES_QUOTES]:
+                myPrint("DB","@@@ Quote Loader is busy (cmd: '%s', param: '%s')" %(commandStr, paramStr))
+                DetectQuoteLoader.QL_UPDATE_RUNNING = True
+                if debug: setDisplayStatus("QUOTE LOADER: IS-BUSY message received: '%s'" %(commandStr),"B")
+
+            elif commandStr in [DetectQuoteLoader.QL_MSG_UPDATE_FINISH,
+                                DetectQuoteLoader.QL_REPLY_NO]:
+                myPrint("DB","@@@ Quote Loader is not updating (cmd: '%s', param: '%s')" %(commandStr, paramStr))
+                DetectQuoteLoader.QL_UPDATE_RUNNING = False
+                if debug: setDisplayStatus("QUOTE LOADER: NOT-BUSY message received: '%s'" %(commandStr),"B")
+
+            elif commandStr in [DetectQuoteLoader.QL_MSG_QUOTES_FINISH]:
+                myPrint("DB","@@@ Quote Loader finished quotes stage, but not the update phase (cmd: '%s', param: '%s')" %(commandStr, paramStr))
+                if debug: setDisplayStatus("QUOTE LOADER: IN-PROCESS message received: '%s'" %(commandStr),"B")
+
+            else:
+                myPrint("DB","@@@ No QL response detected in message - ignoring... (cmd: '%s', param: '%s')" %(commandStr, paramStr))
+                return False
+
+            DetectQuoteLoader.QL_DETECTED = True
+            return True
+
+        @staticmethod
+        def isRunning(): return (DetectQuoteLoader.QL_DETECTED and DetectQuoteLoader.QL_UPDATE_RUNNING)
+
+        @staticmethod
+        def queryRunning():
+            myPrint("DB","Sending query to QuoteLoader via listener...")
+            MD_REF.showURL("%s:%s:%s?%s" %(DetectQuoteLoader.MD_CMD_STR,
+                                           DetectQuoteLoader.QL_ID,
+                                           DetectQuoteLoader.QL_CMD_ASK_ISUPDATING,
+                                           DetectQuoteLoader.getExtensionID()))
+        @staticmethod
+        def addListener():
+            myPrint("DB","Adding QuoteLoader listener...")
+            MD_REF.showURL("%s:%s:%s?%s" %(DetectQuoteLoader.MD_CMD_STR,
+                                           DetectQuoteLoader.QL_ID,
+                                           DetectQuoteLoader.QL_CMD_LISTENER_REGISTER,
+                                           DetectQuoteLoader.getExtensionID()))
+            DetectQuoteLoader.queryRunning()
+
+        @staticmethod
+        def removeListener():
+            DetectQuoteLoader.queryRunning()
+            myPrint("DB","Removing QuoteLoader listener...")
+            MD_REF.showURL("%s:%s:%s?%s" %(DetectQuoteLoader.MD_CMD_STR,
+                                           DetectQuoteLoader.QL_ID,
+                                           DetectQuoteLoader.QL_CMD_LISTENER_DEREGISTER,
+                                           DetectQuoteLoader.getExtensionID()))
+
+        @staticmethod
+        def is_module_loaded():
+            foundBuild = 0
+            foundExtn = False
+            for fm in MD_REF.getLoadedModules():
+                if fm.getIDStr().lower() == DetectQuoteLoader.QL_ID:
+                    foundExtn = True
+                    foundBuild = fm.getBuild()
+                    break
+            if not foundExtn:
+                myPrint("DB","Did not find QL extension with id: '%s'..." %(DetectQuoteLoader.QL_ID))
+                return (False, 0)
+            myPrint("DB","QL extension with id: '%s' (build %s) found/loaded..." %(DetectQuoteLoader.QL_ID, foundBuild))
+            return (True, foundBuild)
+
+        @staticmethod
+        def perform_quote_loader_check(_frame, _txt, lDialogs=True):
+            """Checks whether QuoteLoader is installed/running. Returns True if OK to proceed, False if not..."""
+
+            if DetectQuoteLoader.QL_DETECTED:
+                if DetectQuoteLoader.QL_UPDATE_RUNNING:
+                    if lDialogs:
+                        myPopupInformationBox(_frame, theMessage="Detected that Quote Loader is busy >> Try again later", theTitle="BLOCKED: QUOTE LOADER BUSY", theMessageType=JOptionPane.WARNING_MESSAGE)
+                return (not DetectQuoteLoader.QL_UPDATE_RUNNING)
+
+            QL_found, QL_build = DetectQuoteLoader.is_module_loaded()
+
+            if not lDialogs: return (not QL_found)
+
+            if QL_found:
+
+                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+                ask = myPopupAskQuestion(_frame,"QUOTE LOADER DETECTED","Quote Loader is running. Confirm that it's not updating prices before running '%s'?" %(_txt))
+                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+                if not ask:
+                    txt = "Quote Loader running. Please verify that it's not updating prices before running '%s' - no changes made" %(_txt)
+                    setDisplayStatus(txt, "R")
+                    return False
+
+            return True
 
     class MyJScrollPaneForJOptionPane(JScrollPane, HierarchyListener):   # Allows a scrollable/resizeable menu in JOptionPane
         def __init__(self, _component, _max_w=800, _max_h=600):
@@ -6957,7 +7115,7 @@ Visit: %s (Author's site)
             myPrint("P", " -----------------------------------------------------------------------------------------------")
 
             txt = "Current Price (Hidden) 'price_date' fix"
-            if not perform_quote_loader_check(toolbox_frame_, txt): return
+            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
 
 
         options = ["All (both Currencies & Securities)",
@@ -7859,7 +8017,7 @@ Visit: %s (Author's site)
         else:
 
             txt = "Diagnosing Currencies/Securities"
-            if not perform_quote_loader_check(toolbox_frame_, txt): return
+            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
 
 
         # OK - let's do it!
@@ -13911,7 +14069,7 @@ now after saving the file, restart Moneydance
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         txt = "fix_invalid_relative_currency_rates"
-        if not perform_quote_loader_check(toolbox_frame_, txt): return
+        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
 
         book = MD_REF.getCurrentAccountBook()
         currencies = book.getCurrencies().getAllCurrencies()
@@ -14004,7 +14162,7 @@ now after saving the file, restart Moneydance
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         txt = "Fix Invalid Price History Records"
-        if not perform_quote_loader_check(toolbox_frame_, txt): return
+        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
 
         output="FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES\n" \
                " ===================================================\n\n"
@@ -14506,7 +14664,7 @@ now after saving the file, restart Moneydance
             return
 
         txt = "Purge/Thin Price History"
-        if not perform_quote_loader_check(toolbox_frame_, txt): return
+        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
 
 
         # prune historical exchange rates and price history from the given currency
@@ -15970,47 +16128,6 @@ now after saving the file, restart Moneydance
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
-    def isQuoteLoader_or_QER_Running():
-
-        QLID = "securityquoteload"
-        QERID = "yahooqt"
-
-        foundBuild = 0
-        foundExtn = False
-
-        try:
-            fms = MD_REF.getLoadedModules()
-            for fm in fms:
-                if fm.getIDStr().lower() == QLID.lower() or fm.getIDStr().lower() == QERID.lower():
-                    foundExtn = True
-                    foundBuild = fm.getBuild()
-                    break
-            if foundExtn:
-                myPrint("DB","QuoteLoader or Q&ER extension (build %s) is loaded..." %(foundBuild))
-            else:
-                myPrint("DB","Did not find QuoteLoader or Q&ER extension running...")
-        except:
-            myPrint("B","ERROR, crashed whilst detecting QuoteLoader / Q&ER extension?")
-
-        return foundExtn
-
-
-    def perform_quote_loader_check(_frame, _txt):
-
-        if isQuoteLoader_or_QER_Running():
-
-            saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-            UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-            ask = myPopupAskQuestion(_frame,"QUOTELOADER / Q&ER IS RUNNING","QuoteLoader / Q&ER is loaded. Confirm that it's not updating before running '%s'?" %(_txt))
-            UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-            if not ask:
-                txt = "QuoteLoader / Q&ER running. Please verify it's not updating before running '%s' - no changes made" %(_txt)
-                setDisplayStatus(txt, "R")
-                return False
-
-        return True
-
     # noinspection PyUnresolvedReferences
     def detect_fix_nonlinked_investment_security_records():
 
@@ -16266,7 +16383,7 @@ now after saving the file, restart Moneydance
 
         try:
 
-            if not perform_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
+            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
 
             class StoreSecurity:
                 def __init__(self, _obj):
@@ -17030,7 +17147,7 @@ now after saving the file, restart Moneydance
 
 
             txt = _THIS_METHOD_NAME
-            if not perform_quote_loader_check(toolbox_frame_, txt): return
+            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
 
 
             class StoreTickerData:
@@ -20458,6 +20575,8 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(theNewViewFrame,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
+        # todo revamp close open windows?
+
         # DO THE RESET HERE
         get_set_config(st, tk, True, lAll, lWinLocations, lRegFilters, lRegViews)
 
@@ -20559,6 +20678,8 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(toolbox_frame_, "ERROR: AccountBook is missing?",theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
+        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
+
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
         currentName = currentBook.getName().strip()
@@ -20572,8 +20693,8 @@ Now you will have a text readable version of the file you can open in a text edi
         lbl_cloneName = JLabel("Enter the name for the cloned dataset:")
         user_cloneName = JTextField(newName)
 
-        user_zeroAcctOpeningBalances = JCheckBox("Zero all account / category opening balances?", True)
-        user_zeroAcctOpeningBalances.setToolTipText("When enabled, will reset account and category inital/opening balances to zero")
+        user_zeroAcctOpeningBalances = JCheckBox("Zero all account opening balances?", True)
+        user_zeroAcctOpeningBalances.setToolTipText("When enabled, will reset account initial/opening balances to zero")
 
         user_purgeAllTransactions = JCheckBox("Purge all transactions?", True)
         user_purgeAllTransactions.setToolTipText("When enabled, purges all transactions from the clone")
@@ -20650,8 +20771,8 @@ Now you will have a text readable version of the file you can open in a text edi
         output += "CLONE PROCESSING OPTIONS:\n" \
                   "-------------------------\n"
         output += "Purge all transactions:                           %s\n" %(lRemoveAllTxns)
+        output += "Zero all accounts' opening balances:              %s\n" %(lZeroOpeningBalances)
         output += "Purge all security price & currency rate history: %s\n" %(lRemoveAllSnapHistory)
-        output += "Zero all accounts/categories' opening balances:   %s\n" %(lZeroOpeningBalances)
         output += "\n"
 
         _msgPad = 100
@@ -20816,7 +20937,10 @@ Now you will have a text readable version of the file you can open in a text edi
             newStorage.put(PARAMETER_KEY, safeStr(cloneTime))
             newStorage.save()
             if newRoot is not None:
+                newRoot.setEditingMode()
                 for skey in SYNC_KEYS: newRoot.removeParameter(skey)
+                newBook.logModifiedItem(newRoot)
+
             output += "Clone's Sync settings have been reset and the internal UUID set to: '%s'\n" %(newStorage.getStr("netsync.dropbox.fileid","<ERROR>"))
 
             # MD_REF.setCurrentBook(newWrapper)
@@ -20827,7 +20951,7 @@ Now you will have a text readable version of the file you can open in a text edi
             output += "Updated 'open files' menu...\n"
 
             if lZeroOpeningBalances:
-                _msg = pad("Please wait: Zeroing account/category opening balances..",_msgPad,padChar=".")
+                _msg = pad("Please wait: Zeroing account opening/initial balances..",_msgPad,padChar=".")
                 diag.updateMessages(newTitle=_msg, newStatus=_msg)
 
                 allAccounts = AccountUtil.allMatchesForSearch(newBook, AcctFilter.ALL_ACCOUNTS_FILTER)
@@ -21766,8 +21890,7 @@ Now you will have a text readable version of the file you can open in a text edi
         PROCESSED_FILES = "tiksync/processed.dct"
         UPLOADBUFFER = "tiksync/uploadbuf"
 
-        if isQuoteLoader_or_QER_Running():
-            output += "QuoteLoader / Q&ER extension is loaded. User confirmed that it's not auto-updating and to proceed....\n\n"
+        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
 
         safeFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
 
@@ -22666,7 +22789,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
         root = MD_REF.getCurrentAccountBook().getRootAccount()
         if root is not None:
+            root.setEditingMode()
             for skey in SYNC_KEYS: root.removeParameter(skey)
+            root.syncItem()
 
         play_the_money_sound()
         txt = "ALL SYNC SETTINGS HAVE BEEN RESET - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
@@ -22934,6 +23059,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("DB", "Removing Preferences listener:", self.callingClass)
                 MD_REF.getPreferences().removeListener(self.callingClass)
+
+                myPrint("DB", "Removing QuoteLoader listener")
+                DetectQuoteLoader.removeListener()
 
                 cleanup_actions(self.theFrame)
 
@@ -25651,7 +25779,10 @@ Now you will have a text readable version of the file you can open in a text edi
             toolbox_frame_.toFront()            # already on the EDT
             toolbox_frame_.isActiveInMoneydance = True
 
-            myPrint("DB","Adding Preferences Listener:", self)
+            myPrint("DB","Adding Quote Loader listener...")
+            DetectQuoteLoader.addListener()
+
+            myPrint("DB","Adding Preferences listener:", self)
             MD_REF.getPreferences().addListener(self)
 
             if Platform.isOSX():

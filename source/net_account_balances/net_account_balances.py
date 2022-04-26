@@ -81,6 +81,7 @@
 # Build: 1013 - Fixes for 4069 Alpha onwards.. Calls to getUI() off the EDT are now (properly) blocked by MD.....
 # Build: 1013 - Fix when setting lastRefreshTriggerWasAccountModified and HPV.view is None (closing the GUI would error)
 # build: 1013 - Eliminated common code globals :->; tweak to setDefaultFonts() - catch when returned font is None (build 4071)
+# build: 1013 - Moved .decodeCommand() to common code
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -2620,7 +2621,7 @@ Visit: %s (Author's site)
             self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
 
             self.aboutDialog.getRootPane().getActionMap().put("close-window", self)
-            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
 
             if (not Platform.isMac()):
                 # MD_REF.getUI().getImages()
@@ -2758,6 +2759,21 @@ Visit: %s (Author's site)
             FPSRunnable().run()
         return
 
+    def decodeCommand(passedEvent):
+        param = ""
+        uri = passedEvent
+        command = uri
+        theIdx = uri.find('?')
+        if(theIdx>=0):
+            command = uri[:theIdx]
+            param = uri[theIdx+1:]
+        else:
+            theIdx = uri.find(':')
+            if(theIdx>=0):
+                command = uri[:theIdx]
+                param = uri[theIdx+1:]
+        return command, param
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -2871,6 +2887,11 @@ Visit: %s (Author's site)
         if not GlobalVars.i_am_an_extension_so_run_headless: print(scriptExit)
 
         cleanup_references()
+
+    # .moneydance_invoke_called() is used via the _invoke.py script as defined in script_info.dict. Not used for runtime extensions
+    def moneydance_invoke_called(theCommand):
+        # ... modify as required to handle .showURL() events sent to this extension/script...
+        myPrint("B","INVOKE - Received extension command: '%s'" %(theCommand))
 
     GlobalVars.defaultPrintLandscape = False
     # END ALL CODE COPY HERE ###############################################################################################
@@ -7078,22 +7099,6 @@ Visit: %s (Author's site)
                 BuildMainFrameRunnable().run()
 
 
-
-        def decodeCommand(self, passedEvent):                                                                           # noqa
-            param = "(not set)"
-            uri = passedEvent
-            command = uri
-            theIdx = uri.find('?')
-            if(theIdx>=0):
-                command = uri[:theIdx]
-                param = uri[theIdx+1:]
-            else:
-                theIdx = uri.find(':')
-                if(theIdx>=0):
-                    command = uri[:theIdx]
-                    param = uri[theIdx+1:]
-            return command, param
-
         # .invoke() is called when this extension is selected on the Extension Menu.
         # the eventString is set to the string set when the class self-installed itself via .registerFeature() - e.g. "showConfig"
         def invoke(self, eventString=""):
@@ -7217,7 +7222,7 @@ Visit: %s (Author's site)
 
                 self.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
 
-                requestedRow = self.decodeCommand(appEvent)[1]
+                requestedRow = decodeCommand(appEvent)[1]
                 if StringUtils.isInteger(requestedRow) and int(requestedRow) > 0:
                     myPrint("DB","COMMAND: %s received... Detected Row Parameter: %s" %(appEvent, requestedRow))
 

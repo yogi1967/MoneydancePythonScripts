@@ -2717,7 +2717,7 @@ Visit: %s (Author's site)
             self.aboutDialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
 
             self.aboutDialog.getRootPane().getActionMap().put("close-window", self)
-            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
+            self.aboutDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
 
             if (not Platform.isMac()):
                 # MD_REF.getUI().getImages()
@@ -2854,6 +2854,21 @@ Visit: %s (Author's site)
             myPrint("DB",".. Already running within the EDT so calling FPSRunnable() naked...")
             FPSRunnable().run()
         return
+
+    def decodeCommand(passedEvent):
+        param = ""
+        uri = passedEvent
+        command = uri
+        theIdx = uri.find('?')
+        if(theIdx>=0):
+            command = uri[:theIdx]
+            param = uri[theIdx+1:]
+        else:
+            theIdx = uri.find(':')
+            if(theIdx>=0):
+                command = uri[:theIdx]
+                param = uri[theIdx+1:]
+        return command, param
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3092,6 +3107,11 @@ Visit: %s (Author's site)
         if not GlobalVars.i_am_an_extension_so_run_headless: print(scriptExit)
 
         cleanup_references()
+
+    # .moneydance_invoke_called() is used via the _invoke.py script as defined in script_info.dict. Not used for runtime extensions
+    def moneydance_invoke_called(theCommand):
+        # ... modify as required to handle .showURL() events sent to this extension/script...
+        myPrint("B","INVOKE - Received extension command: '%s'" %(theCommand))
 
     GlobalVars.defaultPrintLandscape = True
     # END ALL CODE COPY HERE ###############################################################################################
