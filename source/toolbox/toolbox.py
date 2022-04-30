@@ -674,7 +674,7 @@ else:
 
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4076                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4077                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -5323,7 +5323,6 @@ Visit: %s (Author's site)
     def isMulti_OFXLastTxnUpdate_build(): return (float(MD_REF.getBuild()) >= MD_MULTI_OFX_TXN_DNLD_DATES_BUILD)
 
     def OFX_view_all_last_txn_download_dates():
-        "test";
         accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(21))
         accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
 
@@ -5365,8 +5364,6 @@ Visit: %s (Author's site)
 
 
     def OFX_view_reconcile_AsOf_Dates():
-
-        "test";
 
         # Code copied from com.moneydance.apps.md.view.gui.PreReconcilerWindow
 
@@ -5641,8 +5638,6 @@ Visit: %s (Author's site)
             output += "%s %s\n" % (pad("hasOnlineLedgerBalance():",50),             selectedObject.hasOnlineLedgerBalance()  )
             output += "%s %s\n" % (pad("getOnlineLedgerBalance():",50),             selectedObject.getOnlineLedgerBalance()  )
             output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate()))  )
-
-            "test";
 
             if isMulti_OFXLastTxnUpdate_build():
                 output += "%s %s (%s)\n" % (pad("getMostRecentTxnUpdate():",50),
@@ -9722,8 +9717,6 @@ Visit: %s (Author's site)
         # resetLastUpdateDate(String connectionID)
         # resetLastUpdateDates()
 
-        "test";
-
         if isMulti_OFXLastTxnUpdate_build():
             theCurrentDate = theOnlineTxnRecord.obj.getOFXLastTxnUpdate("ofx")
         else:
@@ -9836,8 +9829,6 @@ Visit: %s (Author's site)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             return
-
-        "test";
 
         if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Reset ALL OFXLastTxnUpdate dates?"):
             return
@@ -12476,7 +12467,6 @@ Visit: %s (Author's site)
                             output += "%s %s\n" % (pad("getOnlineLedgerBalance():",50),             selectedObject.getOnlineLedgerBalance()  )
                             output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate()))  )
 
-                            "test";
                             if isMulti_OFXLastTxnUpdate_build():
                                 output += "%s %s (%s)\n" % (pad("getMostRecentTxnUpdate():",50),
                                                             selectedObject.getMostRecentTxnUpdate(),
@@ -12944,9 +12934,7 @@ Visit: %s (Author's site)
                                 if my_get_account_key(acct):
                                     output += pad(">> (Account Key):",50)+safeStr(my_get_account_key(acct))+"\n"
 
-                            getOnlineData = MyGetDownloadedTxns(acct);
-
-                            "test";
+                            getOnlineData = MyGetDownloadedTxns(acct)
 
                             if getOnlineData is not None:
                                 lFoundExtra_ofx_last_txn_update = False

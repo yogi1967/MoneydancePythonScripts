@@ -2767,6 +2767,8 @@ Visit: %s (Author's site)
 
     def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_BUILD)
 
+    def isMulti_OFXLastTxnUpdate_build(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD)
+
     PARAMETER_KEY = "ofx_populate_multiple_userids"
 
     book = MD_REF.getCurrentAccountBook()
@@ -3928,28 +3930,38 @@ Visit: %s (Author's site)
                           "--------------------------------------------\n\n"\
                           "** Please check for recent dates. If your account is set to zero - you will likely get up to six months+ of data, maybe even more, or possibly problems (from too many transactions)!\n\n"
 
+            if isMulti_OFXLastTxnUpdate_build():
+                outputDates += "NOTE: Multiple OFXLastTxnUpdate dates (i.e. per OFX/MD+ connection) are possible with this build...\n\n"
+
             for acct in accountsDL:
                 theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)
                 if theOnlineTxnRecord is None:
-                    prettyLastTxnDate = "Never downloaded = 'Download all available dates'"
+                    humanReadableOFXLastTxnDate = "Never downloaded = 'Download all available dates'"
+                    outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12),
+                                                  pad(acct.getFullAccountName(),40),
+                                                  humanReadableOFXLastTxnDate)
                 else:
-                    theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
-                    if theCurrentDate > 0:
-                        prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
-                    else:
-                        prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates' (if on MD2022 onwards, MD will prompt you for a start date)"
+                    #  Since build 4074, .getOFXLastTxnUpdate() can be multi connection... But prior is single (all with same key)
+                    for k in theOnlineTxnRecord.getParameterKeys():
+                        if not k.startswith(GlobalVars.Strings.OFX_LAST_TXN_UPDATE): continue
+                        # theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
+                        theCurrentDate = theOnlineTxnRecord.getLongParameter(k, 0)
 
-                outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
+                        if theCurrentDate != 0:
+                            humanReadableOFXLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate, lUseHHMMSS=False)
+                        else:
+                            if isMDPlusEnabledBuild():
+                                humanReadableOFXLastTxnDate = "IS SET TO ZERO (MD will prompt for start date)"
+                            else:
+                                humanReadableOFXLastTxnDate = "IS SET TO ZERO = 'Download all available dates'"
 
-            outputDates += "\nIf you have Moneydance Version 2021.1(build 2012+) then you can use the Toolbox extension if you want to change any of these dates....\n" \
-                           "... (Toolbox: Advanced Mode>Online Banking (OFX) Tools Menu>Update the Last Txn Update Date(Downloaded) field)\n" \
-                           "\nIf you have a version older than 2021.1(build 2012) you will either have to accept/deal with the volume of downloaded Txns; or upgrade to use Toolbox...\n" \
-                           "%s\n\n" \
-                           "YOU CAN EDIT THE LAST TXN DOWNLOAD DATE(s) BEFORE YOU DOWNLOAD ANYTHING\n" \
-                           %(GlobalVars.MYPYTHON_DOWNLOAD_URL)
+                        outputDates += "%s %s %s %s\n" %(pad(repr(acct.getAccountType()),12),
+                                                         pad(acct.getFullAccountName(),40),
+                                                         humanReadableOFXLastTxnDate,
+                                                         k[len(GlobalVars.Strings.OFX_LAST_TXN_UPDATE):])
 
             outputDates += "\n<END>"
-            jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, lWrapText=False, copyToClipboard=True).show_the_frame()
+            jif = QuickJFrame("LAST DOWNLOAD DATES", outputDates, copyToClipboard=True, lWrapText=False,lAutoSize=True).show_the_frame()
             myPopupInformationBox(jif, "REVIEW OUTPUT. Use Toolbox first if you need to change any last download txn dates.....", theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
         theOutput += "SUCCESS!\n"
