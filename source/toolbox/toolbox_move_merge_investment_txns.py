@@ -300,6 +300,9 @@ else:
             thisScriptName = None
             def __init__(self): pass    # Leave empty
 
+            class Strings:
+                def __init__(self): pass    # Leave empty
+
     GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##########################################################################
@@ -2876,12 +2879,10 @@ Visit: %s (Author's site)
 
             return True
 
-    debug=True
-
     DetectQuoteLoader.setExtensionID("toolbox")
 
-    myPrint("DB","Adding Quote Loader listener...")
-    DetectQuoteLoader.addListener()
+    # myPrint("DB","Adding Quote Loader listener...")
+    # DetectQuoteLoader.addListener()
     try:
 
         lDetectedBuddyRunning = False
@@ -3235,6 +3236,7 @@ Visit: %s (Author's site)
                 txt = "%s" %(_THIS_METHOD_NAME)
 
                 if lRunningFromToolbox:
+                    # Note: The listener version will not run as we are blocking the EDT.... So will be oldstyle...
                     if not DetectQuoteLoader.perform_quote_loader_check(toolbox_move_merge_investment_txns_frame_, txt): return
 
                 # # ########### FILTER OPTIONS ###################################################################################
@@ -4632,5 +4634,5 @@ Visit: %s (Author's site)
         jifr = QuickJFrame("ERROR - %s:" %(myModuleID),crash_output).show_the_frame()
         myPopupInformationBox(jifr,crash_txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
-    myPrint("DB", "Removing QuoteLoader listener")
-    DetectQuoteLoader.removeListener()
+    # myPrint("DB", "Removing QuoteLoader listener")
+    # DetectQuoteLoader.removeListener()

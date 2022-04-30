@@ -345,6 +345,9 @@ else:
             thisScriptName = None
             def __init__(self): pass    # Leave empty
 
+            class Strings:
+                def __init__(self): pass    # Leave empty
+
     GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -364,6 +367,8 @@ else:
 
     # >>> THIS SCRIPT'S GLOBALS ########################################################################################
     MD_MDPLUS_BUILD = 4040
+    GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
+    GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074
     # >>> END THIS SCRIPT'S GLOBALS ####################################################################################
 
     # COPY >> START

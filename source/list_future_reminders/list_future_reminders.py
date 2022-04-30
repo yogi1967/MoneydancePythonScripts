@@ -324,6 +324,9 @@ else:
             thisScriptName = None
             def __init__(self): pass    # Leave empty
 
+            class Strings:
+                def __init__(self): pass    # Leave empty
+
     GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################

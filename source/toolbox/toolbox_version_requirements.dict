@@ -1,14 +1,14 @@
 {
-    "last_updated" = "20220425"
+    "last_updated" = "20220430"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1047"
                     "disable" = "n"
-                    "news" = "Renaming Hacker & Advanced modes; enhancements to move/merge investment transactions"
+                    "news" = "Renaming Hacker & Advanced modes; enhancements to move/merge investment transactions; fixes build 4074"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4073"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4076"
                     "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
                     "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -17,11 +17,7 @@
                     }
                     {
                     "build" = "1046"
-                    "disable" = "n"
-                    "news" = "Skipped build..."
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4073"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1045"
@@ -33,27 +29,15 @@
                     }
                     {
                     "build" = "1044"
-                    "disable" = "n"
-                    "news" = "Enabling MD2022 (with Moneydance+); USAA Fixes; Darcula fixes"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4073"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1043"
-                    "disable" = "n"
-                    "news" = "Enabling MD2022 (with Moneydance+)"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4073"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1042"
-                    "disable" = "n"
-                    "news" = "Enabling MD2022 (with Moneydance+)"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4073"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1041"

@@ -278,6 +278,8 @@
 # build: 1047 - added 'Clone Dataset's structure' feature (stage-1, just structure, purge data)
 # build: 1047 - added internal sync UUID to main diagnostic display screen
 # build: 1047 - added toolbox_invoke.py script... collaborated with Mike Bray to 'listen' to QL update events
+# build: 1047 - MD build 4074 changed .getOFXLastTxnUpdate() to add connectionID parameter
+# build: 1047 - added OFX_reset_OFXLastTxnUpdate_dates() for build 4074 onwards
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - fix vmoptions file name to match .exe
@@ -557,6 +559,9 @@ else:
             thisScriptName = None
             def __init__(self): pass    # Leave empty
 
+            class Strings:
+                def __init__(self): pass    # Leave empty
+
     GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -642,7 +647,7 @@ else:
     global TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_BUILD
     global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
-    global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MDPLUS_BUILD
+    global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MDPLUS_BUILD, MD_MULTI_OFX_TXN_DNLD_DATES_BUILD
 
     GlobalVars.allButtonsList = []
     GlobalVars.TOOLBOX_UNLOCK = False
@@ -650,6 +655,8 @@ else:
 
     GlobalVars.UPDATE_MODE = False                                                                                      # Previously Advanced Mode
     GlobalVars.ADVANCED_MODE = False                                                                                    # Previously Hacker Mode
+
+    GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
 
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lIgnoreOutdatedExtensions_TB = False                                                                                # noqa
@@ -663,9 +670,11 @@ else:
     MD_ICLOUD_ENABLED = 3088                                                                                            # noqa
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     MD_MDPLUS_BUILD = 4040                                                                                              # noqa
+    MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                                                                            # noqa
+
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4073                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4076                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -5311,35 +5320,53 @@ Visit: %s (Author's site)
 
         return fileIsUnderDropbox, suppressionFileExists
 
-    def OFX_view_all_last_txn_download_dates():
+    def isMulti_OFXLastTxnUpdate_build(): return (float(MD_REF.getBuild()) >= MD_MULTI_OFX_TXN_DNLD_DATES_BUILD)
 
+    def OFX_view_all_last_txn_download_dates():
+        "test";
         accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(21))
         accountsDL = sorted(accountsDL, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
 
         outputDates = "\nBANK OFX: LAST DOWNLOADED TRANSACTION DATE(s)\n" \
                       "--------------------------------------------\n\n"
 
+        if isMulti_OFXLastTxnUpdate_build():
+            outputDates += "NOTE: Multiple OFXLastTxnUpdate dates (i.e. per OFX/MD+ connection) are possible with this build...\n\n"
+
         for acct in accountsDL:
             theOnlineTxnRecord = MyGetDownloadedTxns(acct)     # Use my version to prevent creation of default record(s)
             if theOnlineTxnRecord is None:
-                prettyLastTxnDate = "Never downloaded = 'Download all available dates'"
+                humanReadableOFXLastTxnDate = "Never downloaded = 'Download all available dates'"
+                outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12),
+                                              pad(acct.getFullAccountName(),40),
+                                              humanReadableOFXLastTxnDate)
             else:
-                theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
-                if theCurrentDate > 0:
-                    prettyLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate)
-                else:
-                    if isMDPlusEnabledBuild():
-                        prettyLastTxnDate = "IS SET TO ZERO (MD will prompt for start date)"
-                    else:
-                        prettyLastTxnDate = "IS SET TO ZERO = 'Download all available dates'"
+                #  Since build 4074, .getOFXLastTxnUpdate() can be multi connection... But prior is single (all with same key)
+                for k in theOnlineTxnRecord.getParameterKeys():
+                    if not k.startswith(GlobalVars.Strings.OFX_LAST_TXN_UPDATE): continue
+                    # theCurrentDate = theOnlineTxnRecord.getOFXLastTxnUpdate()
+                    theCurrentDate = theOnlineTxnRecord.getLongParameter(k, 0)
 
-            outputDates += "%s %s %s\n" %(pad(repr(acct.getAccountType()),12), pad(acct.getFullAccountName(),40), prettyLastTxnDate)
+                    if theCurrentDate != 0:
+                        humanReadableOFXLastTxnDate = get_time_stamp_as_nice_text(theCurrentDate, lUseHHMMSS=False)
+                    else:
+                        if isMDPlusEnabledBuild():
+                            humanReadableOFXLastTxnDate = "IS SET TO ZERO (MD will prompt for start date)"
+                        else:
+                            humanReadableOFXLastTxnDate = "IS SET TO ZERO = 'Download all available dates'"
+
+                    outputDates += "%s %s %s %s\n" %(pad(repr(acct.getAccountType()),12),
+                                                     pad(acct.getFullAccountName(),40),
+                                                     humanReadableOFXLastTxnDate,
+                                                     k[len(GlobalVars.Strings.OFX_LAST_TXN_UPDATE):])
 
         outputDates += "\n<END>"
-        QuickJFrame("LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
+        QuickJFrame("OFX LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
 
 
     def OFX_view_reconcile_AsOf_Dates():
+
+        "test";
 
         # Code copied from com.moneydance.apps.md.view.gui.PreReconcilerWindow
 
@@ -5347,7 +5374,7 @@ Visit: %s (Author's site)
         _KEY_ASOF_PREF = "gen.rec_asof_enabled"
 
         output = "\n%s\n" \
-                 "--------------------------------------------\n\n" %(_THIS_METHOD_NAME)
+                 "%s\n\n" %(_THIS_METHOD_NAME, ("-"*len(_THIS_METHOD_NAME)))
 
         allActiveAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(0))
 
@@ -5360,6 +5387,9 @@ Visit: %s (Author's site)
 
             wait = MyPopUpDialogBox(toolbox_frame_,theStatus="PLEASE WAIT - CALCULATING THE AS_OF DATES...", theTitle="PLEASE WAIT",lModal=False)
             wait.go()
+
+            if isMulti_OFXLastTxnUpdate_build():
+                output += "NOTE: Multiple OFXLastTxnUpdate dates (i.e. per OFX/MD+ connection) are possible with this build...\n\n"
 
             output += "Processing %s active accounts\n\n" %(len(allActiveAccounts))
             output += "Diagnosing the Reconcile: as_of date:\n\n"
@@ -5377,10 +5407,18 @@ Visit: %s (Author's site)
                 lastUpdate = txns.getOnlineLedgerBalanceDate()
 
                 val_ledgerDate = txns.getOnlineLedgerBalanceDate()
-                val_lastTxnUpdateDate = txns.getOFXLastTxnUpdate()
+
+                val_lastTxnUpdateDate = txns.getMostRecentTxnUpdate() if isMulti_OFXLastTxnUpdate_build() else txns.getOFXLastTxnUpdate()
 
                 if lastUpdate == 0:
-                    lastUpdate = txns.getOFXLastTxnUpdate()
+                    lastUpdate = txns.getMostRecentTxnUpdate() if isMulti_OFXLastTxnUpdate_build() else txns.getOFXLastTxnUpdate()
+
+                OFXLastTxnUpdate_dates = []
+                if isMulti_OFXLastTxnUpdate_build():
+                    for k in txns.getParameterKeys():
+                        if k.startswith(GlobalVars.Strings.OFX_LAST_TXN_UPDATE):
+                            value = txns.getLongParameter(k, 0)
+                            OFXLastTxnUpdate_dates.append([k, "<not set>" if value == 0 else get_time_stamp_as_nice_text(value, lUseHHMMSS=False)])
 
                 tset = acct.getBook().getTransactionSet()
 
@@ -5415,10 +5453,18 @@ Visit: %s (Author's site)
                 output += "   as_of enabled:           %s\n" %(safeStr(asOfEnabled))
                 output += "   calculated 'as_of' date: %s\n" %(get_time_stamp_as_nice_text(asOfDate, lUseHHMMSS=False))
                 output += "   as_of end balance:       %s\n" %("" if asOfEndBalance == 0 else rpad(acct.getCurrencyType().formatFancy(asOfEndBalance,MD_decimal),10))
-                output += "         as_of Preference:                %s\n" %(pad(asOfPref,9))
-                output += "         OFXLedgerDate:                   %s\n" %("" if val_ledgerDate == 0 else get_time_stamp_as_nice_text(val_ledgerDate, lUseHHMMSS=False))
-                output += "         OFXLastTxnDownloadDate:          %s\n" %("" if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
-                output += "         Most Recent Downloaded Txn Date: %s\n" %("" if txnLastUpdate == 0 else get_time_stamp_as_nice_text(txnLastUpdate, lUseHHMMSS=False))
+                output += "         as_of Preference:                 %s\n" %(pad(asOfPref,9))
+                output += "         OFXLedgerDate:                    %s\n" %("" if val_ledgerDate == 0 else get_time_stamp_as_nice_text(val_ledgerDate, lUseHHMMSS=False))
+                output += "         Most Recent Downloaded Txn Date:  %s\n" %("" if txnLastUpdate == 0 else get_time_stamp_as_nice_text(txnLastUpdate, lUseHHMMSS=False))
+
+                if isMulti_OFXLastTxnUpdate_build():
+                    output += "         Most recent OFXLastTxnUpdateDate: %s\n" %("" if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
+                else:
+                    output += "         OFXLastTxnUpdateDate:             %s\n" %("" if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
+
+                for k,v in OFXLastTxnUpdate_dates:
+                    output += "         ... Multi keys found:             %s %s\n" %(v, k)
+
                 output += "\n"
 
             wait.kill()
@@ -5430,7 +5476,7 @@ Visit: %s (Author's site)
                       "                          option 'Delete Single cached OnlineTxnList Record/Txns'\n" \
                       "                          and delete whole record\n\n" \
                       "To change OFXLastTxnDownloadDate, use Toolbox>Update OFX Last Txn Update Date (Downloaded) field for an account\n" \
-                      "                          and edit the date\n\n"
+                      "                          and edit the date (or if available Toolbox>Reset ALL OFX Last Txn Update Dates)\n\n"
 
         output += "\n<END>"
 
@@ -5589,13 +5635,27 @@ Visit: %s (Author's site)
             output += "\n\nMD User Representation of Data Held by this Account/OnlineTxnList record:\n"
             output += " ==========================================================================  \n"
             output += "%s %s\n" % (pad("getTxnCount():",50),                        selectedObject.getTxnCount()  )
-            output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),           selectedObject.getOFXLastTxnUpdate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate()))  )
             output += "%s %s\n" % (pad("hasOnlineAvailBalance():",50),              selectedObject.hasOnlineAvailBalance()  )
             output += "%s %s\n" % (pad("getOnlineAvailBalance():",50),              selectedObject.getOnlineAvailBalance()  )
             output += "%s %s (%s)\n" % (pad("getOnlineAvailBalanceDate():",50),     selectedObject.getOnlineAvailBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineAvailBalanceDate()))  )
             output += "%s %s\n" % (pad("hasOnlineLedgerBalance():",50),             selectedObject.hasOnlineLedgerBalance()  )
             output += "%s %s\n" % (pad("getOnlineLedgerBalance():",50),             selectedObject.getOnlineLedgerBalance()  )
             output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate()))  )
+
+            "test";
+
+            if isMulti_OFXLastTxnUpdate_build():
+                output += "%s %s (%s)\n" % (pad("getMostRecentTxnUpdate():",50),
+                                            selectedObject.getMostRecentTxnUpdate(),
+                                            convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getMostRecentTxnUpdate()))  )
+                for k in selectedObject.getParameterKeys():
+                    if k.startswith(GlobalVars.Strings.OFX_LAST_TXN_UPDATE):
+                        value = selectedObject.getLongParameter(k, 0)
+                        output += "... Key: %s %s (%s)\n" %(pad(k,75), value, convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(value)))
+            else:
+                output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),
+                                            selectedObject.getOFXLastTxnUpdate(),
+                                            convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate()))  )
 
         if isinstance(selectedObject, OnlinePayeeList):
             output += "\n\nMD User Representation of Data Held by this Account/OnlinePayeeList record:\n"
@@ -9626,7 +9686,10 @@ Visit: %s (Author's site)
             return "OnlinePaymentList Obj on Acct %s (holding %s Payments)" %(self.acct,self.paymentCount)
 
     def OFX_update_OFXLastTxnUpdate():
+        """Allows you to update the 'OFX' last update date (not the MD+ dates)"""
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "OFX: update OFXLastTxnUpdate date".upper()
 
         if MD_REF.getCurrentAccount().getBook() is None: return
         if not (GlobalVars.UPDATE_MODE): return
@@ -9642,17 +9705,29 @@ Visit: %s (Author's site)
                                                    accountsListForOlTxns,
                                                    None)
         if not selectedAcct:
-            txt = "OFXLastTxnUpdate: No Account was selected.."
+            txt = "%s: No Account was selected.." %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             return
 
         theOnlineTxnRecord = StoreTheOnlineTxnList(MyGetDownloadedTxns(selectedAcct),selectedAcct)       # Use my version to prevent creation of default record(s)
         if theOnlineTxnRecord is None or theOnlineTxnRecord.obj is None:
-            txt = "OFXLastTxnUpdate: No OnlineTxnList record found... Exiting.."
+            txt = "%s: No OnlineTxnList record found... Exiting.." %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             return
 
-        theCurrentDate = theOnlineTxnRecord.obj.getOFXLastTxnUpdate()
+        # com.infinitekind.moneydance.model.OnlineTxnList
+        # setOFXLastTxnUpdate(long date, String connectionID)
+        # resetLastUpdateDate(String connectionID)
+        # resetLastUpdateDates()
+
+        "test";
+
+        if isMulti_OFXLastTxnUpdate_build():
+            theCurrentDate = theOnlineTxnRecord.obj.getOFXLastTxnUpdate("ofx")
+        else:
+            theCurrentDate = theOnlineTxnRecord.obj.getOFXLastTxnUpdate()
 
         if theCurrentDate > 0:
             theCurrentDatePretty = get_time_stamp_as_nice_text(theCurrentDate)
@@ -9700,7 +9775,7 @@ Visit: %s (Author's site)
 
                 break   # Valid date
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Update the OFXLastTxnUpdate field to %s?" %(convertStrippedIntDateFormattedText(user_selectDateStart.getDateInt()))):
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Update the OFXLastTxnUpdate field to %s?" %(convertStrippedIntDateFormattedText(user_selectDateStart.getDateInt()))):
                 return
 
             newDate = DateUtil.convertIntDateToLong(user_selectDateStart.getDateInt()).getTime()
@@ -9708,22 +9783,74 @@ Visit: %s (Author's site)
 
         else:
 
-            if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX UPDATE OFXLastTxnUpdate","Reset date so that MD Prompts you for start date?"):
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Reset date so that MD Prompts you for start date?"):
                 return
 
             newDate = 0L
             newDateTxt = "RESET SO MD PROMPTS FOR START DATE"
 
-        theOnlineTxnRecord.obj.setOFXLastTxnUpdate(newDate)
+        if isMulti_OFXLastTxnUpdate_build():
+            theOnlineTxnRecord.obj.resetLastUpdateDate("")
+            theOnlineTxnRecord.obj.setOFXLastTxnUpdate(newDate, "ofx")
+        else:
+            theOnlineTxnRecord.obj.setOFXLastTxnUpdate(newDate)
+
         theOnlineTxnRecord.obj.syncItem()
 
         play_the_money_sound()
         txt = "OFX alter OFXLastTxnUpdate date for acct: %s successfully set to: %s (%s)" %(selectedAcct,newDate,newDateTxt)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
-        myPopupInformationBox(toolbox_frame_,txt,"OFX UPDATE OFXLastTxnUpdate",JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
+
+    def OFX_reset_OFXLastTxnUpdate_dates():
+        """Allows you to reset all 'OFX' last update dates (including the MD+ dates) on the record"""
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "OFX: reset all OFXLastTxnUpdate dates".upper()
+
+        if MD_REF.getCurrentAccount().getBook() is None:    return
+        if not (GlobalVars.UPDATE_MODE):                    return
+        if not isMulti_OFXLastTxnUpdate_build():            return
+
+        accountsListForOlTxns = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(15))
+        accountsListForOlTxns = sorted(accountsListForOlTxns, key=lambda sort_x: (sort_x.getFullAccountName().upper()))
+
+        selectedAcct = JOptionPane.showInputDialog(toolbox_frame_,
+                                                   "Select the Acct to RESET all the OFXLastTxnUpdate dates (OFX & MD+):",
+                                                   "OFX OFXLastTxnUpdate - Select ACCOUNT",
+                                                   JOptionPane.INFORMATION_MESSAGE,
+                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                   accountsListForOlTxns,
+                                                   None)
+        if not selectedAcct:
+            txt = "%s: No Account was selected.." %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            return
+
+        theOnlineTxnRecord = StoreTheOnlineTxnList(MyGetDownloadedTxns(selectedAcct),selectedAcct)       # Use my version to prevent creation of default record(s)
+        if theOnlineTxnRecord is None or theOnlineTxnRecord.obj is None:
+            txt = "%s: No OnlineTxnList record found... Exiting.." %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            return
+
+        "test";
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Reset ALL OFXLastTxnUpdate dates?"):
+            return
+
+        theOnlineTxnRecord.obj.resetLastUpdateDates()
+        theOnlineTxnRecord.obj.syncItem()
+
+        play_the_money_sound()
+        txt = "%s: All OFXLastTxnUpdate dates RESET" %(_THIS_METHOD_NAME)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def OFX_delete_ALL_saved_online_txns():
         # delete_intermediate_downloaded_transaction_caches.py
@@ -12342,13 +12469,26 @@ Visit: %s (Author's site)
                             output += "\nMD User Representation of Data Held by this Account/OnlineTxnList record:\n"
                             output += " ==========================================================================  \n"
                             output += "%s %s\n" % (pad("getTxnCount():",50),                        selectedObject.getTxnCount()  )
-                            output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),           selectedObject.getOFXLastTxnUpdate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate()))  )
                             output += "%s %s\n" % (pad("hasOnlineAvailBalance():",50),              selectedObject.hasOnlineAvailBalance()  )
                             output += "%s %s\n" % (pad("getOnlineAvailBalance():",50),              selectedObject.getOnlineAvailBalance()  )
                             output += "%s %s (%s)\n" % (pad("getOnlineAvailBalanceDate():",50),     selectedObject.getOnlineAvailBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineAvailBalanceDate()))  )
                             output += "%s %s\n" % (pad("hasOnlineLedgerBalance():",50),             selectedObject.hasOnlineLedgerBalance()  )
                             output += "%s %s\n" % (pad("getOnlineLedgerBalance():",50),             selectedObject.getOnlineLedgerBalance()  )
                             output += "%s %s (%s)\n" % (pad("getOnlineLedgerBalanceDate():",50),    selectedObject.getOnlineLedgerBalanceDate(), convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOnlineLedgerBalanceDate()))  )
+
+                            "test";
+                            if isMulti_OFXLastTxnUpdate_build():
+                                output += "%s %s (%s)\n" % (pad("getMostRecentTxnUpdate():",50),
+                                                            selectedObject.getMostRecentTxnUpdate(),
+                                                            convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getMostRecentTxnUpdate())))
+                                for k in selectedObject.getParameterKeys():
+                                    if k.startswith(GlobalVars.Strings.OFX_LAST_TXN_UPDATE):
+                                        value = selectedObject.getLongParameter(k, 0)
+                                        output += "... Key: %s %s (%s)\n" %(pad(k,75), value, convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(value)))
+                            else:
+                                output += "%s %s (%s)\n" % (pad("getOFXLastTxnUpdate():",50),
+                                                            selectedObject.getOFXLastTxnUpdate(),
+                                                            convertStrippedIntDateFormattedText(DateUtil.convertLongDateToInt(selectedObject.getOFXLastTxnUpdate())))
 
                         if isinstance(selectedObject, OnlinePayeeList):
                             output += "\nMD User Representation of Data Held by this Account/OnlinePayeeList record:\n"
@@ -12804,18 +12944,32 @@ Visit: %s (Author's site)
                                 if my_get_account_key(acct):
                                     output += pad(">> (Account Key):",50)+safeStr(my_get_account_key(acct))+"\n"
 
-                            getOnlineData = MyGetDownloadedTxns(acct)
-                            if (getOnlineData is not None and
-                                    (getOnlineData.getParameter("ofx_last_txn_update", None) is not None
-                                            or getOnlineData.getParameter("ol.availbal", None) is not None
-                                            or getOnlineData.getParameter("ol.ledgerbal", None) is not None)):
-                                output += (">> OnlineTxnList data:\n")
-                                for _k in sorted(getOnlineData.getParameterKeys()):
-                                    _v = getOnlineData.getParameter(_k)
-                                    output += pad("  >> Key:%s" %(_k),50)+" Value: %s\n" %(_v.strip())
-                                for convertTimeStamp in ["ts", "ofx_last_txn_update", "ol.ledgerbalasof"]:
-                                    if getOnlineData.getLongParameter(convertTimeStamp, 0) > 0:
-                                        output += "%s %s\n" % (pad("   >> TIMESTAMP('%s'):" %(convertTimeStamp),50), get_time_stamp_as_nice_text(getOnlineData.getLongParameter(convertTimeStamp, 0))  )
+                            getOnlineData = MyGetDownloadedTxns(acct);
+
+                            "test";
+
+                            if getOnlineData is not None:
+                                lFoundExtra_ofx_last_txn_update = False
+                                ofx_last_txn_update_keys = []
+                                for k in getOnlineData.getParameterKeys():
+                                    if k.startswith(GlobalVars.Strings.OFX_LAST_TXN_UPDATE):
+                                        ofx_last_txn_update_keys.append(k)
+                                        lFoundExtra_ofx_last_txn_update = True
+
+                                if (lFoundExtra_ofx_last_txn_update
+                                        or getOnlineData.getParameter(GlobalVars.Strings.OFX_LAST_TXN_UPDATE, None) is not None
+                                        or getOnlineData.getParameter("ol.availbal", None) is not None
+                                        or getOnlineData.getParameter("ol.ledgerbal", None) is not None):
+                                    output += (">> OnlineTxnList data:\n")
+                                    for _k in sorted(getOnlineData.getParameterKeys()):
+                                        _v = getOnlineData.getParameter(_k)
+                                        output += pad("  >> Key:%s" %(_k),50)+" Value: %s\n" %(_v.strip())
+
+                                    for convertTimeStamp in ["ts", "ol.ledgerbalasof"]: ofx_last_txn_update_keys.append(convertTimeStamp)
+
+                                    for convertTimeStamp in ofx_last_txn_update_keys:
+                                        if getOnlineData.getLongParameter(convertTimeStamp, 0) > 0:
+                                            output += "%s %s\n" % (pad("   >> TIMESTAMP('%s'):" %(convertTimeStamp),90), get_time_stamp_as_nice_text(getOnlineData.getLongParameter(convertTimeStamp, 0)))
 
                             getOnlineData = MyGetOnlinePayees(acct)
                             if getOnlineData is not None:
@@ -12823,7 +12977,7 @@ Visit: %s (Author's site)
                                 for _k in sorted(getOnlineData.getParameterKeys()):
                                     _v = getOnlineData.getParameter(_k)
                                     output += pad("  >> Key:%s" %(_k),50)+" Value: %s\n" %(_v.strip())
-                                for convertTimeStamp in ["ts", "ofx_last_txn_update", "ol.ledgerbalasof"]:
+                                for convertTimeStamp in ["ts", GlobalVars.Strings.OFX_LAST_TXN_UPDATE, "ol.ledgerbalasof"]:
                                     if getOnlineData.getLongParameter(convertTimeStamp, 0) > 0:
                                         output += "%s %s\n" % (pad("   >> TIMESTAMP('%s'):" %(convertTimeStamp),50), get_time_stamp_as_nice_text(getOnlineData.getLongParameter(convertTimeStamp, 0))  )
 
@@ -12833,7 +12987,7 @@ Visit: %s (Author's site)
                                 for _k in sorted(getOnlineData.getParameterKeys()):
                                     _v = getOnlineData.getParameter(_k)
                                     output += pad("  >> Key:%s" %(_k),50)+" Value: %s\n" %(_v.strip())
-                                for convertTimeStamp in ["ts", "ofx_last_txn_update", "ol.ledgerbalasof"]:
+                                for convertTimeStamp in ["ts", GlobalVars.Strings.OFX_LAST_TXN_UPDATE, "ol.ledgerbalasof"]:
                                     if getOnlineData.getLongParameter(convertTimeStamp, 0) > 0:
                                         output += "%s %s\n" % (pad("   >> TIMESTAMP('%s'):" %(convertTimeStamp),50), get_time_stamp_as_nice_text(getOnlineData.getLongParameter(convertTimeStamp, 0))  )
 
@@ -23196,10 +23350,15 @@ Now you will have a text readable version of the file you can open in a text edi
                 user_manageCUSIPLink.setForeground(getColorRed())
 
                 user_updateOFXLastTxnUpdate = JRadioButton("Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False)
-                user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download Txn date which is used to set the start date for Txn downloads - THIS CHANGES DATA!")
+                user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download txn date which is used to set the start date for txn downloads - THIS CHANGES DATA!")
                 # user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
                 user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE)
                 user_updateOFXLastTxnUpdate.setForeground(getColorRed())
+
+                user_reset_OFXLastTxnUpdate_dates = JRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)", False)
+                user_reset_OFXLastTxnUpdate_dates.setToolTipText("Allows you to reset ALL the last download txn dates used to set the start date for txn downloads (4074 onwards) - THIS CHANGES DATA!")
+                user_reset_OFXLastTxnUpdate_dates.setEnabled(GlobalVars.UPDATE_MODE and isMulti_OFXLastTxnUpdate_build())
+                user_reset_OFXLastTxnUpdate_dates.setForeground(getColorRed())
 
                 user_deleteOFXBankingLogonProfile = JRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False)
                 user_deleteOFXBankingLogonProfile.setToolTipText("This will allow you to delete an Online Banking logon / service profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA! (remove_one_service.py)")
@@ -23286,6 +23445,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 bg.add(user_manuallyPrimeUSAARootUserIDClientIDs)
                 bg.add(user_createUSAAProfile)
                 bg.add(user_updateOFXLastTxnUpdate)
+                bg.add(user_reset_OFXLastTxnUpdate_dates)
                 bg.add(user_viewListALLMDServices)
                 # bg.add(user_toggleOFXDebug)
                 bg.add(user_toggleMDDebug)
@@ -23314,6 +23474,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 userFilters.add(user_forgetOFXBankingLink)
                 userFilters.add(user_manageCUSIPLink)
                 userFilters.add(user_updateOFXLastTxnUpdate)
+                userFilters.add(user_reset_OFXLastTxnUpdate_dates)
                 userFilters.add(user_deleteOFXBankingLogonProfile)
                 userFilters.add(user_cleanupMissingOnlineBankingLinks)
                 userFilters.add(user_authenticationManagement)
@@ -23450,6 +23611,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if user_updateOFXLastTxnUpdate.isSelected():
                         OFX_update_OFXLastTxnUpdate()
+
+                    if user_reset_OFXLastTxnUpdate_dates.isSelected():
+                        OFX_reset_OFXLastTxnUpdate_dates()
 
                     continue
 
