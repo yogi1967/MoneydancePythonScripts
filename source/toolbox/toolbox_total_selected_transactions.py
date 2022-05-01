@@ -40,6 +40,7 @@
 # build: 1008 - Renamed to toolbox_total_selected_transactions.py and bundled within Toolbox as Extensions Menu option. Decommissioned extension
 # build: 1008 - Decommissioned separate extension
 # build: 1008 - Eliminated common code globals :->
+# build: 1008 - Now copy the result into the clipboard (as a raw number, no formatting)
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -2985,7 +2986,8 @@ Visit: %s (Author's site)
                                      lModal=False,
                                      theTitle=u"Value Selected Txns   %s" %(titleExtraTxt)).go()
                     lFoundAnySelectedTransactions[0] = True
-
+                    try: Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(acctCurr.format(total,MD_decimal)), None)
+                    except: pass
             return
 
         myPrint("DB","Scanning for selected register transactions...:")

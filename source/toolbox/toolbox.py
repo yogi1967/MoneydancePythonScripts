@@ -279,7 +279,7 @@
 # build: 1047 - added internal sync UUID to main diagnostic display screen
 # build: 1047 - added toolbox_invoke.py script... collaborated with Mike Bray to add QuoteLoader variables to detect when busy
 # build: 1047 - MD build 4074 changed .getOFXLastTxnUpdate() to add connectionID parameter
-# build: 1047 - added OFX_reset_OFXLastTxnUpdate_dates() for build 4074 onwards
+# build: 1047 - added OFX_reset_OFXLastTxnUpdate_dates() for build 4074 onwards; added error traps on main menus...
 
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - fix vmoptions file name to match .exe
@@ -8058,7 +8058,7 @@ Visit: %s (Author's site)
         else:
 
             txt = "Diagnosing Currencies/Securities"
-            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
+            if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
 
 
         # OK - let's do it!
@@ -16511,7 +16511,7 @@ now after saving the file, restart Moneydance
 
         try:
 
-            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
+            if not perform_qer_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
 
             class StoreSecurity:
                 def __init__(self, _obj):
@@ -17275,7 +17275,7 @@ now after saving the file, restart Moneydance
 
 
             txt = _THIS_METHOD_NAME
-            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
+            if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
 
 
             class StoreTickerData:
@@ -23280,313 +23280,319 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                user_UNLOCKMDPlusDiagnostic = JRadioButton("UNLOCKED - Moneydance+ Diagnostics (READONLY)", False)
-                user_UNLOCKMDPlusDiagnostic.setToolTipText("When Toolbox is unlocked, will display extra MD+ Diagnostics - DO NOT SHARE WITH OTHERS!")
-                user_UNLOCKMDPlusDiagnostic.setEnabled(isToolboxUnlocked() and isMDPlusEnabledBuild())
-                # user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().futureTxnIndicator)
-                user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().accountIconTint)
+                try:
 
-                user_searchOFXData = JRadioButton("Search for stored OFX related data", False)
-                user_searchOFXData.setToolTipText("This searches for Online Banking (OFX) related setup information in most places...")
+                    user_UNLOCKMDPlusDiagnostic = JRadioButton("UNLOCKED - Moneydance+ Diagnostics (READONLY)", False)
+                    user_UNLOCKMDPlusDiagnostic.setToolTipText("When Toolbox is unlocked, will display extra MD+ Diagnostics - DO NOT SHARE WITH OTHERS!")
+                    user_UNLOCKMDPlusDiagnostic.setEnabled(isToolboxUnlocked() and isMDPlusEnabledBuild())
+                    # user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().futureTxnIndicator)
+                    user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().accountIconTint)
 
-                user_viewInstalledBankProfiles = JRadioButton("View your installed Bank / Service Profiles", False)
-                user_viewInstalledBankProfiles.setToolTipText("This will display all the setup data stored on your service/banking logon profile(s)")
+                    user_searchOFXData = JRadioButton("Search for stored OFX related data", False)
+                    user_searchOFXData.setToolTipText("This searches for Online Banking (OFX) related setup information in most places...")
 
-                user_viewListALLMDServices = JRadioButton("View list of MD's Bank dynamic setup profiles (then select one)", False)
-                user_viewListALLMDServices.setToolTipText("This will display Moneydance's dynamic setup profiles for all banks - pulled from Infinite Kind's website..")
+                    user_viewInstalledBankProfiles = JRadioButton("View your installed Bank / Service Profiles", False)
+                    user_viewInstalledBankProfiles.setToolTipText("This will display all the setup data stored on your service/banking logon profile(s)")
 
-                user_view_CUSIP_settings = JRadioButton("View your Security's hidden CUSIP settings (The link between your Bank's Securities & MD Securities)", False)
-                user_view_CUSIP_settings.setToolTipText("This will show your Security's hidden CUSIP settings. These link your downloads on Investment Securities to MD Securities")
+                    user_viewListALLMDServices = JRadioButton("View list of MD's Bank dynamic setup profiles (then select one)", False)
+                    user_viewListALLMDServices.setToolTipText("This will display Moneydance's dynamic setup profiles for all banks - pulled from Infinite Kind's website..")
 
-                user_viewOnlineTxnsPayeesPayments = JRadioButton("View your Online Txns/Payees/Payments", False)
-                user_viewOnlineTxnsPayeesPayments.setToolTipText("This will show you your cached Online Txns (there should be none) and also your saved online payees and payments")
+                    user_view_CUSIP_settings = JRadioButton("View your Security's hidden CUSIP settings (The link between your Bank's Securities & MD Securities)", False)
+                    user_view_CUSIP_settings.setToolTipText("This will show your Security's hidden CUSIP settings. These link your downloads on Investment Securities to MD Securities")
 
-                user_viewAllLastTxnDownloadDates = JRadioButton("View all your OFX last download txn dates (for all accounts)", False)
-                user_viewAllLastTxnDownloadDates.setToolTipText("View all your OFX last download txn dates (across all accounts)")
+                    user_viewOnlineTxnsPayeesPayments = JRadioButton("View your Online Txns/Payees/Payments", False)
+                    user_viewOnlineTxnsPayeesPayments.setToolTipText("This will show you your cached Online Txns (there should be none) and also your saved online payees and payments")
 
-                user_viewReconcileAsOfDates = JRadioButton("View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)", False)
-                user_viewReconcileAsOfDates.setToolTipText("Displays how the reconcile as_of date is calculated for your active accounts")
+                    user_viewAllLastTxnDownloadDates = JRadioButton("View all your OFX last download txn dates (for all accounts)", False)
+                    user_viewAllLastTxnDownloadDates.setToolTipText("View all your OFX last download txn dates (across all accounts)")
 
-                user_toggleMDDebug = JRadioButton("Toggle Moneydance Debug (ONLY use for debugging)", False)
-                user_toggleMDDebug.setToolTipText("This toggles Moneydance's internal DEBUG(s) on/off. When ON you get more messages in the Console Log (the same as opening console)")
+                    user_viewReconcileAsOfDates = JRadioButton("View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)", False)
+                    user_viewReconcileAsOfDates.setToolTipText("Displays how the reconcile as_of date is calculated for your active accounts")
 
-                user_forgetOFXBankingLink = JRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False)
-                user_forgetOFXBankingLink.setToolTipText("Force MD to forget OFX Banking Import link attributed to an Account. Moneydance will ask you to recreate the link on next import.. THIS CHANGES DATA! (remove_ofx_account_bindings.py)")
-                user_forgetOFXBankingLink.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
-                user_forgetOFXBankingLink.setForeground(getColorRed())
+                    user_toggleMDDebug = JRadioButton("Toggle Moneydance Debug (ONLY use for debugging)", False)
+                    user_toggleMDDebug.setToolTipText("This toggles Moneydance's internal DEBUG(s) on/off. When ON you get more messages in the Console Log (the same as opening console)")
 
-                user_manageCUSIPLink = JRadioButton("Reset/Fix/Edit/Add CUSIP Banking Link (remove_ofx_security_bindings.py)", False)
-                user_manageCUSIPLink.setToolTipText("Allows you to reset/add/edit/move your CUSIP banking link between security records. THIS CHANGES DATA! (remove_ofx_security_bindings.py)")
-                user_manageCUSIPLink.setEnabled(GlobalVars.UPDATE_MODE)
-                user_manageCUSIPLink.setForeground(getColorRed())
+                    user_forgetOFXBankingLink = JRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False)
+                    user_forgetOFXBankingLink.setToolTipText("Force MD to forget OFX Banking Import link attributed to an Account. Moneydance will ask you to recreate the link on next import.. THIS CHANGES DATA! (remove_ofx_account_bindings.py)")
+                    user_forgetOFXBankingLink.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
+                    user_forgetOFXBankingLink.setForeground(getColorRed())
 
-                user_updateOFXLastTxnUpdate = JRadioButton("Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False)
-                user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download txn date which is used to set the start date for txn downloads - THIS CHANGES DATA!")
-                # user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
-                user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE)
-                user_updateOFXLastTxnUpdate.setForeground(getColorRed())
+                    user_manageCUSIPLink = JRadioButton("Reset/Fix/Edit/Add CUSIP Banking Link (remove_ofx_security_bindings.py)", False)
+                    user_manageCUSIPLink.setToolTipText("Allows you to reset/add/edit/move your CUSIP banking link between security records. THIS CHANGES DATA! (remove_ofx_security_bindings.py)")
+                    user_manageCUSIPLink.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_manageCUSIPLink.setForeground(getColorRed())
 
-                user_reset_OFXLastTxnUpdate_dates = JRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)", False)
-                user_reset_OFXLastTxnUpdate_dates.setToolTipText("Allows you to reset ALL the last download txn dates used to set the start date for txn downloads (4074 onwards) - THIS CHANGES DATA!")
-                user_reset_OFXLastTxnUpdate_dates.setEnabled(GlobalVars.UPDATE_MODE and isMulti_OFXLastTxnUpdate_build())
-                user_reset_OFXLastTxnUpdate_dates.setForeground(getColorRed())
+                    user_updateOFXLastTxnUpdate = JRadioButton("Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False)
+                    user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download txn date which is used to set the start date for txn downloads - THIS CHANGES DATA!")
+                    # user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
+                    user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_updateOFXLastTxnUpdate.setForeground(getColorRed())
 
-                user_deleteOFXBankingLogonProfile = JRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False)
-                user_deleteOFXBankingLogonProfile.setToolTipText("This will allow you to delete an Online Banking logon / service profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA! (remove_one_service.py)")
-                user_deleteOFXBankingLogonProfile.setEnabled(GlobalVars.UPDATE_MODE)
-                user_deleteOFXBankingLogonProfile.setForeground(getColorRed())
+                    user_reset_OFXLastTxnUpdate_dates = JRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)", False)
+                    user_reset_OFXLastTxnUpdate_dates.setToolTipText("Allows you to reset ALL the last download txn dates used to set the start date for txn downloads (4074 onwards) - THIS CHANGES DATA!")
+                    user_reset_OFXLastTxnUpdate_dates.setEnabled(GlobalVars.UPDATE_MODE and isMulti_OFXLastTxnUpdate_build())
+                    user_reset_OFXLastTxnUpdate_dates.setForeground(getColorRed())
 
-                user_cleanupMissingOnlineBankingLinks = JRadioButton("Cleanup missing Online Banking Links", False)
-                user_cleanupMissingOnlineBankingLinks.setToolTipText("This Cleans up missing Online Banking Links - NOTE: Always called when 'Delete OFX Banking Service / Logon Profile' is run. THIS CHANGES DATA!")
-                user_cleanupMissingOnlineBankingLinks.setEnabled(GlobalVars.UPDATE_MODE)
-                user_cleanupMissingOnlineBankingLinks.setForeground(getColorRed())
+                    user_deleteOFXBankingLogonProfile = JRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False)
+                    user_deleteOFXBankingLogonProfile.setToolTipText("This will allow you to delete an Online Banking logon / service profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA! (remove_one_service.py)")
+                    user_deleteOFXBankingLogonProfile.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_deleteOFXBankingLogonProfile.setForeground(getColorRed())
 
-                user_authenticationManagement = JRadioButton("OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)", False)
-                user_authenticationManagement.setToolTipText("Brings up the sub menu. Allows you to clear your authentication cache (single or all) and edit user IDs/ClientUIDs. THIS CAN CHANGE DATA!")
-                user_authenticationManagement.setEnabled(GlobalVars.UPDATE_MODE)
-                user_authenticationManagement.setForeground(getColorRed())
+                    user_cleanupMissingOnlineBankingLinks = JRadioButton("Cleanup missing Online Banking Links", False)
+                    user_cleanupMissingOnlineBankingLinks.setToolTipText("This Cleans up missing Online Banking Links - NOTE: Always called when 'Delete OFX Banking Service / Logon Profile' is run. THIS CHANGES DATA!")
+                    user_cleanupMissingOnlineBankingLinks.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_cleanupMissingOnlineBankingLinks.setForeground(getColorRed())
 
-                user_deleteOnlineTxns = JRadioButton("Delete Single cached OnlineTxnList Record/Txns", False)
-                user_deleteOnlineTxns.setToolTipText("Allows you to surgically remove your cached Online Txn List txns - THESE SHOULD NOT BE HERE! THIS CHANGES DATA!")
-                user_deleteOnlineTxns.setEnabled(GlobalVars.UPDATE_MODE)
-                user_deleteOnlineTxns.setForeground(getColorRed())
+                    user_authenticationManagement = JRadioButton("OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)", False)
+                    user_authenticationManagement.setToolTipText("Brings up the sub menu. Allows you to clear your authentication cache (single or all) and edit user IDs/ClientUIDs. THIS CAN CHANGE DATA!")
+                    user_authenticationManagement.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_authenticationManagement.setForeground(getColorRed())
 
-                user_deleteALLOnlineTxns = JRadioButton("Delete ALL cached OnlineTxnList Record/Txns (delete_intermediate_downloaded_transaction_caches.py)", False)
-                user_deleteALLOnlineTxns.setToolTipText("Purges/cleans any/all your cached Online Txn List records / txns - THERE SHOULD BE NONE! VERY SAFE TO RUN! THIS CHANGES DATA! (delete_intermediate_downloaded_transaction_caches.py)")
-                user_deleteALLOnlineTxns.setEnabled(GlobalVars.UPDATE_MODE)
-                user_deleteALLOnlineTxns.setForeground(getColorRed())
+                    user_deleteOnlineTxns = JRadioButton("Delete Single cached OnlineTxnList Record/Txns", False)
+                    user_deleteOnlineTxns.setToolTipText("Allows you to surgically remove your cached Online Txn List txns - THESE SHOULD NOT BE HERE! THIS CHANGES DATA!")
+                    user_deleteOnlineTxns.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_deleteOnlineTxns.setForeground(getColorRed())
 
-                user_cookieManagement = JRadioButton("OFX Cookie Management", False)
-                user_cookieManagement.setToolTipText("Brings up the sub menu. Allows you to manage your OFX cookies - THIS CAN CHANGE DATA!")
-                user_cookieManagement.setEnabled(GlobalVars.ADVANCED_MODE)
-                user_cookieManagement.setForeground(getColorRed())
+                    user_deleteALLOnlineTxns = JRadioButton("Delete ALL cached OnlineTxnList Record/Txns (delete_intermediate_downloaded_transaction_caches.py)", False)
+                    user_deleteALLOnlineTxns.setToolTipText("Purges/cleans any/all your cached Online Txn List records / txns - THERE SHOULD BE NONE! VERY SAFE TO RUN! THIS CHANGES DATA! (delete_intermediate_downloaded_transaction_caches.py)")
+                    user_deleteALLOnlineTxns.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_deleteALLOnlineTxns.setForeground(getColorRed())
 
-                user_exportMDPlusProfile = JRadioButton("Export your Moneydance+ (Plaid) settings to a file (for 'transplant')", False)
-                user_exportMDPlusProfile.setToolTipText("This will Export your stored Moneydance+ (Plaid) data/keys etc to a file (for 'transplant'). READONLY")
-                user_exportMDPlusProfile.setEnabled(GlobalVars.ADVANCED_MODE)
-                user_exportMDPlusProfile.setForeground(getColorRed())
+                    user_cookieManagement = JRadioButton("OFX Cookie Management", False)
+                    user_cookieManagement.setToolTipText("Brings up the sub menu. Allows you to manage your OFX cookies - THIS CAN CHANGE DATA!")
+                    user_cookieManagement.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_cookieManagement.setForeground(getColorRed())
 
-                user_importMDPlusProfile = JRadioButton("Import ('transplant') your Moneydance+ (Plaid) settings from a file (exported by Toolbox)", False)
-                user_importMDPlusProfile.setToolTipText("This will Import ('transplant') your Moneydance+ (Plaid) data/keys etc from a file exported by Toolbox. THIS CHANGES DATA!")
-                user_importMDPlusProfile.setEnabled(GlobalVars.ADVANCED_MODE)
-                user_importMDPlusProfile.setForeground(getColorRed())
+                    user_exportMDPlusProfile = JRadioButton("Export your Moneydance+ (Plaid) settings to a file (for 'transplant')", False)
+                    user_exportMDPlusProfile.setToolTipText("This will Export your stored Moneydance+ (Plaid) data/keys etc to a file (for 'transplant'). READONLY")
+                    user_exportMDPlusProfile.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_exportMDPlusProfile.setForeground(getColorRed())
 
-                user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False)
-                user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
-                user_zapMDPlusProfile.setEnabled((GlobalVars.ADVANCED_MODE) and (not isMDPlusLicenseActivated() or isToolboxUnlocked()))
-                user_zapMDPlusProfile.setForeground(getColorRed())
+                    user_importMDPlusProfile = JRadioButton("Import ('transplant') your Moneydance+ (Plaid) settings from a file (exported by Toolbox)", False)
+                    user_importMDPlusProfile.setToolTipText("This will Import ('transplant') your Moneydance+ (Plaid) data/keys etc from a file exported by Toolbox. THIS CHANGES DATA!")
+                    user_importMDPlusProfile.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_importMDPlusProfile.setForeground(getColorRed())
 
-                user_manuallyPrimeUSAARootUserIDClientIDs = JRadioButton("USAA ONLY: (NEW METHOD) Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
-                user_manuallyPrimeUSAARootUserIDClientIDs.setToolTipText("USAA Only: Allows you to 'prime' / overwrite stored UserIDs/ClientUIDs for USSA")
-                user_manuallyPrimeUSAARootUserIDClientIDs.setEnabled(GlobalVars.UPDATE_MODE)
-                user_manuallyPrimeUSAARootUserIDClientIDs.setForeground(getColorRed())
+                    user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False)
+                    user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
+                    user_zapMDPlusProfile.setEnabled((GlobalVars.ADVANCED_MODE) and (not isMDPlusLicenseActivated() or isToolboxUnlocked()))
+                    user_zapMDPlusProfile.setForeground(getColorRed())
 
-                user_createUSAAProfile = JRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False)
-                user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
-                user_createUSAAProfile.setEnabled(GlobalVars.UPDATE_MODE)
-                user_createUSAAProfile.setForeground(getColorRed())
+                    user_manuallyPrimeUSAARootUserIDClientIDs = JRadioButton("USAA ONLY: (NEW METHOD) Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
+                    user_manuallyPrimeUSAARootUserIDClientIDs.setToolTipText("USAA Only: Allows you to 'prime' / overwrite stored UserIDs/ClientUIDs for USSA")
+                    user_manuallyPrimeUSAARootUserIDClientIDs.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_manuallyPrimeUSAARootUserIDClientIDs.setForeground(getColorRed())
 
-                labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                labelFYI2.setForeground(getColorRed())
+                    user_createUSAAProfile = JRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False)
+                    user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
+                    user_createUSAAProfile.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_createUSAAProfile.setForeground(getColorRed())
 
-                labelFYI3 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
-                labelFYI3.setForeground(getColorRed())
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
 
-                userFilters = JPanel(GridLayout(0, 1))
+                    labelFYI3 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
+                    labelFYI3.setForeground(getColorRed())
 
-                bg = ButtonGroup()
-                bg.add(user_forgetOFXBankingLink)
-                bg.add(user_deleteOFXBankingLogonProfile)
-                bg.add(user_cleanupMissingOnlineBankingLinks)
-                bg.add(user_manageCUSIPLink)
-                bg.add(user_searchOFXData)
-                bg.add(user_UNLOCKMDPlusDiagnostic)
-                bg.add(user_viewInstalledBankProfiles)
-                bg.add(user_view_CUSIP_settings)
-                bg.add(user_viewOnlineTxnsPayeesPayments)
-                bg.add(user_viewAllLastTxnDownloadDates)
-                bg.add(user_viewReconcileAsOfDates)
-                bg.add(user_cookieManagement)
-                bg.add(user_exportMDPlusProfile)
-                bg.add(user_importMDPlusProfile)
-                bg.add(user_zapMDPlusProfile)
-                bg.add(user_authenticationManagement)
-                bg.add(user_deleteOnlineTxns)
-                bg.add(user_deleteALLOnlineTxns)
-                bg.add(user_manuallyPrimeUSAARootUserIDClientIDs)
-                bg.add(user_createUSAAProfile)
-                bg.add(user_updateOFXLastTxnUpdate)
-                bg.add(user_reset_OFXLastTxnUpdate_dates)
-                bg.add(user_viewListALLMDServices)
-                # bg.add(user_toggleOFXDebug)
-                bg.add(user_toggleMDDebug)
-                bg.clearSelection()
+                    userFilters = JPanel(GridLayout(0, 1))
 
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    bg = ButtonGroup()
+                    bg.add(user_forgetOFXBankingLink)
+                    bg.add(user_deleteOFXBankingLogonProfile)
+                    bg.add(user_cleanupMissingOnlineBankingLinks)
+                    bg.add(user_manageCUSIPLink)
+                    bg.add(user_searchOFXData)
+                    bg.add(user_UNLOCKMDPlusDiagnostic)
+                    bg.add(user_viewInstalledBankProfiles)
+                    bg.add(user_view_CUSIP_settings)
+                    bg.add(user_viewOnlineTxnsPayeesPayments)
+                    bg.add(user_viewAllLastTxnDownloadDates)
+                    bg.add(user_viewReconcileAsOfDates)
+                    bg.add(user_cookieManagement)
+                    bg.add(user_exportMDPlusProfile)
+                    bg.add(user_importMDPlusProfile)
+                    bg.add(user_zapMDPlusProfile)
+                    bg.add(user_authenticationManagement)
+                    bg.add(user_deleteOnlineTxns)
+                    bg.add(user_deleteALLOnlineTxns)
+                    bg.add(user_manuallyPrimeUSAARootUserIDClientIDs)
+                    bg.add(user_createUSAAProfile)
+                    bg.add(user_updateOFXLastTxnUpdate)
+                    bg.add(user_reset_OFXLastTxnUpdate_dates)
+                    bg.add(user_viewListALLMDServices)
+                    # bg.add(user_toggleOFXDebug)
+                    bg.add(user_toggleMDDebug)
+                    bg.clearSelection()
 
-                if isToolboxUnlocked():
-                    userFilters.add(user_UNLOCKMDPlusDiagnostic)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
 
-                userFilters.add(user_searchOFXData)
-                userFilters.add(user_viewInstalledBankProfiles)
-                userFilters.add(user_viewListALLMDServices)
-                userFilters.add(user_view_CUSIP_settings)
-                userFilters.add(user_viewOnlineTxnsPayeesPayments)
-                userFilters.add(user_viewAllLastTxnDownloadDates)
-                userFilters.add(user_viewReconcileAsOfDates)
-                userFilters.add(user_toggleMDDebug)
-                # userFilters.add(user_toggleOFXDebug)
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-                if not GlobalVars.UPDATE_MODE:
-                    userFilters.add(labelFYI2)
+                    if isToolboxUnlocked():
+                        userFilters.add(user_UNLOCKMDPlusDiagnostic)
 
-                userFilters.add(user_forgetOFXBankingLink)
-                userFilters.add(user_manageCUSIPLink)
-                userFilters.add(user_updateOFXLastTxnUpdate)
-                userFilters.add(user_reset_OFXLastTxnUpdate_dates)
-                userFilters.add(user_deleteOFXBankingLogonProfile)
-                userFilters.add(user_cleanupMissingOnlineBankingLinks)
-                userFilters.add(user_authenticationManagement)
-                userFilters.add(user_deleteOnlineTxns)
-                userFilters.add(user_deleteALLOnlineTxns)
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("---- ADVANCED MODE ONLY -----"))
-                if not GlobalVars.ADVANCED_MODE:
-                    userFilters.add(labelFYI3)
-                userFilters.add(user_cookieManagement)
+                    userFilters.add(user_searchOFXData)
+                    userFilters.add(user_viewInstalledBankProfiles)
+                    userFilters.add(user_viewListALLMDServices)
+                    userFilters.add(user_view_CUSIP_settings)
+                    userFilters.add(user_viewOnlineTxnsPayeesPayments)
+                    userFilters.add(user_viewAllLastTxnDownloadDates)
+                    userFilters.add(user_viewReconcileAsOfDates)
+                    userFilters.add(user_toggleMDDebug)
+                    # userFilters.add(user_toggleOFXDebug)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                    if not GlobalVars.UPDATE_MODE:
+                        userFilters.add(labelFYI2)
 
-                if isMDPlusEnabledBuild():
-                    userFilters.add(user_exportMDPlusProfile)
-                    userFilters.add(user_importMDPlusProfile)
-                    userFilters.add(user_zapMDPlusProfile)
+                    userFilters.add(user_forgetOFXBankingLink)
+                    userFilters.add(user_manageCUSIPLink)
+                    userFilters.add(user_updateOFXLastTxnUpdate)
+                    userFilters.add(user_reset_OFXLastTxnUpdate_dates)
+                    userFilters.add(user_deleteOFXBankingLogonProfile)
+                    userFilters.add(user_cleanupMissingOnlineBankingLinks)
+                    userFilters.add(user_authenticationManagement)
+                    userFilters.add(user_deleteOnlineTxns)
+                    userFilters.add(user_deleteALLOnlineTxns)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("---- ADVANCED MODE ONLY -----"))
+                    if not GlobalVars.ADVANCED_MODE:
+                        userFilters.add(labelFYI3)
+                    userFilters.add(user_cookieManagement)
 
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("---- USAA ONLY (Update Mode)-----"))
-                userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
-                userFilters.add(user_createUSAAProfile)
+                    if isMDPlusEnabledBuild():
+                        userFilters.add(user_exportMDPlusProfile)
+                        userFilters.add(user_importMDPlusProfile)
+                        userFilters.add(user_zapMDPlusProfile)
 
-                while True:
-                    options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,775,700)
-                    userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               jsp,
-                                                               "Online Banking (OFX) Tools",
-                                                               JOptionPane.OK_CANCEL_OPTION,
-                                                               JOptionPane.QUESTION_MESSAGE,
-                                                               getMDIcon(lAlwaysGetIcon=True),
-                                                               options, options[0]))
-                    if userAction != 1:
-                        txt = "Online Banking (OFX) Tools - No changes made....."
-                        setDisplayStatus(txt, "B")
-                        return
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("---- USAA ONLY (Update Mode)-----"))
+                    userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
+                    userFilters.add(user_createUSAAProfile)
 
-                    # for button in bg.getElements():
-                    #     if button.isSelected(): break
-                    #
+                    while True:
+                        options = ["EXIT", "PROCEED"]
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,775,700)
+                        userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                                   jsp,
+                                                                   "Online Banking (OFX) Tools",
+                                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                                   JOptionPane.QUESTION_MESSAGE,
+                                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                                   options, options[0]))
+                        if userAction != 1:
+                            txt = "Online Banking (OFX) Tools - No changes made....."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_forgetOFXBankingLink.isSelected():
-                        forgetOFXImportLink()
+                        # for button in bg.getElements():
+                        #     if button.isSelected(): break
+                        #
 
-                    if user_deleteOFXBankingLogonProfile.isSelected():
-                        deleteOFXService()
+                        if user_forgetOFXBankingLink.isSelected():
+                            forgetOFXImportLink()
 
-                    if user_cleanupMissingOnlineBankingLinks.isSelected():
-                        cleanupMissingOnlineBankingLinks(lAutoPurge=False)
+                        if user_deleteOFXBankingLogonProfile.isSelected():
+                            deleteOFXService()
 
-                    if user_manageCUSIPLink.isSelected():
-                        CUSIPFix()
+                        if user_cleanupMissingOnlineBankingLinks.isSelected():
+                            cleanupMissingOnlineBankingLinks(lAutoPurge=False)
 
-                    # if user_toggleOFXDebug.isSelected():
-                    #     OFXDEBUGToggle()
+                        if user_manageCUSIPLink.isSelected():
+                            CUSIPFix()
 
-                    if user_searchOFXData.isSelected():
-                        viewer = CuriousViewInternalSettingsButtonAction(lOFX=True)
-                        viewer.actionPerformed("")
-                        del viewer
-                        txt = "OFX: Your OFX Bank related settings have been searched and displayed...."
-                        setDisplayStatus(txt, "B")
-                        return
+                        # if user_toggleOFXDebug.isSelected():
+                        #     OFXDEBUGToggle()
 
-                    if user_toggleMDDebug.isSelected():
-                        advanced_mode_DEBUG()
+                        if user_searchOFXData.isSelected():
+                            viewer = CuriousViewInternalSettingsButtonAction(lOFX=True)
+                            viewer.actionPerformed("")
+                            del viewer
+                            txt = "OFX: Your OFX Bank related settings have been searched and displayed...."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_UNLOCKMDPlusDiagnostic.isSelected():
-                        UNLOCKMDPlusDiagnostic()
-                        return
+                        if user_toggleMDDebug.isSelected():
+                            advanced_mode_DEBUG()
 
-                    if user_authenticationManagement.isSelected():
-                        if OFX_authentication_management(): return
+                        if user_UNLOCKMDPlusDiagnostic.isSelected():
+                            UNLOCKMDPlusDiagnostic()
+                            return
 
-                    if user_exportMDPlusProfile.isSelected():
-                        export_MDPlus_Profile()
+                        if user_authenticationManagement.isSelected():
+                            if OFX_authentication_management(): return
 
-                    if user_importMDPlusProfile.isSelected():
-                        if import_MDPlus_Profile(): return
+                        if user_exportMDPlusProfile.isSelected():
+                            export_MDPlus_Profile()
 
-                    if user_zapMDPlusProfile.isSelected():
-                        if zap_MDPlus_Profile(): return
+                        if user_importMDPlusProfile.isSelected():
+                            if import_MDPlus_Profile(): return
 
-                    if user_cookieManagement.isSelected():
-                        OFX_cookie_management()
+                        if user_zapMDPlusProfile.isSelected():
+                            if zap_MDPlus_Profile(): return
 
-                    if user_viewListALLMDServices.isSelected():
-                        download_md_fiscal_setup()
-                        txt = "OFX: Moneydance's Dynamic Fiscal Institution Setup profiles have been retrieved and displayed...."
-                        setDisplayStatus(txt, "B")
-                        return
+                        if user_cookieManagement.isSelected():
+                            OFX_cookie_management()
 
-                    if user_view_CUSIP_settings.isSelected():
-                        OFX_view_CUSIP_settings()
-                        txt = "OFX: Your Security's hidden CUSIP settings have been retrieved and displayed...."
-                        setDisplayStatus(txt, "B")
-                        return
+                        if user_viewListALLMDServices.isSelected():
+                            download_md_fiscal_setup()
+                            txt = "OFX: Moneydance's Dynamic Fiscal Institution Setup profiles have been retrieved and displayed...."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_viewOnlineTxnsPayeesPayments.isSelected():
-                        OFX_view_online_txns_payees_payments()
-                        txt = "OFX: Your Online saved Txns, Payees, Payments have been retrieved and displayed...."
-                        setDisplayStatus(txt, "B")
-                        return
+                        if user_view_CUSIP_settings.isSelected():
+                            OFX_view_CUSIP_settings()
+                            txt = "OFX: Your Security's hidden CUSIP settings have been retrieved and displayed...."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_viewAllLastTxnDownloadDates.isSelected():
-                        OFX_view_all_last_txn_download_dates()
-                        txt = "OFX: All your last txn download txn dates have been retrieved and displayed...."
-                        setDisplayStatus(txt, "B")
-                        return
+                        if user_viewOnlineTxnsPayeesPayments.isSelected():
+                            OFX_view_online_txns_payees_payments()
+                            txt = "OFX: Your Online saved Txns, Payees, Payments have been retrieved and displayed...."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_viewReconcileAsOfDates.isSelected():
-                        OFX_view_reconcile_AsOf_Dates()
-                        txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
-                        setDisplayStatus(txt, "B")
-                        return
+                        if user_viewAllLastTxnDownloadDates.isSelected():
+                            OFX_view_all_last_txn_download_dates()
+                            txt = "OFX: All your last txn download txn dates have been retrieved and displayed...."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_viewInstalledBankProfiles.isSelected():
-                        ofx_view_service_profile_data()
-                        txt = "OFX: Your installed Service / Bank logon profiles have been displayed...."
-                        setDisplayStatus(txt, "B")
-                        return
+                        if user_viewReconcileAsOfDates.isSelected():
+                            OFX_view_reconcile_AsOf_Dates()
+                            txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_deleteOnlineTxns.isSelected():
-                        OFX_delete_saved_online_txns()
+                        if user_viewInstalledBankProfiles.isSelected():
+                            ofx_view_service_profile_data()
+                            txt = "OFX: Your installed Service / Bank logon profiles have been displayed...."
+                            setDisplayStatus(txt, "B")
+                            return
 
-                    if user_deleteALLOnlineTxns.isSelected():
-                        OFX_delete_ALL_saved_online_txns()
-                        return
+                        if user_deleteOnlineTxns.isSelected():
+                            OFX_delete_saved_online_txns()
 
-                    if user_manuallyPrimeUSAARootUserIDClientIDs.isSelected():
-                        manuallyPrimeUSAARootUserIDClientIDs()
+                        if user_deleteALLOnlineTxns.isSelected():
+                            OFX_delete_ALL_saved_online_txns()
+                            return
 
-                    if user_createUSAAProfile.isSelected():
-                        if createUSAAProfile(): return
+                        if user_manuallyPrimeUSAARootUserIDClientIDs.isSelected():
+                            manuallyPrimeUSAARootUserIDClientIDs()
 
-                    if user_updateOFXLastTxnUpdate.isSelected():
-                        OFX_update_OFXLastTxnUpdate()
+                        if user_createUSAAProfile.isSelected():
+                            if createUSAAProfile(): return
 
-                    if user_reset_OFXLastTxnUpdate_dates.isSelected():
-                        OFX_reset_OFXLastTxnUpdate_dates()
+                        if user_updateOFXLastTxnUpdate.isSelected():
+                            OFX_update_OFXLastTxnUpdate()
 
-                    continue
+                        if user_reset_OFXLastTxnUpdate_dates.isSelected():
+                            OFX_reset_OFXLastTxnUpdate_dates()
+
+                        continue
+
+                except:
+                    myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
+                    dump_sys_error_to_md_console_and_errorlog()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -24045,154 +24051,159 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                user_view_check_number_settings = JRadioButton("View Check Number Settings", False)
-                user_view_check_number_settings.setToolTipText("View the Check Number settings that will display in the Transaction Register")
+                try:
+                    user_view_check_number_settings = JRadioButton("View Check Number Settings", False)
+                    user_view_check_number_settings.setToolTipText("View the Check Number settings that will display in the Transaction Register")
 
-                user_force_change_accounts_currency = JRadioButton("FIX: FORCE Change an Account's Currency (force_change_account_currency.py)", False)
-                user_force_change_accounts_currency.setToolTipText("This allows you to FORCE change an Account's currency - USE WITH CARE!.. THIS CHANGES DATA! (force_change_account_currency.py)")
-                user_force_change_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                user_force_change_accounts_currency.setForeground(getColorRed())
+                    user_force_change_accounts_currency = JRadioButton("FIX: FORCE Change an Account's Currency (force_change_account_currency.py)", False)
+                    user_force_change_accounts_currency.setToolTipText("This allows you to FORCE change an Account's currency - USE WITH CARE!.. THIS CHANGES DATA! (force_change_account_currency.py)")
+                    user_force_change_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_force_change_accounts_currency.setForeground(getColorRed())
 
-                user_force_change_all_accounts_currency = JRadioButton("FIX: FORCE Change ALL Account's Currencies (force_change_all_currencies.py)", False)
-                user_force_change_all_accounts_currency.setToolTipText("This allows you to FORCE change ALL Account's Currencies - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
-                user_force_change_all_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                user_force_change_all_accounts_currency.setForeground(getColorRed())
+                    user_force_change_all_accounts_currency = JRadioButton("FIX: FORCE Change ALL Account's Currencies (force_change_all_currencies.py)", False)
+                    user_force_change_all_accounts_currency.setToolTipText("This allows you to FORCE change ALL Account's Currencies - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
+                    user_force_change_all_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_force_change_all_accounts_currency.setForeground(getColorRed())
 
-                user_force_change_an_accounts_type = JRadioButton("FIX: FORCE Change an Account's Type (set_account_type.py)", False)
-                user_force_change_an_accounts_type.setToolTipText("This allows you to FORCE change an Account's Type - USE WITH CARE!.. THIS CHANGES DATA! (set_account_type.py)")
-                user_force_change_an_accounts_type.setEnabled(GlobalVars.UPDATE_MODE)
-                user_force_change_an_accounts_type.setForeground(getColorRed())
+                    user_force_change_an_accounts_type = JRadioButton("FIX: FORCE Change an Account's Type (set_account_type.py)", False)
+                    user_force_change_an_accounts_type.setToolTipText("This allows you to FORCE change an Account's Type - USE WITH CARE!.. THIS CHANGES DATA! (set_account_type.py)")
+                    user_force_change_an_accounts_type.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_force_change_an_accounts_type.setForeground(getColorRed())
 
-                user_view_zero_bal_cats = JRadioButton("DIAG: Categories and Balances Report", False)
-                user_view_zero_bal_cats.setToolTipText("This will list all your Categories and show which have Zero Balances - USE UPDATE MODE TO MAKE THESE INACTIVE")
+                    user_view_zero_bal_cats = JRadioButton("DIAG: Categories and Balances Report", False)
+                    user_view_zero_bal_cats.setToolTipText("This will list all your Categories and show which have Zero Balances - USE UPDATE MODE TO MAKE THESE INACTIVE")
 
-                user_inactivate_zero_bal_cats = JRadioButton("FIX: Make Zero Balance Categories Inactive", False)
-                user_inactivate_zero_bal_cats.setToolTipText("This will allow you Inactivate all Categories with Zero Balances (you will see the report first). THIS CHANGES DATA!")
-                user_inactivate_zero_bal_cats.setEnabled(GlobalVars.UPDATE_MODE)
-                user_inactivate_zero_bal_cats.setForeground(getColorRed())
+                    user_inactivate_zero_bal_cats = JRadioButton("FIX: Make Zero Balance Categories Inactive", False)
+                    user_inactivate_zero_bal_cats.setToolTipText("This will allow you Inactivate all Categories with Zero Balances (you will see the report first). THIS CHANGES DATA!")
+                    user_inactivate_zero_bal_cats.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_inactivate_zero_bal_cats.setForeground(getColorRed())
 
-                user_view_shouldBeIncludedInNetWorth_settings = JRadioButton("DIAG: View Accounts' shouldBeIncludedInNetWorth() settings...", False)
-                user_view_shouldBeIncludedInNetWorth_settings.setToolTipText("This will list all Accounts/Categories and the shouldBeIncludedInNetWorth() setting - USE UPDATE MODE TO EDIT")
+                    user_view_shouldBeIncludedInNetWorth_settings = JRadioButton("DIAG: View Accounts' shouldBeIncludedInNetWorth() settings...", False)
+                    user_view_shouldBeIncludedInNetWorth_settings.setToolTipText("This will list all Accounts/Categories and the shouldBeIncludedInNetWorth() setting - USE UPDATE MODE TO EDIT")
 
-                user_edit_shouldBeIncludedInNetWorth_settings = JRadioButton("FIX: Edit an Account's shouldBeIncludedInNetWorth() setting", False)
-                user_edit_shouldBeIncludedInNetWorth_settings.setToolTipText("This will allow you to edit an Account's shouldBeIncludedInNetWorth() setting. THIS CHANGES DATA!")
-                user_edit_shouldBeIncludedInNetWorth_settings.setEnabled(GlobalVars.UPDATE_MODE)
-                user_edit_shouldBeIncludedInNetWorth_settings.setForeground(getColorRed())
+                    user_edit_shouldBeIncludedInNetWorth_settings = JRadioButton("FIX: Edit an Account's shouldBeIncludedInNetWorth() setting", False)
+                    user_edit_shouldBeIncludedInNetWorth_settings.setToolTipText("This will allow you to edit an Account's shouldBeIncludedInNetWorth() setting. THIS CHANGES DATA!")
+                    user_edit_shouldBeIncludedInNetWorth_settings.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_edit_shouldBeIncludedInNetWorth_settings.setForeground(getColorRed())
 
-                user_fix_accounts_parent = JRadioButton("FIX: Account's Invalid Parent Account (fix_account_parent.py)", False)
-                user_fix_accounts_parent.setToolTipText("This will diagnose your Parent Accounts and fix if invalid. THIS CHANGES DATA! (fix_account_parent.py)")
-                user_fix_accounts_parent.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_accounts_parent.setForeground(getColorRed())
-
-                bookName = MD_REF.getCurrentAccountBook().getName().strip()
-                root = MD_REF.getCurrentAccountBook().getRootAccount()
-                rootName = root.getAccountName().strip()
-                user_fix_root_account_name = JRadioButton("FIX: Correct Root Account Name (Only enabled if the name is incorrect)", False)
-                user_fix_root_account_name.setToolTipText("This allows you to change the (nearly) hidden Master/Parent Account Name in Moneydance (referred to as ROOT) to match the name of your Dataset (referred to as BOOK). THIS CHANGES DATA!")
-                user_fix_root_account_name.setEnabled(GlobalVars.UPDATE_MODE and (rootName != bookName))
-                user_fix_root_account_name.setForeground(getColorRed())
-
-                labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                labelFYI2.setForeground(getColorRed())
-
-                labelFYI_curr_fix = JLabel("       ** disabled when a serious currency/security issue has been detected **")
-                labelFYI_curr_fix.setForeground(getColorRed())
-
-                userFilters = JPanel(GridLayout(0, 1))
-
-                bg = ButtonGroup()
-                bg.add(user_view_check_number_settings)
-                bg.add(user_view_zero_bal_cats)
-                bg.add(user_inactivate_zero_bal_cats)
-                bg.add(user_view_shouldBeIncludedInNetWorth_settings)
-                bg.add(user_edit_shouldBeIncludedInNetWorth_settings)
-                bg.add(user_force_change_an_accounts_type)
-                bg.add(user_force_change_accounts_currency)
-                bg.add(user_force_change_all_accounts_currency)
-                bg.add(user_fix_accounts_parent)
-                bg.add(user_fix_root_account_name)
-                bg.clearSelection()
-
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
-                userFilters.add(user_view_check_number_settings)
-                userFilters.add(user_view_zero_bal_cats)
-                userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-
-                if not GlobalVars.UPDATE_MODE:
-                    userFilters.add(labelFYI2)
-
-                userFilters.add(user_inactivate_zero_bal_cats)
-                userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
-                userFilters.add(user_force_change_an_accounts_type)
-                userFilters.add(user_force_change_accounts_currency)
-                userFilters.add(user_force_change_all_accounts_currency)
-                userFilters.add(user_fix_accounts_parent)
-                userFilters.add(user_fix_root_account_name)
-
-                while True:
+                    user_fix_accounts_parent = JRadioButton("FIX: Account's Invalid Parent Account (fix_account_parent.py)", False)
+                    user_fix_accounts_parent.setToolTipText("This will diagnose your Parent Accounts and fix if invalid. THIS CHANGES DATA! (fix_account_parent.py)")
+                    user_fix_accounts_parent.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_accounts_parent.setForeground(getColorRed())
 
                     bookName = MD_REF.getCurrentAccountBook().getName().strip()
                     root = MD_REF.getCurrentAccountBook().getRootAccount()
                     rootName = root.getAccountName().strip()
-
+                    user_fix_root_account_name = JRadioButton("FIX: Correct Root Account Name (Only enabled if the name is incorrect)", False)
+                    user_fix_root_account_name.setToolTipText("This allows you to change the (nearly) hidden Master/Parent Account Name in Moneydance (referred to as ROOT) to match the name of your Dataset (referred to as BOOK). THIS CHANGES DATA!")
                     user_fix_root_account_name.setEnabled(GlobalVars.UPDATE_MODE and (rootName != bookName))
+                    user_fix_root_account_name.setForeground(getColorRed())
 
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
+
+                    labelFYI_curr_fix = JLabel("       ** disabled when a serious currency/security issue has been detected **")
+                    labelFYI_curr_fix.setForeground(getColorRed())
+
+                    userFilters = JPanel(GridLayout(0, 1))
+
+                    bg = ButtonGroup()
+                    bg.add(user_view_check_number_settings)
+                    bg.add(user_view_zero_bal_cats)
+                    bg.add(user_inactivate_zero_bal_cats)
+                    bg.add(user_view_shouldBeIncludedInNetWorth_settings)
+                    bg.add(user_edit_shouldBeIncludedInNetWorth_settings)
+                    bg.add(user_force_change_an_accounts_type)
+                    bg.add(user_force_change_accounts_currency)
+                    bg.add(user_force_change_all_accounts_currency)
+                    bg.add(user_fix_accounts_parent)
+                    bg.add(user_fix_root_account_name)
                     bg.clearSelection()
 
-                    options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,600,300)
-                    userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               jsp,
-                                                               "Accounts / Categories Diagnostics, Tools, Fixes",
-                                                               JOptionPane.OK_CANCEL_OPTION,
-                                                               JOptionPane.QUESTION_MESSAGE,
-                                                               getMDIcon(lAlwaysGetIcon=True),
-                                                               options, options[0]))
-                    if userAction != 1:
-                        return
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(user_view_check_number_settings)
+                    userFilters.add(user_view_zero_bal_cats)
+                    userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
+                    if not GlobalVars.UPDATE_MODE:
+                        userFilters.add(labelFYI2)
 
-                    if user_view_check_number_settings.isSelected():
-                        view_check_num_settings()
-                        return
+                    userFilters.add(user_inactivate_zero_bal_cats)
+                    userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
+                    userFilters.add(user_force_change_an_accounts_type)
+                    userFilters.add(user_force_change_accounts_currency)
+                    userFilters.add(user_force_change_all_accounts_currency)
+                    userFilters.add(user_fix_accounts_parent)
+                    userFilters.add(user_fix_root_account_name)
 
-                    if user_view_zero_bal_cats.isSelected():
-                        zero_bal_categories(False)
-                        return
+                    while True:
 
-                    if user_inactivate_zero_bal_cats.isSelected():
-                        zero_bal_categories(True)
-                        return
+                        bookName = MD_REF.getCurrentAccountBook().getName().strip()
+                        root = MD_REF.getCurrentAccountBook().getRootAccount()
+                        rootName = root.getAccountName().strip()
 
-                    if user_view_shouldBeIncludedInNetWorth_settings.isSelected():
-                        view_shouldBeIncludedInNetWorth_settings()
-                        return
+                        user_fix_root_account_name.setEnabled(GlobalVars.UPDATE_MODE and (rootName != bookName))
 
-                    if user_edit_shouldBeIncludedInNetWorth_settings.isSelected():
-                        edit_shouldBeIncludedInNetWorth_settings()
-                        return
+                        bg.clearSelection()
 
-                    if user_force_change_an_accounts_type.isSelected():
-                        force_change_account_type()
+                        options = ["EXIT", "PROCEED"]
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,600,300)
+                        userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                                   jsp,
+                                                                   "Accounts / Categories Diagnostics, Tools, Fixes",
+                                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                                   JOptionPane.QUESTION_MESSAGE,
+                                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                                   options, options[0]))
+                        if userAction != 1:
+                            return
 
-                    if user_force_change_accounts_currency.isSelected():
-                        force_change_account_currency()
+                        selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                    if user_force_change_all_accounts_currency.isSelected():
-                        force_change_all_accounts_currencies()
+                        if user_view_check_number_settings.isSelected():
+                            view_check_num_settings()
+                            return
 
-                    if user_fix_accounts_parent.isSelected():
-                        fix_account_parent()
-                        return
+                        if user_view_zero_bal_cats.isSelected():
+                            zero_bal_categories(False)
+                            return
 
-                    if user_fix_root_account_name.isSelected():
-                        fix_root_account_name()
+                        if user_inactivate_zero_bal_cats.isSelected():
+                            zero_bal_categories(True)
+                            return
 
-                    continue
+                        if user_view_shouldBeIncludedInNetWorth_settings.isSelected():
+                            view_shouldBeIncludedInNetWorth_settings()
+                            return
+
+                        if user_edit_shouldBeIncludedInNetWorth_settings.isSelected():
+                            edit_shouldBeIncludedInNetWorth_settings()
+                            return
+
+                        if user_force_change_an_accounts_type.isSelected():
+                            force_change_account_type()
+
+                        if user_force_change_accounts_currency.isSelected():
+                            force_change_account_currency()
+
+                        if user_force_change_all_accounts_currency.isSelected():
+                            force_change_all_accounts_currencies()
+
+                        if user_fix_accounts_parent.isSelected():
+                            fix_account_parent()
+                            return
+
+                        if user_fix_root_account_name.isSelected():
+                            fix_root_account_name()
+
+                        continue
+
+                except:
+                    myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
+                    dump_sys_error_to_md_console_and_errorlog()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -24205,306 +24216,311 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                lAlertPopupShown = False
+                try:
+                    lAlertPopupShown = False
 
-                user_show_open_share_lots = JRadioButton("DIAG: Show Open Share LOTS (unconsumed) (show_open_tax_lots.py)", False)
-                user_show_open_share_lots.setToolTipText("This will list all Stocks/Shares with Open/Unconsumed LOTS (when LOT Control ON) - READONLY (show_open_tax_lots.py)")
+                    user_show_open_share_lots = JRadioButton("DIAG: Show Open Share LOTS (unconsumed) (show_open_tax_lots.py)", False)
+                    user_show_open_share_lots.setToolTipText("This will list all Stocks/Shares with Open/Unconsumed LOTS (when LOT Control ON) - READONLY (show_open_tax_lots.py)")
 
-                user_convert_stock_lot_FIFO = JRadioButton("FIX: Convert Stock to LOT controlled with FIFO lot matching (MakeFifoCost.py)", False)
-                user_convert_stock_lot_FIFO.setToolTipText("Convert Average Cost Controlled Stock to LOT Controlled and Allocate LOTs using FiFo method - THIS CHANGES DATA! (MakeFifoCost.py)")
-                user_convert_stock_lot_FIFO.setEnabled(GlobalVars.UPDATE_MODE)
-                user_convert_stock_lot_FIFO.setForeground(getColorRed())
+                    user_convert_stock_lot_FIFO = JRadioButton("FIX: Convert Stock to LOT controlled with FIFO lot matching (MakeFifoCost.py)", False)
+                    user_convert_stock_lot_FIFO.setToolTipText("Convert Average Cost Controlled Stock to LOT Controlled and Allocate LOTs using FiFo method - THIS CHANGES DATA! (MakeFifoCost.py)")
+                    user_convert_stock_lot_FIFO.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_convert_stock_lot_FIFO.setForeground(getColorRed())
 
-                user_convert_stock_avg_cst_control = JRadioButton("FIX: Convert Stock to Average Cost Control", False)
-                user_convert_stock_avg_cst_control.setToolTipText("Convert LOT Controlled Stock to Average Cost Control (and wipe any LOT records) - THIS CHANGES DATA!")
-                user_convert_stock_avg_cst_control.setEnabled(GlobalVars.UPDATE_MODE)
-                user_convert_stock_avg_cst_control.setForeground(getColorRed())
+                    user_convert_stock_avg_cst_control = JRadioButton("FIX: Convert Stock to Average Cost Control", False)
+                    user_convert_stock_avg_cst_control.setToolTipText("Convert LOT Controlled Stock to Average Cost Control (and wipe any LOT records) - THIS CHANGES DATA!")
+                    user_convert_stock_avg_cst_control.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_convert_stock_avg_cst_control.setForeground(getColorRed())
 
-                user_thin_price_history = JRadioButton("FIX: Thin/Purge Price History (price_history_thinner.py)", False)
-                user_thin_price_history.setToolTipText("This will allow you to Thin / Prune your Price History based on user parameters. THIS CHANGES DATA! (price_history_thinner.py)")
-                user_thin_price_history.setEnabled(GlobalVars.UPDATE_MODE)
-                user_thin_price_history.setForeground(getColorRed())
-
-                user_fix_nonlinked_security_records = JRadioButton("FIX: Detect and fix Investment Security records not properly linked to Security Master records", False)
-                user_fix_nonlinked_security_records.setToolTipText("This will scan your Investment Security record and check that it's properly linked to a security master record... Allows you to fix this too")
-                user_fix_nonlinked_security_records.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_nonlinked_security_records.setForeground(getColorRed())
-
-                user_fix_invalidLotRecords = JRadioButton("FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid", False)
-                user_fix_invalidLotRecords.setToolTipText("Scans LOT matching data and detects where matched records are invalid (missing)... Allows you to fix by wiping the LOT data")
-                user_fix_invalidLotRecords.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_invalidLotRecords.setForeground(getColorRed())
-
-                user_can_i_delete_security = JRadioButton("DIAG: Can I Delete a Security?", False)
-                user_can_i_delete_security.setToolTipText("This will tell you whether a Selected Security is in use and whether you can delete it in Moneydance")
-
-                user_can_i_delete_currency = JRadioButton("DIAG: Can I Delete a Currency?", False)
-                user_can_i_delete_currency.setToolTipText("This will tell you whether a Selected Currency is in use and whether you can delete it in Moneydance")
-
-                user_list_curr_sec_dpc = JRadioButton("DIAG: List Security / Currency (hidden) decimal place settings", False)
-                user_list_curr_sec_dpc.setToolTipText("This will list your Security and Currency hidden decimal place settings (and attempt to advise of setup errors)")
-
-                user_diag_curr_sec = JRadioButton("DIAG: Diagnose currencies / securities (including relative currencies) (if errors see fix below) (based on reset_relative_currencies.py)", False)
-                user_diag_curr_sec.setToolTipText("This will diagnose your Currency & Security setup, also checking relative currencies (and advise if you need to run a fix) (reset_relative_currencies.py)")
-
-                user_diag_price_date = JRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
-                user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
-
-                user_edit_security_decimal_places = JRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly)", False)
-                user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
-                user_edit_security_decimal_places.setEnabled(GlobalVars.UPDATE_MODE and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
-                user_edit_security_decimal_places.setForeground(getColorRed())
-
-                user_merge_duplicate_securities = JRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False)
-                user_merge_duplicate_securities.setToolTipText("Scans for 'duplicated' Securities and can merge together.. Tools>Securities>TickerSymbol is key, ID must be different... (Dpc, RelCurr, Rate, Splits must also match)")
-                user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
-                user_merge_duplicate_securities.setForeground(getColorRed())
-
-                user_autofix_price_date = JRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)", False)
-                user_autofix_price_date.setToolTipText("This will diagnose then fix your Currency & Security's current price hidden price_date field (and current price/rate)....")
-                user_autofix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
-                user_autofix_price_date.setForeground(getColorRed())
-
-                user_fix_price_date = JRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field", False)
-                user_fix_price_date.setToolTipText("Allows you to manually edit a Currency / Security's current price hidden 'price_date' field....")
-                user_fix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_price_date.setForeground(getColorRed())
-
-                user_fix_curr_sec = JRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False)
-                user_fix_curr_sec.setToolTipText("This will apply fixes to your Currency (& security) / Relative Currency setup (use after running the diagnose option first). THIS CHANGES DATA!  (reset_relative_currencies.py)")
-                user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
-                user_fix_curr_sec.setForeground(getColorRed())
-
-                user_fix_invalid_curr_sec = JRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates where <= (1.0/9999999999) or >= 9999999999 (fix_invalid_currency_rates.py)", False)
-                user_fix_invalid_curr_sec.setToolTipText("This will reset any relative rates back to 1.0 where <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!  (fix_invalid_currency_rates.py)")
-                user_fix_invalid_curr_sec.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_invalid_curr_sec.setForeground(getColorRed())
-
-                user_fix_invalid_price_history = JRadioButton("FIX: Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.", False)
-                user_fix_invalid_price_history.setToolTipText("This will delete and invalid price history records where rate <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!")
-                user_fix_invalid_price_history.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_invalid_price_history.setForeground(getColorRed())
-
-                user_force_change_accounts_currency = JRadioButton("FIX: FORCE Change an Account's Currency (force_change_account_currency.py)", False)
-                user_force_change_accounts_currency.setToolTipText("This allows you to FORCE change an Account's currency - USE WITH CARE!.. THIS CHANGES DATA! (force_change_account_currency.py)")
-                user_force_change_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                user_force_change_accounts_currency.setForeground(getColorRed())
-
-
-                user_force_change_all_accounts_currency = JRadioButton("FIX: FORCE Change ALL Account's Currencies (force_change_all_currencies.py)", False)
-                user_force_change_all_accounts_currency.setToolTipText("This allows you to FORCE change ALL Account's Currencies - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
-                user_force_change_all_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                user_force_change_all_accounts_currency.setForeground(getColorRed())
-
-                labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                labelFYI2.setForeground(getColorRed())
-
-                labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected **")
-                labelFYI_curr_fix.setForeground(getColorRed())
-
-                userFilters = JPanel(GridLayout(0, 1))
-
-                bg = ButtonGroup()
-                bg.add(user_fix_invalidLotRecords)
-                bg.add(user_show_open_share_lots)
-                bg.add(user_convert_stock_lot_FIFO)
-                bg.add(user_convert_stock_avg_cst_control)
-                bg.add(user_fix_nonlinked_security_records)
-                bg.add(user_thin_price_history)
-                bg.add(user_can_i_delete_security)
-                bg.add(user_can_i_delete_currency)
-                bg.add(user_list_curr_sec_dpc)
-                bg.add(user_diag_curr_sec)
-                bg.add(user_diag_price_date)
-                bg.add(user_edit_security_decimal_places)
-                bg.add(user_merge_duplicate_securities)
-                bg.add(user_autofix_price_date)
-                bg.add(user_fix_price_date)
-                bg.add(user_fix_curr_sec)
-                bg.add(user_fix_invalid_curr_sec)
-                bg.add(user_fix_invalid_price_history)
-                bg.add(user_force_change_accounts_currency)
-                bg.add(user_force_change_all_accounts_currency)
-                bg.clearSelection()
-
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
-                userFilters.add(user_diag_curr_sec)
-                userFilters.add(user_can_i_delete_security)
-                userFilters.add(user_can_i_delete_currency)
-                userFilters.add(user_list_curr_sec_dpc)
-                userFilters.add(user_show_open_share_lots)
-                userFilters.add(user_diag_price_date)
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-
-                if not GlobalVars.UPDATE_MODE:
-                    userFilters.add(labelFYI2)
-                else:
-                    if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
-                        userFilters.add(labelFYI_curr_fix)
-
-                userFilters.add(user_fix_curr_sec)
-
-                # These are new features - better supported from 2021.2 onwards
-                if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
-                    userFilters.add(user_edit_security_decimal_places)
-                    userFilters.add(user_merge_duplicate_securities)
-                    userFilters.add(user_autofix_price_date)
-                    userFilters.add(user_fix_price_date)
-
-                userFilters.add(user_fix_invalidLotRecords)
-                userFilters.add(user_convert_stock_lot_FIFO)
-                userFilters.add(user_convert_stock_avg_cst_control)
-                userFilters.add(user_fix_nonlinked_security_records)
-                userFilters.add(user_thin_price_history)
-                userFilters.add(user_fix_invalid_curr_sec)
-                userFilters.add(user_fix_invalid_price_history)
-                userFilters.add(user_force_change_accounts_currency)
-                userFilters.add(user_force_change_all_accounts_currency)
-
-                while True:
-
-                    user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
-
-                    user_edit_security_decimal_places.setEnabled(GlobalVars.UPDATE_MODE and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
-                    user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_autofix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_thin_price_history = JRadioButton("FIX: Thin/Purge Price History (price_history_thinner.py)", False)
+                    user_thin_price_history.setToolTipText("This will allow you to Thin / Prune your Price History based on user parameters. THIS CHANGES DATA! (price_history_thinner.py)")
                     user_thin_price_history.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_thin_price_history.setForeground(getColorRed())
+
+                    user_fix_nonlinked_security_records = JRadioButton("FIX: Detect and fix Investment Security records not properly linked to Security Master records", False)
+                    user_fix_nonlinked_security_records.setToolTipText("This will scan your Investment Security record and check that it's properly linked to a security master record... Allows you to fix this too")
+                    user_fix_nonlinked_security_records.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_nonlinked_security_records.setForeground(getColorRed())
+
+                    user_fix_invalidLotRecords = JRadioButton("FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid", False)
+                    user_fix_invalidLotRecords.setToolTipText("Scans LOT matching data and detects where matched records are invalid (missing)... Allows you to fix by wiping the LOT data")
+                    user_fix_invalidLotRecords.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_invalidLotRecords.setForeground(getColorRed())
+
+                    user_can_i_delete_security = JRadioButton("DIAG: Can I Delete a Security?", False)
+                    user_can_i_delete_security.setToolTipText("This will tell you whether a Selected Security is in use and whether you can delete it in Moneydance")
+
+                    user_can_i_delete_currency = JRadioButton("DIAG: Can I Delete a Currency?", False)
+                    user_can_i_delete_currency.setToolTipText("This will tell you whether a Selected Currency is in use and whether you can delete it in Moneydance")
+
+                    user_list_curr_sec_dpc = JRadioButton("DIAG: List Security / Currency (hidden) decimal place settings", False)
+                    user_list_curr_sec_dpc.setToolTipText("This will list your Security and Currency hidden decimal place settings (and attempt to advise of setup errors)")
+
+                    user_diag_curr_sec = JRadioButton("DIAG: Diagnose currencies / securities (including relative currencies) (if errors see fix below) (based on reset_relative_currencies.py)", False)
+                    user_diag_curr_sec.setToolTipText("This will diagnose your Currency & Security setup, also checking relative currencies (and advise if you need to run a fix) (reset_relative_currencies.py)")
+
+                    user_diag_price_date = JRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
+                    user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
+
+                    user_edit_security_decimal_places = JRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly)", False)
+                    user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
+                    user_edit_security_decimal_places.setEnabled(GlobalVars.UPDATE_MODE and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
+                    user_edit_security_decimal_places.setForeground(getColorRed())
+
+                    user_merge_duplicate_securities = JRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False)
+                    user_merge_duplicate_securities.setToolTipText("Scans for 'duplicated' Securities and can merge together.. Tools>Securities>TickerSymbol is key, ID must be different... (Dpc, RelCurr, Rate, Splits must also match)")
+                    user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_merge_duplicate_securities.setForeground(getColorRed())
+
+                    user_autofix_price_date = JRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)", False)
+                    user_autofix_price_date.setToolTipText("This will diagnose then fix your Currency & Security's current price hidden price_date field (and current price/rate)....")
+                    user_autofix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_autofix_price_date.setForeground(getColorRed())
+
+                    user_fix_price_date = JRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field", False)
+                    user_fix_price_date.setToolTipText("Allows you to manually edit a Currency / Security's current price hidden 'price_date' field....")
+                    user_fix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_price_date.setForeground(getColorRed())
+
+                    user_fix_curr_sec = JRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False)
+                    user_fix_curr_sec.setToolTipText("This will apply fixes to your Currency (& security) / Relative Currency setup (use after running the diagnose option first). THIS CHANGES DATA!  (reset_relative_currencies.py)")
+                    user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
+                    user_fix_curr_sec.setForeground(getColorRed())
+
+                    user_fix_invalid_curr_sec = JRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates where <= (1.0/9999999999) or >= 9999999999 (fix_invalid_currency_rates.py)", False)
+                    user_fix_invalid_curr_sec.setToolTipText("This will reset any relative rates back to 1.0 where <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!  (fix_invalid_currency_rates.py)")
                     user_fix_invalid_curr_sec.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_invalid_curr_sec.setForeground(getColorRed())
+
+                    user_fix_invalid_price_history = JRadioButton("FIX: Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.", False)
+                    user_fix_invalid_price_history.setToolTipText("This will delete and invalid price history records where rate <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!")
                     user_fix_invalid_price_history.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_invalid_price_history.setForeground(getColorRed())
 
-                    # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
-                    if not check_all_currency_raw_rates_ok():
+                    user_force_change_accounts_currency = JRadioButton("FIX: FORCE Change an Account's Currency (force_change_account_currency.py)", False)
+                    user_force_change_accounts_currency.setToolTipText("This allows you to FORCE change an Account's currency - USE WITH CARE!.. THIS CHANGES DATA! (force_change_account_currency.py)")
+                    user_force_change_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_force_change_accounts_currency.setForeground(getColorRed())
 
-                        user_diag_curr_sec.setForeground(getColorBlue())
 
-                        if GlobalVars.UPDATE_MODE and not lAlertPopupShown:
+                    user_force_change_all_accounts_currency = JRadioButton("FIX: FORCE Change ALL Account's Currencies (force_change_all_currencies.py)", False)
+                    user_force_change_all_accounts_currency.setToolTipText("This allows you to FORCE change ALL Account's Currencies - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
+                    user_force_change_all_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_force_change_all_accounts_currency.setForeground(getColorRed())
 
-                            if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
-                                MyPopUpDialogBox(toolbox_frame_,
-                                                 "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
-                                                 "You have some Currency / Security records which were created in an older version of Moneydance\n"
-                                                 "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
-                                                 "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
-                                                 "OR BETTER >> Upgrade to Moneydance build %s onwards (as the MD code was fixed to deal with this data issue)\n"
-                                                 "Menu items will remain disabled until you do this...." %(MD_RRATE_ISSUE_FIXED_BUILD),
-                                                 lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
-                            else:
-                                MyPopUpDialogBox(toolbox_frame_,
-                                                 "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
-                                                 "You have some Currency / Security records which have a data issue\n"
-                                                 "These need to be fixed before Toolbox can allow some options\n"
-                                                 "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
-                                                 "Menu items will remain disabled until you do this....",
-                                                 lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
 
-                            lAlertPopupShown = True
+                    labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected **")
+                    labelFYI_curr_fix.setForeground(getColorRed())
 
-                        user_autofix_price_date.setEnabled(False)
-                        user_thin_price_history.setEnabled(False)
-                        user_fix_invalid_curr_sec.setEnabled(False)
-                        user_fix_invalid_price_history.setEnabled(False)
+                    userFilters = JPanel(GridLayout(0, 1))
 
-                        # Just disable if errors on Security records....
-                        if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
-                            user_edit_security_decimal_places.setEnabled(False)
-                            user_merge_duplicate_securities.setEnabled(False)
-
+                    bg = ButtonGroup()
+                    bg.add(user_fix_invalidLotRecords)
+                    bg.add(user_show_open_share_lots)
+                    bg.add(user_convert_stock_lot_FIFO)
+                    bg.add(user_convert_stock_avg_cst_control)
+                    bg.add(user_fix_nonlinked_security_records)
+                    bg.add(user_thin_price_history)
+                    bg.add(user_can_i_delete_security)
+                    bg.add(user_can_i_delete_currency)
+                    bg.add(user_list_curr_sec_dpc)
+                    bg.add(user_diag_curr_sec)
+                    bg.add(user_diag_price_date)
+                    bg.add(user_edit_security_decimal_places)
+                    bg.add(user_merge_duplicate_securities)
+                    bg.add(user_autofix_price_date)
+                    bg.add(user_fix_price_date)
+                    bg.add(user_fix_curr_sec)
+                    bg.add(user_fix_invalid_curr_sec)
+                    bg.add(user_fix_invalid_price_history)
+                    bg.add(user_force_change_accounts_currency)
+                    bg.add(user_force_change_all_accounts_currency)
                     bg.clearSelection()
 
-                    options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,1000,525)
-                    userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               jsp,
-                                                               "Currency / Security Diagnostics, Tools, Fixes",
-                                                               JOptionPane.OK_CANCEL_OPTION,
-                                                               JOptionPane.QUESTION_MESSAGE,
-                                                               getMDIcon(lAlwaysGetIcon=True),
-                                                               options, options[0]))
-                    if userAction != 1:
-                        return
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(user_diag_curr_sec)
+                    userFilters.add(user_can_i_delete_security)
+                    userFilters.add(user_can_i_delete_currency)
+                    userFilters.add(user_list_curr_sec_dpc)
+                    userFilters.add(user_show_open_share_lots)
+                    userFilters.add(user_diag_price_date)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
+                    if not GlobalVars.UPDATE_MODE:
+                        userFilters.add(labelFYI2)
+                    else:
+                        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
+                            userFilters.add(labelFYI_curr_fix)
 
-                    if user_can_i_delete_security.isSelected():
-                        can_I_delete_security()
-                        return
+                    userFilters.add(user_fix_curr_sec)
 
-                    if user_can_i_delete_currency.isSelected():
-                        can_I_delete_currency()
-                        return
+                    # These are new features - better supported from 2021.2 onwards
+                    if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
+                        userFilters.add(user_edit_security_decimal_places)
+                        userFilters.add(user_merge_duplicate_securities)
+                        userFilters.add(user_autofix_price_date)
+                        userFilters.add(user_fix_price_date)
 
-                    if user_list_curr_sec_dpc.isSelected():
-                        list_security_currency_decimal_places()
-                        return
+                    userFilters.add(user_fix_invalidLotRecords)
+                    userFilters.add(user_convert_stock_lot_FIFO)
+                    userFilters.add(user_convert_stock_avg_cst_control)
+                    userFilters.add(user_fix_nonlinked_security_records)
+                    userFilters.add(user_thin_price_history)
+                    userFilters.add(user_fix_invalid_curr_sec)
+                    userFilters.add(user_fix_invalid_price_history)
+                    userFilters.add(user_force_change_accounts_currency)
+                    userFilters.add(user_force_change_all_accounts_currency)
 
-                    if user_diag_price_date.isSelected():
-                        list_security_currency_price_date()
-                        return
+                    while True:
 
-                    if user_autofix_price_date.isSelected():
-                        list_security_currency_price_date(autofix=True)
-                        return
+                        user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
 
-                    if user_diag_curr_sec.isSelected():
-                        diagnose_currencies(False)
-                        return
+                        user_edit_security_decimal_places.setEnabled(GlobalVars.UPDATE_MODE and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
+                        user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
+                        user_autofix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
+                        user_thin_price_history.setEnabled(GlobalVars.UPDATE_MODE)
+                        user_fix_invalid_curr_sec.setEnabled(GlobalVars.UPDATE_MODE)
+                        user_fix_invalid_price_history.setEnabled(GlobalVars.UPDATE_MODE)
 
-                    if user_fix_curr_sec.isSelected():
-                        diagnose_currencies(True)
-                        return
+                        # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
+                        if not check_all_currency_raw_rates_ok():
 
-                    if user_fix_invalid_curr_sec.isSelected():
-                        fix_invalid_relative_currency_rates()
-                        return
+                            user_diag_curr_sec.setForeground(getColorBlue())
 
-                    if user_edit_security_decimal_places.isSelected():
-                        edit_security_decimal_places()
-                        return
+                            if GlobalVars.UPDATE_MODE and not lAlertPopupShown:
 
-                    if user_merge_duplicate_securities.isSelected():
-                        merge_duplicate_securities()
-                        return
+                                if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
+                                    MyPopUpDialogBox(toolbox_frame_,
+                                                     "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
+                                                     "You have some Currency / Security records which were created in an older version of Moneydance\n"
+                                                     "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
+                                                     "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
+                                                     "OR BETTER >> Upgrade to Moneydance build %s onwards (as the MD code was fixed to deal with this data issue)\n"
+                                                     "Menu items will remain disabled until you do this...." %(MD_RRATE_ISSUE_FIXED_BUILD),
+                                                     lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
+                                else:
+                                    MyPopUpDialogBox(toolbox_frame_,
+                                                     "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
+                                                     "You have some Currency / Security records which have a data issue\n"
+                                                     "These need to be fixed before Toolbox can allow some options\n"
+                                                     "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
+                                                     "Menu items will remain disabled until you do this....",
+                                                     lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
 
-                    if user_fix_invalid_price_history.isSelected():
-                        fix_invalid_price_history()
-                        return
+                                lAlertPopupShown = True
 
-                    if user_fix_nonlinked_security_records.isSelected():
-                        detect_fix_nonlinked_investment_security_records()
-                        return
+                            user_autofix_price_date.setEnabled(False)
+                            user_thin_price_history.setEnabled(False)
+                            user_fix_invalid_curr_sec.setEnabled(False)
+                            user_fix_invalid_price_history.setEnabled(False)
 
-                    if user_thin_price_history.isSelected():
-                        thin_price_history()
-                        return
+                            # Just disable if errors on Security records....
+                            if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
+                                user_edit_security_decimal_places.setEnabled(False)
+                                user_merge_duplicate_securities.setEnabled(False)
 
-                    if user_show_open_share_lots.isSelected():
-                        show_open_share_lots()
-                        return
+                        bg.clearSelection()
 
-                    if user_fix_invalidLotRecords.isSelected():
-                        fix_invalidLotRecords()
-                        return
+                        options = ["EXIT", "PROCEED"]
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,1000,525)
+                        userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                                   jsp,
+                                                                   "Currency / Security Diagnostics, Tools, Fixes",
+                                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                                   JOptionPane.QUESTION_MESSAGE,
+                                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                                   options, options[0]))
+                        if userAction != 1:
+                            return
 
-                    if user_convert_stock_lot_FIFO.isSelected():
-                        convert_stock_lot_FIFO()
-                        return
+                        selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                    if user_convert_stock_avg_cst_control.isSelected():
-                        convert_stock_avg_cst_control()
-                        return
+                        if user_can_i_delete_security.isSelected():
+                            can_I_delete_security()
+                            return
 
-                    if user_force_change_accounts_currency.isSelected():
-                        force_change_account_currency()
+                        if user_can_i_delete_currency.isSelected():
+                            can_I_delete_currency()
+                            return
 
-                    if user_force_change_all_accounts_currency.isSelected():
-                        force_change_all_accounts_currencies()
+                        if user_list_curr_sec_dpc.isSelected():
+                            list_security_currency_decimal_places()
+                            return
 
-                    if user_fix_price_date.isSelected():
-                        manually_edit_price_date_field()
+                        if user_diag_price_date.isSelected():
+                            list_security_currency_price_date()
+                            return
 
-                    continue
+                        if user_autofix_price_date.isSelected():
+                            list_security_currency_price_date(autofix=True)
+                            return
+
+                        if user_diag_curr_sec.isSelected():
+                            diagnose_currencies(False)
+                            return
+
+                        if user_fix_curr_sec.isSelected():
+                            diagnose_currencies(True)
+                            return
+
+                        if user_fix_invalid_curr_sec.isSelected():
+                            fix_invalid_relative_currency_rates()
+                            return
+
+                        if user_edit_security_decimal_places.isSelected():
+                            edit_security_decimal_places()
+                            return
+
+                        if user_merge_duplicate_securities.isSelected():
+                            merge_duplicate_securities()
+                            return
+
+                        if user_fix_invalid_price_history.isSelected():
+                            fix_invalid_price_history()
+                            return
+
+                        if user_fix_nonlinked_security_records.isSelected():
+                            detect_fix_nonlinked_investment_security_records()
+                            return
+
+                        if user_thin_price_history.isSelected():
+                            thin_price_history()
+                            return
+
+                        if user_show_open_share_lots.isSelected():
+                            show_open_share_lots()
+                            return
+
+                        if user_fix_invalidLotRecords.isSelected():
+                            fix_invalidLotRecords()
+                            return
+
+                        if user_convert_stock_lot_FIFO.isSelected():
+                            convert_stock_lot_FIFO()
+                            return
+
+                        if user_convert_stock_avg_cst_control.isSelected():
+                            convert_stock_avg_cst_control()
+                            return
+
+                        if user_force_change_accounts_currency.isSelected():
+                            force_change_account_currency()
+
+                        if user_force_change_all_accounts_currency.isSelected():
+                            force_change_all_accounts_currencies()
+
+                        if user_fix_price_date.isSelected():
+                            manually_edit_price_date_field()
+
+                        continue
+
+                except:
+                    myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
+                    dump_sys_error_to_md_console_and_errorlog()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -24516,147 +24532,152 @@ Now you will have a text readable version of the file you can open in a text edi
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                user_view_txn_sort = JRadioButton("View Register Transactional Sort Orders", False)
-                user_view_txn_sort.setToolTipText("Allows you  to view the current transaction register sort orders in operation")
+                try:
+                    user_view_txn_sort = JRadioButton("View Register Transactional Sort Orders", False)
+                    user_view_txn_sort.setToolTipText("Allows you  to view the current transaction register sort orders in operation")
 
-                user_extract_attachments = JRadioButton("Extract Attachments to Folder", False)
-                user_extract_attachments.setToolTipText("Extract all your attachments to a folder of your choosing...")
+                    user_extract_attachments = JRadioButton("Extract Attachments to Folder", False)
+                    user_extract_attachments.setToolTipText("Extract all your attachments to a folder of your choosing...")
 
-                user_diagnose_attachments = JRadioButton("DIAG: Diagnose Attachments and detect Orphans too", False)
-                user_diagnose_attachments.setToolTipText("This will analise your Attachments, show you the file storage consumed, and detect Orphans/issues")
+                    user_diagnose_attachments = JRadioButton("DIAG: Diagnose Attachments and detect Orphans too", False)
+                    user_diagnose_attachments.setToolTipText("This will analise your Attachments, show you the file storage consumed, and detect Orphans/issues")
 
-                syncFolder = None                                                                                       # noqa
-                try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
-                except: syncFolder = False
-
-                user_diagnose_fix_attachments = JRadioButton("FIX: Diagnose Attachments - DELETE Orphan attachments (** Syncing must be Disabled **)", False)
-                user_diagnose_fix_attachments.setToolTipText("This will analise your Attachments, detect Orphans/issues - AND ALLOW YOU TO DELETE THE ORPHAN ATTACHMENTS")
-                user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
-                user_diagnose_fix_attachments.setForeground(getColorRed())
-
-                # user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another (DISABLED >> NOW RUN FROM EXTENSIONS MENU)", False)
-                user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions >> NOW RUN FROM EXTENSIONS MENU <<", False)
-                user_move_invest_txns.setToolTipText("This allows you to move your investment transactions from one account into (merges with) another")
-                user_move_invest_txns.setEnabled(GlobalVars.UPDATE_MODE)
-                user_move_invest_txns.setForeground(getColorRed())
-                user_move_invest_txns.setEnabled(isToolboxUnlocked())
-
-                user_fix_non_hier_sec_acct_txns = JRadioButton("FIX: Non-Hierarchical Security Acct Txns (& detect Orphans) (fix_non-hierarchical_security_account_txns.py)", False)
-                user_fix_non_hier_sec_acct_txns.setToolTipText("This reviews your Investment Security Txns and fixes where the Account reference is cross-linked and incorrect (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)")
-                user_fix_non_hier_sec_acct_txns.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_non_hier_sec_acct_txns.setForeground(getColorRed())
-
-                user_fix_delete_one_sided_txns = JRadioButton("FIX: Delete One-Sided Transactions (delete_invalid_txns.py)", False)
-                user_fix_delete_one_sided_txns.setToolTipText("This allows you to DELETE 'invalid' one-sided transactions - usually from a bad quicken import. THIS CHANGES DATA! (delete_invalid_txns.py)")
-                user_fix_delete_one_sided_txns.setEnabled(GlobalVars.UPDATE_MODE)
-                user_fix_delete_one_sided_txns.setForeground(getColorRed())
-
-                user_reverse_txn_amounts = JRadioButton("FIX: Reverse Transaction Amounts (reverse_txn_amounts.py)", False)
-                user_reverse_txn_amounts.setToolTipText("This allows you to REVERSE the transaction values/amounts for an account within a date range. THIS CHANGES DATA! (reverse_txn_amounts.py)")
-                user_reverse_txn_amounts.setEnabled(GlobalVars.UPDATE_MODE)
-                user_reverse_txn_amounts.setForeground(getColorRed())
-
-                user_reverse_txn_exchange_rates_by_account_and_date = JRadioButton("FIX: Reverse Transaction Exchange Rates (reverse_txn_exchange_rates_by_account_and_date)", False)
-                user_reverse_txn_exchange_rates_by_account_and_date.setToolTipText("This allows you to REVERSE the transactional exchange rates for an account within a date range. THIS CHANGES DATA! (reverse_txn_exchange_rates_by_account_and_date)")
-                user_reverse_txn_exchange_rates_by_account_and_date.setEnabled(GlobalVars.UPDATE_MODE)
-                user_reverse_txn_exchange_rates_by_account_and_date.setForeground(getColorRed())
-
-                labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                labelFYI2.setForeground(getColorRed())
-
-                userFilters = JPanel(GridLayout(0, 1))
-
-                bg = ButtonGroup()
-                bg.add(user_view_txn_sort)
-                bg.add(user_extract_attachments)
-                bg.add(user_diagnose_attachments)
-                bg.add(user_diagnose_fix_attachments)
-                bg.add(user_move_invest_txns)
-                bg.add(user_fix_non_hier_sec_acct_txns)
-                bg.add(user_fix_delete_one_sided_txns)
-                bg.add(user_reverse_txn_amounts)
-                bg.add(user_reverse_txn_exchange_rates_by_account_and_date)
-                bg.clearSelection()
-
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
-                userFilters.add(user_view_txn_sort)
-                userFilters.add(user_extract_attachments)
-                userFilters.add(user_diagnose_attachments)
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-
-                if not GlobalVars.UPDATE_MODE:
-                    userFilters.add(labelFYI2)
-
-                # These are new features - better supported from 2021.2 onwards
-                if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
-                    userFilters.add(user_move_invest_txns)
-
-                userFilters.add(user_diagnose_fix_attachments)
-                userFilters.add(user_fix_non_hier_sec_acct_txns)
-                userFilters.add(user_fix_delete_one_sided_txns)
-                userFilters.add(user_reverse_txn_amounts)
-                userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
-
-                while True:
-
-                    syncFolder = None                                                                                   # noqa
+                    syncFolder = None                                                                                       # noqa
                     try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
                     except: syncFolder = False
+
+                    user_diagnose_fix_attachments = JRadioButton("FIX: Diagnose Attachments - DELETE Orphan attachments (** Syncing must be Disabled **)", False)
+                    user_diagnose_fix_attachments.setToolTipText("This will analise your Attachments, detect Orphans/issues - AND ALLOW YOU TO DELETE THE ORPHAN ATTACHMENTS")
                     user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
+                    user_diagnose_fix_attachments.setForeground(getColorRed())
 
-                    options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,850,300)
-                    userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               jsp,
-                                                               "Transaction(s) Diagnostics, Tools, Fixes",
-                                                               JOptionPane.OK_CANCEL_OPTION,
-                                                               JOptionPane.QUESTION_MESSAGE,
-                                                               getMDIcon(lAlwaysGetIcon=True),
-                                                               options, options[0]))
-                    if userAction != 1:
-                        return
+                    # user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another (DISABLED >> NOW RUN FROM EXTENSIONS MENU)", False)
+                    user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions >> NOW RUN FROM EXTENSIONS MENU <<", False)
+                    user_move_invest_txns.setToolTipText("This allows you to move your investment transactions from one account into (merges with) another")
+                    user_move_invest_txns.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_move_invest_txns.setForeground(getColorRed())
+                    user_move_invest_txns.setEnabled(isToolboxUnlocked())
 
-                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
+                    user_fix_non_hier_sec_acct_txns = JRadioButton("FIX: Non-Hierarchical Security Acct Txns (& detect Orphans) (fix_non-hierarchical_security_account_txns.py)", False)
+                    user_fix_non_hier_sec_acct_txns.setToolTipText("This reviews your Investment Security Txns and fixes where the Account reference is cross-linked and incorrect (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)")
+                    user_fix_non_hier_sec_acct_txns.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_non_hier_sec_acct_txns.setForeground(getColorRed())
 
-                    if user_view_txn_sort.isSelected():
-                        get_register_txn_sort_orders()
-                        return
+                    user_fix_delete_one_sided_txns = JRadioButton("FIX: Delete One-Sided Transactions (delete_invalid_txns.py)", False)
+                    user_fix_delete_one_sided_txns.setToolTipText("This allows you to DELETE 'invalid' one-sided transactions - usually from a bad quicken import. THIS CHANGES DATA! (delete_invalid_txns.py)")
+                    user_fix_delete_one_sided_txns.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_delete_one_sided_txns.setForeground(getColorRed())
 
-                    if user_extract_attachments.isSelected():
-                        extract_attachments()
-                        return
+                    user_reverse_txn_amounts = JRadioButton("FIX: Reverse Transaction Amounts (reverse_txn_amounts.py)", False)
+                    user_reverse_txn_amounts.setToolTipText("This allows you to REVERSE the transaction values/amounts for an account within a date range. THIS CHANGES DATA! (reverse_txn_amounts.py)")
+                    user_reverse_txn_amounts.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_reverse_txn_amounts.setForeground(getColorRed())
 
-                    if user_diagnose_attachments.isSelected():
-                        diagnose_attachments()
-                        return
+                    user_reverse_txn_exchange_rates_by_account_and_date = JRadioButton("FIX: Reverse Transaction Exchange Rates (reverse_txn_exchange_rates_by_account_and_date)", False)
+                    user_reverse_txn_exchange_rates_by_account_and_date.setToolTipText("This allows you to REVERSE the transactional exchange rates for an account within a date range. THIS CHANGES DATA! (reverse_txn_exchange_rates_by_account_and_date)")
+                    user_reverse_txn_exchange_rates_by_account_and_date.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_reverse_txn_exchange_rates_by_account_and_date.setForeground(getColorRed())
 
-                    if user_diagnose_fix_attachments.isSelected():
-                        diagnose_attachments(lFix=True)
-                        return
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
 
-                    if user_move_invest_txns.isSelected():
-                        move_merge_investment_txns()
-                        return
+                    userFilters = JPanel(GridLayout(0, 1))
 
-                    if user_fix_non_hier_sec_acct_txns.isSelected():
-                        fix_non_hier_sec_acct_txns()
-                        return
+                    bg = ButtonGroup()
+                    bg.add(user_view_txn_sort)
+                    bg.add(user_extract_attachments)
+                    bg.add(user_diagnose_attachments)
+                    bg.add(user_diagnose_fix_attachments)
+                    bg.add(user_move_invest_txns)
+                    bg.add(user_fix_non_hier_sec_acct_txns)
+                    bg.add(user_fix_delete_one_sided_txns)
+                    bg.add(user_reverse_txn_amounts)
+                    bg.add(user_reverse_txn_exchange_rates_by_account_and_date)
+                    bg.clearSelection()
 
-                    if user_fix_delete_one_sided_txns.isSelected():
-                        fix_delete_one_sided_txns()
-                        return
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(user_view_txn_sort)
+                    userFilters.add(user_extract_attachments)
+                    userFilters.add(user_diagnose_attachments)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    if user_reverse_txn_amounts.isSelected():
-                        reverse_txn_amounts()
-                        return
+                    if not GlobalVars.UPDATE_MODE:
+                        userFilters.add(labelFYI2)
 
-                    if user_reverse_txn_exchange_rates_by_account_and_date.isSelected():
-                        reverse_txn_exchange_rates_by_account_and_date()
-                        return
+                    # These are new features - better supported from 2021.2 onwards
+                    if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
+                        userFilters.add(user_move_invest_txns)
 
-                    continue
+                    userFilters.add(user_diagnose_fix_attachments)
+                    userFilters.add(user_fix_non_hier_sec_acct_txns)
+                    userFilters.add(user_fix_delete_one_sided_txns)
+                    userFilters.add(user_reverse_txn_amounts)
+                    userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
+
+                    while True:
+
+                        syncFolder = None                                                                                   # noqa
+                        try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
+                        except: syncFolder = False
+                        user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
+
+                        options = ["EXIT", "PROCEED"]
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,300)
+                        userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                                   jsp,
+                                                                   "Transaction(s) Diagnostics, Tools, Fixes",
+                                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                                   JOptionPane.QUESTION_MESSAGE,
+                                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                                   options, options[0]))
+                        if userAction != 1:
+                            return
+
+                        selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
+
+                        if user_view_txn_sort.isSelected():
+                            get_register_txn_sort_orders()
+                            return
+
+                        if user_extract_attachments.isSelected():
+                            extract_attachments()
+                            return
+
+                        if user_diagnose_attachments.isSelected():
+                            diagnose_attachments()
+                            return
+
+                        if user_diagnose_fix_attachments.isSelected():
+                            diagnose_attachments(lFix=True)
+                            return
+
+                        if user_move_invest_txns.isSelected():
+                            move_merge_investment_txns()
+                            return
+
+                        if user_fix_non_hier_sec_acct_txns.isSelected():
+                            fix_non_hier_sec_acct_txns()
+                            return
+
+                        if user_fix_delete_one_sided_txns.isSelected():
+                            fix_delete_one_sided_txns()
+                            return
+
+                        if user_reverse_txn_amounts.isSelected():
+                            reverse_txn_amounts()
+                            return
+
+                        if user_reverse_txn_exchange_rates_by_account_and_date.isSelected():
+                            reverse_txn_exchange_rates_by_account_and_date()
+                            return
+
+                        continue
+
+                except:
+                    myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
+                    dump_sys_error_to_md_console_and_errorlog()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -24668,181 +24689,186 @@ Now you will have a text readable version of the file you can open in a text edi
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                user_display_passwords = JRadioButton("Display Dataset Password/Hint and Sync Passphrase", False)
-                user_display_passwords.setToolTipText("Display the password/hint used to open your Encrypted Dataset, and also your Sync passphrase (if set)")
+                try:
+                    user_display_passwords = JRadioButton("Display Dataset Password/Hint and Sync Passphrase", False)
+                    user_display_passwords.setToolTipText("Display the password/hint used to open your Encrypted Dataset, and also your Sync passphrase (if set)")
 
-                user_view_MD_config_file = JRadioButton("View MD Config File", False)
-                user_view_MD_config_file.setToolTipText("View the contents of your Moneydance configuration file")
+                    user_view_MD_config_file = JRadioButton("View MD Config File", False)
+                    user_view_MD_config_file.setToolTipText("View the contents of your Moneydance configuration file")
 
-                user_view_searchable_console_log = JRadioButton("View Searchable Console Log", False)
-                user_view_searchable_console_log.setToolTipText("View the whole Console log file - searchable")
+                    user_view_searchable_console_log = JRadioButton("View Searchable Console Log", False)
+                    user_view_searchable_console_log.setToolTipText("View the whole Console log file - searchable")
 
-                user_view_MD_custom_theme_file = JRadioButton("View MD Custom Theme File", False)
-                user_view_MD_custom_theme_file.setToolTipText("View the contents of your Moneydance custom Theme file (if you have set one up)")
-                user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))    # noqa
-
-                grabProgramDir = find_the_program_install_dir()
-                user_view_java_vmoptions = JRadioButton("View Java VM Options File", False)
-                user_view_java_vmoptions.setToolTipText("View the contents of the Java VM Options runtime file that Moneydance uses")
-                user_view_java_vmoptions.setEnabled(grabProgramDir and os.path.exists(os.path.join(grabProgramDir,"Moneydance.vmoptions")))
-
-                user_view_extensions_details = JRadioButton("View Extension(s) details", False)
-                user_view_extensions_details.setToolTipText("View details about the Extensions installed in your Moneydance system")
-
-                user_view_memorised_reports = JRadioButton("View Memorised Reports", False)
-                user_view_memorised_reports.setToolTipText("View a list of your Memorised reports")
-
-                user_find_sync_password_in_ios_backups = JRadioButton("Find Sync Password in iOS Backups (only on Windows and Mac)", False)
-                user_find_sync_password_in_ios_backups.setToolTipText("This search for iOS backup(s) and look for your Sync Encryption password(s)")
-                user_find_sync_password_in_ios_backups.setEnabled(Platform.isOSX() or Platform.isWindows())
-
-                user_import_QIF = JRadioButton("'Older' Import QIF file and set parameters", False)
-                user_import_QIF.setToolTipText("Runs the 'older' MD importQIFIntoAccount() function and allows you to set parameters (you can select create Account Structure Only) - WILL IMPORT / CHANGE DATA!")
-
-                user_convert_timestamp = JRadioButton("Convert a TimeStamp number into a readable date/time", False)
-                user_convert_timestamp.setToolTipText("Allows you to input a TimeStamp (Milliseconds) and it will display a readable date/time")
-
-                user_change_moneydance_fonts = JRadioButton("Set/Change Default Moneydance FONTS", False)
-                user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
-                user_change_moneydance_fonts.setEnabled(GlobalVars.UPDATE_MODE and float(MD_REF.getBuild()) >= 3030)
-                user_change_moneydance_fonts.setForeground(getColorRed())
-
-                user_delete_custom_theme_file = JRadioButton("Delete Custom Theme file", False)
-                user_delete_custom_theme_file.setToolTipText("Delete your custom Theme file (if it exists). This is pretty safe. MD will create a new one if you select in Preferences. THIS DELETES A FILE!")
-                user_delete_custom_theme_file.setEnabled(GlobalVars.UPDATE_MODE and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
-                user_delete_custom_theme_file.setForeground(getColorRed())
-
-                user_delete_orphan_extensions = JRadioButton("FIX: Delete Orphaned Extensions", False)
-                user_delete_orphan_extensions.setToolTipText("This will delete any references to orphaned / outdated Extensions (config.dict & .mxt files). THIS CHANGES DATA!")
-                user_delete_orphan_extensions.setEnabled(GlobalVars.UPDATE_MODE)
-                user_delete_orphan_extensions.setForeground(getColorRed())
-
-                user_reset_window_display_settings = JRadioButton("RESET Window Display Settings", False)
-                user_reset_window_display_settings.setToolTipText("This tells MD to 'forget' window display settings. CLOSE ALL REGISTER WINDOWS FIRST! The beauty is it keeps all other settings intact! THIS CHANGES DATA!")
-                user_reset_window_display_settings.setEnabled(GlobalVars.UPDATE_MODE)
-                user_reset_window_display_settings.setForeground(getColorRed())
-
-                labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                labelFYI2.setForeground(getColorRed())
-
-                userFilters = JPanel(GridLayout(0, 1))
-
-                bg = ButtonGroup()
-                bg.add(user_display_passwords)
-                bg.add(user_view_MD_config_file)
-                bg.add(user_view_searchable_console_log)
-                bg.add(user_view_MD_custom_theme_file)
-                bg.add(user_view_java_vmoptions)
-                bg.add(user_view_extensions_details)
-                bg.add(user_view_memorised_reports)
-                bg.add(user_find_sync_password_in_ios_backups)
-                bg.add(user_import_QIF)
-                bg.add(user_convert_timestamp)
-                bg.add(user_change_moneydance_fonts)
-                bg.add(user_delete_custom_theme_file)
-                bg.add(user_delete_orphan_extensions)
-                bg.add(user_reset_window_display_settings)
-                bg.clearSelection()
-
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
-                userFilters.add(user_display_passwords)
-                userFilters.add(user_view_searchable_console_log)
-                userFilters.add(user_view_MD_config_file)
-                userFilters.add(user_view_MD_custom_theme_file)
-                userFilters.add(user_view_java_vmoptions)
-                userFilters.add(user_view_extensions_details)
-                userFilters.add(user_view_memorised_reports)
-                userFilters.add(user_find_sync_password_in_ios_backups)
-                userFilters.add(user_import_QIF)
-                userFilters.add(user_convert_timestamp)
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-
-                if not GlobalVars.UPDATE_MODE:
-                    userFilters.add(labelFYI2)
-
-                userFilters.add(user_change_moneydance_fonts)
-                userFilters.add(user_delete_custom_theme_file)
-                userFilters.add(user_delete_orphan_extensions)
-                userFilters.add(user_reset_window_display_settings)
-
-                while True:
+                    user_view_MD_custom_theme_file = JRadioButton("View MD Custom Theme File", False)
+                    user_view_MD_custom_theme_file.setToolTipText("View the contents of your Moneydance custom Theme file (if you have set one up)")
+                    user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))    # noqa
 
                     grabProgramDir = find_the_program_install_dir()
+                    user_view_java_vmoptions = JRadioButton("View Java VM Options File", False)
+                    user_view_java_vmoptions.setToolTipText("View the contents of the Java VM Options runtime file that Moneydance uses")
                     user_view_java_vmoptions.setEnabled(grabProgramDir and os.path.exists(os.path.join(grabProgramDir,"Moneydance.vmoptions")))
-                    user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                    # noqa
+
+                    user_view_extensions_details = JRadioButton("View Extension(s) details", False)
+                    user_view_extensions_details.setToolTipText("View details about the Extensions installed in your Moneydance system")
+
+                    user_view_memorised_reports = JRadioButton("View Memorised Reports", False)
+                    user_view_memorised_reports.setToolTipText("View a list of your Memorised reports")
+
+                    user_find_sync_password_in_ios_backups = JRadioButton("Find Sync Password in iOS Backups (only on Windows and Mac)", False)
+                    user_find_sync_password_in_ios_backups.setToolTipText("This search for iOS backup(s) and look for your Sync Encryption password(s)")
+                    user_find_sync_password_in_ios_backups.setEnabled(Platform.isOSX() or Platform.isWindows())
+
+                    user_import_QIF = JRadioButton("'Older' Import QIF file and set parameters", False)
+                    user_import_QIF.setToolTipText("Runs the 'older' MD importQIFIntoAccount() function and allows you to set parameters (you can select create Account Structure Only) - WILL IMPORT / CHANGE DATA!")
+
+                    user_convert_timestamp = JRadioButton("Convert a TimeStamp number into a readable date/time", False)
+                    user_convert_timestamp.setToolTipText("Allows you to input a TimeStamp (Milliseconds) and it will display a readable date/time")
+
+                    user_change_moneydance_fonts = JRadioButton("Set/Change Default Moneydance FONTS", False)
+                    user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
+                    user_change_moneydance_fonts.setEnabled(GlobalVars.UPDATE_MODE and float(MD_REF.getBuild()) >= 3030)
+                    user_change_moneydance_fonts.setForeground(getColorRed())
+
+                    user_delete_custom_theme_file = JRadioButton("Delete Custom Theme file", False)
+                    user_delete_custom_theme_file.setToolTipText("Delete your custom Theme file (if it exists). This is pretty safe. MD will create a new one if you select in Preferences. THIS DELETES A FILE!")
                     user_delete_custom_theme_file.setEnabled(GlobalVars.UPDATE_MODE and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
+                    user_delete_custom_theme_file.setForeground(getColorRed())
+
+                    user_delete_orphan_extensions = JRadioButton("FIX: Delete Orphaned Extensions", False)
+                    user_delete_orphan_extensions.setToolTipText("This will delete any references to orphaned / outdated Extensions (config.dict & .mxt files). THIS CHANGES DATA!")
+                    user_delete_orphan_extensions.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_delete_orphan_extensions.setForeground(getColorRed())
+
+                    user_reset_window_display_settings = JRadioButton("RESET Window Display Settings", False)
+                    user_reset_window_display_settings.setToolTipText("This tells MD to 'forget' window display settings. CLOSE ALL REGISTER WINDOWS FIRST! The beauty is it keeps all other settings intact! THIS CHANGES DATA!")
+                    user_reset_window_display_settings.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_reset_window_display_settings.setForeground(getColorRed())
+
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
+
+                    userFilters = JPanel(GridLayout(0, 1))
+
+                    bg = ButtonGroup()
+                    bg.add(user_display_passwords)
+                    bg.add(user_view_MD_config_file)
+                    bg.add(user_view_searchable_console_log)
+                    bg.add(user_view_MD_custom_theme_file)
+                    bg.add(user_view_java_vmoptions)
+                    bg.add(user_view_extensions_details)
+                    bg.add(user_view_memorised_reports)
+                    bg.add(user_find_sync_password_in_ios_backups)
+                    bg.add(user_import_QIF)
+                    bg.add(user_convert_timestamp)
+                    bg.add(user_change_moneydance_fonts)
+                    bg.add(user_delete_custom_theme_file)
+                    bg.add(user_delete_orphan_extensions)
+                    bg.add(user_reset_window_display_settings)
                     bg.clearSelection()
 
-                    options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,550,450)
-                    userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               jsp,
-                                                               "General Diagnostics, Tools, Fixes",
-                                                               JOptionPane.OK_CANCEL_OPTION,
-                                                               JOptionPane.QUESTION_MESSAGE,
-                                                               getMDIcon(lAlwaysGetIcon=True),
-                                                               options, options[0]))
-                    if userAction != 1:
-                        return
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(user_display_passwords)
+                    userFilters.add(user_view_searchable_console_log)
+                    userFilters.add(user_view_MD_config_file)
+                    userFilters.add(user_view_MD_custom_theme_file)
+                    userFilters.add(user_view_java_vmoptions)
+                    userFilters.add(user_view_extensions_details)
+                    userFilters.add(user_view_memorised_reports)
+                    userFilters.add(user_find_sync_password_in_ios_backups)
+                    userFilters.add(user_import_QIF)
+                    userFilters.add(user_convert_timestamp)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    if user_display_passwords.isSelected():
-                        display_passwords()
+                    if not GlobalVars.UPDATE_MODE:
+                        userFilters.add(labelFYI2)
 
-                    if user_view_searchable_console_log.isSelected():
-                        x = ViewFileButtonAction(MD_REF.getLogFile(), "MD Console Log")
-                        x.actionPerformed(None)
-                        return
+                    userFilters.add(user_change_moneydance_fonts)
+                    userFilters.add(user_delete_custom_theme_file)
+                    userFilters.add(user_delete_orphan_extensions)
+                    userFilters.add(user_reset_window_display_settings)
 
-                    if user_view_MD_config_file.isSelected():
-                        x = ViewFileButtonAction(Common.getPreferencesFile(), "MD Config")
-                        x.actionPerformed(None)
-                        return
+                    while True:
 
-                    if user_view_MD_custom_theme_file.isSelected():
-                        x = ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme")                          # noqa
-                        x.actionPerformed(None)
-                        return
+                        grabProgramDir = find_the_program_install_dir()
+                        user_view_java_vmoptions.setEnabled(grabProgramDir and os.path.exists(os.path.join(grabProgramDir,"Moneydance.vmoptions")))
+                        user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                    # noqa
+                        user_delete_custom_theme_file.setEnabled(GlobalVars.UPDATE_MODE and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
+                        bg.clearSelection()
 
-                    if user_view_java_vmoptions.isSelected():
-                        x = ViewFileButtonAction(File(grabProgramDir, "Moneydance.vmoptions"), "Java VM File")
-                        x.actionPerformed(None)
-                        return
+                        options = ["EXIT", "PROCEED"]
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,450)
+                        userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                                   jsp,
+                                                                   "General Diagnostics, Tools, Fixes",
+                                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                                   JOptionPane.QUESTION_MESSAGE,
+                                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                                   options, options[0]))
+                        if userAction != 1:
+                            return
 
-                    if user_view_extensions_details.isSelected():
-                        view_extensions_details()
-                        return
+                        if user_display_passwords.isSelected():
+                            display_passwords()
 
-                    if user_view_memorised_reports.isSelected():
-                        get_list_memorised_reports()
-                        return
+                        if user_view_searchable_console_log.isSelected():
+                            x = ViewFileButtonAction(MD_REF.getLogFile(), "MD Console Log")
+                            x.actionPerformed(None)
+                            return
 
-                    if user_find_sync_password_in_ios_backups.isSelected():
-                        find_IOS_sync_data()
-                        return
+                        if user_view_MD_config_file.isSelected():
+                            x = ViewFileButtonAction(Common.getPreferencesFile(), "MD Config")
+                            x.actionPerformed(None)
+                            return
 
-                    if user_import_QIF.isSelected():
-                        import_QIF()
+                        if user_view_MD_custom_theme_file.isSelected():
+                            x = ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme")                          # noqa
+                            x.actionPerformed(None)
+                            return
 
-                    if user_convert_timestamp.isSelected():
-                        convert_timestamp_readable_date()
+                        if user_view_java_vmoptions.isSelected():
+                            x = ViewFileButtonAction(File(grabProgramDir, "Moneydance.vmoptions"), "Java VM File")
+                            x.actionPerformed(None)
+                            return
 
-                    if user_change_moneydance_fonts.isSelected():
-                        change_fonts()
+                        if user_view_extensions_details.isSelected():
+                            view_extensions_details()
+                            return
 
-                    if user_delete_custom_theme_file.isSelected():
-                        delete_theme_file()
+                        if user_view_memorised_reports.isSelected():
+                            get_list_memorised_reports()
+                            return
 
-                    if user_delete_orphan_extensions.isSelected():
-                        force_remove_extension()
-                        return
+                        if user_find_sync_password_in_ios_backups.isSelected():
+                            find_IOS_sync_data()
+                            return
 
-                    if user_reset_window_display_settings.isSelected():
-                        reset_window_positions()
-                        return
+                        if user_import_QIF.isSelected():
+                            import_QIF()
 
-                    continue
+                        if user_convert_timestamp.isSelected():
+                            convert_timestamp_readable_date()
+
+                        if user_change_moneydance_fonts.isSelected():
+                            change_fonts()
+
+                        if user_delete_custom_theme_file.isSelected():
+                            delete_theme_file()
+
+                        if user_delete_orphan_extensions.isSelected():
+                            force_remove_extension()
+                            return
+
+                        if user_reset_window_display_settings.isSelected():
+                            reset_window_positions()
+                            return
+
+                        continue
+
+                except:
+                    myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
+                    dump_sys_error_to_md_console_and_errorlog()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
@@ -24856,223 +24882,228 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 # if not GlobalVars.ADVANCED_MODE: return
 
-                user_ofx_features = JRadioButton("OFX Advanced Mode Options appear in 'MENU: Online Banking (OFX) Tools'...", False)
-                user_ofx_features.setEnabled(False)
+                try:
+                    user_ofx_features = JRadioButton("OFX Advanced Mode Options appear in 'MENU: Online Banking (OFX) Tools'...", False)
+                    user_ofx_features.setEnabled(False)
 
-                user_advanced_mode_edit_prefs = JRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False)
-                user_advanced_mode_edit_prefs.setToolTipText("This allows you to MODIFY (add/change/delete) config.dict and LocalStorage() (./safe/settings) keys..... CAN UPDATE DATA")
-                user_advanced_mode_edit_prefs.setForeground(getColorRed())
-                user_advanced_mode_edit_prefs.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_mode_edit_prefs = JRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False)
+                    user_advanced_mode_edit_prefs.setToolTipText("This allows you to MODIFY (add/change/delete) config.dict and LocalStorage() (./safe/settings) keys..... CAN UPDATE DATA")
+                    user_advanced_mode_edit_prefs.setForeground(getColorRed())
+                    user_advanced_mode_edit_prefs.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_edit_param_keys = JRadioButton("ADD/CHG/DEL Database Object (ie Account, Currency, any object)", False)
-                user_advanced_edit_param_keys.setToolTipText("This allows you to MODIFY (add/change/delete) an Object's Parameter keys..... CAN UPDATE DATA - ONLY USE IF YOU KNOW WHAT YOU ARE DOING")
-                user_advanced_edit_param_keys.setForeground(getColorRed())
-                user_advanced_edit_param_keys.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_edit_param_keys = JRadioButton("ADD/CHG/DEL Database Object (ie Account, Currency, any object)", False)
+                    user_advanced_edit_param_keys.setToolTipText("This allows you to MODIFY (add/change/delete) an Object's Parameter keys..... CAN UPDATE DATA - ONLY USE IF YOU KNOW WHAT YOU ARE DOING")
+                    user_advanced_edit_param_keys.setForeground(getColorRed())
+                    user_advanced_edit_param_keys.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_delete_int_ext_files = JRadioButton("DELETE Files from Filelist and DISK", False)
-                user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
-                user_advanced_delete_int_ext_files.setForeground(getColorRed())
-                user_advanced_delete_int_ext_files.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_delete_int_ext_files = JRadioButton("DELETE Files from Filelist and DISK", False)
+                    user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
+                    user_advanced_delete_int_ext_files.setForeground(getColorRed())
+                    user_advanced_delete_int_ext_files.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_toggle_DEBUG = JRadioButton("Toggle Moneydance DEBUG", False)
-                user_advanced_toggle_DEBUG.setToolTipText("This will toggle Moneydance's internal DEBUG setting(s) ON/OFF.....")
-                user_advanced_toggle_DEBUG.setForeground(getColorRed())
-                user_advanced_toggle_DEBUG.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_toggle_DEBUG = JRadioButton("Toggle Moneydance DEBUG", False)
+                    user_advanced_toggle_DEBUG.setToolTipText("This will toggle Moneydance's internal DEBUG setting(s) ON/OFF.....")
+                    user_advanced_toggle_DEBUG.setForeground(getColorRed())
+                    user_advanced_toggle_DEBUG.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_toggle_other_DEBUGs = JRadioButton("Toggle Other Moneydance DEBUGs", False)
-                user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
-                user_advanced_toggle_other_DEBUGs.setForeground(getColorRed())
-                user_advanced_toggle_other_DEBUGs.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_toggle_other_DEBUGs = JRadioButton("Toggle Other Moneydance DEBUGs", False)
+                    user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
+                    user_advanced_toggle_other_DEBUGs.setForeground(getColorRed())
+                    user_advanced_toggle_other_DEBUGs.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_extract_from_storage = JRadioButton("Extract a File from LocalStorage", False)
-                user_advanced_extract_from_storage.setToolTipText("This allows you to select & extract (decrypt) a file from inside LocalStorage (copied to TMP dir)..... FILE SELF DESTRUCTS AFTER RESTART")
-                user_advanced_extract_from_storage.setForeground(getColorRed())
-                user_advanced_extract_from_storage.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_extract_from_storage = JRadioButton("Extract a File from LocalStorage", False)
+                    user_advanced_extract_from_storage.setToolTipText("This allows you to select & extract (decrypt) a file from inside LocalStorage (copied to TMP dir)..... FILE SELF DESTRUCTS AFTER RESTART")
+                    user_advanced_extract_from_storage.setForeground(getColorRed())
+                    user_advanced_extract_from_storage.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_extract_from_sync = JRadioButton("Peek at an encrypted file located in your Sync Folder...", False)
-                user_advanced_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
-                user_advanced_extract_from_sync.setForeground(getColorRed())
-                user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_extract_from_sync = JRadioButton("Peek at an encrypted file located in your Sync Folder...", False)
+                    user_advanced_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
+                    user_advanced_extract_from_sync.setForeground(getColorRed())
+                    user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_shrink_dataset = JRadioButton("Shrink Dataset size", False)
-                user_advanced_shrink_dataset.setToolTipText("This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...")
-                user_advanced_shrink_dataset.setForeground(getColorRed())
-                user_advanced_shrink_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_shrink_dataset = JRadioButton("Shrink Dataset size", False)
+                    user_advanced_shrink_dataset.setToolTipText("This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...")
+                    user_advanced_shrink_dataset.setForeground(getColorRed())
+                    user_advanced_shrink_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_import_to_storage = JRadioButton("Import a File back into LocalStorage", False)
-                user_advanced_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
-                user_advanced_import_to_storage.setForeground(getColorRed())
-                user_advanced_import_to_storage.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_import_to_storage = JRadioButton("Import a File back into LocalStorage", False)
+                    user_advanced_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
+                    user_advanced_import_to_storage.setForeground(getColorRed())
+                    user_advanced_import_to_storage.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_save_trunk = JRadioButton("Save Trunk File (Flush all in-memory changes & dataset to disk)", False)
-                user_advanced_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart). UPDATES YOUR DATASET")
-                user_advanced_save_trunk.setForeground(getColorRed())
-                user_advanced_save_trunk.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_save_trunk = JRadioButton("Save Trunk File (Flush all in-memory changes & dataset to disk)", False)
+                    user_advanced_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart). UPDATES YOUR DATASET")
+                    user_advanced_save_trunk.setForeground(getColorRed())
+                    user_advanced_save_trunk.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_sync_push = JRadioButton("Force a refresh/PUSH of your local dataset to Sync.", False)
-                user_advanced_sync_push.setToolTipText("Push new Sync data (and rebuild remote copies). Use with care! UPDATES YOUR DATASET")
-                user_advanced_sync_push.setForeground(getColorRed())
-                user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_sync_push = JRadioButton("Force a refresh/PUSH of your local dataset to Sync.", False)
+                    user_advanced_sync_push.setToolTipText("Push new Sync data (and rebuild remote copies). Use with care! UPDATES YOUR DATASET")
+                    user_advanced_sync_push.setForeground(getColorRed())
+                    user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_advanced_clone_dataset = JRadioButton("Clone Dataset's structure (purge transactional data)", False)
-                user_advanced_clone_dataset.setToolTipText("Clones you dataset, keeps the structures, purges the transactional data - CREATES NEW DATASET")
-                user_advanced_clone_dataset.setForeground(getColorRed())
-                user_advanced_clone_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_advanced_clone_dataset = JRadioButton("Clone Dataset's structure (purge transactional data)", False)
+                    user_advanced_clone_dataset.setToolTipText("Clones you dataset, keeps the structures, purges the transactional data - CREATES NEW DATASET")
+                    user_advanced_clone_dataset.setForeground(getColorRed())
+                    user_advanced_clone_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_force_sync_off = JRadioButton("Force DISABLE/turn Sync OFF", False)
-                user_force_sync_off.setToolTipText("This sets your Sync method to None - all other settings are preserved. You can turn it back on again later - UPDATES YOUR DATASET")
-                user_force_sync_off.setForeground(getColorRed())
-                user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_force_sync_off = JRadioButton("Force DISABLE/turn Sync OFF", False)
+                    user_force_sync_off.setToolTipText("This sets your Sync method to None - all other settings are preserved. You can turn it back on again later - UPDATES YOUR DATASET")
+                    user_force_sync_off.setForeground(getColorRed())
+                    user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_force_reset_sync_settings = JRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False)
-                user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
-                user_force_reset_sync_settings.setForeground(getColorRed())
-                user_force_reset_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
+                    user_force_reset_sync_settings = JRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False)
+                    user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
+                    user_force_reset_sync_settings.setForeground(getColorRed())
+                    user_force_reset_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                user_demote_primary_to_secondary = JRadioButton("DEMOTE Primary dataset back to a Secondary Node", False)
-                user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
-                user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
-                user_demote_primary_to_secondary.setForeground(getColorRed())
-
-                lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
-                user_advanced_suppress_dropbox_warning = JRadioButton("Suppress File in Dropbox Warning", False)
-                user_advanced_suppress_dropbox_warning.setToolTipText("This allows you to suppress the 'Your file seems to be in a shared folder (Dropbox)' warning")
-                user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and lDropbox and not lSuppressed)
-                user_advanced_suppress_dropbox_warning.setForeground(getColorRed())
-
-                userFilters = JPanel(GridLayout(0, 1))
-
-                bg = ButtonGroup()
-                bg.add(user_ofx_features)
-                bg.add(user_advanced_toggle_DEBUG)
-                bg.add(user_advanced_toggle_other_DEBUGs)
-                bg.add(user_advanced_extract_from_storage)
-                bg.add(user_advanced_extract_from_sync)
-                bg.add(user_advanced_shrink_dataset)
-                bg.add(user_advanced_import_to_storage)
-                bg.add(user_advanced_mode_edit_prefs)
-                bg.add(user_advanced_edit_param_keys)
-                bg.add(user_advanced_delete_int_ext_files)
-                bg.add(user_advanced_clone_dataset)
-                bg.add(user_advanced_save_trunk)
-                bg.add(user_advanced_sync_push)
-                bg.add(user_force_sync_off)
-                bg.add(user_force_reset_sync_settings)
-                bg.add(user_demote_primary_to_secondary)
-                bg.add(user_advanced_suppress_dropbox_warning)
-                bg.clearSelection()
-
-                if not GlobalVars.ADVANCED_MODE:
-                    jlbl = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
-                    jlbl.setForeground(getColorRed())
-                    userFilters.add(jlbl)
-                else:
-                    userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("--- READONLY / NON-UPDATE FUNCTIONS ---"))
-                userFilters.add(user_advanced_toggle_DEBUG)
-                userFilters.add(user_advanced_toggle_other_DEBUGs)
-                userFilters.add(user_advanced_extract_from_storage)
-                userFilters.add(user_advanced_extract_from_sync)
-                userFilters.add(JLabel(" "))
-                userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-                userFilters.add(user_ofx_features)
-                userFilters.add(user_advanced_shrink_dataset)
-                userFilters.add(user_advanced_clone_dataset)
-                userFilters.add(user_advanced_save_trunk)
-                userFilters.add(user_demote_primary_to_secondary)
-                userFilters.add(user_advanced_sync_push)
-                userFilters.add(user_force_sync_off)
-                userFilters.add(user_force_reset_sync_settings)
-                userFilters.add(user_advanced_import_to_storage)
-                userFilters.add(user_advanced_mode_edit_prefs)
-                userFilters.add(user_advanced_edit_param_keys)
-                userFilters.add(user_advanced_delete_int_ext_files)
-                userFilters.add(user_advanced_suppress_dropbox_warning)
-
-                _NONE = "none"
-                _PARAM_KEY = "netsync.sync_type"
-                storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
-
-                while True:
+                    user_demote_primary_to_secondary = JRadioButton("DEMOTE Primary dataset back to a Secondary Node", False)
+                    user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
+                    user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
+                    user_demote_primary_to_secondary.setForeground(getColorRed())
 
                     lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
-                    user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and (lDropbox and not lSuppressed))
-                    user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
-                    user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
-                    user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
-                    user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None))
+                    user_advanced_suppress_dropbox_warning = JRadioButton("Suppress File in Dropbox Warning", False)
+                    user_advanced_suppress_dropbox_warning.setToolTipText("This allows you to suppress the 'Your file seems to be in a shared folder (Dropbox)' warning")
+                    user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and lDropbox and not lSuppressed)
+                    user_advanced_suppress_dropbox_warning.setForeground(getColorRed())
 
+                    userFilters = JPanel(GridLayout(0, 1))
+
+                    bg = ButtonGroup()
+                    bg.add(user_ofx_features)
+                    bg.add(user_advanced_toggle_DEBUG)
+                    bg.add(user_advanced_toggle_other_DEBUGs)
+                    bg.add(user_advanced_extract_from_storage)
+                    bg.add(user_advanced_extract_from_sync)
+                    bg.add(user_advanced_shrink_dataset)
+                    bg.add(user_advanced_import_to_storage)
+                    bg.add(user_advanced_mode_edit_prefs)
+                    bg.add(user_advanced_edit_param_keys)
+                    bg.add(user_advanced_delete_int_ext_files)
+                    bg.add(user_advanced_clone_dataset)
+                    bg.add(user_advanced_save_trunk)
+                    bg.add(user_advanced_sync_push)
+                    bg.add(user_force_sync_off)
+                    bg.add(user_force_reset_sync_settings)
+                    bg.add(user_demote_primary_to_secondary)
+                    bg.add(user_advanced_suppress_dropbox_warning)
                     bg.clearSelection()
 
-                    options = ["EXIT", "PROCEED"]
-                    jsp = MyJScrollPaneForJOptionPane(userFilters,850,580)
-                    userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                               jsp,
-                                                               "ADVANCED - Diagnostics, Tools, Fixes",
-                                                               JOptionPane.OK_CANCEL_OPTION,
-                                                               JOptionPane.QUESTION_MESSAGE,
-                                                               getMDIcon(lAlwaysGetIcon=True),
-                                                               options, options[0]))
-                    if userAction != 1:
-                        return
+                    if not GlobalVars.ADVANCED_MODE:
+                        jlbl = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
+                        jlbl.setForeground(getColorRed())
+                        userFilters.add(jlbl)
+                    else:
+                        userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("--- READONLY / NON-UPDATE FUNCTIONS ---"))
+                    userFilters.add(user_advanced_toggle_DEBUG)
+                    userFilters.add(user_advanced_toggle_other_DEBUGs)
+                    userFilters.add(user_advanced_extract_from_storage)
+                    userFilters.add(user_advanced_extract_from_sync)
+                    userFilters.add(JLabel(" "))
+                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                    userFilters.add(user_ofx_features)
+                    userFilters.add(user_advanced_shrink_dataset)
+                    userFilters.add(user_advanced_clone_dataset)
+                    userFilters.add(user_advanced_save_trunk)
+                    userFilters.add(user_demote_primary_to_secondary)
+                    userFilters.add(user_advanced_sync_push)
+                    userFilters.add(user_force_sync_off)
+                    userFilters.add(user_force_reset_sync_settings)
+                    userFilters.add(user_advanced_import_to_storage)
+                    userFilters.add(user_advanced_mode_edit_prefs)
+                    userFilters.add(user_advanced_edit_param_keys)
+                    userFilters.add(user_advanced_delete_int_ext_files)
+                    userFilters.add(user_advanced_suppress_dropbox_warning)
 
-                    selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
+                    _NONE = "none"
+                    _PARAM_KEY = "netsync.sync_type"
+                    storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
 
-                    if user_advanced_toggle_DEBUG.isSelected():
-                        advanced_mode_DEBUG()
+                    while True:
 
-                    if user_advanced_toggle_other_DEBUGs.isSelected():
-                        advanced_mode_other_DEBUG()
+                        lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
+                        user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and (lDropbox and not lSuppressed))
+                        user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+                        user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+                        user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
+                        user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None))
 
-                    if user_advanced_extract_from_storage.isSelected():
-                        advanced_mode_decrypt_file()
+                        bg.clearSelection()
 
-                    if user_advanced_extract_from_sync.isSelected():
-                        advanced_mode_decrypt_file_from_sync()
-                        return
+                        options = ["EXIT", "PROCEED"]
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,580)
+                        userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                                   jsp,
+                                                                   "ADVANCED - Diagnostics, Tools, Fixes",
+                                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                                   JOptionPane.QUESTION_MESSAGE,
+                                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                                   options, options[0]))
+                        if userAction != 1:
+                            return
 
-                    if user_advanced_shrink_dataset.isSelected():
-                        advanced_mode_shrink_dataset()
-                        return
+                        selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                    if user_advanced_import_to_storage.isSelected():
-                        advanced_mode_encrypt_file()
+                        if user_advanced_toggle_DEBUG.isSelected():
+                            advanced_mode_DEBUG()
 
-                    if user_advanced_mode_edit_prefs.isSelected():
-                        advanced_mode()
-                        return
+                        if user_advanced_toggle_other_DEBUGs.isSelected():
+                            advanced_mode_other_DEBUG()
 
-                    if user_advanced_edit_param_keys.isSelected():
-                        advanced_mode_edit_parameter_keys()
-                        return
+                        if user_advanced_extract_from_storage.isSelected():
+                            advanced_mode_decrypt_file()
 
-                    if user_advanced_delete_int_ext_files.isSelected():
-                        advanced_remove_int_external_files_settings()
-                        return
+                        if user_advanced_extract_from_sync.isSelected():
+                            advanced_mode_decrypt_file_from_sync()
+                            return
 
-                    if user_advanced_save_trunk.isSelected():
-                        advanced_mode_save_trunk_file()
+                        if user_advanced_shrink_dataset.isSelected():
+                            advanced_mode_shrink_dataset()
+                            return
 
-                    if user_advanced_sync_push.isSelected():
-                        advanced_mode_sync_push_pull("PUSH")
+                        if user_advanced_import_to_storage.isSelected():
+                            advanced_mode_encrypt_file()
 
-                    if user_advanced_clone_dataset.isSelected():
-                        advanced_clone_dataset()
-                        return
+                        if user_advanced_mode_edit_prefs.isSelected():
+                            advanced_mode()
+                            return
 
-                    if user_force_sync_off.isSelected():
-                        advanced_mode_force_sync_off()
+                        if user_advanced_edit_param_keys.isSelected():
+                            advanced_mode_edit_parameter_keys()
+                            return
 
-                    if user_force_reset_sync_settings.isSelected():
-                        advanced_mode_force_reset_sync_settings()
+                        if user_advanced_delete_int_ext_files.isSelected():
+                            advanced_remove_int_external_files_settings()
+                            return
 
-                    if user_demote_primary_to_secondary.isSelected():
-                        advanced_mode_demote_primary_to_secondary()
+                        if user_advanced_save_trunk.isSelected():
+                            advanced_mode_save_trunk_file()
 
-                    if user_advanced_suppress_dropbox_warning.isSelected():
-                        advanced_mode_suppress_dropbox_warning()
+                        if user_advanced_sync_push.isSelected():
+                            advanced_mode_sync_push_pull("PUSH")
 
-                    continue
+                        if user_advanced_clone_dataset.isSelected():
+                            advanced_clone_dataset()
+                            return
+
+                        if user_force_sync_off.isSelected():
+                            advanced_mode_force_sync_off()
+
+                        if user_force_reset_sync_settings.isSelected():
+                            advanced_mode_force_reset_sync_settings()
+
+                        if user_demote_primary_to_secondary.isSelected():
+                            advanced_mode_demote_primary_to_secondary()
+
+                        if user_advanced_suppress_dropbox_warning.isSelected():
+                            advanced_mode_suppress_dropbox_warning()
+
+                        continue
+
+                except:
+                    myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
+                    dump_sys_error_to_md_console_and_errorlog()
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
                 return
