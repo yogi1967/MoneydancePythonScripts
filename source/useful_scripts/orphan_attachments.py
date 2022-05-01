@@ -265,6 +265,7 @@ else:
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
     from java.lang import Double, Math, Character
+    from java.lang.reflect import Modifier
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
     from java.nio.charset import Charset
@@ -2664,6 +2665,23 @@ Visit: %s (Author's site)
                 command = uri[:theIdx]
                 param = uri[theIdx+1:]
         return command, param
+
+    def getFieldByReflection(theObj, fieldName, isInt=False):
+        reflect = theObj.getClass().getDeclaredField(fieldName)
+        if Modifier.isPrivate(reflect.getModifiers()): reflect.setAccessible(True)
+        isStatic = Modifier.isStatic(reflect.getModifiers())
+        if isInt: return reflect.getInt(theObj if not isStatic else None)
+        return reflect.get(theObj if not isStatic else None)
+
+    def find_feature_module(theModule):
+        # type: (str) -> bool
+        """Searches Moneydance for a specific extension loaded"""
+        fms = MD_REF.getLoadedModules()
+        for fm in fms:
+            if fm.getIDStr().lower() == theModule:
+                myPrint("DB", "Found extension: %s" %(theModule))
+                return fm
+        return None
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################

@@ -277,7 +277,7 @@
 # build: 1047 - Updated common code all .get_time_stamp_as_nice_text() with useHHMMSS parameter
 # build: 1047 - added 'Clone Dataset's structure' feature (stage-1, just structure, purge data)
 # build: 1047 - added internal sync UUID to main diagnostic display screen
-# build: 1047 - added toolbox_invoke.py script... collaborated with Mike Bray to 'listen' to QL update events
+# build: 1047 - added toolbox_invoke.py script... collaborated with Mike Bray to add QuoteLoader variables to detect when busy
 # build: 1047 - MD build 4074 changed .getOFXLastTxnUpdate() to add connectionID parameter
 # build: 1047 - added OFX_reset_OFXLastTxnUpdate_dates() for build 4074 onwards
 
@@ -515,6 +515,7 @@ else:
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
     from java.lang import Double, Math, Character
+    from java.lang.reflect import Modifier
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
     from java.nio.charset import Charset
@@ -657,6 +658,8 @@ else:
     GlobalVars.ADVANCED_MODE = False                                                                                    # Previously Hacker Mode
 
     GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
+    GlobalVars.Strings.EXTENSION_QL_ID = "securityquoteload"
+    GlobalVars.Strings.EXTENSION_QER_ID = "yahooqt"
 
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lIgnoreOutdatedExtensions_TB = False                                                                                # noqa
@@ -3025,6 +3028,23 @@ Visit: %s (Author's site)
                 param = uri[theIdx+1:]
         return command, param
 
+    def getFieldByReflection(theObj, fieldName, isInt=False):
+        reflect = theObj.getClass().getDeclaredField(fieldName)
+        if Modifier.isPrivate(reflect.getModifiers()): reflect.setAccessible(True)
+        isStatic = Modifier.isStatic(reflect.getModifiers())
+        if isInt: return reflect.getInt(theObj if not isStatic else None)
+        return reflect.get(theObj if not isStatic else None)
+
+    def find_feature_module(theModule):
+        # type: (str) -> bool
+        """Searches Moneydance for a specific extension loaded"""
+        fms = MD_REF.getLoadedModules()
+        for fm in fms:
+            if fm.getIDStr().lower() == theModule:
+                myPrint("DB", "Found extension: %s" %(theModule))
+                return fm
+        return None
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3107,8 +3127,18 @@ Visit: %s (Author's site)
         myPrint("B","INVOKE - Received extension command: '%s'" %(theCommand))
         cmd, param = decodeCommand(theCommand)
         try:
-            if not DetectQuoteLoader.updateStatus(cmd, param):
-                setDisplayStatus("Received unknown event command ('%s' : '%s')" %(cmd, param), "B")
+            class QuickTmpRunnable(Runnable):
+                def __init__(self, _cmd, _param):
+                    self.cmd = _cmd
+                    self.param = _param
+
+                def run(self): setDisplayStatus("Received unknown event command ('%s' : '%s')" %(self.cmd, self.param), "B")
+
+            quickRun = QuickTmpRunnable(cmd, param)
+            if not SwingUtilities.isEventDispatchThread():
+                SwingUtilities.invokeLater(quickRun)
+            else:
+                quickRun.run()
         except: pass
 
     GlobalVars.defaultPrintLandscape = True
@@ -3119,137 +3149,95 @@ Visit: %s (Author's site)
     # Prevent usage later on... We use MD_REF
     del moneydance
 
-    class DetectQuoteLoader:
+    def isQER_running(): return find_feature_module(GlobalVars.Strings.EXTENSION_QER_ID)
 
-        EXTENSION_ID_TO_CHECK = myModuleID
+    def isQuoteLoader_running():
+        # type: () -> int
+        """Returns None if not detected/loaded, 0=Detected and NOT busy, 1=Detected but needs manual checks, 2=Detected and is BUSY, 3=Detected, but reflection failed"""
 
-        MD_CMD_STR = "moneydance:fmodule"
-        QL_ID = "securityquoteload"
-        QL_ID_MIN_VER = 3047                                # The build where QL included the listener
+        QL_ID_MIN_VER = 3047        # Mike Bray added special variables for Toolbox to check in QL build 3047
 
-        QL_CMD_LISTENER_REGISTER = "registerlistener"
-        QL_CMD_LISTENER_DEREGISTER = "deregisterlistener"
+        QL_NOTFOUND = None; QL_NOTBUSY = 0; QL_TOOOLD = 1; QL_BUSY = 2; QL_ERROR = 3                                    # noqa
 
-        QL_MSG_UPDATE_START = "qlstartupdate"
-        QL_MSG_UPDATE_FINISH = "qlfinishupdate"
+        foundQLfm = find_feature_module(GlobalVars.Strings.EXTENSION_QL_ID)
+        if foundQLfm is None:
+            myPrint("DB","QL NOT detected...")
+            return QL_NOTFOUND
 
-        QL_MSG_QUOTES_START = "qlstartquotes"
-        QL_MSG_QUOTES_FINISH = "qlfinishquotes"
+        if foundQLfm.getBuild() < QL_ID_MIN_VER:                                                                                        # noqa
+            myPrint("DB","QL(%s) detected... (but too old for special reflection checks) User to check manually" %(foundQLfm.getBuild()))  # noqa
+            return QL_TOOOLD
 
-        QL_CMD_ASK_ISUPDATING = "isqlupdating"
-        QL_REPLY_YES_UPDATING = "answerupdates"
-        QL_REPLY_YES_QUOTES = "answerquotes"
-        QL_REPLY_NO = "answerno"
+        try:
+            myPrint("DB","Reflecting... Detecting QuoteLoader.....:")
+            ql_isGUIOpen = getFieldByReflection(foundQLfm, "isGUIOpen")
+            ql_isUpdating = getFieldByReflection(foundQLfm, "isUpdating")
+            ql_isQuotesRunning = getFieldByReflection(foundQLfm, "isQuotesRunning")
 
-        QL_DETECTED = False
-        QL_UPDATE_RUNNING = False
+            myPrint("DB","...QL isGUIOpen:       %s" %(ql_isGUIOpen))
+            myPrint("DB","...QL isUpdating:      %s" %(ql_isUpdating))
+            myPrint("DB","...QL isQuotesRunning: %s" %(ql_isQuotesRunning))
 
-        def __init__(self): raise Exception("ERROR - Should not create instance of this class!")
+            if ql_isGUIOpen or ql_isUpdating or ql_isQuotesRunning:
+                myPrint("DB",">> Detected QL appears to be BUSY...")
+                return QL_BUSY
 
-        @staticmethod
-        def setExtensionID(newID): DetectQuoteLoader.EXTENSION_ID_TO_CHECK = newID
+            myPrint("DB",">> QL was detected, but appears NOT busy")
 
-        @staticmethod
-        def getExtensionID(): return DetectQuoteLoader.EXTENSION_ID_TO_CHECK
+        except:
+            myPrint("DB","@@ QL detected but reflection check failed! (please contact Toolbox author)")
+            dump_sys_error_to_md_console_and_errorlog()
+            return QL_ERROR
 
-        @staticmethod
-        def updateStatus(commandStr, paramStr):
-            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
-            if commandStr in [DetectQuoteLoader.QL_MSG_QUOTES_START,
-                              DetectQuoteLoader.QL_MSG_UPDATE_START,
-                              DetectQuoteLoader.QL_REPLY_YES_UPDATING,
-                              DetectQuoteLoader.QL_REPLY_YES_QUOTES]:
-                myPrint("DB","@@@ Quote Loader is busy (cmd: '%s', param: '%s')" %(commandStr, paramStr))
-                DetectQuoteLoader.QL_UPDATE_RUNNING = True
-                if debug: setDisplayStatus("QUOTE LOADER: IS-BUSY message received: '%s'" %(commandStr),"B")
+        return QL_NOTBUSY
 
-            elif commandStr in [DetectQuoteLoader.QL_MSG_UPDATE_FINISH,
-                                DetectQuoteLoader.QL_REPLY_NO]:
-                myPrint("DB","@@@ Quote Loader is not updating (cmd: '%s', param: '%s')" %(commandStr, paramStr))
-                DetectQuoteLoader.QL_UPDATE_RUNNING = False
-                if debug: setDisplayStatus("QUOTE LOADER: NOT-BUSY message received: '%s'" %(commandStr),"B")
+    def perform_qer_quote_loader_check(_frame, _txt, lDialogs=True):
+        # type: (JFrame, str, bool) -> int
+        """Checks for QER or QL extensions running, pops up a message if needed asking user to check. Response of True = SAFE"""
 
-            elif commandStr in [DetectQuoteLoader.QL_MSG_QUOTES_FINISH]:
-                myPrint("DB","@@@ Quote Loader finished quotes stage, but not the update phase (cmd: '%s', param: '%s')" %(commandStr, paramStr))
-                if debug: setDisplayStatus("QUOTE LOADER: IN-PROCESS message received: '%s'" %(commandStr),"B")
+        resultQER = isQER_running()
 
-            else:
-                myPrint("DB","@@@ No QL response detected in message - ignoring... (cmd: '%s', param: '%s')" %(commandStr, paramStr))
-                return False
+        QL_NOTFOUND = None; QL_NOTBUSY = 0; QL_TOOOLD = 1; QL_BUSY = 2; QL_ERROR = 3                                    # noqa
 
-            DetectQuoteLoader.QL_DETECTED = True
-            return True
+        # Returns None if not detected/loaded, 0=Detected and NOT busy, 1=Detected but needs manual checks, 2=Detected and is BUSY, 3=Detected, but reflection failed"""
+        resultQL = isQuoteLoader_running()
 
-        @staticmethod
-        def isRunning(): return (DetectQuoteLoader.QL_DETECTED and DetectQuoteLoader.QL_UPDATE_RUNNING)
+        lSafeToProceed = True
+        if not resultQER and not resultQL:
+            txt = "Q&ER / QuoteLoader are not detected/running - proceeding...."
+            setDisplayStatus(txt, "B")
+            return lSafeToProceed
 
-        @staticmethod
-        def queryRunning():
-            myPrint("DB","Sending query to QuoteLoader via listener...")
-            MD_REF.showURL("%s:%s:%s?%s" %(DetectQuoteLoader.MD_CMD_STR,
-                                           DetectQuoteLoader.QL_ID,
-                                           DetectQuoteLoader.QL_CMD_ASK_ISUPDATING,
-                                           DetectQuoteLoader.getExtensionID()))
-        @staticmethod
-        def addListener():
-            myPrint("DB","Adding QuoteLoader listener...")
-            MD_REF.showURL("%s:%s:%s?%s" %(DetectQuoteLoader.MD_CMD_STR,
-                                           DetectQuoteLoader.QL_ID,
-                                           DetectQuoteLoader.QL_CMD_LISTENER_REGISTER,
-                                           DetectQuoteLoader.getExtensionID()))
-            DetectQuoteLoader.queryRunning()
+        lSafeToProceed = False
+        if not lDialogs: return lSafeToProceed
 
-        @staticmethod
-        def removeListener():
-            DetectQuoteLoader.queryRunning()
-            myPrint("DB","Removing QuoteLoader listener...")
-            MD_REF.showURL("%s:%s:%s?%s" %(DetectQuoteLoader.MD_CMD_STR,
-                                           DetectQuoteLoader.QL_ID,
-                                           DetectQuoteLoader.QL_CMD_LISTENER_DEREGISTER,
-                                           DetectQuoteLoader.getExtensionID()))
+        QER_text = "Q&ER detected. " if (resultQER) else ""
 
-        @staticmethod
-        def is_module_loaded():
-            foundBuild = 0
-            foundExtn = False
-            for fm in MD_REF.getLoadedModules():
-                if fm.getIDStr().lower() == DetectQuoteLoader.QL_ID:
-                    foundExtn = True
-                    foundBuild = fm.getBuild()
-                    break
-            if not foundExtn:
-                myPrint("DB","Did not find QL extension with id: '%s'..." %(DetectQuoteLoader.QL_ID))
-                return (False, 0)
-            myPrint("DB","QL extension with id: '%s' (build %s) found/loaded..." %(DetectQuoteLoader.QL_ID, foundBuild))
-            return (True, foundBuild)
+        QL_text = "QL detected" if (resultQL) else ""
+        if resultQL == QL_BUSY: QL_text += " and appears BUSY. "
+        else: QL_text += ". "
 
-        @staticmethod
-        def perform_quote_loader_check(_frame, _txt, lDialogs=True):
-            """Checks whether QuoteLoader is installed/running. Returns True if OK to proceed, False if not..."""
+        if not resultQER and resultQL == QL_BUSY:
+            txt = "Sorry: QL appears busy (try again later)"
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(_frame, txt, "Quote Loader detection", theMessageType=JOptionPane.WARNING_MESSAGE)
+            return lSafeToProceed
 
-            if DetectQuoteLoader.QL_DETECTED:
-                if DetectQuoteLoader.QL_UPDATE_RUNNING:
-                    if lDialogs:
-                        myPopupInformationBox(_frame, theMessage="Detected that Quote Loader is busy >> Try again later", theTitle="BLOCKED: QUOTE LOADER BUSY", theMessageType=JOptionPane.WARNING_MESSAGE)
-                return (not DetectQuoteLoader.QL_UPDATE_RUNNING)
+        saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+        UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+        ask = myPopupAskQuestion(_frame,"Q&ER / QUOTE LOADER DETECTION","%s%s Confirm that they're not updating before running '%s'?" %(QER_text, QL_text, _txt))
+        UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
 
-            QL_found, QL_build = DetectQuoteLoader.is_module_loaded()
+        if not ask:
+            txt = "Q&ER / QuoteLoader loaded (or busy). Please verify they're not updating before running '%s' - no changes made" %(_txt)
+            setDisplayStatus(txt, "R")
+            return lSafeToProceed
 
-            if not lDialogs: return (not QL_found)
+        txt = "User verified that Q&ER / QuoteLoader are not running - proceeding...."
+        setDisplayStatus(txt, "B")
 
-            if QL_found:
-
-                saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
-                UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
-                ask = myPopupAskQuestion(_frame,"QUOTE LOADER DETECTED","Quote Loader is running. Confirm that it's not updating prices before running '%s'?" %(_txt))
-                UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
-
-                if not ask:
-                    txt = "Quote Loader running. Please verify that it's not updating prices before running '%s' - no changes made" %(_txt)
-                    setDisplayStatus(txt, "R")
-                    return False
-
-            return True
+        lSafeToProceed = True
+        return lSafeToProceed
 
     class MyJScrollPaneForJOptionPane(JScrollPane, HierarchyListener):   # Allows a scrollable/resizeable menu in JOptionPane
         def __init__(self, _component, _max_w=800, _max_h=600):
@@ -5689,8 +5677,6 @@ Visit: %s (Author's site)
 
         _THIS_METHOD_NAME = "OFX: View your installed Bank / Service Profiles"
 
-        from java.lang.reflect import Modifier
-
         OFX = []
 
         lCachePasswords = isCachingPasswords()
@@ -7170,7 +7156,7 @@ Visit: %s (Author's site)
             myPrint("P", " -----------------------------------------------------------------------------------------------")
 
             txt = "Current Price (Hidden) 'price_date' fix"
-            if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
+            if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
 
 
         options = ["All (both Currencies & Securities)",
@@ -14211,7 +14197,7 @@ now after saving the file, restart Moneydance
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         txt = "fix_invalid_relative_currency_rates"
-        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
+        if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
 
         book = MD_REF.getCurrentAccountBook()
         currencies = book.getCurrencies().getAllCurrencies()
@@ -14304,7 +14290,7 @@ now after saving the file, restart Moneydance
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         txt = "Fix Invalid Price History Records"
-        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
+        if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
 
         output="FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES\n" \
                " ===================================================\n\n"
@@ -14806,7 +14792,7 @@ now after saving the file, restart Moneydance
             return
 
         txt = "Purge/Thin Price History"
-        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, txt): return
+        if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
 
 
         # prune historical exchange rates and price history from the given currency
@@ -20820,7 +20806,7 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(toolbox_frame_, "ERROR: AccountBook is missing?",theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
-        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
+        if not perform_qer_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
 
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
@@ -22032,7 +22018,7 @@ Now you will have a text readable version of the file you can open in a text edi
         PROCESSED_FILES = "tiksync/processed.dct"
         UPLOADBUFFER = "tiksync/uploadbuf"
 
-        if not DetectQuoteLoader.perform_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
+        if not perform_qer_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
 
         safeFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
 
@@ -23201,9 +23187,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 myPrint("DB", "Removing Preferences listener:", self.callingClass)
                 MD_REF.getPreferences().removeListener(self.callingClass)
-
-                myPrint("DB", "Removing QuoteLoader listener")
-                DetectQuoteLoader.removeListener()
 
                 cleanup_actions(self.theFrame)
 
@@ -25930,9 +25913,6 @@ Now you will have a text readable version of the file you can open in a text edi
             toolbox_frame_.setVisible(True)     # already on the EDT
             toolbox_frame_.toFront()            # already on the EDT
             toolbox_frame_.isActiveInMoneydance = True
-
-            myPrint("DB","Adding Quote Loader listener...")
-            DetectQuoteLoader.addListener()
 
             myPrint("DB","Adding Preferences listener:", self)
             MD_REF.getPreferences().addListener(self)
