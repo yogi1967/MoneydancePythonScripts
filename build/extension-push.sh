@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester")
+MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "accounts_categories_mega_search_window")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 BUNDLE_OWN_JAVA_LIST=("x")
 
@@ -154,6 +154,7 @@ fi
 rm -f "${PUSHDIR}/${MODULE}"/*.docx
 rm -f "${PUSHDIR}/${MODULE}"/*.mxt
 rm -f "${PUSHDIR}/${MODULE}"/*.pyi
+rm -f "${PUSHDIR}/${MODULE}"/function_thread_map.txt
 rm -f "${PUSHDIR}/${MODULE}"/_PREVIEW_BUILD_
 
 if [ "${MODULE}" = "toolbox" ]; then

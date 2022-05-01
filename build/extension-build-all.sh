@@ -2,7 +2,7 @@
 
 clear
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "accounts_categories_mega_search_window")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "accounts_categories_mega_search_window" "security_price_performance_graph")
 
 if ! test -f "./build/extension-build.sh"; then
     echo "@@ PLEASE RUN FROM THE PROJECT's ROOT directory! @@"
