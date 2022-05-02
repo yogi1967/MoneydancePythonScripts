@@ -39,6 +39,7 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
   - or Extensions, Manage Extensions, add from file to install.
   - or Menu>Extensions>add from file>choose \<extension_name\>.mxt file, then click open/install;
   - (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
+
 3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
 
 4) Once its installed, restart Moneydance.
@@ -49,7 +50,7 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 
 1) Load Moneydance. Menu>Window>Show Moneybot Console
 
-2) Open Script>choose <scriptname>.py file
+2) Open Script>choose \<scriptname\>.py file
 
 3) Click RUN (and not run snippet)
 
