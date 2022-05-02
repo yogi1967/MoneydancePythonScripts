@@ -37,7 +37,7 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 2) Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
   - or drag and drop the .mxt file onto the Moneydance left side bar;
   - or Extensions, Manage Extensions, add from file to install.
-  - or Menu>Extensions>add from file>choose <extension_name>.mxt file, then click open/install;
+  - or Menu>Extensions>add from file>choose \<extension_name\>.mxt file, then click open/install;
   - (Note: The .mxt file must not be renamed. Sometimes downloading/unzipping adds a number to the end of the filename)
 3) Accept any warning(s) that the extension is unsigned (this simply means that Moneydance have not signed / verified my extension). Click Install Extension.
 
@@ -113,7 +113,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 ### Experimental / advanced:
 It's possible to load Moneydance components externally. _This would not be supported by IK and you do so at your own risk._
 
-_As of MD2021.2(3088) you can set an environment variable 'md_passphrase=' or 'md_passphrase_<lowercase_filename>' and this will bypass the popup 'Enter your password' prompt.
+As of MD2021.2(3088) you can set an environment variable 'md_passphrase=' or 'md_passphrase_\<lowercase\_filename\>' and this will bypass the popup 'Enter your password' prompt.
 This means that the headless methods, to access MD data externally will work much more seamlessly. There are examples below on how to do this (with 'environment_passphrase' in filename):_
 
 Method 1: Using Jython (for true Java integration) (with a launch script to set up the JVM properly) - See folder contents:
