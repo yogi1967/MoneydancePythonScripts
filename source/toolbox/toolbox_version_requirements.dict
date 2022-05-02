@@ -1,5 +1,5 @@
 {
-    "last_updated" = "20220430"
+    "last_updated" = "20220502"
     "disable_all" = "n"
     "builds" = (
                     {
@@ -21,11 +21,7 @@
                     }
                     {
                     "build" = "1045"
-                    "disable" = "n"
-                    "news" = "Enabling MD2022 (with Moneydance+); USAA Fixes; Darcula & Theme fixes"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.3"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4073"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1044"
@@ -41,11 +37,7 @@
                     }
                     {
                     "build" = "1041"
-                    "disable" = "n"
-                    "news" = "Lots of enhancements; new functions for Currency/Security tools menu; print capability"
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2021.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "3095"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1040"
