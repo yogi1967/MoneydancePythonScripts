@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# categories_super_window.py build: 1002 - November 2021 - Stuart Beesley StuWareSoftSystems
+# categories_super_window.py build: 1003 - April 2022 - Stuart Beesley StuWareSoftSystems
 # Renamed to: accounts_categories_mega_search_window.py build: 1003 - April 2022 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
@@ -33,7 +33,6 @@
 # build: 1001 - Updated common code MyJFrame.dispose()
 # build: 1002 - Eliminated common code globals :->
 # build: 1003 - Renamed to accounts_categories_mega_search_window and allow both Accounts & Categories...
-# build: 1003 -
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
