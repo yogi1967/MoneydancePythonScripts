@@ -92,7 +92,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 - <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1013 - 2nd May 2022) (Updated: Multi-row, Currency, Custom Dates etc)
 
 ### Signed Versions (hosted on this site)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1002 - 2nd May 2022) (clones MD's Accounts/Categories window with search)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1002 - 2nd May 2022)
 
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
