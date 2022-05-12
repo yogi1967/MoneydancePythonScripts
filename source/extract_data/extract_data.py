@@ -97,6 +97,8 @@
 # build: 1023 - Upgraded the Edit Reminders popup so that escape will cancel the popup dialog window.
 # build: 1023 - Added showRawItemDetails() to reminders popup right-click menu
 
+# todo - consider creating a Yahoo Finance portfolio upload format
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################

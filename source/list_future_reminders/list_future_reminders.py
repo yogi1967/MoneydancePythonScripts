@@ -58,6 +58,8 @@
 
 # Displays Moneydance future reminders
 
+# todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
