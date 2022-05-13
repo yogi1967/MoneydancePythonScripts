@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1048 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1049 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and they retain all copyright over Moneydance internal code
@@ -280,8 +280,9 @@
 # build: 1047 - added toolbox_invoke.py script... collaborated with Mike Bray to add QuoteLoader variables to detect when busy
 # build: 1047 - MD build 4074 changed .getOFXLastTxnUpdate() to add connectionID parameter
 # build: 1047 - added OFX_reset_OFXLastTxnUpdate_dates() for build 4074 onwards; added error traps on main menus...
-# build: 1047 - Bugfix deleteOFXService() if no service selected...; Enhanced View OFX data for multiple service options (OFX and MD+)
-# build: 1047 - Improved the 'STOP-NOW' command message (suggest to check for upgrade)
+# build: 1048 - Bugfix deleteOFXService() if no service selected...; Enhanced View OFX data for multiple service options (OFX and MD+)
+# build: 1048 - Improved the 'STOP-NOW' command message (suggest to check for upgrade)
+# build: 1049 - Updated Zap md+ option to wipe all md+ data from system (including all banking links)
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 
@@ -303,7 +304,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1048"
+version_build = "1049"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -682,8 +683,8 @@ else:
     MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                                                                            # noqa
 
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.3                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4077                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.4                                                                          # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4078                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -11310,11 +11311,13 @@ Visit: %s (Author's site)
 
         _THIS_METHOD_NAME = "Zap Dataset's Moneydance+ (Plaid) settings"
 
+        storage = MD_REF.getCurrentAccountBook().getLocalStorage()
+
         licenseObject = getMDPlusLicenseInfoForBook()
 
-        if licenseObject is None:
-            myPopupInformationBox(toolbox_frame_,"NO Moneydance+ settings/profile found - NO CHANGES MADE!",_THIS_METHOD_NAME.upper(),JOptionPane.ERROR_MESSAGE)
-            return False
+        # if licenseObject is None:
+        #     myPopupInformationBox(toolbox_frame_,"NO Moneydance+ settings/profile found - NO CHANGES MADE!",_THIS_METHOD_NAME.upper(),JOptionPane.ERROR_MESSAGE)
+        #     return False
 
         if isMDPlusLicenseActivated():
             ask = MyPopUpDialogBox(toolbox_frame_,
@@ -11339,15 +11342,63 @@ Visit: %s (Author's site)
                 return False
             del ask
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME.upper(),"ZAP this Dataset's Moneydance+ settings/profile (USE WITH CARE)?"):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME.upper(),"ZAP this Dataset's Moneydance+ settings/profile & banking links etc (USE WITH CARE)?"):
             return False
 
-        myPrint("B", "User requested to delete Moneydance+ settings.... Settings before deletion were..:\n", special_toMultilineHumanReadableString(licenseObject))
-        licenseObject.deleteItem()
+        myPrint("B", "User requested to delete all Moneydance+ settings - proceeding....:")
+
+        myPrint("B", "... shutting down the md+ controller...")
+        mdp_controller = MD_REF.getUI().getPlusController()
+        mdp_shutdown = mdp_controller.getClass().getDeclaredMethod("shutdown")
+        mdp_shutdown.setAccessible(True)
+        mdp_shutdown.invoke(mdp_controller)
+
+        if licenseObject is None:
+            myPrint("B", "... No md+ license object found to delete... skipping...")
+        else:
+            myPrint("B", "... md+ license object's settings before deletion were..:\n", special_toMultilineHumanReadableString(licenseObject))
+            licenseObject.deleteItem()
+
+        myPrint("B", "... Zapping md+ 'access_tokens' from local storage (if they exist)...")
+        storage.removeSubset("access_tokens")
+
+        myPrint("B", "... Zapping md+ plaid cache 'mdp_items' from local storage (if they exist)...")
+        storage.removeSubset("mdp_items")
+
+        myPrint("B", "... Zapping md+ service / logon profile(s) (if exists)...")
+        deleteServiceList = []
+        serviceList = MD_REF.getCurrentAccountBook().getOnlineInfo().getAllServices()
+        for sv in serviceList:
+            if sv.getTIKServiceID() == "md:plaid": deleteServiceList.append(sv)
+        if len(deleteServiceList) > 0: MD_REF.getCurrentAccount().getBook().logRemovedItems(deleteServiceList)
+
+        PLAID_MAP_KEY = "map.md:plaid:::"
+        mappingObject = MD_REF.getCurrentAccountBook().getItemForID("online_acct_mapping")
+
+        myPrint("B", "... Zapping md+ mapping links (if they exist)...")
+        if mappingObject is not None:
+            invalid_mapping_links = []
+            for objectKey in mappingObject.getParameterKeys():
+                if objectKey.startswith(PLAID_MAP_KEY):
+                    invalid_mapping_links.append(objectKey)
+
+            if len(invalid_mapping_links) > 0:
+                mappingObject.setEditingMode()
+                for maplink in invalid_mapping_links: mappingObject.setParameter(maplink, None)
+                mappingObject.syncItem()
+
+        myPrint("B", "... Auto-running cleanup of banking links...")
+        cleanupMissingOnlineBankingLinks(lAutoPurge=True)
+
+        myPrint("B", "... Saving local storage...")
+        storage.save()
+
+        myPrint("B", "... Flushing changes to sync...")
         MD_REF.getUI().getMain().saveCurrentAccount()
+
         play_the_money_sound()
 
-        txt = "Moneydance+ settings deleted..! MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
+        txt = "All moneydance+ settings deleted..! MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
@@ -23403,7 +23454,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_importMDPlusProfile.setForeground(getColorRed())
 
                     user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False)
-                    user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
+                    user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys (including banking links) etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
                     user_zapMDPlusProfile.setEnabled((GlobalVars.ADVANCED_MODE) and (not isMDPlusLicenseActivated() or isToolboxUnlocked()))
                     user_zapMDPlusProfile.setForeground(getColorRed())
 
