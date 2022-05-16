@@ -7787,7 +7787,7 @@ Visit: %s (Author's site)
 
                                 # This bit is neat, as it seems to work for Securities with just the qty balance!!
                                 if bal != 0 and acctCurr != thisRowCurr:
-                                    balConv = CurrencyUtil.convertValue(bal, acctCurr, thisRowCurr)
+                                    balConv = CurrencyUtil.convertValue(bal, acctCurr, thisRowCurr)                     # todo - should this include an asof date?
                                     myPrint("DB",".. Converted %s to %s (%s)" %(acctCurr.formatSemiFancy(bal, NAB.decimal), thisRowCurr.formatSemiFancy(balConv, NAB.decimal), thisRowCurr))
                                     totalBalance += (balConv * mult)
                                 else:

@@ -283,6 +283,7 @@
 # build: 1048 - Bugfix deleteOFXService() if no service selected...; Enhanced View OFX data for multiple service options (OFX and MD+)
 # build: 1048 - Improved the 'STOP-NOW' command message (suggest to check for upgrade)
 # build: 1049 - Updated Zap md+ option to wipe all md+ data from system (including all banking links)
+# build: 1049 - Added redactor() to various outputs (especially OFX and curious modes)
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 
@@ -666,6 +667,8 @@ else:
     GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
     GlobalVars.Strings.EXTENSION_QL_ID = "securityquoteload"
     GlobalVars.Strings.EXTENSION_QER_ID = "yahooqt"
+
+    GlobalVars.redact = True
 
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lIgnoreOutdatedExtensions_TB = False                                                                                # noqa
@@ -5682,6 +5685,24 @@ Visit: %s (Author's site)
             return acct.getUUID()
         return str(acctNum)
 
+    def redactor(_what, lRedactFirstChar=False):
+        # type: (str, bool) -> str
+        if not GlobalVars.redact: return _what
+        if not isinstance(_what, (str, unicode)): _what = safeStr((_what))
+        #_what = _what.strip()
+        if lRedactFirstChar:
+            keepFirstChar = False
+        else:
+            keepFirstChar = (len(_what) > 1)
+        return (_what[:1] if keepFirstChar else "") + ("*" * (len(_what) - (1 if keepFirstChar else 0)))
+
+    def redactAuth(originalAuthToRedact):
+        if GlobalVars.redact:
+            saveAuthKey = MyOFXAuthInfo.fromCacheString(originalAuthToRedact)
+            redactedAuthKey = MyOFXAuthInfo(redactor(saveAuthKey.getUserId()), redactor(saveAuthKey.getPasswd()), saveAuthKey.getExtraAuth(), None, saveAuthKey.getAuthType())
+            originalAuthToRedact = redactedAuthKey.toCacheString()
+        return originalAuthToRedact
+
     def ofx_view_service_profile_data():
 
         _THIS_METHOD_NAME = "OFX: View your installed Bank / Service Profiles"
@@ -5689,6 +5710,26 @@ Visit: %s (Author's site)
         OFX = []
 
         lCachePasswords = isCachingPasswords()
+
+        GlobalVars.redact = myPopupAskQuestion(toolbox_frame_, _THIS_METHOD_NAME, "Redact confidential information?")
+
+        OFX.append("VIEW YOUR INSTALLED OFX SERVICE / BANK LOGON PROFILES\n"
+                   " ====================================================\n\n")
+
+        if GlobalVars.redact:
+            OFX.append("** Confidential data will be redacted **\n")
+        else:
+            OFX.append("** WARNING: Confidential data will be visible **\n")
+
+        if lCachePasswords:
+            OFX.append("MD Will allow you to Cache your Authentication (means you have set an encryption key and selected store passwords..")
+        else:
+            OFX.append("MD Cache Authentication ** DISABLED ** (either no user encryption key or store passwords = no)")
+
+        OFX.append("")
+
+        if not isMDPlusEnabledBuild() and getPlaidService():
+            OFX.append("NOTE: Account linkages for MD+/Plaid Services may be incomplete as you are running an older version of Moneydance...!\n")
 
         # Build a list of Moneydance accounts that are enabled for download and have a service profile linked....
         listAccountMDProxies=[]
@@ -5703,28 +5744,15 @@ Visit: %s (Author's site)
                 if acct.getBillPayFI() is not None:
                     listAccountMDProxies.append([MDAccountProxy(acct, True),svcBP,True])
 
-        OFX.append("VIEW YOUR INSTALLED OFX SERVICE / BANK LOGON PROFILES\n"
-                   " ====================================================\n\n")
-
-        if lCachePasswords:
-            OFX.append("MD Will allow you to Cache your Authentication (means you have set an encryption key and selected store passwords..")
-        else:
-            OFX.append("MD Cache Authentication ** DISABLED ** (either no user encryption key or store passwords = no..")
-
-        OFX.append("")
-
-        if not isMDPlusEnabledBuild() and getPlaidService():
-            OFX.append("NOTE: Account linkages for MD+/Plaid Services may be incomplete as you are running an older version of Moneydance...!\n")
-
         OFX.append("MD Accounts enabled for OFX Downloads with linked Service / Bank logon profiles:")
         if len(listAccountMDProxies)<1:
             OFX.append("<NONE FOUND>")
         else:
             for olAcct in listAccountMDProxies:
                 if not olAcct[2]:
-                    OFX.append("- {:40} ('Key': {:15}) OFXAccNum: {:15} Bank Profile: {}".format(olAcct[0].getAccount().getFullAccountName(), olAcct[0].getAccountKey(), olAcct[0].getOFXAccountNumber(), olAcct[1]))
+                    OFX.append("- {:40} ('Key': {:15}) OFXAccNum: {:15} Bank Profile: {}".format(olAcct[0].getAccount().getFullAccountName(), olAcct[0].getAccountKey(), redactor(olAcct[0].getOFXAccountNumber()), olAcct[1]))
                 else:
-                    OFX.append("- {:40} ('Key': {:15}) OFXAccNum: {:15} BillPay Prof: {}".format(olAcct[0].getAccount().getFullAccountName(), olAcct[0].getAccountKey(), olAcct[0].getOFXAccountNumber(), olAcct[1]))
+                    OFX.append("- {:40} ('Key': {:15}) OFXAccNum: {:15} BillPay Prof: {}".format(olAcct[0].getAccount().getFullAccountName(), olAcct[0].getAccountKey(), redactor(olAcct[0].getOFXAccountNumber()), olAcct[1]))
         OFX.append("")
 
         if isMDPlusEnabledBuild() and isMDPlusUniqueBankingServicesEnabledBuild():
@@ -5771,7 +5799,7 @@ Visit: %s (Author's site)
                 OFX.append(pad("\n>>MD2022+ Online Banking Mapping table entries...:",120))
                 mappingObject = MD_REF.getCurrentAccountBook().getItemForID("online_acct_mapping")
                 if mappingObject is not None:
-                    OFX.append(special_toMultilineHumanReadableString(mappingObject,lSkipSecrets=False,sFilterServiceID=service.getTIKServiceID()))
+                    OFX.append(special_toMultilineHumanReadableString(mappingObject,lSkipSecrets=GlobalVars.redact,sFilterServiceID=service.getTIKServiceID(),lRedact=GlobalVars.redact))
                 else: OFX.append("<NONE>")
             del mappingObject
 
@@ -5801,9 +5829,21 @@ Visit: %s (Author's site)
             if len(service.getAvailableAccounts())<1:
                 OFX.append("<NONE FOUND>")
             else:
-                OFX.append(" -- List All accounts configured in profile: %s\n" %(service.getAvailableAccounts()))
+                _availableAccounts = service.getAvailableAccounts()
+                if GlobalVars.redact:
+                    _redactedAvailableAccounts = "["
+                    onAccount = 0
+                    for _aa in _availableAccounts:
+                        if onAccount > 0: _redactedAvailableAccounts += ", "
+                        _redactedAvailableAccounts += (_aa.getDescription() + " " + redactor(_aa.getAccountNumber().strip()))
+                        onAccount += 1
+                    _redactedAvailableAccounts += "]"
+                    OFX.append(" -- List All accounts configured in profile: %s\n" %(_redactedAvailableAccounts))
+                else:
+                    OFX.append(" -- List All accounts configured in profile: %s\n" %(service.getAvailableAccounts()))
+
                 for availAccount in service.getAvailableAccounts():
-                    OFX.append(">> ACCOUNT: %s (%s) ('Key': %s)" %(availAccount.getDescription(),availAccount.getAccountNumber(),availAccount.getAccountKey()))
+                    OFX.append(">> ACCOUNT: %s (%s) ('Key': %s)" %(availAccount.getDescription(),redactor(availAccount.getAccountNumber()),availAccount.getAccountKey()))
 
                     if service.getTIKServiceID() != "md:plaid":         # Don't bother with MD+ as these are all empty anyway...
                         try:
@@ -5814,6 +5854,11 @@ Visit: %s (Author's site)
                                 if meth.getName().lower().startswith("get") or meth.getName().lower().startswith("is") \
                                         and meth.getParameterCount()<1:
                                     result = meth.invoke(availAccount)
+                                    if GlobalVars.redact:
+                                        for checkKey in ["mapping", "balance", "number", "key"]:
+                                            if checkKey in meth.getName().lower():
+                                                result = redactor(result)
+                                                break
                                     if result is not None:
                                         OFX.append(" >> %s %s" %(pad(meth.getName(),40),result) )
                             OFX.append("\n")
@@ -5828,9 +5873,9 @@ Visit: %s (Author's site)
             else:
                 for olacct in thisServiceMDAccountProxies:
                     if not olacct[2]:
-                        OFX.append(" >> Banking: %s ('Key': %s) (OfxAcctNum: %s)" %(olacct[0].getAccount().getFullAccountName(), olacct[0].getAccountKey(), olacct[0].getOFXAccountNumber()))
+                        OFX.append(" >> Banking: %s ('Key': %s) (OfxAcctNum: %s)" %(olacct[0].getAccount().getFullAccountName(), olacct[0].getAccountKey(), redactor(olacct[0].getOFXAccountNumber())))
                     else:
-                        OFX.append(" >> BillPay: %s ('Key': %s) (OfxAcctNum: %s)" %(olacct[0].getAccount().getFullAccountName(), olacct[0].getAccountKey(), olacct[0].getOFXAccountNumber()))
+                        OFX.append(" >> BillPay: %s ('Key': %s) (OfxAcctNum: %s)" %(olacct[0].getAccount().getFullAccountName(), olacct[0].getAccountKey(), redactor(olacct[0].getOFXAccountNumber())))
 
             OFX.append("")
 
@@ -5838,12 +5883,12 @@ Visit: %s (Author's site)
                 try:
                     p_getAuthenticationCachePrefix=service.getClass().getDeclaredMethod("getAuthenticationCachePrefix")
                     p_getAuthenticationCachePrefix.setAccessible(True)
-                    OFX.append(pad("AuthenticationCachePrefix:",33) + safeStr(p_getAuthenticationCachePrefix.invoke(service)))
+                    OFX.append(pad("AuthenticationCachePrefix:",33) + (safeStr(p_getAuthenticationCachePrefix.invoke(service))))
                     p_getAuthenticationCachePrefix.setAccessible(False)
 
                     p_getSessionCookiePrefix=service.getClass().getDeclaredMethod("getSessionCookiePrefix")
                     p_getSessionCookiePrefix.setAccessible(True)
-                    OFX.append(pad("SessionCookiePrefix:",33    ) + safeStr(p_getSessionCookiePrefix.invoke(service)))
+                    OFX.append(pad("SessionCookiePrefix:",33) + (safeStr(p_getSessionCookiePrefix.invoke(service))))
                     p_getSessionCookiePrefix.setAccessible(False)
                 except:
                     pass
@@ -5854,7 +5899,15 @@ Visit: %s (Author's site)
                 iCount = 0
                 for rk in list(root.getParameterKeys()):
                     if rk.startswith(authKeyPrefix) and (service.getTIKServiceID() in rk):
-                        OFX.append("Root key: '%s' value: '%s'" %(rk,root.getParameter(rk)))
+                        rk_redact = rk
+                        val_redact = root.getParameter(rk)
+                        if GlobalVars.redact:
+                            redactSearch = authKeyPrefix+"::"+service.getTIKServiceID()+"::"
+                            if rk.startswith("ofx.client_uid_default_user::"):
+                                val_redact = redactor(val_redact)
+                            elif rk.startswith(redactSearch):
+                                rk_redact = rk[:len(redactSearch)] + redactor(rk[len(redactSearch):])
+                        OFX.append("Root key: '%s' value: '%s'" %(rk_redact, val_redact))
                         iCount += 1
                 if not iCount: OFX.append("<NONE>")
                 del root, iCount, authKeyPrefix
@@ -5868,13 +5921,13 @@ Visit: %s (Author's site)
 
                     realmUserID = service.getUserId(realm, None)
                     if realmUserID is not None and realmUserID != "":
-                        OFX.append("Realm: %s User ID: %s" %(realm, service.getUserId(realm, None)))
+                        OFX.append("Realm: %s User ID: %s" %(realm, redactor(service.getUserId(realm, None))))
 
                     for olacct in thisServiceMDAccountProxies:
 
-                        userID=service.getUserId(realm, olacct[0])
+                        userID = service.getUserId(realm, olacct[0])
                         if userID is not None and userID != "":
-                            OFX.append("Realm: %s Account's UserID: %s" %(realm, userID))
+                            OFX.append("Realm: %s Account's UserID: %s" %(realm, redactor(userID)))
 
                         if not lCachePasswords:
                             OFX.append("** NOTE: Any Cached Authentication Keys listed below will not be saved when you exit **")
@@ -5882,12 +5935,12 @@ Visit: %s (Author's site)
                         authKey = "ofx:" + realm
                         authObj = service.getCachedAuthentication(authKey)
                         if authObj is not None and authObj != "":
-                            OFX.append("Realm: %s Cached Authentication: %s" %(realm, authObj))
+                            OFX.append("Realm: %s Cached Authentication: %s" %(realm, redactAuth(authObj)))
 
                         authKey = "ofx:" + (realm + "::" + olacct[0].getAccountKey())
                         authObj = service.getCachedAuthentication(authKey)
                         if authObj is not None and authObj != "":
-                            OFX.append("Realm: %s Account Key: %s (Key: %s / AccNum: %s) Cached Authentication: %s" %(realm, olacct[0].getAccountKey(), olacct[0].getOFXAccountKey(), olacct[0].getOFXAccountNumber(), authObj))
+                            OFX.append("Realm: %s Account Key: %s (Key: %s / AccNum: %s) Cached Authentication: %s" %(realm, olacct[0].getAccountKey(), olacct[0].getOFXAccountKey(), redactor(olacct[0].getOFXAccountNumber()), redactAuth(authObj)))
 
                         if service.getSessionCookie(userID) is not None:
                             OFX.append("Session Cookie: %s" %(service.getSessionCookie(userID)))
@@ -6028,7 +6081,12 @@ Visit: %s (Author's site)
             sortKeys=sorted(service.getParameterKeys())
             OFX.append(pad("Raw Parameter keys:",40))
             for x in sortKeys:
-                OFX.append("%s %s" %(pad(x,40),service.getParameter(x,None)))
+                val = service.getParameter(x,None)
+                for checkKey in ["balance", "account_num", "branch_id", "routing_num", "so_user_id"]:
+                    if checkKey in x:
+                        val = redactor(val, ("balance" in x))
+                        break
+                OFX.append("%s %s" %(pad(x,40), val))
 
             OFX.append("\n------------------------------------------------------------------\n\n")
 
@@ -6037,7 +6095,6 @@ Visit: %s (Author's site)
             OFX[i] = OFX[i] + "\n"
         OFX = "".join(OFX)
 
-        # <WOW! Phew - we actually made it!>
         QuickJFrame("VIEW INSTALLED SERVICE / BANK LOGON PROFILES",OFX,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
         return
@@ -10816,7 +10873,7 @@ Visit: %s (Author's site)
                                                                        availAccount.getDescription())
         return mdplus_linkages
 
-    def special_toMultilineHumanReadableString(_object, lSkipSecrets=True, sFilterServiceID=None):
+    def special_toMultilineHumanReadableString(_object, lSkipSecrets=True, sFilterServiceID=None, lRedact=False):
         _output = ""
         if not _object: return _output
 
@@ -10851,6 +10908,11 @@ Visit: %s (Author's site)
 
             if lSkipSecrets:
                 if objectKey in hide_keys: _value = "****** hidden ****** (length: %s)" %(len(_value))
+
+            if lRedact and not objectKey.startswith(PLAID_MAP_KEY) and ":::" in objectKey:
+                redactedKey = objectKey[:objectKey.find(":::")+2] + redactor(objectKey[objectKey.find(":::")+3:])
+                objectKey = redactedKey
+
             _output += "Key: %s %sValue: %s %s\n" %(objectKey, acctXRef, _value, acctText)
 
         if not sFilterServiceID: _output += "----------------------\n"
@@ -12307,6 +12369,13 @@ Visit: %s (Author's site)
         del _storage
         return _authenticationCache
 
+    def find_nth(haystack, needle, n):
+        start = haystack.find(needle)
+        while start >= 0 and n > 1:
+            start = haystack.find(needle, start+len(needle))
+            n -= 1
+        return start
+
     class CuriousViewInternalSettingsButtonAction(AbstractAction):
 
         def __init__(self, lOFX=False, EDIT_MODE=False):
@@ -12317,6 +12386,8 @@ Visit: %s (Author's site)
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
             if MD_REF.getCurrentAccount().getBook() is None: return
+
+            output = ""
 
             _SEARCH   = 0
             _ROOTKEYS = 1
@@ -12414,12 +12485,10 @@ Visit: %s (Author's site)
             myPrint("J", "CURIOUS? VIEW: INTERNAL SETTINGS. User has requested to view: %s"%selectedWhat)
 
             lObject = False
-            selectedObject = None                                                                               # noqa
+            selectedObject = None                                                                                       # noqa
             lReportDefaultsSelected = False
 
             root = MD_REF.getCurrentAccountBook().getRootAccount()
-
-            output = ""
 
             searchWhat = ""
             lSearch = lKeys = lKeyData = False
@@ -12486,6 +12555,18 @@ Visit: %s (Author's site)
             if selectedWhat == what[_SYNCKEYS]: lSync = True
             if selectedWhat == what[_BANKKEYS]: lOFX = True
             if selectedWhat == what[_SIZEKEYS]: lSizes = True
+
+            GlobalVars.redact = False
+            if not self.EDIT_MODE and (lSync or lOFX or lSearch
+                                       or selectedWhat == what[_ROOTKEYS]
+                                       or selectedWhat == what[_BOOKKEYS]
+                                       or selectedWhat == what[_ACCTKEYS]):
+                GlobalVars.redact = myPopupAskQuestion(toolbox_frame_, "Display data", "Redact confidential information?")
+
+                if GlobalVars.redact:
+                    output += "** Confidential data will be redacted **\n"
+                else:
+                    output += "** WARNING: Confidential data will be visible **\n"
 
             try:
                 if lObject:  # selected object
@@ -12872,13 +12953,11 @@ Visit: %s (Author's site)
 
 
                 if selectedWhat == what[_ROOTKEYS] or lSync or lOFX or lSizes or lSearch:  # ROOT
-
-                    keys=sorted(root.getParameterKeys())
+                    keys = sorted(root.getParameterKeys())
                     output += '\n ====== ROOT PARAMETER KEYS (Preferences will mostly be in Local Storage) ======\n'
+                    authKeyPrefix = "ofx.client_uid"
                     for theKey in keys:
-
                         value = root.getParameter(theKey)
-
                         if lSync and ("sync" not in theKey.lower()): continue
                         if lOFX and not ("ofx" in theKey.lower() or "ol." in theKey.lower() or "olb." in theKey.lower()): continue
                         if lSizes and not check_for_window_display_data(theKey,value): continue
@@ -12886,16 +12965,27 @@ Visit: %s (Author's site)
                             if lKeys and not (searchWhat.lower() in theKey.lower()): continue
                             elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
-                        if not debug:
-                            if theKey.lower() == "netsync.synckey": value = "<*****> (hidden >> enable DEBUG to view)"
+                        if GlobalVars.redact:
+                            if theKey.lower() == "netsync.synckey": value = "<%s> (hidden)" %(redactor(value))
 
-                        output += pad("Key:%s" %theKey,70)+" Value: %s\n" %(value.strip())
+                        rk_redact = theKey
+                        val_redact = value
+
+                        if GlobalVars.redact:
+                            if theKey.startswith(authKeyPrefix):
+                                findUser = find_nth(theKey, "::", 2)
+                                if theKey.startswith("ofx.client_uid_default_user::"):
+                                    val_redact = redactor(val_redact)
+                                elif findUser > len(authKeyPrefix)+4:
+                                    rk_redact = theKey[:findUser+2] + redactor(theKey[findUser+2:])
+
+                        output += pad("Key:%s" %(rk_redact),100)+" Value: %s\n" %(val_redact.strip())
 
                     if selectedWhat == what[_ROOTKEYS]:
                         output+="\n"
                         for convertTimeStamp in ["ts", "rec_dt", "dtentered", "creation_date"]:
                             if root.getLongParameter(convertTimeStamp, 0) > 0:
-                                output += "%s %s\n" % (pad("TIMESTAMP('%s'):" %(convertTimeStamp),70), get_time_stamp_as_nice_text(root.getLongParameter(convertTimeStamp, 0))  )
+                                output += "%s %s\n" % (pad("TIMESTAMP('%s'):" %(convertTimeStamp),100), get_time_stamp_as_nice_text(root.getLongParameter(convertTimeStamp, 0))  )
 
 
                 if selectedWhat == what[_BOOKKEYS] or lOFX or lSearch:  # Local Storage - authentication cache
@@ -12910,11 +13000,10 @@ Visit: %s (Author's site)
                         keys = sorted(_auth.keys())                                                                     # noqa
                         for theKey in keys:
                             value = _auth.get(theKey)                                                                   # noqa
-
                             if lSearch:
                                 if lKeys and not (searchWhat.lower() in theKey.lower()): continue
                                 elif lKeyData and not (searchWhat.lower() in value.lower()): continue
-                            output += pad("Key:%s" %theKey,90)+" Value: %s\n" %(value.strip())
+                            output += pad("Key:%s" %theKey,90)+" Value: %s\n" %(redactAuth(value.strip()))
                     else:
                         if not lCachePasswords:
                             output += "** Your system is not setup to cache passwords... Cannot display this session's cache **\n"
@@ -12945,10 +13034,11 @@ Visit: %s (Author's site)
                             if lKeys and not (searchWhat.lower() in theKey.lower()): continue
                             elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
-                        if not debug:
-                            if (theKey.lower() == "netsync.synckey"): value = "<*****> (hidden >> enable DEBUG to view)"
+                        if GlobalVars.redact:
+                            if theKey.lower() == "netsync.synckey": value = "<%s> (hidden)" %(redactor(value))
 
-                        if ("._payloadid" in theKey.lower() or ".token" in theKey.lower()): value = "<*****> (hidden)"
+                        if GlobalVars.redact:
+                            if ("._payloadid" in theKey.lower() or ".token" in theKey.lower()): value = "<%s> (hidden)" %(redactor(value))
 
                         splitKey = theKey.split('.')
                         if splitKey[0] != last:
@@ -12968,17 +13058,20 @@ Visit: %s (Author's site)
                     lastAcct = None
                     for acct in accounts:
 
-                        if acct != lastAcct:
-                            output += "\n>> Account: %s\n" %acct.getFullAccountName()
-                            lastAcct = acct
+                        lPrintedAccountHeading = False
 
                         if lOFX:
+                            if acct != lastAcct:
+                                lPrintedAccountHeading = True
+                                output += "\n>> Account: %s\n" %acct.getFullAccountName()
+                                lastAcct = acct
+
                             output += "\nSpecific OFX Data:\n"
                             if (acct.canDownloadTxns() and not acct.getAccountIsInactive()):
                                 output += pad(">> Can Download Txns:",50)+safeStr(acct.canDownloadTxns() and not acct.getAccountIsInactive())+"\n"
 
                             if acct.getOFXAccountNumber() is not None and acct.getOFXAccountNumber() != "":
-                                output += pad(">> OFX Account Number:",50)+safeStr(acct.getOFXAccountNumber())+"\n"
+                                output += pad(">> OFX Account Number:",50)+redactor(safeStr(acct.getOFXAccountNumber()))+"\n"
 
                             if isMDPlusEnabledBuild():
                                 gbs = acct.getBankingServices()
@@ -13017,6 +13110,10 @@ Visit: %s (Author's site)
                                     output += (">> OnlineTxnList data:\n")
                                     for _k in sorted(getOnlineData.getParameterKeys()):
                                         _v = getOnlineData.getParameter(_k)
+                                        for checkKey in ["ol.availbal", "ol.ledgerbal"]:
+                                            if checkKey == _k:
+                                                _v = redactor(_v.strip())
+                                                break
                                         output += pad("  >> Key:%s" %(_k),50)+" Value: %s\n" %(_v.strip())
 
                                     for convertTimeStamp in ["ts", "ol.ledgerbalasof"]: ofx_last_txn_update_keys.append(convertTimeStamp)
@@ -13061,11 +13158,22 @@ Visit: %s (Author's site)
                                 if lKeys and not (searchWhat.lower() in theKey.lower()): continue
                                 elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
-                            if not debug:
-                                if theKey.lower() == "netsync.synckey": value = "<*****> (hidden >> enable DEBUG to view)"
-                                if theKey.lower() == "bank_account_number": value = "<*****> (hidden >> enable DEBUG to view)"
+                            if GlobalVars.redact:
+                                if theKey.lower() == "netsync.synckey": value = "<%s> (hidden)" %(redactor(value))
+
+                            if GlobalVars.redact:
+                                for checkKey in ["bank_account_number", "ofx_account_number", "ofx_bank_id", "ofx_import_acct_num", "olblink."]:
+                                    if checkKey in theKey.lower():
+                                        value = "<%s> (hidden >> disable redaction to view)" %(redactor(value))
+                                        break
 
                             if lOFX and value.strip() == "": continue
+
+                            if not lPrintedAccountHeading:
+                                if acct != lastAcct:
+                                    lPrintedAccountHeading = True
+                                    output += "\n>> Account: %s\n" %acct.getFullAccountName()
+                                    lastAcct = acct
 
                             output += pad("Key:%s" %(theKey),50)+" Value: %s\n" %(value.strip())
 
@@ -13096,7 +13204,13 @@ Visit: %s (Author's site)
                                 output += "--------------------------------------------\n"
                                 lastService = service
 
-                            output += pad("Key:%s" %theKey,50)+ " Value: %s\n" %(value)
+                            if GlobalVars.redact:
+                                for checkKey in ["balance", "account_num", "branch_id", "routing_num", "so_user_id"]:
+                                    if checkKey in theKey:
+                                        value = redactor(value, ("balance" in theKey))
+                                        break
+
+                            output += pad("Key:%s" %(theKey), 50)+ " Value: %s\n" %(value)
 
                 if lOFX:
                     output += "\n ========= Moneydance+ license object's PARAMETER KEYS (MD2022 onwards) =========\n"
@@ -13104,7 +13218,7 @@ Visit: %s (Author's site)
                     if licenseObject is None:
                         output += "<NO LICENSE OBJECT FOUND>\n"
                     else:
-                        output += special_toMultilineHumanReadableString(licenseObject)
+                        output += special_toMultilineHumanReadableString(licenseObject, lSkipSecrets=GlobalVars.redact, lRedact=GlobalVars.redact)
                         del licenseObject
 
                     output += "\n ========= OFX Account Mappings Object's PARAMETER KEYS (MD2022 onwards) =========\n"
@@ -13112,7 +13226,7 @@ Visit: %s (Author's site)
                     if mappingObject is None:
                         output += "<NO ACCOUNT MAPPING OBJECT FOUND>\n"
                     else:
-                        output += special_toMultilineHumanReadableString(mappingObject, lSkipSecrets=False)
+                        output += special_toMultilineHumanReadableString(mappingObject, lSkipSecrets=GlobalVars.redact, lRedact=GlobalVars.redact)
                         del mappingObject
 
                 if selectedWhat == what[_OSPROPS]:  # System.Properties
@@ -21967,7 +22081,11 @@ Now you will have a text readable version of the file you can open in a text edi
                 output += "\n%s %s\n" %(pad("Type:",25), type(value))
 
                 if isinstance(value,(StreamTable,StreamVector)):
-                    output += "\n%s\n%s\n" %("Value:", value)
+                    try:
+                        output += "\n%s\n%s\n" %("Value:", value)
+                    except IllegalArgumentException:
+                        value = "<ERROR: Failed to show contents>"
+                        output += "\n%s... (you can proceed anyway)\n" %(value)
                 else:
                     output += "\n%s %s\n" %(pad("Value:",25), value)
 
