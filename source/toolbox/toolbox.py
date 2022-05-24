@@ -284,6 +284,7 @@
 # build: 1048 - Improved the 'STOP-NOW' command message (suggest to check for upgrade)
 # build: 1049 - Updated Zap md+ option to wipe all md+ data from system (including all banking links)
 # build: 1049 - Added redactor() to various outputs (especially OFX and curious modes)
+# build: 1049 - Fixed calls to .setEscapeKeyCancels() on older MD versions...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 
@@ -25513,7 +25514,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 if event.getActionCommand() == "About Moneydance":
                     # MD_REF.getUI().showAbout()
                     abtWin = AboutWindow(MD_REF.getUI(), toolbox_frame_)
-                    abtWin.setEscapeKeyCancels(True)
+
+                    try: abtWin.setEscapeKeyCancels(True)
+                    except: pass
+
                     abtWin.setVisible(True)
 
 
