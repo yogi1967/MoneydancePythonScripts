@@ -83,6 +83,8 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**List Future Reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/security_performance_graph.zip">**Security Performance Graph**: Graphs selected securities, calculating relative price performance as a percentage. Popup table and other useful info too.
+
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
@@ -142,4 +144,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 2nd May 2022)_
+_(site last updated 27th May 2022)_
