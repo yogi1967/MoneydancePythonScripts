@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "accounts_categories_mega_search_window")
+MODULE_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "accounts_categories_mega_search_window" "security_performance_graph")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 BUNDLE_OWN_JAVA_LIST=("x")
 
