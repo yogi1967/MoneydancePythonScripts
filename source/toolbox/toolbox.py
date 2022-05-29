@@ -285,7 +285,7 @@
 # build: 1049 - Updated Zap md+ option to wipe all md+ data from system (including all banking links)
 # build: 1049 - Added redactor() to various outputs (especially OFX and curious modes)
 # build: 1049 - Fixed calls to .setEscapeKeyCancels() on older MD versions...
-# build: 1050 - Added force change currency for categories options; tweaked reset windows positions to pre-close MD windows
+# build: 1050 - Added force change currency for categories options...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 
@@ -632,7 +632,7 @@ else:
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Integer, Long
+    from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException                                    # noqa
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
     from com.moneydance.awt import JCurrencyField                                                                       # noqa
 
@@ -20711,6 +20711,26 @@ Now you will have a text readable version of the file you can open in a text edi
         setDisplayStatus(txt, "R")
         myPopupInformationBox(jif, txt, "DELETE ORPHANED EXTENSIONS", JOptionPane.ERROR_MESSAGE)
         return
+
+    # def invokeMethodByReflection(theObj, methodName, params, *args):
+    #
+    #     theClass = theObj.getClass()
+    #     reflectMethod = None
+    #
+    #     while theClass is not None:
+    #         try:
+    #             if params is None:
+    #                 reflectMethod = theClass.getDeclaredMethod(methodName)
+    #             else:
+    #                 reflectMethod = theClass.getDeclaredMethod(methodName, params)
+    #         except NoSuchMethodException:
+    #             theClass = theClass.getSuperclass()
+    #
+    #     if reflectMethod is None:
+    #         raise Exception("ERROR: could not find method: %s in class hierarchy" %(methodName))
+    #
+    #     reflectMethod.setAccessible(True)
+    #     return reflectMethod.invoke(theObj, *args)
 
     def reset_window_positions():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")

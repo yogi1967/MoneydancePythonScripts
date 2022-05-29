@@ -8,5 +8,5 @@
   "module_name" = "Toolbox"
   "module_desc" = "Infinite Kind support tool: Displays Moneydance settings, diagnoses issues, run fixes, and much more....."
   "mac_sandbox_friendly" = "false"
-  "news" = "Added force change currency on categories options. Tweaked reset windows positions/sizes options"
+  "news" = "Added force change currency on categories options."
 }

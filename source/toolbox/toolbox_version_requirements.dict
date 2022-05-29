@@ -5,7 +5,7 @@
                     {
                     "build" = "1050"
                     "disable" = "n"
-                    "news" = "Added force change currency on categories options. Tweaked reset windows positions/sizes options"
+                    "news" = "Added force change currency on categories options."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.4"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4080"
