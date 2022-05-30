@@ -95,7 +95,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 ### Signed Versions (hosted on this site)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1004 - 28th May 2022) (enable expand all, search collapsed)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Accounts Categories Mega Search Window (signed) (build: 1001 - 28th May 2022) - (Initial preview release)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1000 - 28th May 2022) - (Initial preview release)
 
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
