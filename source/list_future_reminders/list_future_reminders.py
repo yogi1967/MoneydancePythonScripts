@@ -56,7 +56,7 @@
 # build: 1016 - pushing .setEscapeKeyCancels(True) to the popup dialogs....
 # build: 1016 - added showRawItemDetails() to popup right-click menu....
 # build: 1017 - Fixed calls to .setEscapeKeyCancels() on older MD versions
-# build: 1018 - Added right-click popup to allow deletion of Reminder...
+# build: 1018 - Added right-click popup to allow deletion of Reminder...; Search field grabs focus too..
 
 # Displays Moneydance future reminders
 
@@ -2920,7 +2920,7 @@ Visit: %s (Author's site)
         # EditRemindersWindow.editReminder(None, MD_REF.getUI(), GlobalVars.saveLastReminderObj)
 
         r = GlobalVars.saveLastReminderObj
-        if myPopupAskQuestion(list_future_reminders_frame_, "DELETE REMINDER", "Are you sure you want to delete this reminder?", theMessageType=JOptionPane.WARNING_MESSAGE):
+        if myPopupAskQuestion(list_future_reminders_frame_, "DELETE REMINDER", "Delete reminder (along with all other future versions displayed too)?", theMessageType=JOptionPane.WARNING_MESSAGE):
             r.deleteItem()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -3832,6 +3832,10 @@ Visit: %s (Author's site)
 
                     myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
+            class GrabFocusRunnable(Runnable):
+                def __init__(self, swingObject): self.swingObject = swingObject
+                def run(self): self.swingObject.requestFocus()
+
             class MyJTable(JTable):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -4360,7 +4364,8 @@ Visit: %s (Author's site)
                 # if GlobalVars.saveJTable.getRowCount() > 0:
                 #     GlobalVars.saveJTable.setRowSelectionInterval(GlobalVars.saveSelectedRowIndex, GlobalVars.saveSelectedRowIndex)
 
-                GlobalVars.saveJTable.requestFocus()
+                # GlobalVars.saveJTable.requestFocus()
+                SwingUtilities.invokeLater(GrabFocusRunnable(GlobalVars.mySearchField))
 
             else:
                 myPopupInformationBox(list_future_reminders_frame_, "You have no reminders to display!", GlobalVars.thisScriptName)
