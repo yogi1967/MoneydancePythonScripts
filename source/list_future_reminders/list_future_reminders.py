@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1017)
+# list_future_reminders.py (build: 1018)
 
 ###############################################################################
 # MIT License
@@ -56,6 +56,7 @@
 # build: 1016 - pushing .setEscapeKeyCancels(True) to the popup dialogs....
 # build: 1016 - added showRawItemDetails() to popup right-click menu....
 # build: 1017 - Fixed calls to .setEscapeKeyCancels() on older MD versions
+# build: 1018 - Added right-click popup to allow deletion of Reminder...
 
 # Displays Moneydance future reminders
 
@@ -67,7 +68,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1017"
+version_build = "1018"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -2909,6 +2910,21 @@ Visit: %s (Author's site)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
+    def deleteReminder():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+        myPrint("D", "Calling MD EditRemindersWindow() function...")
+
+        GlobalVars.saveSelectedRowIndex = GlobalVars.saveJTable.getSelectedRow()
+        GlobalVars.saveLastReminderObj = GlobalVars.saveJTable.getValueAt(GlobalVars.saveSelectedRowIndex, 0)
+
+        # EditRemindersWindow.editReminder(None, MD_REF.getUI(), GlobalVars.saveLastReminderObj)
+
+        r = GlobalVars.saveLastReminderObj
+        if myPopupAskQuestion(list_future_reminders_frame_, "DELETE REMINDER", "Are you sure you want to delete this reminder?", theMessageType=JOptionPane.WARNING_MESSAGE):
+            r.deleteItem()
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
     def recordNextReminderOccurrence():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
         myPrint("D", "Calling MD EditRemindersWindow() function...")
@@ -2955,6 +2971,10 @@ Visit: %s (Author's site)
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("edit reminder"):
                 ShowEditForm()
+
+            # ##########################################################################################################
+            if event.getActionCommand().lower().startswith("delete reminder"):
+                deleteReminder()
 
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("page setup"):
@@ -4197,6 +4217,10 @@ Visit: %s (Author's site)
                 showDetails = JMenuItem("Show Reminder's raw details")
                 showDetails.addActionListener(DoTheMenu())
                 popupMenu.add(showDetails)
+
+                deleteReminder = JMenuItem("Delete Reminder")
+                deleteReminder.addActionListener(DoTheMenu())
+                popupMenu.add(deleteReminder)
 
                 GlobalVars.saveJTable.addMouseListener(MyMouseListener)
                 GlobalVars.saveJTable.setComponentPopupMenu(popupMenu)
