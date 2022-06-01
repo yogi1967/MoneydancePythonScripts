@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1050 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1051 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and they retain all copyright over Moneydance internal code
@@ -286,6 +286,8 @@
 # build: 1049 - Added redactor() to various outputs (especially OFX and curious modes)
 # build: 1049 - Fixed calls to .setEscapeKeyCancels() on older MD versions...
 # build: 1050 - Added force change currency for categories options...
+# build: 1051 - Tweaks to internal code. Improved reset window positions code to pre-close all MD windows....
+# build: 1051 - Changed invalid preferences locations/sizes code to zap keys from toolbox_init.py at MD launch.......
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 
@@ -307,7 +309,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1050"
+version_build = "1051"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -522,7 +524,7 @@ else:
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
-    from java.lang import Double, Math, Character
+    from java.lang import Double, Math, Character, NoSuchFieldException, NoSuchMethodException                          # noqa
     from java.lang.reflect import Modifier
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
@@ -584,7 +586,7 @@ else:
     from collections import OrderedDict
 
     from org.python.core import PySystemState
-    from java.util import UUID, Timer, TimerTask, Map, HashMap
+    from java.util import UUID, Timer, TimerTask, Map, HashMap, Vector
     from java.util.zip import ZipInputStream, ZipEntry, ZipOutputStream
 
     # renamed in MD build 3067
@@ -626,13 +628,17 @@ else:
 
     from com.infinitekind.tiksync import SyncRecord, SyncableItem
     from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
+    from com.moneydance.apps.md.view.gui import MainFrame, SecondaryFrame, SecondaryWindow                              # noqa
+    from com.moneydance.apps.md.view.gui.bot import MoneyBotWindow                                                      # noqa
+    from com.moneydance.apps.md.view.gui.extensions import ExtensionsWindow                                             # noqa
+
     from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
     from com.infinitekind.tiksync import Syncer
     from com.moneydance.apps.md.controller import PreferencesListener
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException                                    # noqa
+    from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
     from com.moneydance.awt import JCurrencyField                                                                       # noqa
 
@@ -659,6 +665,29 @@ else:
     global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MDPLUS_BUILD, MD_MULTI_OFX_TXN_DNLD_DATES_BUILD
     global MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD
 
+    TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.4                                                                          # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4087                                                                            # noqa
+    MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
+    MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
+    MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
+    MD_EXTENSIONS_DIRECTORY_FILE = "https://infinitekind.com/app/md/extensions.dct"                                     # noqa
+    TOOLBOX_VERSION_VALIDATION_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/toolbox/toolbox_version_requirements.dict" # noqa
+    # Alternatively perhaps use....: "https://raw.githubusercontent.com/TheInfiniteKind/moneydance_open/main/python_scripts/toolbox/toolbox_version_requirements.dict"
+
+    MD_ICLOUD_ENABLED = 3088                                                                                            # noqa
+    MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
+    MD_MDPLUS_BUILD = 4040                                                                                              # noqa
+    MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078                                                                 # noqa
+    MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                                                                            # noqa
+
+    GlobalVars.mainPnl_preview_lbl = JLabel()
+    GlobalVars.mainPnl_debug_lbl = JLabel()
+    GlobalVars.mainPnl_syncing_lbl = JLabel()
+    GlobalVars.mainPnl_updateMode_lbl = JLabel()
+    GlobalVars.mainPnl_advancedMode_lbl = JLabel()
+    GlobalVars.mainPnl_toolboxUnlocked_lbl = JLabel()
+
     GlobalVars.allButtonsList = []
     GlobalVars.TOOLBOX_UNLOCK = False
     GlobalVars.SCRIPT_RUNNING_LOCK = threading.Lock()
@@ -669,6 +698,8 @@ else:
     GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
     GlobalVars.Strings.EXTENSION_QL_ID = "securityquoteload"
     GlobalVars.Strings.EXTENSION_QER_ID = "yahooqt"
+
+    GlobalVars.Strings.TOOLBOX_PREFERENCES_ZAPPER = "toolbox_preferences_zapper"
 
     GlobalVars.redact = True
 
@@ -681,26 +712,11 @@ else:
     globalSave_DEBUG_FI_data = None                                                                                     # noqa
     TOOLBOX_STOP_NOW = False                                                                                            # noqa
 
-    MD_ICLOUD_ENABLED = 3088                                                                                            # noqa
-    MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
-    MD_MDPLUS_BUILD = 4040                                                                                              # noqa
-    MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078                                                                 # noqa
-    MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                                                                            # noqa
-
-    TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.4                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4085                                                                            # noqa
-    MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
-    MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
-    MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
-    MD_EXTENSIONS_DIRECTORY_FILE = "https://infinitekind.com/app/md/extensions.dct"                                     # noqa
-    TOOLBOX_VERSION_VALIDATION_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/toolbox/toolbox_version_requirements.dict" # noqa
-    # Alternatively perhaps use....: "https://raw.githubusercontent.com/TheInfiniteKind/moneydance_open/main/python_scripts/toolbox/toolbox_version_requirements.dict"
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
-    # COMMON CODE ################# VERSION 107 ########################################################################
+    # COMMON CODE ################# VERSION 108 ########################################################################
     # COMMON CODE ######################################################################################################
     GlobalVars.i_am_an_extension_so_run_headless = False
     try:
@@ -1851,7 +1867,7 @@ Visit: %s (Author's site)
         return _datetime
 
     def destroyOldFrames(moduleName):
-        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
@@ -3043,11 +3059,52 @@ Visit: %s (Author's site)
         return command, param
 
     def getFieldByReflection(theObj, fieldName, isInt=False):
-        reflect = theObj.getClass().getDeclaredField(fieldName)
-        if Modifier.isPrivate(reflect.getModifiers()): reflect.setAccessible(True)
-        isStatic = Modifier.isStatic(reflect.getModifiers())
-        if isInt: return reflect.getInt(theObj if not isStatic else None)
-        return reflect.get(theObj if not isStatic else None)
+        theClass = theObj.getClass()
+        reflectField = None
+        while theClass is not None:
+            try:
+                reflectField = theClass.getDeclaredField(fieldName)
+                break
+            except NoSuchFieldException:
+                theClass = theClass.getSuperclass()
+        if reflectField is None: raise Exception("ERROR: could not find field: %s in class hierarchy" %(fieldName))
+        if Modifier.isPrivate(reflectField.getModifiers()): reflectField.setAccessible(True)
+        elif Modifier.isProtected(reflectField.getModifiers()): reflectField.setAccessible(True)
+        isStatic = Modifier.isStatic(reflectField.getModifiers())
+        if isInt: return reflectField.getInt(theObj if not isStatic else None)
+        return reflectField.get(theObj if not isStatic else None)
+
+    def invokeMethodByReflection(theObj, methodName, params, *args):
+        theClass = theObj.getClass()
+        reflectMethod = None
+        while theClass is not None:
+            try:
+                if params is None:
+                    reflectMethod = theClass.getDeclaredMethod(methodName)
+                    break
+                else:
+                    reflectMethod = theClass.getDeclaredMethod(methodName, params)
+                    break
+            except NoSuchMethodException:
+                theClass = theClass.getSuperclass()
+        if reflectMethod is None: raise Exception("ERROR: could not find method: %s in class hierarchy" %(methodName))
+        reflectMethod.setAccessible(True)
+        return reflectMethod.invoke(theObj, *args)
+
+    def setFieldByReflection(theObj, fieldName, newValue):
+        theClass = theObj.getClass()
+        reflectField = None
+        while theClass is not None:
+            try:
+                reflectField = theClass.getDeclaredField(fieldName)
+                break
+            except NoSuchFieldException:
+                theClass = theClass.getSuperclass()
+        if reflectField is None: raise Exception("ERROR: could not find field: %s in class hierarchy" %(fieldName))
+        if Modifier.isPrivate(reflectField.getModifiers()): reflectField.setAccessible(True)
+        elif Modifier.isProtected(reflectField.getModifiers()): reflectField.setAccessible(True)
+        isStatic = Modifier.isStatic(reflectField.getModifiers())
+        return reflectField.set(theObj if not isStatic else None, newValue)
 
     def find_feature_module(theModule):
         # type: (str) -> bool
@@ -3598,7 +3655,7 @@ Visit: %s (Author's site)
         def actionPerformed(self, event):
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-            _THIS_METHOD_NAME = "Detect Invalid window locations".upper()
+            _THIS_METHOD_NAME = "Detect invalid window locations/sizes".upper()
 
             virtualBounds = Rectangle(0, 0, 0, 0)
             ge = GraphicsEnvironment.getLocalGraphicsEnvironment()  # type: GraphicsEnvironment
@@ -3618,51 +3675,72 @@ Visit: %s (Author's site)
             prefs = MD_REF.getPreferences()
 
             invalidLocns = []
-            extraLocations = ["security_list_loc", "curr_list_loc", "checknum_settings", "ext_mgmt_winloc", "mbot.loc"]
+            invalidSizes = []
+
             prefSt, prefKeys = read_preferences_file(True)
             for theKey in prefKeys:
                 value = prefSt.get(theKey)
                 if not check_for_window_display_data(theKey, value): continue
-                if not check_for_just_locations_window_display_data(theKey, value): continue
-                livePrefValue = prefs.getXYSetting(theKey, 0, 0)
-                if theKey.startswith("gui.") or theKey in extraLocations:
+                lFoundLocation = check_for_just_locations_window_display_data(theKey, value)
+                lFoundSize = check_for_just_sizes_window_display_data(theKey, value)
+                if lFoundLocation:
+                    livePrefValue = prefs.getXYSetting(theKey, 0, 0)
                     if livePrefValue.x == 0 and livePrefValue.y == 0: continue
                     if livePrefValue.x > virtualBounds.width or livePrefValue.y > virtualBounds.height:
                         invalidLocns.append(theKey)
                         txt = "Found INVALID location outside current virtual bounds: %s (%s)" %(theKey, livePrefValue)
                         output += "%s\n" %(txt)
-                        myPrint("DB", txt)
+                        myPrint("B", txt)
+                    continue
+
+                if lFoundSize:
+                    livePrefValue = prefs.getSizeSetting(theKey, 0, 0)
+                    if livePrefValue.width > 200 and livePrefValue.height > 200: continue
+                    invalidSizes.append(theKey)
+                    txt = "Found INVALID size (too small): %s (%s)" %(theKey, livePrefValue)
+                    output += "%s\n" %(txt)
+                    myPrint("B", txt)
+                    continue
+
             output += "\n"
 
             if self.lQuickCheckOnly:
                 if invalidLocns:
-                    myPrint("B","*** %s invalid saved window locations detected (use 'UPDATE MODE' to zap these)...." %(len(invalidLocns)))
-                    return True
+                    myPrint("B","*** %s invalid saved window location(s) detected (use 'UPDATE MODE' to zap these)...." %(len(invalidLocns)))
+                else:
+                    myPrint("B","No invalid saved window locations detected....")
 
-                myPrint("B","No invalid saved window locations detected....")
-                return False
+                if invalidSizes:
+                    myPrint("B","*** %s invalid saved window size(s) detected (use 'UPDATE MODE' to zap these)...." %(len(invalidSizes)))
+                else:
+                    myPrint("B","No invalid saved window sizes detected....")
+                return (invalidLocns or invalidSizes)
 
-            if not invalidLocns:
-                output += "NO INVALID LOCATIONS DETECTED - no changes made\n<END>\n"
+            if not invalidLocns and not invalidSizes:
+                output += "NO INVALID LOCATIONS / SIZES DETECTED - no changes made\n<END>\n"
                 QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
                 return False
 
-            output += "ALERT: %s invalid saved window locations detected\n\n" %(len(invalidLocns))
+            output += "ALERT: %s invalid saved window location(s) / size(s) detected\n\n" %(len(invalidLocns) + len(invalidSizes))
             jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
 
+            if not GlobalVars.i_am_an_extension_so_run_headless:
+                myPopupInformationBox(jif, "PLEASE RUN THIS AS AN EXTENSION TO PROCEED", _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
+                return
+
             ask = MyPopUpDialogBox(jif,
-                                   theStatus="%s invalid saved window locations have been detected!" %(len(invalidLocns)),
+                                   theStatus="%s invalid saved window location(s) / size(s) detected!" %(len(invalidLocns) + len(invalidSizes)),
                                    theMessage=output,
                                    theTitle=_THIS_METHOD_NAME,
                                    lAlertLevel=1,
                                    lCancelButton=True,
                                    OKButtonText="ZAP INVALID LOCATIONS")
             if not ask.go():
-                txt = "%s: User declined to zap invalid saved window locations - no changes made" %(_THIS_METHOD_NAME)
+                txt = "%s: User declined to zap invalid saved window location(s) / size(s) - no changes made" %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "B")
                 return
 
-            if not doesUserAcceptDisclaimer(jif, _THIS_METHOD_NAME, "Are you really sure you want to zap %s invalid saved window locations?" %(len(invalidLocns))):
+            if not doesUserAcceptDisclaimer(jif, _THIS_METHOD_NAME, "Are you really sure you want to zap %s invalid saved window location(s)/size(s)?" %(len(invalidLocns) + len(invalidSizes))):
                 txt = "%s: User declined the disclaimer - no changes made...." %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -3675,19 +3753,46 @@ Visit: %s (Author's site)
                 return
 
             jif.dispose()
-            output += "User accepted disclaimer and is proceeding with zap of invalid window locations...\n\n"
+            output += "User accepted disclaimer and is proceeding with zap of invalid window locations/sizes...\n\n"
 
-            for locKey in list(invalidLocns):
-                output += "Zapping: %s\n" %(locKey)
-                MD_REF.getPreferences().setSetting(locKey, None)
-            MD_REF.savePreferences()
+            lAddMainWindowKeysToo = False
+            invalidKeysToZap = StreamVector()
+            if isinstance(invalidKeysToZap, Vector): pass
+            for sizes_locations in [invalidSizes, invalidLocns]:
+                for zapKey in sizes_locations:
+                    invalidKeysToZap.add(zapKey)
+                    if "mainwindow" in zapKey: lAddMainWindowKeysToo = True
 
-            txt = "%s: %s invalid saved window locations zapped.... MONEYDANCE WILL EXIT - PLEASE RELAUNCH MD" %(_THIS_METHOD_NAME, len(invalidLocns))
+            if lAddMainWindowKeysToo:
+                for zapThisToo in ["gui.is_maximized-mainwindow", "gui.source_list_width+mainwindow", "gui.winloc-mainwindow", "gui.winsize-mainwindow"]:
+                    invalidKeysToZap.add(zapThisToo)
+
+            MD_REF.getPreferences().setSetting(GlobalVars.Strings.TOOLBOX_PREFERENCES_ZAPPER, invalidKeysToZap)
+
+            ##### FORCE CLOSE ALL WINDOWS SO THEY DO NOT SAVE THEIR SETTINGS AFTER TOOLBOX CHANGES #####################
+            # try:
+            #     forceCloseMoneydanceWindows()
+            # except:
+            #     dump_sys_error_to_md_console_and_errorlog()
+            #     myPopupInformationBox(toolbox_frame_, "ERROR: forceCloseMoneydanceWindows() crashed (will continue anyway)", _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
+            #
+            # for sizes_locations in [invalidSizes, invalidLocns]:
+            #     for locSizeKey in list(sizes_locations):
+            #         output += "Zapping: %s\n" %(locSizeKey)
+            #         myPrint("B", "Zapping: %s\n" %(locSizeKey))
+            #         MD_REF.getPreferences().setSetting(locSizeKey, None)
+            #
+            # MD_REF.savePreferences()    # save config.dict
+
+            txt = "%s: %s invalid saved window location(s) / size(s) zapped.... MONEYDANCE WILL EXIT - PLEASE RELAUNCH MD" %(_THIS_METHOD_NAME, len(invalidLocns) + len(invalidSizes))
             output += "\n\n%s\n<END>" %(txt)
-            jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True,lWrapText=False,lAutoSize=True,lQuitMDAfterClose=True).show_the_frame()
             setDisplayStatus(txt, "R")
+            myPrint("B", txt)
             play_the_money_sound()
-            myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            MyPopUpDialogBox(toolbox_frame_, txt, output, theTitle="INVALID LOCATION(S)/SIZE(S) ZAPPED", lAlertLevel=1).go()
+
+            myPrint("B","Requesting Moneydance shuts down now...")
+            MD_REF.getUI().shutdownApp(False)
 
     def find_other_datasets():
         output = ""
@@ -5856,7 +5961,7 @@ Visit: %s (Author's site)
                             for meth in meths:
                                 if not Modifier.isPublic(meth.getModifiers()): continue
                                 if meth.getName().lower().startswith("get") or meth.getName().lower().startswith("is") \
-                                        and meth.getParameterCount()<1:
+                                        and meth.getParameterCount() < 1:
                                     result = meth.invoke(availAccount)
                                     if GlobalVars.redact:
                                         for checkKey in ["mapping", "balance", "number", "key"]:
@@ -5864,7 +5969,7 @@ Visit: %s (Author's site)
                                                 result = redactor(result)
                                                 break
                                     if result is not None:
-                                        OFX.append(" >> %s %s" %(pad(meth.getName(),40),result) )
+                                        OFX.append(" >> %s %s" %(pad(meth.getName(), 40),result) )
                             OFX.append("\n")
                         except:
                             pass
@@ -5885,17 +5990,14 @@ Visit: %s (Author's site)
 
             if service.getTIKServiceID() != "md:plaid":         # Don't bother with MD+ as these are all empty anyway...
                 try:
-                    p_getAuthenticationCachePrefix=service.getClass().getDeclaredMethod("getAuthenticationCachePrefix")
-                    p_getAuthenticationCachePrefix.setAccessible(True)
-                    OFX.append(pad("AuthenticationCachePrefix:",33) + (safeStr(p_getAuthenticationCachePrefix.invoke(service))))
-                    p_getAuthenticationCachePrefix.setAccessible(False)
+                    authenticationCachePrefix = invokeMethodByReflection(service, "getAuthenticationCachePrefix", None)
+                    OFX.append(pad("AuthenticationCachePrefix:",33) + (safeStr(authenticationCachePrefix)))
 
-                    p_getSessionCookiePrefix=service.getClass().getDeclaredMethod("getSessionCookiePrefix")
-                    p_getSessionCookiePrefix.setAccessible(True)
-                    OFX.append(pad("SessionCookiePrefix:",33) + (safeStr(p_getSessionCookiePrefix.invoke(service))))
-                    p_getSessionCookiePrefix.setAccessible(False)
+                    sessionCookiePrefix = invokeMethodByReflection(service, "getSessionCookiePrefix", None)
+                    OFX.append(pad("SessionCookiePrefix:",33) + (safeStr(sessionCookiePrefix)))
                 except:
-                    pass
+                    myPrint("B", "ERROR: getting getAuthenticationCachePrefix() or getSessionCookiePrefix()... (continuing)")
+                    dump_sys_error_to_md_console_and_errorlog()
 
                 OFX.append(pad("\n>>ROOT Data associated with service profile:",120))
                 authKeyPrefix = "ofx.client_uid"
@@ -6018,12 +6120,9 @@ Visit: %s (Author's site)
                 OFX.append("getMaxFITIDLength()              %s" %(service.getMaxFITIDLength()                     ))
                 OFX.append("getInvalidAcctTypes()            %s" %(service.getInvalidAcctTypes()                   ))
 
-                p_getMsgSetTag=service.getClass().getDeclaredMethod("getMsgSetTag",[Integer.TYPE])
-                p_getMsgSetTag.setAccessible(True)
-
                 for msgType in (0,1,3,4,5,6,7,8,9,10,11,12):
-                    if service.supportsMsgSet(msgType) or msgType==0:
-                        tag=p_getMsgSetTag.invoke(service,[msgType])
+                    if service.supportsMsgSet(msgType) or msgType == 0:
+                        tag = invokeMethodByReflection(service, "getMsgSetTag", [Integer.TYPE], [msgType])
                         OFX.append("---")
                         OFX.append("  Supports Message Tag:            %s" %(tag))
                         OFX.append("  getMsgSetLanguage(msgType)       %s" %(service.getMsgSetLanguage(msgType)             ))
@@ -6034,7 +6133,6 @@ Visit: %s (Author's site)
                         OFX.append("  getMsgSetTransportSecure(msgType)%s" %(service.getMsgSetTransportSecure(msgType)      ))
                         OFX.append("  getMsgSetURL(msgType)            %s" %(service.getMsgSetURL(msgType)                  ))
                         OFX.append("  getMsgSetVersion(msgType)        %s" %(service.getMsgSetVersion(msgType)              ))
-                p_getMsgSetTag.setAccessible(False)
 
                 OFX.append("---")
 
@@ -7607,7 +7705,7 @@ Visit: %s (Author's site)
 
         return st,tk
 
-    def check_for_window_display_data( theKey, theValue ):
+    def check_for_window_display_data(theKey, theValue):
 
         if not isinstance(theValue, (str,unicode)):             return False
         if theKey.startswith("gui.current_theme"):              return False
@@ -7620,13 +7718,16 @@ Visit: %s (Author's site)
         if theKey.startswith("gui.source_list_visible"):        return False
 
         # Preferences Home Screen options
-        if theKey.startswith("gui.home.lefties"):               return False
-        if theKey.startswith("gui.home.righties"):              return False
-        if theKey.startswith("gui.home.unused"):                return False
+        if theKey.startswith("gui.home"):                       return False
 
         if not (theKey.startswith("ext_mgmt_win")
+                or theKey.startswith("security_list")
+                or theKey.startswith("curr_list")
+                or theKey.startswith("ratioSettings.")
+                or theKey.startswith("ol_acct_map_win")
                 or theKey.startswith("moneybot_py_divider")
                 or theKey.startswith("mbot.loc")
+                or theKey.startswith("mbot.size")
                 or theKey.startswith("gui.")
                 or theKey.endswith("rec_reg.credit")
                 or theKey.endswith("rec_reg.debit")
@@ -7637,11 +7738,15 @@ Visit: %s (Author's site)
 
         if not ("window" in theKey
                 or "win_loc" in theKey
+                or "_list_loc" in theKey
+                or "_win.loc" in theKey
+                or "_report_loc" in theKey
                 or "width" in theKey
                 or "isopen" in theKey
                 or "winloc" in theKey
                 or "winsize" in theKey
                 or "winsz" in theKey
+                or "win.sz" in theKey
                 or "divider" in theKey
                 or "location" in theKey
                 or "size" in theKey
@@ -7656,7 +7761,7 @@ Visit: %s (Author's site)
 
         return True
 
-    def check_for_just_locations_window_display_data( theKey, theValue ):
+    def check_for_just_locations_window_display_data(theKey, theValue):
 
         # Assumes you have called check_for_window_display_data() first!
 
@@ -7664,9 +7769,31 @@ Visit: %s (Author's site)
         if "x" not in theValue.lower(): return False
 
         if not ("win_loc" in theKey
+                or "_list_loc" in theKey
+                or "_win.loc" in theKey
+                or "_report_loc" in theKey
                 or "winloc" in theKey
                 or "location" in theKey
                 or "mbot.loc" in theKey):
+            return False
+
+        return True
+
+    def check_for_just_sizes_window_display_data(theKey, theValue):
+
+        # Assumes you have called check_for_window_display_data() first!
+
+        # Sizes are  number x number - e.g. 10x100
+        if "x" not in theValue.lower(): return False
+        if "font" in theValue.lower(): return False
+
+        if not ("win_size" in theKey
+                or "size" in theKey
+                or "winsize" in theKey
+                or "winsz" in theKey
+                or "win.sz" in theKey
+                or "location" in theKey
+                or "mbot.size" in theKey):
             return False
 
         return True
@@ -8738,7 +8865,7 @@ Visit: %s (Author's site)
 
         return False
 
-    def backup_config_dict( lSaveFirst=True ):
+    def backup_config_dict(lSaveFirst=True):
 
         if lSaveFirst:
             MD_REF.savePreferences()  # Flush settings to disk before copy
@@ -8768,22 +8895,15 @@ Visit: %s (Author's site)
 
                 syncF = syncMethod.getSyncFolder()
 
-                p_icloud = syncF.getClass().getDeclaredField("icloud")                                                  # noqa
-                p_icloud.setAccessible(True)
-                p_icloudObject = p_icloud.get(syncF)        # type: ICloudContainer
-                p_icloud.setAccessible(False)
+                p_icloudObject = getFieldByReflection(syncF, "icloud")
+                if isinstance(p_icloudObject, ICloudContainer): pass
 
                 # p_getPathToDocFile = syncF.getClass().getDeclaredMethod("getPathToDocFile",[String])
                 # p_getPathToDocFile.setAccessible(True)
                 # syncBaseFolder = p_getPathToDocFile.invoke(syncF,[""])
                 # p_getPathToDocFile.setAccessible(False)
 
-                p_nativeGetICloudPath = p_icloudObject.getClass().getDeclaredMethod("nativeGetICloudPath")
-                p_nativeGetICloudPath.setAccessible(True)
-                syncBaseFolder = p_nativeGetICloudPath.invoke(p_icloudObject)
-                p_nativeGetICloudPath.setAccessible(False)
-
-                del p_icloud, p_icloudObject, p_nativeGetICloudPath,
+                syncBaseFolder = invokeMethodByReflection(p_icloudObject, "nativeGetICloudPath", None)
 
                 saveSyncFolder = syncBaseFolder
 
@@ -8798,7 +8918,8 @@ Visit: %s (Author's site)
                     myPrint("DB","sync folder found:", syncBaseFolder)
                     return saveSyncFolder
         except:
-            pass
+            myPrint("B","ERROR: in .get_sync_folder()")
+            dump_sys_error_to_md_console_and_errorlog()
 
         return None
 
@@ -11202,14 +11323,10 @@ Visit: %s (Author's site)
         p_cipher = MDSyncCipher.getDeclaredConstructor([String])                                                        # noqa
         p_cipher.setAccessible(True)
         cipher = p_cipher.newInstance(encryptionKey)
-        p_cipher.setAccessible(False)
         del encryptionKey
 
-        p_ges = cipher.getClass().getDeclaredMethod("getEncryptStream", [OutputStream])
-        p_ges.setAccessible(True)
         fout = FileOutputStream(File(exportFile))
-        export_encryptedStream = p_ges.invoke(cipher,[fout])
-        p_ges.setAccessible(False)
+        export_encryptedStream = invokeMethodByReflection(cipher, "getEncryptStream", [OutputStream], [fout])
 
         exportMDPlusData = StreamTable()
         exportMDPlusData.put("_TOOLBOX_",_TEST_KEY)
@@ -11291,14 +11408,10 @@ Visit: %s (Author's site)
         p_cipher = MDSyncCipher.getDeclaredConstructor([String])                                                        # noqa
         p_cipher.setAccessible(True)
         cipher = p_cipher.newInstance(encryptionKey)
-        p_cipher.setAccessible(False)
         del encryptionKey
 
-        p_gds = cipher.getClass().getDeclaredMethod("getDecryptStream", [InputStream])
-        p_gds.setAccessible(True)
         fin = FileInputStream(File(importFile))
-        import_decryptedStream = p_gds.invoke(cipher,[fin])
-        p_gds.setAccessible(False)
+        import_decryptedStream = invokeMethodByReflection(cipher, "getDecryptStream", [InputStream], [fin])
 
         try:
             importMDPlusData = StreamTable()
@@ -11436,9 +11549,8 @@ Visit: %s (Author's site)
 
         myPrint("B", "... shutting down the md+ controller...")
         mdp_controller = MD_REF.getUI().getPlusController()
-        mdp_shutdown = mdp_controller.getClass().getDeclaredMethod("shutdown")
-        mdp_shutdown.setAccessible(True)
-        mdp_shutdown.invoke(mdp_controller)
+
+        invokeMethodByReflection(mdp_controller, "shutdown", None)
 
         if licenseObject is None:
             myPrint("B", "... No md+ license object found to delete... skipping...")
@@ -12306,10 +12418,7 @@ Visit: %s (Author's site)
             fm = MD_REF.getModuleForID(self.myModuleID)
             if fm is None: return None, None
             try:
-                pyo = fm.getClass().getDeclaredField("extensionObject")
-                pyo.setAccessible(True)
-                pyObject = pyo.get(fm)
-                pyo.setAccessible(False)
+                pyObject = getFieldByReflection(fm, "extensionObject")
             except:
                 myPrint("DB","Error retrieving my own Python extension object..?")
                 dump_sys_error_to_md_console_and_errorlog()
@@ -20712,25 +20821,59 @@ Now you will have a text readable version of the file you can open in a text edi
         myPopupInformationBox(jif, txt, "DELETE ORPHANED EXTENSIONS", JOptionPane.ERROR_MESSAGE)
         return
 
-    # def invokeMethodByReflection(theObj, methodName, params, *args):
+    # def forceCloseMoneydanceWindows():
+    #     """Closes all Moneydance SecondaryFrames (including the main application frame(s)).
+    #     Use this to pre-close windows before trying to reset saved locations/sizes (Preferences)"""
     #
-    #     theClass = theObj.getClass()
-    #     reflectMethod = None
+    #     myPrint("B", "Force closing all Moneydance windows so they cannot overwrite saved window settings....")
+    #     MD_REF.saveCurrentAccount()                                     # flush sync log in case of problems
+    #     firstMainFrame = MD_REF.getUI().getFirstMainFrame()
+    #     saveMainFrames = []
     #
-    #     while theClass is not None:
-    #         try:
-    #             if params is None:
-    #                 reflectMethod = theClass.getDeclaredMethod(methodName)
-    #             else:
-    #                 reflectMethod = theClass.getDeclaredMethod(methodName, params)
-    #         except NoSuchMethodException:
-    #             theClass = theClass.getSuperclass()
+    #     if debug:
+    #         dontClose = (MainFrame, ConsoleWindow, MoneyBotWindow, ExtensionsWindow)
+    #     else:
+    #         if GlobalVars.i_am_an_extension_so_run_headless:
+    #             dontClose = (MainFrame, ExtensionsWindow)
+    #         else:
+    #             dontClose = (MainFrame, ExtensionsWindow, MoneyBotWindow)
     #
-    #     if reflectMethod is None:
-    #         raise Exception("ERROR: could not find method: %s in class hierarchy" %(methodName))
+    #     for sWin in list(MD_REF.getUI().getSecondaryWindows()):
+    #         myPrint("DB", "Found:", type(sWin), sWin.getTitle())
+    #         if isinstance(sWin, MainFrame):
+    #             saveMainFrames.append(sWin)
+    #         elif not isinstance(sWin, dontClose):
+    #             myPrint("DB", "... calling .goAwayNow()")
+    #             try: invokeMethodByReflection(sWin, "goAwayNow", None)
+    #             except: myPrint("B","Error closing window:", sWin)
     #
-    #     reflectMethod.setAccessible(True)
-    #     return reflectMethod.invoke(theObj, *args)
+    #     # watch out for com.moneydance.apps.md.view.gui.MoneydanceGUI.secondaryWindowFinished(SecondaryWindow) : void
+    #     myPrint("DB", "Calling .goAwayNow() on non-first MainFrame instances....")
+    #     for mainFrame in list(saveMainFrames):
+    #         if mainFrame is firstMainFrame: continue
+    #         if isinstance(mainFrame, JFrame): pass
+    #         myPrint("DB", "...:", type(mainFrame), mainFrame.getTitle())
+    #         try: invokeMethodByReflection(mainFrame, "goAwayNow", None)
+    #         except: myPrint("B","Error closing non-first MainFrame instance:", mainFrame)
+    #
+    #     # com.moneydance.apps.md.view.gui.MoneydanceGUI.storeWindowSettings() will save location/size unless Maximised/Minimised
+    #     firstMainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH)
+    #     firstMainFrame.setLocation(0, 0)
+    #     firstMainFrame.setSize(Dimension(1150, 650))
+    #
+    #     myPrint("DB", "Calling .goAwayNow() on MainFrame's currentPanel...")
+    #     currentPanel = getFieldByReflection(firstMainFrame, "currentPanel")
+    #     currentPanel.goneAway()
+    #     setFieldByReflection(firstMainFrame, "currentPanel", None)
+    #
+    #     myPrint("DB", "Disposing of the Moneydance's first MainFrame (calling .myGoAwayNow())...")
+    #     try:
+    #         invokeMethodByReflection(MD_REF.getUI(), "windowRemoved", [SecondaryWindow], firstMainFrame)
+    #         MD_REF.getPreferences().removeListener(firstMainFrame)
+    #         firstMainFrame.dispose()
+    #     except:
+    #         myPrint("B","Error closing Moneydance's first MainFrame instance:", firstMainFrame)
+    #         dump_sys_error_to_md_console_and_errorlog()
 
     def reset_window_positions():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -20769,12 +20912,15 @@ Now you will have a text readable version of the file you can open in a text edi
         if resetWhat == what[_RESETREGFILT]:    lRegFilters     = True
         if resetWhat == what[_RESETREGVIEW]:    lRegViews       = True
 
-        def get_set_config(st, tk, lReset, lResetAll, lResetWinLoc, lResetRegFilters, lResetRegViews ):                 # noqa
+        def get_set_config(st, tk, lReset, lResetAll, lResetWinLoc, lResetRegFilters, lResetRegViews):                  # noqa
             # As of 2021.2010   Window locations are only in config.dict.
             #                   Register Filters and Initial Register Views are only in LocalStorage()
             #                   column width, sort orders, etc are everywhere......
 
             configData = []
+
+            invalidKeysToZap = StreamVector()
+            if isinstance(invalidKeysToZap, Vector): pass
 
             if not lReset:
                 configData.append("\nDATA STORED WITHIN CONFIG.DICT (effectively defaults where not specifically set by Account):")
@@ -20800,10 +20946,14 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPrint("B", "@@@ ERROR in get_set_config(): unexpected parameter!?")
                     raise(Exception("@@@ ERROR in get_set_config(): unexpected parameter!?"))
 
+                if lReset:
+                    invalidKeysToZap.add(theKey)
+
                 test = "col_widths."
                 if theKey.startswith(test):
                     if lReset:
-                        MD_REF.getPreferences().setSetting(theKey, None)
+                        pass
+                        # MD_REF.getPreferences().setSetting(theKey, None)
                     else:
                         if theKey[:len(test)] != lastKey:
                             lastKey = theKey[:len(test)]
@@ -20815,7 +20965,8 @@ Now you will have a text readable version of the file you can open in a text edi
                 test = "ext_mgmt_win"
                 if theKey.startswith(test):
                     if lReset:
-                        MD_REF.getPreferences().setSetting(theKey, None)
+                        pass
+                        # MD_REF.getPreferences().setSetting(theKey, None)
                     else:
                         if theKey[:len(test)] != lastKey:
                             lastKey = theKey[:len(test)]
@@ -20823,38 +20974,45 @@ Now you will have a text readable version of the file you can open in a text edi
                         configData.append(pad(theKey+":",30) + MD_REF.getPreferences().getSetting(theKey, None).strip())
                     continue
 
-                test = "moneybot_py_divider"
-                if theKey.startswith(test):
-                    if lReset:
-                        MD_REF.getPreferences().setSetting(theKey, None)
-                    else:
-                        if theKey[:len(test)] != lastKey:
-                            lastKey = theKey[:len(test)]
-                            configData.append("\nMONEYBOT:")
-                        configData.append(pad(theKey+":",30) + MD_REF.getPreferences().getSetting(theKey, None).strip())
-                    continue
-
-                test = "mbot."
-                if theKey.startswith(test):
-                    if lReset:
-                        MD_REF.getPreferences().setSetting(theKey, None)
-                    else:
-                        if theKey[:len(test)] != lastKey:
-                            lastKey = theKey[:len(test)]
-                            configData.append("\nMONEYBOT:")
-                        configData.append(pad(theKey+":",30) + MD_REF.getPreferences().getSetting(theKey, None).strip())
-                    continue
+                lFoundKeyTest = False
+                for test in ["moneybot_py_divider", "mbot."]:
+                    if theKey.startswith(test):
+                        lFoundKeyTest = True
+                        if lReset:
+                            pass
+                            # MD_REF.getPreferences().setSetting(theKey, None)
+                        else:
+                            if theKey[:len(test)] != lastKey:
+                                lastKey = theKey[:len(test)]
+                                configData.append("\nMONEYBOT:")
+                            configData.append(pad(theKey+":",30) + MD_REF.getPreferences().getSetting(theKey, None).strip())
+                if lFoundKeyTest: continue
 
                 test = "gui."
                 if theKey.startswith(test):
                     if lReset:
-                        MD_REF.getPreferences().setSetting(theKey, None)
+                        pass
+                        # MD_REF.getPreferences().setSetting(theKey, None)
                     else:
                         if theKey[:len(test)] != lastKey:
                             lastKey = theKey[:len(test)]
                             configData.append("\nGUI.:")
                         configData.append(pad(theKey+":",30) + MD_REF.getPreferences().getSetting(theKey, None).strip())
                     continue
+
+                lFoundKeyTest = False
+                for test in ["security_list", "curr_list", "ratioSettings.", "ol_acct_map_win"]:
+                    if theKey.startswith(test):
+                        lFoundKeyTest = True
+                        if lReset:
+                            pass
+                            # MD_REF.getPreferences().setSetting(theKey, None)
+                        else:
+                            if theKey[:len(test)] != lastKey:
+                                lastKey = theKey[:len(test)]
+                                configData.append("\nMISC:")
+                            configData.append(pad(theKey+":",30) + MD_REF.getPreferences().getSetting(theKey, None).strip())
+                if lFoundKeyTest: continue
 
                 myPrint("B","@@ RESET WINDOW DATA - ERROR >> What is this key: %s ? @@" %theKey)
                 raise(Exception("ERROR - caught an un-coded key: " + str(theKey)))
@@ -20965,7 +21123,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     configData.append("----------------------------------------------------------------")
 
                 LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
-                keys=sorted(LS.keys())
+                keys = sorted(LS.keys())
 
                 if lResetAll:
 
@@ -21045,6 +21203,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 # END OF LocalStorage() search
                 ########################################################################################################
 
+            if lReset and invalidKeysToZap.size() > 0:
+                myPrint("B","Saving keys to zap into Preferences:", invalidKeysToZap)
+                MD_REF.getPreferences().setSetting(GlobalVars.Strings.TOOLBOX_PREFERENCES_ZAPPER, invalidKeysToZap)
+
             configData.append("\n <END>")
 
             for i in range(0, len(configData)):
@@ -21061,54 +21223,53 @@ Now you will have a text readable version of the file you can open in a text edi
         st,tk = read_preferences_file(lSaveFirst=False)
 
         if not st:
-            txt = "ERROR: RESET WINDOW DISPLAY SETTINGS >> reading and sorting the data file - no changes made!..."
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(None,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            _txt = "ERROR: RESET WINDOW DISPLAY SETTINGS >> reading and sorting the data file - no changes made!..."
+            setDisplayStatus(_txt, "R")
+            myPopupInformationBox(None,_txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         myPrint("D", "\nDisplaying the relevant RESET WINDOW DISPLAY SETTINGS (in various places) that I can reset.....:\n")
 
         theNewViewFrame = get_set_config(st, tk, False, lAll, lWinLocations, lRegFilters, lRegViews)
 
-        # if not myPopupAskQuestion(theNewViewFrame,
-        #                           "RESET WINDOW DISPLAY SETTINGS",
-        #                           "WARNING: Have you closed all Account Register windows and made sure only the Main Home Screen / Summary page is visible first??",
-        #                           JOptionPane.YES_NO_OPTION,
-        #                           JOptionPane.WARNING_MESSAGE):
-        #     txt = "WARNING: Close all Account Register Windows and make sure only the Main Home Screen Summary/Dashboard is visible before running the Reset Windows Sizes!"
-        #     setDisplayStatus(txt, "R")
-        #     myPopupInformationBox(theNewViewFrame,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-        #     return
-
         if not confirm_backup_confirm_disclaimer(theNewViewFrame, "RESET WINDOW DISPLAY SETTINGS", "%s data?" %(resetWhat)):
             return
 
         if not backup_config_dict():
-            txt = "RESET WINDOW DISPLAY SETTINGS: ERROR making backup of config.dict - no changes made!"
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(theNewViewFrame,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            _txt = "RESET WINDOW DISPLAY SETTINGS: ERROR making backup of config.dict - no changes made!"
+            setDisplayStatus(_txt, "R")
+            myPopupInformationBox(theNewViewFrame,_txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         if not backup_local_storage_settings():
-            txt = "RESET WINDOW DISPLAY SETTINGS: ERROR making backup of LocalStorage() ./safe/settings - no changes made!"
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(theNewViewFrame,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            _txt = "RESET WINDOW DISPLAY SETTINGS: ERROR making backup of LocalStorage() ./safe/settings - no changes made!"
+            setDisplayStatus(_txt, "R")
+            myPopupInformationBox(theNewViewFrame,_txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        # todo revamp close open windows?
+        ##### FORCE CLOSE ALL WINDOWS SO THEY DO NOT SAVE THEIR SETTINGS AFTER TOOLBOX CHANGES #########################
+        # try:
+        #     forceCloseMoneydanceWindows()
+        # except:
+        #     dump_sys_error_to_md_console_and_errorlog()
+        #     myPopupInformationBox(theNewViewFrame, "ERROR: forceCloseMoneydanceWindows() crashed (will continue anyway)", "RESET WINDOW DISPLAY SETTINGS", JOptionPane.ERROR_MESSAGE)
+
 
         # DO THE RESET HERE
+        myPrint("B","Executing the windows settings reset....")
         get_set_config(st, tk, True, lAll, lWinLocations, lRegFilters, lRegViews)
 
-        MD_REF.savePreferences()                # save config.dict
-        MD_REF.getCurrentAccount().getBook().getLocalStorage().save()    # Flush local storage to safe/settings
+        MD_REF.savePreferences()                                        # save config.dict
+        MD_REF.getCurrentAccount().getBook().getLocalStorage().save()   # Flush local storage to safe/settings
 
         play_the_money_sound()
         myPrint("B", "SUCCESS - %s data reset in config.dict config file, internally by Account & Local Storage...." %(resetWhat))
         txt = "OK - %s settings forgotten.... RESTART MD!" %(resetWhat)
         setDisplayStatus(txt, "R")
         myPopupInformationBox(theNewViewFrame, "SUCCESS - %s - MONEYDANCE WILL NOW EXIT" %(resetWhat), "RESET WINDOW DISPLAY SETTINGS", JOptionPane.WARNING_MESSAGE)
-        MD_REF.getUI().exit()
+
+        myPrint("B","Requesting Moneydance shuts down now...")
+        MD_REF.getUI().shutdownApp(False)
 
     def advanced_mode_suppress_dropbox_warning():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -23533,6 +23694,21 @@ Now you will have a text readable version of the file you can open in a text edi
                 theList.append([k,v])
         return theList
 
+    def setSyncingLabel():
+        try:
+            syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
+            noSyncOption = SyncFolderUtil.configurerForIDFromList(u"none", syncMethods)
+            syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
+            if syncMethod is None or syncMethod == noSyncOption:
+                GlobalVars.mainPnl_syncing_lbl.setText("<Syncing not configured>")
+                GlobalVars.mainPnl_syncing_lbl.setForeground(MD_REF.getUI().colors.defaultTextForeground)
+            else:
+                GlobalVars.mainPnl_syncing_lbl.setText("<Syncing configured: %s>" %(syncMethod))
+                GlobalVars.mainPnl_syncing_lbl.setForeground(getColorDarkGreen())
+        except:
+            GlobalVars.mainPnl_syncing_lbl.setText("<ERROR GETTING SYNC STATUS>")
+            GlobalVars.mainPnl_syncing_lbl.setForeground(getColorRed())
+
     class DiagnosticDisplay(PreferencesListener):
 
         def __init__(self):
@@ -23553,14 +23729,25 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.theFrame = theFrame        # type: MyJFrame
                 self.callingClass = callingClass
 
-            def windowClosing(self, WindowEvent):                                                                       # noqa
-                myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
-                myPrint("DB", "DiagnosticDisplay() Frame shutting down....")
+            def windowActivated(self, windowEvent):
+                myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()", windowEvent)
+                setSyncingLabel()
 
+            # def windowDeactivated(self, windowEvent): pass                                                              # noqa
+            # def windowDeiconified(self, windowEvent): pass                                                              # noqa
+            # def windowGainedFocus(self, windowEvent): pass                                                              # noqa
+            # def windowLostFocus(self, windowEvent): pass                                                                # noqa
+            # def windowIconified(self, windowEvent): pass                                                                # noqa
+            # def windowOpened(self, windowEvent): pass                                                                   # noqa
+            # def windowStateChanged(self, windowEvent): pass                                                             # noqa
+
+            def windowClosing(self, windowEvent):
+                myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()", windowEvent)
+                myPrint("DB", "DiagnosticDisplay() Frame shutting down....")
                 terminate_script()
 
-            def windowClosed(self, WindowEvent):                                                                        # noqa
-                myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
+            def windowClosed(self, windowEvent):
+                myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()", windowEvent)
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
                 self.theFrame.isActiveInMoneydance = False
@@ -23634,8 +23821,8 @@ Now you will have a text readable version of the file you can open in a text edi
                         txt = "@@@ Toolbox NOT Unlocked @@@"
                         sColor = "B"
 
+                GlobalVars.mainPnl_toolboxUnlocked_lbl.setText("<TOOLBOX UNLOCKED>" if isToolboxUnlocked() else "")
                 setDisplayStatus(txt, sColor); myPrint("B",txt)
-                return
 
         class DisplayUUID(AbstractAction):
 
@@ -25157,7 +25344,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     user_reset_window_display_settings = JRadioButton("RESET Window Display Settings", False)
                     user_reset_window_display_settings.setToolTipText("This tells MD to 'forget' window display settings. CLOSE ALL REGISTER WINDOWS FIRST! The beauty is it keeps all other settings intact! THIS CHANGES DATA!")
-                    user_reset_window_display_settings.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_reset_window_display_settings.setEnabled(GlobalVars.UPDATE_MODE and GlobalVars.i_am_an_extension_so_run_headless)
                     user_reset_window_display_settings.setForeground(getColorRed())
 
                     labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
@@ -25714,6 +25901,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 global debug, lCopyAllToClipBoard_TB, lAutoPruneInternalBackups_TB  # Global must be here as we set these variables
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+                myPrint("DB", "DoTheMenu() - Command: '%s'" %(event.getActionCommand()))
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Page Setup":
@@ -25764,7 +25952,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         prune_internal_backups()
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "Debug":
+                if event.getActionCommand() == "Debug" or event.getActionCommand() == "Debug":
                     if debug:
                         txt = "Script Debug mode disabled"
                         setDisplayStatus(txt, "DG")
@@ -25774,6 +25962,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         myPrint("B", txt)
 
                     debug = not debug
+                    GlobalVars.mainPnl_debug_lbl.setText("<DEBUG ON>" if debug else "")
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Copy all Output to Clipboard":
@@ -25827,6 +26016,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     GlobalVars.ADVANCED_MODE = not GlobalVars.ADVANCED_MODE
                     for btn in GlobalVars.allButtonsList: btn.setColorsAndVisibility()
+                    GlobalVars.mainPnl_advancedMode_lbl.setText("<ADVANCED MODE>" if GlobalVars.ADVANCED_MODE else "")
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Update Mode":
@@ -25856,6 +26046,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     event.getSource().setSelected(GlobalVars.UPDATE_MODE)
 
                     for btn in GlobalVars.allButtonsList: btn.setColorsAndVisibility()
+
+                    GlobalVars.mainPnl_updateMode_lbl.setText("<UPDATE MODE>" if GlobalVars.UPDATE_MODE else "")
 
 
                 # Save parameters now...
@@ -26344,6 +26536,48 @@ Now you will have a text readable version of the file you can open in a text edi
             # ##############
 
             toolbox_frame_.setJMenuBar(mb)
+
+
+            ############################################################################################################
+            onCol = 0
+            onRow += 1
+            colSpan = 6
+
+            bottomPanel = JPanel(GridBagLayout())
+            bottomPanel.setBorder(EmptyBorder(10, 10, 10, 10))
+            pnl_x = 0
+
+            setSyncingLabel()
+            bottomPanel.add(GlobalVars.mainPnl_syncing_lbl, GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+            bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+
+            GlobalVars.mainPnl_debug_lbl.setText("<DEBUG ON>" if debug else "")
+            GlobalVars.mainPnl_debug_lbl.setForeground(getColorRed())
+            bottomPanel.add(GlobalVars.mainPnl_debug_lbl, GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+            bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+
+            GlobalVars.mainPnl_preview_lbl.setText("<PREVIEW BUILD>" if isPreviewBuild() else "")
+            GlobalVars.mainPnl_preview_lbl.setForeground(getColorRed())
+            bottomPanel.add(GlobalVars.mainPnl_preview_lbl, GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+            bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+
+            GlobalVars.mainPnl_updateMode_lbl.setText("<UPDATE MODE>" if GlobalVars.UPDATE_MODE else "")
+            GlobalVars.mainPnl_updateMode_lbl.setForeground(getColorRed())
+            bottomPanel.add(GlobalVars.mainPnl_updateMode_lbl, GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+            bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+
+            GlobalVars.mainPnl_advancedMode_lbl.setText("<ADVANCED MODE>" if GlobalVars.ADVANCED_MODE else "")
+            GlobalVars.mainPnl_advancedMode_lbl.setForeground(getColorRed())
+            bottomPanel.add(GlobalVars.mainPnl_advancedMode_lbl, GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+            bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+
+            GlobalVars.mainPnl_toolboxUnlocked_lbl.setText("<TOOLBOX UNLOCKED>" if isToolboxUnlocked() else "")
+            GlobalVars.mainPnl_toolboxUnlocked_lbl.setForeground(getColorRed())
+            bottomPanel.add(GlobalVars.mainPnl_toolboxUnlocked_lbl, GridC.getc(pnl_x, 0).fillx()); pnl_x += 1
+
+            ############################################################################################################
+
+            mainPnl.add(bottomPanel, GridC.getc(onCol, onRow).fillx().colspan(colSpan))
 
             # toolbox_frame_.add(mainPnl)
             toolbox_frame_.getContentPane().setLayout(BorderLayout())

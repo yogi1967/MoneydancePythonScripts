@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# security_performance_graph.py build: 1000 - May 2022 - Stuart Beesley StuWareSoftSystems
+# security_performance_graph.py build: 1001 - May 2022 - Stuart Beesley StuWareSoftSystems
 
 # requires: MD 2021.1(3069) due to NPE on SwingUtilities - something to do with 'theGenerator.setInfo(reportSpec)'
 
@@ -31,6 +31,7 @@
 # Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
 
 # build: 1000 - Initial Release: Recreates the internal MD graph engine and create a special security performance report by percentage
+# build: 1001 - Tweaks
 
 # todo - Memorise (save versions) along with choose/delete etc saved versions
 # todo - add markers for splits, buy/sells
@@ -41,7 +42,7 @@
 
 # SET THESE LINES
 myModuleID = u"security_performance_graph"
-version_build = "1000"
+version_build = "1001"
 MIN_BUILD_REQD = 3069
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -257,7 +258,7 @@ else:
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
-    from java.lang import Double, Math, Character
+    from java.lang import Double, Math, Character, NoSuchFieldException, NoSuchMethodException                          # noqa
     from java.lang.reflect import Modifier
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
@@ -398,7 +399,7 @@ else:
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
-    # COMMON CODE ################# VERSION 107 ########################################################################
+    # COMMON CODE ################# VERSION 108 ########################################################################
     # COMMON CODE ######################################################################################################
     GlobalVars.i_am_an_extension_so_run_headless = False
     try:
@@ -1549,7 +1550,7 @@ Visit: %s (Author's site)
         return _datetime
 
     def destroyOldFrames(moduleName):
-        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
@@ -2741,11 +2742,52 @@ Visit: %s (Author's site)
         return command, param
 
     def getFieldByReflection(theObj, fieldName, isInt=False):
-        reflect = theObj.getClass().getDeclaredField(fieldName)
-        if Modifier.isPrivate(reflect.getModifiers()): reflect.setAccessible(True)
-        isStatic = Modifier.isStatic(reflect.getModifiers())
-        if isInt: return reflect.getInt(theObj if not isStatic else None)
-        return reflect.get(theObj if not isStatic else None)
+        theClass = theObj.getClass()
+        reflectField = None
+        while theClass is not None:
+            try:
+                reflectField = theClass.getDeclaredField(fieldName)
+                break
+            except NoSuchFieldException:
+                theClass = theClass.getSuperclass()
+        if reflectField is None: raise Exception("ERROR: could not find field: %s in class hierarchy" %(fieldName))
+        if Modifier.isPrivate(reflectField.getModifiers()): reflectField.setAccessible(True)
+        elif Modifier.isProtected(reflectField.getModifiers()): reflectField.setAccessible(True)
+        isStatic = Modifier.isStatic(reflectField.getModifiers())
+        if isInt: return reflectField.getInt(theObj if not isStatic else None)
+        return reflectField.get(theObj if not isStatic else None)
+
+    def invokeMethodByReflection(theObj, methodName, params, *args):
+        theClass = theObj.getClass()
+        reflectMethod = None
+        while theClass is not None:
+            try:
+                if params is None:
+                    reflectMethod = theClass.getDeclaredMethod(methodName)
+                    break
+                else:
+                    reflectMethod = theClass.getDeclaredMethod(methodName, params)
+                    break
+            except NoSuchMethodException:
+                theClass = theClass.getSuperclass()
+        if reflectMethod is None: raise Exception("ERROR: could not find method: %s in class hierarchy" %(methodName))
+        reflectMethod.setAccessible(True)
+        return reflectMethod.invoke(theObj, *args)
+
+    def setFieldByReflection(theObj, fieldName, newValue):
+        theClass = theObj.getClass()
+        reflectField = None
+        while theClass is not None:
+            try:
+                reflectField = theClass.getDeclaredField(fieldName)
+                break
+            except NoSuchFieldException:
+                theClass = theClass.getSuperclass()
+        if reflectField is None: raise Exception("ERROR: could not find field: %s in class hierarchy" %(fieldName))
+        if Modifier.isPrivate(reflectField.getModifiers()): reflectField.setAccessible(True)
+        elif Modifier.isProtected(reflectField.getModifiers()): reflectField.setAccessible(True)
+        isStatic = Modifier.isStatic(reflectField.getModifiers())
+        return reflectField.set(theObj if not isStatic else None, newValue)
 
     def find_feature_module(theModule):
         # type: (str) -> bool
@@ -3548,14 +3590,6 @@ Visit: %s (Author's site)
             result = self.selectSecurities(lForceAll=self.securityFilter.getAutoSelectMode())
             return result
 
-    def invokeMethodByReflection(theObj, methodName, params, *args):
-        if params is None:
-            reflect = theObj.getClass().getDeclaredMethod(methodName)
-        else:
-            reflect = theObj.getClass().getDeclaredMethod(methodName, params)
-        reflect.setAccessible(True)
-        return reflect.invoke(theObj, *args)
-
     class MyGraphSet():     # copies: com.moneydance.apps.md.view.gui.graphtool.GraphSet
         def __init__(self, title):
             # super(self.__class__, self).__init__(title)     # We are only extending GraphSet so that later methods recognise the passed class
@@ -3721,8 +3755,8 @@ Visit: %s (Author's site)
 
         class StorePopupTableData:
 
-            HEADINGS = ["Security", "Starting valuation", "Ending valuation", "% valuation change", "% of end value total", "Starting Price", "Ending Price", "Price Performance %"]
-            FORMATS =  ["str",      "val_long",           "val_long",         "pct",                "pct",                  "price",          "price",        "pct"]
+            HEADINGS = ["Security ", "Starting valuation ", "Ending valuation ", "% valuation change ", "% of end value total " , "Starting Price ", "Ending Price ", "Price Performance % "]
+            FORMATS =  ["str",       "val_long",            "val_long",          "pct",                 "pct",                    "price",           "price",         "pct"]
 
             def __init__(self, base, dec):
                 self.base = base
@@ -4777,10 +4811,7 @@ Visit: %s (Author's site)
             fm = self.moneydanceContext.getModuleForID(self.myModuleID)
             if fm is None: return None, None
             try:
-                pyo = fm.getClass().getDeclaredField("extensionObject")
-                pyo.setAccessible(True)
-                pyObject = pyo.get(fm)
-                pyo.setAccessible(False)
+                pyObject = getFieldByReflection(fm, "extensionObject")
             except:
                 myPrint("DB","Error retrieving my own Python extension object..?")
                 dump_sys_error_to_md_console_and_errorlog()
@@ -5018,6 +5049,9 @@ Visit: %s (Author's site)
                 component.setBackground(self.mdGUI.getColors().registerBG1 if row % 2 == 0 else self.mdGUI.getColors().registerBG2)
             else:
                 component.setForeground(self.mdGUI.getColors().sidebarSelectedFG)
+
+            renderer.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 5))
+
             return component
 
     # class MyGraphViewer(GraphViewer):       # copies: com.moneydance.apps.md.view.gui.graphtool.GraphViewer

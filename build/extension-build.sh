@@ -478,6 +478,15 @@ else
     exit 26
   fi
 
+  if test -f "${EXTN_DIR}"/*.pdf; then
+    echo "Adding *.pdf to zip file..."
+    zip -j "${ZIP}" "${EXTN_DIR}"/*.pdf
+    if [ $? -ne 0 ]; then
+      echo "*** final zip of pdf into zip package Failed??"
+      exit 26
+    fi
+  fi
+
   if [ "${RESTRICT_SCRIPT}" != "YES" ]; then
     echo "adding *.py file(s) into zip file..."
     zip -j "${ZIP}" "${EXTN_DIR}"/*.py

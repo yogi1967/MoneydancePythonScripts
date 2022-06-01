@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_total_selected_transactions.py build: 1008 - August 2021 - Stuart Beesley StuWareSoftSystems
+# toolbox_total_selected_transactions.py build: 1009 - August 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -41,6 +41,7 @@
 # build: 1008 - Decommissioned separate extension
 # build: 1008 - Eliminated common code globals :->
 # build: 1008 - Now copy the result into the clipboard (as a raw number, no formatting)
+# build: 1009 - Tweaks
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -51,7 +52,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox_total_selected_transactions"
-version_build = "1008"
+version_build = "1009"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -266,7 +267,7 @@ else:
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
-    from java.lang import Double, Math, Character
+    from java.lang import Double, Math, Character, NoSuchFieldException, NoSuchMethodException                          # noqa
     from java.lang.reflect import Modifier
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
@@ -333,7 +334,7 @@ else:
 
     # COPY >> START
     # COMMON CODE ######################################################################################################
-    # COMMON CODE ################# VERSION 107 ########################################################################
+    # COMMON CODE ################# VERSION 108 ########################################################################
     # COMMON CODE ######################################################################################################
     GlobalVars.i_am_an_extension_so_run_headless = False
     try:
@@ -360,6 +361,8 @@ Extract Data:                           Extract various data to screen and/or cs
 - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
 List Future Reminders:                  View future reminders on screen. Allows you to set the days to look forward
+Accounts Categories Mega Search Window: Combines MD Menu> Tools>Accounts/Categories and adds Quick Search box/capability
+Security Performance Graph:             Graphs selected securities, calculating relative price performance as percentage
 
 A collection of useful ad-hoc scripts (zip file)
 useful_scripts:                         Just unzip and select the script you want for the task at hand...
@@ -1406,7 +1409,7 @@ Visit: %s (Author's site)
 
         if not GlobalVars.parametersLoadedFromFile: return
 
-        myPrint("DB","parametersLoadedFromFile read from file contains...:")
+        myPrint("DB","GlobalVars.parametersLoadedFromFile read from file contains...:")
         for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
             myPrint("DB","...variable:", key, GlobalVars.parametersLoadedFromFile[key])
 
@@ -1415,7 +1418,7 @@ Visit: %s (Author's site)
             myPrint("B", "Detected old lUseMacFileChooser parameter/variable... Will delete it...")
             GlobalVars.parametersLoadedFromFile.pop("lUseMacFileChooser", None)  # Old variable - not used - delete from parameter file
 
-        myPrint("DB","Parameter file loaded if present and parametersLoadedFromFile{} dictionary set.....")
+        myPrint("DB","Parameter file loaded if present and GlobalVars.parametersLoadedFromFile{} dictionary set.....")
 
         # Now load into memory!
         load_StuWareSoftSystems_parameters_into_memory()
@@ -1447,7 +1450,7 @@ Visit: %s (Author's site)
             pickle.dump(GlobalVars.parametersLoadedFromFile, save_file, protocol=0)
             save_file.close()
 
-            myPrint("DB","parametersLoadedFromFile now contains...:")
+            myPrint("DB","GlobalVars.parametersLoadedFromFile now contains...:")
             for key in sorted(GlobalVars.parametersLoadedFromFile.keys()):
                 myPrint("DB","...variable:", key, GlobalVars.parametersLoadedFromFile[key])
 
@@ -1482,7 +1485,7 @@ Visit: %s (Author's site)
         return _datetime
 
     def destroyOldFrames(moduleName):
-        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", WindowEvent)
+        myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
         frames = JFrame.getFrames()
         for fr in frames:
@@ -1521,7 +1524,8 @@ Visit: %s (Author's site)
 
         if GlobalVars.STATUS_LABEL is None or not isinstance(GlobalVars.STATUS_LABEL, JLabel): return
 
-        GlobalVars.STATUS_LABEL.setText((_theStatus).ljust(800, " "))
+        # GlobalVars.STATUS_LABEL.setText((_theStatus).ljust(800, " "))
+        GlobalVars.STATUS_LABEL.setText((_theStatus))
 
         if _theColor is None or _theColor == "": _theColor = "X"
         _theColor = _theColor.upper()
@@ -2673,11 +2677,52 @@ Visit: %s (Author's site)
         return command, param
 
     def getFieldByReflection(theObj, fieldName, isInt=False):
-        reflect = theObj.getClass().getDeclaredField(fieldName)
-        if Modifier.isPrivate(reflect.getModifiers()): reflect.setAccessible(True)
-        isStatic = Modifier.isStatic(reflect.getModifiers())
-        if isInt: return reflect.getInt(theObj if not isStatic else None)
-        return reflect.get(theObj if not isStatic else None)
+        theClass = theObj.getClass()
+        reflectField = None
+        while theClass is not None:
+            try:
+                reflectField = theClass.getDeclaredField(fieldName)
+                break
+            except NoSuchFieldException:
+                theClass = theClass.getSuperclass()
+        if reflectField is None: raise Exception("ERROR: could not find field: %s in class hierarchy" %(fieldName))
+        if Modifier.isPrivate(reflectField.getModifiers()): reflectField.setAccessible(True)
+        elif Modifier.isProtected(reflectField.getModifiers()): reflectField.setAccessible(True)
+        isStatic = Modifier.isStatic(reflectField.getModifiers())
+        if isInt: return reflectField.getInt(theObj if not isStatic else None)
+        return reflectField.get(theObj if not isStatic else None)
+
+    def invokeMethodByReflection(theObj, methodName, params, *args):
+        theClass = theObj.getClass()
+        reflectMethod = None
+        while theClass is not None:
+            try:
+                if params is None:
+                    reflectMethod = theClass.getDeclaredMethod(methodName)
+                    break
+                else:
+                    reflectMethod = theClass.getDeclaredMethod(methodName, params)
+                    break
+            except NoSuchMethodException:
+                theClass = theClass.getSuperclass()
+        if reflectMethod is None: raise Exception("ERROR: could not find method: %s in class hierarchy" %(methodName))
+        reflectMethod.setAccessible(True)
+        return reflectMethod.invoke(theObj, *args)
+
+    def setFieldByReflection(theObj, fieldName, newValue):
+        theClass = theObj.getClass()
+        reflectField = None
+        while theClass is not None:
+            try:
+                reflectField = theClass.getDeclaredField(fieldName)
+                break
+            except NoSuchFieldException:
+                theClass = theClass.getSuperclass()
+        if reflectField is None: raise Exception("ERROR: could not find field: %s in class hierarchy" %(fieldName))
+        if Modifier.isPrivate(reflectField.getModifiers()): reflectField.setAccessible(True)
+        elif Modifier.isProtected(reflectField.getModifiers()): reflectField.setAccessible(True)
+        isStatic = Modifier.isStatic(reflectField.getModifiers())
+        return reflectField.set(theObj if not isStatic else None, newValue)
 
     def find_feature_module(theModule):
         # type: (str) -> bool
@@ -2842,11 +2887,7 @@ Visit: %s (Author's site)
 
                     myPrint("DB", "...............", type(pnlComp))
 
-                    p_reg = pnlComp.getClass().getDeclaredField("reg")                                                      # noqa
-                    p_reg.setAccessible(True)
-                    p_regObject = p_reg.get(pnlComp)                                                                        # type: TxnRegister
-                    p_reg.setAccessible(False)
-
+                    p_regObject = getFieldByReflection(pnlComp, "reg")
                     if isinstance(p_regObject, TxnRegister): pass
 
                     myPrint("DB", "****** ", (p_regObject))
@@ -2860,7 +2901,7 @@ Visit: %s (Author's site)
                     analyseTxns(p_regObject.getSelectedTxns(), SwingUtilities.getWindowAncestor(pnlComp))
 
                     myPrint("DB", "****** ")
-                    del p_regObject, p_reg
+                    del p_regObject
 
                     break     # Seems to appear twice, so skip the second one.....
 
