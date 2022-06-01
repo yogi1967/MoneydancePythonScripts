@@ -31,7 +31,7 @@
 # Use in Moneydance Menu Window->Show Moneybot Console >> Open Script >> RUN
 
 # build: 1000 - Initial Release: Recreates the internal MD graph engine and create a special security performance report by percentage
-# build: 1001 - Tweaks
+# build: 1001 - Tweaks; Common code; Fixed JTable sorting....
 
 # todo - Memorise (save versions) along with choose/delete etc saved versions
 # todo - add markers for splits, buy/sells
@@ -4879,7 +4879,7 @@ Visit: %s (Author's site)
         def getColumnClass(self, columnIndex):
 
             val = self.getValueAt(0, columnIndex)
-            if isinstance(val, (int, long)): return Integer.TYPE
+            if isinstance(val, (int)): return Integer.TYPE
             if isinstance(val, (long)): return Long.TYPE
             if isinstance(val, (float)): return Double.TYPE
             if isinstance(val, (str, unicode)): return String
@@ -4904,6 +4904,7 @@ Visit: %s (Author's site)
 
     class MyTableColumnModelListener(TableColumnModelListener):
         ## noinspection PyUnusedLocal
+
         def columnMarginChanged(self, e):
             # super(self.__class__, self).columnMarginChanged(e)
             columnModel = e.getSource()
@@ -4916,6 +4917,30 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_column_widths_SPG[i] = colWidth
                 # myPrint("DB","Saving column %s as width %s for later..." %(i, colWidth))
 
+        def columnMoved(self, e): pass
+        def columnAdded(self, e): pass
+        def columnRemoved(self, e): pass
+        def columnSelectionChanged(self, e): pass
+
+    class LongComparator(Comparator):
+        def compare(self, o1, o2): return Long.compare(Long(o1), Long(o2))
+
+    class IntegerComparator(Comparator):
+        def compare(self, o1, o2): return Integer.compare(Integer(o1), Integer(o2))
+
+    class DoubleComparator(Comparator):
+        def compare(self, o1, o2): return Double.compare(Double(o1), Double(o2))
+
+    class MyTableRowSorter(TableRowSorter):
+
+        def __init__(self): super(self.__class__, self).__init__()
+
+        def getComparator(self, column):
+            columnClass = self.getModel().getColumnClass(column)                                                        # noqa
+            if columnClass == Integer.TYPE: return IntegerComparator()
+            if columnClass == Long.TYPE: return LongComparator()
+            if columnClass == Double.TYPE: return DoubleComparator()
+            return super(self.__class__, self).getComparator(column)
 
     class MyJTable(JTable):
         def __init__(self, mdGUI, moneydanceContext, sortByColumIndex, tableModel):
@@ -4923,13 +4948,15 @@ Visit: %s (Author's site)
             self.mdGUI = mdGUI
             self.moneydanceContext = moneydanceContext
             self.tableModel = tableModel
-            sorter = TableRowSorter()
-            self.setRowSorter(sorter)
+
+            sorter = MyTableRowSorter()
             sorter.setModel(self.getModel())
             sortKeys = ArrayList()
             sortKeys.add(RowSorter.SortKey(sortByColumIndex, SortOrder.DESCENDING))                                     # noqa
             sorter.setSortKeys(sortKeys)
-            self.setAutoCreateRowSorter(True)
+            self.setRowSorter(sorter)
+
+            # self.setAutoCreateRowSorter(True)
             # self.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
             self.getTableHeader().setDefaultRenderer(HeaderRenderer(self))
 
