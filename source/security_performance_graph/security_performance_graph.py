@@ -5421,7 +5421,7 @@ Visit: %s (Author's site)
                     fontSize = prefs.getIntSetting("print.font_size", 10)
                     g.setFont(Font(fontName, 1, fontSize + 2))
                 except Exception as e:
-                    myPrint("B", "Warning: unable to set preferred font: " + e)
+                    myPrint("B", "Warning: unable to set preferred font:", e)
 
                 fm = g.getFontMetrics()
                 lineHeight = int(fm.getMaxAscent() + fm.getMaxDescent() + 2)                                                # noqa
@@ -5450,7 +5450,7 @@ Visit: %s (Author's site)
                 gh = int(h - hdrHeight)
                 self.mainChart.draw(g, Rectangle(int(0), int(hdrHeight), int(w), int(gh)))
             except Exception as e:
-                self.mdGUI.showErrorMessage(self.mdGUI.getStr("save_graph_err") + ": " + e)
+                self.mdGUI.showErrorMessage(self.mdGUI.getStr("save_graph_err") + ": ", e)
                 dump_sys_error_to_md_console_and_errorlog()
 
         # @staticmethod
@@ -5529,7 +5529,7 @@ Visit: %s (Author's site)
                 viewer.saveGraph(fout)
                 fout.close()
             except Exception as e:
-                mdGUI.showErrorMessage(mdGUI.getStr("err_save_graph" + ": " + e))
+                mdGUI.showErrorMessage(mdGUI.getStr("err_save_graph" + ": ", e))
                 dump_sys_error_to_md_console_and_errorlog()
 
 

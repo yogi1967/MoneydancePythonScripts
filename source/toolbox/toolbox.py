@@ -288,11 +288,13 @@
 # build: 1050 - Added force change currency for categories options...
 # build: 1051 - Tweaks to internal code. Improved reset window positions code to pre-close all MD windows....
 # build: 1051 - Changed invalid preferences locations/sizes code to zap keys from toolbox_init.py at MD launch.......
+# build: 1051 - Improve vmoptions detector.
+# build: 1051 - Added 'Rename this dataset (within the same location)' & 'Relocate this dataset back to the default 'internal' location' features
+# build: 1051 - Added 'Cleanup MD's File/Open list of 'external' files (does not touch actual files)' feature
+# build: 1051 - Moved the Delete internal/external files option to General Tools Menu (and auto purge external orphans)
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
-
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
-# todo - fix vmoptions file name to match .exe
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
@@ -604,6 +606,7 @@ else:
 
     from java.io import ByteArrayInputStream, OutputStream, InputStream, BufferedOutputStream
     from java.nio.charset import StandardCharsets
+    from java.nio.file import Paths, Files, StandardCopyOption
 
     from java.security import MessageDigest, KeyFactory
     from java.security.spec import PKCS8EncodedKeySpec, X509EncodedKeySpec, MGF1ParameterSpec
@@ -627,7 +630,7 @@ else:
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
 
     from com.infinitekind.tiksync import SyncRecord, SyncableItem
-    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
+    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow, WelcomeWindow
     from com.moneydance.apps.md.view.gui import MainFrame, SecondaryFrame, SecondaryWindow                              # noqa
     from com.moneydance.apps.md.view.gui.bot import MoneyBotWindow                                                      # noqa
     from com.moneydance.apps.md.view.gui.extensions import ExtensionsWindow                                             # noqa
@@ -638,7 +641,7 @@ else:
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException
+    from java.lang import Integer, Long, Boolean, NoSuchFieldException, NoSuchMethodException                           # noqa
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
     from com.moneydance.awt import JCurrencyField                                                                       # noqa
 
@@ -700,6 +703,10 @@ else:
     GlobalVars.Strings.EXTENSION_QER_ID = "yahooqt"
 
     GlobalVars.Strings.TOOLBOX_PREFERENCES_ZAPPER = "toolbox_preferences_zapper"
+
+    GlobalVars.Strings.MD_CONFIGDICT_CURRENT_ACCOUNT_BOOK = "current_accountbook"
+    GlobalVars.Strings.MD_CONFIGDICT_BACKUP_TYPE = "backup.backup_type"
+    GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES = "external_files"
 
     GlobalVars.redact = True
 
@@ -3695,7 +3702,7 @@ Visit: %s (Author's site)
 
                 if lFoundSize:
                     livePrefValue = prefs.getSizeSetting(theKey, 0, 0)
-                    if livePrefValue.width > 200 and livePrefValue.height > 200: continue
+                    if livePrefValue.width > 100 and livePrefValue.height > 50: continue
                     invalidSizes.append(theKey)
                     txt = "Found INVALID size (too small): %s (%s)" %(theKey, livePrefValue)
                     output += "%s\n" %(txt)
@@ -4134,7 +4141,7 @@ Visit: %s (Author's site)
         if license2004:      textArray.append(u" >old licenses (2004): " + license2004)
 
         if not MD_REF.getCurrentAccount().getBook(): textArray.append(u"Moneydance datafile is empty")
-        x = MD_REF.getUI().getPreferences().getSetting(u"current_accountbook", None)
+        x = MD_REF.getUI().getPreferences().getSetting(GlobalVars.Strings.MD_CONFIGDICT_CURRENT_ACCOUNT_BOOK, None)
         y = MD_REF.getUI().getPreferences().getSetting(u"current_account_file", None)
 
         theExtn = os.path.splitext((MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()))
@@ -4569,7 +4576,7 @@ Visit: %s (Author's site)
         textArray.append(u"\n>> BACKUPS")
 
         destroyBackupChoices = MD_REF.getUI().getPreferences().getSetting(u"backup.destroy_number", u"5")
-        returnedBackupType = MD_REF.getUI().getPreferences().getSetting(u"backup.backup_type", u"every_x_days")
+        returnedBackupType = MD_REF.getUI().getPreferences().getSetting(GlobalVars.Strings.MD_CONFIGDICT_BACKUP_TYPE, u"every_x_days")
         if returnedBackupType == u"every_time":
             dailyBackupCheckbox = True
             destroyBackupChoices = 1
@@ -8051,9 +8058,31 @@ Visit: %s (Author's site)
 #
 #         return
 
+    def get_vmoptions_path():
+
+        DEFAULT_NAME = "Moneydance.vmoptions"
+        EXTENSION = ".vmoptions"
+
+        grabProgramDir = find_the_program_install_dir()
+        if grabProgramDir == "": return ""
+
+        defaultPath = os.path.join(grabProgramDir, DEFAULT_NAME)
+
+        launchName = System.getProperty("exe4j.launchName","")
+        if not os.path.exists(launchName): return defaultPath
+
+        baseName = os.path.basename(launchName)
+        splitBaseName = os.path.splitext(baseName)
+
+        vmoptionsPath = os.path.join(grabProgramDir, splitBaseName[0] + EXTENSION)
+        if not os.path.exists(vmoptionsPath): return defaultPath
+
+        return vmoptionsPath
+
+
     def find_the_program_install_dir():
 
-        theDir = ""     # noqa
+        theDir = ""                                                                                                     # noqa
 
         if Platform.isOSX():
             # Derive from these - not great, but OK: java.home, java.library.path, sun.boot.library.path
@@ -12299,7 +12328,65 @@ Visit: %s (Author's site)
         del filesToRemove
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
+
+    def cleanup_external_files_setting(lAutoPurge=False):
+        # type: (bool) -> bool
+
+        myPrint("DB", "In cleanup_external_files_setting()")
+
+        _THIS_METHOD_NAME = "Cleanup External Files Setting".upper()
+
+        if not backup_config_dict(): return False
+
+        prefs = MD_REF.getUI().getPreferences()
+        extFiles = prefs.getVectorSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, None)
+        if extFiles is None or len(extFiles) < 1:
+            myPrint("DB", "config.dict holds no '%s' - skipping cleanup routine...." %(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES))
+            return True
+
+        newExtFiles = StreamVector()
+        if isinstance(newExtFiles, Vector): pass
+
+        for externalFilename in extFiles:
+            try:
+                if externalFilename.endswith(".moneydance"):
+                    testWrapper = AccountBookWrapper.wrapperForFolder(File(externalFilename))
+                    if testWrapper is not None and testWrapper.getBook().isValid():
+                        myPrint("DB", "config.dict: '%s': Confirmed exists: '%s'" %(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFilename))
+                        newExtFiles.add(externalFilename)
+                        continue
+            except:
+                myPrint("B", "Error checking external file ('%s') - aborting checks" %(externalFilename))
+                dump_sys_error_to_md_console_and_errorlog()
+                return False
+
+            myPrint("DB", "Checking external file >> NOT VALID (will remove): %s" %(externalFilename))
+
+        invalidExtFiles = (extFiles.size() - newExtFiles.size())
+
+        if invalidExtFiles < 1:
+            txt = "No invalid/missing 'external' files found in config.dict - no changes made"
+            myPrint("DB", txt)
+            if not lAutoPurge:
+                setDisplayStatus(txt, "B")
+                myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.INFORMATION_MESSAGE)
+            return True
+
+        if not lAutoPurge and not doesUserAcceptDisclaimer(toolbox_frame_,_THIS_METHOD_NAME.upper(),"Cleanup (remove) %s missing/invalid external files from config.dict?" %(invalidExtFiles)):
+            return False
+
+        myPrint("DB", "Saving new list of %s valid files (%s removed)" %(newExtFiles.size(), (extFiles.size() - newExtFiles.size())))
+        prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, newExtFiles)
+
+        txt = "%s invalid/missing 'external' files removed from config.dict (review console for details)" %(invalidExtFiles)
+        myPrint("B", txt)
+
+        if not lAutoPurge:
+            play_the_money_sound()
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
+
+        return True
 
     def advancedRemoveExternalFilesSettings():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -12312,11 +12399,13 @@ Visit: %s (Author's site)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        theKey = "external_files"
+        # Just clean up orphans anyway first.....
+        cleanup_external_files_setting(lAutoPurge=True)
+
         prefs = MD_REF.getUI().getPreferences()
         thisDataset = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
 
-        externalFilesVector = prefs.getVectorSetting("external_files", StreamVector())
+        externalFilesVector = prefs.getVectorSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, StreamVector())
 
         filesToRemove = []
         for externalFileObj in externalFilesVector:
@@ -12324,7 +12413,7 @@ Visit: %s (Author's site)
                 filesToRemove.append(externalFileObj)
 
         if externalFilesVector is None or len(filesToRemove)<1:
-            txt = "ADVANCED: Remove files from 'External' (non-default) filelist in File/Open - You have no %s files in config.dict to edit - no changes made...." %(theKey)
+            txt = "ADVANCED: Remove files from 'External' (non-default) filelist in File/Open - You have no %s files in config.dict to edit - no changes made...." %(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,"You have no 'External' file references in config.dict to remove - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
             return
@@ -12356,19 +12445,19 @@ Visit: %s (Author's site)
                 if (iReferencesRemoved+iFilesOnDiskRemoved)<1:
                     txt = "ADVANCED MODE!.. No changes made"
                     setDisplayStatus(txt, "B")
-                    myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-                    return
+                    myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
                 else:
-                    txt = "ADVANCED MODE!.. %s references removed and %s Datasets DELETED - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD" %(iReferencesRemoved, iFilesOnDiskRemoved)
+                    txt = "ADVANCED MODE!.. %s references removed and %s Datasets DELETED" %(iReferencesRemoved, iFilesOnDiskRemoved)
                     setDisplayStatus(txt, "R")
-                    myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
-                    MD_REF.getUI().exit()
+                    myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+                    # MD_REF.getUI().exit()
+                return
 
             iReferencesRemoved+=1
             filesToRemove.remove(selectedFile)
 
             externalFilesVector.remove(selectedFile)
-            prefs.setSetting("external_files", externalFilesVector)
+            prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFilesVector)
             MD_REF.savePreferences()
             txt = "I have removed the reference to file %s from config.dict (and file/open menu if present)" %(selectedFile)
             myPrint("B",txt)
@@ -12403,8 +12492,6 @@ Visit: %s (Author's site)
         del filesToRemove
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
-        return
 
     class MyMoneydanceEventListener(AppEventListener):
 
@@ -13550,14 +13637,15 @@ Visit: %s (Author's site)
                 dump_sys_error_to_md_console_and_errorlog()
 
             if x.lower().endswith(".vmoptions"):
+                vmoptionsPath = get_vmoptions_path()
                 displayFile += """
 -------------------------------------------------------------------------------------------------------------------------------------------
 <INSTRUCTIONS - MEMORY>
 ======================
-You can allow for more memory by editing the 'Moneydance.vmoptions' file and set it to increase the amount of memory that
+You can allow for more memory by editing the '%s' file and set it to increase the amount of memory that
 Moneydance is allowed to use. To achieve this you can try the following:
 
-Navigate to the Moneydance.vmoptions file, located in the folder where Moneydance is installed:
+Navigate to the '%s' file, located in the folder where Moneydance is installed:
 
 If you open that file with Notepad or any other text editor, you'll see some instructions for how to change it.
 Close Moneydance first!
@@ -13567,23 +13655,23 @@ You can give it more if you wish, E.g.: you make it -Xmx3072m, for optimal resul
 
 NOTE: The limit is set deliberately low to enable it to work with computers having very small amounts of RAM.
 
-"""  # noqa
+""" %(vmoptionsPath, vmoptionsPath)                                                                                     # noqa
+
                 windowsExtra = """
 -----
-Windows file location: c:\Program Files\Moneydance\Moneydance.vmoptions
+Windows location: '%s'
 
 In Windows - due to permissions, you will need to do this:
 In the 'Type here to Search' box on the Windows 10 Toolbar, type CMD (do not press enter)
 When Command Prompt appears, click Run as Administrator
 Click yes/agree to allow this app to make changes to this device / grant administrator permissions
-cd "\Program Files\Moneydance"      (and enter)
-notepad Moneydance.vmoptions        (and enter)
+notepad "%s" (and press enter)
 edit the file and change the -Xmx1024 setting
 ctrl-s to save and then exit Notepad
 exit
 restart Moneydance
 -------------------------------------------------------------------------------------------------------------------------------------------
-"""  # noqa
+""" %(vmoptionsPath, vmoptionsPath)                                                                                     # noqa
 
                 linuxExtra = """
 <INSTRUCTIONS - Linux and High Resolution Screens>
@@ -13592,7 +13680,7 @@ When running Linux on a computer with a high resolution display, some distributi
 the interface to provide clearer graphics at a larger size. If you use scaling on your Linux desktop but the contents of
 the Moneydance window appears very small then you may need to adjust Moneydance's scaling.
 
-To change the scaling, open Moneydance.vmoptions with a text editor (as per instructions below) add the following two
+To change the scaling, open '%s' with a text editor (as per instructions below) add the following two
 lines to the bottom of the file:
 
 -Dsun.java2d.uiScale=2
@@ -13602,10 +13690,10 @@ lines to the bottom of the file:
 refer: https://infinitekind.tenderapp.com/kb/linux/linux-and-hidpi-high-resolution-screens
 
 -----
-Linux file location: /opt/Moneydance/Moneydance.vmoptions
+Linux file location: '%s'
 
 In Linux - due to permissions, you will need to do this:
-a) Either edit in Terminal using sudo before the command (e.g. sudo vi Moneydance.vmoptions) , or;
+a) Either edit in Terminal using sudo before the command (e.g. sudo vi '%s') , or;
 
 b) You ideally need to be able to open files as root via a right click.
 - This assumes you are on a Debian based system
@@ -13616,12 +13704,13 @@ b) You ideally need to be able to open files as root via a right click.
 5. Finally type exit and press enter, and close the terminal window
 6. All set. Now when you want to open a file as root, simply right click the FOLDER and select Open as Root (or Administrator).
 
-So, now find the /Opt folder, right click on the Moneydance FOLDER, Open as Root. Enter your password. Now you can edit the Moneydance.vmoptions file....
+So, now find the /Opt folder, right click on the Moneydance FOLDER, Open as Root. Enter your password. Now you can edit the '%s' file....
 >> Note: You may need to logoff and then login to see the changes!
 
 now after saving the file, restart Moneydance
 -------------------------------------------------------------------------------------------------------------------------------------------
-"""  # noqa
+""" %(vmoptionsPath, vmoptionsPath, vmoptionsPath, vmoptionsPath)                                                       # noqa
+
                 if Platform.isWindows():
                     displayFile += windowsExtra
                 elif Platform.isUnix():
@@ -14288,8 +14377,6 @@ now after saving the file, restart Moneydance
         txt = "Root Account Name changed to : %s - MONEYDANCE WILL NOW EXIT - PLEASE RELAUNCH MD" %(bookName)
         setDisplayStatus(txt, "R")
         myPopupInformationBox(toolbox_frame_,txt,"RENAME ROOT",JOptionPane.WARNING_MESSAGE)
-
-        MD_REF.getUI().exit()
 
     # noinspection PyUnresolvedReferences
     def force_change_account_type():
@@ -19568,6 +19655,216 @@ now after saving the file, restart Moneydance
         myPrint(u"D", u"Exiting ", inspect.currentframe().f_code.co_name, u"()")
         return theMsg, displayMsg
 
+    def manuallyCloseDataset(theBook):
+
+        # Mimic .setCurrentBook(None) - avoids messing around with off thread backups (which won't like the file disappearing)....
+        # MD_REF.setCurrentBook(None)
+
+        theBook.getLocalStorage().save()                        # Flush LocalStorage...
+
+        MD_REF.fireAppEvent("md:file:closing")
+        MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
+
+        MD_REF.fireAppEvent("md:file:closed")
+        theBook.cleanUp()
+
+        setFieldByReflection(MD_REF, "currentBook", None)
+        myPrint("B", "Closed current dataset (book: %s)" %(theBook))
+
+        # Remove the current book's reference to LocalStorage.... (used when debugging what was recreating the dataset/settings)
+        # theBook.setLocalStorage(None)                             # Will fail as it tries to refer to book, which is now None
+        # setFieldByReflection(theBook, "localStorage", None)       # Works as avoids above problem
+
+    def rename_relocate_dataset(lRelocateDataset=False):
+        # type: (bool) -> bool
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if lRelocateDataset:
+            actionString = "relocate"
+        else:
+            actionString = "rename"
+        _THIS_METHOD_NAME = ("%s DATASET" %(actionString)).upper()
+
+        currentBook = MD_REF.getCurrentAccountBook()     # type: AccountBook
+        if currentBook is None:
+            myPopupInformationBox(toolbox_frame_, "CRITICAL ERROR: AccountBook is missing? (Suggest you restart!)",theTitle=_THIS_METHOD_NAME,theMessageType=JOptionPane.ERROR_MESSAGE)
+            return False
+
+        # Already on the EDT....
+        if not invokeMethodByReflection(MD_REF.getUI(), "isOKToCloseFile", None):
+            txt = "ERROR: MD reports that it's not OK to close open windows - no changes made"
+            myPopupInformationBox(toolbox_frame_,txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            return True
+
+        currentRoot = currentBook.getRootAccount()
+        currentName = currentBook.getName()
+
+        if not perform_qer_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return True
+        if not backup_config_dict():  return True
+
+        fCurrentFilePath = MD_REF.getCurrentAccount().getBook().getRootFolder()
+        currentFilePath = fCurrentFilePath.getCanonicalPath()
+
+        newName = currentName
+
+        if lRelocateDataset:
+            fNewNamePath = AccountBook.getUnusedFileNameWithBase(AccountBookUtil.DEFAULT_FOLDER_CONTAINER, StringUtils.stripExtension(fCurrentFilePath.getName()))
+            newName = fNewNamePath.getName()
+            oldPathURI = Paths.get(fCurrentFilePath.toURI())
+            newPathURI = Paths.get(fNewNamePath.toURI())
+
+        else:
+
+            while True:
+                userRequestedNewName = myPopupAskForInput(toolbox_frame_,
+                                                          theTitle=_THIS_METHOD_NAME,
+                                                          theFieldLabel="NEW NAME:",
+                                                          theFieldDescription="Enter a new name for this dataset",
+                                                          defaultValue=newName)
+
+                if userRequestedNewName is None or userRequestedNewName == "":
+                    txt = "No new name entered - no changes made"
+                    myPopupInformationBox(toolbox_frame_,txt)
+                    setDisplayStatus(txt, "R")
+                    return True
+
+                newName = AccountBook.stripNonFilenameSafeCharacters(userRequestedNewName)
+                newNamePath = os.path.join(os.path.dirname(currentFilePath), newName + Common.ACCOUNT_BOOK_EXTENSION)
+                fNewNamePath = File(newNamePath)
+
+                oldPathURI = Paths.get(fCurrentFilePath.toURI())
+                newPathURI = Paths.get(fNewNamePath.toURI())
+
+                if newName is None or newName == "" or fNewNamePath.exists():
+                    myPopupInformationBox(toolbox_frame_, "ERROR: new name: '%s' invalid or already exists?" %(newName),theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
+                    continue
+
+                break
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "%s this dataset?" %(actionString.capitalize())):
+            return True
+
+        _msg = pad("Please wait:", 50, padChar=".")
+        pleaseWait = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        pleaseWait.go()
+
+        try:
+            MD_REF.getUI().setStatus("Toolbox will now %s your dataset" %(actionString), -1.0)
+
+            # Already on the EDT....
+            if not invokeMethodByReflection(MD_REF.getUI(), "closeSecondaryWindows", [Boolean.TYPE], [False]):
+                txt = "ERROR: MD reports that it could not close all open windows.... - no changes made (you might need to restart MD)"
+                myPopupInformationBox(toolbox_frame_,txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                return False
+
+            # Pause the MD+ poller... Leave paused, as when we open a new dataset it should reset itself.....
+            if isMDPlusEnabledBuild():
+                myPrint("DB", "Pausing MD+")
+                plusPoller = MD_REF.getUI().getPlusController()
+                invokeMethodByReflection(plusPoller, "pausePolling", None)
+
+            myPrint("B", "Updating Root's internal name to match new name")
+
+            currentRoot.setAccountName(newName)
+            currentRoot.syncItem()
+
+            myPrint("B", "Executing '%s' on current dataset: %s - will %s to: %s" %(_THIS_METHOD_NAME, fCurrentFilePath.getCanonicalPath(), actionString, fNewNamePath.getCanonicalPath()))
+
+            manuallyCloseDataset(currentBook)
+
+            success = False
+            try:
+                myPrint("B", "attempting to move (rename/copy) file from " + fCurrentFilePath.getAbsolutePath() + " to " + fNewNamePath.getAbsolutePath())
+                Files.move(oldPathURI, newPathURI, [StandardCopyOption.ATOMIC_MOVE])
+                myPrint("B", "... nio atomic (rename/copy) successful!")
+                success = True
+            except IOException as e:
+                myPrint("B", "nio atomic move failed.  Reverting to old-fashioned copy-and-move. Error was:", e)
+                try:
+                    IOUtils.copyDirectoryContents(fCurrentFilePath, fNewNamePath)
+                    IOUtils.deleteFolder(fCurrentFilePath)
+                    myPrint("B", "... copyDirectoryContents successful!")
+                    success = True
+                except IOException as e2:
+                    myPrint("B", "copy copyDirectoryContents FAILED!  Deleting destination and sticking with the original. Error was:", e2)
+                    dump_sys_error_to_md_console_and_errorlog()
+                    IOUtils.deleteFolder(fNewNamePath)
+
+            if not success:
+                txt = "%s: File operation(s) failed (review console) - no changes made...." %(_THIS_METHOD_NAME)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                myPopupInformationBox(toolbox_frame_,"%s - Will close Toolbox & reopen original" %(txt),theMessageType=JOptionPane.WARNING_MESSAGE)
+
+                absPath = fCurrentFilePath.getAbsolutePath()
+
+                newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)   # type: AccountBookWrapper
+
+            else:
+
+                myPrint("B", "** %sd dataset to: %s\n" %(actionString, fNewNamePath.getCanonicalPath()))
+
+                absPath = fNewNamePath.getAbsolutePath()
+
+                if fCurrentFilePath.exists():
+                    raise Exception("ERROR: The old file/path still exists: %s" %(fCurrentFilePath.getAbsolutePath()))
+
+                txt = "Dataset: %sd to: '%s" %(actionString, newName)
+                setDisplayStatus(txt, "B"); myPrint("B", txt)
+                play_the_money_sound()
+                myPopupInformationBox(toolbox_frame_, "%s - Will close Toolbox and open %sd dataset" %(txt, actionString))
+
+                newWrapper = AccountBookWrapper.wrapperForFolder(fNewNamePath)   # type: AccountBookWrapper
+
+
+            prefs = MD_REF.getUI().getPreferences()
+            externalFiles = prefs.getVectorSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, StreamVector())
+            if not externalFiles.contains(absPath):
+                myPrint("DB", "adding file '%s' to external account list (config.dict)" %(absPath))
+                externalFiles.add(absPath)
+                prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFiles)
+            prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_CURRENT_ACCOUNT_BOOK, absPath)
+
+            if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
+            myPrint("B", "Successfully obtained 'wrapper' for: %s\n" %(fNewNamePath))
+
+            cleanup_external_files_setting(lAutoPurge=True)
+
+            myPrint("B", "Opening %s dataset...." %("renamed/relocated" if success else "original"))
+
+            if success and fCurrentFilePath.exists():
+                raise Exception("ERROR: The old file/path still exists: %s" %(fCurrentFilePath.getAbsolutePath()))
+
+            if not MD_REF.setCurrentBook(newWrapper) or newWrapper.getBook() is None:
+                txt = "%s: Failed to open Dataset (wrong password?)...." %(_THIS_METHOD_NAME)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                myPopupInformationBox(toolbox_frame_,"%s - Will show Welcome Window" %(txt),theMessageType=JOptionPane.WARNING_MESSAGE)
+                WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
+                return False
+
+            if success and fCurrentFilePath.exists():
+                raise Exception("ERROR: The old file/path still exists: %s" %(fCurrentFilePath.getAbsolutePath()))
+
+        except:
+            dump_sys_error_to_md_console_and_errorlog()
+            txt = "%s function has failed. Review log and console - You should probably RESTART MD" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_,theMessage=txt, theTitle=_THIS_METHOD_NAME,theMessageType=JOptionPane.ERROR_MESSAGE)
+
+        finally:
+
+            pleaseWait.kill()
+
+            # if isMDPlusEnabledBuild():
+            #     myPrint("DB", "Un-pausing MD+")
+            #     plusPoller = MD_REF.getUI().getPlusController()
+            #     invokeMethodByReflection(plusPoller, "resumePolling", None)
+
+        return False
+
+
     def change_fonts():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -22217,24 +22514,23 @@ Now you will have a text readable version of the file you can open in a text edi
         lInternal = lExternal = False
         if options.index(selectedOption) == 0:
             lExternal = True
-            theText = ( "This allows you to REMOVE references to Datasets stored in the non-default/External locations\n"
+            theText = ( "This allows you to REMOVE references to Datasets stored in the non-default 'External' locations\n"
                         "This removes the entries from the MD File>Open Menu.\n"
-                        "(These may not actually exist on disk any more)\n"
-                        "I will offer you each Dataset name one-by-one\n"
-                        "You will not be offered, or allowed, to delete the current open dataset\n"
+                        "Missing dataset references will be auto-purged from the list before you start selection\n"
+                        "You will be offered each Dataset name one-by-one\n"
+                        "You will NOT be offered, or allowed, to delete the current open dataset\n"
                         "OPTIONALLY - You can choose to also DELETE these dataset(s) FROM DISK (after your confirmation)\n"
-                        "There will not be any backup prompts - please do this yourself first!\n"
-                        "(RESTART MD AFTER USING TO REFRESH THE File>Open list)\n\n"
+                        "There will not be any backup prompt - please do this yourself first!\n\n"
                         "THIS IS THE DISCLAIMER UP FRONT - CLICK I AGREE TO PROCEED" )
+
         elif options.index(selectedOption) == 1:
             lInternal = True
-            theText = ( "This allows you to DELETE Datasets from the MD Internal/Default location\n"
-                        "I will offer you each Dataset name one-by-one\n"
-                        "You will not be offered, or allowed, to delete the current open dataset\n"
-                        "Each one you select will be DELETED FROM DISK (after your confirmation)\n"
+            theText = ( "This allows you to DELETE Datasets from the MD default 'Internal' location\n"
+                        "You will be offered each Dataset name one-by-one\n"
+                        "You will NOT be offered, or allowed, to delete the current open dataset\n"
+                        "Each dataset you select will be DELETED FROM DISK (after your confirmation)\n"
                         "(This will therefore remove the entry from the MD File>Open Menu)\n"
-                        "There will not be any backup prompts - please do this yourself first!\n"
-                        "(RESTART MD AFTER USING TO REFRESH THE File>Open list)\n\n"
+                        "There will not be any backup prompt - please do this yourself first!\n\n"
                         "THIS IS THE DISCLAIMER UP FRONT - CLICK I AGREE TO PROCEED" )
 
         ask=MyPopUpDialogBox(toolbox_frame_,
@@ -22255,9 +22551,9 @@ Now you will have a text readable version of the file you can open in a text edi
         elif lExternal:
             advancedRemoveExternalFilesSettings()
 
-        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        MD_REF.getUI().updateOpenFilesMenus()
 
-        return
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def advanced_mode():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -24610,14 +24906,14 @@ Now you will have a text readable version of the file you can open in a text edi
                         backup_config_dict(True)
 
                         iAdded = 0
-                        externalFilesVector = MD_REF.getUI().getPreferences().getVectorSetting("external_files", StreamVector())
+                        externalFilesVector = MD_REF.getUI().getPreferences().getVectorSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, StreamVector())
                         for add_this_file in add_to_ext_list:
                             if not myPopupAskQuestion(jif,"ADD FILE TO FILE/OPEN MENU","ADD: %s?" %((add_this_file))):
                                 continue
                             iAdded+=1
                             myPrint("B","SEARCH FOR DATASETS - %s added to config.dict and file/open menu" %(add_this_file))
                             externalFilesVector.add(add_this_file)
-                            MD_REF.getUI().getPreferences().setSetting("external_files", externalFilesVector)
+                            MD_REF.getUI().getPreferences().setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFilesVector)
 
                         if iAdded:
                             MD_REF.savePreferences()
@@ -25306,10 +25602,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_view_MD_custom_theme_file.setToolTipText("View the contents of your Moneydance custom Theme file (if you have set one up)")
                     user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))    # noqa
 
-                    grabProgramDir = find_the_program_install_dir()
                     user_view_java_vmoptions = JRadioButton("View Java VM Options File", False)
                     user_view_java_vmoptions.setToolTipText("View the contents of the Java VM Options runtime file that Moneydance uses")
-                    user_view_java_vmoptions.setEnabled(grabProgramDir and os.path.exists(os.path.join(grabProgramDir,"Moneydance.vmoptions")))
+                    user_view_java_vmoptions.setEnabled(os.path.exists(get_vmoptions_path()))
 
                     user_view_extensions_details = JRadioButton("View Extension(s) details", False)
                     user_view_extensions_details.setToolTipText("View details about the Extensions installed in your Moneydance system")
@@ -25326,6 +25621,26 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     user_convert_timestamp = JRadioButton("Convert a TimeStamp number into a readable date/time", False)
                     user_convert_timestamp.setToolTipText("Allows you to input a TimeStamp (Milliseconds) and it will display a readable date/time")
+
+                    user_rename_dataset = JRadioButton("Rename this dataset (within the same location)", False)
+                    user_rename_dataset.setToolTipText("This will allow you to rename this dataset (within the same location) - THIS CHANGES DATA!")
+                    user_rename_dataset.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_rename_dataset.setForeground(getColorRed())
+
+                    user_relocate_dataset = JRadioButton("Relocate this dataset back to the default 'internal' location", False)
+                    user_relocate_dataset.setToolTipText("This will allow you to relocate this dataset back to the internal default location - THIS CHANGES DATA!")
+                    user_relocate_dataset.setEnabled(GlobalVars.UPDATE_MODE and not AccountBookUtil.isWithinInternalStorage(MD_REF.getCurrentAccountBook()))
+                    user_relocate_dataset.setForeground(getColorRed())
+
+                    user_cleanup_external_files = JRadioButton("Cleanup MD's File/Open list of 'external' files (does not touch actual files)", False)
+                    user_cleanup_external_files.setToolTipText("Cleans up the list of files shown on the MD File/Open menu - THIS CHANGES CONFIG.DICT!")
+                    user_cleanup_external_files.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_cleanup_external_files.setForeground(getColorRed())
+
+                    user_advanced_delete_int_ext_files = JRadioButton("DELETE Files from Menu>File>Open list and also from DISK", False)
+                    user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
+                    user_advanced_delete_int_ext_files.setForeground(getColorRed())
+                    user_advanced_delete_int_ext_files.setEnabled(GlobalVars.UPDATE_MODE)
 
                     user_change_moneydance_fonts = JRadioButton("Set/Change Default Moneydance FONTS", False)
                     user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
@@ -25363,6 +25678,10 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_find_sync_password_in_ios_backups)
                     bg.add(user_import_QIF)
                     bg.add(user_convert_timestamp)
+                    bg.add(user_rename_dataset)
+                    bg.add(user_relocate_dataset)
+                    bg.add(user_cleanup_external_files)
+                    bg.add(user_advanced_delete_int_ext_files)
                     bg.add(user_change_moneydance_fonts)
                     bg.add(user_delete_custom_theme_file)
                     bg.add(user_delete_orphan_extensions)
@@ -25387,6 +25706,10 @@ Now you will have a text readable version of the file you can open in a text edi
                     if not GlobalVars.UPDATE_MODE:
                         userFilters.add(labelFYI2)
 
+                    userFilters.add(user_rename_dataset)
+                    userFilters.add(user_relocate_dataset)
+                    userFilters.add(user_cleanup_external_files)
+                    userFilters.add(user_advanced_delete_int_ext_files)
                     userFilters.add(user_change_moneydance_fonts)
                     userFilters.add(user_delete_custom_theme_file)
                     userFilters.add(user_delete_orphan_extensions)
@@ -25394,9 +25717,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     while True:
 
-                        grabProgramDir = find_the_program_install_dir()
-                        user_view_java_vmoptions.setEnabled(grabProgramDir and os.path.exists(os.path.join(grabProgramDir,"Moneydance.vmoptions")))
-                        user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                    # noqa
+                        user_view_java_vmoptions.setEnabled(os.path.exists(get_vmoptions_path()))
+                        user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                             # noqa
                         user_delete_custom_theme_file.setEnabled(GlobalVars.UPDATE_MODE and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
                         bg.clearSelection()
 
@@ -25431,7 +25753,7 @@ Now you will have a text readable version of the file you can open in a text edi
                             return
 
                         if user_view_java_vmoptions.isSelected():
-                            x = ViewFileButtonAction(File(grabProgramDir, "Moneydance.vmoptions"), "Java VM File")
+                            x = ViewFileButtonAction(File(get_vmoptions_path()), "Java VM File")
                             x.actionPerformed(None)
                             return
 
@@ -25452,6 +25774,19 @@ Now you will have a text readable version of the file you can open in a text edi
 
                         if user_convert_timestamp.isSelected():
                             convert_timestamp_readable_date()
+
+                        if user_rename_dataset.isSelected():
+                            if not rename_relocate_dataset(lRelocateDataset=False): return
+
+                        if user_relocate_dataset.isSelected():
+                            if not rename_relocate_dataset(lRelocateDataset=True): return
+
+                        if user_cleanup_external_files.isSelected():
+                            cleanup_external_files_setting()
+
+                        if user_advanced_delete_int_ext_files.isSelected():
+                            advanced_remove_int_external_files_settings()
+                            return
 
                         if user_change_moneydance_fonts.isSelected():
                             change_fonts()
@@ -25498,11 +25833,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_advanced_edit_param_keys.setToolTipText("This allows you to MODIFY (add/change/delete) an Object's Parameter keys..... CAN UPDATE DATA - ONLY USE IF YOU KNOW WHAT YOU ARE DOING")
                     user_advanced_edit_param_keys.setForeground(getColorRed())
                     user_advanced_edit_param_keys.setEnabled(GlobalVars.ADVANCED_MODE)
-
-                    user_advanced_delete_int_ext_files = JRadioButton("DELETE Files from Filelist and DISK", False)
-                    user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
-                    user_advanced_delete_int_ext_files.setForeground(getColorRed())
-                    user_advanced_delete_int_ext_files.setEnabled(GlobalVars.ADVANCED_MODE)
 
                     user_advanced_toggle_DEBUG = JRadioButton("Toggle Moneydance DEBUG", False)
                     user_advanced_toggle_DEBUG.setToolTipText("This will toggle Moneydance's internal DEBUG setting(s) ON/OFF.....")
@@ -25582,7 +25912,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_advanced_import_to_storage)
                     bg.add(user_advanced_mode_edit_prefs)
                     bg.add(user_advanced_edit_param_keys)
-                    bg.add(user_advanced_delete_int_ext_files)
                     bg.add(user_advanced_clone_dataset)
                     bg.add(user_advanced_save_trunk)
                     bg.add(user_advanced_sync_push)
@@ -25616,7 +25945,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_advanced_import_to_storage)
                     userFilters.add(user_advanced_mode_edit_prefs)
                     userFilters.add(user_advanced_edit_param_keys)
-                    userFilters.add(user_advanced_delete_int_ext_files)
                     userFilters.add(user_advanced_suppress_dropbox_warning)
 
                     _NONE = "none"
@@ -25635,7 +25963,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,580)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,450)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "ADVANCED - Diagnostics, Tools, Fixes",
@@ -25674,10 +26002,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
                         if user_advanced_edit_param_keys.isSelected():
                             advanced_mode_edit_parameter_keys()
-                            return
-
-                        if user_advanced_delete_int_ext_files.isSelected():
-                            advanced_remove_int_external_files_settings()
                             return
 
                         if user_advanced_save_trunk.isSelected():
@@ -26432,6 +26756,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             menuItemD = JCheckBoxMenuItem("Debug")
             menuItemD.setMnemonic(KeyEvent.VK_D)
+            menuItemD.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_D, (keyToUse | Event.SHIFT_MASK)))
             menuItemD.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemD.setToolTipText("Enables script to output debug information - technical stuff - readonly")
             menuItemD.setSelected(debug)

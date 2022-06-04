@@ -5,7 +5,7 @@
                     {
                     "build" = "1051"
                     "disable" = "n"
-                    "news" = "Added force change currency on categories options; Improved invalid window setting zapping features"
+                    "news" = "New force change currency options; Improved invalid window settings management; new rename/relocate dataset options"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.4"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4087"
