@@ -19749,6 +19749,8 @@ now after saving the file, restart Moneydance
 
         newName = currentName
 
+        newFileWillBeInternal = (lRelocateDataset or AccountBookUtil.isWithinInternalStorage(currentBook))
+
         if lRelocateDataset:
             fNewNamePath = AccountBook.getUnusedFileNameWithBase(AccountBookUtil.DEFAULT_FOLDER_CONTAINER, StringUtils.stripExtension(fCurrentFilePath.getName()))
             newName = fNewNamePath.getName()
@@ -19848,13 +19850,15 @@ now after saving the file, restart Moneydance
 
                 newWrapper = AccountBookWrapper.wrapperForFolder(fNewNamePath)   # type: AccountBookWrapper
 
-
             prefs = MD_REF.getUI().getPreferences()
-            externalFiles = prefs.getVectorSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, StreamVector())
-            if not externalFiles.contains(absPath):
-                myPrint("DB", "adding file '%s' to external account list (config.dict)" %(absPath))
-                externalFiles.add(absPath)
-                prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFiles)
+
+            if not newFileWillBeInternal:
+                externalFiles = prefs.getVectorSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, StreamVector())
+                if not externalFiles.contains(absPath):
+                    myPrint("DB", "adding file '%s' to external account list (config.dict)" %(absPath))
+                    externalFiles.add(absPath)
+                    prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFiles)
+
             prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_CURRENT_ACCOUNT_BOOK, absPath)
 
             if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
