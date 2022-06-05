@@ -25067,7 +25067,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,700,350)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,700,400)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Accounts / Categories Diagnostics, Tools, Fixes",
@@ -25353,7 +25353,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,1000,550)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,1000,600)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Currency / Security Diagnostics, Tools, Fixes",
@@ -25554,7 +25554,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,300)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,425)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Transaction(s) Diagnostics, Tools, Fixes",
@@ -25709,6 +25709,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_find_sync_password_in_ios_backups)
                     bg.add(user_import_QIF)
                     bg.add(user_convert_timestamp)
+                    bg.add(user_reset_window_display_settings)
                     bg.add(user_rename_dataset)
                     bg.add(user_relocate_dataset)
                     bg.add(user_cleanup_external_files)
@@ -25716,7 +25717,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_change_moneydance_fonts)
                     bg.add(user_delete_custom_theme_file)
                     bg.add(user_delete_orphan_extensions)
-                    bg.add(user_reset_window_display_settings)
                     bg.clearSelection()
 
                     userFilters.add(JLabel(" "))
@@ -25737,6 +25737,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     if not GlobalVars.UPDATE_MODE:
                         userFilters.add(labelFYI2)
 
+                    userFilters.add(user_reset_window_display_settings)
                     userFilters.add(user_rename_dataset)
                     userFilters.add(user_relocate_dataset)
                     userFilters.add(user_cleanup_external_files)
@@ -25744,7 +25745,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_change_moneydance_fonts)
                     userFilters.add(user_delete_custom_theme_file)
                     userFilters.add(user_delete_orphan_extensions)
-                    userFilters.add(user_reset_window_display_settings)
 
                     while True:
 
@@ -25754,7 +25754,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,450)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,550)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "General Diagnostics, Tools, Fixes",
@@ -25994,7 +25994,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,450)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,500)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "ADVANCED - Diagnostics, Tools, Fixes",
