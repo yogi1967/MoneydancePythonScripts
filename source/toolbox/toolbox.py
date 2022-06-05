@@ -19655,10 +19655,23 @@ now after saving the file, restart Moneydance
         myPrint(u"D", u"Exiting ", inspect.currentframe().f_code.co_name, u"()")
         return theMsg, displayMsg
 
-    def manuallyCloseDataset(theBook):
+    def isSafeToCloseDataset():
+        # type: () -> bool
+        """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
+        if not SwingUtilities.isEventDispatchThread(): raise Exception("ERROR - you must run isSafeToCloseDataset() on the EDT!")
+        return invokeMethodByReflection(MD_REF.getUI(), "isOKToCloseFile", None)
 
-        # Mimic .setCurrentBook(None) - avoids messing around with off thread backups (which won't like the file disappearing)....
-        # MD_REF.setCurrentBook(None)
+    def manuallyCloseDataset(theBook):
+        # type: (AccountBook) -> bool
+        """Mimics .setCurrentBook(None) but avoids the Auto Backup 'issue'. Also closes open SecondaryWindows, pauses MD+ etc"""
+        if not isSafeToCloseDataset(): return False
+        if not invokeMethodByReflection(MD_REF.getUI(), "closeSecondaryWindows", [Boolean.TYPE], [False]): return False
+
+        # Pause the MD+ poller... Leave paused, as when we open a new dataset it should reset itself.....
+        if isMDPlusEnabledBuild():
+            myPrint("DB", "Pausing MD+")
+            plusPoller = MD_REF.getUI().getPlusController()
+            invokeMethodByReflection(plusPoller, "pausePolling", None)
 
         theBook.getLocalStorage().save()                        # Flush LocalStorage...
 
@@ -19674,7 +19687,34 @@ now after saving the file, restart Moneydance
         # Remove the current book's reference to LocalStorage.... (used when debugging what was recreating the dataset/settings)
         # theBook.setLocalStorage(None)                             # Will fail as it tries to refer to book, which is now None
         # setFieldByReflection(theBook, "localStorage", None)       # Works as avoids above problem
+        return True
 
+    # class ManuallyCloseAndReloadSameDataset(Runnable):
+    #     def run(self):
+    #         # type: () -> bool
+    #         """Manually closes current dataset, then reloads the same dataset.. Use when you want to refresh MD's internals"""
+    #
+    #         if not SwingUtilities.isEventDispatchThread(): raise Exception("ERROR - you must run isSafeToCloseDataset() on the EDT!")
+    #
+    #         currentBook = MD_REF.getCurrentAccountBook()
+    #         fCurrentFilePath = currentBook.getRootFolder()
+    #
+    #         if not manuallyCloseDataset(currentBook): return False
+    #
+    #         newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
+    #         if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
+    #         myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
+    #
+    #         myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
+    #
+    #         if not MD_REF.setCurrentBook(newWrapper) or newWrapper.getBook() is None:
+    #             txt = "Failed to open Dataset (wrong password?).... Will show the Welcome Window...."
+    #             setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #             WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
+    #             return False
+    #
+    #         return True
+    
     def rename_relocate_dataset(lRelocateDataset=False):
         # type: (bool) -> bool
 
@@ -19692,7 +19732,7 @@ now after saving the file, restart Moneydance
             return False
 
         # Already on the EDT....
-        if not invokeMethodByReflection(MD_REF.getUI(), "isOKToCloseFile", None):
+        if not isSafeToCloseDataset():
             txt = "ERROR: MD reports that it's not OK to close open windows - no changes made"
             myPopupInformationBox(toolbox_frame_,txt)
             setDisplayStatus(txt, "R"); myPrint("B", txt)
@@ -19753,27 +19793,17 @@ now after saving the file, restart Moneydance
         try:
             MD_REF.getUI().setStatus("Toolbox will now %s your dataset" %(actionString), -1.0)
 
-            # Already on the EDT....
-            if not invokeMethodByReflection(MD_REF.getUI(), "closeSecondaryWindows", [Boolean.TYPE], [False]):
-                txt = "ERROR: MD reports that it could not close all open windows.... - no changes made (you might need to restart MD)"
-                myPopupInformationBox(toolbox_frame_,txt)
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                return False
-
-            # Pause the MD+ poller... Leave paused, as when we open a new dataset it should reset itself.....
-            if isMDPlusEnabledBuild():
-                myPrint("DB", "Pausing MD+")
-                plusPoller = MD_REF.getUI().getPlusController()
-                invokeMethodByReflection(plusPoller, "pausePolling", None)
-
             myPrint("B", "Updating Root's internal name to match new name")
-
             currentRoot.setAccountName(newName)
             currentRoot.syncItem()
 
             myPrint("B", "Executing '%s' on current dataset: %s - will %s to: %s" %(_THIS_METHOD_NAME, fCurrentFilePath.getCanonicalPath(), actionString, fNewNamePath.getCanonicalPath()))
 
-            manuallyCloseDataset(currentBook)
+            if not manuallyCloseDataset(currentBook):
+                txt = "ERROR: MD reports that it could not close all open windows.... - no changes made (you might need to restart MD)"
+                myPopupInformationBox(toolbox_frame_,txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                return False
 
             success = False
             try:
@@ -23780,6 +23810,7 @@ Now you will have a text readable version of the file you can open in a text edi
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
         MD_REF.getUI().exit()
 
+
     # Decomissioned as of 2022.3(4072)
     # def restore_archive_retain_sync_settings():
     #     # com.moneydance.apps.md.view.gui.MoneydanceGUI.openFile(File)
@@ -24026,7 +24057,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.callingClass = callingClass
 
             def windowActivated(self, windowEvent):
-                myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()", windowEvent)
+                myPrint("D","In ", inspect.currentframe().f_code.co_name, "()", windowEvent)
                 setSyncingLabel()
 
             # def windowDeactivated(self, windowEvent): pass                                                              # noqa
