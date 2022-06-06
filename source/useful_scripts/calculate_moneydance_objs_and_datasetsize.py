@@ -2803,7 +2803,11 @@ Visit: %s (Author's site)
             myPrint("DB", "... FINISHED Closing down the dataset")
             return True
 
-        def __init__(self): self.result = None
+        THIS_APPS_FRAME_REFERENCE = None
+
+        def __init__(self, lQuitThisAppToo=True):
+            self.lQuitThisAppToo = (lQuitThisAppToo and self.__class__.THIS_APPS_FRAME_REFERENCE is not None)
+            self.result = None
 
         def getResult(self): return self.result     # Caution - only call this when you have waited for Thread to complete..... ;->
 
@@ -2833,6 +2837,11 @@ Visit: %s (Author's site)
             newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
             if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
             myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
+
+            if self.lQuitThisAppToo:
+                if self.__class__.THIS_APPS_FRAME_REFERENCE is not None:
+                    if isinstance(self.__class__.THIS_APPS_FRAME_REFERENCE, JFrame):
+                        SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.__class__.THIS_APPS_FRAME_REFERENCE))
 
             myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
 

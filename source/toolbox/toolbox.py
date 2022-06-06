@@ -292,7 +292,7 @@
 # build: 1051 - Added 'Rename this dataset (within the same location)' & 'Relocate this dataset back to the default 'internal' location' features
 # build: 1051 - Added 'Cleanup MD's File/Open list of 'external' files (does not touch actual files)' feature
 # build: 1051 - Moved the Delete internal/external files option to General Tools Menu (and auto purge external orphans)
-# build: 1051 - Auto-magically restart MD (same dataset) when needed....
+# build: 1051 - Auto-magically restart MD (same dataset) when needed....; Changed menus so they all exit after each usage
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -3199,7 +3199,11 @@ Visit: %s (Author's site)
             myPrint("DB", "... FINISHED Closing down the dataset")
             return True
 
-        def __init__(self): self.result = None
+        THIS_APPS_FRAME_REFERENCE = None
+
+        def __init__(self, lQuitThisAppToo=True):
+            self.lQuitThisAppToo = (lQuitThisAppToo and self.__class__.THIS_APPS_FRAME_REFERENCE is not None)
+            self.result = None
 
         def getResult(self): return self.result     # Caution - only call this when you have waited for Thread to complete..... ;->
 
@@ -3229,6 +3233,11 @@ Visit: %s (Author's site)
             newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
             if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
             myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
+
+            if self.lQuitThisAppToo:
+                if self.__class__.THIS_APPS_FRAME_REFERENCE is not None:
+                    if isinstance(self.__class__.THIS_APPS_FRAME_REFERENCE, JFrame):
+                        SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.__class__.THIS_APPS_FRAME_REFERENCE))
 
             myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
 
@@ -5596,6 +5605,9 @@ Visit: %s (Author's site)
         outputDates += "\n<END>"
         QuickJFrame("OFX LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
 
+        txt = "OFX: All your last txn download txn dates have been retrieved and displayed...."
+        setDisplayStatus(txt, "B")
+
 
     def OFX_view_reconcile_AsOf_Dates():
 
@@ -5713,6 +5725,9 @@ Visit: %s (Author's site)
 
         QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
+        txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
+        setDisplayStatus(txt, "B")
+
 
     def OFX_view_CUSIP_settings():
 
@@ -5783,14 +5798,10 @@ Visit: %s (Author's site)
 
         output += "\n<END>"
 
-        txt = "%s: - Displaying Security hidden CUSIP Settings" %(_THIS_METHOD_NAME)
-        setDisplayStatus(txt, "B")
         QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
-        del securities
 
-        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
-
+        txt = "OFX: Your Security's hidden CUSIP settings have been retrieved and displayed...."
+        setDisplayStatus(txt, "B")
 
     def OFX_view_online_txns_payees_payments():
 
@@ -5911,6 +5922,9 @@ Visit: %s (Author's site)
         output+="\n\n<END>"
 
         QuickJFrame("VIEW SAVED ONLINE DATA",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+
+        txt = "OFX: Your Online saved Txns, Payees, Payments have been retrieved and displayed...."
+        setDisplayStatus(txt, "B")
 
     # replicates com.moneydance.apps.md.view.gui.MDAccountProxy.getAccountKey()
     def my_get_account_key(acct):
@@ -6324,7 +6338,8 @@ Visit: %s (Author's site)
 
         QuickJFrame("VIEW INSTALLED SERVICE / BANK LOGON PROFILES",OFX,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
-        return
+        txt = "OFX: Your installed Service / Bank logon profiles have been displayed...."
+        setDisplayStatus(txt, "B")
 
     def load_help_file():
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -11936,8 +11951,7 @@ Visit: %s (Author's site)
         for bankSetup in globalSave_DEBUG_FI_data:
             miniListDEBUG.append(bankSetup.lowerName)
 
-        if len(globalSaveFI_data)<1:
-            output+="\nNO SETUP FOUND... DID SOMETHING GO WRONG? REVIEW CONSOLE ERROR LOG..!\n\n"
+        if len(globalSaveFI_data) < 1: output+="\nNO SETUP FOUND... DID SOMETHING GO WRONG? REVIEW CONSOLE ERROR LOG..!\n\n"
 
         output+="\n<END>"
 
@@ -11945,7 +11959,7 @@ Visit: %s (Author's site)
 
         jif = QuickJFrame("VIEW Moneydance's Dynamic / live Fiscal Institution setup profiles", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
-        if len(miniList)>0:
+        if len(miniList) > 0:
             selectedID = JOptionPane.showInputDialog(jif,
                                                      "Select Bank Profile to view specific setup data",
                                                       "VIEW SPECIFIC SETUP DATA",
@@ -11990,7 +12004,8 @@ Visit: %s (Author's site)
 
                 QuickJFrame("VIEW Moneydance's Specific (dynamic) Fiscal Institution setup profiles", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
-        return
+        txt = "OFX: Moneydance's Dynamic Fiscal Institution Setup profiles have been retrieved and displayed...."
+        setDisplayStatus(txt, "B")
 
     def get_the_objects_for_curious_view_and_advanced_edit(objWhat, selectedObjType, titleStr, lForceOneTxn):
 
@@ -13596,6 +13611,8 @@ Visit: %s (Author's site)
             jif = QuickJFrame("Curious? View Internal Settings...: %s" % selectedWhat, output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
             if self.lOFX:
+                txt = "OFX: Your OFX Bank related settings have been searched and displayed...."
+                setDisplayStatus(txt, "B")
                 return jif
             else:
                 txt = "I hope you enjoyed Curiously Viewing Internal Settings...: %s" %(selectedWhat)
@@ -19934,6 +19951,7 @@ now after saving the file, restart Moneydance
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
                 myPopupInformationBox(toolbox_frame_,"%s - Will show Welcome Window" %(txt),theMessageType=JOptionPane.WARNING_MESSAGE)
                 WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
+                SwingUtilities.invokeLater(GenericWindowClosingRunnable(toolbox_frame_))
                 return False
 
             if success and fCurrentFilePath.exists():
@@ -21785,10 +21803,10 @@ Now you will have a text readable version of the file you can open in a text edi
         _options = ["Cancel", "CLONE"]
 
         while True:
-            jsp = MyJScrollPaneForJOptionPane(filterPanel,850, 175)
+            jsp_acd = MyJScrollPaneForJOptionPane(filterPanel,850, 175)
 
             userAction = JOptionPane.showOptionDialog(toolbox_frame_,
-                                                      jsp,
+                                                      jsp_acd,
                                                       "%s: Select CLONE Options:" %(_THIS_METHOD_NAME.upper()),
                                                       JOptionPane.OK_CANCEL_OPTION,
                                                       JOptionPane.QUESTION_MESSAGE,
@@ -21995,6 +22013,7 @@ Now you will have a text readable version of the file you can open in a text edi
                          "netsync.synckey",
                          "ext.netsync.settings",
                          "netsync.guid",
+                         "netsync.fs.sync_path",
                          "migrated.netsync.dropbox.fileid",
                          "migrated.ext.netsync.settings",                                                                   # Extra from here
                          "migrated.netsync.dropbox_enabled",
@@ -22649,7 +22668,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode():
+    def advanced_mode_edit_prefs():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
@@ -23848,6 +23867,7 @@ Now you will have a text readable version of the file you can open in a text edi
                      "netsync.synckey",
                      "ext.netsync.settings",
                      "netsync.guid",
+                     "netsync.fs.sync_path",
                      "migrated.netsync.dropbox.fileid",
                      "migrated.ext.netsync.settings",                                                                   # Extra from here
                      "migrated.netsync.dropbox_enabled",
@@ -23878,173 +23898,6 @@ Now you will have a text readable version of the file you can open in a text edi
         # MD_REF.getUI().exit()
         MD_REF.getBackgroundThread().runOnBackgroundThread(ManuallyCloseAndReloadDataset())
 
-
-    # Decommissioned as of 2022.3(4072)
-    # def restore_archive_retain_sync_settings():
-    #     # com.moneydance.apps.md.view.gui.MoneydanceGUI.openFile(File)
-    #
-    #     _PARAM_KEY = "netsync.sync_type"
-    #     _NONE = "none"
-    #
-    #     _SYNC_KEYS = [  "netsync.dropbox.fileid",
-    #                     "netsync.sync_type",
-    #                     "netsync.subpath",
-    #                     "netsync.dropbox_enabled",
-    #                     "netsync.synckey",
-    #                     "ext.netsync.settings",
-    #                     "netsync.guid",
-    #                     "migrated.netsync.dropbox.fileid",
-    #                     "migrated.ext.netsync.settings",                                                                   # Extra from here
-    #                     "migrated.netsync.dropbox_enabled",
-    #                     "migrated.netsync.guid",
-    #                     "migrated.netsync.synckey"
-    #                     ]
-    #
-    #     _THIS_METHOD_NAME = "RESTORE ARCHIVE (RETAIN SYNC SETTINGS)"
-    #
-    #     ask = MyPopUpDialogBox(None, "Allows you to restore a .moneydancearchive file and RETAIN Sync Settings",
-    #                            "The normal File/Restore from Backup option will wipe out your Sync settings\n"
-    #                            "... This means the restored dataset will not reconnect and pick up syncing where it was before\n"
-    #                            "... You would get a brand new Sync relationship and have to reconnect devices to this new Sync\n\n"
-    #                            "This feature allows you to retain your Sync settings, and it will then sync from the point of backup\n"
-    #                            "... NOTE: Whilst the settings are retained, Syncing will be left turned off...\n"
-    #                            "... So you must visit the File/Syncing menu and select the Sync option to continue...\n\n"
-    #                            "You might use this when you have txns in the Sync 'system' from another device, that you want applied to this dataset\n",
-    #                            theTitle="INSTRUCTIONS",
-    #                            lCancelButton=True,OKButtonText="CONFIRMED", lAlertLevel=1)
-    #     if not ask.go():
-    #         txt = "Instructions rejected - no changes made"
-    #         setDisplayStatus(txt, "B"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-    #         return
-    #
-    #     theTitle = "Select archive file to restore and retain sync settings)"
-    #     archiveFilename = getFileFromFileChooser(toolbox_frame_,    # Parent frame or None
-    #                                              get_home_dir(),    # Starting path
-    #                                              None,              # Default Filename
-    #                                              theTitle,          # Title
-    #                                              False,             # Multi-file selection mode
-    #                                              True,              # True for Open/Load, False for Save
-    #                                              True,              # True = Files, else Dirs
-    #                                              None,              # Load/Save button text, None for defaults
-    #                                              "moneydancearchive",  # File filter (non Mac only). Example: "txt" or "qif"
-    #                                              lAllowTraversePackages=False,
-    #                                              lForceJFC=False,
-    #                                              lForceFD=False,
-    #                                              lAllowNewFolderButton=False,
-    #                                              lAllowOptionsButton=True)
-    #
-    #     if archiveFilename is None or archiveFilename == "":
-    #         txt = "%s: User chose to cancel or no file selected >>  So no Restore will be performed... " %(_THIS_METHOD_NAME)
-    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
-    #         return
-    #
-    #     if not archiveFilename.endswith(".moneydancearchive"):
-    #         txt = "%s: ERROR - Must select a file with '.moneydancearchive' extension - No Restore will be performed... " %(_THIS_METHOD_NAME)
-    #         setDisplayStatus(txt, "B"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
-    #         return
-    #
-    #     fileToOpen = File(archiveFilename)
-    #     baseFilename = StringUtils.stripExtension(fileToOpen.getName())
-    #
-    #     tmpFolder = IOUtils.createTempFolder()
-    #     myPrint("DB","Temp folder: %s" %(tmpFolder.getCanonicalPath()))
-    #
-    #     IOUtils.openZip(fileToOpen, tmpFolder.getAbsolutePath())
-    #     myPrint("DB","Zip file opened....")
-    #
-    #     class MyFilenameFilter(FilenameFilter):
-    #         def accept(self, _dir, name): return String(name).endsWith(".moneydance")
-    #
-    #     zipContents = tmpFolder.list(MyFilenameFilter())
-    #     if (zipContents is None or len(zipContents) <= 0):
-    #         txt = "%s: ERROR: Archive (zip) appears empty? So no Restore will be performed... " %(_THIS_METHOD_NAME)
-    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-    #         return
-    #
-    #     tmpMDFile = File(tmpFolder, zipContents[0])
-    #     newBookFile = AccountBook.getUnusedFileNameWithBase(AccountBookUtil.DEFAULT_FOLDER_CONTAINER, baseFilename)
-    #     myPrint("B","Archive to restore: %s" %(fileToOpen.getCanonicalPath()))
-    #     myPrint("B","New Name:           %s" %(newBookFile.getCanonicalPath()))
-    #
-    #     if not myPopupAskQuestion(toolbox_frame_,_THIS_METHOD_NAME, "CONFIRM you want to proceed to restore archive and retain Sync settings?"):
-    #         txt = "%s: User DECLINED TO PROCEED - no action taken" %(_THIS_METHOD_NAME)
-    #         setDisplayStatus(txt, "B"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
-    #         return
-    #
-    #     if not tmpMDFile.renameTo(newBookFile):
-    #         try: IOUtils.copyFolder(tmpMDFile, newBookFile)
-    #         except:
-    #             txt = "%s: ERROR: copy/move of tmp folder failed (review console)... " %(_THIS_METHOD_NAME)
-    #             setDisplayStatus(txt, "R"); myPrint("B", txt)
-    #             dump_sys_error_to_md_console_and_errorlog()
-    #             myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-    #             return
-    #
-    #     archiveWrapper = AccountBookWrapper.wrapperForFolder(newBookFile)
-    #     if archiveWrapper is None:
-    #         try: IOUtils.deleteFolder(newBookFile)
-    #         except: dump_sys_error_to_md_console_and_errorlog()
-    #         txt = "%s: ERROR: Failed to set AccountBookWrapper.wrapperForFolder on restored file... " %(_THIS_METHOD_NAME)
-    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-    #         return
-    #
-    #     passwordCallback = MD_REF.getUI().getSecretKeyCallback(archiveWrapper)
-    #
-    #     iLoop = 0
-    #     lFailed = True
-    #     while True:
-    #         iLoop += 1
-    #         if iLoop > 3: break
-    #         try:
-    #             if archiveWrapper.loadLocalStorage(passwordCallback): lFailed = False
-    #             break
-    #         except MDException as mde:
-    #             if mde.getCode() == 1004:
-    #                 MD_REF.getUI().showErrorMessage("The password you have entered is invalid.  Please try again.")
-    #                 continue
-    #             else:
-    #                 dump_sys_error_to_md_console_and_errorlog()
-    #                 break
-    #         except:
-    #             dump_sys_error_to_md_console_and_errorlog()
-    #             break
-    #
-    #     if lFailed:
-    #         try: IOUtils.deleteFolder(newBookFile)
-    #         except: dump_sys_error_to_md_console_and_errorlog()
-    #         txt = "%s: ERROR: Failed to load local storage for restored dataset... " %(_THIS_METHOD_NAME)
-    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-    #         return
-    #
-    #     archiveBook = archiveWrapper.getBook()
-    #     storage = archiveBook.getLocalStorage()
-    #     saveSyncSetting = storage.getString(_PARAM_KEY, _NONE)
-    #
-    #     myPrint("B", "List of all 'Sync' Keys preserved in the Restored Dataset..:")
-    #     for sKey in _SYNC_KEYS: myPrint("B", "Key %s  Value: '%s'" %(pad(sKey,40), storage.getString(sKey, "NOT SET")))
-    #     myPrint("B", "<END OF PRESERVED SYNC KEYS>")
-    #
-    #     myPrint("B", "@@@ Setting Sync in restored dataset to %s" %(_NONE))
-    #     storage.put(_PARAM_KEY, _NONE)
-    #     storage.put("_toolbox", "Restored & preserved Sync settings (type was: %s)...." %(saveSyncSetting))
-    #     archiveBook.getLocalStorage().save()
-    #
-    #     myPopupInformationBox(toolbox_frame_,"SUCCESS! ABOUT TO OPEN THE RESTORED DATASET (You need to set Sync to: '%s') - YOU MAY BE ASKED FOR YOUR PASSWORD AGAIN" %(saveSyncSetting),_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
-    #     myPrint("B","Opening restored Dataset: %s" %(newBookFile.getCanonicalPath()))
-    #     txt = "%s: SUCCESS: Dataset restored, open manually (and change Sync Method to: %s)" %(_THIS_METHOD_NAME, saveSyncSetting)
-    #     setDisplayStatus(txt, "B"); myPrint("B", txt)
-    #     if not MD_REF.getUI().openFile(newBookFile):    # This will trigger Toolbox to close too....
-    #         txt = "%s: ERROR: Failed to open the restored file... Please open the file manually?" %(_THIS_METHOD_NAME)
-    #         setDisplayStatus(txt, "R"); myPrint("B", txt)
-    #         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-    #     return
 
     def checkForREADONLY():
 
@@ -24458,122 +24311,45 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                    getMDIcon(lAlwaysGetIcon=True),
                                                                    options, options[0]))
                         if userAction != 1:
-                            txt = "Online Banking (OFX) Tools - No changes made....."
+                            txt = "Online Banking (OFX) Tools - No menu item selected..."
                             setDisplayStatus(txt, "B")
                             return
 
-                        # for button in bg.getElements():
-                        #     if button.isSelected(): break
-                        #
+                        selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_forgetOFXBankingLink.isSelected():
-                            forgetOFXImportLink()
+                        if user_forgetOFXBankingLink.isSelected():                  forgetOFXImportLink()
+                        if user_deleteOFXBankingLogonProfile.isSelected():          deleteOFXService()
+                        if user_cleanupMissingOnlineBankingLinks.isSelected():      cleanupMissingOnlineBankingLinks(lAutoPurge=False)
+                        if user_manageCUSIPLink.isSelected():                       CUSIPFix()
+                        if user_toggleMDDebug.isSelected():                         advanced_mode_DEBUG()
+                        if user_UNLOCKMDPlusDiagnostic.isSelected():                UNLOCKMDPlusDiagnostic()
+                        if user_authenticationManagement.isSelected():              OFX_authentication_management()
+                        if user_exportMDPlusProfile.isSelected():                   export_MDPlus_Profile()
+                        if user_importMDPlusProfile.isSelected():                   import_MDPlus_Profile()
+                        if user_zapMDPlusProfile.isSelected():                      zap_MDPlus_Profile()
+                        if user_cookieManagement.isSelected():                      OFX_cookie_management()
+                        if user_deleteOnlineTxns.isSelected():                      OFX_delete_saved_online_txns()
+                        if user_deleteALLOnlineTxns.isSelected():                   OFX_delete_ALL_saved_online_txns()
+                        if user_manuallyPrimeUSAARootUserIDClientIDs.isSelected():  manuallyPrimeUSAARootUserIDClientIDs()
+                        if user_createUSAAProfile.isSelected():                     createUSAAProfile()
+                        if user_updateOFXLastTxnUpdate.isSelected():                OFX_update_OFXLastTxnUpdate()
+                        if user_reset_OFXLastTxnUpdate_dates.isSelected():          OFX_reset_OFXLastTxnUpdate_dates()
+                        if user_searchOFXData.isSelected():                         CuriousViewInternalSettingsButtonAction(lOFX=True).actionPerformed("")
+                        if user_viewListALLMDServices.isSelected():                 download_md_fiscal_setup()
+                        if user_view_CUSIP_settings.isSelected():                   OFX_view_CUSIP_settings()
+                        if user_viewOnlineTxnsPayeesPayments.isSelected():          OFX_view_online_txns_payees_payments()
+                        if user_viewAllLastTxnDownloadDates.isSelected():           OFX_view_all_last_txn_download_dates()
+                        if user_viewReconcileAsOfDates.isSelected():                OFX_view_reconcile_AsOf_Dates()
+                        if user_viewInstalledBankProfiles.isSelected():             ofx_view_service_profile_data()
 
-                        if user_deleteOFXBankingLogonProfile.isSelected():
-                            deleteOFXService()
-
-                        if user_cleanupMissingOnlineBankingLinks.isSelected():
-                            cleanupMissingOnlineBankingLinks(lAutoPurge=False)
-
-                        if user_manageCUSIPLink.isSelected():
-                            CUSIPFix()
-
-                        # if user_toggleOFXDebug.isSelected():
-                        #     OFXDEBUGToggle()
-
-                        if user_searchOFXData.isSelected():
-                            viewer = CuriousViewInternalSettingsButtonAction(lOFX=True)
-                            viewer.actionPerformed("")
-                            del viewer
-                            txt = "OFX: Your OFX Bank related settings have been searched and displayed...."
-                            setDisplayStatus(txt, "B")
-                            return
-
-                        if user_toggleMDDebug.isSelected():
-                            advanced_mode_DEBUG()
-
-                        if user_UNLOCKMDPlusDiagnostic.isSelected():
-                            UNLOCKMDPlusDiagnostic()
-                            return
-
-                        if user_authenticationManagement.isSelected():
-                            if OFX_authentication_management(): return
-
-                        if user_exportMDPlusProfile.isSelected():
-                            export_MDPlus_Profile()
-
-                        if user_importMDPlusProfile.isSelected():
-                            if import_MDPlus_Profile(): return
-
-                        if user_zapMDPlusProfile.isSelected():
-                            if zap_MDPlus_Profile(): return
-
-                        if user_cookieManagement.isSelected():
-                            OFX_cookie_management()
-
-                        if user_viewListALLMDServices.isSelected():
-                            download_md_fiscal_setup()
-                            txt = "OFX: Moneydance's Dynamic Fiscal Institution Setup profiles have been retrieved and displayed...."
-                            setDisplayStatus(txt, "B")
-                            return
-
-                        if user_view_CUSIP_settings.isSelected():
-                            OFX_view_CUSIP_settings()
-                            txt = "OFX: Your Security's hidden CUSIP settings have been retrieved and displayed...."
-                            setDisplayStatus(txt, "B")
-                            return
-
-                        if user_viewOnlineTxnsPayeesPayments.isSelected():
-                            OFX_view_online_txns_payees_payments()
-                            txt = "OFX: Your Online saved Txns, Payees, Payments have been retrieved and displayed...."
-                            setDisplayStatus(txt, "B")
-                            return
-
-                        if user_viewAllLastTxnDownloadDates.isSelected():
-                            OFX_view_all_last_txn_download_dates()
-                            txt = "OFX: All your last txn download txn dates have been retrieved and displayed...."
-                            setDisplayStatus(txt, "B")
-                            return
-
-                        if user_viewReconcileAsOfDates.isSelected():
-                            OFX_view_reconcile_AsOf_Dates()
-                            txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
-                            setDisplayStatus(txt, "B")
-                            return
-
-                        if user_viewInstalledBankProfiles.isSelected():
-                            ofx_view_service_profile_data()
-                            txt = "OFX: Your installed Service / Bank logon profiles have been displayed...."
-                            setDisplayStatus(txt, "B")
-                            return
-
-                        if user_deleteOnlineTxns.isSelected():
-                            OFX_delete_saved_online_txns()
-
-                        if user_deleteALLOnlineTxns.isSelected():
-                            OFX_delete_ALL_saved_online_txns()
-                            return
-
-                        if user_manuallyPrimeUSAARootUserIDClientIDs.isSelected():
-                            manuallyPrimeUSAARootUserIDClientIDs()
-
-                        if user_createUSAAProfile.isSelected():
-                            if createUSAAProfile(): return
-
-                        if user_updateOFXLastTxnUpdate.isSelected():
-                            OFX_update_OFXLastTxnUpdate()
-
-                        if user_reset_OFXLastTxnUpdate_dates.isSelected():
-                            OFX_reset_OFXLastTxnUpdate_dates()
+                        for button in bg.getElements():
+                            if button.isSelected(): return      # Quit the menu system after running something....
 
                         continue
 
                 except:
                     myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
                     dump_sys_error_to_md_console_and_errorlog()
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class FixDropboxOneWaySyncButtonAction(AbstractAction):
 
@@ -25136,7 +24912,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,700,400)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,700,350)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Accounts / Categories Diagnostics, Tools, Fixes",
@@ -25145,59 +24921,32 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                    getMDIcon(lAlwaysGetIcon=True),
                                                                    options, options[0]))
                         if userAction != 1:
+                            txt = "Accounts / Categories Diagnostics, Tools, Fixes - No menu item selected..."
+                            setDisplayStatus(txt, "B")
                             return
 
                         selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_view_check_number_settings.isSelected():
-                            view_check_num_settings()
-                            return
+                        if user_view_check_number_settings.isSelected():                        view_check_num_settings()
+                        if user_view_zero_bal_cats.isSelected():                                zero_bal_categories(False)
+                        if user_inactivate_zero_bal_cats.isSelected():                          zero_bal_categories(True)
+                        if user_view_shouldBeIncludedInNetWorth_settings.isSelected():          view_shouldBeIncludedInNetWorth_settings()
+                        if user_edit_shouldBeIncludedInNetWorth_settings.isSelected():          edit_shouldBeIncludedInNetWorth_settings()
+                        if user_force_change_an_accounts_type.isSelected():                     force_change_account_type()
+                        if user_force_change_accounts_currency.isSelected():                    force_change_account_cat_currency()
+                        if user_force_change_all_accounts_cats_currency.isSelected():           force_change_all_accounts_categories_currencies()
+                        if user_force_change_accounts_cats_from_to_currency.isSelected():       force_change_accounts_cats_from_to_currency()
+                        if user_fix_accounts_parent.isSelected():                               fix_account_parent()
+                        if user_fix_root_account_name.isSelected():                             fix_root_account_name()
 
-                        if user_view_zero_bal_cats.isSelected():
-                            zero_bal_categories(False)
-                            return
-
-                        if user_inactivate_zero_bal_cats.isSelected():
-                            zero_bal_categories(True)
-                            return
-
-                        if user_view_shouldBeIncludedInNetWorth_settings.isSelected():
-                            view_shouldBeIncludedInNetWorth_settings()
-                            return
-
-                        if user_edit_shouldBeIncludedInNetWorth_settings.isSelected():
-                            edit_shouldBeIncludedInNetWorth_settings()
-                            return
-
-                        if user_force_change_an_accounts_type.isSelected():
-                            force_change_account_type()
-
-                        if user_force_change_accounts_currency.isSelected():
-                            force_change_account_cat_currency()
-
-                        if user_force_change_all_accounts_cats_currency.isSelected():
-                            force_change_all_accounts_categories_currencies()
-                            return
-
-                        if user_force_change_accounts_cats_from_to_currency.isSelected():
-                            force_change_accounts_cats_from_to_currency()
-                            return
-
-                        if user_fix_accounts_parent.isSelected():
-                            fix_account_parent()
-                            return
-
-                        if user_fix_root_account_name.isSelected():
-                            fix_root_account_name()
+                        for button in bg.getElements():
+                            if button.isSelected(): return      # Quit the menu system after running something....
 
                         continue
 
                 except:
                     myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
                     dump_sys_error_to_md_console_and_errorlog()
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class CurrencySecurityMenuButtonAction(AbstractAction):
 
@@ -25433,100 +25182,42 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                    getMDIcon(lAlwaysGetIcon=True),
                                                                    options, options[0]))
                         if userAction != 1:
+                            txt = "Currency / Security Diagnostics, Tools, Fixes - No menu item selected..."
+                            setDisplayStatus(txt, "B")
                             return
 
                         selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_can_i_delete_security.isSelected():
-                            can_I_delete_security()
-                            return
+                        if user_can_i_delete_security.isSelected():                         can_I_delete_security()
+                        if user_can_i_delete_currency.isSelected():                         can_I_delete_currency()
+                        if user_list_curr_sec_dpc.isSelected():                             list_security_currency_decimal_places()
+                        if user_diag_price_date.isSelected():                               list_security_currency_price_date()
+                        if user_autofix_price_date.isSelected():                            list_security_currency_price_date(autofix=True)
+                        if user_diag_curr_sec.isSelected():                                 diagnose_currencies(False)
+                        if user_fix_curr_sec.isSelected():                                  diagnose_currencies(True)
+                        if user_fix_invalid_curr_sec.isSelected():                          fix_invalid_relative_currency_rates()
+                        if user_edit_security_decimal_places.isSelected():                  edit_security_decimal_places()
+                        if user_merge_duplicate_securities.isSelected():                    merge_duplicate_securities()
+                        if user_fix_invalid_price_history.isSelected():                     fix_invalid_price_history()
+                        if user_fix_nonlinked_security_records.isSelected():                detect_fix_nonlinked_investment_security_records()
+                        if user_thin_price_history.isSelected():                            thin_price_history()
+                        if user_show_open_share_lots.isSelected():                          show_open_share_lots()
+                        if user_fix_invalidLotRecords.isSelected():                         fix_invalidLotRecords()
+                        if user_convert_stock_lot_FIFO.isSelected():                        convert_stock_lot_FIFO()
+                        if user_convert_stock_avg_cst_control.isSelected():                 convert_stock_avg_cst_control()
+                        if user_force_change_accounts_currency.isSelected():                force_change_account_cat_currency()
+                        if user_force_change_all_accounts_cats_currency.isSelected():       force_change_all_accounts_categories_currencies()
+                        if user_force_change_accounts_cats_from_to_currency.isSelected():   force_change_accounts_cats_from_to_currency()
+                        if user_fix_price_date.isSelected():                                manually_edit_price_date_field()
 
-                        if user_can_i_delete_currency.isSelected():
-                            can_I_delete_currency()
-                            return
-
-                        if user_list_curr_sec_dpc.isSelected():
-                            list_security_currency_decimal_places()
-                            return
-
-                        if user_diag_price_date.isSelected():
-                            list_security_currency_price_date()
-                            return
-
-                        if user_autofix_price_date.isSelected():
-                            list_security_currency_price_date(autofix=True)
-                            return
-
-                        if user_diag_curr_sec.isSelected():
-                            diagnose_currencies(False)
-                            return
-
-                        if user_fix_curr_sec.isSelected():
-                            diagnose_currencies(True)
-                            return
-
-                        if user_fix_invalid_curr_sec.isSelected():
-                            fix_invalid_relative_currency_rates()
-                            return
-
-                        if user_edit_security_decimal_places.isSelected():
-                            edit_security_decimal_places()
-                            return
-
-                        if user_merge_duplicate_securities.isSelected():
-                            merge_duplicate_securities()
-                            return
-
-                        if user_fix_invalid_price_history.isSelected():
-                            fix_invalid_price_history()
-                            return
-
-                        if user_fix_nonlinked_security_records.isSelected():
-                            detect_fix_nonlinked_investment_security_records()
-                            return
-
-                        if user_thin_price_history.isSelected():
-                            thin_price_history()
-                            return
-
-                        if user_show_open_share_lots.isSelected():
-                            show_open_share_lots()
-                            return
-
-                        if user_fix_invalidLotRecords.isSelected():
-                            fix_invalidLotRecords()
-                            return
-
-                        if user_convert_stock_lot_FIFO.isSelected():
-                            convert_stock_lot_FIFO()
-                            return
-
-                        if user_convert_stock_avg_cst_control.isSelected():
-                            convert_stock_avg_cst_control()
-                            return
-
-                        if user_force_change_accounts_currency.isSelected():
-                            force_change_account_cat_currency()
-
-                        if user_force_change_all_accounts_cats_currency.isSelected():
-                            force_change_all_accounts_categories_currencies()
-                            return
-
-                        if user_force_change_accounts_cats_from_to_currency.isSelected():
-                            force_change_accounts_cats_from_to_currency()
-                            return
-
-                        if user_fix_price_date.isSelected():
-                            manually_edit_price_date_field()
+                        for button in bg.getElements():
+                            if button.isSelected(): return      # Quit the menu system after running something....
 
                         continue
 
                 except:
                     myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
                     dump_sys_error_to_md_console_and_errorlog()
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class TransactionMenuButtonAction(AbstractAction):
 
@@ -25627,7 +25318,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,425)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,300)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Transaction(s) Diagnostics, Tools, Fixes",
@@ -25636,54 +25327,30 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                    getMDIcon(lAlwaysGetIcon=True),
                                                                    options, options[0]))
                         if userAction != 1:
+                            txt = "Transaction(s) Diagnostics, Tools, Fixes - No menu item selected..."
+                            setDisplayStatus(txt, "B")
                             return
 
                         selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_view_txn_sort.isSelected():
-                            get_register_txn_sort_orders()
-                            return
+                        if user_view_txn_sort.isSelected():                                     get_register_txn_sort_orders()
+                        if user_extract_attachments.isSelected():                               extract_attachments()
+                        if user_diagnose_attachments.isSelected():                              diagnose_attachments()
+                        if user_diagnose_fix_attachments.isSelected():                          diagnose_attachments(lFix=True)
+                        if user_move_invest_txns.isSelected():                                  move_merge_investment_txns()
+                        if user_fix_non_hier_sec_acct_txns.isSelected():                        fix_non_hier_sec_acct_txns()
+                        if user_fix_delete_one_sided_txns.isSelected():                         fix_delete_one_sided_txns()
+                        if user_reverse_txn_amounts.isSelected():                               reverse_txn_amounts()
+                        if user_reverse_txn_exchange_rates_by_account_and_date.isSelected():    reverse_txn_exchange_rates_by_account_and_date()
 
-                        if user_extract_attachments.isSelected():
-                            extract_attachments()
-                            return
-
-                        if user_diagnose_attachments.isSelected():
-                            diagnose_attachments()
-                            return
-
-                        if user_diagnose_fix_attachments.isSelected():
-                            diagnose_attachments(lFix=True)
-                            return
-
-                        if user_move_invest_txns.isSelected():
-                            move_merge_investment_txns()
-                            return
-
-                        if user_fix_non_hier_sec_acct_txns.isSelected():
-                            fix_non_hier_sec_acct_txns()
-                            return
-
-                        if user_fix_delete_one_sided_txns.isSelected():
-                            fix_delete_one_sided_txns()
-                            return
-
-                        if user_reverse_txn_amounts.isSelected():
-                            reverse_txn_amounts()
-                            return
-
-                        if user_reverse_txn_exchange_rates_by_account_and_date.isSelected():
-                            reverse_txn_exchange_rates_by_account_and_date()
-                            return
+                        for button in bg.getElements():
+                            if button.isSelected(): return      # Quit the menu system after running something....
 
                         continue
 
                 except:
                     myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
                     dump_sys_error_to_md_console_and_errorlog()
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class GeneralToolsMenuButtonAction(AbstractAction):
 
@@ -25827,7 +25494,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,550)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,500)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "General Diagnostics, Tools, Fixes",
@@ -25836,84 +25503,39 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                    getMDIcon(lAlwaysGetIcon=True),
                                                                    options, options[0]))
                         if userAction != 1:
+                            txt = "General Diagnostics, Tools, Fixes - No menu item selected..."
+                            setDisplayStatus(txt, "B")
                             return
 
-                        if user_display_passwords.isSelected():
-                            display_passwords()
+                        selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_view_searchable_console_log.isSelected():
-                            x = ViewFileButtonAction(MD_REF.getLogFile(), "MD Console Log")
-                            x.actionPerformed(None)
-                            return
+                        if user_display_passwords.isSelected():                     display_passwords()
+                        if user_view_searchable_console_log.isSelected():           ViewFileButtonAction(MD_REF.getLogFile(), "MD Console Log").actionPerformed(None)
+                        if user_view_MD_config_file.isSelected():                   ViewFileButtonAction(Common.getPreferencesFile(), "MD Config").actionPerformed(None)
+                        if user_view_MD_custom_theme_file.isSelected():             ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme").actionPerformed(None)
+                        if user_view_java_vmoptions.isSelected():                   ViewFileButtonAction(File(get_vmoptions_path()), "Java VM File").actionPerformed(None)
+                        if user_view_extensions_details.isSelected():               view_extensions_details()
+                        if user_view_memorised_reports.isSelected():                get_list_memorised_reports()
+                        if user_find_sync_password_in_ios_backups.isSelected():     find_IOS_sync_data()
+                        if user_import_QIF.isSelected():                            import_QIF()
+                        if user_convert_timestamp.isSelected():                     convert_timestamp_readable_date()
+                        if user_rename_dataset.isSelected():                        rename_relocate_dataset(lRelocateDataset=False)
+                        if user_relocate_dataset.isSelected():                      rename_relocate_dataset(lRelocateDataset=True)
+                        if user_cleanup_external_files.isSelected():                cleanup_external_files_setting()
+                        if user_advanced_delete_int_ext_files.isSelected():         advanced_remove_int_external_files_settings()
+                        if user_change_moneydance_fonts.isSelected():               change_fonts()
+                        if user_delete_custom_theme_file.isSelected():              delete_theme_file()
+                        if user_delete_orphan_extensions.isSelected():              force_remove_extension()
+                        if user_reset_window_display_settings.isSelected():         reset_window_positions()
 
-                        if user_view_MD_config_file.isSelected():
-                            x = ViewFileButtonAction(Common.getPreferencesFile(), "MD Config")
-                            x.actionPerformed(None)
-                            return
-
-                        if user_view_MD_custom_theme_file.isSelected():
-                            x = ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme")                          # noqa
-                            x.actionPerformed(None)
-                            return
-
-                        if user_view_java_vmoptions.isSelected():
-                            x = ViewFileButtonAction(File(get_vmoptions_path()), "Java VM File")
-                            x.actionPerformed(None)
-                            return
-
-                        if user_view_extensions_details.isSelected():
-                            view_extensions_details()
-                            return
-
-                        if user_view_memorised_reports.isSelected():
-                            get_list_memorised_reports()
-                            return
-
-                        if user_find_sync_password_in_ios_backups.isSelected():
-                            find_IOS_sync_data()
-                            return
-
-                        if user_import_QIF.isSelected():
-                            import_QIF()
-
-                        if user_convert_timestamp.isSelected():
-                            convert_timestamp_readable_date()
-
-                        if user_rename_dataset.isSelected():
-                            if not rename_relocate_dataset(lRelocateDataset=False): return
-
-                        if user_relocate_dataset.isSelected():
-                            if not rename_relocate_dataset(lRelocateDataset=True): return
-
-                        if user_cleanup_external_files.isSelected():
-                            cleanup_external_files_setting()
-
-                        if user_advanced_delete_int_ext_files.isSelected():
-                            advanced_remove_int_external_files_settings()
-                            return
-
-                        if user_change_moneydance_fonts.isSelected():
-                            change_fonts()
-
-                        if user_delete_custom_theme_file.isSelected():
-                            delete_theme_file()
-
-                        if user_delete_orphan_extensions.isSelected():
-                            force_remove_extension()
-                            return
-
-                        if user_reset_window_display_settings.isSelected():
-                            reset_window_positions()
-                            return
+                        for button in bg.getElements():
+                            if button.isSelected(): return      # Quit the menu system after running something....
 
                         continue
 
                 except:
                     myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
                     dump_sys_error_to_md_console_and_errorlog()
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class AdvancedMenuButtonAction(AbstractAction):
 
@@ -26076,72 +25698,36 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                    getMDIcon(lAlwaysGetIcon=True),
                                                                    options, options[0]))
                         if userAction != 1:
+                            txt = "ADVANCED - Diagnostics, Tools, Fixes - No menu item selected..."
+                            setDisplayStatus(txt, "B")
                             return
 
                         selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_advanced_toggle_DEBUG.isSelected():
-                            advanced_mode_DEBUG()
+                        if user_advanced_toggle_DEBUG.isSelected():                 advanced_mode_DEBUG()
+                        if user_advanced_toggle_other_DEBUGs.isSelected():          advanced_mode_other_DEBUG()
+                        if user_advanced_extract_from_storage.isSelected():         advanced_mode_decrypt_file()
+                        if user_advanced_extract_from_sync.isSelected():            advanced_mode_decrypt_file_from_sync()
+                        if user_advanced_shrink_dataset.isSelected():               advanced_mode_shrink_dataset()
+                        if user_advanced_import_to_storage.isSelected():            advanced_mode_encrypt_file()
+                        if user_advanced_mode_edit_prefs.isSelected():              advanced_mode_edit_prefs()
+                        if user_advanced_edit_param_keys.isSelected():              advanced_mode_edit_parameter_keys()
+                        if user_advanced_save_trunk.isSelected():                   advanced_mode_save_trunk_file()
+                        if user_advanced_sync_push.isSelected():                    advanced_mode_sync_push_pull("PUSH")
+                        if user_advanced_clone_dataset.isSelected():                advanced_clone_dataset()
+                        if user_force_sync_off.isSelected():                        advanced_mode_force_sync_off()
+                        if user_force_reset_sync_settings.isSelected():             advanced_mode_force_reset_sync_settings()
+                        if user_demote_primary_to_secondary.isSelected():           advanced_mode_demote_primary_to_secondary()
+                        if user_advanced_suppress_dropbox_warning.isSelected():     advanced_mode_suppress_dropbox_warning()
 
-                        if user_advanced_toggle_other_DEBUGs.isSelected():
-                            advanced_mode_other_DEBUG()
-
-                        if user_advanced_extract_from_storage.isSelected():
-                            advanced_mode_decrypt_file()
-
-                        if user_advanced_extract_from_sync.isSelected():
-                            advanced_mode_decrypt_file_from_sync()
-                            return
-
-                        if user_advanced_shrink_dataset.isSelected():
-                            advanced_mode_shrink_dataset()
-                            return
-
-                        if user_advanced_import_to_storage.isSelected():
-                            advanced_mode_encrypt_file()
-
-                        if user_advanced_mode_edit_prefs.isSelected():
-                            advanced_mode()
-                            return
-
-                        if user_advanced_edit_param_keys.isSelected():
-                            advanced_mode_edit_parameter_keys()
-                            return
-
-                        if user_advanced_save_trunk.isSelected():
-                            advanced_mode_save_trunk_file()
-
-                        if user_advanced_sync_push.isSelected():
-                            advanced_mode_sync_push_pull("PUSH")
-
-                        if user_advanced_clone_dataset.isSelected():
-                            advanced_clone_dataset()
-                            return
-
-                        if user_force_sync_off.isSelected():
-                            advanced_mode_force_sync_off()
-                            return
-
-                        if user_force_reset_sync_settings.isSelected():
-                            advanced_mode_force_reset_sync_settings()
-                            return
-
-                        if user_demote_primary_to_secondary.isSelected():
-                            advanced_mode_demote_primary_to_secondary()
-                            return
-
-                        if user_advanced_suppress_dropbox_warning.isSelected():
-                            advanced_mode_suppress_dropbox_warning()
-                            return
+                        for button in bg.getElements():
+                            if button.isSelected(): return      # Quit the menu system after running something....
 
                         continue
 
                 except:
                     myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
                     dump_sys_error_to_md_console_and_errorlog()
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class ConvertSecondaryButtonAction(AbstractAction):
 
@@ -26510,6 +26096,8 @@ Now you will have a text readable version of the file you can open in a text edi
             toolbox_frame_ = MyJFrame(u"Toolbox - Infinite Kind (co-authored by StuWareSoftSystems)... (%s+I for Help) - DATASET: %s" % (MD_REF.getUI().ACCELERATOR_MASK_STR, MD_REF.getCurrentAccountBook().getName().strip()))
             toolbox_frame_.setName(u"%s_main" %myModuleID)
             self.theFrame = toolbox_frame_
+
+            ManuallyCloseAndReloadDataset.THIS_APPS_FRAME_REFERENCE = toolbox_frame_
 
             if (not Platform.isOSX()):
                 MD_REF.getUI().getImages()
