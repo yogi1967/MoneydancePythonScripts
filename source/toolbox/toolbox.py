@@ -3179,13 +3179,20 @@ Visit: %s (Author's site)
                 myPrint("DB", "Shutting down MD+")
                 plusPoller = MD_REF.getUI().getPlusController()
                 # invokeMethodByReflection(plusPoller, "pausePolling", None)
-                invokeMethodByReflection(plusPoller, "shutdown", None)
+                if plusPoller is not None:
+                    invokeMethodByReflection(plusPoller, "shutdown", None)
+                    setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
 
             # Shutdown the Alert Controller... When we open a new dataset it should reset itself.....
             if isAlertControllerEnabledBuild():
                 myPrint("DB", "Shutting down Alert Controller")
                 alertController = MD_REF.getUI().getAlertController()
-                invokeMethodByReflection(alertController, "shutdown", None)
+                if alertController is not None:
+                    invokeMethodByReflection(alertController, "shutdown", None)
+                    setFieldByReflection(MD_REF.getUI(), "alertController", None)
+
+            try: setFieldByReflection(MD_REF.getUI(), "olMgr", None)
+            except: pass
 
             myPrint("DB", "... saving LocalStorage..")
             theBook.getLocalStorage().save()                        # Flush LocalStorage...
@@ -11703,7 +11710,7 @@ Visit: %s (Author's site)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         MD_REF.getUI().exit()
-        # MD_REF.getBackgroundThread().runOnBackgroundThread(ManuallyCloseAndReloadDataset())
+        # MD_REF.getBackgroundThread().runOnBackgroundThread(ManuallyCloseAndReloadDataset());
 
     def zap_MDPlus_Profile(lAutoZap=False):
 
@@ -11803,7 +11810,7 @@ Visit: %s (Author's site)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         MD_REF.getUI().exit()
-        # MD_REF.getBackgroundThread().runOnBackgroundThread(ManuallyCloseAndReloadDataset())
+        # MD_REF.getBackgroundThread().runOnBackgroundThread(ManuallyCloseAndReloadDataset());
 
     def forceMDPlusNameCacheAccessTokensRebuild(lAutoWipe=False):
 
