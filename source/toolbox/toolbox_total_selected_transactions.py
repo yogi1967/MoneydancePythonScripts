@@ -2862,18 +2862,22 @@ Visit: %s (Author's site)
             if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
             myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
 
-            if self.lQuitThisAppToo:
-                if self.__class__.THIS_APPS_FRAME_REFERENCE is not None:
-                    if isinstance(self.__class__.THIS_APPS_FRAME_REFERENCE, JFrame):
-                        SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.__class__.THIS_APPS_FRAME_REFERENCE))
-
             myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
 
             # .setCurrentBook() always pushes mdGUI().dataFileOpened() on the EDT (if not already on the EDT)....
-            if not MD_REF.setCurrentBook(newWrapper) or newWrapper.getBook() is None:
+            openResult = MD_REF.setCurrentBook(newWrapper)
+            if not openResult or newWrapper.getBook() is None:
                 txt = "Failed to open Dataset (wrong password?).... Will show the Welcome Window...."
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
                 WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
+
+                if self.lQuitThisAppToo:
+                    # Remember... the file opened event closes my extensions with app listeners, so do this if file could not be opened....
+                    if self.__class__.THIS_APPS_FRAME_REFERENCE is not None:
+                        if isinstance(self.__class__.THIS_APPS_FRAME_REFERENCE, JFrame):
+                            # Do this after .setCurrentBook() so-as not to co-modify listeners.....
+                            SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.__class__.THIS_APPS_FRAME_REFERENCE))
+
                 return False
 
             return True
