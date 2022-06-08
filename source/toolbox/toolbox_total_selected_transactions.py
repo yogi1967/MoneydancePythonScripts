@@ -2360,7 +2360,7 @@ Visit: %s (Author's site)
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)%s" %(MD_REF.getUI().ACCELERATOR_MASK_STR, extraText))
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
-                    if not Platform.isOSX(): jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                    if not Platform.isOSX(): jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     jInternalFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
                     jInternalFrame.setResizable(True)
@@ -2543,7 +2543,7 @@ Visit: %s (Author's site)
 
             if (not Platform.isMac()):
                 # MD_REF.getUI().getImages()
-                self.aboutDialog.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                self.aboutDialog.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
             aboutPanel = JPanel()
             aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
@@ -2810,7 +2810,7 @@ Visit: %s (Author's site)
             myPrint("DB", "... Mimicking .setCurrentBook(None)....")
 
             MD_REF.fireAppEvent("md:file:closing")
-            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
+            MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
 
             MD_REF.fireAppEvent("md:file:closed")
 
@@ -2969,7 +2969,7 @@ Visit: %s (Author's site)
                 toolbox_total_selected_transactions_frame_.setName(u"%s_main" %(myModuleID))
                 if (not Platform.isMac()):
                     MD_REF.getUI().getImages()
-                    toolbox_total_selected_transactions_frame_.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                    toolbox_total_selected_transactions_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
                 toolbox_total_selected_transactions_frame_.setVisible(False)
                 toolbox_total_selected_transactions_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
 

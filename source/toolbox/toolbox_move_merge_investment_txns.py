@@ -2356,7 +2356,7 @@ Visit: %s (Author's site)
                     jInternalFrame = MyJFrame(self.callingClass.title + " (%s+F to find/search for text)%s" %(MD_REF.getUI().ACCELERATOR_MASK_STR, extraText))
                     jInternalFrame.setName(u"%s_quickjframe" %myModuleID)
 
-                    if not Platform.isOSX(): jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                    if not Platform.isOSX(): jInternalFrame.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
                     jInternalFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE)
                     jInternalFrame.setResizable(True)
@@ -2539,7 +2539,7 @@ Visit: %s (Author's site)
 
             if (not Platform.isMac()):
                 # MD_REF.getUI().getImages()
-                self.aboutDialog.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                self.aboutDialog.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
 
             aboutPanel = JPanel()
             aboutPanel.setLayout(FlowLayout(FlowLayout.LEFT))
@@ -2806,7 +2806,7 @@ Visit: %s (Author's site)
             myPrint("DB", "... Mimicking .setCurrentBook(None)....")
 
             MD_REF.fireAppEvent("md:file:closing")
-            MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
+            MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
 
             MD_REF.fireAppEvent("md:file:closed")
 
@@ -3071,7 +3071,7 @@ Visit: %s (Author's site)
                 toolbox_move_merge_investment_txns_frame_.setName(u"%s_main" %(myModuleID))
                 if (not Platform.isMac()):
                     MD_REF.getUI().getImages()
-                    toolbox_move_merge_investment_txns_frame_.setIconImage(MDImages.getImage(MD_REF.getUI().getMain().getSourceInformation().getIconResource()))
+                    toolbox_move_merge_investment_txns_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
                 toolbox_move_merge_investment_txns_frame_.setVisible(False)
                 toolbox_move_merge_investment_txns_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
 
@@ -4439,7 +4439,7 @@ Visit: %s (Author's site)
                     pleaseWait.go()
 
                     myPrint("DB","Flushing dataset pre-move/merge changes in memory to sync... and disabling balance recalculation(s) / display refresh(es)..")
-                    MD_REF.getUI().getMain().saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the move/merge..
+                    MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the move/merge..
                     MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
                     MD_REF.getUI().setSuspendRefresh(True)
 
@@ -4609,7 +4609,7 @@ Visit: %s (Author's site)
                 finally:
 
                     myPrint("DB","Saving dataset move/merge changes in memory to sync... and re-enabling balance recalculation(s) and display refresh(es)..")
-                    MD_REF.getUI().getMain().saveCurrentAccount()
+                    MD_REF.saveCurrentAccount()
                     MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
                     MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
@@ -4674,7 +4674,7 @@ Visit: %s (Author's site)
                             subAcct.deleteItem()
                         sourceAccount.deleteItem()
 
-                        MD_REF.getUI().getMain().saveCurrentAccount()
+                        MD_REF.saveCurrentAccount()
                         MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
                         MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
                     else:
