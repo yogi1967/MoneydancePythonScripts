@@ -2689,7 +2689,8 @@ Visit: %s (Author's site)
         return command, param
 
     def getFieldByReflection(theObj, fieldName, isInt=False):
-        theClass = theObj.getClass()
+        try: theClass = theObj.getClass()
+        except TypeError: theClass = theObj     # This catches where the object is already the Class
         reflectField = None
         while theClass is not None:
             try:
@@ -2705,7 +2706,8 @@ Visit: %s (Author's site)
         return reflectField.get(theObj if not isStatic else None)
 
     def invokeMethodByReflection(theObj, methodName, params, *args):
-        theClass = theObj.getClass()
+        try: theClass = theObj.getClass()
+        except TypeError: theClass = theObj     # This catches where the object is already the Class
         reflectMethod = None
         while theClass is not None:
             try:
@@ -2722,7 +2724,8 @@ Visit: %s (Author's site)
         return reflectMethod.invoke(theObj, *args)
 
     def setFieldByReflection(theObj, fieldName, newValue):
-        theClass = theObj.getClass()
+        try: theClass = theObj.getClass()
+        except TypeError: theClass = theObj     # This catches where the object is already the Class
         reflectField = None
         while theClass is not None:
             try:
@@ -2789,6 +2792,14 @@ Visit: %s (Author's site)
                     invokeMethodByReflection(plusPoller, "shutdown", None)
                     setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
 
+                # myPrint("DB","... also resetting MDPlus.singleton to None")
+                # from com.moneydance.apps.md.controller import MDPlus
+                # setFieldByReflection(MDPlus, "singleton", None);
+                #
+                # myPrint("DB","... also resetting PlaidConnection.plaidClient to None")
+                # from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
+                # setFieldByReflection(PlaidConnection, "plaidClient", None);
+
             # Shutdown the Alert Controller... When we open a new dataset it should reset itself.....
             if isAlertControllerEnabledBuild():
                 myPrint("DB", "Shutting down Alert Controller")
@@ -2817,7 +2828,7 @@ Visit: %s (Author's site)
             myPrint("B", "Closed current dataset (book: %s)" %(theBook))
 
             # Remove the current book's reference to LocalStorage.... (used when debugging what was recreating the dataset/settings)
-            # theBook.setLocalStorage(None)                             # Will fail as it tries to refer to book, which is now None
+            # # theBook.setLocalStorage(None)                             # Will fail as it tries to refer to book, which is now None
             # setFieldByReflection(theBook, "localStorage", None)       # Works as avoids above problem
 
             myPrint("DB", "... FINISHED Closing down the dataset")

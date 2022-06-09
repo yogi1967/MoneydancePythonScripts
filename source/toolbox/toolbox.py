@@ -91,7 +91,7 @@
 # build: 1051 - Moved the Delete internal/external files option to General Tools Menu (and auto purge external orphans)
 # build: 1051 - Auto-magically restart MD (same dataset) when needed....; Changed menus so they all exit after each usage
 # build: 1051 - Added 'Force MD+ name cache & access tokens rebuild' feature; Tweaked Export/Import/Zap/Wipe MD+ features
-# build: 1051 - Added 'REGISTER MONEYDANCE' button (if not registered)...
+# build: 1051 - Added 'REGISTER MONEYDANCE' button (if not registered)...; Fixed invalid locations detection for off-screen negative (left)
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -512,6 +512,8 @@ else:
     GlobalVars.Strings.MD_CONFIGDICT_CURRENT_ACCOUNT_BOOK = "current_accountbook"
     GlobalVars.Strings.MD_CONFIGDICT_BACKUP_TYPE = "backup.backup_type"
     GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES = "external_files"
+
+    GlobalVars.Strings.MD_PLAID_SETTINGS_OBJ_ID = "plaid_settings"
 
     GlobalVars.redact = True
     GlobalVars.lMustRestartAfterSnapChanges = False
@@ -2984,10 +2986,13 @@ Visit: %s (Author's site)
                     invokeMethodByReflection(plusPoller, "shutdown", None)
                     setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
 
-                "HERE";
                 # myPrint("DB","... also resetting MDPlus.singleton to None")
                 # from com.moneydance.apps.md.controller import MDPlus
-                # setFieldByReflection(MDPlus, "singleton", None)
+                # setFieldByReflection(MDPlus, "singleton", None);
+                #
+                # myPrint("DB","... also resetting PlaidConnection.plaidClient to None")
+                # from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
+                # setFieldByReflection(PlaidConnection, "plaidClient", None);
 
             # Shutdown the Alert Controller... When we open a new dataset it should reset itself.....
             if isAlertControllerEnabledBuild():
@@ -3017,7 +3022,7 @@ Visit: %s (Author's site)
             myPrint("B", "Closed current dataset (book: %s)" %(theBook))
 
             # Remove the current book's reference to LocalStorage.... (used when debugging what was recreating the dataset/settings)
-            # theBook.setLocalStorage(None)                             # Will fail as it tries to refer to book, which is now None
+            # # theBook.setLocalStorage(None)                             # Will fail as it tries to refer to book, which is now None
             # setFieldByReflection(theBook, "localStorage", None)       # Works as avoids above problem
 
             myPrint("DB", "... FINISHED Closing down the dataset")
@@ -3325,6 +3330,10 @@ Visit: %s (Author's site)
     def getMDPlusLicenseInfoForBook():
         _licenseObject = MD_REF.getCurrentAccountBook().getItemForID("tik.mdplus-license")	    # type: MoneydanceSyncableItem
         return _licenseObject
+
+    def getMDPlusPlaidSettings():
+        _plaidSettings = MD_REF.getCurrentAccountBook().getItemForID(GlobalVars.Strings.MD_PLAID_SETTINGS_OBJ_ID)	    # type: MoneydanceSyncableItem
+        return _plaidSettings
 
     def isMDPlusLicenseActivated():
         if isMDPlusEnabledBuild():
@@ -3648,7 +3657,8 @@ Visit: %s (Author's site)
                 if lFoundLocation:
                     livePrefValue = prefs.getXYSetting(theKey, 0, 0)
                     if livePrefValue.x == 0 and livePrefValue.y == 0: continue
-                    if livePrefValue.x > virtualBounds.width or livePrefValue.y > virtualBounds.height:
+                    if ((livePrefValue.x > virtualBounds.width or livePrefValue.y > virtualBounds.height)
+                            or (livePrefValue.x < virtualBounds.x or livePrefValue.y < virtualBounds.y)):
                         invalidLocns.append(theKey)
                         txt = "Found INVALID location outside current virtual bounds: %s (%s)" %(theKey, livePrefValue)
                         output += "%s\n" %(txt)
@@ -11519,7 +11529,7 @@ Visit: %s (Author's site)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        MD_REF.getUI().exit();
+        MD_REF.getUI().exit()
         # MD_REF.getBackgroundThread().runOnBackgroundThread(ManuallyCloseAndReloadDataset());
 
     def zap_MDPlus_Profile(lAutoZap=False):
@@ -11575,6 +11585,13 @@ Visit: %s (Author's site)
             myPrint("B", "... md+ license object's settings before deletion were..:\n", special_toMultilineHumanReadableString(licenseObject))
             licenseObject.deleteItem()
 
+        plaidSettings = getMDPlusPlaidSettings()
+        if plaidSettings is None:
+            myPrint("B", "... No PlaidSettings object found to delete... skipping...")
+        else:
+            myPrint("B", "... PlaidSettings object's settings before deletion were..:\n", special_toMultilineHumanReadableString(plaidSettings))
+            plaidSettings.deleteItem()
+
         # Clear the cache.... It will rebuild itself...
         forceMDPlusNameCacheAccessTokensRebuild(lAutoWipe=True)
 
@@ -11619,7 +11636,7 @@ Visit: %s (Author's site)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        MD_REF.getUI().exit();
+        MD_REF.getUI().exit()
         # MD_REF.getBackgroundThread().runOnBackgroundThread(ManuallyCloseAndReloadDataset());
 
     def forceMDPlusNameCacheAccessTokensRebuild(lAutoWipe=False):
