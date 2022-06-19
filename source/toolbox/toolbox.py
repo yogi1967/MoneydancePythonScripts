@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1051 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1052 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and they retain all copyright over Moneydance internal code
@@ -92,6 +92,7 @@
 # build: 1051 - Auto-magically restart MD (same dataset) when needed....; Changed menus so they all exit after each usage
 # build: 1051 - Added 'Force MD+ name cache & access tokens rebuild' feature; Tweaked Export/Import/Zap/Wipe MD+ features
 # build: 1051 - Added 'REGISTER MONEYDANCE' button (if not registered)...; Fixed invalid locations detection for off-screen negative (left)
+# build: 1052 - Small bugfix when debug message crashed merge duplicate securities with java.lang.IllegalArgumentException
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -111,7 +112,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1051"
+version_build = "1052"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -17738,7 +17739,8 @@ now after saving the file, restart Moneydance
 
                 return True
 
-            myPrint("DB","%s: Initial candidates found %s %s" %(_THIS_METHOD_NAME, len(dup_securities),dup_securities))
+            try: myPrint("DB","%s: Initial candidates found %s %s" %(_THIS_METHOD_NAME, len(dup_securities), dup_securities))
+            except: pass
 
             # Sweep Two - start validating the data found
             lShowOutput = False
@@ -17887,7 +17889,8 @@ now after saving the file, restart Moneydance
                 del dup_securities[remove_ticker]
             del removeList
 
-            myPrint("DB","%s: After validation, found %s %s" %(_THIS_METHOD_NAME, len(dup_securities),dup_securities))
+            try: myPrint("DB","%s: After validation, found %s %s" %(_THIS_METHOD_NAME, len(dup_securities), dup_securities))
+            except: pass
 
             if len(securities) < 2 or len(dup_securities) < 1:
                 output += "\n" \
