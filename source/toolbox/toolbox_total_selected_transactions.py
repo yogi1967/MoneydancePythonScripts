@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_total_selected_transactions.py build: 1009 - August 2021 - Stuart Beesley StuWareSoftSystems
+# toolbox_total_selected_transactions.py build: 1010 - August 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -42,6 +42,7 @@
 # build: 1008 - Eliminated common code globals :->
 # build: 1008 - Now copy the result into the clipboard (as a raw number, no formatting)
 # build: 1009 - Tweaks
+# build: 1010 - Enhancement to allow usage from the Summary / home page search (which can create a list of txns from different accounts)
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -52,7 +53,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox_total_selected_transactions"
-version_build = "1009"
+version_build = "1010"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -3089,6 +3090,7 @@ Visit: %s (Author's site)
 
                 total = 0
                 account = acctCurr = None
+                lMultiAccount = False
                 lInvestments = False
                 shares = fees = amounts = 0.0
                 buys = sells = 0
@@ -3105,12 +3107,26 @@ Visit: %s (Author's site)
                         account = txn.getAccount()
                         acctCurr = account.getCurrencyType()
                     elif account != txn.getAccount():
-                        raise Exception("LOGIC ERROR: Found different accounts within Txns?!")
+                        lMultiAccount = True
 
-                    if isinstance(txn, ParentTxn):
-                        myPrint("DB", "\n", txn.toMultilineString())
-                    else:
-                        myPrint("DB", "\n", txn)
+                        # noinspection PyUnresolvedReferences
+                        if (account.getAccountType() == Account.AccountType.INVESTMENT
+                                and txn.getAccount().getAccountType() != Account.AccountType.INVESTMENT):
+                            myPopupInformationBox(toolbox_total_selected_transactions_frame_, "WARNING: Cannot Total a mixed list containing both Investment and Non-Investment accounts")
+                            raise QuickAbortThisScriptException
+
+                        # noinspection PyUnresolvedReferences
+                        if (acctCurr != txn.getAccount().getCurrencyType()):
+                            myPopupInformationBox(toolbox_total_selected_transactions_frame_, "WARNING: Cannot Total a mixed list containing different currencies")
+                            raise QuickAbortThisScriptException
+
+                        myPrint("DB","ALERT: Totalling mixed list (probably from Home/Summary page search results....")
+
+                    if debug:
+                        if isinstance(txn, ParentTxn):
+                            myPrint("DB", "\n", txn.toMultilineString())
+                        else:
+                            myPrint("DB", "\n", txn)
 
                     # noinspection PyUnresolvedReferences
                     if account.getAccountType() == Account.AccountType.INVESTMENT: lInvestments = True
@@ -3183,7 +3199,7 @@ Visit: %s (Author's site)
                     else:
                         invest_line = ""
 
-                    titleExtraTxt = u"" if not isPreviewBuild() else u"<PREVIEW BUILD: %s>" %(version_build)
+                    extraPreviewTxt = "" if not isPreviewBuild() else "\n<PREVIEW BUILD: %s>" %(version_build)
 
                     # can use frame if you like for the original MD frame....
                     MyPopUpDialogBox(toolbox_total_selected_transactions_frame_,
@@ -3195,13 +3211,15 @@ Visit: %s (Author's site)
                                                 "%s"
                                                 "Acct Type:  %s\n"
                                                 "Currency:   %s\n"
-                                                %(acctType, account.getAccountName(),
+                                                "%s"
+                                                %(acctType, ("** MULTI **" if (lMultiAccount) else account.getAccountName()),
                                                   fx_line,
                                                   invest_line,
                                                   account.getAccountType(),
-                                                  acctCurr.getName()),
+                                                  acctCurr.getName(),
+                                                  extraPreviewTxt),
                                      lModal=False,
-                                     theTitle=u"Value Selected Txns   %s" %(titleExtraTxt)).go()
+                                     theTitle=u"Value Selected Txns").go()
                     lFoundAnySelectedTransactions[0] = True
                     try: Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(acctCurr.format(total,MD_decimal)), None)
                     except: pass

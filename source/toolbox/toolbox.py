@@ -77,6 +77,8 @@
 # SOFTWARE.
 ###############################################################################
 
+# NOTE: java.lang.IllegalArgumentException can occur when doing something like '"%s" %(java.util.HashMap)' containing unicode (or calling print on the same HashMap)
+
 # build: 1048 - Bugfix deleteOFXService() if no service selected...; Enhanced View OFX data for multiple service options (OFX and MD+)
 # build: 1048 - Improved the 'STOP-NOW' command message (suggest to check for upgrade)
 # build: 1049 - Updated Zap md+ option to wipe all md+ data from system (including all banking links)
@@ -93,7 +95,9 @@
 # build: 1051 - Added 'Force MD+ name cache & access tokens rebuild' feature; Tweaked Export/Import/Zap/Wipe MD+ features
 # build: 1051 - Added 'REGISTER MONEYDANCE' button (if not registered)...; Fixed invalid locations detection for off-screen negative (left)
 # build: 1052 - Small bugfix when debug message crashed merge duplicate securities with java.lang.IllegalArgumentException
+# build: 1052 - Updated toolbox_total_selected_transactions.py script
 
+# todo - fix for 'warning: transaction is assigned to root account:' -refer fix_txns_assigned_to_root.py
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 
