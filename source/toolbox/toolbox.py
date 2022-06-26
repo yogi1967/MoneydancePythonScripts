@@ -914,7 +914,7 @@ Visit: %s (Author's site)
                                                 _options[0])
 
         if response == 2:
-            myPrint("B", "User requested to create a backup before update/fix - calling moneydance 'Export Backup' routine...")
+            myPrint("B", "User requested to create a backup before update/fix - calling Moneydance's 'Export Backup' routine...")
             MD_REF.getUI().setStatus("%s is creating a backup...." %(GlobalVars.thisScriptName),-1.0)
             MD_REF.getUI().saveToBackup(None)
             MD_REF.getUI().setStatus("%s create (export) backup process completed...." %(GlobalVars.thisScriptName),0)
