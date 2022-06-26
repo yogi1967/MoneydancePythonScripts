@@ -95,9 +95,10 @@
 # build: 1051 - Added 'Force MD+ name cache & access tokens rebuild' feature; Tweaked Export/Import/Zap/Wipe MD+ features
 # build: 1051 - Added 'REGISTER MONEYDANCE' button (if not registered)...; Fixed invalid locations detection for off-screen negative (left)
 # build: 1052 - Small bugfix when debug message crashed merge duplicate securities with java.lang.IllegalArgumentException
-# build: 1052 - Updated toolbox_total_selected_transactions.py script
+# build: 1052 - Updated toolbox_total_selected_transactions.py script; Added Detect/Fix Txns assigned to Root...
+# build: 1052 - Enhanced fix_non_hier_sec_acct_txns() with autofix and tweak for concurrent modification of txn list error
+# build: 1052 - Change lAutoPruneInternalBackups_TB default to True
 
-# todo - fix for 'warning: transaction is assigned to root account:' -refer fix_txns_assigned_to_root.py
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 
@@ -442,9 +443,13 @@ else:
 
     from com.infinitekind.tiksync import SyncRecord, SyncableItem
     from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
-    from com.moneydance.apps.md.view.gui import MainFrame, SecondaryFrame, SecondaryWindow, LicenseKeyWindow            # noqa
+    from com.moneydance.apps.md.view.gui import MainFrame, SecondaryFrame, SecondaryWindow, LicenseKeyWindow, SecondaryDialog   # noqa
     from com.moneydance.apps.md.view.gui.bot import MoneyBotWindow                                                      # noqa
     from com.moneydance.apps.md.view.gui.extensions import ExtensionsWindow                                             # noqa
+
+    from com.moneydance.apps.md.view.gui.txnreg import TxnDetailsPanel, TxnRegister, TxnRegisterType, InvestRegisterType
+    from com.moneydance.apps.md.view.gui import SearchRegTxnListModel
+    # from com.infinitekind.moneydance.model import AggregateTxnSearch
 
     from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
     from com.infinitekind.tiksync import Syncer
@@ -454,7 +459,7 @@ else:
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
     from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException, Runtime                           # noqa
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
-    from com.moneydance.awt import JCurrencyField                                                                       # noqa
+    from com.moneydance.awt import JCurrencyField, AwtUtil                                                              # noqa
 
     from java.net import URL, URLEncoder, URLDecoder                                                                    # noqa
 
@@ -525,7 +530,7 @@ else:
 
     lCopyAllToClipBoard_TB = False                                                                                      # noqa
     lIgnoreOutdatedExtensions_TB = False                                                                                # noqa
-    lAutoPruneInternalBackups_TB = False                                                                                # noqa
+    lAutoPruneInternalBackups_TB = True                                                                                 # noqa
     _COLWIDTHS = ["bank", "cc", "invest", "security", "loan", "misc", "split","rec_credits","rec_debits","secdetail"]   # noqa
     globalSaveFI_data = None                                                                                            # noqa
     globalSave_DEBUG_FI_data = None                                                                                     # noqa
@@ -15418,6 +15423,311 @@ now after saving the file, restart Moneydance
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
+    def isSplitTxnAccountAssignedRoot(_txn, _fix=False, _accounts=None, _fixAcctType=None):
+        if _fix and (_accounts is None or _fixAcctType is None):
+            raise Exception("ERROR: isTxnAccountAssignedRoot() Fix, _accounts and _fixAcctType must NOT be None")
+        acct = _txn.getAccount()
+        # noinspection PyUnresolvedReferences
+        assignedRoot = (acct is not None and acct.getAccountType() == Account.AccountType.ROOT)
+        if assignedRoot and _fix:
+            if _txn.getParameter("invest.splittype", "") == "sec":
+                myPrint("B", "NOT FIXING: 'security' transaction assigned to root account:", _txn, "FIX MANUALLY")
+            else:
+                fixAccount = _accounts.getAccount(_fixAcctType)
+                myPrint("B", "FIXING: transaction assigned to root account:", _txn, "Assigning to:", fixAccount)
+                _txn.setAccount(fixAccount)
+        return assignedRoot
+
+    def isTxnAccountAssignedRoot(_txn, _fix=False, _accounts=None):
+        if _fix and _accounts is None: raise Exception("ERROR: isTxnAccountAssignedRoot() Fix, _accounts must not be None")
+        if not isinstance(_txn, ParentTxn) or _txn.getOtherTxnCount() < 1: return False
+        # noinspection PyUnresolvedReferences
+        isTxnAssignedRoot = isSplitTxnAccountAssignedRoot(_txn,
+                                                          _fix,
+                                                          _accounts,
+                                                          (Account.AccountType.INVESTMENT if (isInvestmentTxn(_txn)) else Account.AccountType.BANK))
+        for i in range(0, _txn.getOtherTxnCount()):
+            # noinspection PyUnresolvedReferences
+            if isSplitTxnAccountAssignedRoot(_txn.getOtherTxn(i), _fix, _accounts, Account.AccountType.EXPENSE):
+                isTxnAssignedRoot = True
+        return isTxnAssignedRoot
+
+    def isInvestmentTxn(_txn):
+        if not isinstance(_txn, ParentTxn) or _txn.getOtherTxnCount() < 1: return False
+        # noinspection PyUnresolvedReferences
+        if _txn.getAccount() is not None and _txn.getAccount().getAccountType() == Account.AccountType.INVESTMENT: return True
+        if _txn.getParameter("invest.txntype", None) is not None: return True
+        if _txn.getParameter("xfer_type", None) is not None: return True
+        for i in range(0, _txn.getOtherTxnCount()):
+            split = _txn.getOtherTxn(i)
+            if split.getParameter("invest.splittype", None) is not None: return True
+        return False
+
+    def checkForTxnsAssignedRoot(lFix=False, accounts=None):
+        if lFix and accounts is None: raise Exception("ERROR: checkForTxnsAssignedRoot() Fix, accounts must not be None")
+        _countValid = _countAssignedRoot = _countInvestmentAssignedRoot = 0
+        txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
+        for txn in txnSet:
+            if not isinstance(txn, ParentTxn): continue
+            if isTxnAccountAssignedRoot(txn, lFix, accounts):
+                _countAssignedRoot += 1
+                if isInvestmentTxn(txn):
+                    _countInvestmentAssignedRoot += 1
+                if lFix: txn.syncItem()
+            else:
+                _countValid += 1
+        return _countValid, _countAssignedRoot, _countInvestmentAssignedRoot
+
+
+    class MyPopupRegister(SecondaryDialog):
+
+        class MyTxnRegisterType(TxnRegisterType):
+            def __init__(self, mdGUI, editableRegister=False, showCashBalance=False):
+                self.editableRegister = editableRegister
+                self.showCashBalance = showCashBalance
+                super(self.__class__, self).__init__(mdGUI)
+            def isEditable(self): return self.editableRegister
+            def getNumColumns(self):
+                defaultCols = super(self.__class__, self).getNumColumns()
+                if not self.showCashBalance: defaultCols -= 1
+                return defaultCols
+
+        class MyInvestRegisterType(InvestRegisterType):
+            def __init__(self, mdGUI, editableRegister=False, showCashBalance=False):
+                self.editableRegister = editableRegister
+                self.showCashBalance = showCashBalance
+                self.cashColumn = 8
+                super(self.__class__, self).__init__(mdGUI)
+            def isEditable(self): return self.editableRegister
+            def getPreferredFieldWidth(self, info, col):
+                if not self.showCashBalance and col == self.cashColumn: return 0
+                return super(self.__class__, self).getPreferredFieldWidth(info, col)
+            def getColMinWidth(self, info, col):
+                if not self.showCashBalance and col == self.cashColumn: return 0
+                return super(self.__class__, self).getColMinWidth(info, col)
+            def getColPreferredWidth(self, info, col):
+                if not self.showCashBalance and col == self.cashColumn: return 0
+                return super(self.__class__, self).getColPreferredWidth(info, col)
+
+        def __init__(self, title, registerType, txnSearchFilter, parent=None, editableRegister=False, showCashBalance=False, modal=True, singleLineMode=False, escapeCancels=True):
+            # type: (str, type, TxnSearch, JComponent, bool, bool, bool, bool, bool) -> None
+            mdGUI = MD_REF.getUI()
+            title += " >> EDITING ENABLED - BE CAREFUL! <<" if editableRegister else " -- READONLY MODE --"
+            super(self.__class__, self).__init__(mdGUI, parent, title, modal)
+            self.setEscapeKeyCancels(escapeCancels)
+            book = MD_REF.getCurrentAccountBook()
+
+            if registerType == InvestRegisterType:
+                txnRegister = TxnRegister(mdGUI, book, MyPopupRegister.MyInvestRegisterType(mdGUI, editableRegister=editableRegister, showCashBalance=showCashBalance))
+            else:
+                if registerType != TxnRegisterType:
+                    myPrint("B", "@@ ERROR: MyPopupRegister() registerType incorrect:", registerType, ">> Defaulting to TxnRegisterType @@")
+                txnRegister = TxnRegister(mdGUI, book, MyPopupRegister.MyTxnRegisterType(mdGUI, editableRegister=editableRegister, showCashBalance=showCashBalance))
+
+            txnRegister.setDetailPanels([TxnDetailsPanel(mdGUI, txnRegister)])
+            txnRegister.setSingleLineMode(singleLineMode)
+            txnResultSet = SearchRegTxnListModel(book, txnSearchFilter, TxnSortOrder.DATE)
+            txnRegister.setTxnModel(txnResultSet)
+            self.add(txnRegister)
+
+        def setEscapeKeyCancels(self, escapeKeyCancels):
+            try: super(self.__class__, self).setEscapeKeyCancels(escapeKeyCancels)
+            except:
+                # This was a new method in a recent build....
+                if escapeKeyCancels:
+                    self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close_window")
+                else:
+                    self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
+
+    def detect_fix_txns_assigned_root():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "DETECT / FIX TXNS ASSIGNED TO 'ROOT'"
+        PARAMETER_KEY = "toolbox_detect_fix_txns_assigned_root"
+
+        countValid, countAssignedRoot, countInvestmentAssignedRoot = checkForTxnsAssignedRoot()
+
+        if countAssignedRoot < 1:
+            myPopupInformationBox(toolbox_frame_, "You have no transactions assigned to 'root' account - no changes made", _THIS_METHOD_NAME)
+            return
+
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' >> no changes made" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        book = MD_REF.getCurrentAccountBook()
+
+        # myPopupInformationBox(toolbox_frame_, "WARNING: %s txns assigned to 'root' out of %s parent txns (%s are Investments)" %(countAssignedRoot, countValid, countInvestmentAssignedRoot), _THIS_METHOD_NAME)
+
+        txt = "WARNING: %s txns assigned to 'root' out of %s parent txns [%s are Investment(s)]" %(countAssignedRoot, countValid, countInvestmentAssignedRoot)
+        diagPanel = JPanel(GridLayout(0, 1))
+        diagPanel.add(JLabel(txt))
+        _options = ["Cancel", "VIEW REGISTER(s)", "AUTO-FIX"]
+
+        userResponse = JOptionPane.showOptionDialog(toolbox_frame_,
+                                                  diagPanel,
+                                                  _THIS_METHOD_NAME.upper(),
+                                                  JOptionPane.OK_CANCEL_OPTION,
+                                                  JOptionPane.QUESTION_MESSAGE,
+                                                  getMDIcon(None),
+                                                  _options,
+                                                  _options[0])
+
+        if userResponse < 1:
+            txt = "%s: User did not select option - no changes made" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_,txt)
+            return
+
+        if userResponse == 1:
+            # View REGISTER
+            # prefs = MD_REF.getPreferences(); twoLines = prefs.getBoolSetting("gui.two_line_transactions", False)
+
+            class MyTxnAcctSearch(TxnSearch):
+                def __init__(self, lAll=True, lInvestments=False):
+                    self.lAll = lAll
+                    self.lInvestments = lInvestments
+
+                def matches(self, _txn):
+                    assignedRoot = isTxnAccountAssignedRoot(_txn)
+                    if not assignedRoot or self.lAll: return assignedRoot
+                    foundInvestment = isInvestmentTxn(_txn)
+                    if (not self.lInvestments and not foundInvestment) or (self.lInvestments and foundInvestment):
+                        return assignedRoot
+                    return False
+
+                def matchesAll(self): return False
+
+            offset = 75
+            w, h = 1200, 500
+            toolboxLocation = toolbox_frame_.getLocation()
+            toolboxLocation.x += offset; toolboxLocation.y += offset
+
+            if (countAssignedRoot - countInvestmentAssignedRoot) > 0:
+                popupTxnRegister = MyPopupRegister("TRANSACTIONS INCORRECTLY ASSIGNED TO ROOT (non Investments)",
+                                                   TxnRegisterType,
+                                                   MyTxnAcctSearch(lAll=False, lInvestments=False),
+                                                   parent=toolbox_frame_,
+                                                   editableRegister=True,
+                                                   modal=False)
+
+
+                AwtUtil.setupWindow(popupTxnRegister, w, h, toolboxLocation.x, toolboxLocation.y, toolbox_frame_)
+                toolboxLocation.x += offset; toolboxLocation.y += offset
+                popupTxnRegister.setVisible(True)
+
+            if countInvestmentAssignedRoot > 0:
+                popupInvestTxnRegister = MyPopupRegister("INVESTMENT TRANSACTIONS INCORRECTLY ASSIGNED TO ROOT",
+                                                         InvestRegisterType,
+                                                         MyTxnAcctSearch(lAll=False, lInvestments=True),
+                                                         parent=toolbox_frame_,
+                                                         editableRegister=debug,
+                                                         modal=False)
+                AwtUtil.setupWindow(popupInvestTxnRegister, w, h, toolboxLocation.x, toolboxLocation.y, toolbox_frame_)
+                toolboxLocation.x += offset; toolboxLocation.y += offset
+                popupInvestTxnRegister.setVisible(True)
+
+            txt = "%s: Txns Assigned to Root displayed in Register(s) so that user can view/amend" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B")
+            return
+
+        # AUTOFIX ###############################################
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,
+                                                 _THIS_METHOD_NAME,
+                                                 "AUTO-FIX %s txns assigned to 'root' account?" %(countAssignedRoot)):
+            return
+
+        class HoldAutoFixAccounts:
+            accountName = "* TOOLBOX: %s (DELETE AFTER USE/WHEN EMPTY) **" %(_THIS_METHOD_NAME)
+
+            def __init__(self): self.accounts = {}
+
+            def getAccount(self, accountType):
+                if accountType not in self.accounts:
+                    newAccount = Account.makeAccount(book, accountType, book.getRootAccount())
+                    newAccount.setAccountName(HoldAutoFixAccounts.accountName + " (%s)" %(accountType))
+                    newAccount.setAccountDescription("DUMMY ACCOUNT..... PLEASE REVIEW AND FIX THESE TXNS (DELETE WHEN EMPTY)")
+                    # noinspection PyUnresolvedReferences
+                    if accountType == Account.AccountType.INVESTMENT:
+                        newAccount.setPreference("sel_inv_view", "sec_register_view")
+                        newAccount.setParameter("gen.asked_to_add_security", True)
+                    newAccount.setParameter(PARAMETER_KEY, True)
+                    newAccount.syncItem()
+                    myPrint("B", "%s: Made account:" %(_THIS_METHOD_NAME), newAccount)
+                    self.accounts[accountType] = newAccount
+                return self.accounts[accountType]
+
+        holdAutoFixAccounts = HoldAutoFixAccounts()
+        checkForTxnsAssignedRoot(lFix=True, accounts=holdAutoFixAccounts)
+
+        fix_non_hier_sec_acct_txns(autofix=True)
+
+        extraSecurityText = ""
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            extraSecurityText = "\nERROR - Cross-linked (or Orphaned) security txns detected..\n" \
+                                ".....I've already run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)'\n" \
+                                ".....>> NEEDS MANUAL INVESTIGATION'\n"
+
+        txt = "%s: AUTO-FIX applied to %s Parent txns [%s investment txn(s)]" %(_THIS_METHOD_NAME, countAssignedRoot, countInvestmentAssignedRoot)
+        setDisplayStatus(txt, "R")
+        myPrint("B", txt)
+        play_the_money_sound()
+        MyPopUpDialogBox(toolbox_frame_,
+                         theStatus=txt,
+                         theMessage="Please review console and also the contents of NEW temporary accounts/categories\n"
+                                    "Go to Menu Tools>Accounts / Tools>Categories and look for: '%s'\n"
+                                    "You will need to reassign these Accounts/Categories as needed\n"
+                                    "... There may be up to 1 Bank Account, 1 Investment Account, 1 Expense Category\n"
+                                    "%s"
+                                    %(HoldAutoFixAccounts.accountName, extraSecurityText),
+                         theTitle=_THIS_METHOD_NAME).go()
+
+        try:
+            # OK, let's show the new accounts/registers to the user.....
+            offset = 75
+            w, h = 1150, 650
+            toolboxLocation = toolbox_frame_.getLocation()
+            toolboxLocation.x += offset; toolboxLocation.y += offset
+
+            for acctT in holdAutoFixAccounts.accounts:
+                selectAccount = holdAutoFixAccounts.accounts[acctT]
+
+                # mf = MainFrame(MD_REF.getUI(), MD_REF.getCurrentAccountBook())
+                # mf.selectAccount(selectAccount)
+                # if isinstance(mf, JFrame): pass
+                # mf.setExtendedState(JFrame.NORMAL)
+                # AwtUtil.setupWindow(mf, w, h, toolboxLocation.x, toolboxLocation.y, toolbox_frame_)
+                # toolboxLocation.x += offset; toolboxLocation.y += offset
+                # mf.setVisible(True)
+
+                class MyTxnAcctSearch(TxnSearch):
+                    def __init__(self, account):
+                        self.account = account
+
+                    def matches(self, _txn):
+                        if _txn.getAccount() == self.account: return True
+                        return False
+
+                    def matchesAll(self): return False
+
+                # noinspection PyUnresolvedReferences
+                popupTxnRegister = MyPopupRegister("TRANSACTIONS REASSIGNED TO NEW ACCOUNT: %s" %(selectAccount),
+                                                   InvestRegisterType if (selectAccount.getAccountType() == Account.AccountType.INVESTMENT) else TxnRegisterType,
+                                                   MyTxnAcctSearch(selectAccount),
+                                                   parent=toolbox_frame_,
+                                                   editableRegister=True,
+                                                   modal=False)
+
+                AwtUtil.setupWindow(popupTxnRegister, w, h, toolboxLocation.x, toolboxLocation.y, toolbox_frame_)
+                toolboxLocation.x += offset; toolboxLocation.y += offset
+                popupTxnRegister.setVisible(True)
+
+        except: pass
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
     def thin_price_history():
         # based on: price_history_thinner.py
         # (also includes elements from 2017_remove_orphaned_currency_history_entries.py)
@@ -17133,7 +17443,7 @@ now after saving the file, restart Moneydance
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
         if detect_non_hier_sec_acct_or_orphan_txns() > 0:
-            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' >> no changes made" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -17693,7 +18003,7 @@ now after saving the file, restart Moneydance
         MD_decimal = MD_REF.getPreferences().getDecimalChar()
 
         if detect_non_hier_sec_acct_or_orphan_txns() > 0:
-            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made" %(_THIS_METHOD_NAME)
+            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' >> no changes made" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -18795,9 +19105,9 @@ now after saving the file, restart Moneydance
 
         return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
 
-    def fix_non_hier_sec_acct_txns():
+    def fix_non_hier_sec_acct_txns(autofix=False):
 
-        _THIS_METHOD_NAME = "FIX: Non-Hierarchical Security Acct Txn".upper()
+        _THIS_METHOD_NAME = "FIX: Non-Hierarchical Security Acct Txns".upper()
 
         PARAMETER_KEY = "toolbox_fix_non_hier_sec_acct_txns"
 
@@ -18814,7 +19124,7 @@ now after saving the file, restart Moneydance
 
         try:
             txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
-            txns = txnSet.iterableTxns()
+            txns = list(txnSet.iterableTxns())      # copy into list() to prevent concurrent modification when modifying.....
             fields = InvestFields()
 
             iOrphans = 0
@@ -18836,19 +19146,20 @@ now after saving the file, restart Moneydance
                 txt = "ERROR: %s investment txn(s) with 'Orphaned'securities detected (probably an old QIF import or User has force removed a Security from this Investment Account)" %(iOrphans)
                 output += "\n%s\n" %(txt); myPrint("B",txt)
                 output += "\n<ABORTED>"
-                setDisplayStatus(txt, "R")
-                jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
-                MyPopUpDialogBox(jif,
-                                 txt,
-                                 "It's highly likely that you have: either a) old QIF Import data (that was improperly imported)... or\n"
-                                 "b) you have clicked 'Actions' > 'Remove Security' from an Investment Account..\n"
-                                 ".. and that this Security had linked Transactions... You would have been warned and asked to respond 'yes'\n"
-                                 ".. this will have deleted Buy/Sell TXNs and partially removed the Security from other TXNs like buy/Sell/Xfr etc\n"
-                                 "- These are 'illogical' and 'damaged' records.... The security data is lost and not recoverable. Toolbox CANNOT REPAIR!\n"
-                                 ">> You will need to restore, or manually edit and repair the TXNs with your own knowledge of what security was lost...",
-                                 theTitle=_THIS_METHOD_NAME,
-                                 OKButtonText="ACKNOWLEDGED",
-                                 lAlertLevel=1).go()
+                if not autofix:
+                    setDisplayStatus(txt, "R")
+                    jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+                    MyPopUpDialogBox(jif,
+                                     txt,
+                                     "It's highly likely that you have: either a) old QIF Import data (that was improperly imported)... or\n"
+                                     "b) you have clicked 'Actions' > 'Remove Security' from an Investment Account..\n"
+                                     ".. and that this Security had linked Transactions... You would have been warned and asked to respond 'yes'\n"
+                                     ".. this will have deleted Buy/Sell TXNs and partially removed the Security from other TXNs like buy/Sell/Xfr etc\n"
+                                     "- These are 'illogical' and 'damaged' records.... The security data is lost and not recoverable. Toolbox CANNOT REPAIR!\n"
+                                     ">> You will need to restore, or manually edit and repair the TXNs with your own knowledge of what security was lost...",
+                                     theTitle=_THIS_METHOD_NAME,
+                                     OKButtonText="ACKNOWLEDGED",
+                                     lAlertLevel=1).go()
                 return
 
             else:
@@ -18952,27 +19263,34 @@ now after saving the file, restart Moneydance
 
             output += "\n\nYou have %s errors, with %s needing manual fixes first... I have fixed %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
 
-            if iCountErrors<1:
+            if iCountErrors < 1:
                 txt = "%s: CONGRATULATIONS - I found no Invalid txns......." %(_THIS_METHOD_NAME)
-                setDisplayStatus(txt, "B"); myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt)
+                myPrint("B", txt)
+                if not autofix:
+                    setDisplayStatus(txt, "B")
+                    myPopupInformationBox(toolbox_frame_,txt)
                 return
 
             myPrint("B","%s: found %s errors... with %s needing manual fixes" %(_THIS_METHOD_NAME, iCountErrors, iCountUnfixable))
 
-            jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = None
+            if not autofix:
+                jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
             if iCountUnfixable>0:
                 txt = "%s: You have %s errors to manually first first!" %(_THIS_METHOD_NAME, iCountUnfixable)
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                myPopupInformationBox(jif,"You have %s errors to manually first first!" %(iCountUnfixable), _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
+                myPrint("B", txt)
+                if not autofix:
+                    setDisplayStatus(txt, "R")
+                    myPopupInformationBox(jif,"You have %s errors to manually first first!" %(iCountUnfixable), _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
                 return
 
-            if not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME,"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
-                return
+            if not autofix:
+                if not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME,"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
+                    return
 
-            jif.dispose()       # already within the EDT
-            myPrint("B", "User accepted disclaimer to FIX Investment Security Txns with Invalid Parent Accounts. Proceeding.....")
+                jif.dispose()       # already within the EDT
+                myPrint("B", "User accepted disclaimer to FIX Investment Security Txns with Invalid Parent Accounts. Proceeding.....")
 
             output += "\n\nRUNNING FIX ON SECURITY TXNS TO RE-LINK PARENT ACCOUNTS\n" \
                       "------------------------------------------------------------\n\n"
@@ -18992,11 +19310,14 @@ now after saving the file, restart Moneydance
             output += "\n\nYou had %s errors, with %s needing manual fixes first... I HAVE FIXED %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
             output += "\n<END>"
 
-            play_the_money_sound()
             txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts" %(iErrorsFixed)
-            setDisplayStatus(txt, "DG"); myPrint("B", txt)
-            jif = QuickJFrame(_THIS_METHOD_NAME, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-            myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            myPrint("B", txt)
+
+            if not autofix:
+                play_the_money_sound()
+                setDisplayStatus(txt, "DG")
+                jif = QuickJFrame(_THIS_METHOD_NAME, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
 
         except:
             output += dump_sys_error_to_md_console_and_errorlog(True)
@@ -19007,7 +19328,6 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def detect_non_hier_sec_acct_or_orphan_txns():
 
@@ -19120,7 +19440,7 @@ now after saving the file, restart Moneydance
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
         if detect_non_hier_sec_acct_or_orphan_txns() > 0:
-            txt = "CONVERT ACCT/STOCK TO Avg Cst Ctrl: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
+            txt = "CONVERT ACCT/STOCK TO Avg Cst Ctrl: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' >> no changes made"
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -19220,7 +19540,7 @@ now after saving the file, restart Moneydance
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
         if detect_non_hier_sec_acct_or_orphan_txns() > 0:
-            txt = "CONVERT ACCT/STOCK TO LOT/FIFO: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX - Non Hierarchical Security Account Txns (cross-linked securities)' >> no changes made"
+            txt = "CONVERT ACCT/STOCK TO LOT/FIFO: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' >> no changes made"
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
@@ -24867,7 +25187,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,700,350)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,700,425)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Accounts / Categories Diagnostics, Tools, Fixes",
@@ -25227,6 +25547,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_reverse_txn_exchange_rates_by_account_and_date.setEnabled(GlobalVars.UPDATE_MODE)
                     user_reverse_txn_exchange_rates_by_account_and_date.setForeground(getColorRed())
 
+                    user_detect_fix_txns_assigned_root = JRadioButton("FIX: Detect and fix transactions assigned to 'root' account", False)
+                    user_detect_fix_txns_assigned_root.setToolTipText("This detects transactions assigned to 'root' and offers options to display/fix. THIS CHANGES DATA!")
+                    user_detect_fix_txns_assigned_root.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_detect_fix_txns_assigned_root.setForeground(getColorRed())
+
                     labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
                     labelFYI2.setForeground(getColorRed())
 
@@ -25242,6 +25567,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_fix_delete_one_sided_txns)
                     bg.add(user_reverse_txn_amounts)
                     bg.add(user_reverse_txn_exchange_rates_by_account_and_date)
+                    bg.add(user_detect_fix_txns_assigned_root)
                     bg.clearSelection()
 
                     userFilters.add(JLabel(" "))
@@ -25264,6 +25590,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_fix_delete_one_sided_txns)
                     userFilters.add(user_reverse_txn_amounts)
                     userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
+                    userFilters.add(user_detect_fix_txns_assigned_root)
 
                     while True:
 
@@ -25273,7 +25600,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,300)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,350)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Transaction(s) Diagnostics, Tools, Fixes",
@@ -25297,6 +25624,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_fix_delete_one_sided_txns.isSelected():                         fix_delete_one_sided_txns()
                         if user_reverse_txn_amounts.isSelected():                               reverse_txn_amounts()
                         if user_reverse_txn_exchange_rates_by_account_and_date.isSelected():    reverse_txn_exchange_rates_by_account_and_date()
+                        if user_detect_fix_txns_assigned_root.isSelected():                     detect_fix_txns_assigned_root()
 
                         for button in bg.getElements():
                             if button.isSelected(): return      # Quit the menu system after running something....
@@ -25449,7 +25777,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,500)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,575)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "General Diagnostics, Tools, Fixes",

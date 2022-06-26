@@ -249,6 +249,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Delete One-Sided Txns (delete_invalid_txns.py)
         - FIX - Reverse Transaction Amounts between dates (reverse_txn_amounts.py)
         - FIX - Reverse Transaction Exchange rates between dates (reverse_txn_amounts.py)
+        - FIX - Detect and fix transactions assigned to 'root' account (Offers options to display / fix these transactions)
 
 ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
     >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
