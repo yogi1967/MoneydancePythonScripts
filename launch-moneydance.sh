@@ -48,7 +48,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2022.3 (4078)"
+md_version=" 2022.4 (4087)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -86,12 +86,12 @@ echo "##########################################################################
 echo
 
 #CHECK_IF_RUNNING=$(ps axlww | grep -v grep | grep -i moneydance)
-CHECK_IF_RUNNING=$(pgrep -i -l -f /moneydance)
-if [ "${CHECK_IF_RUNNING}" != "" ]; then
-    echo "@@ ERROR - it seems that Moneydance might already be running... So I will abort..."
-    echo "pgrep returned: '${CHECK_IF_RUNNING}'"
-    exit 99
-fi
+#CHECK_IF_RUNNING=$(pgrep -i -l -f /moneydance)
+#if [ "${CHECK_IF_RUNNING}" != "" ]; then
+#    echo "@@ ERROR - it seems that Moneydance might already be running... So I will abort..."
+#    echo "pgrep returned: '${CHECK_IF_RUNNING}'"
+#    exit 99
+#fi
 
 # Prevents Moneydance JFrames appearing in tabs... causes strange problems...
 echo "current tabbing mode is set to..:"

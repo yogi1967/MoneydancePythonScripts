@@ -265,6 +265,7 @@ ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
     - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
     - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
     - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
+    - Toggle Sync Downloading of Attachments (Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync)
     - Force reset Sync settings (This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync)
     - DEMOTE your Primary Sync dataset/node back to a Secondary Node
     - Suppress the "Your file seems to be in a shared folder (Dropbox)" warning... (optional when condition exists)

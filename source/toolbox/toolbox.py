@@ -98,6 +98,9 @@
 # build: 1052 - Updated toolbox_total_selected_transactions.py script; Added Detect/Fix Txns assigned to Root...
 # build: 1052 - Enhanced fix_non_hier_sec_acct_txns() with autofix and tweak for concurrent modification of txn list error
 # build: 1052 - Change lAutoPruneInternalBackups_TB default to True
+# build: 1052 - Redact these and also added to remove list: 'netsync.db.access_token_key', 'netsync.db.access_token_secret', 'netsync.db.v2token'
+# build: 1052 - Also detect/display/zap 'netsync.download_attachments'; Added 'Toggle Sync Downloading of Attachments' feature
+# build: 1052 - Turned off linewrap on main diagnostic display...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -3643,6 +3646,66 @@ Visit: %s (Author's site)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
+    class MyPopupRegister(SecondaryDialog):
+
+        class MyTxnRegisterType(TxnRegisterType):
+            def __init__(self, mdGUI, editableRegister=False, showCashBalance=False):
+                self.editableRegister = editableRegister
+                self.showCashBalance = showCashBalance
+                super(self.__class__, self).__init__(mdGUI)
+            def isEditable(self): return self.editableRegister
+            def getNumColumns(self):
+                defaultCols = super(self.__class__, self).getNumColumns()
+                if not self.showCashBalance: defaultCols -= 1
+                return defaultCols
+
+        class MyInvestRegisterType(InvestRegisterType):
+            def __init__(self, mdGUI, editableRegister=False, showCashBalance=False):
+                self.editableRegister = editableRegister
+                self.showCashBalance = showCashBalance
+                self.cashColumn = 8
+                super(self.__class__, self).__init__(mdGUI)
+            def isEditable(self): return self.editableRegister
+            def getPreferredFieldWidth(self, info, col):
+                if not self.showCashBalance and col == self.cashColumn: return 0
+                return super(self.__class__, self).getPreferredFieldWidth(info, col)
+            def getColMinWidth(self, info, col):
+                if not self.showCashBalance and col == self.cashColumn: return 0
+                return super(self.__class__, self).getColMinWidth(info, col)
+            def getColPreferredWidth(self, info, col):
+                if not self.showCashBalance and col == self.cashColumn: return 0
+                return super(self.__class__, self).getColPreferredWidth(info, col)
+
+        def __init__(self, title, registerType, txnSearchFilter, parent=None, editableRegister=False, showCashBalance=False, modal=True, singleLineMode=False, escapeCancels=True):
+            # type: (str, type, TxnSearch, JComponent, bool, bool, bool, bool, bool) -> None
+            mdGUI = MD_REF.getUI()
+            title += " >> EDITING ENABLED - BE CAREFUL! <<" if editableRegister else " -- READONLY MODE --"
+            super(self.__class__, self).__init__(mdGUI, parent, title, modal)
+            self.setEscapeKeyCancels(escapeCancels)
+            book = MD_REF.getCurrentAccountBook()
+
+            if registerType == InvestRegisterType:
+                txnRegister = TxnRegister(mdGUI, book, MyPopupRegister.MyInvestRegisterType(mdGUI, editableRegister=editableRegister, showCashBalance=showCashBalance))
+            else:
+                if registerType != TxnRegisterType:
+                    myPrint("B", "@@ ERROR: MyPopupRegister() registerType incorrect:", registerType, ">> Defaulting to TxnRegisterType @@")
+                txnRegister = TxnRegister(mdGUI, book, MyPopupRegister.MyTxnRegisterType(mdGUI, editableRegister=editableRegister, showCashBalance=showCashBalance))
+
+            txnRegister.setDetailPanels([TxnDetailsPanel(mdGUI, txnRegister)])
+            txnRegister.setSingleLineMode(singleLineMode)
+            txnResultSet = SearchRegTxnListModel(book, txnSearchFilter, TxnSortOrder.DATE)
+            txnRegister.setTxnModel(txnResultSet)
+            self.add(txnRegister)
+
+        def setEscapeKeyCancels(self, escapeKeyCancels):
+            try: super(self.__class__, self).setEscapeKeyCancels(escapeKeyCancels)
+            except:
+                # This was a new method in a recent build....
+                if escapeKeyCancels:
+                    self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close_window")
+                else:
+                    self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
+
     class DetectInvalidWindowLocations(AbstractAction):
 
         def __init__(self, lQuickCheckOnly):
@@ -4027,6 +4090,9 @@ Visit: %s (Author's site)
         del foundStrange
         return output
 
+    def getShouldDownloadAllAttachments():
+        return MD_REF.getCurrentAccountBook().getLocalStorage().getBoolean("netsync.download_attachments", True)
+
     def buildDiagText():
 
         textArray = []                                                                                                  # noqa
@@ -4239,7 +4305,6 @@ Visit: %s (Author's site)
             textArray.append(u"Sync Method:                   %s" %(syncMethod.getSyncFolder()))
             x = get_sync_folder()
             if x: textArray.append(u"Sync local disk base location: %s" %(x))
-
         except:
             textArray.append(u"Sync Method: *** YOU HAVE A PROBLEM WITH YOUR DROPBOX CONFIGURATION! ***")
             myPrint("B",u"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
@@ -4255,6 +4320,8 @@ Visit: %s (Author's site)
                              theTitle=u"DROPBOX ERROR",
                              lModal=False,
                              lAlertLevel=2).go()
+
+        if not getShouldDownloadAllAttachments(): textArray.append(u"** Sync downloading of attachments is disabled **")
 
         if not check_for_dropbox_folder():
             textArray.append(u"Sync WARNING: Dropbox sync will not work until you add the missing .moneydancesync folder - use update mode to fix!")
@@ -13272,7 +13339,7 @@ Visit: %s (Author's site)
                             elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
                         if GlobalVars.redact:
-                            if theKey.lower() == "netsync.synckey": value = "<%s> (hidden)" %(redactor(value))
+                            if theKey.lower() == "netsync.synckey" or theKey.lower().startswith("netsync.db."): value = "<%s> (hidden)" %(redactor(value))
 
                         rk_redact = theKey
                         val_redact = value
@@ -13341,7 +13408,7 @@ Visit: %s (Author's site)
                             elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
                         if GlobalVars.redact:
-                            if theKey.lower() == "netsync.synckey": value = "<%s> (hidden)" %(redactor(value))
+                            if theKey.lower() == "netsync.synckey" or theKey.lower().startswith("netsync.db."): value = "<%s> (hidden)" %(redactor(value))
 
                         if GlobalVars.redact:
                             if ("._payloadid" in theKey.lower() or ".token" in theKey.lower()): value = "<%s> (hidden)" %(redactor(value))
@@ -13465,7 +13532,7 @@ Visit: %s (Author's site)
                                 elif lKeyData and not (searchWhat.lower() in value.lower()): continue
 
                             if GlobalVars.redact:
-                                if theKey.lower() == "netsync.synckey": value = "<%s> (hidden)" %(redactor(value))
+                                if theKey.lower() == "netsync.synckey" or theKey.lower().startswith("netsync.db."): value = "<%s> (hidden)" %(redactor(value))
 
                             if GlobalVars.redact:
                                 for checkKey in ["bank_account_number", "ofx_account_number", "ofx_bank_id", "ofx_import_acct_num", "olblink."]:
@@ -15478,66 +15545,6 @@ now after saving the file, restart Moneydance
                 _countValid += 1
         return _countValid, _countAssignedRoot, _countInvestmentAssignedRoot
 
-
-    class MyPopupRegister(SecondaryDialog):
-
-        class MyTxnRegisterType(TxnRegisterType):
-            def __init__(self, mdGUI, editableRegister=False, showCashBalance=False):
-                self.editableRegister = editableRegister
-                self.showCashBalance = showCashBalance
-                super(self.__class__, self).__init__(mdGUI)
-            def isEditable(self): return self.editableRegister
-            def getNumColumns(self):
-                defaultCols = super(self.__class__, self).getNumColumns()
-                if not self.showCashBalance: defaultCols -= 1
-                return defaultCols
-
-        class MyInvestRegisterType(InvestRegisterType):
-            def __init__(self, mdGUI, editableRegister=False, showCashBalance=False):
-                self.editableRegister = editableRegister
-                self.showCashBalance = showCashBalance
-                self.cashColumn = 8
-                super(self.__class__, self).__init__(mdGUI)
-            def isEditable(self): return self.editableRegister
-            def getPreferredFieldWidth(self, info, col):
-                if not self.showCashBalance and col == self.cashColumn: return 0
-                return super(self.__class__, self).getPreferredFieldWidth(info, col)
-            def getColMinWidth(self, info, col):
-                if not self.showCashBalance and col == self.cashColumn: return 0
-                return super(self.__class__, self).getColMinWidth(info, col)
-            def getColPreferredWidth(self, info, col):
-                if not self.showCashBalance and col == self.cashColumn: return 0
-                return super(self.__class__, self).getColPreferredWidth(info, col)
-
-        def __init__(self, title, registerType, txnSearchFilter, parent=None, editableRegister=False, showCashBalance=False, modal=True, singleLineMode=False, escapeCancels=True):
-            # type: (str, type, TxnSearch, JComponent, bool, bool, bool, bool, bool) -> None
-            mdGUI = MD_REF.getUI()
-            title += " >> EDITING ENABLED - BE CAREFUL! <<" if editableRegister else " -- READONLY MODE --"
-            super(self.__class__, self).__init__(mdGUI, parent, title, modal)
-            self.setEscapeKeyCancels(escapeCancels)
-            book = MD_REF.getCurrentAccountBook()
-
-            if registerType == InvestRegisterType:
-                txnRegister = TxnRegister(mdGUI, book, MyPopupRegister.MyInvestRegisterType(mdGUI, editableRegister=editableRegister, showCashBalance=showCashBalance))
-            else:
-                if registerType != TxnRegisterType:
-                    myPrint("B", "@@ ERROR: MyPopupRegister() registerType incorrect:", registerType, ">> Defaulting to TxnRegisterType @@")
-                txnRegister = TxnRegister(mdGUI, book, MyPopupRegister.MyTxnRegisterType(mdGUI, editableRegister=editableRegister, showCashBalance=showCashBalance))
-
-            txnRegister.setDetailPanels([TxnDetailsPanel(mdGUI, txnRegister)])
-            txnRegister.setSingleLineMode(singleLineMode)
-            txnResultSet = SearchRegTxnListModel(book, txnSearchFilter, TxnSortOrder.DATE)
-            txnRegister.setTxnModel(txnResultSet)
-            self.add(txnRegister)
-
-        def setEscapeKeyCancels(self, escapeKeyCancels):
-            try: super(self.__class__, self).setEscapeKeyCancels(escapeKeyCancels)
-            except:
-                # This was a new method in a recent build....
-                if escapeKeyCancels:
-                    self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close_window")
-                else:
-                    self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
 
     def detect_fix_txns_assigned_root():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -22266,23 +22273,10 @@ Now you will have a text readable version of the file you can open in a text edi
             _msg = pad("Please wait: Resetting Sync in cloned dataset..",_msgPad,padChar=".")
             diag.updateMessages(newTitle=_msg, newStatus=_msg)
 
-            SYNC_KEYS = ["netsync.dropbox.fileid",
-                         "netsync.sync_type",
-                         "netsync.subpath",
-                         "netsync.dropbox_enabled",
-                         "netsync.synckey",
-                         "ext.netsync.settings",
-                         "netsync.guid",
-                         "netsync.fs.sync_path",
-                         "migrated.netsync.dropbox.fileid",
-                         "migrated.ext.netsync.settings",                                                                   # Extra from here
-                         "migrated.netsync.dropbox_enabled",
-                         "migrated.netsync.guid",
-                         "migrated.netsync.synckey"
-                         ]
+            SYNC_KEYS = getNetSyncKeys()
 
             newStorage = newBook.getLocalStorage()
-            for skey in SYNC_KEYS: newStorage.remove(skey)                                                                  # noqa
+            for skey in SYNC_KEYS: newStorage.remove(skey)                                                              # noqa
             newStorage.put("netsync.dropbox.fileid", UUID.randomUUID())
             newStorage.put("_is_master_node", True)
             newStorage.put(PARAMETER_KEY, safeStr(cloneTime))
@@ -24100,6 +24094,27 @@ Now you will have a text readable version of the file you can open in a text edi
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
+    def getNetSyncKeys():
+        _SYNC_KEYS = ["netsync.dropbox.fileid",
+                      "netsync.sync_type",
+                      "netsync.subpath",
+                      "netsync.dropbox_enabled",
+                      "netsync.synckey",
+                      "ext.netsync.settings",
+                      "netsync.guid",
+                      "netsync.fs.sync_path",
+                      "netsync.db.access_token_key",
+                      "netsync.db.access_token_secret",
+                      "netsync.db.v2token",
+                      "netsync.download_attachments",
+                      "migrated.netsync.dropbox.fileid",
+                      "migrated.ext.netsync.settings",
+                      "migrated.netsync.dropbox_enabled",
+                      "migrated.netsync.guid",
+                      "migrated.netsync.synckey"
+                      ]
+        return _SYNC_KEYS
+
     def advanced_mode_force_reset_sync_settings():
         # Resets all Sync settings, generates a new Sync ID, Turns Sync Off. You can turn it back on later....
 
@@ -24118,20 +24133,7 @@ Now you will have a text readable version of the file you can open in a text edi
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        SYNC_KEYS = ["netsync.dropbox.fileid",
-                     "netsync.sync_type",
-                     "netsync.subpath",
-                     "netsync.dropbox_enabled",
-                     "netsync.synckey",
-                     "ext.netsync.settings",
-                     "netsync.guid",
-                     "netsync.fs.sync_path",
-                     "migrated.netsync.dropbox.fileid",
-                     "migrated.ext.netsync.settings",                                                                   # Extra from here
-                     "migrated.netsync.dropbox_enabled",
-                     "migrated.netsync.guid",
-                     "migrated.netsync.synckey"
-                     ]
+        SYNC_KEYS = getNetSyncKeys()
 
         for skey in SYNC_KEYS: storage.remove(skey)
 
@@ -24150,6 +24152,36 @@ Now you will have a text readable version of the file you can open in a text edi
 
         play_the_money_sound()
         txt = "ALL SYNC SETTINGS HAVE BEEN RESET - MONEYDANCE WILL NOW RESTART"
+        myPrint("B", txt); setDisplayStatus(txt, "R")
+        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+
+    def toggle_sync_download_attachments():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "ADVANCED: TOGGLE SYNC DOWNLOAD ATTACHMENTS"
+
+        shouldDownloadAllAttachments = getShouldDownloadAllAttachments()
+
+        storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Toggle Sync Download Attachments setting to: %s"
+                                                                                    %("OFF" if shouldDownloadAllAttachments else "ON")):
+            return
+
+        if not backup_local_storage_settings():
+            txt = "%s: ERROR making backup of LocalStorage() ./safe/settings - no changes made!" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        storage.put("netsync.download_attachments", not shouldDownloadAllAttachments)
+        storage.save()
+
+        play_the_money_sound()
+        txt = "Sync download attachments setting now: %s - MONEYDANCE WILL NOW RESTART" %("ON" if getShouldDownloadAllAttachments() else "OFF")
         myPrint("B", txt); setDisplayStatus(txt, "R")
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
@@ -25898,6 +25930,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_force_reset_sync_settings.setForeground(getColorRed())
                     user_force_reset_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
 
+                    user_toggle_sync_download_attachments = JRadioButton("Toggle Sync Downloading of Attachments", False)
+                    user_toggle_sync_download_attachments.setToolTipText("Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync - UPDATES YOUR DATASET")
+                    user_toggle_sync_download_attachments.setForeground(getColorRed())
+                    user_toggle_sync_download_attachments.setEnabled(GlobalVars.ADVANCED_MODE)
+
                     user_demote_primary_to_secondary = JRadioButton("DEMOTE Primary dataset back to a Secondary Node", False)
                     user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
                     user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
@@ -25926,6 +25963,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_advanced_sync_push)
                     bg.add(user_force_sync_off)
                     bg.add(user_force_reset_sync_settings)
+                    bg.add(user_toggle_sync_download_attachments)
                     bg.add(user_demote_primary_to_secondary)
                     bg.add(user_advanced_suppress_dropbox_warning)
                     bg.clearSelection()
@@ -25951,6 +25989,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_advanced_sync_push)
                     userFilters.add(user_force_sync_off)
                     userFilters.add(user_force_reset_sync_settings)
+                    userFilters.add(user_toggle_sync_download_attachments)
                     userFilters.add(user_advanced_import_to_storage)
                     userFilters.add(user_advanced_mode_edit_prefs)
                     userFilters.add(user_advanced_edit_param_keys)
@@ -25967,6 +26006,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
                         user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
                         user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
+                        user_toggle_sync_download_attachments.setEnabled(GlobalVars.ADVANCED_MODE and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
                         user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None))
 
                         bg.clearSelection()
@@ -26000,6 +26040,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_advanced_clone_dataset.isSelected():                advanced_clone_dataset()
                         if user_force_sync_off.isSelected():                        advanced_mode_force_sync_off()
                         if user_force_reset_sync_settings.isSelected():             advanced_mode_force_reset_sync_settings()
+                        if user_toggle_sync_download_attachments.isSelected():      toggle_sync_download_attachments()
                         if user_demote_primary_to_secondary.isSelected():           advanced_mode_demote_primary_to_secondary()
                         if user_advanced_suppress_dropbox_warning.isSelected():     advanced_mode_suppress_dropbox_warning()
 
@@ -26014,8 +26055,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         class ConvertSecondaryButtonAction(AbstractAction):
 
-            def __init__(self, theString):
-                self.theString = theString
+            def __init__(self): pass
 
             def actionPerformed(self, event):
                 # convert_secondary_to_primary_data_set
@@ -26603,7 +26643,7 @@ Now you will have a text readable version of the file you can open in a text edi
             if (not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()):
                 convertSecondary_button = MyJButton("<html><center>FIX: Make me a<BR>Primary dataset</center></html>", adhocButton=True)
                 convertSecondary_button.setToolTipText("Promotes this Dataset a Primary / Master Dataset. Enables Sync options. (typically after restore from a synchronised secondary dataset/backup). THIS CHANGES DATA!")
-                convertSecondary_button.addActionListener(self.ConvertSecondaryButtonAction(displayString))
+                convertSecondary_button.addActionListener(self.ConvertSecondaryButtonAction())
                 convertSecondary_button.setVisible(False)
                 GlobalVars.allButtonsList.append(convertSecondary_button)
 
@@ -26675,7 +26715,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             myDiagText = JTextArea(displayString)
             myDiagText.setEditable(False)
-            myDiagText.setLineWrap(True)
+            myDiagText.setLineWrap(False)
             myDiagText.setWrapStyleWord(True)
             myDiagText.setFont(getMonoFont())
 
