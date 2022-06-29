@@ -101,6 +101,7 @@
 # build: 1052 - Redact these and also added to remove list: 'netsync.db.access_token_key', 'netsync.db.access_token_secret', 'netsync.db.v2token'
 # build: 1052 - Also detect/display/zap 'netsync.download_attachments'; Added 'Toggle Sync Downloading of Attachments' feature
 # build: 1052 - Turned off linewrap on main diagnostic display...
+# build: 1052 - Fixed get_sync_folder() when Dropbox Connection (cloud service has no local folder on disk)
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -418,6 +419,8 @@ else:
             from com.moneydance.apps.md.controller.sync import ICloudContainer
     except:
         pass
+
+    from com.moneydance.apps.md.view.gui.sync import DropboxSyncConfigurer
 
     from java.io import ByteArrayInputStream, OutputStream, InputStream, BufferedOutputStream
     from java.nio.charset import StandardCharsets
@@ -9012,6 +9015,8 @@ Visit: %s (Author's site)
                 if os.path.exists(saveSyncFolder):
                     myPrint("DB","icloud folder found:", saveSyncFolder)
                     return saveSyncFolder
+
+            elif isinstance(syncMethod, DropboxSyncConfigurer): return None
 
             elif syncMethod is not None and syncMethod.getSyncFolder() is not None:
                 syncBaseFolder = syncMethod.getSyncFolder().getSyncBaseFolder()                                         # noqa
