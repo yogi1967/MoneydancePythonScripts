@@ -100,8 +100,9 @@
 # build: 1052 - Change lAutoPruneInternalBackups_TB default to True
 # build: 1052 - Redact these and also added to remove list: 'netsync.db.access_token_key', 'netsync.db.access_token_secret', 'netsync.db.v2token'
 # build: 1052 - Also detect/display/zap 'netsync.download_attachments'; Added 'Toggle Sync Downloading of Attachments' feature
-# build: 1052 - Turned off linewrap on main diagnostic display...
+# build: 1052 - Turned off linewrap on main diagnostic display... WATCHOUT FOR SLUGGISH DIAGNOSTICS SCREEN with long lines and wordwrap off! (Probably Mac only)
 # build: 1052 - Fixed get_sync_folder() when Dropbox Connection (cloud service has no local folder on disk)
+# build: 1052 - Added some more startup diag info to console error log during init and main script
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -122,7 +123,7 @@
 # SET THESE LINES
 myModuleID = u"toolbox"
 version_build = "1052"
-MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
+MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
 if u"debug" in globals():
@@ -4241,18 +4242,26 @@ Visit: %s (Author's site)
         textArray.append(u"")
         x, y = calculateMoneydanceDatasetSize(True)
         textArray.append(u"Dataset size: %sMBs (%s files)\n" %(x,y))
+        myPrint("B", "Dataset size: %sMBs (%s files)\n" %(x,y))
 
         storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
         fileUUID = storage.getStr(u"netsync.dropbox.fileid", u"MISSING")
         migratedFileUUID = storage.getStr(u"migrated.netsync.dropbox.fileid", u"")
+
         textArray.append(u"Dataset internal UUID: %s" %(fileUUID))
+        myPrint("B", "Dataset internal UUID: %s" %(fileUUID))
+
         if migratedFileUUID != "":
             textArray.append(u"Dataset old migrated UUID: %s" %(migratedFileUUID))
-        del storage
+            myPrint("B", "Dataset old migrated UUID: %s" %(migratedFileUUID))
+        del storage;
 
-        textArray.append(count_database_objects())
+        cos = count_database_objects()
+        textArray.append(cos)
+        myPrint("B", "\n.\n.", cos, "-------------------------------------------------------------------")
 
         textArray.append(u"Master Node (dataset): %s" %(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+        myPrint("B", "Master Node (dataset): %s" %(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
 
         textArray.append(u"\nENCRYPTION")
         x = MD_REF.getUI().getCurrentAccounts().getEncryptionKey()
@@ -4306,8 +4315,11 @@ Visit: %s (Author's site)
             else:
                 syncMethod = syncMethod
             textArray.append(u"Sync Method:                   %s" %(syncMethod.getSyncFolder()))
+            myPrint("B", "Sync Method: %s" %(syncMethod.getSyncFolder()))
             x = get_sync_folder()
-            if x: textArray.append(u"Sync local disk base location: %s" %(x))
+            if x:
+                textArray.append(u"Sync local disk base location: %s" %(x))
+                myPrint("B", "Sync local disk base location: %s" %(x))
         except:
             textArray.append(u"Sync Method: *** YOU HAVE A PROBLEM WITH YOUR DROPBOX CONFIGURATION! ***")
             myPrint("B",u"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
@@ -4338,6 +4350,7 @@ Visit: %s (Author's site)
         z = u"(Mac Dark Mode detected)" if (Platform.isOSX() and isMacDarkModeDetected()) else u""
 
         textArray.append(u"Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID), x, y, z))
+        myPrint("B", "Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID), x, y, z))
 
         # noinspection PyUnresolvedReferences
         x = ThemeInfo.customThemeFile.getCanonicalPath()
@@ -26720,8 +26733,10 @@ Now you will have a text readable version of the file you can open in a text edi
 
             myDiagText = JTextArea(displayString)
             myDiagText.setEditable(False)
-            myDiagText.setLineWrap(False)
-            myDiagText.setWrapStyleWord(True)
+            lineWrap = False
+            if Platform.isOSX() and float(MD_REF.getBuild()) < 4077: lineWrap = True
+            myDiagText.setLineWrap(lineWrap)
+            if lineWrap: myDiagText.setWrapStyleWord(True)
             myDiagText.setFont(getMonoFont())
 
             mySearchAction = SearchAction(toolbox_frame_,myDiagText)

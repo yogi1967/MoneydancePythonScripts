@@ -22,8 +22,34 @@ try:
     msg = u"\n"
     msg += u"-----------------------------------------------------\n"
     msg += (u"%s - quick information:\n" %(_THIS_IS_.capitalize()))
+    msg += u"-----\n"
+
     msg += (u"MD CONSOLE FILE LOCATION:       '%s'\n" %(moneydance.getLogFile().getCanonicalPath()))
     msg += (u"MD CONFIG/PREFERENCES LOCATION: '%s'\n" %(Common.getPreferencesFile().getCanonicalPath()))
+
+    msg += u"-----\n"
+    from com.moneydance.apps.md.controller.io import FileUtils
+    destroyBackupChoices = moneydance.getPreferences().getSetting(u"backup.destroy_number", u"5")
+    returnedBackupType = moneydance.getPreferences().getSetting(u"backup.backup_type", u"every_x_days")
+    if returnedBackupType == u"every_time":
+        dailyBackupCheckbox = True
+        destroyBackupChoices = 1
+    elif returnedBackupType == u"every_x_days":
+        dailyBackupCheckbox = True
+    else:
+        dailyBackupCheckbox = False
+
+    msg += (u"BACKUPS - Save Daily:            %s\n" %(dailyBackupCheckbox))
+    msg += (u"BACKUPS - Keep no more than:     %s backups\n" %(destroyBackupChoices))
+    msg += (u"BACKUPS - Separate Backup Foldr: %s\n" %(moneydance.getPreferences().getBoolSetting(u"backup.location_selected", True)))
+    msg += (u"BACKUPS - Backup Folder:        '%s'\n" %(FileUtils.getBackupDir(moneydance.getPreferences()).getCanonicalPath()))
+
+    msg += (u"..key - 'backup.location':      '%s'\n" %(moneydance.getPreferences().getSetting(u"backup.location", u"<not set>")))
+    msg += (u"..key - 'backup.last_browsed':  '%s'\n" %(moneydance.getPreferences().getSetting(u"backup.last_browsed", u"<not set>")))
+    msg += (u"..key - 'backup.last_saved':    '%s'\n" %(moneydance.getPreferences().getSetting(u"backup.last_saved", u"<not set>")))
+    msg += (u"..key - '_default_backup_dir':  '%s'\n" %(moneydance.getPreferences().getSetting(u"_default_backup_dir", u"<not set>")))
+    msg += u"-----\n"
+
     msg += (u"MD EXECUTION MODE:               %s (%s)\n" %(moneydance.getExecutionMode(), (u"AppletMode" if (moneydance.getExecutionMode() == moneydance.EXEC_MODE_APPLET) else u"Normal")))
     # msg += (u"OS PLATFORM:                     %s (%s)\n" %(System.getProperty(u"os.name"), System.getProperty(u"os.version")))
     # msg += (u"ARCHITECTURE:                    %s\n" %(System.getProperty(u"os.arch")))
