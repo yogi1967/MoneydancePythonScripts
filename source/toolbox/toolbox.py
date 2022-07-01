@@ -103,6 +103,9 @@
 # build: 1052 - Turned off linewrap on main diagnostic display... WATCHOUT FOR SLUGGISH DIAGNOSTICS SCREEN with long lines and wordwrap off! (Probably Mac only)
 # build: 1052 - Fixed get_sync_folder() when Dropbox Connection (cloud service has no local folder on disk)
 # build: 1052 - Added some more startup diag info to console error log during init and main script
+# build: 1052 - Fixed bug with VAQua9 that causes Mac long lines in main display to slow down the scroll and cause memory issues. Don't do this: 'scrollpane.setBorder(BorderFactory.createLineBorder....
+# build: 1052 - .... and thus removed the call to System.gc()
+# build: 1052 - Tweaked init so that JVM stats captured from new thread after 10 seconds (to allow JVM memory to settle)...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -435,7 +438,7 @@ else:
 
     from com.google.gson import Gson
 
-    from com.moneydance.apps.md.controller import MDException, Util, AppEventListener               # noqa
+    from com.moneydance.apps.md.controller import MDException, Util, AppEventListener                                   # noqa
 
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller.sync import MDSyncCipher
@@ -4254,7 +4257,7 @@ Visit: %s (Author's site)
         if migratedFileUUID != "":
             textArray.append(u"Dataset old migrated UUID: %s" %(migratedFileUUID))
             myPrint("B", "Dataset old migrated UUID: %s" %(migratedFileUUID))
-        del storage;
+        del storage
 
         cos = count_database_objects()
         textArray.append(cos)
@@ -26734,7 +26737,7 @@ Now you will have a text readable version of the file you can open in a text edi
             myDiagText = JTextArea(displayString)
             myDiagText.setEditable(False)
             lineWrap = False
-            if Platform.isOSX() and float(MD_REF.getBuild()) < 4077: lineWrap = True
+            # if isMDThemeVAQua() and float(MD_REF.getBuild()) < 4077: lineWrap = True    # Bug in VAQua9.. Seems OK in VAQua10
             myDiagText.setLineWrap(lineWrap)
             if lineWrap: myDiagText.setWrapStyleWord(True)
             myDiagText.setFont(getMonoFont())
@@ -26755,8 +26758,7 @@ Now you will have a text readable version of the file you can open in a text edi
             # ----------------------------------------------------------------------------------------------------------
 
             self.myScrollPane = JScrollPane(myDiagText, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-            # self.myScrollPane.setPreferredSize(Dimension(frame_width - 30, frame_height - mainPnl.getPreferredSize().height))
-            self.myScrollPane.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).mainPanelBorderColor, 1))
+            # self.myScrollPane.setBorder(BorderFactory.createLineBorder((MD_REF.getUI().getColors()).mainPanelBorderColor, 1))  # This causes VAQua9 bug (OK in VAQua10)
             self.myScrollPane.setViewportBorder(EmptyBorder(1, 5, 5, 5))
             self.myScrollPane.setOpaque(False)
             self.myScrollPane.setWheelScrollingEnabled(True)
@@ -27227,8 +27229,8 @@ Script/extension is analysing your moneydance & system settings....
                     myPrint("DB",".. Main App Already within the EDT so calling naked...")
                     MainAppRunnable().run()
 
-                myPrint("DB","Requesting System Garbage Collection....")
-                System.gc()
+                # myPrint("DB","Requesting System Garbage Collection....")
+                # System.gc()
 
                 myPrint("P","-----------------------------------------------------------------------------------------------------------")
                 myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", GlobalVars.thisScriptName, " script ending (frame is open/running)......")

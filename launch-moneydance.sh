@@ -49,6 +49,9 @@ unset md_passphrase
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
 md_version=" 2022.4 (4087)"
+md_version=" 2022.2 (4060)"
+md_version=" 2021.0 (2006)"
+md_version=" 2021.1 (3069)"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -59,11 +62,15 @@ md_version=" 2022.4 (4087)"
 
 # NOTE:   MD2022.3(4062) Introduced Java 17.0.1 (Azul Systems, Inc.) - JDK / fx together
 # https://cdn.azul.com/zulu/bin/zulu17.30.15-ca-jdk17.0.1-macosx_x64.dmg
-# https://cdn.azul.com/zulu/bin/zulu17.30.51-ca-fx-jdk17.0.1-macosx_x64.dmg (Couldn't get fx to work - so disabled it below)
+# https://cdn.azul.com/zulu/bin/zulu17.30.51-ca-fx-jdk17.0.1-macosx_x64.dmg (Couldn't get fx to work on this version....)
 
 # NOTE:   MD2022.3(4062) Re-Introduced Java 17.0.2 by Adoptium (Hotspot)
 # https://download2.gluonhq.com/openjfx/17.0.2/openjfx-17.0.2_osx-x64_bin-sdk.zip
 # https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.2%2B8/OpenJDK17U-jdk_x64_mac_hotspot_17.0.2_8.pkg
+
+# NOTE:   MD2022.3(4077) Java 18.0.1 on Mac
+# https://adoptium.net/temurin/releases/?version=18
+# https://gluonhq.com/products/javafx/
 
 # Edit the necessary install locations for JDK and JavaFX below
 # Edit the necessary settings and your folder locations below
@@ -105,11 +112,11 @@ echo "My user path: ${my_user_path}"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
-export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-18.jdk/Contents/Home"
 
 # JavaFX modules
 javafx_modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
-javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-17.0.2/lib"
+javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-18.0.1/lib"
 
 export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
