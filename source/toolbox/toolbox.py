@@ -106,6 +106,8 @@
 # build: 1052 - Fixed bug with VAQua9 that causes Mac long lines in main display to slow down the scroll and cause memory issues. Don't do this: 'scrollpane.setBorder(BorderFactory.createLineBorder....
 # build: 1052 - .... and thus removed the call to System.gc()
 # build: 1052 - Tweaked init so that JVM stats captured from new thread after 10 seconds (to allow JVM memory to settle)...
+# build: 1052 - Added 'Relocate this dataset to another location' option
+# build: 1052 - Added AppleScript File Open selector (for when needed - e.g. trying to open 'special locations' or .moneydance bundle file)
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -467,7 +469,7 @@ else:
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException, Runtime                           # noqa
+    from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException, Runtime, Process                  # noqa
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
     from com.moneydance.awt import JCurrencyField, AwtUtil                                                              # noqa
 
@@ -3383,6 +3385,113 @@ Visit: %s (Author's site)
                         and mdplus_signup_status and mdplus_signup_status.lower() == "activated"):
                     return True
         return False
+
+    def getFileFromAppleScriptFileChooser(fileChooser_parent,                  # The Parent Frame, or None
+                                          fileChooser_starting_dir,            # The Starting Dir
+                                          fileChooser_filename,                # Default filename (or None)
+                                          fileChooser_title,                   # The Title (with FileDialog, only works on SAVE)
+                                          fileChooser_multiMode,               # Normally False (True has not been coded!)
+                                          fileChooser_open,                    # True for Open/Load, False for Save
+                                          fileChooser_selectFiles,             # True for files, False for Directories
+                                          fileChooser_OK_text,                 # Normally None, unless set - use text
+                                          fileChooser_fileFilterText=None,     # E.g. "txt" or "qif"
+                                          lForceJFC=False,
+                                          lForceFD=False,
+                                          lAllowTraversePackages=None,
+                                          lAllowTraverseApplications=None,     # JFileChooser only..
+                                          lAllowNewFolderButton=True,          # JFileChooser only..
+                                          lAllowOptionsButton=None):           # JFileChooser only..
+        # type: (JFrame, str, str, str, bool, bool, bool, str, str, bool, bool, bool, bool, bool, bool) -> str
+        """If on a Mac and AppleScript exists then will attempt to load AppleScript file/folder chooser, else calls getFileFromFileChooser() which loads JFileChooser() or FileDialog() accordingly"""
+
+        if not Platform.isOSX() or not File("/usr/bin/osascript").exists() or float(System.getProperty("os.version", "0.0")) < 11.0:
+            return getFileFromFileChooser(fileChooser_parent,
+                                          fileChooser_starting_dir,
+                                          fileChooser_filename,
+                                          fileChooser_title,
+                                          fileChooser_multiMode,
+                                          fileChooser_open,
+                                          fileChooser_selectFiles,
+                                          fileChooser_OK_text,
+                                          fileChooser_fileFilterText,
+                                          lForceJFC, lForceFD,
+                                          lAllowTraversePackages, lAllowTraverseApplications,
+                                          lAllowNewFolderButton, lAllowOptionsButton)
+
+        myPrint("B", "Mac: switching to AppleScript for folder/file selector..:")
+
+        _TRUE = "true"; _FALSE = "false"
+        appleScript = "/usr/bin/osascript"
+
+        lAllowInvisibles = False
+        multipleSelectionsAllowed = _TRUE if fileChooser_multiMode else _FALSE
+        showPackageContents = _TRUE if lAllowTraversePackages else _FALSE
+        showInvisibles = _TRUE if lAllowInvisibles else _FALSE
+
+        cmdTitle = ""
+        cmdDefaultPath = ""
+        cmdExtension = ""
+        cmdInvisibles = ""
+        cmdMultipleSelections = ""
+        cmdShowPackageContents = ""
+        cmdNewName = ""
+
+        cmdChooseWhat = "file " if fileChooser_selectFiles else "folder "
+
+        if fileChooser_title is not None and isinstance(fileChooser_title, basestring) and len(fileChooser_title) > 0:
+            cmdTitle = "with prompt \"%s\" " %(fileChooser_title)
+
+        lRequestingNewName = (not fileChooser_open and fileChooser_selectFiles)
+        if lRequestingNewName:
+            cmdChooseWhat = "file name "
+            if fileChooser_filename is not None and isinstance(fileChooser_filename, basestring) and len(fileChooser_filename) > 0:
+                cmdNewName = "default name \"%s\" " %(fileChooser_filename)
+        else:
+            if (fileChooser_fileFilterText is not None and fileChooser_selectFiles):
+                cmdExtension = "of type {\"%s\"} " %(fileChooser_fileFilterText)
+            cmdInvisibles = "invisibles %s " %(showInvisibles)
+            cmdMultipleSelections = "multiple selections allowed %s " %(multipleSelectionsAllowed)
+            cmdShowPackageContents = "showing package contents %s " %(showPackageContents)
+
+        if File(fileChooser_starting_dir).exists():
+            cmdDefaultPath = "default location (POSIX file \"%s\") " %(fileChooser_starting_dir)
+
+        cmdStr = ["%s" %(appleScript),
+                 "-e",
+                 "return POSIX path of (choose %s"
+                    "%s"
+                    "%s"
+                    "%s"
+                    "%s"
+                    "%s"
+                    "%s"
+                    "%s"
+                  ")"
+                  %(cmdChooseWhat, cmdTitle, cmdExtension, cmdNewName, cmdDefaultPath, cmdInvisibles, cmdMultipleSelections, cmdShowPackageContents),
+                ]
+
+        try:
+            myPrint("DB", "AppleScript Command: '%s'" %(cmdStr))
+
+            process = None
+            exec("process = Runtime.getRuntime().exec(cmdStr)")         # Use exec to avoid Intellij [invalid] code error
+            if isinstance(process, Process): pass
+            result = process.waitFor()
+            err = BufferedReader(InputStreamReader(process.getErrorStream())).readLine()
+            if err is not None and isinstance(err, basestring) and ("user cancelled" in err.lower() or "(-128)" in err):
+                myPrint("DB", "** AppleScript: USER CANCELLED FILE SELECTION ** ")
+                return None
+            if result != 0:
+                myPrint("B", "ERROR: AppleScript returned error:", result, err)
+                return None
+            _theFile = BufferedReader(InputStreamReader(process.getInputStream())).readLine()
+            myPrint("DB", "AppleScript - User selected file:", _theFile, "Exists:", File(_theFile).exists())
+            return _theFile
+
+        except:
+            myPrint("B", "ERROR: getFileFromAppleScriptFileChooser() has crashed?!")
+            dump_sys_error_to_md_console_and_errorlog()
+            return None
 
     def calculateMoneydanceDatasetSize(_lReturnMBs=False, whichBook=None):
         """Calculates and returns the size of the Moneydance dataset in bytes (or MBs when _lReturnMBs=True), and file count"""
@@ -20079,8 +20188,8 @@ now after saving the file, restart Moneydance
         myPrint(u"D", u"Exiting ", inspect.currentframe().f_code.co_name, u"()")
         return theMsg, displayMsg
 
-    def rename_relocate_dataset(lRelocateDataset=False):
-        # type: (bool) -> bool
+    def rename_relocate_dataset(lRelocateDataset=False, lRelocateToInternal=True):
+        # type: (bool, bool) -> bool
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -20113,10 +20222,36 @@ now after saving the file, restart Moneydance
 
         newName = currentName
 
-        newFileWillBeInternal = (lRelocateDataset or AccountBookUtil.isWithinInternalStorage(currentBook))
-
         if lRelocateDataset:
-            fNewNamePath = AccountBook.getUnusedFileNameWithBase(AccountBookUtil.DEFAULT_FOLDER_CONTAINER, StringUtils.stripExtension(fCurrentFilePath.getName()))
+
+            if lRelocateToInternal:
+                newLocation = AccountBookUtil.DEFAULT_FOLDER_CONTAINER
+
+            else:
+                selectedFolder = getFileFromFileChooser(toolbox_frame_,                     # Parent frame or None
+                                                        get_home_dir(),                     # Starting path
+                                                        None,                               # Default Filename
+                                                        "Select new location for dataset",  # Title
+                                                        False,                              # Multi-file selection mode
+                                                        True,                               # True for Open/Load, False for Save
+                                                        False,                              # True = Files, else Dirs
+                                                        "SELECT FOLDER",                    # Load/Save button text, None for defaults
+                                                        None,                               # File filter (non Mac only). Example: "txt" or "qif"
+                                                        lAllowTraversePackages=False,
+                                                        lAllowTraverseApplications=False,
+                                                        lForceJFC=False,
+                                                        lForceFD=False,
+                                                        lAllowNewFolderButton=True,
+                                                        lAllowOptionsButton=True)
+
+                if selectedFolder is None or selectedFolder == "" or not File(selectedFolder).exists():
+                    txt = "%s: User chose to cancel or no folder selected." %(_THIS_METHOD_NAME)
+                    setDisplayStatus(txt, "R")
+                    myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+                    return None
+                newLocation = File(selectedFolder)
+
+            fNewNamePath = AccountBook.getUnusedFileNameWithBase(newLocation, StringUtils.stripExtension(fCurrentFilePath.getName()))
             newName = fNewNamePath.getName()
             oldPathURI = Paths.get(fCurrentFilePath.toURI())
             newPathURI = Paths.get(fNewNamePath.toURI())
@@ -20216,7 +20351,7 @@ now after saving the file, restart Moneydance
 
             prefs = MD_REF.getUI().getPreferences()
 
-            if not newFileWillBeInternal:
+            if not AccountBookUtil.isWithinInternalStorage(newWrapper.getBook()):
                 externalFiles = prefs.getVectorSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, StreamVector())
                 if not externalFiles.contains(absPath):
                     myPrint("DB", "adding file '%s' to external account list (config.dict)" %(absPath))
@@ -23651,23 +23786,23 @@ Now you will have a text readable version of the file you can open in a text edi
         myPopupInformationBox(toolbox_frame_, "Select a non-encrypted file. It will be encrypted and saved to TMP directory of current dataset (details in console log)")
 
         LS = MD_REF.getCurrentAccountBook().getLocalStorage()
-        startingFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath())
+        # startingFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath())
 
         theTitle = "Select file to import (encrypt) and save in the LocalStorage TMP directory"
-        selectedFile = getFileFromFileChooser(  toolbox_frame_,     # Parent frame or None
-                                                startingFullPath,   # Starting path
-                                                None,               # Default Filename
-                                                theTitle,           # Title
-                                                False,              # Multi-file selection mode
-                                                True,               # True for Open/Load, False for Save
-                                                True,               # True = Files, else Dirs
-                                                None,               # Load/Save button text, None for defaults
-                                                "txt",              # File filter (non Mac only). Example: "txt" or "qif"
-                                                lAllowTraversePackages=True,
-                                                lForceJFC=False,
-                                                lForceFD=True,
-                                                lAllowNewFolderButton=True,
-                                                lAllowOptionsButton=True)
+        selectedFile = getFileFromFileChooser(toolbox_frame_,     # Parent frame or None
+                                              get_home_dir(),     # Starting path
+                                              None,               # Default Filename
+                                              theTitle,           # Title
+                                              False,              # Multi-file selection mode
+                                              True,               # True for Open/Load, False for Save
+                                              True,               # True = Files, else Dirs
+                                              None,               # Load/Save button text, None for defaults
+                                              "txt",              # File filter (non Mac only). Example: "txt" or "qif"
+                                              lAllowTraversePackages=True,
+                                              lForceJFC=False,
+                                              lForceFD=True,
+                                              lAllowNewFolderButton=True,
+                                              lAllowOptionsButton=True)
 
         if selectedFile is None or selectedFile == "":
             txt = "%s: No file selected to import/encrypt/save..!" %(_THIS_METHOD_NAME)
@@ -23711,22 +23846,23 @@ Now you will have a text readable version of the file you can open in a text edi
         # JFileChooser has a non native LaF on Mac, but worked... But then VAQua broke it....
         # MacOS: ~/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Documents is a system-location
         # User will have to manually navigate... Oh well!
+        # Update.... as of 2022/07/04 - Now using AppleScript to open this location! ;->
 
-        selectedFile = getFileFromFileChooser(  toolbox_frame_,         # Parent frame or None
-                                                _startingFolder,        # Starting path
-                                                None,                   # Default Filename
-                                                _dialogTitle,           # Title
-                                                False,                  # Multi-file selection mode
-                                                True,                   # True for Open/Load, False for Save
-                                                True,                   # True = Files, else Dirs
-                                                _proceedButtonText,     # Load/Save button text, None for defaults
-                                                None,                   # File filter (non Mac only). Example: "txt" or "qif"
-                                                lAllowTraversePackages=True,
-                                                lAllowTraverseApplications=True,
-                                                lForceJFC=False,
-                                                lForceFD=False,
-                                                lAllowNewFolderButton=False,
-                                                lAllowOptionsButton=False)
+        selectedFile = getFileFromAppleScriptFileChooser(toolbox_frame_,                    # Parent frame or None
+                                                         _startingFolder,                   # Starting path
+                                                         None,                              # Default Filename
+                                                         _dialogTitle,                      # Title
+                                                         False,                             # Multi-file selection mode
+                                                         True,                              # True for Open/Load, False for Save
+                                                         True,                              # True = Files, else Dirs
+                                                         _proceedButtonText,                # Load/Save button text, None for defaults
+                                                         None,                              # File filter (non Mac only). Example: "txt" or "qif"
+                                                         lAllowTraversePackages=True,
+                                                         lAllowTraverseApplications=True,
+                                                         lForceJFC=False,
+                                                         lForceFD=False,
+                                                         lAllowNewFolderButton=False,
+                                                         lAllowOptionsButton=False)
 
         if selectedFile is None or selectedFile == "":
             txt = "%s: User chose to cancel or no file selected." %(_methodTitle)
@@ -23752,9 +23888,9 @@ Now you will have a text readable version of the file you can open in a text edi
                                              "I will decrypt and save it to TMP directory in this current dataset (details in console log)")
 
         LS = MD_REF.getCurrentAccountBook().getLocalStorage()
-        attachmentFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
+        internalSafeFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
 
-        selectedFile = file_chooser_wrapper(_THIS_METHOD_NAME, attachmentFullPath, "Select Moneydance internal file to extract and copy to TMP directory", "EXTRACT")
+        selectedFile = file_chooser_wrapper(_THIS_METHOD_NAME, internalSafeFullPath, "Select Moneydance internal file to extract and copy to TMP directory", "EXTRACT")
         if selectedFile is None: return
 
         searchForSafe = selectedFile.lower().find(".moneydance"+os.path.sep+"safe"+os.path.sep)
@@ -25734,10 +25870,15 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_rename_dataset.setEnabled(GlobalVars.UPDATE_MODE)
                     user_rename_dataset.setForeground(getColorRed())
 
-                    user_relocate_dataset = JRadioButton("Relocate this dataset back to the default 'internal' location", False)
-                    user_relocate_dataset.setToolTipText("This will allow you to relocate this dataset back to the internal default location - THIS CHANGES DATA!")
-                    user_relocate_dataset.setEnabled(GlobalVars.UPDATE_MODE and not AccountBookUtil.isWithinInternalStorage(MD_REF.getCurrentAccountBook()))
-                    user_relocate_dataset.setForeground(getColorRed())
+                    user_relocate_dataset_internal = JRadioButton("Relocate this dataset back to the default 'internal' location", False)
+                    user_relocate_dataset_internal.setToolTipText("This will allow you to relocate this dataset back to the internal default location - THIS CHANGES DATA!")
+                    user_relocate_dataset_internal.setEnabled(GlobalVars.UPDATE_MODE and not AccountBookUtil.isWithinInternalStorage(MD_REF.getCurrentAccountBook()))
+                    user_relocate_dataset_internal.setForeground(getColorRed())
+
+                    user_relocate_dataset_external = JRadioButton("Relocate this dataset to another location [Note: IK do not recommend this]", False)
+                    user_relocate_dataset_external.setToolTipText("This will allow you to relocate this dataset to another (non-default) location - THIS CHANGES DATA!")
+                    user_relocate_dataset_external.setEnabled(GlobalVars.UPDATE_MODE and (not Platform.isOSX() or not MD_REF.getPlatformHelper().isConstrainedToSandbox()))
+                    user_relocate_dataset_external.setForeground(getColorRed())
 
                     user_cleanup_external_files = JRadioButton("Cleanup MD's File/Open list of 'external' files (does not touch actual files)", False)
                     user_cleanup_external_files.setToolTipText("Cleans up the list of files shown on the MD File/Open menu - THIS CHANGES CONFIG.DICT!")
@@ -25787,7 +25928,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_convert_timestamp)
                     bg.add(user_reset_window_display_settings)
                     bg.add(user_rename_dataset)
-                    bg.add(user_relocate_dataset)
+                    bg.add(user_relocate_dataset_internal)
+                    bg.add(user_relocate_dataset_external)
                     bg.add(user_cleanup_external_files)
                     bg.add(user_advanced_delete_int_ext_files)
                     bg.add(user_change_moneydance_fonts)
@@ -25815,7 +25957,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     userFilters.add(user_reset_window_display_settings)
                     userFilters.add(user_rename_dataset)
-                    userFilters.add(user_relocate_dataset)
+                    userFilters.add(user_relocate_dataset_internal)
+                    userFilters.add(user_relocate_dataset_external)
                     userFilters.add(user_cleanup_external_files)
                     userFilters.add(user_advanced_delete_int_ext_files)
                     userFilters.add(user_change_moneydance_fonts)
@@ -25830,7 +25973,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,575)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,600)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "General Diagnostics, Tools, Fixes",
@@ -25856,7 +25999,8 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_import_QIF.isSelected():                            import_QIF()
                         if user_convert_timestamp.isSelected():                     convert_timestamp_readable_date()
                         if user_rename_dataset.isSelected():                        rename_relocate_dataset(lRelocateDataset=False)
-                        if user_relocate_dataset.isSelected():                      rename_relocate_dataset(lRelocateDataset=True)
+                        if user_relocate_dataset_internal.isSelected():             rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=True)
+                        if user_relocate_dataset_external.isSelected():             rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=False)
                         if user_cleanup_external_files.isSelected():                cleanup_external_files_setting()
                         if user_advanced_delete_int_ext_files.isSelected():         advanced_remove_int_external_files_settings()
                         if user_change_moneydance_fonts.isSelected():               change_fonts()

@@ -186,6 +186,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
                 isExpanded, isMaximised settings (this does not reset Filters or Initial views)
         - FIX - Rename this dataset Rename this dataset (within the same location)
         - FIX - Relocate this dataset back to the default 'internal' location
+        - FIX - Relocate this dataset to another location [Note: IK do not recommend this]
         - FIX - Cleanup MD's File/Open list of 'external' files (does not touch actual files)
         - DELETE Files from Menu>File>Open list and also from DISK (Removes files from 'Internal' and 'External' locations).
             >> External locations > Edits config.dict to remove references to external files for File/open - AND ALLOWS YOU TO DELETE THE FILES TOO
