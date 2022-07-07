@@ -82,9 +82,9 @@ class QuickDiag(Runnable):
             msg += (u"MD Locale Cty/Lang:             '%s' / '%s'\n" %(MDLoc.getCountry(), MDLoc.getLanguage()))
             msg += (u"Moneydance decimal point:       '%s'\n" %(self.mdRef.getPreferences().getSetting(u"decimal_character", u".")))
 
-            defaultTZ = TimeZone.getDefault()
-            msg += (u"Default TimeZone (UTC offset)   '%s(%s) %s'\n" %(defaultTZ.getDisplayName(), defaultTZ.getRawOffset(), "** SummerTime+1" if defaultTZ.inDaylightTime(Date()) else ""))
-            msg += (u"MD TimeZone                     '%s'\n" %(defaultTZ.getDisplayName(MDLoc)))
+            # defaultTZ = TimeZone.getDefault()
+            # msg += (u"Default TimeZone (UTC offset)   '%s(%s) %s'\n" %(defaultTZ.getDisplayName(), defaultTZ.getRawOffset(), "** SummerTime+1" if defaultTZ.inDaylightTime(Date()) else ""))
+            # msg += (u"MD TimeZone                     '%s'\n" %(defaultTZ.getDisplayName(MDLoc)))
             msg += u"-----\n"
 
             msg += (u"MD EXECUTION MODE:               %s (%s)\n" %(self.mdRef.getExecutionMode(), (u"AppletMode" if (self.mdRef.getExecutionMode() == self.mdRef.EXEC_MODE_APPLET) else u"Normal")))

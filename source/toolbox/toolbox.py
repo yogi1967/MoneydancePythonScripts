@@ -108,6 +108,8 @@
 # build: 1052 - Tweaked init so that JVM stats captured from new thread after 10 seconds (to allow JVM memory to settle)...
 # build: 1052 - Added 'Relocate this dataset to another location' option
 # build: 1052 - Added AppleScript File Open selector (for when needed - e.g. trying to open 'special locations' or .moneydance bundle file)
+# build: 1052 - Enhanced 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' to self-repair where 'sec' split missing (creates dummy fake security)
+# build: 1052 - Added 'FIX: Detect and merge/fix duplicate Securities within same Investment Account(s)'
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -8952,7 +8954,7 @@ Visit: %s (Author's site)
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB, lAlertLevel=2, lWrapText=False, lAutoSize=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -17846,7 +17848,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -18038,7 +18040,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -18111,7 +18113,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -18119,6 +18121,177 @@ now after saving the file, restart Moneydance
         setDisplayStatus(txt, optionColor)
         play_the_money_sound()
         myPopupInformationBox(jif,txt,theMessageType=optionMessage)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+        return
+
+    def fix_duplicate_securities_within_same_investment_account():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        _THIS_METHOD_NAME = "Repair duplicate Securities:".upper()
+
+        selectHomeScreen()      # Stops the LOT Control box popping up.....
+
+        PARAMETER_KEY = "toolbox_duplicate_security_fix"
+
+        book = MD_REF.getCurrentAccount().getBook()
+        allAccounts = AccountUtil.allMatchesForSearch(book, AcctFilter.ALL_ACCOUNTS_FILTER)
+
+        if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            txt = "%s: ERROR - Cross-linked (or Orphaned) security txns detected.. Review Console. Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' >> no changes made" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        class CaptureIllogicalAccount:
+            def __init__(self, investmentAccount):
+                self.investmentAccount = investmentAccount
+                self.illogicalSecurities = {}
+
+        output = "%s\n" \
+                 " --------------------------------------\n\n" %(_THIS_METHOD_NAME)
+
+        allInvestmentAccounts = []
+        for acct in allAccounts:
+            # noinspection PyUnresolvedReferences
+            if acct.getAccountType() == Account.AccountType.INVESTMENT:
+                allInvestmentAccounts.append(acct)
+
+        allSecurityAccounts = []
+        for acct in allAccounts:
+            # noinspection PyUnresolvedReferences
+            if acct.getAccountType() == Account.AccountType.SECURITY:
+                allSecurityAccounts.append(acct)
+
+        illogicalInvestmentAccounts = []
+
+        for acct in allInvestmentAccounts:
+            output += ("\nAnalysing Investment Account: %s\n" %(acct))
+            captureIllogicalAccount = CaptureIllogicalAccount(acct)
+            storeSecurityAcctsByCurrency = {}
+            subAccts = acct.getSubAccounts()
+            for subAcct in subAccts:
+                # noinspection PyUnresolvedReferences
+                if subAcct.getAccountType() != Account.AccountType.SECURITY:
+                    raise Exception("ERROR: Found non Security sub account:", subAcct.getFullAccountName())
+                secCurr = subAcct.getCurrencyType()
+                storeSecurityAcctsByCurrency[secCurr] = storeSecurityAcctsByCurrency.get(secCurr, 0) + 1
+
+            lFoundIllogical = False
+            for secCurr in storeSecurityAcctsByCurrency:
+                appearances = storeSecurityAcctsByCurrency[secCurr]
+                flag = (" "*5) if (appearances <= 1) else ("*"*5)
+                output += ("... %s Security '%s' appears: %s times...\n" %(flag, secCurr, appearances))
+
+                if appearances > 1:
+                    lFoundIllogical = True
+                    captureIllogicalAccount.illogicalSecurities[secCurr] = []
+                    subAccts = acct.getSubAccounts()
+                    for subAcct in subAccts:
+                        if subAcct.getCurrencyType() == secCurr:
+                            captureIllogicalAccount.illogicalSecurities[secCurr].append(subAcct)
+
+            if lFoundIllogical: illogicalInvestmentAccounts.append(captureIllogicalAccount)
+
+        output += ("\n")
+
+        if len(illogicalInvestmentAccounts) < 1:
+            txt = "CONGRATULATIONS - No duplicated Securities within Investment Account(s) found"
+            output += ("%s\n" %(txt))
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            jif = QuickJFrame(_THIS_METHOD_NAME, output).show_the_frame()
+            myPopupInformationBox(jif, txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            return
+
+        lCostBasisFlagWarning = False
+
+        output += ("@@@ ERROR - found %s duplicated securities with investment account(s)...!\n\n" %(len(illogicalInvestmentAccounts)))
+        for captureIllogicalAccount in illogicalInvestmentAccounts:
+            output += ("\nInvestment Account: %s\n" %(captureIllogicalAccount.investmentAccount))
+            for secCurr in captureIllogicalAccount.illogicalSecurities:
+                output += ("... Security: %s\n" %(secCurr))
+
+                lUsesAverageCost = None
+                lUsesAverageCostDifferent = False
+                for subAcct in captureIllogicalAccount.illogicalSecurities[secCurr]:
+                    if lUsesAverageCost is None: lUsesAverageCost = subAcct.getUsesAverageCost()
+                    if lUsesAverageCost != subAcct.getUsesAverageCost():
+                        lUsesAverageCostDifferent = True
+                        lCostBasisFlagWarning = True
+
+                    txns = MD_REF.getCurrentAccount().getBook().getTransactionSet().getTransactionsForAccount(subAcct)
+                    output += ("...... Sub security account (%s): %s Txn count: %s %s\n" %(subAcct.getUUID(), subAcct.getAccountName(), txns.getSize(),
+                                                                                           "" if not lUsesAverageCostDifferent else "(WARNING: Cost Basis Flags different (Avg Cst vs Lot Control)"))
+
+        txt = ("@@@@ FIX REQUIRED!!! @@@@")
+        output += ("\n\n%s\n\n" %(txt))
+
+        jif = QuickJFrame(txt, output, lJumpToEnd=True, lWrapText=False).show_the_frame()
+        myPopupInformationBox(jif, "WARNING: %s duplicated securities found within investment account(s)!" %(len(illogicalInvestmentAccounts)),
+                              theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+
+        if not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME.upper(),
+                                                 "EXECUTE FIX/MERGE OF %s DUPLICATED SECURITIES WITHIN INVESTMENT ACCOUNT(s)?" %(len(illogicalInvestmentAccounts))):
+            return
+
+        jif.dispose()
+
+        output += "\nPROCEEDING TO FIX\n\n"
+
+        accountsToDelete = []
+
+        for captureIllogicalAccount in illogicalInvestmentAccounts:
+            output += ("\nFIXING Investment Account: %s\n" %(captureIllogicalAccount.investmentAccount))
+            for secCurr in captureIllogicalAccount.illogicalSecurities:
+                output += ("... Security: %s\n" %(secCurr))
+
+                acctToKeep = captureIllogicalAccount.illogicalSecurities[secCurr][0]
+                for subAcct in list(captureIllogicalAccount.illogicalSecurities[secCurr]):
+                    txns = MD_REF.getCurrentAccount().getBook().getTransactionSet().getTransactionsForAccount(subAcct)
+                    if subAcct == acctToKeep:
+                        output += ("...... Keeping sub security account (%s) as the primary for: %s (with: %s txns) Cost Basis: '%s'\n" %(subAcct.getUUID(), subAcct.getAccountName(), txns.getSize(),
+                                                                                                                                          "Average Cost" if (subAcct.getUsesAverageCost()) else "LOT Control"))
+                        continue
+                    output += ("...... FIXING Sub security account (%s): %s - changing %s transactions (note: this security/subacct used Cost Basis: '%s')\n" %(subAcct.getUUID(), subAcct.getAccountName(), txns.getSize(),
+                                                                                                                                                                "Average Cost" if (subAcct.getUsesAverageCost()) else "LOT Control"))
+                    for txn in txns:
+                        pTxn = txn.getParentTxn()
+                        pTxn.setEditingMode()
+                        txn.setAccount(acctToKeep)
+                        txn.setParameter(PARAMETER_KEY, True)
+                        pTxn.syncItem()
+                    accountsToDelete.append(subAcct)
+
+                    InvestUtil.getCostBasis(subAcct)
+                    if not InvestUtil.isCostBasisValid(subAcct):
+                        output += ("......... Cost Basis reports as 'invalid' please manually review\n")
+
+        output += "\n"
+        for subAcct in accountsToDelete:
+            txns = MD_REF.getCurrentAccount().getBook().getTransactionSet().getTransactionsForAccount(subAcct)
+            if txns.getSize() != 0:
+                txt = "ERROR: Something's gone wrong! Resulting txn count should be ZERO! Acct: %s (CONSIDER RESTORE!)" %(subAcct)
+                output += "%s\n" %(txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                jif = QuickJFrame(_THIS_METHOD_NAME, output).show_the_frame()
+                myPopupInformationBox(jif, txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
+            output += "......... will delete old (empty) sub security account: %s\n" %(subAcct)
+
+        if lCostBasisFlagWarning:
+            output += ("\n\nWARNING - you had Cost Basis (Average Cost Basis vs LOT Control) flag differences. Please review these settings (and update your LOT matching if appropriate)\n\n")
+
+        MD_REF.getCurrentAccount().getBook().logRemovedItems(accountsToDelete)
+        MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        txt = "SUCCESS / FINISHED - Please review your investment portfolios"
+        output += "\n%s\n" %(txt)
+        setDisplayStatus(txt, "B"); myPrint("B", txt)
+        play_the_money_sound()
+        jif = QuickJFrame(_THIS_METHOD_NAME, output, lJumpToEnd=True, lWrapText=False).show_the_frame()
+        myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
@@ -18896,7 +19069,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -19144,7 +19317,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -19215,7 +19388,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -19248,10 +19421,15 @@ now after saving the file, restart Moneydance
 
         PARAMETER_KEY = "toolbox_fix_non_hier_sec_acct_txns"
 
+        book = MD_REF.getCurrentAccountBook()
+        base = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
+
         # fix_non-hierarchical_security_account_txns.py
         # (replaces fix_investment_txns_to_wrong_security.py)
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if autofix: myPrint("B", "AUTOFIX running... There will be no prompts and all fixes will be applied silently....")
 
         myPrint("B", "Diagnosing Investment Transactions where Security's Account is not linked properly to the Parent Txn's Acct")
         myPrint("P", "-----------------------------------------------------------------------------------------------------------")
@@ -19267,6 +19445,8 @@ now after saving the file, restart Moneydance
             iOrphans = 0
             txt = "Scanning for Security Orphans...:"
             output += "\n%s\n" %(txt); myPrint("B",txt)
+
+            saveInvestmentAccountsNeedingDummy = {}
             for _txn in txns:
                 if not isinstance(_txn, ParentTxn): continue   # only work with parent transactions
                 _acct = _txn.getAccount()
@@ -19278,32 +19458,102 @@ now after saving the file, restart Moneydance
                     txt = "ERROR: Txn for 'Orphaned' Security %s found within Investment Account %s! (old QIF import or you have force removed a Security with linked TXNs?\n" \
                           "txn:\n%s\n" %(fields.security, _acct, _txn.getSyncInfo().toMultilineHumanReadableString())
                     output += "\n%s\n" %(txt); myPrint("B",txt)
+                    saveInvestmentAccountsNeedingDummy[_acct] = True
 
             if iOrphans:
-                txt = "ERROR: %s investment txn(s) with 'Orphaned'securities detected (probably an old QIF import or User has force removed a Security from this Investment Account)" %(iOrphans)
-                output += "\n%s\n" %(txt); myPrint("B",txt)
-                output += "\n<ABORTED>"
+                txt = "ERROR: %s investment txn(s) with 'Orphaned' securities detected (probably an old QIF import or User has force removed a Security from this Investment Account)" %(iOrphans)
                 if not autofix:
-                    setDisplayStatus(txt, "R")
-                    jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
-                    MyPopUpDialogBox(jif,
+                    MyPopUpDialogBox(toolbox_frame_,
                                      txt,
                                      "It's highly likely that you have: either a) old QIF Import data (that was improperly imported)... or\n"
                                      "b) you have clicked 'Actions' > 'Remove Security' from an Investment Account..\n"
                                      ".. and that this Security had linked Transactions... You would have been warned and asked to respond 'yes'\n"
                                      ".. this will have deleted Buy/Sell TXNs and partially removed the Security from other TXNs like buy/Sell/Xfr etc\n"
-                                     "- These are 'illogical' and 'damaged' records.... The security data is lost and not recoverable. Toolbox CANNOT REPAIR!\n"
-                                     ">> You will need to restore, or manually edit and repair the TXNs with your own knowledge of what security was lost...",
+                                     "- These are 'illogical' and 'damaged' records.... The proper 'security' linkage is irrecoverable.\n"
+                                     "... Toolbox can 'repair' these txns by assigning a 'dummy' security which you can edit/change later.\n"
+                                     "**OR** You can restore, or manually edit and repair the TXNs with your own knowledge of what security was lost...",
                                      theTitle=_THIS_METHOD_NAME,
                                      OKButtonText="ACKNOWLEDGED",
                                      lAlertLevel=1).go()
-                return
 
             else:
-                txt = ">> No investment txn(s) with Orphaned securities were detected - phew!"
+                txt = ">> No investment txn(s) with Orphaned securities were detected!"
                 output += "\n%s\n" %(txt); myPrint("B",txt)
 
             output += "\n\n"
+
+            lFixedOrphans = False
+            ############################################################################################################
+            if iOrphans:
+
+                if autofix:
+                    txt = "AUTOFIX will proceed and fix 'Orphaned' securities..."
+                    output += "\n%s\n" %(txt); myPrint("B",txt)
+                else:
+                    txt = "ERROR: %s investment txn(s) with 'Orphaned' securities detected (probably an old QIF import or User has force removed a Security from this Investment Account)" %(iOrphans)
+                    output += "\n%s\n" %(txt); myPrint("B",txt)
+                    jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+                    if not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME, "FIX %s orphaned security txns (using a dummy security)?" %(iOrphans)):
+                        return
+
+                    jif.dispose()
+                    txt = "User accepted disclaimer to FIX orphaned security txns. Proceeding....."
+                    output += "\n%s\n" %(txt); myPrint("B",txt)
+
+                newSecurity = CurrencyType(book.getCurrencies())  # Creates a new CT object
+                newSecurity.setEditingMode()
+                newSecurity.setRelativeCurrency(base)
+                newSecurity.setCurrencyType(CurrencyType.Type.SECURITY)                                                 # noqa
+                newSecurity.setName("TOOLBOX: %s" %(_THIS_METHOD_NAME))
+                newSecurity.setIDString("^TOOLBOX")
+                newSecurity.setTickerSymbol("^TOOLBOX")
+                newSecurity.setDecimalPlaces(4)
+                newSecurity.setRelativeRate(1.0)
+                newSecurity.syncItem()
+                output += "\n\nCreated dummy Security: %s (%s)\n" %(newSecurity, newSecurity.getUUID())
+
+                dummySecurityAccounts = {}
+
+                for _txn in txns:
+                    if not isinstance(_txn, ParentTxn): continue   # only work with parent transactions
+                    _acct = _txn.getAccount()
+                    if _acct.getAccountType() != Account.AccountType.INVESTMENT: continue                               # noqa
+                    fields.setFieldStatus(_txn)
+
+                    if fields.hasSecurity and fields.security is None:
+
+                        if saveInvestmentAccountsNeedingDummy.pop(_acct, False):
+
+                            # need to create the Security sub-account in this Investment Account....
+                            newSecurityAcct = Account.makeAccount(book, Account.AccountType.SECURITY, _acct)            # noqa
+                            newSecurityAcct.setEditingMode()
+                            newSecurityAcct.getUUID()
+                            newSecurityAcct.setAccountName("TOOLBOX DUMMY")
+                            newSecurityAcct.setCurrencyType(newSecurity)
+                            newSecurityAcct.setStartBalance(0)
+                            newSecurityAcct.setUsesAverageCost(True)
+                            newSecurityAcct.setComment("Dummy created by Toolbox: %s" %(_THIS_METHOD_NAME))
+                            newSecurityAcct.setParameter(PARAMETER_KEY, True)
+                            newSecurityAcct.syncItem()
+                            output += "\nCreated dummy Security Sub Account: %s (%s) linked to new dummy security\n" %(newSecurityAcct, newSecurityAcct.getUUID())
+                            dummySecurityAccounts[_acct] = newSecurityAcct
+
+                        fields.security = dummySecurityAccounts[_acct]
+                        fields.storeFields(_txn)
+                        _txn.syncItem()
+
+                        txt = "FIXED: Txn for 'Orphaned' Security - Investment Account %s: '%s'\n" %(_acct, _txn)
+                        output += "\n%s\n" %(txt)
+
+                output += "\nFinished fixing 'orphans'....\n" \
+                          " -----------------------------\n\n"
+                lFixedOrphans = True
+
+                # Create a new list of txns
+                txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
+                txns = list(txnSet.iterableTxns())      # copy into list() to prevent concurrent modification when modifying.....
+
+            ############################################################################################################
 
             def review_security_accounts(_txns, FIX_MODE=False):
 
@@ -19395,38 +19645,53 @@ now after saving the file, restart Moneydance
                 del _txns
                 return text, count_the_errors, count_unfixable_yet, errors_fixed
 
+
+            output += "\nScanning txns for non-hierarchical accounts:\n" \
+                        " -------------------------------------------\n\n"
+
             x, iCountErrors, iCountUnfixable, iErrorsFixed = review_security_accounts(txns, FIX_MODE=False)
             output += x
 
-            output += "\n\nYou have %s errors, with %s needing manual fixes first... I have fixed %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
+            output += "\n\nYou have %s non-hierarchical txn errors...\n\n" %(iCountErrors)
 
             if iCountErrors < 1:
-                txt = "%s: CONGRATULATIONS - I found no Invalid txns......." %(_THIS_METHOD_NAME)
-                myPrint("B", txt)
+                if lFixedOrphans:
+                    txt = "%s: I found no additional non-hierarchical / invalid txns....... UPDATES COMPLETED" %(_THIS_METHOD_NAME)
+                    output += "\n%s\n" %(txt); myPrint("B",txt)
+                    if not autofix:
+                        MD_REF.saveCurrentAccount()
+                        setDisplayStatus(txt, "B")
+                        play_the_money_sound()
+                        jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+                        myPopupInformationBox(jif, txt)
+                    return
+                txt = "%s: CONGRATULATIONS - I found no non-hierarchical / invalid txns......." %(_THIS_METHOD_NAME)
+                output += "\n%s\n" %(txt); myPrint("B",txt)
                 if not autofix:
                     setDisplayStatus(txt, "B")
                     myPopupInformationBox(toolbox_frame_,txt)
                 return
 
-            myPrint("B","%s: found %s errors... with %s needing manual fixes" %(_THIS_METHOD_NAME, iCountErrors, iCountUnfixable))
+            myPrint("B","%s: found %s non-hierarchical txn errors..." %(_THIS_METHOD_NAME, iCountErrors))
 
             jif = None
             if not autofix:
-                jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output, lAlertLevel=1, lWrapText=False, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
 
-            if iCountUnfixable>0:
-                txt = "%s: You have %s errors to manually first first!" %(_THIS_METHOD_NAME, iCountUnfixable)
-                myPrint("B", txt)
-                if not autofix:
-                    setDisplayStatus(txt, "R")
-                    myPopupInformationBox(jif,"You have %s errors to manually first first!" %(iCountUnfixable), _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
-                return
+            # if iCountUnfixable>0:
+            #     txt = "%s: You have %s errors to manually first first!" %(_THIS_METHOD_NAME, iCountUnfixable)
+            #     myPrint("B", txt)
+            #     if not autofix:
+            #         setDisplayStatus(txt, "R")
+            #         myPopupInformationBox(jif,"You have %s errors to manually first first!" %(iCountUnfixable), _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
+            #     return
 
             if not autofix:
-                if not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME,"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
+                if not lFixedOrphans \
+                        and not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME,"FIX %s Security Txns with Invalid Parent Accts?" %(iCountErrors)):
                     return
 
-                jif.dispose()       # already within the EDT
+                jif.dispose()
                 myPrint("B", "User accepted disclaimer to FIX Investment Security Txns with Invalid Parent Accounts. Proceeding.....")
 
             output += "\n\nRUNNING FIX ON SECURITY TXNS TO RE-LINK PARENT ACCOUNTS\n" \
@@ -19444,25 +19709,27 @@ now after saving the file, restart Moneydance
             MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
             output += x
-            output += "\n\nYou had %s errors, with %s needing manual fixes first... I HAVE FIXED %s\n\n" %(iCountErrors, iCountUnfixable, iErrorsFixed)
+            output += "\n\nYou had %s non-hierarchical txn errors... FIXED %s\n\n" %(iCountErrors, iErrorsFixed)
             output += "\n<END>"
 
-            txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts" %(iErrorsFixed)
+            txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts (non-hierarchical txn errors)" %(iErrorsFixed)
             myPrint("B", txt)
 
             if not autofix:
                 play_the_money_sound()
-                setDisplayStatus(txt, "DG")
-                jif = QuickJFrame(_THIS_METHOD_NAME, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                setDisplayStatus(txt, "B")
+                jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, lWrapText=False, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            else:
+                myPrint("B", "AUTOFIX ENDING....")
 
         except:
             output += dump_sys_error_to_md_console_and_errorlog(True)
             txt = "%s: ERROR - Script has crashed. Review screen and console!" %(_THIS_METHOD_NAME)
             output += txt + "\n"
             setDisplayStatus(txt, "R"); myPrint("B", txt)
-            jif = QuickJFrame(_THIS_METHOD_NAME, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
-            myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=2, lWrapText=False, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            myPopupInformationBox(jif, txt, _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -22602,7 +22869,7 @@ Now you will have a text readable version of the file you can open in a text edi
             txt = "Clone function has failed. Review log and console (CLONE INCOMPLETE)"
             output += "%s\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
-            jif = QuickJFrame(title=_THIS_METHOD_NAME,output=output,copyToClipboard=True,lWrapText=False).show_the_frame()
+            jif = QuickJFrame(title=_THIS_METHOD_NAME, output=output, lAlertLevel=2, copyToClipboard=True, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,theMessage=txt, theTitle="ERROR",theMessageType=JOptionPane.ERROR_MESSAGE)
             return
         finally:
@@ -25476,6 +25743,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
                     user_merge_duplicate_securities.setForeground(getColorRed())
 
+                    user_fix_duplicate_securities_within_same_investment_account = JRadioButton("FIX: Detect and merge/fix duplicate Securities within same Investment Account(s)", False)
+                    user_fix_duplicate_securities_within_same_investment_account.setToolTipText("Scans and merges 'duplicated' Securities within the same Investment account(s).. THIS CHANGES DATA!")
+                    user_fix_duplicate_securities_within_same_investment_account.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_fix_duplicate_securities_within_same_investment_account.setForeground(getColorRed())
+
                     user_autofix_price_date = JRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)", False)
                     user_autofix_price_date.setToolTipText("This will diagnose then fix your Currency & Security's current price hidden price_date field (and current price/rate)....")
                     user_autofix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
@@ -25539,6 +25811,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_diag_price_date)
                     bg.add(user_edit_security_decimal_places)
                     bg.add(user_merge_duplicate_securities)
+                    bg.add(user_fix_duplicate_securities_within_same_investment_account)
                     bg.add(user_autofix_price_date)
                     bg.add(user_fix_price_date)
                     bg.add(user_fix_curr_sec)
@@ -25575,6 +25848,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         userFilters.add(user_autofix_price_date)
                         userFilters.add(user_fix_price_date)
 
+                    userFilters.add(user_fix_duplicate_securities_within_same_investment_account)
                     userFilters.add(user_fix_invalidLotRecords)
                     userFilters.add(user_convert_stock_lot_FIFO)
                     userFilters.add(user_convert_stock_avg_cst_control)
@@ -25630,14 +25904,14 @@ Now you will have a text readable version of the file you can open in a text edi
                             user_fix_invalid_price_history.setEnabled(False)
 
                             # Just disable if errors on Security records....
-                            if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                             # noqa
+                            if not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):                         # noqa
                                 user_edit_security_decimal_places.setEnabled(False)
                                 user_merge_duplicate_securities.setEnabled(False)
 
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,1000,600)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,1100,625)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Currency / Security Diagnostics, Tools, Fixes",
@@ -25652,27 +25926,28 @@ Now you will have a text readable version of the file you can open in a text edi
 
                         selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_can_i_delete_security.isSelected():                         can_I_delete_security()
-                        if user_can_i_delete_currency.isSelected():                         can_I_delete_currency()
-                        if user_list_curr_sec_dpc.isSelected():                             list_security_currency_decimal_places()
-                        if user_diag_price_date.isSelected():                               list_security_currency_price_date()
-                        if user_autofix_price_date.isSelected():                            list_security_currency_price_date(autofix=True)
-                        if user_diag_curr_sec.isSelected():                                 diagnose_currencies(False)
-                        if user_fix_curr_sec.isSelected():                                  diagnose_currencies(True)
-                        if user_fix_invalid_curr_sec.isSelected():                          fix_invalid_relative_currency_rates()
-                        if user_edit_security_decimal_places.isSelected():                  edit_security_decimal_places()
-                        if user_merge_duplicate_securities.isSelected():                    merge_duplicate_securities()
-                        if user_fix_invalid_price_history.isSelected():                     fix_invalid_price_history()
-                        if user_fix_nonlinked_security_records.isSelected():                detect_fix_nonlinked_investment_security_records()
-                        if user_thin_price_history.isSelected():                            thin_price_history()
-                        if user_show_open_share_lots.isSelected():                          show_open_share_lots()
-                        if user_fix_invalidLotRecords.isSelected():                         fix_invalidLotRecords()
-                        if user_convert_stock_lot_FIFO.isSelected():                        convert_stock_lot_FIFO()
-                        if user_convert_stock_avg_cst_control.isSelected():                 convert_stock_avg_cst_control()
-                        if user_force_change_accounts_currency.isSelected():                force_change_account_cat_currency()
-                        if user_force_change_all_accounts_cats_currency.isSelected():       force_change_all_accounts_categories_currencies()
-                        if user_force_change_accounts_cats_from_to_currency.isSelected():   force_change_accounts_cats_from_to_currency()
-                        if user_fix_price_date.isSelected():                                manually_edit_price_date_field()
+                        if user_can_i_delete_security.isSelected():                                     can_I_delete_security()
+                        if user_can_i_delete_currency.isSelected():                                     can_I_delete_currency()
+                        if user_list_curr_sec_dpc.isSelected():                                         list_security_currency_decimal_places()
+                        if user_diag_price_date.isSelected():                                           list_security_currency_price_date()
+                        if user_autofix_price_date.isSelected():                                        list_security_currency_price_date(autofix=True)
+                        if user_diag_curr_sec.isSelected():                                             diagnose_currencies(False)
+                        if user_fix_curr_sec.isSelected():                                              diagnose_currencies(True)
+                        if user_fix_invalid_curr_sec.isSelected():                                      fix_invalid_relative_currency_rates()
+                        if user_edit_security_decimal_places.isSelected():                              edit_security_decimal_places()
+                        if user_merge_duplicate_securities.isSelected():                                merge_duplicate_securities()
+                        if user_fix_duplicate_securities_within_same_investment_account.isSelected():   fix_duplicate_securities_within_same_investment_account()
+                        if user_fix_invalid_price_history.isSelected():                                 fix_invalid_price_history()
+                        if user_fix_nonlinked_security_records.isSelected():                            detect_fix_nonlinked_investment_security_records()
+                        if user_thin_price_history.isSelected():                                        thin_price_history()
+                        if user_show_open_share_lots.isSelected():                                      show_open_share_lots()
+                        if user_fix_invalidLotRecords.isSelected():                                     fix_invalidLotRecords()
+                        if user_convert_stock_lot_FIFO.isSelected():                                    convert_stock_lot_FIFO()
+                        if user_convert_stock_avg_cst_control.isSelected():                             convert_stock_avg_cst_control()
+                        if user_force_change_accounts_currency.isSelected():                            force_change_account_cat_currency()
+                        if user_force_change_all_accounts_cats_currency.isSelected():                   force_change_all_accounts_categories_currencies()
+                        if user_force_change_accounts_cats_from_to_currency.isSelected():               force_change_accounts_cats_from_to_currency()
+                        if user_fix_price_date.isSelected():                                            manually_edit_price_date_field()
 
                         for button in bg.getElements():
                             if button.isSelected(): return      # Quit the menu system after running something....

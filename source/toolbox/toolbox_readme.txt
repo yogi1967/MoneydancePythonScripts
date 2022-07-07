@@ -231,6 +231,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
         - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).  >> 2021.2 onwards
         - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).        >> 2021.2 onwards
+        - FIX - Detect and merge/fix duplicate Securities within same Investment Account(s)
         - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price whilst fixing too..   >> 2021.2 onwards
         - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
         - FIX - Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid
