@@ -98,7 +98,7 @@
 # build: 1052 - Updated toolbox_total_selected_transactions.py script; Added Detect/Fix Txns assigned to Root...
 # build: 1052 - Enhanced fix_non_hier_sec_acct_txns() with autofix and tweak for concurrent modification of txn list error
 # build: 1052 - Change lAutoPruneInternalBackups_TB default to True
-# build: 1052 - Redact these and also added to remove list: 'netsync.db.access_token_key', 'netsync.db.access_token_secret', 'netsync.db.v2token'
+# build: 1052 - Redact these keys and also added to remove list: 'netsync.db.access_token_key', 'netsync.db.access_token_secret', 'netsync.db.v2token'
 # build: 1052 - Also detect/display/zap 'netsync.download_attachments'; Added 'Toggle Sync Downloading of Attachments' feature
 # build: 1052 - Turned off linewrap on main diagnostic display... WATCHOUT FOR SLUGGISH DIAGNOSTICS SCREEN with long lines and wordwrap off! (Probably Mac only)
 # build: 1052 - Fixed get_sync_folder() when Dropbox Connection (cloud service has no local folder on disk)
@@ -110,6 +110,8 @@
 # build: 1052 - Added AppleScript File Open selector (for when needed - e.g. trying to open 'special locations' or .moneydance bundle file)
 # build: 1052 - Enhanced 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' to self-repair where 'sec' split missing (creates dummy fake security)
 # build: 1052 - Added 'FIX: Detect and merge/fix duplicate Securities within same Investment Account(s)'
+# build: 1052 - Added check for no currencies at launch... Odd, but has happened!
+# build: 1052 - Enhanced Shrink Dataset... Allow 0 days, always delete out/txn-tmp...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -23663,6 +23665,8 @@ Now you will have a text readable version of the file you can open in a text edi
 
         if not perform_qer_quote_loader_check(toolbox_frame_, _THIS_METHOD_NAME): return
 
+        MD_REF.saveCurrentAccount()
+
         safeFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe")
 
         fp = os.path.join(safeFullPath, PROCESSED_FILES)
@@ -23743,8 +23747,8 @@ Now you will have a text readable version of the file you can open in a text edi
                          "%sThis function attempts to shrink your dataset size (currently %sMBs, %s files)." %(("SIMULATION MODE: " if SIMULATE else ""),fileSize, fileCount),
                          "It does NOT change your actual database of records (known as 'trunk')\n"
                          "MD keeps log files for every change you (have ever) made. Typically these are .txn and .mdtxn files\n"
-                         "Whilst in theory they could be used to rebuild your database from an older start point, this has never been done to my knowledge.\n"
-                         "These files accumulate over time, and can be safely deleted. Toolbox can do this for you. It will purge log files older than %s days\n"
+                         "Whilst in theory they could be used to rebuild your database from an older start point, this has rarely been done [to my knowledge].\n"
+                         "These files accumulate over time, and can be safely deleted. Toolbox can purge log files older than [%s] days (you set this value)\n"
                          "It validates against the log of known processed dates, and also peeks inside archived zip files that MD creates\n"
                          "NOTE: You will need to repeat this process on other Sync copies too...\n"
                          "PRIOR TO RUNNING THIS, IDEALLY RESTART MD, & ENSURE THAT QUOTE LOADER/Q&ER EXTNS, IMPORTS & BANK DOWNLOADS ARE **NOT** RUNNING\n"
@@ -23760,7 +23764,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                         "If you really are NOT using Sync, I can purge the 'out' directory too?\n"
                                         "Only Click 'PURGE-OUT' if you are NOT using Sync on this dataset.\n"
                                         "(i.e. if you have temporarily disabled Sync, click Cancel)\n"
-                                        "If you click 'PURGE-OUT', you can still enable a NEW Sync relationship at a later date....\n"
+                                        "If you 'PURGE-OUT', you can (re)create a NEW Sync relationship later (if needed)....\n"
                                         "(clicking 'Cancel' means Do NOT purge 'out' directory...)",
                                         theTitle=_THIS_METHOD_NAME, lCancelButton=True, OKButtonText="PURGE-OUT")
             if theMsg.go():
@@ -23776,13 +23780,13 @@ Now you will have a text readable version of the file you can open in a text edi
             newDaysToKeep = myPopupAskForInput(toolbox_frame_,
                                             _THIS_METHOD_NAME,
                                             "Days to Keep:",
-                                            "Enter the new Days to Keep setting (currently %s) - min 1" %(DAYS_TO_KEEP),
+                                            "Enter the new Days to Keep setting (currently %s) - min 0" %(DAYS_TO_KEEP),
                                             defaultValue=str(DAYS_TO_KEEP))
 
             if newDaysToKeep is not None and not StringUtils.isInteger(newDaysToKeep):
                 continue
 
-            if newDaysToKeep is None or int(newDaysToKeep) < 1 or int(newDaysToKeep) > (365*5):
+            if newDaysToKeep is None or int(newDaysToKeep) < 0 or int(newDaysToKeep) > (365*5):
                 txt = "%s: No valid days to keep entered.. - NO CHANGES MADE!" %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "B")
                 myPopupInformationBox(toolbox_frame_, txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -23817,25 +23821,27 @@ Now you will have a text readable version of the file you can open in a text edi
         output += "\n%s targets...:\n" %(OUTGOING_PATH)
         # Scan 'out' files... (awaiting Sync)
         targetOutFilesForDeletion = []
-        if lPurgeOutDir:
-            for filename in storage.listFiles(OUTGOING_PATH):
-                fp = os.path.join(safeFullPath, OUTGOING_PATH, filename)
-                if not os.path.exists(fp): raise Exception("Error: file does not exist: %s" %(fp))
+        for filename in storage.listFiles(OUTGOING_PATH):
+            fp = os.path.join(safeFullPath, OUTGOING_PATH, filename)
+            if not os.path.exists(fp): raise Exception("Error: file does not exist: %s" %(fp))
 
-                if (filename.endswith(TXN_FILE_EXTENSION_TMP)) and is_file_older_than_x_days(fp, DAYS_TO_KEEP):
-                    # These are normally 'broken' sync txn files..... get rid of them....
-                    targetOutFilesForDeletion.append(StoreFileReference(OUTGOING_PATH, filename, fp))
-                    output += "%s\n" %(filename)
-                    continue
+            if (filename.endswith(TXN_FILE_EXTENSION_TMP)) and is_file_older_than_x_days(fp, max(1, DAYS_TO_KEEP)):
+                # These are normally 'broken' sync txn files..... get rid of them (but always keep today's just in case)....
+                targetOutFilesForDeletion.append(StoreFileReference(OUTGOING_PATH, filename, fp))
+                output += "%s\n" %(filename)
+                continue
 
-                if not filename.endswith(TXN_FILE_EXTENSION):   continue
-                if not processedTxnFiles.containsKey(filename): continue                                                # noqa
+            if not lPurgeOutDir: continue
 
-                txnFileTimestamp = processedTxnFiles.getLong(filename, 0)
-                txnFileDate = (0 if txnFileTimestamp == 0 else DateUtil.convertLongDateToInt(txnFileTimestamp))
-                if txnFileDate != 0 and txnFileDate <= lookBackDateInt:
-                    # Confirmed that the processed file database has logged this file as processed into trunk!
-                    targetOutFilesForDeletion.append(StoreFileReference(OUTGOING_PATH, filename, fp, txnFileDate))
+            if not filename.endswith(TXN_FILE_EXTENSION):   continue
+            if not processedTxnFiles.containsKey(filename): continue                                                    # noqa
+
+            txnFileTimestamp = processedTxnFiles.getLong(filename, 0)
+            txnFileDate = (0 if txnFileTimestamp == 0 else DateUtil.convertLongDateToInt(txnFileTimestamp))
+            if txnFileDate != 0 and txnFileDate <= lookBackDateInt:
+                # Confirmed that the processed file database has logged this file as processed into trunk!
+                targetOutFilesForDeletion.append(StoreFileReference(OUTGOING_PATH, filename, fp, txnFileDate))
+
         if len(targetOutFilesForDeletion) < 1:
             output += "<NONE>\n"
         else:
@@ -23848,7 +23854,7 @@ Now you will have a text readable version of the file you can open in a text edi
         output += "\n%s targets...:\n" %(UPLOADBUFFER)
         targetUploadBufferForDeletion = []
         fp = os.path.join(safeFullPath, UPLOADBUFFER)
-        if (os.path.exists(fp) and is_file_older_than_x_days(fp, DAYS_TO_KEEP)):
+        if (os.path.exists(fp) and is_file_older_than_x_days(fp, max(1, DAYS_TO_KEEP))):
             # Should be an 'old' file... delete it.....
             targetUploadBufferForDeletion.append(StoreFileReference(UPLOADBUFFER, UPLOADBUFFER, fp))
             output += "%s (modified: %s)\n" %(UPLOADBUFFER, getHumanReadableModifiedDateTimeFromFile(fp))
@@ -25399,15 +25405,6 @@ Now you will have a text readable version of the file you can open in a text edi
                                                                     options[2],
                                                                     timeOutSeconds * 1000,
                                                                     options[2])
-
-                            # response = JOptionPane.showOptionDialog(toolbox_frame_,
-                            #                                          "Are you OK to continue (so far..: %s found / %s files/searched)?" %(iFound, thingsSearched),
-                            #                                          "SEARCH COMPUTER FOR MONEYDANCE DATASET(s)",
-                            #                                          JOptionPane.YES_NO_OPTION,
-                            #                                          JOptionPane.QUESTION_MESSAGE,
-                            #                                          None,
-                            #                                          options,
-                            #                                          options[2])
 
                             if response < 1:
                                 _txt = "%s: User Aborted Dataset search..." %(_THIS_METHOD_NAME)
@@ -27080,6 +27077,12 @@ Now you will have a text readable version of the file you can open in a text edi
             # ----------------------------------------------------------------------------------------------------------
 
             # These are instant fix buttons
+            if not MD_REF.isRegistered():
+                RegisterMD_button = MyJButton("<html><center>REGISTER<BR>MONEYDANCE</center></html>", registerMDButton=True)
+                RegisterMD_button.setToolTipText("This allows you to enter your registration key")
+                RegisterMD_button.addActionListener(self.RegisterMoneydance(RegisterMD_button))
+                GlobalVars.allButtonsList.append(RegisterMD_button)
+
             if (not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()):
                 convertSecondary_button = MyJButton("<html><center>FIX: Make me a<BR>Primary dataset</center></html>", adhocButton=True)
                 convertSecondary_button.setToolTipText("Promotes this Dataset a Primary / Master Dataset. Enables Sync options. (typically after restore from a synchronised secondary dataset/backup). THIS CHANGES DATA!")
@@ -27120,12 +27123,6 @@ Now you will have a text readable version of the file you can open in a text edi
                 FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button))
                 FixDropboxOneWaySync_button.setVisible(False)
                 GlobalVars.allButtonsList.append(FixDropboxOneWaySync_button)
-
-            if not MD_REF.isRegistered():
-                RegisterMD_button = MyJButton("<html><center>REGISTER<BR>MONEYDANCE</center></html>", registerMDButton=True)
-                RegisterMD_button.setToolTipText("This allows you to enter your registration key")
-                RegisterMD_button.addActionListener(self.RegisterMoneydance(RegisterMD_button))
-                GlobalVars.allButtonsList.append(RegisterMD_button)
 
             # end of instant fix buttons
             # ----------------------------------------------------------------------------------------------------------
@@ -27408,6 +27405,21 @@ Now you will have a text readable version of the file you can open in a text edi
                 System.setProperty("apple.laf.useScreenMenuBar", save_useScreenMenuBar)
                 System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
 
+
+            # Check for no currencies.. Popup alert message
+            # noinspection PyUnresolvedReferences
+            allCurrs = [c for c in MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies() if c.getCurrencyType() == CurrencyType.Type.CURRENCY]
+            if len(allCurrs) < 1:
+                MyPopUpDialogBox(toolbox_frame_,"PROBLEM DETECTED",
+                                                 "You seem to have no Currencies?!\n" 
+                                                 "Please go to Tools/Currencies and add a Currency\n" 
+                                                 "This would normally need to be your 'base' currency\n"
+                                                 "You should check the currency setup of your accounts too!",
+                                                 theTitle="ERROR - NO CURRENCIES EXIST",
+                                                 OKButtonText="ACKNOWLEDGE",
+                                                 lAlertLevel=2,
+                                                 lModal=True).go()
+            del allCurrs
 
             # Check for problem with java.io.tmpdir - causes missing icons etc.. Popup alert message
             if not detect_broken_critical_javaio_temp_dir_OK():
