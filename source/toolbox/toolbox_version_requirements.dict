@@ -1,5 +1,5 @@
 {
-    "last_updated" = "20220725"
+    "last_updated" = "20220801"
     "disable_all" = "n"
     "builds" = (
                     {
@@ -8,7 +8,7 @@
                     "news" = "Tweaks, various new features"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4088"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4089"
                     "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
                     "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -21,7 +21,7 @@
                     "news" = "New force change currency options; Improved invalid window settings management; new rename/relocate dataset options"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4088"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4089"
                     }
                     {
                     "build" = "1050"
@@ -29,7 +29,7 @@
                     "news" = "Added force change currency on categories options."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4088"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4089"
                     }
                     {
                     "build" = "1049"
@@ -37,7 +37,7 @@
                     "news" = "Updated zap md+ option to wipe all md+ data (including banking links)"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4088"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4089"
                     }
                     {
                     "build" = "1048"
@@ -45,7 +45,7 @@
                     "news" = "Small OFX bug fixes and tweaks to viewing OFX data..."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4088"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4089"
                     }
                     {
                     "build" = "1047"
@@ -53,7 +53,7 @@
                     "news" = "Renaming Hacker & Advanced modes; enhancements to move/merge investment transactions; fixes build 4074"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4088"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4089"
                     }
                     {
                     "build" = "1046"
