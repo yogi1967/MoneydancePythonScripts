@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1052 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1053 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and they retain all copyright over Moneydance internal code
@@ -113,6 +113,7 @@
 # build: 1052 - Added check for no currencies at launch... Odd, but has happened!
 # build: 1052 - Enhanced Shrink Dataset... Allow 0 days, always delete out/txn-tmp...
 # build: 1052 - Fix Merge Duplicate Securities (security split match check); fix apple script check on Mac version
+# build: 1053 - Added 'DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)' feature
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -132,7 +133,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1052"
+version_build = "1053"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -457,6 +458,7 @@ else:
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
     from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AbstractTxn         # noqa
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
+    from com.infinitekind.moneydance.model import TxnSet, InvestTxnType
 
     from com.infinitekind.tiksync import SyncRecord, SyncableItem
     from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
@@ -20333,6 +20335,160 @@ now after saving the file, restart Moneydance
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
+    def diagnose_matched_lot_data():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "DIAGNOSE MATCHED LOT DATA"
+
+        if MD_REF.getCurrentAccount().getBook() is None: return
+
+        book = MD_REF.getCurrentAccountBook()
+        date = datetime.datetime.today()
+
+        output = "\n\nDIAGNOSING SHARES/SECURITIES LOT MATCHING DATA\n" \
+                 " =================================================\n\n"
+
+        output += 'as of %s\n\n' %(date.strftime(convertMDShortDateFormat_strftimeFormat()))
+
+        allAccounts = AccountUtil.allMatchesForSearch(book, AcctFilter.ALL_ACCOUNTS_FILTER)
+        secAccounts = [acct for acct in allAccounts if acct.getAccountType() == Account.AccountType.SECURITY]           # noqa
+
+        securitiesToValidate = []
+
+        for secAcct in secAccounts:
+            if InvestUtil.isCostBasisValid(secAcct): continue
+
+            output += "%s: reports invalid cost basis... Checking for sells\n" %(secAcct)
+
+            sellCheck = False
+            tSet = secAcct.getBook().getTransactionSet().getTransactionsForAccount(secAcct)
+            if tSet is not None:
+                for i in range(0, tSet.getSize()):
+                    absTxn = tSet.getTxn(i)
+                    txnType = absTxn.getParentTxn().getInvestTxnType()
+                    if txnType.isBuy() or txnType.isSell():
+                        split = TxnUtil.getSecurityPart(absTxn.getParentTxn())
+                        if split.getValue() < 0:
+                            sellCheck = True
+                            break
+
+            if not sellCheck: continue
+
+            output += "... this security account does hold Sell txns - will proceed to validate LOTS\n"
+            securitiesToValidate.append(secAcct)
+
+        if len(securitiesToValidate) < 1:
+            txt = "SUCCESS - FOUND NO 'INVALID' LOT MATCHING DATA"
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME)
+            return
+
+        output += "\n\nWARNING: Found %s 'INVALID' LOT MATCHING(s) TO VALIDATE\n\n" %(len(securitiesToValidate))
+
+        def validateLots(sec):
+            # duplicates - isCostBasisValid(Account sec)
+            curr = sec.getCurrencyType()
+            buySet = TxnSet()
+            sellSet = TxnSet()
+            buyList = {}
+            txnSet = sec.getBook().getTransactionSet().getTransactionsForAccount(sec)
+            _errorTxt = ""
+
+            for _i in range(0, txnSet.getSize()):
+                _absTxn = txnSet.getTxn(_i)
+                _txnType = _absTxn.getParentTxn().getInvestTxnType()
+                if (_txnType == InvestTxnType.BUY or _txnType == InvestTxnType.SELL
+                        or _txnType == InvestTxnType.BUY_XFER or _txnType == InvestTxnType.SELL_XFER):
+                    _split = TxnUtil.getSecurityPart(_absTxn.getParentTxn())
+                    if (_split.getParentAmount() < 0):
+                        buySet.addTxn(_split)
+                    elif (_split.getParentAmount() > 0):
+                        sellSet.addTxn(_split)
+                elif (_txnType == InvestTxnType.DIVIDEND or _txnType == InvestTxnType.DIVIDEND_REINVEST):
+                    _split = TxnUtil.getSecurityPart(_absTxn.getParentTxn())
+                    if (_split.getParentAmount() < 0):
+                        buySet.addTxn(_split)
+
+            for j in range(0, sellSet.getSize()):
+                stxn = sellSet.getTxn(j)
+                shares = Math.abs(stxn.getValue())
+                if (shares != TxnUtil.getNumShares(stxn)):
+                    _errorTxt += "*****************\n"
+                    _errorTxt += "... Failed on 'shares != TxnUtil.getNumShares(stxn)'\n"
+                    _errorTxt += "shares: %s, getNumShares: %s\n" %(shares, TxnUtil.getNumShares(stxn))
+                    _errorTxt += "This means that the total qty of shares for this Sell is not exactly matched to the same qty of Buy(s)\n"
+                    _errorTxt += "stxn: %s\n" %(stxn)
+                    _errorTxt += stxn.getParentTxn().getSyncInfo().toMultilineHumanReadableString()
+                    _errorTxt += "Transaction date: %s\n" %(convertStrippedIntDateFormattedText(stxn.getParentTxn().getDateInt()))
+                    _errorTxt += "*****************\n"
+                    return False, _errorTxt
+
+                buyTable = TxnUtil.parseCostBasisTag(stxn)
+                if (buyTable is not None):
+                    for txnID in buyTable:
+                        if (txnID in buyList):
+                            oldValue = buyList.get(txnID)
+                            plusValue = buyTable.get(txnID)
+                            adjustedShares = curr.adjustValueForSplitsInt(stxn.getDateInt(), plusValue)
+                            newValue = oldValue + adjustedShares
+                            buyList[txnID] = newValue
+                            continue
+                        buyList[txnID] = curr.adjustValueForSplitsInt(stxn.getDateInt(), buyTable.get(txnID))
+                else:
+                    _errorTxt += "*****************\n"
+                    _errorTxt += "... Failed as buyTable (cost basis lot tags) is None\n"
+                    _errorTxt += "This probably means that no Buy(s) have been matched to this Sell\n"
+                    _errorTxt += "stxn: %s\n" %(stxn)
+                    _errorTxt += stxn.getParentTxn().getSyncInfo().toMultilineHumanReadableString()
+                    _errorTxt += "Transaction date: %s\n" %(convertStrippedIntDateFormattedText(stxn.getParentTxn().getDateInt()))
+                    _errorTxt += "*****************\n"
+                    return False, _errorTxt
+
+            for txnID in buyList:
+                txn = TxnUtil.getTxnByID(buySet, txnID)
+                if (txn is None):
+                    _errorTxt += "*****************\n"
+                    _errorTxt += "... Failed as could not find txnID: '%s' in buySet\n" %(txnID)
+                    _errorTxt += "This means that a matched Buy txn doesn't seem to exist any more?\n"
+                    _errorTxt += "buySet  contains: %s\n" %(buySet)
+                    _errorTxt += "buyList contains: %s\n" %(buyList)
+                    _errorTxt += "*****************\n"
+                    return False, _errorTxt
+
+                numShares = buyList.get(txnID)
+                if (curr.adjustValueForSplitsInt(txn.getDateInt(), txn.getValue()) < numShares):
+                    _errorTxt += "*****************\n"
+                    _errorTxt += "... Failed as 'curr.adjustValueForSplitsInt(txn.getDateInt(), txn.getValue()) < numShares'\n"
+                    _errorTxt += "This means that a Buy is over matched on Sell(s) - i.e. the Buy qty is less than the total matched Sell qty\n"
+                    _errorTxt += "On TxnID: %s\n" %(txnID)
+                    _errorTxt += "On Txn:   %s\n" %(txn)
+                    _errorTxt += txn.getParentTxn().getSyncInfo().toMultilineHumanReadableString()
+                    _errorTxt += "Transaction date: %s\n" %(convertStrippedIntDateFormattedText(txn.getParentTxn().getDateInt()))
+                    _errorTxt += "curr.adjustValueForSplitsInt(txn.getDateInt(), txn.getValue()): %s\n" %(curr.adjustValueForSplitsInt(txn.getDateInt(), txn.getValue()))
+                    _errorTxt += "numShares: %s\n" %(numShares)
+                    _errorTxt += "*****************\n"
+                    return False, _errorTxt
+
+            return True, _errorTxt
+
+        for secAcct in securitiesToValidate:
+            output += "\nVALIDATING: %s\n" %(secAcct)
+            result, _output = validateLots(secAcct)
+            output += _output
+            if result:
+                output += "STRANGE RESULT - Now seems to validates as OK? %s\n" %(secAcct)
+                continue
+
+            output += "... FAILED VALIDATION!!! %s\n\n" %(secAcct)
+
+        toolbox_frame_.toFront()
+        txt = "%s: Displaying invalid LOT matching data" %(_THIS_METHOD_NAME)
+        setDisplayStatus(txt, "B")
+        jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        myPopupInformationBox(jif,txt)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
     class OpenFolderButtonAction(AbstractAction):
 
         def __init__(self): pass
@@ -25691,6 +25847,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_show_open_share_lots = JRadioButton("DIAG: Show Open Share LOTS (unconsumed) (show_open_tax_lots.py)", False)
                     user_show_open_share_lots.setToolTipText("This will list all Stocks/Shares with Open/Unconsumed LOTS (when LOT Control ON) - READONLY (show_open_tax_lots.py)")
 
+                    user_diagnose_matched_lot_data = JRadioButton("DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)", False)
+                    user_diagnose_matched_lot_data.setToolTipText("Diagnose LOT matching data and highlights 'invalid' matching (causing LOT matching window to appear) - READONLY")
+
                     user_convert_stock_lot_FIFO = JRadioButton("FIX: Convert Stock to LOT controlled with FIFO lot matching (MakeFifoCost.py)", False)
                     user_convert_stock_lot_FIFO.setToolTipText("Convert Average Cost Controlled Stock to LOT Controlled and Allocate LOTs using FiFo method - THIS CHANGES DATA! (MakeFifoCost.py)")
                     user_convert_stock_lot_FIFO.setEnabled(GlobalVars.UPDATE_MODE)
@@ -25798,6 +25957,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg = ButtonGroup()
                     bg.add(user_fix_invalidLotRecords)
                     bg.add(user_show_open_share_lots)
+                    bg.add(user_diagnose_matched_lot_data)
                     bg.add(user_convert_stock_lot_FIFO)
                     bg.add(user_convert_stock_avg_cst_control)
                     bg.add(user_fix_nonlinked_security_records)
@@ -25827,6 +25987,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_can_i_delete_currency)
                     userFilters.add(user_list_curr_sec_dpc)
                     userFilters.add(user_show_open_share_lots)
+                    userFilters.add(user_diagnose_matched_lot_data)
                     userFilters.add(user_diag_price_date)
                     userFilters.add(JLabel(" "))
                     userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
@@ -25939,6 +26100,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_fix_nonlinked_security_records.isSelected():                            detect_fix_nonlinked_investment_security_records()
                         if user_thin_price_history.isSelected():                                        thin_price_history()
                         if user_show_open_share_lots.isSelected():                                      show_open_share_lots()
+                        if user_diagnose_matched_lot_data.isSelected():                                 diagnose_matched_lot_data()
                         if user_fix_invalidLotRecords.isSelected():                                     fix_invalidLotRecords()
                         if user_convert_stock_lot_FIFO.isSelected():                                    convert_stock_lot_FIFO()
                         if user_convert_stock_avg_cst_control.isSelected():                             convert_stock_avg_cst_control()

@@ -146,6 +146,7 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - DIAGnostics - Can I delete a Currency (tells you whether a currency is being used - and where)
         - DIAGnostics - List decimal places (currency & security). Shows you the hidden setting and related data.
         - DIAGnostics - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
+        - DIAGnostics - Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)
         - DIAGnostics - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
     - MENU: Transactions tools
         - View Register Txn Sort Orders
