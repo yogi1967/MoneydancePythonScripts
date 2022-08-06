@@ -115,6 +115,7 @@
 # build: 1052 - Fix Merge Duplicate Securities (security split match check); fix apple script check on Mac version
 # build: 1053 - Added 'DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)' feature
 # build: 1053 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
+# build: 1053 - New feature 'Decrypt entire dataset' feature...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -24385,6 +24386,71 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
+    def advanced_mode_decrypt_dataset():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "ADVANCED: EXTRACT/DECRYPT ENTIRE DATASET"
+
+        if not doesUserAcceptDisclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Extract/decrypt entire dataset?"):
+            txt = "%s: User declined to continue - aborted" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt,"B")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        _theTitle = "Select location to store Extracted/Decrypted dataset... (CANCEL=ABORT)"
+        theDir = getFileFromFileChooser(    toolbox_frame_,         # Parent frame or None
+                                            get_home_dir(),         # Starting path
+                                            None,                   # Default Filename
+                                            _theTitle,              # Title
+                                            False,                  # Multi-file selection mode
+                                            True,                   # True for Open/Load, False for Save
+                                            False,                  # True = Files, else Dirs
+                                            "DECRYPT DATASET",      # Load/Save button text, None for defaults
+                                            None,                   # File filter (non Mac only). Example: "txt" or "qif"
+                                            lAllowTraversePackages=False,
+                                            lForceJFC=False,
+                                            lForceFD=False,
+                                            lAllowNewFolderButton=True,
+                                            lAllowOptionsButton=True)
+
+        if theDir is None or theDir == "":
+            txt = "%s: User did not select extraction/decryption folder... Aborting" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            return
+
+        if not os.path.exists(theDir):
+            txt = "ERROR - the encryption/decryption folder does not exist?"
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            return
+
+        decryptionFolder = File(theDir, "decrypted")
+        decryptionFolder.mkdirs()
+
+        _msgPad = 100
+        _msg = pad("Please wait: DECRYPTING", _msgPad, padChar=".")
+        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        diag.go()
+
+        myPrint("B","DECRYPTING ENTIRE DATASET to: '%s'" %(decryptionFolder.getCanonicalPath()))
+
+        wrapper = MD_REF.getUI().getCurrentAccounts()
+        p = wrapper.getClass().getDeclaredMethod("copyFolderToDecryptedStore", [String, File])
+        p.setAccessible(True)
+        p.invoke(wrapper, ["", decryptionFolder])
+
+        myPrint("B","FINISHED DECRYPTING ENTIRE DATASET to: '%s'" %(decryptionFolder.getCanonicalPath()))
+        diag.kill()
+
+        txt = "ENTIRE DATASET EXTRACTED/DECRYPTED TO %s" %(decryptionFolder.getCanonicalPath())
+        setDisplayStatus(txt, "B")
+        myPopupInformationBox(toolbox_frame_, txt)
+
+        MD_REF.getPlatformHelper().openDirectory(decryptionFolder)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
     def advanced_mode_decrypt_file_from_sync():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -26492,6 +26558,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_advanced_extract_from_storage.setForeground(getColorRed())
                     user_advanced_extract_from_storage.setEnabled(GlobalVars.ADVANCED_MODE)
 
+                    user_advanced_decrypt_dataset = JRadioButton("Decrypt entire dataset...", False)
+                    user_advanced_decrypt_dataset.setToolTipText("Decrypts your entire Dataset (to a folder of your choosing)")
+                    user_advanced_decrypt_dataset.setForeground(getColorRed())
+                    user_advanced_decrypt_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
+
                     user_advanced_extract_from_sync = JRadioButton("Peek at an encrypted file located in your Sync Folder...", False)
                     user_advanced_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
                     user_advanced_extract_from_sync.setForeground(getColorRed())
@@ -26555,6 +26626,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_advanced_toggle_DEBUG)
                     bg.add(user_advanced_toggle_other_DEBUGs)
                     bg.add(user_advanced_extract_from_storage)
+                    bg.add(user_advanced_decrypt_dataset)
                     bg.add(user_advanced_extract_from_sync)
                     bg.add(user_advanced_shrink_dataset)
                     bg.add(user_advanced_import_to_storage)
@@ -26580,6 +26652,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_advanced_toggle_DEBUG)
                     userFilters.add(user_advanced_toggle_other_DEBUGs)
                     userFilters.add(user_advanced_extract_from_storage)
+                    userFilters.add(user_advanced_decrypt_dataset)
                     userFilters.add(user_advanced_extract_from_sync)
                     userFilters.add(JLabel(" "))
                     userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
@@ -26632,6 +26705,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_advanced_toggle_DEBUG.isSelected():                 advanced_mode_DEBUG()
                         if user_advanced_toggle_other_DEBUGs.isSelected():          advanced_mode_other_DEBUG()
                         if user_advanced_extract_from_storage.isSelected():         advanced_mode_decrypt_file()
+                        if user_advanced_decrypt_dataset.isSelected():              advanced_mode_decrypt_dataset()
                         if user_advanced_extract_from_sync.isSelected():            advanced_mode_decrypt_file_from_sync()
                         if user_advanced_shrink_dataset.isSelected():               advanced_mode_shrink_dataset()
                         if user_advanced_import_to_storage.isSelected():            advanced_mode_encrypt_file()
