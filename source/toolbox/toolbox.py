@@ -507,7 +507,7 @@ else:
 
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.5                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4089                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4090                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -24426,6 +24426,12 @@ Now you will have a text readable version of the file you can open in a text edi
             return
 
         decryptionFolder = File(theDir, "decrypted")
+        if decryptionFolder.exists():
+            txt = "%s: Sorry, decrypted sub folder must NOT pre-exist - select another location..... Aborting" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
+            return
+
         decryptionFolder.mkdirs()
 
         _msgPad = 100
@@ -24436,9 +24442,8 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("B","DECRYPTING ENTIRE DATASET to: '%s'" %(decryptionFolder.getCanonicalPath()))
 
         wrapper = MD_REF.getUI().getCurrentAccounts()
-        p = wrapper.getClass().getDeclaredMethod("copyFolderToDecryptedStore", [String, File])
-        p.setAccessible(True)
-        p.invoke(wrapper, ["", decryptionFolder])
+
+        invokeMethodByReflection(wrapper, "copyFolderToDecryptedStore", [String, File], ["", decryptionFolder])
 
         myPrint("B","FINISHED DECRYPTING ENTIRE DATASET to: '%s'" %(decryptionFolder.getCanonicalPath()))
         diag.kill()

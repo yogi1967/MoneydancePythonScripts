@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_total_selected_transactions.py build: 1010 - August 2021 - Stuart Beesley StuWareSoftSystems
+# toolbox_total_selected_transactions.py build: 1011 - August 2021 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -44,6 +44,7 @@
 # build: 1009 - Tweaks
 # build: 1010 - Enhancement to allow usage from the Summary / home page search (which can create a list of txns from different accounts)
 # build: 1010 - Allow multi-currency, multi-account-types etc.....; Enhanced component search so that Advanced Search / Find is also included too..
+# build: 1011 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -54,7 +55,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox_total_selected_transactions"
-version_build = "1010"
+version_build = "1011"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -1595,12 +1596,13 @@ Visit: %s (Author's site)
         _TRUE = "true"
         _FALSE = "false"
 
-        _DIRS_FD = "apple.awt.fileDialogForDirectories"        # Changes Behaviour. When True you can select a Folder (rather than a file)
-        _PKGS_FD = "com.apple.macos.use-file-dialog-packages"
+        _DIRS_FD = "apple.awt.fileDialogForDirectories"        # When True you can select a Folder (rather than a file)
+        _PKGS_FD = "apple.awt.use-file-dialog-packages"        # When True allows you to select a 'bundle' as a file; False means navigate inside the bundle
+        # "com.apple.macos.use-file-dialog-packages"           # DEPRECATED since Monterrey - discovered this about MD2022.5(4090) - refer: java.desktop/sun/lwawt/macosx/CFileDialog.java
 
         # FileDialog defaults
         # "apple.awt.fileDialogForDirectories"       default "false" >> set "true"  to allow Directories to be selected
-        # "com.apple.macos.use-file-dialog-packages" default "true"  >> set "false" to allow access to Mac 'packages'
+        # "apple.awt.use-file-dialog-packages"       default "true"  >> set "false" to allow access to Mac 'packages'
 
         if debug or lReportOnly:
             myPrint("B", "Parameters set: ReportOnly: %s, Defaults:%s, SelectDirectories:%s, PackagesT:%s" % (lReportOnly, lDefaults, lSelectDirectories, lPackagesT))

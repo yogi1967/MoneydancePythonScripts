@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_all_attachments.py build: 18 - Jan 2021 to May 2022 - Stuart Beesley StuWareSoftSystems
+# extract_all_attachments.py build: 19 - Jan 2021 to Aug 2022 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -38,6 +38,7 @@
 # build: 16 - Common code tweaks
 # build: 17 - Common code - eliminating globals
 # build: 18 - Tweaks
+# build: 19 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -45,7 +46,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_all_attachments"
-version_build = "18"
+version_build = "19"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1581,12 +1582,13 @@ Visit: %s (Author's site)
         _TRUE = "true"
         _FALSE = "false"
 
-        _DIRS_FD = "apple.awt.fileDialogForDirectories"        # Changes Behaviour. When True you can select a Folder (rather than a file)
-        _PKGS_FD = "com.apple.macos.use-file-dialog-packages"
+        _DIRS_FD = "apple.awt.fileDialogForDirectories"        # When True you can select a Folder (rather than a file)
+        _PKGS_FD = "apple.awt.use-file-dialog-packages"        # When True allows you to select a 'bundle' as a file; False means navigate inside the bundle
+        # "com.apple.macos.use-file-dialog-packages"           # DEPRECATED since Monterrey - discovered this about MD2022.5(4090) - refer: java.desktop/sun/lwawt/macosx/CFileDialog.java
 
         # FileDialog defaults
         # "apple.awt.fileDialogForDirectories"       default "false" >> set "true"  to allow Directories to be selected
-        # "com.apple.macos.use-file-dialog-packages" default "true"  >> set "false" to allow access to Mac 'packages'
+        # "apple.awt.use-file-dialog-packages"       default "true"  >> set "false" to allow access to Mac 'packages'
 
         if debug or lReportOnly:
             myPrint("B", "Parameters set: ReportOnly: %s, Defaults:%s, SelectDirectories:%s, PackagesT:%s" % (lReportOnly, lDefaults, lSelectDirectories, lPackagesT))

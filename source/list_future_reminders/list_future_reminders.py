@@ -57,6 +57,7 @@
 # build: 1016 - added showRawItemDetails() to popup right-click menu....
 # build: 1017 - Fixed calls to .setEscapeKeyCancels() on older MD versions
 # build: 1018 - Added right-click popup to allow deletion of Reminder...; Search field grabs focus too..
+# build: 1018 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 
 # Displays Moneydance future reminders
 
@@ -1646,12 +1647,13 @@ Visit: %s (Author's site)
         _TRUE = "true"
         _FALSE = "false"
 
-        _DIRS_FD = "apple.awt.fileDialogForDirectories"        # Changes Behaviour. When True you can select a Folder (rather than a file)
-        _PKGS_FD = "com.apple.macos.use-file-dialog-packages"
+        _DIRS_FD = "apple.awt.fileDialogForDirectories"        # When True you can select a Folder (rather than a file)
+        _PKGS_FD = "apple.awt.use-file-dialog-packages"        # When True allows you to select a 'bundle' as a file; False means navigate inside the bundle
+        # "com.apple.macos.use-file-dialog-packages"           # DEPRECATED since Monterrey - discovered this about MD2022.5(4090) - refer: java.desktop/sun/lwawt/macosx/CFileDialog.java
 
         # FileDialog defaults
         # "apple.awt.fileDialogForDirectories"       default "false" >> set "true"  to allow Directories to be selected
-        # "com.apple.macos.use-file-dialog-packages" default "true"  >> set "false" to allow access to Mac 'packages'
+        # "apple.awt.use-file-dialog-packages"       default "true"  >> set "false" to allow access to Mac 'packages'
 
         if debug or lReportOnly:
             myPrint("B", "Parameters set: ReportOnly: %s, Defaults:%s, SelectDirectories:%s, PackagesT:%s" % (lReportOnly, lDefaults, lSelectDirectories, lPackagesT))
