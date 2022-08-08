@@ -317,13 +317,14 @@ else:
 
     from org.python.core.util import FileUtil
 
-    from java.lang import Thread, IllegalArgumentException, String
+    from java.lang import Thread, IllegalArgumentException, String, Integer
 
     from com.moneydance.util import Platform
     from com.moneydance.awt import JTextPanel, GridC, JDateField
     from com.moneydance.apps.md.view.gui import MDImages
 
-    from com.infinitekind.util import DateUtil, CustomDateFormat
+    from com.infinitekind.util import DateUtil, CustomDateFormat, StringUtils
+
     from com.infinitekind.moneydance.model import *
     from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType, CurrencyUtil
     from com.infinitekind.moneydance.model import Account, Reminder, ParentTxn, SplitTxn, TxnSearch, InvestUtil, TxnUtil
@@ -456,7 +457,7 @@ else:
     from com.moneydance.apps.md.controller.io import FileUtils, AccountBookUtil
     from java.awt import GraphicsEnvironment, Rectangle, GraphicsDevice, Desktop, Event, GridBagConstraints             # noqa
 
-    from com.infinitekind.util import StreamTable, StreamVector, IOUtils, StringUtils, CustomDateFormat
+    from com.infinitekind.util import StreamTable, StreamVector, IOUtils
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
     from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AbstractTxn         # noqa
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
@@ -478,7 +479,7 @@ else:
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Integer, Long, NoSuchFieldException, NoSuchMethodException, Runtime, Process                  # noqa
+    from java.lang import Long, NoSuchFieldException, NoSuchMethodException, Runtime, Process                           # noqa
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
     from com.moneydance.awt import JCurrencyField, AwtUtil                                                              # noqa
 
@@ -723,6 +724,76 @@ Visit: %s (Author's site)
             if debug: myPrint("B","Failed to Font set to Moneydance code - So using: %s" %theFont)
 
         return theFont
+
+    def isOSXVersionAtLeast(compareVersion):
+        # type: (basestring) -> bool
+        """Pass a string in the format 'x.x.x'. Will check that this MacOSX version is at least that version. The 3rd micro number is optional"""
+
+        try:
+            if not Platform.isOSX(): return False
+
+            def convertVersion(convertString):
+                _os_major = _os_minor = _os_micro = 0
+                _versionNumbers = []
+
+                for versionPart in StringUtils.splitIntoList(convertString, '.'):
+                    strippedPart = StringUtils.stripNonNumbers(versionPart, '.')
+                    if (StringUtils.isInteger(strippedPart)):
+                        _versionNumbers.append(Integer.valueOf(Integer.parseInt(strippedPart)))
+                    else:
+                        _versionNumbers.append(0)
+
+                if len(_versionNumbers) >= 1: _os_major = max(0, _versionNumbers[0])
+                if len(_versionNumbers) >= 2: _os_minor = max(0, _versionNumbers[1])
+                if len(_versionNumbers) >= 3: _os_micro = max(0, _versionNumbers[2])
+
+                return _os_major, _os_minor, _os_micro
+
+
+            os_major, os_minor, os_micro = convertVersion(System.getProperty("os.version", "0.0.0"))
+            myPrint("DB", "MacOS Version number(s): %s.%s.%s" %(os_major, os_minor, os_micro))
+
+            if not isinstance(compareVersion, basestring) or len(compareVersion) < 1:
+                myPrint("B", "ERROR: Invalid compareVersion of '%s' passed - returning False" %(compareVersion))
+                return False
+
+            chk_os_major, chk_os_minor, chk_os_micro = convertVersion(compareVersion)
+            myPrint("DB", "Comparing against Version(s): %s.%s.%s" %(chk_os_major, chk_os_minor, chk_os_micro))
+
+
+            if os_major < chk_os_major: return False
+            if os_major > chk_os_major: return True
+
+            if os_minor < chk_os_minor: return False
+            if os_minor > chk_os_minor: return True
+
+            if os_micro < chk_os_micro: return False
+            return True
+
+        except:
+            myPrint("B", "ERROR: isOSXVersionAtLeast() failed - returning False")
+            dump_sys_error_to_md_console_and_errorlog()
+            return False
+
+    def isOSXVersionCheetahOrLater():       return isOSXVersionAtLeast("10.0")
+    def isOSXVersionPumaOrLater():          return isOSXVersionAtLeast("10.1")
+    def isOSXVersionJaguarOrLater():        return isOSXVersionAtLeast("10.2")
+    def isOSXVersionPantherOrLater():       return isOSXVersionAtLeast("10.3")
+    def isOSXVersionTigerOrLater():         return isOSXVersionAtLeast("10.4")
+    def isOSXVersionLeopardOrLater():       return isOSXVersionAtLeast("10.5")
+    def isOSXVersionSnowLeopardOrLater():   return isOSXVersionAtLeast("10.6")
+    def isOSXVersionLionOrLater():          return isOSXVersionAtLeast("10.7")
+    def isOSXVersionMountainLionOrLater():  return isOSXVersionAtLeast("10.8")
+    def isOSXVersionMavericksOrLater():     return isOSXVersionAtLeast("10.9")
+    def isOSXVersionYosemiteOrLater():      return isOSXVersionAtLeast("10.10")
+    def isOSXVersionElCapitanOrLater():     return isOSXVersionAtLeast("10.11")
+    def isOSXVersionSierraOrLater():        return isOSXVersionAtLeast("10.12")
+    def isOSXVersionHighSierraOrLater():    return isOSXVersionAtLeast("10.13")
+    def isOSXVersionMojaveOrLater():        return isOSXVersionAtLeast("10.14")
+    def isOSXVersionCatalinaOrLater():      return isOSXVersionAtLeast("10.15")
+    def isOSXVersionBigSurOrLater():        return isOSXVersionAtLeast("10.16")  # BigSur is officially 11.0, but started at 10.16
+    def isOSXVersionMontereyOrLater():      return isOSXVersionAtLeast("12.0")
+    def isOSXVersionVenturaOrLater():       return isOSXVersionAtLeast("13.0")
 
     def get_home_dir():
         homeDir = None
@@ -1908,7 +1979,8 @@ Visit: %s (Author's site)
             else:
                 fileDialog.setMode(FileDialog.SAVE)
 
-            if fileChooser_fileFilterText is not None and (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+            # if fileChooser_fileFilterText is not None and (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+            if fileChooser_fileFilterText is not None and (not Platform.isOSX() or isOSXVersionMontereyOrLater()):
                 myPrint("DB",".. Adding file filter for: %s" %(fileChooser_fileFilterText))
                 fileDialog.setFilenameFilter(ExtFilenameFilter(fileChooser_fileFilterText))
 
@@ -1948,7 +2020,8 @@ Visit: %s (Author's site)
             else:
                 jfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY)   # FILES_ONLY, DIRECTORIES_ONLY, FILES_AND_DIRECTORIES
 
-            if fileChooser_fileFilterText is not None and (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+            # if fileChooser_fileFilterText is not None and (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
+            if fileChooser_fileFilterText is not None and (not Platform.isOSX() or isOSXVersionMontereyOrLater()):
                 myPrint("DB",".. Adding file filter for: %s" %(fileChooser_fileFilterText))
                 jfc.setFileFilter(ExtFileFilterJFC(fileChooser_fileFilterText))
 
@@ -3131,7 +3204,6 @@ Visit: %s (Author's site)
 
             return True
 
-
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3414,7 +3486,7 @@ Visit: %s (Author's site)
         # type: (JFrame, str, str, str, bool, bool, bool, str, str, bool, bool, bool, bool, bool, bool) -> str
         """If on a Mac and AppleScript exists then will attempt to load AppleScript file/folder chooser, else calls getFileFromFileChooser() which loads JFileChooser() or FileDialog() accordingly"""
 
-        if not Platform.isOSX() or not File("/usr/bin/osascript").exists() or not Platform.isOSXVersionAtLeast("11.0"):
+        if not Platform.isOSX() or not File("/usr/bin/osascript").exists() or not isOSXVersionBigSurOrLater():
             return getFileFromFileChooser(fileChooser_parent,
                                           fileChooser_starting_dir,
                                           fileChooser_filename,
@@ -3666,7 +3738,7 @@ Visit: %s (Author's site)
                 myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            if not Platform.isOSXVersionAtLeast("10.16"):
+            if not isOSXVersionBigSurOrLater():
                 if self.lQuickCheckOnly: return True
                 txt = "Change Mac Tabbing Mode - You are not running Big Sur - no changes made!"
                 setDisplayStatus(txt, "R")
@@ -24421,7 +24493,7 @@ Now you will have a text readable version of the file you can open in a text edi
             return
 
         if not os.path.exists(theDir):
-            txt = "ERROR - the encryption/decryption folder does not exist?"
+            txt = "ERROR - the extraction/decryption folder does not exist?"
             myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             return
 
@@ -24431,6 +24503,14 @@ Now you will have a text readable version of the file you can open in a text edi
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             return
+
+        myPrint("B", "Calling save routines before decryption...")
+        MD_REF.saveCurrentAccount()
+        MD_REF.getCurrentAccountBook().getLocalStorage().save()
+
+        if myPopupAskQuestion(toolbox_frame_, theQuestion="Flush memory to disk(trunk) before starting extraction/decryption?", theTitle=_THIS_METHOD_NAME):
+            myPrint("B", "Saving Trunk before extraction/decryption...")
+            MD_REF.getCurrentAccountBook().saveTrunkFile()
 
         decryptionFolder.mkdirs()
 
@@ -27342,7 +27422,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 GlobalVars.allButtonsList.append(createMoneydanceSyncFolder_button)
 
             lTabbingModeNeedsChanging = False
-            if (Platform.isOSX() and Platform.isOSXVersionAtLeast("10.16")
+            if (isOSXVersionBigSurOrLater()
                     and int(MD_REF.getBuild()) < 3065
                     and not DetectAndChangeMacTabbingMode(True).actionPerformed("quick check")):
                 lTabbingModeNeedsChanging = True
