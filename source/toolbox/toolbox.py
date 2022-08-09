@@ -116,6 +116,8 @@
 # build: 1053 - Added 'DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)' feature
 # build: 1053 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1053 - New feature 'Decrypt entire dataset' feature...
+# build: 1053 - New feature 'Force Disconnect an MD+ Connection'
+# build: 1053 - Allow md+ payload ids to appear in the view service profile output, unless user selects redacted option...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -479,7 +481,7 @@ else:
     from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
     from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Long, NoSuchFieldException, NoSuchMethodException, Runtime, Process                           # noqa
+    from java.lang import Long, NoSuchFieldException, NoSuchMethodException, Runtime, Process, NoClassDefFoundError     # noqa
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
     from com.moneydance.awt import JCurrencyField, AwtUtil                                                              # noqa
 
@@ -504,7 +506,7 @@ else:
     global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
     global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MULTI_OFX_TXN_DNLD_DATES_BUILD
-    global MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD
+    global MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD, MD_MDPLUS_PAYLOAD_BUILD
 
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.5                                                                          # noqa
@@ -520,6 +522,7 @@ else:
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078                                                                 # noqa
     MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                                                                            # noqa
+    MD_MDPLUS_PAYLOAD_BUILD = 4090                                                                                      # noqa
 
     GlobalVars.mainPnl_preview_lbl = JLabel()
     GlobalVars.mainPnl_debug_lbl = JLabel()
@@ -3442,6 +3445,8 @@ Visit: %s (Author's site)
 
     def isMDPlusUniqueBankingServicesEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD)
 
+    def isMDPlusPayloadBuildEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_PAYLOAD_BUILD)
+
     if isMDPlusEnabledBuild():
         # from com.moneydance.apps.md.controller import MDPlus
         # from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
@@ -6209,7 +6214,7 @@ Visit: %s (Author's site)
                         for token_key in token:
                             txtAppendTxt = "(Confidential: '_payloadid', 'timestamp', 'token' values have been hidden for security reasons)"
                             if token_key != "item": continue
-                            OFX.append("Key: %s AccountRef: %s %s" %(token_key, token.get(token_key), txtAppendTxt))
+                            OFX.append("Key: %s AccountRef: %s %s" %(token_key, token.get(token_key), txtAppendTxt if GlobalVars.redact else token))
                 else:
                     OFX.append("<NONE>")
                 del tokens
@@ -11988,11 +11993,264 @@ Visit: %s (Author's site)
 
         play_the_money_sound()
 
-        txt = "MD+ name cache & access tokens have been wiped..! MONEYDANCE WILL NOW RESTART"
+        txt = "MD+ name cache & access tokens have been wiped..! MONEYDANCE WILL NOW EXIT - PLEASE MANUALLY RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
+
+    def forceDisconnectMDPlusConnection():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if not isMDPlusEnabledBuild() or not isMDPlusPayloadBuildEnabledBuild(): return
+
+        _THIS_METHOD_NAME = "Force disconnect an MD+ connection".upper()
+
+        output = "%s:\n" \
+                 " ========================================\n\n" %(_THIS_METHOD_NAME)
+
+        try:
+            storage = MD_REF.getCurrentAccountBook().getLocalStorage()
+    
+            from com.infinitekind.moneydance.model import OnlineAccountMapping
+            from com.moneydance.apps.md.controller import MDPlus
+            from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
+            from com.plaid.client.request import ItemRemoveRequest
+
+            book = MD_REF.getCurrentAccountBook()
+    
+            service = PlaidConnection.getPlaidService(book)
+            if service is None:
+                txt = "WARNING: could not get Plaid Service - NO CHANGES MADE"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            # plaidConnection = PlaidConnection(book, DefaultOnlineUIProxy(MD_REF.getUI(), book, None))
+            plusController = MD_REF.getUI().getPlusController()
+            if plusController is None:
+                txt = "WARNING: could not get PlusController - NO CHANGES MADE"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            plaidConnection = plusController.getPlaidConnection()
+            if plaidConnection is None:
+                txt = "WARNING: could not get plaidConnection - NO CHANGES MADE"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            mapping = OnlineAccountMapping(book, service)
+            licenseInfo = getMDPlusLicenseInfoForBook()
+    
+            # noinspection PyUnresolvedReferences
+            p_mdpl = MDPlus.MDPlusLicense.getDeclaredConstructor(MoneydanceSyncableItem)
+            p_mdpl.setAccessible(True)
+            plusLicense = p_mdpl.newInstance(licenseInfo)
+    
+            status = plusLicense.getSignupStatusWithRefreshing()
+            # noinspection PyUnresolvedReferences
+            if status != MDPlus.SignupStatus.ACTIVATED:
+                txt = "WARNING: MD+ signup status(%s) is not activated - NO CHANGES MADE" %(status)
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+    
+            plaidClient = None                                                                                          # noqa
+            try:
+                plaidClient = invokeMethodByReflection(plaidConnection, "getPlaidClient", None)
+            except NoClassDefFoundError as e:
+                myPrint("B", "Caught error '%s' (expect it's 'HttpLoggingInterceptor') - will retry once more....:" %(e.getMessage()))
+                # Running twice seems to get past the 'NoClassDefFoundError: java.lang.NoClassDefFoundError: okhttp3/logging/HttpLoggingInterceptor' error
+                plaidClient = invokeMethodByReflection(plaidConnection, "getPlaidClient", None)
+
+            if plaidClient is None:
+                txt = "WARNING: getPlaidClient returned None - NO CHANGES MADE" %(status)
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            output += "MD+ signup status returned: %s\n\n" %(status)
+
+            # noinspection PyUnresolvedReferences
+            allAccessTokens = [PlaidConnection.ItemAccessInfo(tokenInfo) for tokenInfo in book.getLocalStorage().getSublist("access_tokens")]
+            allItems = plaidConnection.getAccessTokensByItemID()    # Duplicates are ignored....
+
+            output += "allAccessTokens:\n"
+            for token in allAccessTokens:
+                accessToken = invokeMethodByReflection(token, "getAccessToken", [])
+                output += "%s %s\n" %(token, accessToken)
+            output += "\n"
+    
+            accounts = service.getAvailableAccounts()
+            output += "getAvailableAccounts: accounts\n"
+            for acct in accounts: output += "%s (%s)\n" %(acct.getDescription(), acct.getAccountNumber().strip())
+            output += "\n"
+    
+            itemsToBanks = {}
+            for itemID in allItems.keySet():
+                fiID = plaidConnection.getItemInfo(itemID).getStr("inst", "")
+                itemsToBanks[itemID] = plaidConnection.getInstitutionInfo(fiID)
+
+            output += "itemsToBanks:\n"
+            for item in itemsToBanks: output += "%s <> '%s' (%s)\n" %(item, itemsToBanks[item].getName(), itemsToBanks[item].getID())
+            output += "\n"
+    
+            sortedItemIDs = sorted(allItems.keySet(), key=lambda sort_x: (itemsToBanks[sort_x].getName()))
+
+            class AccountMappingRow:
+                def __init__(self, _itemInfo, _accountInfo, _allAccessTokens=None):
+                    self.itemInfo = _itemInfo
+                    self.accountInfo = _accountInfo
+                    self.allAccessTokens = _allAccessTokens
+                def isItemRow(self): return (self.accountInfo is None and self.itemInfo is not None)
+    
+            connectionRows = []
+
+            for itemID in sortedItemIDs:
+                itemInfo = allItems.get(itemID)
+                connectionRows.append(AccountMappingRow(itemInfo, None, [token for token in allAccessTokens if token.getItemID() == itemID]))
+                itemAccounts = sorted([olAccount for olAccount in accounts if olAccount.getPlaidItemID() == itemID], key=lambda sort_x: (sort_x.getDisplayName()))
+                for acctInfo in itemAccounts:
+                    connectionRows.append(AccountMappingRow(itemInfo, acctInfo))
+
+            output += "\n" \
+                      "CONNECTIONS (should duplicate Menu>Online>Setup Moneydance+):\n" \
+                      "-------------------------------------------------------------\n"
+
+            class StoreConnectionRow:
+                def __init__(self, _connectionRow, _institutionName):
+                    self.connectionRow = _connectionRow
+                    self.institutionName = _institutionName
+                def __str__(self):  return self.institutionName
+                def __repr__(self): return self.__str__()
+                def toString(self): return self.__str__()
+
+            connectionRowSelector = []
+            for connectionRow in connectionRows:
+                if connectionRow.isItemRow():
+                    itemInfo = plaidConnection.getItemInfo(connectionRow.itemInfo.getItemID())
+                    institutionInfo = plaidConnection.getInstitutionInfo(itemInfo.getStr("inst", ""))
+                    institutionName = institutionInfo.getName("no name") + " (%s)" %(connectionRow.itemInfo.getItemID())
+                    output += "\nConnection: %s\n" %(institutionName)
+                    if len(connectionRow.allAccessTokens) > 1:
+                        output += "... Found multiple payloads for this connection:\n"
+                        for token in connectionRow.allAccessTokens:
+                            output += "...... payloadid=%s token=%s\n" %(token.getPayloadID(), invokeMethodByReflection(token, "getAccessToken", []))
+                    connectionRowSelector.append(StoreConnectionRow(connectionRow, institutionName))
+                else:
+                    acctInfo = connectionRow.accountInfo
+                    accountNum = acctInfo.getAccountNumber()
+                    localAccount = mapping.getAccountForOnlineID(acctInfo.getAccountNumber(), None, False)
+                    output += "... ACCOUNT MAPPING: '%s' <> '%s'(%s)\n" %(acctInfo.getDisplayName(), localAccount, accountNum)
+    
+            output += "\n<END OF LIST>\n"
+    
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+    
+            ask = MyPopUpDialogBox(jif,
+                                 theStatus="WARNING: User requests to force disconnect an MD+ connection",
+                                 theTitle=_THIS_METHOD_NAME.upper(),
+                                 theMessage="Only attempt this when standard MD menus are not working....!\n"
+                                            "Try the MD Menu > Online > Setup Moneydance + > REFRESH and DISCONNECT options first\n",
+                                 lCancelButton=True,
+                                 OKButtonText="I AGREE - PROCEED",
+                                 lAlertLevel=1)
+    
+            if not ask.go():
+                txt = "User did not say yes force disconnect the selected MD+ connection - NO CHANGES MADE"
+                setDisplayStatus(txt, "B")
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+    
+            selectedConnectionRow = JOptionPane.showInputDialog(jif,
+                                                       "Select the Connection to force disconnect:",
+                                                       "Select CONNECTION",
+                                                       JOptionPane.INFORMATION_MESSAGE,
+                                                       getMDIcon(lAlwaysGetIcon=True),
+                                                       connectionRowSelector,
+                                                       None)
+    
+            if not selectedConnectionRow:
+                txt = "User did not select a connection to force disconnect - NO CHANGES MADE"
+                setDisplayStatus(txt, "B")
+                myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+            if isinstance(selectedConnectionRow, StoreConnectionRow): pass
+
+            if not confirm_backup_confirm_disclaimer(jif,_THIS_METHOD_NAME.upper(),"Proceed with force disconnect '%s' md+ connection (USE WITH CARE)?" %(selectedConnectionRow.institutionName)):
+                return
+
+            output += "\n"
+            txt = "User requested to force disconnect the '%s' Moneydance+ connection - proceeding....:" %(selectedConnectionRow.institutionName)
+            output += "%s\n" %(txt); myPrint("B", txt)
+
+            for token in selectedConnectionRow.connectionRow.allAccessTokens:
+                # itemAccessInfo = token.
+                accessToken = invokeMethodByReflection(token, "getAccessToken", [])
+                response = plaidClient.service().itemRemove(ItemRemoveRequest(accessToken)).execute()
+                success = response.isSuccessful()
+                if success:
+                    txt = "Plaid ItemRemoveRequest(%s) reported SUCCESS (token: %s)!" %(accessToken, token)
+                    output += "%s\n" %(txt); myPrint("B", txt)
+                else:
+                    errorResponse = plaidClient.parseError(response)
+                    txt = "Plaid ItemRemoveRequest(%s) FAILED (token: %s) - will continue... (error: %s %s)" %(accessToken, token, errorResponse, errorResponse.getErrorCode())
+                    output += "%s\n" %(txt); myPrint("B", txt)
+
+                payloadID = token.getPayloadID()
+                if not StringUtils.isBlank(payloadID):
+                    plusLicense.deleteKeyPayload(payloadID)
+                    txt = "Deleted payloadID: '%s' from plusLicense at server..." %(payloadID)
+                    output += "%s\n" %(txt); myPrint("B", txt)
+                else:
+                    txt = "payloadID: '%s' empty - no delete from server.... will continue...." %(payloadID)
+                    output += "%s\n" %(txt); myPrint("B", txt)
+
+                # noinspection PyUnresolvedReferences
+                invokeMethodByReflection(plaidConnection, "removeAccessToken", [PlaidConnection.ItemAccessInfo], token)
+                txt = "Removed access token from access_tokens cache: %s" %(token)
+                output += "%s\n" %(txt); myPrint("B", txt)
+
+            try:
+                plaidConnection.updateAccountList()
+                txt = "Plaid - called update account list..."
+                output += "%s\n" %(txt); myPrint("B", txt)
+            except Exception as e:
+                txt = "Unable to refresh accounts list after removing token(s). Error was: %s" %(e)
+                output += "%s\n" %(txt); myPrint("B", txt)
+                dump_sys_error_to_md_console_and_errorlog()
+
+            txt = "... Auto-running cleanup of banking links..."
+            output += "%s\n" %(txt); myPrint("B", txt)
+            cleanupMissingOnlineBankingLinks(lAutoPurge=True)
+
+            myPrint("B", "... Saving local storage...")
+            storage.save()
+    
+            myPrint("B", "... Flushing changes to sync...")
+            MD_REF.saveCurrentAccount()
+    
+            play_the_money_sound()
+
+            jif.dispose()
+
+            txt = "Process to force disconnect '%s' MD+ connection completed.." %(selectedConnectionRow.institutionName)
+            output += "%s\n" %(txt); myPrint("B", txt)
+            setDisplayStatus(txt, "R")
+
+            output += "\n<END>\n"
+
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+            myPopupInformationBox(jif,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
+
+        except:
+            output += "\nERROR script has crashed - please review console\n".upper()
+            txt = dump_sys_error_to_md_console_and_errorlog(True)
+            output += txt
+            QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=2).show_the_frame()
 
     def forgetOFXImportLink():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -25227,6 +25485,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_forceMDPlusNameCacheAccessTokensRebuild.setEnabled(GlobalVars.ADVANCED_MODE)
                     user_forceMDPlusNameCacheAccessTokensRebuild.setForeground(getColorRed())
 
+                    user_forceDisconnectMDPlusConnection = JRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE)", False)
+                    user_forceDisconnectMDPlusConnection.setToolTipText("Attempts to force disconnect and MD+ connection. THIS CHANGES DATA!")
+                    user_forceDisconnectMDPlusConnection.setEnabled(GlobalVars.ADVANCED_MODE and isMDPlusPayloadBuildEnabledBuild())
+                    user_forceDisconnectMDPlusConnection.setForeground(getColorRed())
+
                     user_export_MDPlus_LicenseObject = JRadioButton("Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant')", False)
                     user_export_MDPlus_LicenseObject.setToolTipText("This will Export your stored Moneydance+ (Plaid) license (keys) etc to a file (for 'transplant'). READONLY")
                     user_export_MDPlus_LicenseObject.setEnabled(GlobalVars.ADVANCED_MODE)
@@ -25274,6 +25537,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_viewReconcileAsOfDates)
                     bg.add(user_cookieManagement)
                     bg.add(user_forceMDPlusNameCacheAccessTokensRebuild)
+                    bg.add(user_forceDisconnectMDPlusConnection)
                     bg.add(user_export_MDPlus_LicenseObject)
                     bg.add(user_import_MDPlus_LicenseObject)
                     bg.add(user_zapMDPlusProfile)
@@ -25326,6 +25590,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     if isMDPlusEnabledBuild():
                         userFilters.add(user_forceMDPlusNameCacheAccessTokensRebuild)
+                        userFilters.add(user_forceDisconnectMDPlusConnection)
                         userFilters.add(user_export_MDPlus_LicenseObject)
                         userFilters.add(user_import_MDPlus_LicenseObject)
                         userFilters.add(user_zapMDPlusProfile)
@@ -25360,6 +25625,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_UNLOCKMDPlusDiagnostic.isSelected():                    UNLOCKMDPlusDiagnostic()
                         if user_authenticationManagement.isSelected():                  OFX_authentication_management()
                         if user_forceMDPlusNameCacheAccessTokensRebuild.isSelected():   forceMDPlusNameCacheAccessTokensRebuild()
+                        if user_forceDisconnectMDPlusConnection.isSelected():           forceDisconnectMDPlusConnection()
                         if user_export_MDPlus_LicenseObject.isSelected():               export_MDPlus_LicenseObject()
                         if user_import_MDPlus_LicenseObject.isSelected():               import_MDPlus_LicenseObject()
                         if user_zapMDPlusProfile.isSelected():                          zap_MDPlus_Profile()

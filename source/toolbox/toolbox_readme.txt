@@ -213,6 +213,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
                 - Manual Edit of stored Root UserIDs/ClientUIDs
         - OFX Cookie Management (requires Advanced mode)
         - Force MD+ name cache & access tokens rebuild - Names and Access Tokens should rebuild themselves - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
+        - Force Disconnect an MD+ Connection - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
         - Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant') - MD Version 2022 onwards. READONLY (requires Advanced mode)
         - Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
         - ZAP Dataset's Moneydance+ (Plaid) settings (requires Advanced mode) - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
