@@ -506,7 +506,7 @@ else:
     global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
     global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
     global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MULTI_OFX_TXN_DNLD_DATES_BUILD
-    global MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD, MD_MDPLUS_PAYLOAD_BUILD
+    global MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD, MD_MDPLUS_GETPLAIDCLIENT_BUILD
 
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.5                                                                          # noqa
@@ -522,7 +522,7 @@ else:
     MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
     MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078                                                                 # noqa
     MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                                                                            # noqa
-    MD_MDPLUS_PAYLOAD_BUILD = 4090                                                                                      # noqa
+    MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090                                                                               # noqa
 
     GlobalVars.mainPnl_preview_lbl = JLabel()
     GlobalVars.mainPnl_debug_lbl = JLabel()
@@ -3445,12 +3445,16 @@ Visit: %s (Author's site)
 
     def isMDPlusUniqueBankingServicesEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD)
 
-    def isMDPlusPayloadBuildEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_PAYLOAD_BUILD)
+    def isMDPlusGetPlaidClientEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_GETPLAIDCLIENT_BUILD)
 
     if isMDPlusEnabledBuild():
-        # from com.moneydance.apps.md.controller import MDPlus
-        # from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
         from com.infinitekind.moneydance.model import OnlineServiceLink
+
+    if isMDPlusGetPlaidClientEnabledBuild():
+        from com.infinitekind.moneydance.model import OnlineAccountMapping
+        from com.moneydance.apps.md.controller import MDPlus
+        from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
+        from com.plaid.client.request import ItemRemoveRequest
 
     def getMDPlusLicenseInfoForBook():
         _licenseObject = MD_REF.getCurrentAccountBook().getItemForID("tik.mdplus-license")	    # type: MoneydanceSyncableItem
@@ -11999,11 +12003,36 @@ Visit: %s (Author's site)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
 
+    # If run too early, then will fail with 'java.lang.Error: java.lang.Error: Attempted security violation' on .getMDPlusLicense()
+    # ... as "plusLicense" will not have yet been obtained, and the latter code calls .getLicenseForBook() which prevents Python
+    # ... so we need to get MD to do something which tricks it into setting "plusLicense" in advance.... ;->
+    # ... or executes in a Thread where it will not detect "Python" at the top of the call stack....
+    # com.moneydance.apps.md.controller.olb.plaid.PlaidConnection.plusLicense : MDPlus.MDPlusLicense
+    class GetPlaidClient(Runnable):
+        def __init__(self, _plaidConnection):
+            myPrint("DB", "INITIALISING::GetPlaidClient() - Plaid Connection passed:", _plaidConnection)
+            self.plaidConnection = _plaidConnection
+            self.plaidClient = None
+
+        def run(self):
+            myPrint("DB", "EXECUTING::GetPlaidClient.run()")
+            try:
+                self.plaidClient = invokeMethodByReflection(self.plaidConnection, "getPlaidClient", None)
+            except NoClassDefFoundError as e:
+                myPrint("B", "Caught error '%s' (expect it's 'HttpLoggingInterceptor') - will retry once more....:" %(e.getMessage()))
+                # Running twice seems to get past the 'NoClassDefFoundError: java.lang.NoClassDefFoundError: okhttp3/logging/HttpLoggingInterceptor' error
+                self.plaidClient = invokeMethodByReflection(self.plaidConnection, "getPlaidClient", None)
+            myPrint("DB", ">>> Finished executing GetPlaidClient.run() - result:", self.plaidClient)
+
+        def getPlaidClient(self):
+            myPrint("DB", "GetPlaidClient.getPlaidClient() is returning:", self.plaidClient)
+            return self.plaidClient
+
     def forceDisconnectMDPlusConnection():
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        if not isMDPlusEnabledBuild() or not isMDPlusPayloadBuildEnabledBuild(): return
+        if not isMDPlusEnabledBuild() or not isMDPlusGetPlaidClientEnabledBuild(): return
 
         _THIS_METHOD_NAME = "Force disconnect an MD+ connection".upper()
 
@@ -12011,13 +12040,6 @@ Visit: %s (Author's site)
                  " ========================================\n\n" %(_THIS_METHOD_NAME)
 
         try:
-            storage = MD_REF.getCurrentAccountBook().getLocalStorage()
-    
-            from com.infinitekind.moneydance.model import OnlineAccountMapping
-            from com.moneydance.apps.md.controller import MDPlus
-            from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
-            from com.plaid.client.request import ItemRemoveRequest
-
             book = MD_REF.getCurrentAccountBook()
     
             service = PlaidConnection.getPlaidService(book)
@@ -12057,17 +12079,17 @@ Visit: %s (Author's site)
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
-    
-            plaidClient = None                                                                                          # noqa
-            try:
-                plaidClient = invokeMethodByReflection(plaidConnection, "getPlaidClient", None)
-            except NoClassDefFoundError as e:
-                myPrint("B", "Caught error '%s' (expect it's 'HttpLoggingInterceptor') - will retry once more....:" %(e.getMessage()))
-                # Running twice seems to get past the 'NoClassDefFoundError: java.lang.NoClassDefFoundError: okhttp3/logging/HttpLoggingInterceptor' error
-                plaidClient = invokeMethodByReflection(plaidConnection, "getPlaidClient", None)
+
+            # if getFieldByReflection(plaidConnection, "plusLicense") is None: raise Exception("PLEASE WAIT AND TRY AGAIN")
+
+            getPlaidClient = GetPlaidClient(plaidConnection)
+            t = Thread(getPlaidClient)
+            t.start()
+            t.join()
+            plaidClient = getPlaidClient.getPlaidClient()
 
             if plaidClient is None:
-                txt = "WARNING: getPlaidClient returned None - NO CHANGES MADE" %(status)
+                txt = "WARNING: getPlaidClient returned None - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
@@ -12147,9 +12169,15 @@ Visit: %s (Author's site)
                     output += "... ACCOUNT MAPPING: '%s' <> '%s'(%s)\n" %(acctInfo.getDisplayName(), localAccount, accountNum)
     
             output += "\n<END OF LIST>\n"
-    
+
+            if len(connectionRowSelector) < 1:
+                txt = "You have no connections available that can be disconnected - NO CHANGES MADE"
+                setDisplayStatus(txt, "B")
+                myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
             jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
-    
+
             ask = MyPopUpDialogBox(jif,
                                  theStatus="WARNING: User requests to force disconnect an MD+ connection",
                                  theTitle=_THIS_METHOD_NAME.upper(),
@@ -12182,6 +12210,15 @@ Visit: %s (Author's site)
 
             if not confirm_backup_confirm_disclaimer(jif,_THIS_METHOD_NAME.upper(),"Proceed with force disconnect '%s' md+ connection (USE WITH CARE)?" %(selectedConnectionRow.institutionName)):
                 return
+
+            jif.dispose()
+
+            pleaseWait = MyPopUpDialogBox(toolbox_frame_,
+                                          "Please wait: executing 'force disconnecting md+ connection' right now..",
+                                          theTitle=_THIS_METHOD_NAME.upper(),
+                                          lModal=False,
+                                          OKButtonText="WAIT")
+            pleaseWait.go()
 
             output += "\n"
             txt = "User requested to force disconnect the '%s' Moneydance+ connection - proceeding....:" %(selectedConnectionRow.institutionName)
@@ -12227,15 +12264,12 @@ Visit: %s (Author's site)
             output += "%s\n" %(txt); myPrint("B", txt)
             cleanupMissingOnlineBankingLinks(lAutoPurge=True)
 
-            myPrint("B", "... Saving local storage...")
-            storage.save()
-    
-            myPrint("B", "... Flushing changes to sync...")
+            MD_REF.getCurrentAccountBook().getLocalStorage().save()
             MD_REF.saveCurrentAccount()
     
-            play_the_money_sound()
+            pleaseWait.kill()
 
-            jif.dispose()
+            play_the_money_sound()
 
             txt = "Process to force disconnect '%s' MD+ connection completed.." %(selectedConnectionRow.institutionName)
             output += "%s\n" %(txt); myPrint("B", txt)
@@ -12247,7 +12281,7 @@ Visit: %s (Author's site)
             myPopupInformationBox(jif,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         except:
-            output += "\nERROR script has crashed - please review console\n".upper()
+            output += "\n\nERROR script has crashed - please review console\n".upper()
             txt = dump_sys_error_to_md_console_and_errorlog(True)
             output += txt
             QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=2).show_the_frame()
@@ -25487,7 +25521,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     user_forceDisconnectMDPlusConnection = JRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE)", False)
                     user_forceDisconnectMDPlusConnection.setToolTipText("Attempts to force disconnect and MD+ connection. THIS CHANGES DATA!")
-                    user_forceDisconnectMDPlusConnection.setEnabled(GlobalVars.ADVANCED_MODE and isMDPlusPayloadBuildEnabledBuild())
+                    user_forceDisconnectMDPlusConnection.setEnabled(GlobalVars.ADVANCED_MODE and isMDPlusGetPlaidClientEnabledBuild())
                     user_forceDisconnectMDPlusConnection.setForeground(getColorRed())
 
                     user_export_MDPlus_LicenseObject = JRadioButton("Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant')", False)
