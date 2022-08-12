@@ -116,11 +116,14 @@
 # build: 1053 - Added 'DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)' feature
 # build: 1053 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1053 - New feature 'Decrypt entire dataset' feature...
-# build: 1053 - New feature 'Force Disconnect an MD+ Connection'
+# build: 1053 - New feature 'Force Disconnect an MD+ Connection' (also added to view service profiles)
 # build: 1053 - Allow md+ payload ids to appear in the view service profile output, unless user selects redacted option...
+# build: 1053 - Now clear MDPlus.licenseCache when shutting down the plusPoller...
+# build: 1053 - Tweak to ManuallyCloseAndReloadDataset() to release all references to (old) book - memory consumption etc....
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
+# todo - Test restart options after Zap and Import md+ license options (now that we clear licenseCache when shutting down plusPoller)
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
@@ -3064,8 +3067,11 @@ Visit: %s (Author's site)
             if plusPoller is not None:
                 invokeMethodByReflection(plusPoller, "shutdown", None)
                 setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
-            # NOTE: MDPlus.licenseCache should be reset too, but it's a 'private static final' field....
-            #       hence restart MD if changing (importing/zapping) the license object
+
+            myPrint("DB", "... Clearing out the in-memory license cache...")
+            licenseCache = getFieldByReflection(MDPlus, "licenseCache")
+            if licenseCache is not None: licenseCache.clear()
+
             myPrint("DB", "... MD+ poller shutdown...")
 
     def shutdownMDAlertController():
@@ -3182,6 +3188,11 @@ Visit: %s (Author's site)
             fCurrentFilePath = currentBook.getRootFolder()
 
             if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lCloseWindows=False): return False
+
+            # Release the reference to current book (and memory)....
+            del currentBook;
+            myPrint("DB", "Calling garbage collection after releasing references...")
+            System.gc();
 
             newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
             if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
@@ -3448,11 +3459,11 @@ Visit: %s (Author's site)
     def isMDPlusGetPlaidClientEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_GETPLAIDCLIENT_BUILD)
 
     if isMDPlusEnabledBuild():
+        from com.moneydance.apps.md.controller import MDPlus
         from com.infinitekind.moneydance.model import OnlineServiceLink
 
     if isMDPlusGetPlaidClientEnabledBuild():
         from com.infinitekind.moneydance.model import OnlineAccountMapping
-        from com.moneydance.apps.md.controller import MDPlus
         from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
         from com.plaid.client.request import ItemRemoveRequest
 
@@ -6231,6 +6242,10 @@ Visit: %s (Author's site)
                 else:
                     OFX.append("<NONE>")
                 del mdp_cache
+
+                if not GlobalVars.redact:
+                    # This will not disconnect anything, just reproduce the md+ connection information...
+                    OFX.append(forceDisconnectMDPlusConnection(lReturnConnectionInfoOnly=True))
 
             OFX.append(pad("\n>>Accounts configured within bank profile:",120))
             if len(service.getAvailableAccounts())<1:
@@ -11435,6 +11450,75 @@ Visit: %s (Author's site)
         cipher.init(2, privkey, ENCRYPTION_PARAM_SPEC)
         return cipher.doFinal(cipherText)
 
+    def getLicenseForBook(_book, initIfDoesntExist):
+
+        if not isMDPlusEnabledBuild(): return None
+
+        # com.moneydance.apps.md.controller.MDPlus.getLicenseForBook(AccountBook, boolean) : MDPlus.MDPlusLicense
+        # ... Will fail with 'java.lang.Error: java.lang.Error: Attempted security violation' on .getMDPlusLicense()
+        # ... as "plusLicense" will not have yet been obtained, and the latter code calls .getLicenseForBook() which prevents Python
+        # ... so we either need to get MD to do something which tricks it into setting "plusLicense" in advance.... ;->
+        # ... or execute in a new Thread where MD will not detect "Python" at the top of the call stack....
+
+        class GetLicenseForBook(Runnable):
+            def __init__(self, theBook, _initIfDoesntExist):
+                myPrint("DB", "INITIALISING::getLicenseForBook().GetLicenseForBook()")
+                self.book = theBook
+                self.initIfDoesntExist = _initIfDoesntExist
+                self.plusLicense = None
+
+            def run(self):
+                myPrint("DB", "EXECUTING::getLicenseForBook().GetLicenseForBook.run() - will call MDPlus.singleton().getLicenseForBook()")
+                self.plusLicense = MDPlus.singleton().getLicenseForBook(self.book, self.initIfDoesntExist)
+                myPrint("DB", ">>> Finished executing GetLicenseForBook.run() - result:", self.plusLicense)
+
+            def getResult(self):
+                myPrint("DB", "getLicenseForBook().GetLicenseForBook.getResult() is returning:", self.plusLicense)
+                return self.plusLicense
+
+        clientGrabber = GetLicenseForBook(_book, initIfDoesntExist)
+        t = Thread(clientGrabber)
+        t.start()
+        t.join()
+        return clientGrabber.getResult()
+
+    def getPlaidClient(_plaidConnection):
+
+        if not isMDPlusGetPlaidClientEnabledBuild(): return None
+
+        # if com.moneydance.apps.md.controller.olb.plaid.PlaidConnection.getPlaidClient() is run too 'early',
+        # ... then it will fail with 'java.lang.Error: java.lang.Error: Attempted security violation' on .getMDPlusLicense()
+        # ... as "plusLicense" will not have yet been obtained, and the latter code calls .getLicenseForBook() which prevents Python
+        # ... so we either need to get MD to do something which tricks it into setting "plusLicense" in advance.... ;->
+        # ... or execute in a new Thread where MD will not detect "Python" at the top of the call stack....
+        # Ref: com.moneydance.apps.md.controller.olb.plaid.PlaidConnection.plusLicense : MDPlus.MDPlusLicense
+
+        class GetPlaidClient(Runnable):
+            def __init__(self, thePlaidConnection):
+                myPrint("DB", "INITIALISING::getPlaidClient().GetPlaidClient() - Plaid Connection passed:", thePlaidConnection)
+                self.plaidConnection = thePlaidConnection
+                self.plaidClient = None
+
+            def run(self):
+                myPrint("DB", "EXECUTING::getPlaidClient().GetPlaidClient.run()")
+                try:
+                    self.plaidClient = invokeMethodByReflection(self.plaidConnection, "getPlaidClient", None)
+                except NoClassDefFoundError as e:
+                    myPrint("B", "Caught error '%s' (expect it's 'HttpLoggingInterceptor') - will retry once more....:" %(e.getMessage()))
+                    # Running twice seems to get past the 'NoClassDefFoundError: java.lang.NoClassDefFoundError: okhttp3/logging/HttpLoggingInterceptor' error
+                    self.plaidClient = invokeMethodByReflection(self.plaidConnection, "getPlaidClient", None)
+                myPrint("DB", ">>> Finished executing GetPlaidClient.run() - result:", self.plaidClient)
+
+            def getResult(self):
+                myPrint("DB", "getPlaidClient().GetPlaidClient.getResult() is returning:", self.plaidClient)
+                return self.plaidClient
+
+        clientGrabber = GetPlaidClient(_plaidConnection)
+        t = Thread(clientGrabber)
+        t.start()
+        t.join()
+        return clientGrabber.getResult()
+
     def UNLOCKMDPlusDiagnostic():
 
         if not isToolboxUnlocked() or not isMDPlusEnabledBuild(): return
@@ -11809,8 +11893,7 @@ Visit: %s (Author's site)
         if preZapMDPlusSettingsFirst:
             zap_MDPlus_Profile(lAutoZap=True)
         else:
-            # Just clear the LocalStorage cache.... It will rebuild itself...
-            forceMDPlusNameCacheAccessTokensRebuild(lAutoWipe=True)
+            forceMDPlusNameCacheAccessTokensRebuild(lAutoWipe=True)   # Clear the LocalStorage cache.... It will rebuild itself...
 
         licenseObject = getMDPlusLicenseInfoForBook()
 
@@ -11851,7 +11934,8 @@ Visit: %s (Author's site)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        # Must Exit and manually restart MD as MDPlus.licenseCache field does not get reset otherwise.....
+        # Must Exit and manually restart MD as MDPlus.licenseCache field does not normally get reset.....
+        # Might be OK to restart now that we clear out licenseCache when shutting down the plusPoller..? Needs testing
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
 
     def zap_MDPlus_Profile(lAutoZap=False):
@@ -11957,7 +12041,8 @@ Visit: %s (Author's site)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        # Must Exit and manually restart MD as MDPlus.licenseCache field does not get reset otherwise.....
+        # Must Exit and manually restart MD as MDPlus.licenseCache field does not normally get reset.....
+        # Might be OK to restart now that we clear out licenseCache when shutting down the plusPoller..? Needs testing
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
 
     def forceMDPlusNameCacheAccessTokensRebuild(lAutoWipe=False):
@@ -11997,53 +12082,31 @@ Visit: %s (Author's site)
 
         play_the_money_sound()
 
-        txt = "MD+ name cache & access tokens have been wiped..! MONEYDANCE WILL NOW EXIT - PLEASE MANUALLY RESTART"
+        txt = "MD+ name cache & access tokens have been wiped..! MONEYDANCE WILL NOW RELOAD DATASET/RESTART..."
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
-    # If run too early, then will fail with 'java.lang.Error: java.lang.Error: Attempted security violation' on .getMDPlusLicense()
-    # ... as "plusLicense" will not have yet been obtained, and the latter code calls .getLicenseForBook() which prevents Python
-    # ... so we need to get MD to do something which tricks it into setting "plusLicense" in advance.... ;->
-    # ... or executes in a Thread where it will not detect "Python" at the top of the call stack....
-    # com.moneydance.apps.md.controller.olb.plaid.PlaidConnection.plusLicense : MDPlus.MDPlusLicense
-    class GetPlaidClient(Runnable):
-        def __init__(self, _plaidConnection):
-            myPrint("DB", "INITIALISING::GetPlaidClient() - Plaid Connection passed:", _plaidConnection)
-            self.plaidConnection = _plaidConnection
-            self.plaidClient = None
-
-        def run(self):
-            myPrint("DB", "EXECUTING::GetPlaidClient.run()")
-            try:
-                self.plaidClient = invokeMethodByReflection(self.plaidConnection, "getPlaidClient", None)
-            except NoClassDefFoundError as e:
-                myPrint("B", "Caught error '%s' (expect it's 'HttpLoggingInterceptor') - will retry once more....:" %(e.getMessage()))
-                # Running twice seems to get past the 'NoClassDefFoundError: java.lang.NoClassDefFoundError: okhttp3/logging/HttpLoggingInterceptor' error
-                self.plaidClient = invokeMethodByReflection(self.plaidConnection, "getPlaidClient", None)
-            myPrint("DB", ">>> Finished executing GetPlaidClient.run() - result:", self.plaidClient)
-
-        def getPlaidClient(self):
-            myPrint("DB", "GetPlaidClient.getPlaidClient() is returning:", self.plaidClient)
-            return self.plaidClient
-
-    def forceDisconnectMDPlusConnection():
+    def forceDisconnectMDPlusConnection(lReturnConnectionInfoOnly=False):
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        if not isMDPlusEnabledBuild() or not isMDPlusGetPlaidClientEnabledBuild(): return
+        if not isMDPlusEnabledBuild() or not isMDPlusGetPlaidClientEnabledBuild(): return ""
 
         _THIS_METHOD_NAME = "Force disconnect an MD+ connection".upper()
 
         output = "%s:\n" \
                  " ========================================\n\n" %(_THIS_METHOD_NAME)
 
+        connectionTxt = "\n\n** WARNING: There was a script problem reproducing the md+ connection list **\n\n"
+
         try:
             book = MD_REF.getCurrentAccountBook()
-    
+
             service = PlaidConnection.getPlaidService(book)
             if service is None:
+                if lReturnConnectionInfoOnly: return connectionTxt
                 txt = "WARNING: could not get Plaid Service - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -12052,6 +12115,7 @@ Visit: %s (Author's site)
             # plaidConnection = PlaidConnection(book, DefaultOnlineUIProxy(MD_REF.getUI(), book, None))
             plusController = MD_REF.getUI().getPlusController()
             if plusController is None:
+                if lReturnConnectionInfoOnly: return connectionTxt
                 txt = "WARNING: could not get PlusController - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -12059,6 +12123,7 @@ Visit: %s (Author's site)
 
             plaidConnection = plusController.getPlaidConnection()
             if plaidConnection is None:
+                if lReturnConnectionInfoOnly: return connectionTxt
                 txt = "WARNING: could not get plaidConnection - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -12072,9 +12137,19 @@ Visit: %s (Author's site)
             p_mdpl.setAccessible(True)
             plusLicense = p_mdpl.newInstance(licenseInfo)
     
-            status = plusLicense.getSignupStatusWithRefreshing()
+            status = None                                                                                               # noqa
+            try:
+                status = plusLicense.getSignupStatusWithRefreshing()
+            except:
+                if lReturnConnectionInfoOnly: return connectionTxt
+                txt = "WARNING: Could not retrieve md+ signup status (perhaps you are offline) - NO CHANGES MADE"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
             # noinspection PyUnresolvedReferences
             if status != MDPlus.SignupStatus.ACTIVATED:
+                if lReturnConnectionInfoOnly: return connectionTxt
                 txt = "WARNING: MD+ signup status(%s) is not activated - NO CHANGES MADE" %(status)
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -12082,13 +12157,9 @@ Visit: %s (Author's site)
 
             # if getFieldByReflection(plaidConnection, "plusLicense") is None: raise Exception("PLEASE WAIT AND TRY AGAIN")
 
-            getPlaidClient = GetPlaidClient(plaidConnection)
-            t = Thread(getPlaidClient)
-            t.start()
-            t.join()
-            plaidClient = getPlaidClient.getPlaidClient()
-
+            plaidClient = getPlaidClient(plaidConnection)
             if plaidClient is None:
+                if lReturnConnectionInfoOnly: return connectionTxt
                 txt = "WARNING: getPlaidClient returned None - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -12138,9 +12209,9 @@ Visit: %s (Author's site)
                 for acctInfo in itemAccounts:
                     connectionRows.append(AccountMappingRow(itemInfo, acctInfo))
 
-            output += "\n" \
-                      "CONNECTIONS (should duplicate Menu>Online>Setup Moneydance+):\n" \
-                      "-------------------------------------------------------------\n"
+            connectionTxt = "\n" \
+                            "CONNECTIONS (should duplicate Menu>Online>Setup Moneydance+):\n" \
+                            "-------------------------------------------------------------\n"
 
             class StoreConnectionRow:
                 def __init__(self, _connectionRow, _institutionName):
@@ -12156,19 +12227,23 @@ Visit: %s (Author's site)
                     itemInfo = plaidConnection.getItemInfo(connectionRow.itemInfo.getItemID())
                     institutionInfo = plaidConnection.getInstitutionInfo(itemInfo.getStr("inst", ""))
                     institutionName = institutionInfo.getName("no name") + " (%s)" %(connectionRow.itemInfo.getItemID())
-                    output += "\nConnection: %s\n" %(institutionName)
+                    connectionTxt += "\nConnection: %s\n" %(institutionName)
                     if len(connectionRow.allAccessTokens) > 1:
-                        output += "... Found multiple payloads for this connection:\n"
+                        connectionTxt += "... Found multiple payloads for this connection:\n"
                         for token in connectionRow.allAccessTokens:
-                            output += "...... payloadid=%s token=%s\n" %(token.getPayloadID(), invokeMethodByReflection(token, "getAccessToken", []))
+                            connectionTxt += "...... payloadid=%s token=%s\n" %(token.getPayloadID(), invokeMethodByReflection(token, "getAccessToken", []))
                     connectionRowSelector.append(StoreConnectionRow(connectionRow, institutionName))
                 else:
                     acctInfo = connectionRow.accountInfo
                     accountNum = acctInfo.getAccountNumber()
                     localAccount = mapping.getAccountForOnlineID(acctInfo.getAccountNumber(), None, False)
-                    output += "... ACCOUNT MAPPING: '%s' <> '%s'(%s)\n" %(acctInfo.getDisplayName(), localAccount, accountNum)
+                    connectionTxt += "... ACCOUNT MAPPING: '%s' <> '%s'(%s)\n" %(acctInfo.getDisplayName(), localAccount, accountNum)
     
-            output += "\n<END OF LIST>\n"
+            connectionTxt += "\n<END OF REPRODUCED MD+ CONNECTIONS LIST>\n"
+
+            if lReturnConnectionInfoOnly: return connectionTxt
+
+            output += connectionTxt
 
             if len(connectionRowSelector) < 1:
                 txt = "You have no connections available that can be disconnected - NO CHANGES MADE"
@@ -12281,6 +12356,7 @@ Visit: %s (Author's site)
             myPopupInformationBox(jif,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         except:
+            if lReturnConnectionInfoOnly: return connectionTxt
             output += "\n\nERROR script has crashed - please review console\n".upper()
             txt = dump_sys_error_to_md_console_and_errorlog(True)
             output += txt
