@@ -233,8 +233,6 @@ else:
 
     from org.python.core.util import FileUtil
 
-    from java.lang import Thread, IllegalArgumentException, String, Integer
-
     from com.moneydance.util import Platform
     from com.moneydance.awt import JTextPanel, GridC, JDateField
     from com.moneydance.apps.md.view.gui import MDImages
@@ -246,7 +244,6 @@ else:
     from com.infinitekind.moneydance.model import Account, Reminder, ParentTxn, SplitTxn, TxnSearch, InvestUtil, TxnUtil
 
     from com.moneydance.apps.md.controller import AccountBookWrapper
-    from com.moneydance.apps.md.view.gui import WelcomeWindow
     from com.infinitekind.moneydance.model import AccountBook
 
     from javax.swing import JButton, JScrollPane, WindowConstants, JLabel, JPanel, JComponent, KeyStroke, JDialog, JComboBox
@@ -271,12 +268,14 @@ else:
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
+    from java.lang import Thread, IllegalArgumentException, String, Integer, Long
     from java.lang import Double, Math, Character, NoSuchFieldException, NoSuchMethodException, Boolean
     from java.lang.reflect import Modifier
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
     from java.nio.charset import Charset
     if isinstance(None, (JDateField,CurrencyUtil,Reminder,ParentTxn,SplitTxn,TxnSearch, JComboBox, JCheckBox,
+                         AccountBook, AccountBookWrapper, Long, Integer, Boolean,
                          JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
@@ -2276,6 +2275,8 @@ Visit: %s (Author's site)
                 SetupMDColors.FOREGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultBackground
                 SetupMDColors.BACKGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultTextForeground
 
+    global ManuallyCloseAndReloadDataset            # Declare it for QuickJFrame/IDE, but not present in common code. Other code will ignore it
+
     class QuickJFrame():
 
         def __init__(self,
@@ -2324,14 +2325,20 @@ Visit: %s (Author's site)
                 myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
-                if self.lQuitMDAfterClose:
-                    myPrint("B", "Quit MD after Close triggered... Now quitting MD")
-                    ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
-                elif self.lRestartMDAfterClose:
-                    myPrint("B", "Restart MD after Close triggered... Now restarting MD")
-                    ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+                if self.lQuitMDAfterClose or self.lRestartMDAfterClose:
+                    if "ManuallyCloseAndReloadDataset" not in globals():
+                        myPrint("DB", "'ManuallyCloseAndReloadDataset' not in globals(), so just exiting MD the easy way...")
+                        myPrint("B", "@@ EXITING MONEYDANCE @@")
+                        MD_REF.getUI().exit()
+                    else:
+                        if self.lQuitMDAfterClose:
+                            myPrint("B", "Quit MD after Close triggered... Now quitting MD")
+                            ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
+                        elif self.lRestartMDAfterClose:
+                            myPrint("B", "Restart MD after Close triggered... Now restarting MD")
+                            ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
                 else:
-                    myPrint("DB", "FYI No Quit MD after Close triggered... So doing nothing")
+                    myPrint("DB", "FYI No Quit MD after Close triggered... So doing nothing...")
 
         class CloseAction(AbstractAction):
 
@@ -2846,138 +2853,6 @@ Visit: %s (Author's site)
             if alertController is not None:
                 invokeMethodByReflection(alertController, "shutdown", None)
                 setFieldByReflection(MD_REF.getUI(), "alertController", None)
-
-    class ManuallyCloseAndReloadDataset(Runnable):
-
-        @staticmethod
-        def closeSecondaryWindows():
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.closeSecondaryWindows()")
-            if not SwingUtilities.isEventDispatchThread(): return False
-            if not ManuallyCloseAndReloadDataset.isSafeToCloseDataset(): return False
-            return invokeMethodByReflection(MD_REF.getUI(), "closeSecondaryWindows", [Boolean.TYPE], [False])
-
-        @staticmethod
-        def isSafeToCloseDataset():
-            # type: () -> bool
-            """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.isSafeToCloseDataset()")
-            if not SwingUtilities.isEventDispatchThread(): return False
-            return invokeMethodByReflection(MD_REF.getUI(), "isOKToCloseFile", None)
-
-        @staticmethod
-        def moneydanceExitOrRestart(lRestart=True, lAllowSaveWorkspace=True):
-            # type: (bool, bool) -> bool
-            """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.moneydanceExitOrRestart() - lRestart: %s, lAllowSaveWorkspace: %s" %(lRestart, lAllowSaveWorkspace))
-
-            if lRestart and not lAllowSaveWorkspace: raise Exception("Sorry: you cannot use lRestart=True and lAllowSaveWorkspace=False together...!")
-
-            if lRestart:
-                myPrint("B", "@@ RESTARTING MONEYDANCE >> RELOADING SAME DATASET @@")
-                Thread(ManuallyCloseAndReloadDataset()).start()
-            else:
-                if lAllowSaveWorkspace:
-                    myPrint("B", "@@ EXITING MONEYDANCE @@")
-                    MD_REF.getUI().exit()
-                else:
-                    myPrint("B", "@@ SHUTTING DOWN MONEYDANCE >> NOT SAVING 'WORKSPACE' @@")
-                    MD_REF.getUI().shutdownApp(False)
-
-        @staticmethod
-        def manuallyCloseDataset(theBook, lCloseWindows=True):
-            # type: (AccountBook, bool) -> bool
-            """Mimics .setCurrentBook(None) but avoids the Auto Backup 'issue'. Also closes open SecondaryWindows, pauses MD+ etc
-            You should decide whether to run this on the EDT or on a new background thread when calling this method"""
-
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.manuallyCloseDataset(), lCloseWindows:", lCloseWindows)
-
-            if lCloseWindows:
-                if not SwingUtilities.isEventDispatchThread():
-                    raise Exception("ERROR: you must run manuallyCloseDataset() on the EDT if you wish to also call closeSecondaryWindows()...!")
-                if not ManuallyCloseAndReloadDataset.closeSecondaryWindows(): return False
-
-            # Shutdown the MD+ poller... When we open a new dataset it should reset itself.....
-            shutdownMDPlusPoller()
-
-            # Shutdown the Alert Controller... When we open a new dataset it should reset itself.....
-            shutdownMDAlertController()
-
-            setFieldByReflection(MD_REF.getUI(), "olMgr", None)
-
-            myPrint("DB", "... saving LocalStorage..")
-            theBook.getLocalStorage().save()                        # Flush LocalStorage...
-
-            myPrint("DB", "... Mimicking .setCurrentBook(None)....")
-
-            MD_REF.fireAppEvent("md:file:closing")
-            MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
-
-            MD_REF.fireAppEvent("md:file:closed")
-
-            myPrint("DB", "... calling .cleanUp() ....")
-            theBook.cleanUp()
-
-            setFieldByReflection(MD_REF, "currentBook", None)
-            myPrint("B", "Closed current dataset (book: %s)" %(theBook))
-
-            myPrint("DB", "... FINISHED Closing down the dataset")
-            return True
-
-        THIS_APPS_FRAME_REFERENCE = None
-
-        def __init__(self, lQuitThisAppToo=True):
-            self.lQuitThisAppToo = (lQuitThisAppToo and self.__class__.THIS_APPS_FRAME_REFERENCE is not None)
-            self.result = None
-
-        def getResult(self): return self.result     # Caution - only call this when you have waited for Thread to complete..... ;->
-
-        def run(self):
-            # type: () -> bool
-            self.result = self.manuallyCloseAndReloadDataset()
-
-        def manuallyCloseAndReloadDataset(self):
-            # type: () -> bool
-            """Manually closes current dataset, then reloads the same dataset.. Use when you want to refresh MD's internals"""
-
-            if SwingUtilities.isEventDispatchThread(): raise Exception("ERROR - you must run manuallyCloseAndReloadDataset() from a new non-EDT thread!")
-
-            cswResult = [None]
-            class CloseSecondaryWindows(Runnable):
-                def __init__(self, result): self.result = result
-                def run(self): self.result[0] = ManuallyCloseAndReloadDataset.closeSecondaryWindows()
-
-            SwingUtilities.invokeAndWait(CloseSecondaryWindows(cswResult))
-            if not cswResult[0]: return False
-
-            currentBook = MD_REF.getCurrentAccountBook()
-            fCurrentFilePath = currentBook.getRootFolder()
-
-            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lCloseWindows=False): return False
-
-            newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
-            if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
-            myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
-
-            myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
-
-            # .setCurrentBook() always pushes mdGUI().dataFileOpened() on the EDT (if not already on the EDT)....
-            openResult = MD_REF.setCurrentBook(newWrapper)
-            if not openResult or newWrapper.getBook() is None:
-                txt = "Failed to open Dataset (wrong password?).... Will show the Welcome Window...."
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
-
-                if self.lQuitThisAppToo:
-                    # Remember... the file opened event closes my extensions with app listeners, so do this if file could not be opened....
-                    if self.__class__.THIS_APPS_FRAME_REFERENCE is not None:
-                        if isinstance(self.__class__.THIS_APPS_FRAME_REFERENCE, JFrame):
-                            # Do this after .setCurrentBook() so-as not to co-modify listeners.....
-                            SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.__class__.THIS_APPS_FRAME_REFERENCE))
-
-                return False
-
-            return True
-
 
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################

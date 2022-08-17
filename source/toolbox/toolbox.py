@@ -119,7 +119,8 @@
 # build: 1053 - New feature 'Force Disconnect an MD+ Connection' (also added to view service profiles)
 # build: 1053 - Allow md+ payload ids to appear in the view service profile output, unless user selects redacted option...
 # build: 1053 - Now clear MDPlus.licenseCache when shutting down the plusPoller...
-# build: 1053 - Tweak to ManuallyCloseAndReloadDataset() to release all references to (old) book - memory consumption etc....
+# build: 1053 - Improved ManuallyCloseAndReloadDataset() to release all references to (old) book, and shutdown more things - memory consumption etc....
+# build: 1053 - Added CMD-SHIFT-/ - calls up QuickJVMDiags(); tweaked Common Code...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -322,8 +323,6 @@ else:
 
     from org.python.core.util import FileUtil
 
-    from java.lang import Thread, IllegalArgumentException, String, Integer
-
     from com.moneydance.util import Platform
     from com.moneydance.awt import JTextPanel, GridC, JDateField
     from com.moneydance.apps.md.view.gui import MDImages
@@ -335,7 +334,6 @@ else:
     from com.infinitekind.moneydance.model import Account, Reminder, ParentTxn, SplitTxn, TxnSearch, InvestUtil, TxnUtil
 
     from com.moneydance.apps.md.controller import AccountBookWrapper
-    from com.moneydance.apps.md.view.gui import WelcomeWindow
     from com.infinitekind.moneydance.model import AccountBook
 
     from javax.swing import JButton, JScrollPane, WindowConstants, JLabel, JPanel, JComponent, KeyStroke, JDialog, JComboBox
@@ -360,12 +358,14 @@ else:
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
+    from java.lang import Thread, IllegalArgumentException, String, Integer, Long
     from java.lang import Double, Math, Character, NoSuchFieldException, NoSuchMethodException, Boolean
     from java.lang.reflect import Modifier
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
     from java.nio.charset import Charset
     if isinstance(None, (JDateField,CurrencyUtil,Reminder,ParentTxn,SplitTxn,TxnSearch, JComboBox, JCheckBox,
+                         AccountBook, AccountBookWrapper, Long, Integer, Boolean,                          
                          JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
@@ -423,9 +423,28 @@ else:
     import threading
     from collections import OrderedDict
 
+    from java.lang import Process, NoClassDefFoundError, OutOfMemoryError, Runtime
+    from java.lang.ref import WeakReference
+
     from org.python.core import PySystemState
+
+    from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                                 # noqa
+
+    from java.io import ByteArrayInputStream, OutputStream, InputStream, BufferedOutputStream
+    from java.net import URL, URLEncoder, URLDecoder                                                                        # noqa
+    from java.awt import GraphicsEnvironment, Rectangle, GraphicsDevice, Desktop, Event, GridBagConstraints, Window, Frame  # noqa
+    from java.awt.event import ComponentAdapter, ItemListener, ItemEvent, HierarchyListener                                 # noqa
     from java.util import UUID, Timer, TimerTask, Map, HashMap, Vector
     from java.util.zip import ZipInputStream, ZipEntry, ZipOutputStream
+    from java.nio.charset import StandardCharsets
+    from java.nio.file import Paths, Files, StandardCopyOption
+    from java.security import MessageDigest, KeyFactory
+    from java.security.spec import PKCS8EncodedKeySpec, X509EncodedKeySpec, MGF1ParameterSpec
+
+    from javax.crypto import Cipher, BadPaddingException
+    from javax.crypto.spec import SecretKeySpec, OAEPParameterSpec, PSource
+
+    from com.google.gson import Gson
 
     # renamed in MD build 3067
     if int(MD_REF.getBuild()) >= 3067:
@@ -437,61 +456,36 @@ else:
         if Platform.isOSX() and int(MD_REF.getBuild()) >= 3088:
             from com.moneydance.apps.md.view.gui.sync import ICloudSyncConfigurer
             from com.moneydance.apps.md.controller.sync import ICloudContainer
-    except:
-        pass
-
-    from com.moneydance.apps.md.view.gui.sync import DropboxSyncConfigurer
-
-    from java.io import ByteArrayInputStream, OutputStream, InputStream, BufferedOutputStream
-    from java.nio.charset import StandardCharsets
-    from java.nio.file import Paths, Files, StandardCopyOption
-
-    from java.security import MessageDigest, KeyFactory
-    from java.security.spec import PKCS8EncodedKeySpec, X509EncodedKeySpec, MGF1ParameterSpec
-
-    from javax.crypto import Cipher, BadPaddingException
-    from javax.crypto.spec import SecretKeySpec, OAEPParameterSpec, PSource
-
-    from com.google.gson import Gson
-
-    from com.moneydance.apps.md.controller import MDException, Util, AppEventListener                                   # noqa
+    except: pass
 
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
-    from com.moneydance.apps.md.controller.sync import MDSyncCipher
+    from com.moneydance.apps.md.controller import MDException, Util, AppEventListener, PreferencesListener
     from com.moneydance.apps.md.controller import ModuleLoader, ModuleMetaData, LocalStorageCipher, Common, BalanceType
+    from com.moneydance.apps.md.controller.sync import MDSyncCipher
     from com.moneydance.apps.md.controller.io import FileUtils, AccountBookUtil
-    from java.awt import GraphicsEnvironment, Rectangle, GraphicsDevice, Desktop, Event, GridBagConstraints             # noqa
+    from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
+    from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
 
     from com.infinitekind.util import StreamTable, StreamVector, IOUtils
+    from com.infinitekind.tiksync import SyncRecord, SyncableItem, Syncer
+
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
-    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AbstractTxn         # noqa
+    from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AbstractTxn
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
     from com.infinitekind.moneydance.model import TxnSet, InvestTxnType
 
-    from com.infinitekind.tiksync import SyncRecord, SyncableItem
-    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
-    from com.moneydance.apps.md.view.gui import MainFrame, SecondaryFrame, SecondaryWindow, LicenseKeyWindow, SecondaryDialog   # noqa
-    from com.moneydance.apps.md.view.gui.bot import MoneyBotWindow                                                      # noqa
-    from com.moneydance.apps.md.view.gui.extensions import ExtensionsWindow                                             # noqa
-
-    from com.moneydance.apps.md.view.gui.txnreg import TxnDetailsPanel, TxnRegister, TxnRegisterType, InvestRegisterType
-    from com.moneydance.apps.md.view.gui import SearchRegTxnListModel
-    # from com.infinitekind.moneydance.model import AggregateTxnSearch
-
-    from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
-    from com.infinitekind.tiksync import Syncer
-    from com.moneydance.apps.md.controller import PreferencesListener
-    from com.moneydance.apps.md.controller.olb.ofx import OFXConnection
-    from com.moneydance.apps.md.controller.olb import MoneybotURLStreamHandlerFactory
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
-    from java.lang import Long, NoSuchFieldException, NoSuchMethodException, Runtime, Process, NoClassDefFoundError     # noqa
-    from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                             # noqa
+
     from com.moneydance.awt import JCurrencyField, AwtUtil                                                              # noqa
-
-    from java.net import URL, URLEncoder, URLDecoder                                                                    # noqa
-
-    from java.awt.event import ComponentAdapter, ItemListener, ItemEvent, HierarchyListener                             # noqa
     from com.moneydance.security import SecretKeyCallback
+    from com.moneydance.apps.md.view.gui import OnlineUpdateTxnsWindow, MDAccountProxy, ConsoleWindow, AboutWindow
+    from com.moneydance.apps.md.view.gui import MainFrame, SecondaryFrame, SecondaryWindow, LicenseKeyWindow            # noqa
+    from com.moneydance.apps.md.view.gui import WelcomeWindow, SearchRegTxnListModel, SecondaryDialog
+    from com.moneydance.apps.md.view.gui.bot import MoneyBotWindow                                                      # noqa
+    from com.moneydance.apps.md.view.gui.txnreg import TxnDetailsPanel, TxnRegister, TxnRegisterType, InvestRegisterType
+    from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
+    from com.moneydance.apps.md.view.gui.extensions import ExtensionsWindow                                             # noqa
+    from com.moneydance.apps.md.view.gui.sync import DropboxSyncConfigurer
 
     try:
         from com.infinitekind.moneydance.model import TxnSortOrder
@@ -513,7 +507,7 @@ else:
 
     TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
     TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.5                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4090                                                                            # noqa
+    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4091                                                                            # noqa
     MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
     MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
     MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
@@ -2508,6 +2502,8 @@ Visit: %s (Author's site)
                 SetupMDColors.FOREGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultBackground
                 SetupMDColors.BACKGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultTextForeground
 
+    global ManuallyCloseAndReloadDataset            # Declare it for QuickJFrame/IDE, but not present in common code. Other code will ignore it 
+
     class QuickJFrame():
 
         def __init__(self,
@@ -2556,14 +2552,20 @@ Visit: %s (Author's site)
                 myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
-                if self.lQuitMDAfterClose:
-                    myPrint("B", "Quit MD after Close triggered... Now quitting MD")
-                    ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
-                elif self.lRestartMDAfterClose:
-                    myPrint("B", "Restart MD after Close triggered... Now restarting MD")
-                    ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+                if self.lQuitMDAfterClose or self.lRestartMDAfterClose:
+                    if "ManuallyCloseAndReloadDataset" not in globals():
+                        myPrint("DB", "'ManuallyCloseAndReloadDataset' not in globals(), so just exiting MD the easy way...")
+                        myPrint("B", "@@ EXITING MONEYDANCE @@")
+                        MD_REF.getUI().exit()
+                    else:
+                        if self.lQuitMDAfterClose:
+                            myPrint("B", "Quit MD after Close triggered... Now quitting MD")
+                            ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
+                        elif self.lRestartMDAfterClose:
+                            myPrint("B", "Restart MD after Close triggered... Now restarting MD")
+                            ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
                 else:
-                    myPrint("DB", "FYI No Quit MD after Close triggered... So doing nothing")
+                    myPrint("DB", "FYI No Quit MD after Close triggered... So doing nothing...")
 
         class CloseAction(AbstractAction):
 
@@ -3082,142 +3084,6 @@ Visit: %s (Author's site)
                 invokeMethodByReflection(alertController, "shutdown", None)
                 setFieldByReflection(MD_REF.getUI(), "alertController", None)
 
-    class ManuallyCloseAndReloadDataset(Runnable):
-
-        @staticmethod
-        def closeSecondaryWindows():
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.closeSecondaryWindows()")
-            if not SwingUtilities.isEventDispatchThread(): return False
-            if not ManuallyCloseAndReloadDataset.isSafeToCloseDataset(): return False
-            return invokeMethodByReflection(MD_REF.getUI(), "closeSecondaryWindows", [Boolean.TYPE], [False])
-
-        @staticmethod
-        def isSafeToCloseDataset():
-            # type: () -> bool
-            """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.isSafeToCloseDataset()")
-            if not SwingUtilities.isEventDispatchThread(): return False
-            return invokeMethodByReflection(MD_REF.getUI(), "isOKToCloseFile", None)
-
-        @staticmethod
-        def moneydanceExitOrRestart(lRestart=True, lAllowSaveWorkspace=True):
-            # type: (bool, bool) -> bool
-            """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.moneydanceExitOrRestart() - lRestart: %s, lAllowSaveWorkspace: %s" %(lRestart, lAllowSaveWorkspace))
-
-            if lRestart and not lAllowSaveWorkspace: raise Exception("Sorry: you cannot use lRestart=True and lAllowSaveWorkspace=False together...!")
-
-            if lRestart:
-                myPrint("B", "@@ RESTARTING MONEYDANCE >> RELOADING SAME DATASET @@")
-                Thread(ManuallyCloseAndReloadDataset()).start()
-            else:
-                if lAllowSaveWorkspace:
-                    myPrint("B", "@@ EXITING MONEYDANCE @@")
-                    MD_REF.getUI().exit()
-                else:
-                    myPrint("B", "@@ SHUTTING DOWN MONEYDANCE >> NOT SAVING 'WORKSPACE' @@")
-                    MD_REF.getUI().shutdownApp(False)
-
-        @staticmethod
-        def manuallyCloseDataset(theBook, lCloseWindows=True):
-            # type: (AccountBook, bool) -> bool
-            """Mimics .setCurrentBook(None) but avoids the Auto Backup 'issue'. Also closes open SecondaryWindows, pauses MD+ etc
-            You should decide whether to run this on the EDT or on a new background thread when calling this method"""
-
-            myPrint("DB", "In ManuallyCloseAndReloadDataset.manuallyCloseDataset(), lCloseWindows:", lCloseWindows)
-
-            if lCloseWindows:
-                if not SwingUtilities.isEventDispatchThread():
-                    raise Exception("ERROR: you must run manuallyCloseDataset() on the EDT if you wish to also call closeSecondaryWindows()...!")
-                if not ManuallyCloseAndReloadDataset.closeSecondaryWindows(): return False
-
-            # Shutdown the MD+ poller... When we open a new dataset it should reset itself.....
-            shutdownMDPlusPoller()
-
-            # Shutdown the Alert Controller... When we open a new dataset it should reset itself.....
-            shutdownMDAlertController()
-
-            setFieldByReflection(MD_REF.getUI(), "olMgr", None)
-
-            myPrint("DB", "... saving LocalStorage..")
-            theBook.getLocalStorage().save()                        # Flush LocalStorage...
-
-            myPrint("DB", "... Mimicking .setCurrentBook(None)....")
-
-            MD_REF.fireAppEvent("md:file:closing")
-            MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
-
-            MD_REF.fireAppEvent("md:file:closed")
-
-            myPrint("DB", "... calling .cleanUp() ....")
-            theBook.cleanUp()
-
-            setFieldByReflection(MD_REF, "currentBook", None)
-            myPrint("B", "Closed current dataset (book: %s)" %(theBook))
-
-            myPrint("DB", "... FINISHED Closing down the dataset")
-            return True
-
-        THIS_APPS_FRAME_REFERENCE = None
-
-        def __init__(self, lQuitThisAppToo=True):
-            self.lQuitThisAppToo = (lQuitThisAppToo and self.__class__.THIS_APPS_FRAME_REFERENCE is not None)
-            self.result = None
-
-        def getResult(self): return self.result     # Caution - only call this when you have waited for Thread to complete..... ;->
-
-        def run(self):
-            # type: () -> bool
-            self.result = self.manuallyCloseAndReloadDataset()
-
-        def manuallyCloseAndReloadDataset(self):
-            # type: () -> bool
-            """Manually closes current dataset, then reloads the same dataset.. Use when you want to refresh MD's internals"""
-
-            if SwingUtilities.isEventDispatchThread(): raise Exception("ERROR - you must run manuallyCloseAndReloadDataset() from a new non-EDT thread!")
-
-            cswResult = [None]
-            class CloseSecondaryWindows(Runnable):
-                def __init__(self, result): self.result = result
-                def run(self): self.result[0] = ManuallyCloseAndReloadDataset.closeSecondaryWindows()
-
-            SwingUtilities.invokeAndWait(CloseSecondaryWindows(cswResult))
-            if not cswResult[0]: return False
-
-            currentBook = MD_REF.getCurrentAccountBook()
-            fCurrentFilePath = currentBook.getRootFolder()
-
-            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lCloseWindows=False): return False
-
-            # Release the reference to current book (and memory)....
-            del currentBook;
-            myPrint("DB", "Calling garbage collection after releasing references...")
-            System.gc();
-
-            newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
-            if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
-            myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
-
-            myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
-
-            # .setCurrentBook() always pushes mdGUI().dataFileOpened() on the EDT (if not already on the EDT)....
-            openResult = MD_REF.setCurrentBook(newWrapper)
-            if not openResult or newWrapper.getBook() is None:
-                txt = "Failed to open Dataset (wrong password?).... Will show the Welcome Window...."
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
-
-                if self.lQuitThisAppToo:
-                    # Remember... the file opened event closes my extensions with app listeners, so do this if file could not be opened....
-                    if self.__class__.THIS_APPS_FRAME_REFERENCE is not None:
-                        if isinstance(self.__class__.THIS_APPS_FRAME_REFERENCE, JFrame):
-                            # Do this after .setCurrentBook() so-as not to co-modify listeners.....
-                            SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.__class__.THIS_APPS_FRAME_REFERENCE))
-
-                return False
-
-            return True
-
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3320,7 +3186,307 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
 
     # Prevent usage later on... We use MD_REF
-    del moneydance
+    if "moneydance" in globals(): del moneydance
+
+    def getJVMUsageStatistics(memoryUsageStats=True, maxMemoryStats=False, availableProcessorsStats=False):
+
+        runTime = Runtime.getRuntime()
+        maxMemory = Runtime.getRuntime().maxMemory()
+
+        countParams = 0
+        if memoryUsageStats:         countParams += 1
+        if maxMemoryStats:           countParams += 1
+        if availableProcessorsStats: countParams += 1
+
+        statsText = u""; lineEnd = u""
+        if countParams > 1:
+            lineEnd = u"\n"
+            statsText += (u"Java JVM Resources" + lineEnd)
+
+        if availableProcessorsStats:
+            statsText += (u"JVM - Available processor cores: %s" %(runTime.availableProcessors()) + lineEnd)
+
+        if maxMemoryStats:
+            statsText += (u"JVM - Maximum memory possible:   %s" %(u"{}".format(u"no limit") if (Long(maxMemory) == Long.MAX_VALUE) else u"{:,} GB".format(convertBytesGBs(maxMemory))) + lineEnd)
+
+        if memoryUsageStats:
+            statsText += (u"JVM - Total memory allocated:    {:,} GB (used {:,} GB / free {:,} GB)"
+                .format(convertBytesGBs(runTime.totalMemory()),
+                        convertBytesGBs(runTime.totalMemory() - runTime.freeMemory()),
+                        convertBytesGBs(runTime.freeMemory()))
+                + lineEnd)
+
+        return statsText
+
+    class ManuallyCloseAndReloadDataset(Runnable):
+
+        @staticmethod
+        def closeSecondaryWindows():
+            myPrint("DB", "In ManuallyCloseAndReloadDataset.closeSecondaryWindows()")
+            if not SwingUtilities.isEventDispatchThread(): return False
+            if not ManuallyCloseAndReloadDataset.isSafeToCloseDataset(): return False
+            return invokeMethodByReflection(MD_REF.getUI(), "closeSecondaryWindows", [Boolean.TYPE], [False])
+
+        @staticmethod
+        def isSafeToCloseDataset():
+            # type: () -> bool
+            """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
+            myPrint("DB", "In ManuallyCloseAndReloadDataset.isSafeToCloseDataset()")
+            if not SwingUtilities.isEventDispatchThread(): return False
+            return invokeMethodByReflection(MD_REF.getUI(), "isOKToCloseFile", None)
+
+        @staticmethod
+        def clearWindowBookReferences(lClearCurrentBookToo=False):
+            # type: (bool) -> bool
+            """Iterates all known AWT Windows, searching for 'book' and sets to None"""
+            for _win in Window.getWindows():
+                try:
+                    ref_book = getFieldByReflection(_win, "book")
+                    if (ref_book is not None
+                            and (lClearCurrentBookToo or ref_book is not MD_REF.getCurrentAccountBook())):
+                        if isinstance(_win, (SecondaryWindow, SecondaryFrame, SecondaryDialog)): clearTxt = "CLEARING"
+                        else: clearTxt = "IGNORING"
+                        myPrint("DB", "%s 'book' reference from: %s '%s' : %s @{:x} %s (Owner: %s:%s)\n".format(System.identityHashCode(ref_book))
+                                                                        %(clearTxt, type(_win), _win.getName(),
+                                                                        "** THIS BOOK **" if (ref_book is MD_REF.getCurrentAccountBook()) else "!! OLD BOOK !! ",
+                                                                        ref_book,
+                                                                        type(_win.getOwner()), (None if (_win.getOwner()) is None else _win.getOwner().getName())))
+                        if isinstance(_win, (SecondaryWindow, SecondaryFrame, SecondaryDialog)): setFieldByReflection(_win, "book", None)
+                    del ref_book
+                except: pass
+            return True
+
+        @staticmethod
+        def moneydanceExitOrRestart(lRestart=True, lAllowSaveWorkspace=True):
+            # type: (bool, bool) -> bool
+            """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
+            myPrint("DB", "In ManuallyCloseAndReloadDataset.moneydanceExitOrRestart() - lRestart: %s, lAllowSaveWorkspace: %s" %(lRestart, lAllowSaveWorkspace))
+
+            if lRestart and not lAllowSaveWorkspace: raise Exception("Sorry: you cannot use lRestart=True and lAllowSaveWorkspace=False together...!")
+
+            if lRestart:
+                myPrint("B", "@@ RESTARTING MONEYDANCE >> RELOADING SAME DATASET @@")
+                Thread(ManuallyCloseAndReloadDataset()).start()
+            else:
+                if lAllowSaveWorkspace:
+                    myPrint("B", "@@ EXITING MONEYDANCE @@")
+                    MD_REF.getUI().exit()
+                else:
+                    myPrint("B", "@@ SHUTTING DOWN MONEYDANCE >> NOT SAVING 'WORKSPACE' @@")
+                    MD_REF.getUI().shutdownApp(False)
+
+        @staticmethod
+        def manuallyCloseDataset(theBook, lCloseWindows=True, lKillAllSyncers=False, lKillAllFramesWithBookReferences=False):
+            # type: (AccountBook, bool, bool, bool) -> bool
+            """Mimics .setCurrentBook(None) but avoids the Auto Backup 'issue'. Also closes open SecondaryWindows, pauses MD+ etc
+            You should decide whether to run this on the EDT or on a new background thread when calling this method. This will also
+            force kill Syncer thread(s) found... parameter: lKillAllSyncers:False will only kill this dataset's Syncer (True = kill all Syncers found)"""
+
+            myPrint("DB", "In ManuallyCloseAndReloadDataset.manuallyCloseDataset(), lCloseWindows: %s, lKillAllSyncers: %s lKillAllFramesWithBookReferences: %s" %(lCloseWindows, lKillAllSyncers, lKillAllFramesWithBookReferences))
+
+            wr_bookToClose = WeakReference(theBook)
+            del theBook
+
+            wr_oldSyncer = WeakReference(wr_bookToClose.get().getSyncer())                                              # noqa
+
+            Syncer.DEBUG = True
+
+            if debug: myPrint("B", getJVMUsageStatistics())
+
+            if lCloseWindows:
+                if not SwingUtilities.isEventDispatchThread():
+                    raise Exception("ERROR: you must run manuallyCloseDataset() on the EDT if you wish to also call closeSecondaryWindows()...!")
+                if not ManuallyCloseAndReloadDataset.closeSecondaryWindows():
+                    myPrint("B", "manuallyCloseDataset().closeSecondaryWindows() returned False?")
+                    return False
+
+            # Shutdown the MD+ poller... When we open a new dataset it should reset itself.....
+            shutdownMDPlusPoller()
+
+            # Shutdown the Alert Controller... When we open a new dataset it should reset itself.....
+            shutdownMDAlertController()
+
+            MD_REF.getUI().closeBotInterface()
+
+            wr_bookToClose.get().setUndoManager(None)                                                                   # noqa
+
+            if debug:
+                myPrint("B", "... pre-close getSyncer(): %s isRunningInBackground: %s isSyncing: %s" %(wr_oldSyncer.get(), wr_oldSyncer.get().isRunningInBackground(), wr_oldSyncer.get().isSyncing()))    # noqa
+                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName()]: myPrint("B", "... Current Syncer Threads...: %s (id: %s) State: %s isAlive: %s isInterrupted: %s" %(t, t.getId(), t.getState(), t.isAlive(), t.isInterrupted()))
+
+            myPrint("DB", "... closing SyncManager / settings window etc..")
+            if MD_REF.getUI().getSyncManager() is not None:
+                MD_REF.getUI().getSyncManager().dataFileWasLoaded(None)  # Essentially will close Sync Manager settings window if open...
+
+            myPrint("DB", "... setting 'olMgr' to None..")
+            setFieldByReflection(MD_REF.getUI(), "olMgr", None)
+
+            myPrint("DB", "... saving LocalStorage..")
+            wr_bookToClose.get().getLocalStorage().save()                                                               # noqa
+
+            myPrint("DB", "... Mimicking .setCurrentBook(None).... (without auto-backup etc)....")
+
+            MD_REF.fireAppEvent("md:file:closing")
+            MD_REF.saveCurrentAccount()                         # Flush any current txns in memory and start a new sync record..
+
+            MD_REF.fireAppEvent("md:file:closed")
+
+            myPrint("DB", "... calling .cleanUp() ....")
+            # This will call syncer.stopSyncing() and syncer.compressLocalStorage()
+            wr_bookToClose.get().cleanUp()                                                                              # noqa
+
+            # myPrint("DB", "... setting syncer's syncFolder to None ....")
+            # if wr_oldSyncer.get() is not None:
+            #     setFieldByReflection(wr_oldSyncer.get(), "syncFolder", None);   # com.infinitekind.tiksync.Syncer.syncFolder : SyncFolder
+
+            # myPrint("DB", "... setting syncer to None ....")
+            # setFieldByReflection(wr_bookToClose.get(), "syncer", None);         # com.infinitekind.moneydance.model.AccountBook.syncer : Syncer
+
+            myPrint("B", "... waiting for background tasks to complete...")
+            MD_REF.getBackgroundThread().waitForAllTasksToFinish()
+
+            # Force kill all Syncer Threads. Should not need to do this, but something in MD can keep these alive. Syncer must NOT run after we move a dataset (for example)
+            wr_syncerThread = syncerThreadId = None
+            if wr_oldSyncer.get() is not None:
+                wr_syncerThread = WeakReference(getFieldByReflection(wr_oldSyncer.get(), "syncThread"))
+                if wr_syncerThread.get() is not None:
+                    syncerThreadId = wr_syncerThread.get().getId()                                                      # noqa
+
+            if syncerThreadId is not None:
+                myPrint("DB", "Current book's Syncer: %s, SyncerThread: %s (id: %s)" %(wr_oldSyncer.get(), wr_syncerThread.get(), syncerThreadId))
+            else:
+                myPrint("DB", "Current book's Syncer's details not found....")
+
+            iSyncerChecks = 0
+            if wr_oldSyncer.get() is not None:
+                myPrint("B", "... waiting for syncer background tasks to complete...")
+                while wr_oldSyncer.get().isRunningInBackground() or wr_oldSyncer.get().isSyncing():                     # noqa
+
+                    if wr_syncerThread.get() is None or not wr_syncerThread.get().isAlive():                            # noqa
+                        myPrint("B", "...... syncer's thread appears to have died already.... will proceed....")
+                        break
+
+                    iSyncerChecks += 1
+                    if iSyncerChecks <= 16:
+                        myPrint("B", "...... syncer still running.... waiting....")
+                        try:
+                            Thread.sleep(250)
+                            continue
+                        except: myPrint("B", "......... Caught exception during sleep... will proceed....")
+                    else: myPrint("B", "......... giving up after 16 checks (4 seconds)...")
+                    break
+
+                myPrint("B", "...... syncer appears to have finished (or I gave up waiting).....")
+
+            for t in [t for t in Thread.getAllStackTraces().keySet() if t.getName() == "TIKSync async thread"]:
+                if lKillAllSyncers or t.getId() == syncerThreadId:
+                    myPrint("B", "... Force killing Syncer Thread:", t, t.getId())
+                    try: t.stop()    # This is a deprecated method (and bad practice)....
+                    except: myPrint("B", "...... Caught exception during stop() command.... Continuing...")
+            del wr_syncerThread, syncerThreadId
+
+            if debug:
+                myPrint("B", "... after-kill syncer threads getSyncer(): %s isRunningInBackground: %s isSyncing: %s" %(wr_oldSyncer.get(), wr_oldSyncer.get().isRunningInBackground(), wr_oldSyncer.get().isSyncing()))    # noqa
+                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName()]: myPrint("B", "... Current Syncer Threads...: %s (id: %s) State: %s isAlive: %s isInterrupted: %s" %(t, t.getId(), t.getState(), t.isAlive(), t.isInterrupted()))
+
+            myPrint("DB", "... setting Main's 'currentBook' to None...")
+            setFieldByReflection(MD_REF, "currentBook", None)
+
+            myPrint("B", "Closed current dataset (book: %s)" %(wr_bookToClose.get()))
+
+            if lKillAllFramesWithBookReferences:
+                myPrint("DB", "... clearing out old references to 'book' from Windows/Frames/JFrames etc....")
+                ManuallyCloseAndReloadDataset.clearWindowBookReferences()
+
+            if debug: myPrint("B", getJVMUsageStatistics())
+
+            myPrint("B", "... FINISHED Closing down the dataset")
+            return True
+
+        class DisplayErrorMsg(Runnable):
+            def __init__(self, _msg): self.msg = _msg
+            def run(self): myPopupInformationBox(None, self.msg, "ERROR", JOptionPane.ERROR_MESSAGE)
+
+        THIS_APPS_FRAME_REFERENCE = None
+
+        def __init__(self, lQuitThisAppToo=True):
+            self.lQuitThisAppToo = (lQuitThisAppToo and self.__class__.THIS_APPS_FRAME_REFERENCE is not None)
+            self.result = None
+
+        def getResult(self): return self.result     # Caution - only call this when you have waited for Thread to complete..... ;->
+
+        def run(self):
+            # type: () -> bool
+            self.result = self.manuallyCloseAndReloadDataset()
+
+        def manuallyCloseAndReloadDataset(self):
+            # type: () -> bool
+            """Manually closes current dataset, then reloads the same dataset.. Use when you want to refresh MD's internals"""
+
+            if SwingUtilities.isEventDispatchThread(): raise Exception("ERROR - you must run manuallyCloseAndReloadDataset() from a new non-EDT thread!")
+
+            cswResult = [None]
+            class CloseSecondaryWindows(Runnable):
+                def __init__(self, result): self.result = result
+                def run(self): self.result[0] = ManuallyCloseAndReloadDataset.closeSecondaryWindows()
+
+            SwingUtilities.invokeAndWait(CloseSecondaryWindows(cswResult))
+            if not cswResult[0]: return False
+
+            fCurrentFilePath = MD_REF.getCurrentAccountBook().getRootFolder()
+
+            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(MD_REF.getCurrentAccountBook(), lKillAllSyncers=True, lCloseWindows=False, lKillAllFramesWithBookReferences=True):
+                myPrint("B", "manuallyCloseDataset() returned False?")
+                return False
+
+            if debug: myPrint("B", getJVMUsageStatistics())
+            myPrint("DB", "Calling garbage collection after releasing references...")
+            System.gc()
+            Thread.sleep(100)
+            if debug: myPrint("B", getJVMUsageStatistics())
+
+            newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
+            if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
+            myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
+
+            Syncer.DEBUG = True
+
+            openResult = None                                                                                           # noqa
+            try:
+                # .setCurrentBook() always pushes mdGUI().dataFileOpened() on the EDT (if not already on the EDT)....
+                myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
+                openResult = MD_REF.setCurrentBook(newWrapper)
+            except OutOfMemoryError:
+                myPrint("B", "@@@ CRITICAL ERROR <<OUT OF MEMORY>> setCurrentBook() has crashed whilst (re)opening dataset!?")
+                dump_sys_error_to_md_console_and_errorlog()
+                myPrint("B", getJVMUsageStatistics())
+                SwingUtilities.invokeAndWait(self.DisplayErrorMsg("TOOLBOX: OUT OF MEMORY whilst (re)opening dataset. WILL SHUT DOWN MD (review Console/errlog.txt)"))
+                MD_REF.getUI().shutdownApp(False)
+                return False
+            except:
+                myPrint("B", "@@@ CRITICAL ERROR - .setCurrentBook() has crashed whilst (re)opening dataset!?")
+                dump_sys_error_to_md_console_and_errorlog()
+                SwingUtilities.invokeAndWait(self.DisplayErrorMsg("TOOLBOX: ERROR: whilst (re)opening dataset.  WILL SHUT DOWN MD (review Console/errlog.txt)"))
+                MD_REF.getUI().shutdownApp(False)
+                return False
+
+            if debug: myPrint("B", getJVMUsageStatistics())
+
+            if not openResult or newWrapper.getBook() is None:
+                txt = "Failed to open Dataset (wrong password?).... Will show the Welcome Window...."
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
+
+                if self.lQuitThisAppToo:
+                    # Remember... the file opened event closes my extensions with app listeners, so do this if file could not be opened....
+                    if self.__class__.THIS_APPS_FRAME_REFERENCE is not None:
+                        if isinstance(self.__class__.THIS_APPS_FRAME_REFERENCE, JFrame):
+                            # Do this after .setCurrentBook() so-as not to co-modify listeners.....
+                            SwingUtilities.invokeLater(GenericWindowClosingRunnable(self.__class__.THIS_APPS_FRAME_REFERENCE))
+
+                return False
+            return True
+
 
     def isQER_running(): return find_feature_module(GlobalVars.Strings.EXTENSION_QER_ID)
 
@@ -4255,6 +4421,10 @@ Visit: %s (Author's site)
         onlinePayees=0
         onlinePayments=0
 
+        if book.getSyncer() is None or book.getSyncer().getSyncedDocument() is None:
+            output += "\n** WARNING: Book's getSyncer() or getSyncedDocument() was None **\n"
+            return output
+
         for mdItem in book.getSyncer().getSyncedDocument().allItems():
             if isinstance(mdItem, MoneydanceSyncableItem):
 
@@ -4282,12 +4452,12 @@ Visit: %s (Author's site)
 
                 types[mdItem.getParameter("obj_type", "UNKNOWN")] = [x+1, theLength]
             else:
-                foundStrange+=1
-        i=0
-        charCount=0
+                foundStrange += 1
+        i = 0
+        charCount = 0
         for x in types.keys():
-            i+=types[x][0]
-            charCount+=types[x][1]
+            i += types[x][0]
+            charCount += types[x][1]
             extraText = ""
             if x == "oltxns":
                 if onlineTxns:
@@ -4299,13 +4469,12 @@ Visit: %s (Author's site)
                 if onlinePayments:
                     extraText = "(containing %s Online Payments)" %(onlinePayments)
 
-            output+=("Object: %s %s   %s %s\n" %(pad(x,15),rpad(types[x][0],12),rpad(round(types[x][1] / (1000.0),1),12), extraText))
+            output += ("Object: %s %s   %s %s\n" %(pad(x,15),rpad(types[x][0],12),rpad(round(types[x][1] / (1000.0),1),12), extraText))
 
         if foundStrange:
-            output+=("\n@@ I also found %s non Moneydance Syncable Items?! Why? @@\n" %(foundStrange))
-        output+=(" ==========\n TOTAL:                 %s   %s\n\n" %(rpad(i,12),rpad(round(charCount/(1000.0),1),12)))
-        del types
-        del foundStrange
+            output += ("\n@@ I also found %s non Moneydance Syncable Items?! Why? @@\n" %(foundStrange))
+
+        output += (" ==========\n TOTAL:                 %s   %s\n\n" %(rpad(i,12),rpad(round(charCount/(1000.0),1),12)))
         return output
 
     def getShouldDownloadAllAttachments():
@@ -4966,14 +5135,7 @@ Visit: %s (Author's site)
             textArray.append(getTheSetting(u"ofx.app_version", 29))
 
         textArray.append(u"")
-        textArray.append(u"Java JVM Resources")
-        runTime = Runtime.getRuntime()
-        maxMemory = Runtime.getRuntime().maxMemory()
-        textArray.append(u"JVM - Available processor cores: %s" %(runTime.availableProcessors()))
-        textArray.append(u"JVM - Maximum memory possible:   %s" %(u"{}".format(u"no limit") if (Long(maxMemory) == Long.MAX_VALUE) else u"{:,} GB".format(convertBytesGBs(maxMemory))))
-        textArray.append(u"JVM - Total memory allocated:    {:,} GB (used {:,} GB / free {:,} GB)".format(convertBytesGBs(runTime.totalMemory()),
-                                                                                                          convertBytesGBs(runTime.totalMemory() - runTime.freeMemory()),
-                                                                                                          convertBytesGBs(runTime.freeMemory())))
+        textArray.append(getJVMUsageStatistics(memoryUsageStats=True, maxMemoryStats=True, availableProcessorsStats=True))
 
         textArray.append(u"")
         textArray.append(u"Java JVM System Properties containing references to Moneydance")
@@ -16322,6 +16484,8 @@ now after saving the file, restart Moneydance
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
+        if MD_REF.getCurrentAccount().getBook().getSyncer() is None: return
+        if MD_REF.getCurrentAccount().getBook().getSyncer().getSyncedDocument() is None: return
 
         if GlobalVars.lMustRestartAfterSnapChanges:
             x="Sorry - you have to RESTART MD after running 'FIX - Thin/Purge Price History' to update the csnap cache....."
@@ -21169,11 +21333,12 @@ now after saving the file, restart Moneydance
 
             myPrint("B", "Executing '%s' on current dataset: %s - will %s to: %s" %(_THIS_METHOD_NAME, fCurrentFilePath.getCanonicalPath(), actionString, fNewNamePath.getCanonicalPath()))
 
-            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lCloseWindows=True):
+            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lKillAllSyncers=True, lCloseWindows=True, lKillAllFramesWithBookReferences=True):
                 txt = "ERROR: MD reports that it could not close all open windows.... - no changes made (you might need to restart MD)"
                 myPopupInformationBox(toolbox_frame_,txt)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
                 return False
+            del currentBook, currentRoot
 
             success = False
             try:
@@ -21241,6 +21406,10 @@ now after saving the file, restart Moneydance
 
             # .setCurrentBook() always pushes mdGUI().dataFileOpened() on the EDT (if not already on the EDT)....
             openResult = MD_REF.setCurrentBook(newWrapper)
+
+            myPrint("DB", "... after-open getSyncer():", MD_REF.getCurrentAccountBook().getSyncer(), MD_REF.getCurrentAccountBook().getSyncer().isRunningInBackground(), MD_REF.getCurrentAccountBook().getSyncer().isSyncing())
+            for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName()]: myPrint("DB", "...... Current Syncer Threads...", t, t.getId(), t.getState(), t.isAlive(), t.isInterrupted())
+
             if not openResult or newWrapper.getBook() is None:
                 txt = "%s: Failed to open Dataset (wrong password?)...." %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
@@ -25468,6 +25637,67 @@ Now you will have a text readable version of the file you can open in a text edi
                 GlobalVars.mainPnl_toolboxUnlocked_lbl.setText("<TOOLBOX UNLOCKED>" if isToolboxUnlocked() else "")
                 setDisplayStatus(txt, sColor); myPrint("B",txt)
 
+        class QuickJVMDiags(AbstractAction):
+
+            def __init__(self, theFrame):
+                self.theFrame = theFrame
+
+            def actionPerformed(self, event):                                                                           # noqa
+
+                diagTxt = "Quick JVM Diagnostics:\n" \
+                          " ---------------------\n\n"
+
+                diagTxt += getJVMUsageStatistics(True, True, True) + "\n\n"
+                
+                diagTxt += "Threads:\n" \
+                           " -------\n"
+                for t in sorted(Thread.getAllStackTraces().keySet(), key=lambda sort_t: (sort_t.getName().lower())):
+                    diagTxt += "%s (id: %s) State: %s isAlive: %s isInterrupted: %s\n" %(t.getName(), t.getId(), t.getState(), t.isAlive(), t.isInterrupted())
+
+                try:
+                    book = MD_REF.getCurrentAccountBook()
+                    syncer = book.getSyncer()
+                    if syncer is not None:
+                        syncerThread = getFieldByReflection(syncer, "syncThread")
+                        syncerThreadId = syncerThread.getId() if (syncerThread) else None
+                        diagTxt += "\n** Current Book's '%s' >> Sync Thread: '%s' (id: %s)\n\n" %(syncer, syncerThread, syncerThreadId)
+                except: pass
+
+                diagTxt += "\nWindows:\n" \
+                           " -------\n"
+
+                def sortWindowTypes(_win):
+                    if isinstance(_win, JFrame): return 3
+                    if isinstance(_win, Frame):  return 2
+                    return 0
+
+                for win in sorted(Window.getWindows(), key=lambda sort_w: (sortWindowTypes(sort_w), type(sort_w), sort_w.getName())):
+                    diagTxt += "%s '%s' isFocused: %s isVisible: %s isActive: %s isDisplayable: %s isShowing: %s (Owner: %s:%s)\n"\
+                               %(type(win), win.getName(),
+                                 win.isFocused(), win.isVisible(), win.isActive(), win.isDisplayable(), win.isShowing(),
+                                 type(win.getOwner()), (None if (win.getOwner()) is None else win.getOwner().getName()))
+
+                diagTxt += "\nOld Frames holding on to 'book' references....:\n" \
+                           " ----------------------------------------------\n"
+                for win in sorted(Window.getWindows(), key=lambda sort_w: (sortWindowTypes(sort_w), type(sort_w), sort_w.getName())):
+                    try:
+                        ref_book = getFieldByReflection(win, "book")
+                        if ref_book is not None:
+                            diagTxt += "%s '%s' : %s @{:x} %s (Owner: %s:%s)\n".format(System.identityHashCode(ref_book)) \
+                                                                            %(type(win), win.getName(),
+                                                                            "** THIS BOOK **" if (ref_book is MD_REF.getCurrentAccountBook()) else "!! OLD BOOK !! ",
+                                                                            ref_book,
+                                                                            type(win.getOwner()), (None if (win.getOwner()) is None else win.getOwner().getName()))
+                            if ref_book is not MD_REF.getCurrentAccountBook():
+                                win.dispose()
+                        del ref_book
+                    except: pass
+
+                diagTxt += "\n<END>"
+
+                QuickJFrame("QUICK JVM DIAGNOSTICS", diagTxt, lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+                setDisplayStatus("Quick JVM Diagnostics displayed...", "B")
+
         class DisplayUUID(AbstractAction):
 
             def __init__(self, theFrame):
@@ -27581,6 +27811,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, (shortcut | Event.SHIFT_MASK)), "unlock-window")   # So Plus on Mac...
             toolbox_frame_.getRootPane().getActionMap().put("unlock-window", self.UnlockAction(toolbox_frame_))
+
+            toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_SLASH, (shortcut)), "quick-jvm-diags")  # So / on Mac...
+            toolbox_frame_.getRootPane().getActionMap().put("quick-jvm-diags", self.QuickJVMDiags(toolbox_frame_))
 
             # Add standard CMD-W keystrokes etc to close window
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")

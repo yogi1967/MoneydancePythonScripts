@@ -277,6 +277,8 @@ ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
 
 CMD-P - View parameters file (StuWareSoftSystems). Also allows user to Delete all, and/or change/delete single saved parameters
 
+CMD-/ - View quick JVM diagnostics
+
 Menu - DEBUG MODE
     >> Turns on this Extension's own internal debug messages...
 

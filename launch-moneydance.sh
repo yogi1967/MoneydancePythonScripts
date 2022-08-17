@@ -8,7 +8,7 @@
 
 # NOTE:   You can also just run the 'code-signed app' by launching the following from Terminal (which is a simpler approach):
 #         "/Applications/Moneydance.app/Contents/MacOS/Moneydance"                [-d] [-v] [... etc]
-#         "/Applications/Moneydance 2022.3 (4068).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
+#         "/Applications/Moneydance 2022.5 (4091).app/Contents/MacOS/Moneydance"  [-d] [-v] [... etc]
 
 # THIS IS WRITTEN FOR MacOS Terminal(zsh). Adjust accordingly...!
 
