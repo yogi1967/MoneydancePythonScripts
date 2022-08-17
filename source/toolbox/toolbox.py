@@ -121,6 +121,7 @@
 # build: 1053 - Now clear MDPlus.licenseCache when shutting down the plusPoller...
 # build: 1053 - Improved ManuallyCloseAndReloadDataset() to release all references to (old) book, and shutdown more things - memory consumption etc....
 # build: 1053 - Added CMD-SHIFT-/ - calls up QuickJVMDiags(); tweaked Common Code...
+# build: 1053 - Flip to restart after Import and Zap md+ license (was exit) - now that we reset licenseCache.....
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -3257,6 +3258,12 @@ Visit: %s (Author's site)
             return True
 
         @staticmethod
+        def startBackgroundSyncing():
+            """Start a new Background Ops Thread.. Does nothing if 'backgroundThread' is not None and isRunning()"""
+            myPrint("DB", "... launching a new BackgroundOpsThread if old one dead or not running...")
+            invokeMethodByReflection(MD_REF, "startBackgroundSyncing", None)
+
+        @staticmethod
         def moneydanceExitOrRestart(lRestart=True, lAllowSaveWorkspace=True):
             # type: (bool, bool) -> bool
             """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
@@ -3342,8 +3349,9 @@ Visit: %s (Author's site)
             # myPrint("DB", "... setting syncer to None ....")
             # setFieldByReflection(wr_bookToClose.get(), "syncer", None);         # com.infinitekind.moneydance.model.AccountBook.syncer : Syncer
 
-            myPrint("B", "... waiting for background tasks to complete...")
-            MD_REF.getBackgroundThread().waitForAllTasksToFinish()
+            myPrint("B", "... waiting for background tasks to complete... (shutting down 'backgroundThread'....)...")
+            MD_REF.getBackgroundThread().waitForAllTasksToFinish()   # This will actually shut down the Thread.....
+            setFieldByReflection(MD_REF, "backgroundThread", None)   # com.moneydance.apps.md.controller.Main.backgroundThread : BackgroundOpsThread
 
             # Force kill all Syncer Threads. Should not need to do this, but something in MD can keep these alive. Syncer must NOT run after we move a dataset (for example)
             wr_syncerThread = syncerThreadId = None
@@ -3444,6 +3452,8 @@ Visit: %s (Author's site)
             System.gc()
             Thread.sleep(100)
             if debug: myPrint("B", getJVMUsageStatistics())
+
+            ManuallyCloseAndReloadDataset.startBackgroundSyncing()
 
             newWrapper = AccountBookWrapper.wrapperForFolder(fCurrentFilePath)
             if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
@@ -12092,13 +12102,11 @@ Visit: %s (Author's site)
         except: pass
 
         play_the_money_sound()
-        txt = "Moneydance+ license object IMPORTED (import file deleted) >> MONEYDANCE WILL NOW EXIT - PLEASE MANUALLY RESTART!"
+        txt = "Moneydance+ license object IMPORTED (import file deleted) >> MONEYDANCE WILL NOW RELOAD DATASET/RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        # Must Exit and manually restart MD as MDPlus.licenseCache field does not normally get reset.....
-        # Might be OK to restart now that we clear out licenseCache when shutting down the plusPoller..? Needs testing
-        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
     def zap_MDPlus_Profile(lAutoZap=False):
 
@@ -12199,13 +12207,11 @@ Visit: %s (Author's site)
 
         play_the_money_sound()
 
-        txt = "All moneydance+ settings deleted..! MONEYDANCE WILL NOW EXIT - PLEASE MANUALLY RESTART"
+        txt = "All Moneydance+ settings DELETED >> MONEYDANCE WILL NOW RELOAD DATASET/RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
-        # Must Exit and manually restart MD as MDPlus.licenseCache field does not normally get reset.....
-        # Might be OK to restart now that we clear out licenseCache when shutting down the plusPoller..? Needs testing
-        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
     def forceMDPlusNameCacheAccessTokensRebuild(lAutoWipe=False):
 
@@ -12244,7 +12250,7 @@ Visit: %s (Author's site)
 
         play_the_money_sound()
 
-        txt = "MD+ name cache & access tokens have been wiped..! MONEYDANCE WILL NOW RELOAD DATASET/RESTART..."
+        txt = "MD+ name cache & access tokens have been wiped..! MONEYDANCE WILL NOW RELOAD DATASET/RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
@@ -21335,7 +21341,7 @@ now after saving the file, restart Moneydance
 
             if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lKillAllSyncers=True, lCloseWindows=True, lKillAllFramesWithBookReferences=True):
                 txt = "ERROR: MD reports that it could not close all open windows.... - no changes made (you might need to restart MD)"
-                myPopupInformationBox(toolbox_frame_,txt)
+                myPopupInformationBox(toolbox_frame_, txt, theTitle="ERROR", theMessageType=JOptionPane.ERROR_MESSAGE)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
                 return False
             del currentBook, currentRoot
@@ -21361,7 +21367,7 @@ now after saving the file, restart Moneydance
             if not success:
                 txt = "%s: File operation(s) failed (review console) - no changes made...." %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,"%s - Will close Toolbox & reopen original" %(txt),theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(toolbox_frame_,"%s - Will close Toolbox & reopen original" %(txt),theMessageType=JOptionPane.ERROR_MESSAGE)
 
                 absPath = fCurrentFilePath.getAbsolutePath()
 
@@ -21404,7 +21410,10 @@ now after saving the file, restart Moneydance
             if success and fCurrentFilePath.exists():
                 raise Exception("ERROR: The old file/path still exists: %s" %(fCurrentFilePath.getAbsolutePath()))
 
+            ManuallyCloseAndReloadDataset.startBackgroundSyncing()
+
             # .setCurrentBook() always pushes mdGUI().dataFileOpened() on the EDT (if not already on the EDT)....
+            myPrint("DB", "... calling .setCurrentBook() to open the dataset...")
             openResult = MD_REF.setCurrentBook(newWrapper)
 
             myPrint("DB", "... after-open getSyncer():", MD_REF.getCurrentAccountBook().getSyncer(), MD_REF.getCurrentAccountBook().getSyncer().isRunningInBackground(), MD_REF.getCurrentAccountBook().getSyncer().isSyncing())
@@ -25649,10 +25658,31 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 diagTxt += getJVMUsageStatistics(True, True, True) + "\n\n"
                 
+                def isMDThread(threadName):
+                    for checkName in ["TIKSync",
+                                      "MD Background Ops",
+                                      "MDPlus",
+                                      "MD+",
+                                      "TaskIndicator"]:
+                        if threadName.lower().startswith(checkName.lower()): return True
+                    return False
+
                 diagTxt += "Threads:\n" \
                            " -------\n"
                 for t in sorted(Thread.getAllStackTraces().keySet(), key=lambda sort_t: (sort_t.getName().lower())):
-                    diagTxt += "%s (id: %s) State: %s isAlive: %s isInterrupted: %s\n" %(t.getName(), t.getId(), t.getState(), t.isAlive(), t.isInterrupted())
+                    diagTxt += "%s%s (id: %s) State: %s isAlive: %s isInterrupted: %s\n" %("**" if (isMDThread(t.getName())) else "  ",
+                                                                                           t.getName(), t.getId(), t.getState(), t.isAlive(), t.isInterrupted())
+                diagTxt += "\n"
+
+                ct = Thread.currentThread()
+                diagTxt += "** This (Toolbox) thread: '%s' (id: %s)\n" %(ct.getName(), ct.getId())
+
+                try:
+                    backgroundOpsThread = MD_REF.getBackgroundThread()
+                    if backgroundOpsThread is not None:
+                        backgroundOpsThreadId = backgroundOpsThread.getId()
+                        diagTxt += "** Main's Background Ops Thread: '%s' (id: %s)\n" %(backgroundOpsThread,backgroundOpsThreadId)
+                except: pass
 
                 try:
                     book = MD_REF.getCurrentAccountBook()
@@ -25660,10 +25690,10 @@ Now you will have a text readable version of the file you can open in a text edi
                     if syncer is not None:
                         syncerThread = getFieldByReflection(syncer, "syncThread")
                         syncerThreadId = syncerThread.getId() if (syncerThread) else None
-                        diagTxt += "\n** Current Book's '%s' >> Sync Thread: '%s' (id: %s)\n\n" %(syncer, syncerThread, syncerThreadId)
+                        diagTxt += "** Current Book's '%s' >> Sync Thread: '%s' (id: %s)\n" %(syncer, syncerThread, syncerThreadId)
                 except: pass
 
-                diagTxt += "\nWindows:\n" \
+                diagTxt += "\n\nWindows:\n" \
                            " -------\n"
 
                 def sortWindowTypes(_win):
