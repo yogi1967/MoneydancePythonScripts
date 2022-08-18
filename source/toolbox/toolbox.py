@@ -10,9 +10,9 @@
 # toolbox.py build: 1053 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
-# Credit of course to Moneydance(Sean) and they retain all copyright over Moneydance internal code
+# Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
 # Designed to show user a number of settings / fixes / updates they may find useful (some normally hidden)
-# Basic mode and Expert View Internal Settings are both readonly and very safe >> They do NOT change any data or settings
+# Basic mode and Curious (view settings) are readonly and very safe >> They do NOT change any data or settings
 # If you switch to Update / Advanced mode(s) then you have the ability to perform fixes, change data, change config etc
 # NOTE: Any change that impacts config.dict, custom_theme.properties, LocalStorage() ./safe/settings...
 #       will always backup that single config/settings file (in the directory where it's located).
@@ -78,6 +78,7 @@
 ###############################################################################
 
 # NOTE: java.lang.IllegalArgumentException can occur when doing something like '"%s" %(java.util.HashMap)' containing unicode (or calling print on the same HashMap)
+#       Should be fixed in Jython 2.7.3 sometime)... Also note that unicode() should be used instead of str() where appropriate....
 
 # build: 1048 - Bugfix deleteOFXService() if no service selected...; Enhanced View OFX data for multiple service options (OFX and MD+)
 # build: 1048 - Improved the 'STOP-NOW' command message (suggest to check for upgrade)
@@ -125,12 +126,14 @@
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
-# todo - Test restart options after Zap and Import md+ license options (now that we clear licenseCache when shutting down plusPoller)
+# todo - Consider Thread() when downloading data from internet (version checking, extension versions etc) to eliminate launch 'lag'...
+# todo - change from str() to unicode() where appropriate...
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
 # 2. At various times it may connect to the Infinite Kind server to gather information about extensions and versions
 # 3. Within the OFX banking menu, it can connect to the Infinite Kind server to get the latest bank connection profiles for viewing
+# >> NOTE: This may cause a 'lag' when launching Toolbox if you have a slow internet connection...
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
@@ -25669,19 +25672,23 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 diagTxt += "Threads:\n" \
                            " -------\n"
-                for t in sorted(Thread.getAllStackTraces().keySet(), key=lambda sort_t: (sort_t.getName().lower())):
-                    diagTxt += "%s%s (id: %s) State: %s isAlive: %s isInterrupted: %s\n" %("**" if (isMDThread(t.getName())) else "  ",
-                                                                                           t.getName(), t.getId(), t.getState(), t.isAlive(), t.isInterrupted())
+                lastGroup = None
+                for t in sorted(Thread.getAllStackTraces().keySet(), key=lambda sort_t: (sort_t.getThreadGroup().getName(), sort_t.getName().lower())):
+                    tg = t.getThreadGroup().getName()
+                    if lastGroup is not None and tg != lastGroup: diagTxt += "  --\n"
+                    lastGroup = tg
+                    diagTxt += "%s%s (id: %s) State: %s isAlive: %s isInterrupted: %s ThreadGroup: %s\n" %("**" if (isMDThread(t.getName())) else "  ",
+                                pad(t.getName(),40), rpad(t.getId(),4), pad(t.getState(),15), pad(t.isAlive(),5), pad(t.isInterrupted(),5), t.getThreadGroup())
                 diagTxt += "\n"
 
                 ct = Thread.currentThread()
-                diagTxt += "** This (Toolbox) thread: '%s' (id: %s)\n" %(ct.getName(), ct.getId())
+                diagTxt += "** This (Toolbox) thread:        %s (id: %s) %s\n" %(pad(ct.getName(),40), rpad(ct.getId(),4), ct.getThreadGroup())
 
                 try:
                     backgroundOpsThread = MD_REF.getBackgroundThread()
                     if backgroundOpsThread is not None:
                         backgroundOpsThreadId = backgroundOpsThread.getId()
-                        diagTxt += "** Main's Background Ops Thread: '%s' (id: %s)\n" %(backgroundOpsThread,backgroundOpsThreadId)
+                        diagTxt += "** Main's Background Ops Thread: %s (id: %s)\n" %(pad(backgroundOpsThread,40), rpad(backgroundOpsThreadId,4))
                 except: pass
 
                 try:
@@ -25690,7 +25697,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     if syncer is not None:
                         syncerThread = getFieldByReflection(syncer, "syncThread")
                         syncerThreadId = syncerThread.getId() if (syncerThread) else None
-                        diagTxt += "** Current Book's '%s' >> Sync Thread: '%s' (id: %s)\n" %(syncer, syncerThread, syncerThreadId)
+                        diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s\n" %(pad(syncerThread,40), rpad(syncerThreadId,4), syncer)
                 except: pass
 
                 diagTxt += "\n\nWindows:\n" \
@@ -25702,9 +25709,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     return 0
 
                 for win in sorted(Window.getWindows(), key=lambda sort_w: (sortWindowTypes(sort_w), type(sort_w), sort_w.getName())):
-                    diagTxt += "%s '%s' isFocused: %s isVisible: %s isActive: %s isDisplayable: %s isShowing: %s (Owner: %s:%s)\n"\
-                               %(type(win), win.getName(),
-                                 win.isFocused(), win.isVisible(), win.isActive(), win.isDisplayable(), win.isShowing(),
+                    diagTxt += "%s %s isFocused: %s isVisible: %s isActive: %s isDisplayable: %s isShowing: %s (Owner: %s:%s)\n"\
+                               %(pad(type(win),70), pad(win.getName(),25),
+                                 pad(win.isFocused(),5), pad(win.isVisible(),5), pad(win.isActive(),5), pad(win.isDisplayable(),5), pad(win.isShowing(),5),
                                  type(win.getOwner()), (None if (win.getOwner()) is None else win.getOwner().getName()))
 
                 diagTxt += "\nOld Frames holding on to 'book' references....:\n" \
@@ -25713,8 +25720,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     try:
                         ref_book = getFieldByReflection(win, "book")
                         if ref_book is not None:
-                            diagTxt += "%s '%s' : %s @{:x} %s (Owner: %s:%s)\n".format(System.identityHashCode(ref_book)) \
-                                                                            %(type(win), win.getName(),
+                            diagTxt += "%s %s : %s @{:x} '%s' (Owner: %s:%s)\n".format(System.identityHashCode(ref_book)) \
+                                                                            %(pad(type(win),70), pad(win.getName(),25),
                                                                             "** THIS BOOK **" if (ref_book is MD_REF.getCurrentAccountBook()) else "!! OLD BOOK !! ",
                                                                             ref_book,
                                                                             type(win.getOwner()), (None if (win.getOwner()) is None else win.getOwner().getName()))

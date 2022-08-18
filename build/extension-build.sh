@@ -356,7 +356,7 @@ else
   fi
 
   if [ "${EXTN_NAME}" = "toolbox" ]; then
-    echo "Remove extra scripts compiked into Toolbox..."
+    echo "Remove extra scripts compiled into Toolbox..."
     rm "${EXTN_DIR}"/ofx_*.py
     if [ $? -ne 0 ]; then
       echo "*** rm extra scripts ofx*.py failed??"
