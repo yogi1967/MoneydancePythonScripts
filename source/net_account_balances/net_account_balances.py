@@ -5175,7 +5175,7 @@ Visit: %s (Author's site)
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
                 ct = Thread.currentThread()
-                if "NAB_" not in ct.getName(): ct.setName(u"NAB_RebuildParallelBalanceTableSwingWorker_%s" %(ct.getName()))
+                if "NAB" not in ct.getName(): ct.setName(u"NAB_RebuildParallelBalanceTableSwingWorker_%s" %(ct.getName()))
 
                 NAB = NetAccountBalancesExtension.getNAB()
                 NAB.jlst.parallelAccountBalances = buildEmptyTxnOrBalanceArray()
