@@ -5,7 +5,7 @@
                     {
                     "build" = "1053"
                     "disable" = "n"
-                    "news" = "New LOT matching diagnosis report"
+                    "news" = "New LOT matching diag report; Force disconnect md+ connection; CMD-/; Improved restarts; backup location checks; JVM memory stats; fixes; tweaks"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4091"
