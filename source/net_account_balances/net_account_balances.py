@@ -85,6 +85,7 @@
 # build: 1014 - Tweak; Common code
 # build: 1014 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1014 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
+# build: 1014 - Bug fix... When old format parameters were loaded, then switch to newer format parameters, migratedParameters flag was sticking as True, and hence loading wrong autoSum defaults...
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -6431,6 +6432,7 @@ Visit: %s (Author's site)
 
                         else:
                             myPrint("DB","No migration of (old) parameters to new multi-row parameters performed....")
+                            self.migratedParameters = False
 
                         self.parametersLoaded = True
                         self.savedAccountListUUIDs          = GlobalVars.extn_param_NEW_listAccountUUIDs_NAB
