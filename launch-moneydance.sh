@@ -135,6 +135,11 @@ machelper2="/Applications/Moneydance${md_version}.app/Contents/PlugIns/vm.jdk/Co
 #use_sandbox=""
 use_sandbox="-DSandboxEnabled=true"
 
+# Allows the attachment of a JVM debugger... Set to "" for no debugger....
+use_debugger=""
+use_debugger="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+
+
 # NOTE: I set '-Dinstall4j.exeDir=x' to help my Toolbox extension - this is not needed
 
 # Redirect output to the Moneydance console window...
@@ -162,6 +167,7 @@ ${java} \
   -Dfile.encoding=UTF-8 \
   -DUserHome=${my_user_path} \
   ${use_sandbox} \
+  ${use_debugger} \
   -Dinstall4j.exeDir="${md_jars}" \
   -Duser.dir="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data" \
   -Duser.home="${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data" \

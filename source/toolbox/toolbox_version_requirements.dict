@@ -1,11 +1,11 @@
 {
-    "last_updated" = "20220825"
+    "last_updated" = "20220827"
     "disable_all" = "n"
     "builds" = (
                     {
-                    "build" = "1053"
+                    "build" = "1054"
                     "disable" = "n"
-                    "news" = "New LOT matching diag report; Force disconnect md+ connection; CMD-/; Improved restarts; backup location checks; JVM memory stats; fixes; tweaks"
+                    "news" = "tweaks/fixes"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4091"
@@ -14,6 +14,14 @@
                     "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
                     "MD_EXTENSIONS_DIRECTORY_FILE" = "https://infinitekind.com/app/md/extensions.dct"
                     "MYPYTHON_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
+                    }
+                    {
+                    "build" = "1053"
+                    "disable" = "n"
+                    "news" = "New LOT matching diag report; Force disconnect md+ connection; CMD-/; Improved restarts; backup location checks; JVM memory stats; fixes; tweaks"
+                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
+                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4091"
                     }
                     {
                     "build" = "1052"
