@@ -18109,6 +18109,8 @@ now after saving the file, restart Moneydance
 
         _THIS_METHOD_NAME = "Detect and fix (wipe) LOT records"
 
+        myPrint("B", "Entering function: '%s'" %(_THIS_METHOD_NAME.upper()))
+
         selectHomeScreen()      # Stops the LOT Control box popping up.....
 
         allSecurityAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(2))
@@ -18149,6 +18151,8 @@ now after saving the file, restart Moneydance
         output += ("\nValidating the 'Cost Basis' on all Security Sub Accounts%s:\n"
                    %(" (valid security accounts will not be listed unless debug enabled)" if not debug else ""))
 
+        myPrint("DB", "Validating the 'Cost Basis' on all Security Sub Accounts...:")
+
         for secAcct in allSecurityAccounts:
 
             _msg = pad("Please wait: Checking security account: '%s'" %(secAcct), _msgPad, padChar=".")
@@ -18157,9 +18161,14 @@ now after saving the file, restart Moneydance
             secTxns = MD_REF.getCurrentAccountBook().getTransactionSet().getTransactionsForAccount(secAcct)
 
             if InvestUtil.isCostBasisValid(secAcct):
-                if debug: output += "... '%s' Cost Basis reports as valid\n" %(secAcct)
+                txt = "... '%s' Cost Basis reports as valid" %(secAcct)
+                if debug:
+                    myPrint("DB", txt)
+                    output += "%s\n" %(txt)
             else:
-                output += "... '%s' Cost Basis reports as INVALID\n" %(secAcct)
+                txt = "... '%s' Cost Basis reports as INVALID" %(secAcct)
+                myPrint("DB", txt)
+                output += "%s\n" %(txt)
 
             for secTxn in secTxns:
 
@@ -18180,6 +18189,8 @@ now after saving the file, restart Moneydance
 
                 if lAnyTagChanges:
                     securityTxnsToFix[secTxn] = newTags
+
+        myPrint("DB", "Finished validating the cost basis.....")
 
         diag.kill()
 
