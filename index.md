@@ -88,7 +88,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1053 - 25th August 2022) (Added rename/relocate dataset features; New LOT matching diag report; Force disconnect md+ connection; CMD-/; Improved restarts; backup location checks; JVM memory stats; fixes/tweaks)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1054 - 14th September 2022) (Added rename/relocate dataset features; New LOT matching diag report; Force disconnect md+ connection; CMD-/; Improved restarts; backup location checks; JVM memory stats; fixes/tweaks)
 - <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1024 - 28th May 2022)
 - <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1017 - 28th May 2022) (Added expand all button, also search collapsed items)
 - <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1013 - 2nd May 2022) (Updated: Multi-row, Currency, Custom Dates etc)
@@ -112,7 +112,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 ### My Python Extension and coding tips:
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/extension_tester/readme.txt">**Extension tips**: A readme.txt file that contains my tips on creating Python extensions and some coding tips....
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.sh">**Moneydance Mac Launch Shell Script**: A MacOs shell script that launches Moneydance replicating the standard App launch sequence.... But without Apple sandboxing restrictions... You can also therefore change much of the underlying 'environment' and java libraries...
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.sh">**Moneydance Mac Launch Shell Script**: A MacOS shell script that launches Moneydance replicating the standard App launch sequence.... But without Apple sandboxing restrictions... You can also therefore change much of the underlying 'environment' and java libraries...
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.bat">**Moneydance basic Windows Launch Shell Script**: A basic Windows batch file that launches Moneydance - update with the relevant bits you need from the more complete Mac sh version...
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/launch-moneydance.scpt">**Moneydance Mac Apple Script Launch Script**: A basic Applescript to launch Moneydance...
 
@@ -145,4 +145,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 25th August 2022)_
+_(site last updated 15th September 2022)_
