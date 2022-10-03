@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1054 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1055 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -128,10 +128,14 @@
 # build: 1053 - Added unlock (secret) option 'Close Dataset'; added JVM Memory stats to status line...
 # build: 1054 - Fixed MyPopupDialogBox() height from becoming too tall on Windows.....; also set the relativeLocation to parent (not None).....
 # build: 1054 - Tweaked rename/relocate dataset to detect crash when calling .setCurrentBook() - e.g. out of memory.....
+# build: 1055 - Tweaked Dropbox Config error popup to recommend / try reset sync method...; New logger for all updates performed.....
+# build: 1055 - Tweaked diagnose_currencies... Stopped fix applying if newRate was still zero/NaN..... Remains as a warning....
+# build: 1055 - Turned off Syncer.DEBUG when performing mass changes - to stop console log filling up etc...
+# build: 1055 - Added Remove inactive accounts from SideBar function...
+# build: 1055 - Rebuilt launch code so that latest extension version checks download(s) from internet occur in parallel in own thread....
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
-# todo - Consider Thread() when downloading data from internet (version checking, extension versions etc) to eliminate launch 'lag'...
 # todo - change from str() to unicode() where appropriate...
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
@@ -150,7 +154,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1054"
+version_build = "1055"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -431,7 +435,7 @@ else:
     import threading
     from collections import OrderedDict
 
-    from java.lang import Process, NoClassDefFoundError, OutOfMemoryError, Runtime
+    from java.lang import Process, NoClassDefFoundError, OutOfMemoryError, InterruptedException, Runtime
     from java.lang.ref import WeakReference
 
     from org.python.core import PySystemState
@@ -494,40 +498,38 @@ else:
     from com.moneydance.apps.md.view.gui.txnreg import DownloadedTxnsView
     from com.moneydance.apps.md.view.gui.extensions import ExtensionsWindow                                             # noqa
     from com.moneydance.apps.md.view.gui.sync import DropboxSyncConfigurer
+    # from com.moneydance.apps.md.view.gui.sidebar import FullSideBarItemList
+    from com.moneydance.apps.md.view.gui.sidebar.nodes import SideBarNodeFactory, SideBarNodeType
 
-    try:
-        from com.infinitekind.moneydance.model import TxnSortOrder
-        lImportOK = True
-    except:
-        lImportOK = False
+    try: from com.infinitekind.moneydance.model import TxnSortOrder
+    except: pass
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    global __TOOLBOX
-    global toolbox_frame_, fixRCurrencyCheck, lCopyAllToClipBoard_TB, _COLWIDTHS
-    global lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
-    global globalSaveFI_data, globalSave_DEBUG_FI_data
-    global TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_BUILD
-    global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
-    global TOOLBOX_VERSION_VALIDATION_URL, TOOLBOX_STOP_NOW
-    global MD_RRATE_ISSUE_FIXED_BUILD, MD_ICLOUD_ENABLED, MD_MULTI_OFX_TXN_DNLD_DATES_BUILD
-    global MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD, MD_MDPLUS_GETPLAIDCLIENT_BUILD
+    global toolbox_frame_
 
-    TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.5                                                                          # noqa
-    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4091                                                                            # noqa
-    MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"                                                   # noqa
-    MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"                                        # noqa
-    MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"                                    # noqa
-    MD_EXTENSIONS_DIRECTORY_FILE = "https://infinitekind.com/app/md/extensions.dct"                                     # noqa
-    TOOLBOX_VERSION_VALIDATION_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/toolbox/toolbox_version_requirements.dict" # noqa
+    GlobalVars.__TOOLBOX = None
+
+    GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.5
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4091
+    GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
+    GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
+    GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
+    GlobalVars.MD_EXTENSIONS_DIRECTORY_FILE = "https://infinitekind.com/app/md/extensions.dct"
+    GlobalVars.TOOLBOX_VERSION_VALIDATION_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/toolbox/toolbox_version_requirements.dict"
     # Alternatively perhaps use....: "https://raw.githubusercontent.com/TheInfiniteKind/moneydance_open/main/python_scripts/toolbox/toolbox_version_requirements.dict"
 
-    MD_ICLOUD_ENABLED = 3088                                                                                            # noqa
-    MD_RRATE_ISSUE_FIXED_BUILD = 3089                                                                                   # noqa
-    MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078                                                                 # noqa
-    MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                                                                            # noqa
-    MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090                                                                               # noqa
+    GlobalVars.MD_ICLOUD_ENABLED = 3088
+    GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD = 3089
+    GlobalVars.MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078
+    GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074
+    GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090
+
+    GlobalVars.TOOLBOX_IS_NOW_RUNNING = False
+    GlobalVars.fixRCurrencyCheck = 0
+    GlobalVars.globalSaveFI_data = None
+    GlobalVars.globalSave_DEBUG_FI_data = None
 
     GlobalVars.mainPnl_preview_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_debug_lbl = JLabel("", JLabel.CENTER)
@@ -556,16 +558,14 @@ else:
 
     GlobalVars.Strings.MD_PLAID_SETTINGS_OBJ_ID = "plaid_settings"
 
-    GlobalVars.redact = True
-    GlobalVars.lMustRestartAfterSnapChanges = False
+    GlobalVars.Strings.CONFIG_COLWIDTHS = ["bank", "cc", "invest", "security", "loan", "misc", "split","rec_credits","rec_debits","secdetail"]
 
-    lCopyAllToClipBoard_TB = False                                                                                      # noqa
-    lIgnoreOutdatedExtensions_TB = False                                                                                # noqa
-    lAutoPruneInternalBackups_TB = True                                                                                 # noqa
-    _COLWIDTHS = ["bank", "cc", "invest", "security", "loan", "misc", "split","rec_credits","rec_debits","secdetail"]   # noqa
-    globalSaveFI_data = None                                                                                            # noqa
-    globalSave_DEBUG_FI_data = None                                                                                     # noqa
-    TOOLBOX_STOP_NOW = False                                                                                            # noqa
+    GlobalVars.redact = True
+
+    GlobalVars.lCopyAllToClipBoard_TB = False      
+    GlobalVars.lIgnoreOutdatedExtensions_TB = False
+    GlobalVars.lAutoPruneInternalBackups_TB = True 
+    GlobalVars.TOOLBOX_STOP_NOW = False
 
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
@@ -1019,8 +1019,7 @@ Visit: %s (Author's site)
                                   theMessageType=JOptionPane.ERROR_MESSAGE):
 
             txt = "'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(theFrame,"User did not agree to proceed - no changes made...","NO UPDATE",JOptionPane.ERROR_MESSAGE)
             return False
 
@@ -1824,16 +1823,23 @@ Visit: %s (Author's site)
 
         if GlobalVars.STATUS_LABEL is None or not isinstance(GlobalVars.STATUS_LABEL, JLabel): return
 
-        # GlobalVars.STATUS_LABEL.setText((_theStatus).ljust(800, " "))
-        GlobalVars.STATUS_LABEL.setText((_theStatus))
+        class SetDisplayStatusRunnable(Runnable):
+            def __init__(self, _status, _color):
+                self.status = _status; self.color = _color
 
-        if _theColor is None or _theColor == "": _theColor = "X"
-        _theColor = _theColor.upper()
-        if _theColor == "R":    GlobalVars.STATUS_LABEL.setForeground(getColorRed())
-        elif _theColor == "B":  GlobalVars.STATUS_LABEL.setForeground(getColorBlue())
-        elif _theColor == "DG": GlobalVars.STATUS_LABEL.setForeground(getColorDarkGreen())
-        else:                   GlobalVars.STATUS_LABEL.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
-        return
+            def run(self):
+                GlobalVars.STATUS_LABEL.setText((_theStatus))
+                if self.color is None or self.color == "": self.color = "X"
+                self.color = self.color.upper()
+                if self.color == "R":    GlobalVars.STATUS_LABEL.setForeground(getColorRed())
+                elif self.color == "B":  GlobalVars.STATUS_LABEL.setForeground(getColorBlue())
+                elif self.color == "DG": GlobalVars.STATUS_LABEL.setForeground(getColorDarkGreen())
+                else:                    GlobalVars.STATUS_LABEL.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
+
+        if not SwingUtilities.isEventDispatchThread():
+            SwingUtilities.invokeLater(SetDisplayStatusRunnable(_theStatus, _theColor))
+        else:
+            SetDisplayStatusRunnable(_theStatus, _theColor).run()
 
     def setJFileChooserParameters(_jf, lReportOnly=False, lDefaults=False, lPackagesT=None, lApplicationsT=None, lOptionsButton=None, lNewFolderButton=None):
         """sets up Client Properties for JFileChooser() to behave as required >> Mac only"""
@@ -2612,7 +2618,6 @@ Visit: %s (Author's site)
                     myPrint("B","Error. QuickJFrame dispose failed....?")
                     dump_sys_error_to_md_console_and_errorlog()
 
-
         class ToggleWrap(AbstractAction):
 
             def __init__(self, theCallingClass, theJText):
@@ -3121,18 +3126,15 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def load_StuWareSoftSystems_parameters_into_memory():
 
-        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-        global __TOOLBOX, lCopyAllToClipBoard_TB, lIgnoreOutdatedExtensions_TB, lAutoPruneInternalBackups_TB
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
 
         if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
-        if GlobalVars.parametersLoadedFromFile.get("__TOOLBOX") is not None: __TOOLBOX = GlobalVars.parametersLoadedFromFile.get("__TOOLBOX")
-        if GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB") is not None: lCopyAllToClipBoard_TB = GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB")
-        if GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB") is not None: lIgnoreOutdatedExtensions_TB = GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB")
-        if GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB") is not None: lAutoPruneInternalBackups_TB = GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB")
+        if GlobalVars.parametersLoadedFromFile.get("__TOOLBOX") is not None: GlobalVars.__TOOLBOX = GlobalVars.parametersLoadedFromFile.get("__TOOLBOX")
+        if GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB") is not None: GlobalVars.lCopyAllToClipBoard_TB = GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB")
+        if GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB") is not None: GlobalVars.lIgnoreOutdatedExtensions_TB = GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB")
+        if GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB") is not None: GlobalVars.lAutoPruneInternalBackups_TB = GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB")
 
         # No longer needed as button will be ever-present...
         if GlobalVars.parametersLoadedFromFile.get("lGeekOutModeEnabled_TB") is not None: GlobalVars.parametersLoadedFromFile.pop("lGeekOutModeEnabled_TB")
@@ -3151,9 +3153,9 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         GlobalVars.parametersLoadedFromFile["__TOOLBOX"] = version_build
-        GlobalVars.parametersLoadedFromFile["lCopyAllToClipBoard_TB"] = lCopyAllToClipBoard_TB
-        GlobalVars.parametersLoadedFromFile["lIgnoreOutdatedExtensions_TB"] = lIgnoreOutdatedExtensions_TB
-        GlobalVars.parametersLoadedFromFile["lAutoPruneInternalBackups_TB"] = lAutoPruneInternalBackups_TB
+        GlobalVars.parametersLoadedFromFile["lCopyAllToClipBoard_TB"] = GlobalVars.lCopyAllToClipBoard_TB
+        GlobalVars.parametersLoadedFromFile["lIgnoreOutdatedExtensions_TB"] = GlobalVars.lIgnoreOutdatedExtensions_TB
+        GlobalVars.parametersLoadedFromFile["lAutoPruneInternalBackups_TB"] = GlobalVars.lAutoPruneInternalBackups_TB
 
         myPrint("DB","variables dumped from memory back into GlobalVars.parametersLoadedFromFile{}.....")
 
@@ -3184,10 +3186,13 @@ Visit: %s (Author's site)
         if theFrame is not None and not theFrame.isActiveInMoneydance:
             destroyOldFrames(myModuleID)
 
-        try:
-            MD_REF.getUI().setStatus(">> Infinite Kind (co-authored by Stuart Beesley: StuWareSoftSystems) - Thanks for using Toolbox.......",0)
-        except:
-            pass  # If this fails, then MD is probably shutting down.......
+        for t in Thread.getAllStackTraces().keySet():
+            if "toolbox_DownloadExtensionVersionData".lower() in t.getName().lower() and t.isAlive():
+                myPrint("DB", "** Interrupting Thread '%s'(id: %s) which seems to still be alive" %(t, t.getId()))
+                t.interrupt()
+
+        try: MD_REF.getUI().setStatus(">> Infinite Kind (co-authored by Stuart Beesley: StuWareSoftSystems) - Thanks for using Toolbox.......",0)
+        except: pass  # If this fails, then MD is probably shutting down.......
 
         if not GlobalVars.i_am_an_extension_so_run_headless: print(scriptExit)
 
@@ -3220,6 +3225,82 @@ Visit: %s (Author's site)
 
     # Prevent usage later on... We use MD_REF
     if "moneydance" in globals(): del moneydance
+
+    class MoneybotURLDebug:
+        saveState = None
+
+        def __init__(self): raise Exception("ERROR: Do not call this constructor!")
+
+        @staticmethod
+        def changeState(newState):
+            MoneybotURLDebug.saveSyncerState = MoneybotURLStreamHandlerFactory.DEBUG
+            MoneybotURLStreamHandlerFactory.DEBUG = newState
+
+        @staticmethod
+        def resetState():
+            if MoneybotURLDebug.saveState is None: return
+            MoneybotURLStreamHandlerFactory.DEBUG = MoneybotURLDebug.saveState
+
+    class SyncerDebug:
+        saveState = None
+
+        def __init__(self): raise Exception("ERROR: Do not call this constructor!")
+
+        @staticmethod
+        def changeState(newState):
+            SyncerDebug.saveState = Syncer.DEBUG
+            Syncer.DEBUG = newState
+
+        @staticmethod
+        def resetState():
+            if SyncerDebug.saveState is None: return
+            Syncer.DEBUG = SyncerDebug.saveState
+
+    def logToolboxUpdates(methodName, comments, book=None, onlyLogGenericEntry=False):
+        # type: (basestring, basestring, AccountBook, bool) -> bool
+
+        try:
+            LOGNAME = "toolbox_update_log.txt"
+            nowTimeMS = System.currentTimeMillis()
+            intNowTime = DateUtil.convertLongDateToInt(nowTimeMS)
+
+            logPathGeneric = os.path.join(MD_REF.getLogFile().getParent(), LOGNAME)
+
+            logPathDataset = datasetPath = None
+            if not onlyLogGenericEntry or book is not None:
+                if book is None: book = MD_REF.getCurrentAccountBook()
+                if book is None: raise Exception("ERROR: .getCurrentAccountBook() returned None")
+
+                if isinstance(book, basestring):
+                    if not os.path.exists(book): raise Exception("ERROR: book '%s' passed as string but path does not exist!?" %(book))
+                    datasetPath = book
+                    logPathDataset = os.path.join(datasetPath, LOGNAME)
+                else:
+                    if isinstance(book, AccountBook): pass
+                    datasetPath = book.getRootFolder().getAbsolutePath()
+                    logPathDataset = os.path.join(datasetPath, LOGNAME)
+
+            i = 0
+            for logPath in [logPathGeneric, logPathDataset]:
+                if i > 0 and onlyLogGenericEntry: break
+                logFileExists = os.path.exists(logPath)
+                logSize = os.path.getsize(logPath) if logFileExists else 0
+
+                with open(logPath, "ab") as logFile:
+                    datasetPathOutput = "." if (i > 0) else datasetPath
+                    writer = csv.writer(logFile, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=fix_delimiter(","))
+                    if not logFileExists or logSize < 4:
+                        logFile.write(codecs.BOM_UTF8)
+                        writer.writerow(["TimeUpdateCompletedMS", "DateUpdateCompletedINT", "DatasetPath", "ToolboxFunctionName", "Comments"])
+                    writer.writerow([nowTimeMS, intNowTime, datasetPathOutput, methodName, comments, ""])
+                    i += 1
+
+        except:
+            myPrint("B", "ERROR in logToolboxUpdates() - No log entry written... Non-critical, so Will just continue...")
+            dump_sys_error_to_md_console_and_errorlog()
+            return False
+
+        return True
 
     def isMDThread(threadName):
         for checkName in ["TIKSync", "MD Background Ops", "MDPlus", "MD+", "TaskIndicator"]:
@@ -3347,8 +3428,6 @@ Visit: %s (Author's site)
 
             wr_oldSyncer = WeakReference(wr_bookToClose.get().getSyncer())                                              # noqa
 
-            Syncer.DEBUG = True
-
             if debug: myPrint("B", getJVMUsageStatistics())
 
             if lCloseWindows:
@@ -3357,6 +3436,8 @@ Visit: %s (Author's site)
                 if not ManuallyCloseAndReloadDataset.closeSecondaryWindows():
                     myPrint("B", "manuallyCloseDataset().closeSecondaryWindows() returned False?")
                     return False
+
+            SyncerDebug.changeState(True)
 
             # Shutdown the MD+ poller... When we open a new dataset it should reset itself.....
             shutdownMDPlusPoller()
@@ -3459,6 +3540,8 @@ Visit: %s (Author's site)
 
             if debug: myPrint("B", getJVMUsageStatistics())
 
+            SyncerDebug.resetState()
+
             myPrint("B", "... FINISHED Closing down the dataset")
             return True
 
@@ -3510,13 +3593,14 @@ Visit: %s (Author's site)
             if newWrapper is None: raise Exception("ERROR: 'AccountBookWrapper.wrapperForFolder' returned None")
             myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
 
-            Syncer.DEBUG = True
+            SyncerDebug.changeState(True)
 
             openResult = None                                                                                           # noqa
             try:
                 # .setCurrentBook() always pushes mdGUI().dataFileOpened() on the EDT (if not already on the EDT)....
                 myPrint("B", "Opening dataset: %s" %(fCurrentFilePath.getCanonicalPath()))
                 openResult = MD_REF.setCurrentBook(newWrapper)
+                SyncerDebug.resetState()
             except OutOfMemoryError:
                 myPrint("B", "@@@ CRITICAL ERROR <<OUT OF MEMORY>> setCurrentBook() has crashed whilst (re)opening dataset!?")
                 dump_sys_error_to_md_console_and_errorlog()
@@ -3681,9 +3765,11 @@ Visit: %s (Author's site)
 
     def isToolboxUnlocked(): return GlobalVars.TOOLBOX_UNLOCK
 
-    def isMDPlusUniqueBankingServicesEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD)
+    def isMDPlusUniqueBankingServicesEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD)
 
-    def isMDPlusGetPlaidClientEnabledBuild(): return (float(MD_REF.getBuild()) >= MD_MDPLUS_GETPLAIDCLIENT_BUILD)
+    def isMDPlusGetPlaidClientEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD)
+
+    def isRRateCurrencyIssueFixedBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD)
 
     if isMDPlusEnabledBuild():
         from com.moneydance.apps.md.controller import MDPlus
@@ -3899,38 +3985,402 @@ Visit: %s (Author's site)
             return True
         return False
 
-    # noinspection PyBroadException
-    def downloadStuWareSoftSystemsExtensions( what ):
+    class DownloadExtensionVersionData(Runnable):       # Runs in a separate non-EDT thread - prevents Toolbox GUI hanging on launch
 
-        myPrint("B","#########################################################################################################################################################")
-        myPrint("B","### INFORMATION: Toolbox is connecting to the master Toolbox code repository to check if an updated version is available - IT IS NOT SENDING ANY DATA ###")
-        myPrint("B","#########################################################################################################################################################")
+        _isDownloading = _downloadsCompleted = _didErrorOccur = False
 
-        dictInfo = StreamTable()
+        downloadedIKExtensionsDict = StreamTable()
+        downloadedGitHubToolboxMetaInfoDict = StreamTable()
+        downloadedGitHubVersionRequirementsDict = StreamTable()
 
-        inx = None
-        theDict = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/%s/meta_info.dict" %what
+        @staticmethod
+        def isDownloading(): return DownloadExtensionVersionData._isDownloading
 
-        try:
-            myPrint("DB","About to open url: %s" %theDict)
-            urlDict = URL(theDict)
-            inx = BufferedReader(InputStreamReader(urlDict.openStream(), "UTF8"))
-            dictInfo.readFrom(inx)
-        except:
-            myPrint("J","")
-            myPrint("B", "ERROR downloading meta-info.dict from GitHub... ")
-            if debug: dump_sys_error_to_md_console_and_errorlog()
-            return False
+        @staticmethod
+        def downloadsCompleted(): return DownloadExtensionVersionData._downloadsCompleted
 
-        finally:
-            if inx:
-                try:
-                    inx.close()
-                except:
-                    myPrint("B", "Error closing URL stream (%s)" %theDict)
-                    dump_sys_error_to_md_console_and_errorlog()
+        @staticmethod
+        def didErrorOccur(): return DownloadExtensionVersionData._didErrorOccur
 
-        return dictInfo
+        def __init__(self):
+            if (DownloadExtensionVersionData.isDownloading() or DownloadExtensionVersionData.downloadsCompleted() or DownloadExtensionVersionData.didErrorOccur()
+                    or DownloadExtensionVersionData.downloadedGitHubVersionRequirementsDict or DownloadExtensionVersionData.downloadedIKExtensionsDict or DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict):
+                raise Exception("ERROR: Class DownloadExtensionVersionData - seems to have been initialized more than once?!")
+
+        class DisplayErrorMsg(Runnable):
+            def __init__(self, _msg): self.msg = _msg
+            def run(self): myPopupInformationBox(None, self.msg, "ERROR", JOptionPane.ERROR_MESSAGE)
+
+        def run(self):
+            myPrint("DB", "EXECUTING::DownloadExtensionVersionData.run() in new Thread(): %s(id: %s)" %(Thread.currentThread(), Thread.currentThread().getId()))
+            if SwingUtilities.isEventDispatchThread(): raise Exception("ERROR: Class DownloadExtensionVersionData.run() - should not run on the EDT!")
+
+            MD_EXTNS_DICT_URL = System.getProperty("moneydance.extension_list_url", GlobalVars.MD_EXTENSIONS_DIRECTORY_FILE)
+            OWN_DICT_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/%s/meta_info.dict" %(myModuleID)
+
+            loopConnections = [
+                [GlobalVars.TOOLBOX_VERSION_VALIDATION_URL, DownloadExtensionVersionData.downloadedGitHubVersionRequirementsDict, "Toolbox code servers"],
+                [MD_EXTNS_DICT_URL, DownloadExtensionVersionData.downloadedIKExtensionsDict, "IK Servers"],
+                [OWN_DICT_URL, DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict, "Toolbox code servers"]
+            ]
+
+            DownloadExtensionVersionData._isDownloading = True
+            startTimeMS = System.currentTimeMillis()
+            connectionTimeoutMS = (10 * 1000)   # 10 seconds... But not sure timeout actually works on all platforms....
+
+            try:
+                for theURL, theVariable, txtType in loopConnections:
+                    if GlobalVars.TOOLBOX_IS_NOW_RUNNING: setDisplayStatus("Toolbox downloading latest extension(s) version information...", "B")
+                    txt = "### INFORMATION: %s connecting to %s to check extension version data / requirement(s) - IT IS NOT SENDING ANY DATA ###" %(myModuleID.capitalize(), txtType)
+                    myPrint("B", txt)
+                    MD_REF.getUI().setStatus(txt, -1.0)
+                    MoneybotURLDebug.changeState(debug)
+
+                    inx = None
+                    try:
+                        myPrint("DB", "About to open url: %s" %(theURL))
+                        url = URL(theURL)
+                        conn = url.openConnection()
+                        conn.setConnectTimeout(connectionTimeoutMS)
+                        conn.setReadTimeout(connectionTimeoutMS)
+                        inx = BufferedReader(InputStreamReader(conn.getInputStream(), "UTF8"))
+                        theVariable.readFrom(inx)
+                        myPrint("DB", "Success downloading extension version data / requirement(s) from %s ...." %(txtType))
+                    except:
+                        DownloadExtensionVersionData._didErrorOccur = True
+                        myPrint("B", "ERROR downloading extension version data / requirement(s) from: %s" %(theURL))
+                        if debug: dump_sys_error_to_md_console_and_errorlog()
+                    finally:
+                        txt = "INFO: FINISHED downloading %s extension version data / requirement(s) from %s" %(myModuleID.capitalize(), txtType)
+                        MD_REF.getUI().setStatus(txt, 0.0)
+                        MoneybotURLDebug.resetState()
+                        if inx:
+                            try: inx.close()
+                            except: pass
+
+                    if Thread.currentThread().isInterrupted(): raise InterruptedException
+                    if DownloadExtensionVersionData.didErrorOccur(): break
+
+                DownloadExtensionVersionData._isDownloading = False
+                DownloadExtensionVersionData._downloadsCompleted = True
+
+                txt = ">>> %s finished downloading latest extension(s) version data >> Took %s seconds" %(myModuleID.capitalize(), (System.currentTimeMillis() - startTimeMS) / 1000.0)
+                if GlobalVars.TOOLBOX_IS_NOW_RUNNING: setDisplayStatus(txt, "B")
+                myPrint("DB", txt)
+
+                if not GlobalVars.TOOLBOX_IS_NOW_RUNNING:
+                    myPrint("DB", ">>> DownloadExtensionVersionData.run() - NOW WAITING FOR TOOLBOX TO FINISH LOADING......")
+                else:
+                    myPrint("DB", ">>> DownloadExtensionVersionData.run() - TOOLBOX HAS FINISHED LOADING - so continuing with version checks......")
+
+                totalDelayMS = 0
+                delayTimeMS = 1000
+                maxDelaySeconds = 30
+
+                while True:
+                    if Thread.currentThread().isInterrupted(): raise InterruptedException
+                    if GlobalVars.TOOLBOX_IS_NOW_RUNNING: break
+                    if (totalDelayMS / 1000.0) > maxDelaySeconds:
+                        myPrint("B", ">>> DownloadExtensionVersionData.run() - After %s seconds Toolbox not yet loaded - ABORTING VERSION REQUIREMENT CHECKS!" %(maxDelaySeconds))
+                        break
+
+                    myPrint("DB", ">>> DownloadExtensionVersionData.run() - Toolbox not yet loaded (cumulative wait %s)... Will sleep for %s second(s) and try again..." %((totalDelayMS / 1000.0), (delayTimeMS / 1000.0)))
+                    Thread.sleep(delayTimeMS)
+                    totalDelayMS += delayTimeMS
+
+                if not GlobalVars.TOOLBOX_IS_NOW_RUNNING:
+                    myPrint("B", "*** WARNING: Toolbox has NOT fully launched in time to meet ::DownloadExtensionVersionData.run() validation *** (will ignore and continue) - PLEASE REPORT TO TOOLBOX AUTHOR")
+                    SwingUtilities.invokeLater(self.DisplayErrorMsg("TOOLBOX: NOT fully launched in time for extn version checks - will ignore and continue"))
+                else:
+
+                    if DownloadExtensionVersionData.didErrorOccur():
+                        txt = "Error downloading latest extension(s) version data from Internet. Continuing without live version validation..."
+                        setDisplayStatus(txt.upper(), "R"); myPrint("B", txt)
+
+                    self.validateDownloadedToolboxVersionRequirements()
+
+                    lAbort = False
+                    if (GlobalVars.TOOLBOX_STOP_NOW
+                            or (float(MD_REF.getVersion()) < GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION)
+                            or (int(float(MD_REF.getVersion())) > int(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))):
+                        lAbort = True
+                    else:
+                        if (float(MD_REF.getBuild()) > GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD):
+                            sTxt = "MD build (%s)%s is newer than the Toolbox tested build of (%s)%s"\
+                                  %(MD_REF.getVersion(), MD_REF.getBuild(), GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD)
+                            mTxt = "Toolbox(build: %s) has not been tested on this version of Moneydance\n" \
+                                   "Click proceed to continue using Toolbox on untested newer MD version\n" \
+                                   "... or cancel to quit Toolbox ..." %(version_build)
+
+                            ask = MyPopUpDialogBox(toolbox_frame_,
+                                                 theStatus=sTxt,
+                                                 theTitle="NEWER MD VERSION",
+                                                 theMessage=mTxt,
+                                                 lCancelButton=True,
+                                                 OKButtonText="PROCEED",
+                                                 lAlertLevel=1)
+                            if not ask.go(): lAbort = True
+
+                    if lAbort:
+                        disableToolboxButtons()
+                        if GlobalVars.TOOLBOX_STOP_NOW:
+                            txt = "Toolbox DISABLED (check for version update Extension>Manage Extensions)"
+                            sTxt = "This is not necessarily a problem. Please check for an update\n" \
+                                   "... if no updates are available, contact Mr Toolbox ..."
+                            setDisplayStatus(txt, "R");  myPrint("B", txt)
+                            MyPopUpDialogBox(toolbox_frame_, theStatus=txt, theMessage=sTxt, theTitle="TOOLBOX DISABLED", OKButtonText="QUIT", lAlertLevel=2).go()
+                        else:
+                            txt = ("Sorry, this Toolbox (build %s) has only been tested on Moneydance versions %s thru' %s(build %s)... Yours is %s(%s)"
+                                    %(version_build, GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD,MD_REF.getVersion(),MD_REF.getBuild()))
+                            sTxt = "Please install 'compatible' Toolbox / MD versions...."
+                            setDisplayStatus(txt, "R");  myPrint("B", txt)
+                            MyPopUpDialogBox(toolbox_frame_, theStatus=txt, theMessage=sTxt, theTitle="VERSION INCOMPATIBILITY", OKButtonText="QUIT", lAlertLevel=2).go()
+
+                        terminate_script()
+
+                    else:
+                        myPrint("DB", "FINISHED checking downloaded version requirements data... All OK!")
+
+                        myPrint("DB", "Checking for updatable extensions....")
+                        _tb_extn_avail_version = self.check_for_updatable_extensions_on_startup()
+
+                        myModule = DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict.get("id")
+                        if myModule == myModuleID:
+                            availableFromGitHubVersion = int(DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict.get("module_build"))
+
+                            if _tb_extn_avail_version > int(version_build):
+                                myPrint("B","@@ Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu @@" %(_tb_extn_avail_version))
+                                mTxt = "You are running version %s\n" %(version_build)
+                                mTxt += "Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu\n" %(_tb_extn_avail_version)
+                                MyPopUpDialogBox(toolbox_frame_, theStatus="Toolbox Version:", theMessage=mTxt, theTitle="UPGRADE AVAILABLE", OKButtonText="Acknowledge").go()
+
+                            elif availableFromGitHubVersion > int(version_build) and availableFromGitHubVersion > _tb_extn_avail_version:
+                                myPrint("DB","@@ FYI - Toolbox upgrade to version %s (unsigned) is available from Author's code site.... @@" %(availableFromGitHubVersion))
+                            else:
+                                myPrint("DB","Toolbox is running latest version available: %s" %max(version_build,availableFromGitHubVersion))
+
+                        elif DownloadExtensionVersionData.didErrorOccur():
+                            SwingUtilities.invokeLater(self.DisplayErrorMsg("TOOLBOX: Error occurred downloading latest extension(s) version data - will ignore and continue"))
+
+                        myPrint("DB", "FINISHED checking for updatable extensions....")
+
+            except InterruptedException:
+                myPrint("DB", "** DownloadExtensionVersionData.run() - Interrupted (perhaps Toolbox (re)install/(re)launch?) - will just quit this thread...")
+
+            myPrint("DB", ">>> Finished executing DownloadExtensionVersionData.run() - Took %s cumulative seconds" %((System.currentTimeMillis() - startTimeMS) / 1000.0))
+
+        def validateDownloadedToolboxVersionRequirements(self):
+
+            this_toolbox_build = int(version_build)
+            if this_toolbox_build < 1000:
+                myPrint("B", "ERROR with Toolbox build (early) version %s  - will just proceed without safeguards" %(this_toolbox_build))
+                return
+
+            if DownloadExtensionVersionData.downloadedGitHubVersionRequirementsDict is None:
+                myPrint("B", "Error: Toolbox version requirement(s) information after download is Empty - will just proceed without safeguards")
+                return
+
+            lastUpdated = DownloadExtensionVersionData.downloadedGitHubVersionRequirementsDict.getStr("last_updated", "UNKNOWN")
+            myPrint("DB","Last Updated: %s" %(lastUpdated))
+
+            GlobalVars.TOOLBOX_STOP_NOW = DownloadExtensionVersionData.downloadedGitHubVersionRequirementsDict.getBoolean("disable_all", False)
+            if GlobalVars.TOOLBOX_STOP_NOW:
+                myPrint("B","Sorry - disable_all has been set by the Developer.... Toolbox must close...".upper())
+                return
+            else:
+                myPrint("DB", "Confirmed that disable_all NOT set....")
+
+            buildList = DownloadExtensionVersionData.downloadedGitHubVersionRequirementsDict.get("builds", None)        # type: StreamVector
+            if not buildList or buildList is None:
+                myPrint("DB","Error - failed to download or decode build list - will just proceed without safeguards")
+                return
+
+            buildTable = []
+
+            try:
+                for buildObj in buildList:                                                                              # type: StreamTable
+                    if not (isinstance(buildObj, StreamTable)):
+                        myPrint("DB", "ERROR - Retrieved toolbox build info is not a StreamTable(). It's %s %s" %(type(buildObj), buildObj))
+                        continue
+
+                    buildTable.append(ToolboxBuildInfo(buildObj))
+
+            except:
+                dump_sys_error_to_md_console_and_errorlog()
+                myPrint("B", "ERROR decoding downloading toolbox version/build data! - will just proceed without safeguards...")
+                return
+
+            if len(buildTable) < 1:
+                myPrint("B", "ERROR decoded downloaded toolbox version/build data is empty! - will just proceed without safeguards...")
+                return
+
+            buildTable = sorted(buildTable, key=lambda _x: (_x.build), reverse=True)          # type: [ToolboxBuildInfo]
+            # Already sorted - newest build first
+            for moduleBuild in buildTable:          # type: ToolboxBuildInfo
+                if moduleBuild.build < 1000:
+                    myPrint("DB","Found INVALID downloaded module build %s (ignoring and stopping search)... (%s)" %(moduleBuild.build, moduleBuild.obj ))
+                    return
+                elif moduleBuild.build > this_toolbox_build:
+                    myPrint("DB","Found NEWER downloaded module build %s (ignoring and continuing search).. (%s)" %(moduleBuild.build, moduleBuild.obj ))
+                    continue
+                elif moduleBuild.build == this_toolbox_build:
+                    myPrint("DB","Found EXACT-HIT downloaded module build %s OVERRIDING PROGRAM's DEFAULTS....! (%s)" %(moduleBuild.build, moduleBuild.obj ))
+
+                    if debug:
+                        myPrint("DB", "Program defaults were...:")
+                        myPrint("DB", " TOOLBOX_STOP_NOW:                     %s"     %(GlobalVars.TOOLBOX_STOP_NOW))
+                        myPrint("DB", " TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION))
+                        myPrint("DB", " TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
+                        myPrint("DB", " TOOLBOX_MAXIMUM_TESTED_MD_BUILD:      %s"     %(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
+                        myPrint("DB", " MD_OFX_BANK_SETTINGS_DIR:             %s"     %(GlobalVars.MD_OFX_BANK_SETTINGS_DIR))
+                        myPrint("DB", " MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE))
+                        myPrint("DB", " MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE))
+                        myPrint("DB", " MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(GlobalVars.MD_EXTENSIONS_DIRECTORY_FILE))
+                        myPrint("DB", " MYPYTHON_DOWNLOAD_URL:                %s"     %(GlobalVars.MYPYTHON_DOWNLOAD_URL))
+
+                    GlobalVars.TOOLBOX_STOP_NOW = moduleBuild.disable
+                    if moduleBuild.TOOLBOX_MINIMUM_TESTED_MD_VERSION > 0:
+                        GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION =     moduleBuild.TOOLBOX_MINIMUM_TESTED_MD_VERSION
+                    if moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_VERSION:
+                        GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION =     moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_VERSION
+                    if moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_BUILD > 0:
+                        GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =       moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_BUILD
+                    if len(moduleBuild.MD_OFX_BANK_SETTINGS_DIR) > 0:
+                        GlobalVars.MD_OFX_BANK_SETTINGS_DIR =              moduleBuild.MD_OFX_BANK_SETTINGS_DIR
+                    if len(moduleBuild.MD_OFX_DEFAULT_SETTINGS_FILE) > 0:
+                        GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE =          moduleBuild.MD_OFX_DEFAULT_SETTINGS_FILE
+                    if len(moduleBuild.MD_OFX_DEBUG_SETTINGS_FILE) > 0:
+                        GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE =            moduleBuild.MD_OFX_DEBUG_SETTINGS_FILE
+                    if len(moduleBuild.MD_EXTENSIONS_DIRECTORY_FILE) > 0:
+                        GlobalVars.MD_EXTENSIONS_DIRECTORY_FILE =          moduleBuild.MD_EXTENSIONS_DIRECTORY_FILE
+                    if len(moduleBuild.MYPYTHON_DOWNLOAD_URL) > 0:
+                        GlobalVars.MYPYTHON_DOWNLOAD_URL =                 moduleBuild.MYPYTHON_DOWNLOAD_URL
+
+                    if debug:
+                        myPrint("DB", "Program variables are now...:")
+                        myPrint("DB", " TOOLBOX_STOP_NOW:                     %s"     %(GlobalVars.TOOLBOX_STOP_NOW))
+                        myPrint("DB", " TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION))
+                        myPrint("DB", " TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
+                        myPrint("DB", " TOOLBOX_MAXIMUM_TESTED_MD_BUILD:      %s"     %(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
+                        myPrint("DB", " MD_OFX_BANK_SETTINGS_DIR:             %s"     %(GlobalVars.MD_OFX_BANK_SETTINGS_DIR))
+                        myPrint("DB", " MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE))
+                        myPrint("DB", " MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE))
+                        myPrint("DB", " MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(GlobalVars.MD_EXTENSIONS_DIRECTORY_FILE))
+                        myPrint("DB", " MYPYTHON_DOWNLOAD_URL:                %s"     %(GlobalVars.MYPYTHON_DOWNLOAD_URL))
+
+                    if GlobalVars.TOOLBOX_STOP_NOW:
+                        myPrint("B", "Sorry - disable has been set by the Developer for this build.... Toolbox must close...".upper())
+                    return
+
+                else:
+                    myPrint("DB", "Found LOWER downloaded module build %s - so I will keep program's defaults, and ignore these - exiting search... (%s) " %(moduleBuild.build, moduleBuild.obj ))
+                    return
+
+            myPrint("DB", "No suitable module build info found.. (so I will keep program's defaults, and ignore these - exiting search)")
+
+        def check_for_updatable_extensions_on_startup(self):
+            if SwingUtilities.isEventDispatchThread(): raise Exception("ERROR: Class DownloadExtensionVersionData - should not run on the EDT!")
+
+            toolboxVersion = 0
+            displayData = "\nALERT INFORMATION ABOUT YOUR EXTENSIONS:\n\n"
+
+            try:
+                theUpdateList = DownloadExtensionVersionData.get_extension_update_info()
+
+                if not theUpdateList or len(theUpdateList) < 1: return toolboxVersion
+
+                for key in theUpdateList.keys():
+                    updateInfo = theUpdateList[key]
+                    _txt = "** UPGRADEABLE EXTENSION: %s to version: %s" %(pad(key, 20), (updateInfo[0].getBuild()))
+                    displayData += "%s\n" %(_txt)
+                    myPrint("B", _txt)
+                    if key.lower() == "%s" %(myModuleID) and int(updateInfo[0].getBuild()) > 0:
+                        toolboxVersion = int(updateInfo[0].getBuild())
+            except:
+                dump_sys_error_to_md_console_and_errorlog()
+                return toolboxVersion
+
+            displayData += "\n<END>\n"
+            howMany = int(len(theUpdateList))
+            if not GlobalVars.lIgnoreOutdatedExtensions_TB:
+                txt = "ALERT - YOU HAVE %s EXTENSION(S) THAT CAN BE UPGRADED!... (CANCEL stops future reminders)" %(howMany)
+                setDisplayStatus(txt, "B"); myPrint("B", txt)
+                ask = MyPopUpDialogBox(toolbox_frame_,
+                                     theStatus=txt,
+                                     theTitle="OUTDATED EXTENSIONS",
+                                     theMessage=displayData,
+                                     lCancelButton=True,
+                                     OKButtonText="Acknowledge",
+                                     lAlertLevel=1)
+                if not ask.go():
+                    myPrint("B", "User requested to ignore Outdated warning extensions going forward.....")
+                    GlobalVars.lIgnoreOutdatedExtensions_TB = True
+                    try: save_StuWareSoftSystems_parameters_to_file()
+                    except:
+                        myPrint("B", "Error - failed to save parameters to pickle file...!")
+                        dump_sys_error_to_md_console_and_errorlog()
+            else:
+                txt = "ALERT - YOU HAVE %s EXTENSION(S) THAT CAN BE UPGRADED!...YOU HAVE SUPPRESSED STARTUP POPUP WARNINGS" %(howMany)
+                setDisplayStatus(txt, "B")
+
+            return toolboxVersion
+
+        @staticmethod
+        def get_extension_update_info():
+
+            moduleList = DownloadExtensionVersionData.downloadedIKExtensionsDict.get(u"feature_modules")                # StreamVector
+
+            installed = MD_REF.getLoadedModules()                                                                       # FeatureModule[]
+            excludedIDs = MD_REF.getSuppressedExtensionIDs()                                                            # List<String>
+            for installedMod in installed:
+                if installedMod.isBundled():
+                    excludedIDs.add(installedMod.getIDStr().lower())
+
+            miniUpdateList = {}
+            try:
+                if moduleList:
+                    for obj in moduleList:
+                        if not (isinstance(obj, StreamTable)):
+                            myPrint("B", "@@ ERROR - Retrieved data is not a StreamTable()", obj)
+                            continue
+
+                        extInfo = ModuleMetaData(obj)
+
+                        # Mirrors code from com.moneydance.apps.md.view.gui.extensions.ExtensionsWindow...
+
+                        # noinspection PyUnresolvedReferences
+                        if excludedIDs.contains(extInfo.getModuleID().lower()):     # Probably internal modules like Python/Jython
+                            continue
+                        if not ((float(MD_REF.getBuild())) >= extInfo.getMinimumSupportedBuild() and (float(MD_REF.getBuild())) <= extInfo.getMaximumSupportedBuild()):  # noqa
+                            continue
+                        if not (extInfo.getMinimumSupportedBuild() >= 1000):
+                            continue
+                        if (extInfo.isMacSandboxFriendly() or not Platform.isMac() or not MD_REF.getPlatformHelper().isConstrainedToSandbox()):
+                            pass
+                        else:
+                            continue
+                        existingMod = None          # FeatureModule
+                        for mod in installed:
+
+                            # noinspection PyUnresolvedReferences
+                            if mod.getIDStr().lower() == extInfo.getModuleID().lower():
+                                existingMod = mod
+                                break
+                        isInstalled = (existingMod is not None)
+                        isUpdatable = (existingMod is not None and existingMod.getBuild() < extInfo.getBuild())
+                        if existingMod and isInstalled and isUpdatable:
+
+                            # noinspection PyUnresolvedReferences
+                            miniUpdateList[extInfo.getModuleID().lower()] = [extInfo, isInstalled, isUpdatable]
+
+                else:
+                    myPrint("DB", "@@ ERROR - Failed to download latest extension(s) version data from internet...")
+            except:
+                myPrint("B", "@@ ERROR decoding downloaded module list!)")
+                dump_sys_error_to_md_console_and_errorlog()
+
+            return miniUpdateList
+
 
     def detect_broken_critical_javaio_temp_dir_OK():
         KEY = "java.io.tmpdir"                                                                                          # noqa
@@ -4015,8 +4465,7 @@ Visit: %s (Author's site)
             except:
                 if self.lQuickCheckOnly: return True
                 txt = "Change Mac Tabbing Mode - Sorry - error getting your Tabbing mode! - no changes made!"
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
                 dump_sys_error_to_md_console_and_errorlog()
                 return
@@ -4025,23 +4474,21 @@ Visit: %s (Author's site)
             if not (tabbingMode == "fullscreen" or tabbingMode == "manual" or tabbingMode == "always"):
                 if self.lQuickCheckOnly: return True
                 txt = "Change Mac Tabbing Mode - Sorry - I don't understand your tabbing mode: %s - no changes made!" %(tabbingMode)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
                 myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
 
             if tabbingMode == "fullscreen" or tabbingMode == "manual":
                 if self.lQuickCheckOnly:
-                    myPrint("J","Quick check of MacOS tabbing showed it's OK and set to: %s" %tabbingMode)
+                    myPrint("J", "Quick check of MacOS tabbing showed it's OK and set to: %s" %tabbingMode)
                     return True
                 txt = "Change Mac Tabbing Mode - NO PROBLEM FOUND - Your tabbing mode is: %s - no changes made!" %(tabbingMode)
-                setDisplayStatus(txt, "B")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "B"); myPrint("B", txt)
                 myPopupInformationBox(toolbox_frame_,txt)
                 return
 
             if self.lQuickCheckOnly:
-                myPrint("J","Quick check of MacOS tabbing showed it's NEEDS CHANGING >> It's set to: %s" %tabbingMode)
+                myPrint("J", "Quick check of MacOS tabbing showed it's NEEDS CHANGING >> It's set to: %s" %tabbingMode)
                 return False
 
             myPrint("B","More information here: https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac")
@@ -4077,9 +4524,8 @@ Visit: %s (Author's site)
                 myPrint("B","!!! Your tabbing mode has been changed to %s - MONEYDANCE WILL NOW RESTART" %selectedMode)
             except:
                 txt = "Change Mac Tabbing Mode - Sorry - error setting your Tabbing mode! - no changes made!"
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
                 dump_sys_error_to_md_console_and_errorlog()
-                setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
 
@@ -4088,6 +4534,7 @@ Visit: %s (Author's site)
 
             txt = "MacOS Tabbing Mode: OK I Made the Change to your Mac Tabbing Mode: MONEYDANCE WILL NOW RESTART"
             setDisplayStatus(txt, "R")
+            logToolboxUpdates("DetectAndChangeMacTabbingMode", txt, onlyLogGenericEntry=True)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
@@ -4223,11 +4670,11 @@ Visit: %s (Author's site)
 
             if not invalidLocns and not invalidSizes:
                 output += "NO INVALID LOCATIONS / SIZES DETECTED - no changes made\n<END>\n"
-                QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+                QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
                 return False
 
             output += "ALERT: %s invalid saved window location(s) / size(s) detected\n\n" %(len(invalidLocns) + len(invalidSizes))
-            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
 
             if not GlobalVars.i_am_an_extension_so_run_headless:
                 myPopupInformationBox(jif, "PLEASE RUN THIS AS AN EXTENSION TO PROCEED", _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
@@ -4291,8 +4738,9 @@ Visit: %s (Author's site)
 
             txt = "%s: %s invalid saved window location(s) / size(s) zapped.... MONEYDANCE WILL EXIT - PLEASE RESTART MD" %(_THIS_METHOD_NAME, len(invalidLocns) + len(invalidSizes))
             output += "\n\n%s\n<END>" %(txt)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("DetectInvalidWindowLocations", txt, onlyLogGenericEntry=True)
+
             play_the_money_sound()
             MyPopUpDialogBox(toolbox_frame_, txt, output, theTitle="INVALID LOCATION(S)/SIZE(S) ZAPPED", lAlertLevel=1).go()
 
@@ -4773,9 +5221,9 @@ Visit: %s (Author's site)
                              u"WARNING - DROPBOX ERROR",
                              u"You seem to have a Dropbox configuration issue!?\n"
                              u"(or you have launched from command line, not the code-signed app bundle)\n"
-                             u"Toolbox cannot fix this for you - please review your console logs\n"
-                             u"and contact the online support forum for help....\n"
-                             u"(if you find a fix, please inform the Toolbox author)",
+                             u"Toolbox cannot directly fix this for you - please review your console logs\n"
+                             u"... You can try... Toolbox Advanced Mode, Option 'Force RESET Sync settings'\n"
+                             u"...... to setup Sync again from scratch (sometimes  fixes old Dropbox settings)",
                              theTitle=u"DROPBOX ERROR",
                              lModal=False,
                              lAlertLevel=2).go()
@@ -4947,7 +5395,7 @@ Visit: %s (Author's site)
         try:
             textArray.append(u"\nEXTENSIONS / EDITORS / VIEWS")
 
-            textArray.append(u"Extensions enabled:                          %s" %MD_REF.getSourceInformation().getExtensionsEnabled())
+            textArray.append(u"Extensions enabled:                          %s" %(MD_REF.getSourceInformation().getExtensionsEnabled()))
 
             x = MD_REF.getExternalAccountEditors()
             for y in x:
@@ -4960,7 +5408,7 @@ Visit: %s (Author's site)
                 textArray.append(u"Extension Loaded:                            %s" %(y.getDisplayName()))
             x = MD_REF.getSuppressedExtensionIDs()
             for y in x:
-                textArray.append(u"Internal/suppressed/secret/unloadable extns: %s" %(y))
+                textArray.append(u"Internal/suppressed/unloadable extns:        %s" %(y))
             if float(MD_REF.getBuild()) < 3051:
                 # .getOutdatedExtensionIDs() name changed prior to 3051
                 x = MD_REF.getOutdatedExtensionIDs()                                                                    # noqa
@@ -4969,27 +5417,17 @@ Visit: %s (Author's site)
             for y in x:
                 textArray.append(u"Outdated extensions (not loaded):            %s" %(y))
 
-            try:
-                theUpdateList = get_extension_update_info()
+            textArray.append(u"\n** Use General Tools Menu>View Extension(s) details for more info and available updates **")
 
-                for key in theUpdateList.keys():
-                    updateInfo = theUpdateList[key]
-                    textArray.append(u"** UPDATABLE EXTENSION: %s to version: %s" %(pad(key,20),(updateInfo[0].getBuild())) )
-            except:
-                textArray.append(u"ERROR: Failed to retrieve / download Extension update list....")
-                dump_sys_error_to_md_console_and_errorlog()
-
-        except:
-            pass
+        except: pass
 
         orphan_prefs, orphan_files, orphan_confirmed_extn_keys = get_orphaned_extension()
 
-        if len(orphan_prefs)<1 and len(orphan_files)<1 and len(orphan_confirmed_extn_keys)<1:
+        if len(orphan_prefs) < 1 and len(orphan_files) < 1 and len(orphan_confirmed_extn_keys) < 1:
             textArray.append(u"\nCONGRATULATIONS - NO ORPHAN EXTENSIONS DETECTED!!\n")
         else:
             textArray.append(u"\nWARNING: Orphan Extensions detected (%s in config.dict) & (%s in .MXT files)\n" %(len(orphan_prefs)+len(orphan_confirmed_extn_keys),len(orphan_files)))
             myPrint(u"B", u"WARNING: Orphan Extensions detected (%s in config.dict) & (%s in .MXT files)\n" %(len(orphan_prefs)+len(orphan_confirmed_extn_keys),len(orphan_files)))
-
 
         textArray.append(u"\n ======================================================================================")
         textArray.append(u"USER PREFERENCES")
@@ -5237,11 +5675,11 @@ Visit: %s (Author's site)
 
         iCount = 0
         for x in MD_REF.getCurrentAccount().getBook().getMemorizedItems().getMemorizedGraphs():
-            iCount+=1
+            iCount += 1
             memz.append("Graph: %s" % (x.getName()))
 
         for x in MD_REF.getCurrentAccount().getBook().getMemorizedItems().getMemorizedReports():
-            iCount+=1
+            iCount += 1
             memz.append("Report: %s" % (x.getName()))
 
         memz = sorted(memz, key=lambda sort_x: ((sort_x[0]).upper()))
@@ -5254,7 +5692,7 @@ Visit: %s (Author's site)
         for x in MD_REF.getCurrentAccount().getBook().getMemorizedItems().getMemorizedGraphs():
             if iGs:
                 memz.append("\n ---")
-            iGs+=1
+            iGs += 1
             memz.append("Graph:           %s" % (x.getName()))
             memz.append(">> SyncItemType: %s" %(x.getSyncItemType()))
             # memz.append(">> Graph ID:     %s" %(x.getReportID()))
@@ -5270,7 +5708,7 @@ Visit: %s (Author's site)
         for x in MD_REF.getCurrentAccount().getBook().getMemorizedItems().getMemorizedReports():
             if iRs or iGs:
                 memz.append("\n ---")
-            iRs+=1
+            iRs += 1
             memz.append("Report           %s" % (x.getName()))
             memz.append(">> SyncItemType: %s" %(x.getSyncItemType()))
             # memz.append(">> Report ID:    %s" %(x.getReportID()))
@@ -5286,7 +5724,7 @@ Visit: %s (Author's site)
         LS = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
 
         last = None
-        keys=sorted(LS.keys())
+        keys = sorted(LS.keys())
         for theKey in keys:
             value = LS.get(theKey)
             if not theKey.lower().startswith("report_params."): continue
@@ -5300,7 +5738,7 @@ Visit: %s (Author's site)
             else:
                 memz.append("Key:%s Value: %s" % (pad(theKey,70), value.strip()))
 
-        x=LS.get("grfRepDefaultParams")
+        x = LS.get("grfRepDefaultParams")
         if x:
             memz.append("\n\nDefault Parameters: 'grfRepDefaultParams' (Probably Legacy keys)")
             memz.append("%s" %x)
@@ -5312,10 +5750,9 @@ Visit: %s (Author's site)
             memz[i] = memz[i] + "\n"
         memz = "".join(memz)
 
-        QuickJFrame("Memorized Reports and Graphs", memz, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame("Memorized Reports and Graphs", memz, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     def view_extensions_details():
-        global lIgnoreOutdatedExtensions_TB     # Global as we set this here
 
         theData = []
 
@@ -5330,18 +5767,24 @@ Visit: %s (Author's site)
 
             theData.append("\n")
 
+        if not DownloadExtensionVersionData.downloadsCompleted():
+            theData.append("** Live extension version / update data not available as these have not yet downloaded (try again later) **\n".upper())
+        elif DownloadExtensionVersionData.didErrorOccur():
+            theData.append("** Live extension version / update data not available as error during download occurred (check internet and restart Toolbox) **\n".upper())
+        elif len(DownloadExtensionVersionData.downloadedIKExtensionsDict) < 1:
+            theData.append("** Live extension version / update data appears to be empty?? **\n".upper())
+
         theData.append("Extensions enabled: %s\n" %MD_REF.getSourceInformation().getExtensionsEnabled())
 
-        theUpdateList = get_extension_update_info()
+        theUpdateList = DownloadExtensionVersionData.get_extension_update_info()
 
-        # noinspection PyBroadException
         try:
             x = MD_REF.getLoadedModules()
             for y in x:
                 isUpdatable= "(latest version)"
                 updateInfo = theUpdateList.get(y.getIDStr().lower())
                 if updateInfo:
-                    isUpdatable = ("\t******* Updatable to version: %s *******" % (updateInfo[0].getBuild())).upper()
+                    isUpdatable = ("\t******* Updatable to version: %s *******" %(updateInfo[0].getBuild())).upper()
                 theData.append("Extension ID:           %s" %y.getIDStr())
                 theData.append("Extension Name:         %s" %y.getName())
                 theData.append("Extension Display Name: %s" %y.getDisplayName())
@@ -5399,9 +5842,9 @@ Visit: %s (Author's site)
             theData[i] = theData[i] + "\n"
         theData = "".join(theData)
 
-        jif = QuickJFrame("View Extension(s) details / data", theData, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        jif = QuickJFrame("View Extension(s) details / data", theData, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
-        if lIgnoreOutdatedExtensions_TB:
+        if GlobalVars.lIgnoreOutdatedExtensions_TB:
             if myPopupAskQuestion(jif,
                                   "CHECK FOR OUTDATED EXTENSIONS",
                                   "Turn startup warnings back on for Outdated Extensions?",
@@ -5409,9 +5852,8 @@ Visit: %s (Author's site)
                                   JOptionPane.QUESTION_MESSAGE):
 
                 txt = "OUTDATED EXTENSIONS - Startup warnings re-enabled"
-                setDisplayStatus(txt, "B")
-                myPrint("B", txt)
-                lIgnoreOutdatedExtensions_TB = False
+                setDisplayStatus(txt, "B"); myPrint("B", txt)
+                GlobalVars.lIgnoreOutdatedExtensions_TB = False
                 try:
                     save_StuWareSoftSystems_parameters_to_file()
                 except:
@@ -5435,7 +5877,7 @@ Visit: %s (Author's site)
             self.MYPYTHON_DOWNLOAD_URL =                buildObject.getStr("MYPYTHON_DOWNLOAD_URL", "")
 
             # noinspection PyChainedComparsons
-            if self.build > 1000 and self.build < 9999 and self.disable: return                                             # noqa
+            if self.build > 1000 and self.build < 9999 and self.disable: return                                         # noqa
 
             # noinspection PyChainedComparsons
             if (self.build < 1000 or self.build > 9999
@@ -5467,175 +5909,6 @@ Visit: %s (Author's site)
         def __repr__(self):
             return "Toolbox build info Obj. Build: %s Disabled: %s {%s}" %(self.build,self.disable, self.obj)
 
-    def download_toolbox_version_info():
-
-        # These globals must be here as they are set here too...
-        global TOOLBOX_STOP_NOW
-        global TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_BUILD
-        global MD_OFX_BANK_SETTINGS_DIR, MD_OFX_DEFAULT_SETTINGS_FILE, MD_OFX_DEBUG_SETTINGS_FILE, MD_EXTENSIONS_DIRECTORY_FILE
-
-        myPrint("B","##################################################################################################################################################")
-        myPrint("B","### INFORMATION: Toolbox is connecting to the master Toolbox code repository to check version / build information - IT IS NOT SENDING ANY DATA ###")
-        myPrint("B","##################################################################################################################################################")
-
-        this_toolbox_build = int(version_build)
-        if this_toolbox_build < 1000:
-            myPrint("B", "ERROR with Toolbox build %s  - will just proceed without safeguards" %(this_toolbox_build))
-            return
-
-        downloadBuilds = StreamTable()
-
-        inx = None
-        try:
-            url = URL(TOOLBOX_VERSION_VALIDATION_URL)
-            inx = BufferedReader(InputStreamReader(url.openStream(), "UTF8"))
-            downloadBuilds.readFrom(inx)
-            myPrint("DB","Success getting online version/build info for Toolbox....")
-        except:
-            myPrint("J","")
-            myPrint("B", "ERROR downloading version/build info from Toolbox website...: %s" %(TOOLBOX_VERSION_VALIDATION_URL))
-        finally:
-            if inx:
-                try:
-                    inx.close()
-                except:
-                    myPrint("B", "Error closing Toolbox Version/build info URL stream: %s" %(TOOLBOX_VERSION_VALIDATION_URL))
-
-        if not downloadBuilds or downloadBuilds is None:
-            myPrint("B", "Error: Toolbox version/build info after download is Empty - will just proceed without safeguards")
-            return
-
-        lastUpdated = downloadBuilds.getStr("last_updated", "UNKNOWN")
-        myPrint("DB","Last Updated: %s" %(lastUpdated))
-
-        TOOLBOX_STOP_NOW = downloadBuilds.getBoolean("disable_all", False)
-        if TOOLBOX_STOP_NOW:
-            myPrint("B","Uh-oh... disable_all has been set by the Developer.... Toolbox must close... Sorry")
-            return
-        else:
-            myPrint("DB","Phew! disable_all NOT set....")
-
-        buildList = downloadBuilds.get("builds", None)                   # type: StreamVector
-        if not buildList or buildList is None:
-            myPrint("B","Error - failed to download or decode build list - will just proceed without safeguards")
-            return
-
-        buildTable=[]
-
-        try:
-            for buildObj in buildList:                                      # type: StreamTable
-                if not (isinstance(buildObj, StreamTable)):
-                    myPrint("DB", "ERROR - Retrieved toolbox build info is not a StreamTable(). It's %s %s" %(type(buildObj),buildObj))
-                    continue
-
-                # myPrint("D", "BuildObj contains: %s" %(buildObj))
-                buildTable.append(ToolboxBuildInfo(buildObj))
-
-        except:
-            dump_sys_error_to_md_console_and_errorlog()
-            myPrint("B", "ERROR decoding downloading toolbox version/build data! - will just proceed without safeguards...")
-            return
-
-        if len(buildTable)<1:
-            myPrint("B", "ERROR decoded downloaded toolbox version/build data is empty! - will just proceed without safeguards...")
-            return
-
-        buildTable = sorted(buildTable, key=lambda _x: (_x.build), reverse=True)          # type: [ToolboxBuildInfo]
-        # Already sorted - newest build first
-        for moduleBuild in buildTable:          # type: ToolboxBuildInfo
-            if moduleBuild.build < 1000:
-                myPrint("DB","Found INVALID downloaded module build %s (ignoring and stopping search)... (%s)" %(moduleBuild.build, moduleBuild.obj ))
-                return
-            elif moduleBuild.build > this_toolbox_build:
-                myPrint("DB","Found NEWER downloaded module build %s (ignoring and continuing search).. (%s)" %(moduleBuild.build, moduleBuild.obj ))
-                continue
-            elif moduleBuild.build == this_toolbox_build:
-                myPrint("DB","Found EXACT-HIT downloaded module build %s OVERRIDING PROGRAM's DEFAULTS....! (%s)" %(moduleBuild.build, moduleBuild.obj ))
-
-                if debug:
-                    myPrint("DB","Program defaults were...:")
-                    myPrint("DB"," TOOLBOX_STOP_NOW:                     %s"     %(TOOLBOX_STOP_NOW))
-                    myPrint("DB"," TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MINIMUM_TESTED_MD_VERSION))
-                    myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
-                    myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_BUILD:      %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
-                    myPrint("DB"," MD_OFX_BANK_SETTINGS_DIR:             %s"     %(MD_OFX_BANK_SETTINGS_DIR))
-                    myPrint("DB"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
-                    myPrint("DB"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
-                    myPrint("DB"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
-                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(GlobalVars.MYPYTHON_DOWNLOAD_URL))
-
-                TOOLBOX_STOP_NOW = moduleBuild.disable
-                if moduleBuild.TOOLBOX_MINIMUM_TESTED_MD_VERSION > 0:
-                    TOOLBOX_MINIMUM_TESTED_MD_VERSION =     moduleBuild.TOOLBOX_MINIMUM_TESTED_MD_VERSION
-                if moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_VERSION:
-                    TOOLBOX_MAXIMUM_TESTED_MD_VERSION =     moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_VERSION
-                if moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_BUILD > 0:
-                    TOOLBOX_MAXIMUM_TESTED_MD_BUILD =       moduleBuild.TOOLBOX_MAXIMUM_TESTED_MD_BUILD
-                if len(moduleBuild.MD_OFX_BANK_SETTINGS_DIR) > 0:
-                    MD_OFX_BANK_SETTINGS_DIR =              moduleBuild.MD_OFX_BANK_SETTINGS_DIR
-                if len(moduleBuild.MD_OFX_DEFAULT_SETTINGS_FILE) > 0:
-                    MD_OFX_DEFAULT_SETTINGS_FILE =          moduleBuild.MD_OFX_DEFAULT_SETTINGS_FILE
-                if len(moduleBuild.MD_OFX_DEBUG_SETTINGS_FILE) > 0:
-                    MD_OFX_DEBUG_SETTINGS_FILE =            moduleBuild.MD_OFX_DEBUG_SETTINGS_FILE
-                if len(moduleBuild.MD_EXTENSIONS_DIRECTORY_FILE) > 0:
-                    MD_EXTENSIONS_DIRECTORY_FILE =          moduleBuild.MD_EXTENSIONS_DIRECTORY_FILE
-                if len(moduleBuild.MYPYTHON_DOWNLOAD_URL) > 0:
-                    GlobalVars.MYPYTHON_DOWNLOAD_URL =      moduleBuild.MYPYTHON_DOWNLOAD_URL
-
-                if debug:
-                    myPrint("DB","Program variables are now...:")
-                    myPrint("DB"," TOOLBOX_STOP_NOW:                     %s"     %(TOOLBOX_STOP_NOW))
-                    myPrint("DB"," TOOLBOX_MINIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MINIMUM_TESTED_MD_VERSION))
-                    myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_VERSION:    %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_VERSION))
-                    myPrint("DB"," TOOLBOX_MAXIMUM_TESTED_MD_BUILD:      %s"     %(TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
-                    myPrint("DB"," MD_OFX_BANK_SETTINGS_DIR:             %s"     %(MD_OFX_BANK_SETTINGS_DIR))
-                    myPrint("DB"," MD_OFX_DEFAULT_SETTINGS_FILE:         %s"     %(MD_OFX_DEFAULT_SETTINGS_FILE))
-                    myPrint("DB"," MD_OFX_DEBUG_SETTINGS_FILE:           %s"     %(MD_OFX_DEBUG_SETTINGS_FILE))
-                    myPrint("DB"," MD_EXTENSIONS_DIRECTORY_FILE:         %s"     %(MD_EXTENSIONS_DIRECTORY_FILE))
-                    myPrint("DB"," MYPYTHON_DOWNLOAD_URL:                %s"     %(GlobalVars.MYPYTHON_DOWNLOAD_URL))
-
-                if TOOLBOX_STOP_NOW:
-                    myPrint("B","Uh-oh... disable has been set by the Developer for this build.... Toolbox must close... Sorry")
-
-                return
-
-            else:
-                myPrint("D","Found LOWER downloaded module build %s - so I will keep program's defaults, and ignore these - exiting search... (%s) " %(moduleBuild.build, moduleBuild.obj ))
-                return
-
-        myPrint("D","No suitable module build info found.. (so I will keep program's defaults, and ignore these - exiting search)")
-
-        return
-
-    def downloadExtensions():
-
-        myPrint("B","#######################################################################################################################################")
-        myPrint("B","### INFORMATION: Toolbox is connecting to Infinite Kind servers to check for extension(s) version data - IT IS NOT SENDING ANY DATA ###")
-        myPrint("B","#######################################################################################################################################")
-
-        downloadInfo = StreamTable()
-        if MD_REF.getSourceInformation().getExtensionsEnabled():
-            inx = None
-            try:
-                url = URL(System.getProperty("moneydance.extension_list_url", MD_EXTENSIONS_DIRECTORY_FILE))
-                inx = BufferedReader(InputStreamReader(url.openStream(), "UTF8"))
-                downloadInfo.readFrom(inx)
-            except:
-                myPrint("B", "ERROR downloading from Moneydance extensions list website... ")
-                dump_sys_error_to_md_console_and_errorlog()
-
-            finally:
-                if inx:
-                    try:
-                        inx.close()
-                    except:
-                        myPrint("B", "Error closing URL stream")
-                        dump_sys_error_to_md_console_and_errorlog()
-            return downloadInfo
-        else:
-            myPrint("B", "@@ Extensions not enabled!!?? @@")
-        return False
-
     def check_if_key_string_valid(test_str):
         # http://docs.python.org/library/re.html
         # re.search returns None if no position in the string matches the pattern
@@ -5660,62 +5933,6 @@ Visit: %s (Author's site)
             myPrint("DB","Valid: %r" %(test_str))
             return True
 
-    def get_extension_update_info():
-        availableExtensionInfo=downloadExtensions()
-        moduleList = availableExtensionInfo.get(u"feature_modules")      # StreamVector
-
-        installed = MD_REF.getLoadedModules()          # FeatureModule[]
-        excludedIDs = MD_REF.getSuppressedExtensionIDs()            # List<String>
-        for installedMod in installed:
-            if installedMod.isBundled():
-                excludedIDs.add(installedMod.getIDStr().lower())
-
-        miniUpdateList={}
-
-        try:
-            if moduleList:
-                for obj in moduleList:
-                    if not (isinstance(obj, StreamTable)):
-                        myPrint(u"J", u"ERROR - Retrieved data is not a StreamTable()", obj)
-                        continue
-
-                    extInfo = ModuleMetaData(obj)       # ModuleMetaData
-
-                    # Mirrors code from com.moneydance.apps.md.view.gui.extensions.ExtensionsWindow lines 290-317 (ish)....
-
-                    # noinspection PyUnresolvedReferences
-                    if excludedIDs.contains(extInfo.getModuleID().lower()):     # Probably internal modules like Python/Jython
-                        continue
-                    if not ((float(MD_REF.getBuild())) >= extInfo.getMinimumSupportedBuild() and (float(MD_REF.getBuild())) <= extInfo.getMaximumSupportedBuild()):  # noqa
-                        continue
-                    if not (extInfo.getMinimumSupportedBuild() >= 1000):
-                        continue
-                    if (extInfo.isMacSandboxFriendly() or not Platform.isMac() or not MD_REF.getPlatformHelper().isConstrainedToSandbox()):
-                        pass
-                    else:
-                        continue
-                    existingMod = None          # FeatureModule
-                    for mod in installed:
-
-                        # noinspection PyUnresolvedReferences
-                        if mod.getIDStr().lower() == extInfo.getModuleID().lower():
-                            existingMod = mod
-                            break
-                    isInstalled = (existingMod is not None)     # boolean
-                    isUpdatable = (existingMod is not None and existingMod.getBuild() < extInfo.getBuild())
-                    if existingMod and isInstalled and isUpdatable:
-
-                        # noinspection PyUnresolvedReferences
-                        miniUpdateList[extInfo.getModuleID().lower()] = [extInfo, isInstalled, isUpdatable]
-
-            else:
-                myPrint(u"J", u"ERROR - Failed to download module list!)")
-        except:
-            myPrint(u"B", u"ERROR decoding downloaded module list!)")
-            dump_sys_error_to_md_console_and_errorlog()
-
-        return miniUpdateList
-
     def get_register_txn_sort_orders():
 
         # Flush in memory settings to disk
@@ -5728,7 +5945,7 @@ Visit: %s (Author's site)
 
         theSortData.append("DEFAULTS (from config.dict)\n")
 
-        for x in _COLWIDTHS:
+        for x in GlobalVars.Strings.CONFIG_COLWIDTHS:
 
             if      x == "bank":        theType = "Bank"
             elif    x == "cc":          theType = "Credit Card"
@@ -5767,7 +5984,7 @@ Visit: %s (Author's site)
         accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(1))
         for acct in accounts:
 
-            for x in _COLWIDTHS:
+            for x in GlobalVars.Strings.CONFIG_COLWIDTHS:
 
                 if      x == "bank":        theType = "Bank"
                 elif    x == "cc":          theType = "Credit Card"
@@ -5806,7 +6023,7 @@ Visit: %s (Author's site)
             theSortData[i] = theSortData[i] + "\n"
         theSortData = "".join(theSortData)
 
-        QuickJFrame("Register TXN Sort Orders etc", theSortData, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame("Register TXN Sort Orders etc", theSortData, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     def view_check_num_settings():
         try:
@@ -5825,13 +6042,11 @@ Visit: %s (Author's site)
         x = root.getCheckNumSettings(True)  # False means don't return defaults
         theData.append("\nMaster Dataset & defaults (root account): " + MD_REF.getCurrentAccountBook().getName())
         if not x:  # Assume old style check numbers
-            theData.append(
-                " >>Old style Check numbers as default: %s" %(MD_REF.getUI().getResources().getCheckNumberList(acct)))
+            theData.append(" >>Old style Check numbers as default: %s" %(MD_REF.getUI().getResources().getCheckNumberList(acct)))
             theData.append("\n\n")
         else:
             theData.append(" >>Fixed Chq Items: %s" %(x.getPopupStrings()))
-            theData.append(
-                " >>Complete list of all Items in Chq Popup: %s" %(MD_REF.getUI().getResources().getCheckNumberList(acct)))
+            theData.append(" >>Complete list of all Items in Chq Popup: %s" %(MD_REF.getUI().getResources().getCheckNumberList(acct)))
             y = x.getRecentsOption()
 
             # noinspection PyUnresolvedReferences
@@ -5885,7 +6100,7 @@ Visit: %s (Author's site)
         for i in range(0, len(theData)):
             theData[i] = theData[i] + "\n"
         theData = "".join(theData)
-        QuickJFrame("View Check Number Settings:", theData, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame("View Check Number Settings:", theData, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     def isUserEncryptionPassphraseSet():
         try:
@@ -5928,7 +6143,7 @@ Visit: %s (Author's site)
             try:
 
                 # This next line triggers a message in the console error log file: "loading with 128 bit encryption key"
-                myPrint(u"J",u"Checking encryption key....")
+                myPrint(u"J", u"Checking encryption key....")
                 key = LocalStorageCipher.encryptionKeyFromBytesAndPassword(encryptedKeyBytes, list(newPassphrase), cipherLevel)
                 # cipher = LocalStorageCipher(key, cipherLevel)
             except:
@@ -5958,7 +6173,7 @@ Visit: %s (Author's site)
 
         return fileIsUnderDropbox, suppressionFileExists
 
-    def isMulti_OFXLastTxnUpdate_build(): return (float(MD_REF.getBuild()) >= MD_MULTI_OFX_TXN_DNLD_DATES_BUILD)
+    def isMulti_OFXLastTxnUpdate_build(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD)
 
     def OFX_view_all_last_txn_download_dates():
         accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(21))
@@ -5998,11 +6213,10 @@ Visit: %s (Author's site)
                                                      k[len(GlobalVars.Strings.OFX_LAST_TXN_UPDATE):])
 
         outputDates += "\n<END>"
-        QuickJFrame("OFX LAST DOWNLOAD DATES", outputDates,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
+        QuickJFrame("OFX LAST DOWNLOAD DATES", outputDates,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
 
         txt = "OFX: All your last txn download txn dates have been retrieved and displayed...."
         setDisplayStatus(txt, "B")
-
 
     def OFX_view_reconcile_AsOf_Dates():
 
@@ -6118,11 +6332,10 @@ Visit: %s (Author's site)
 
         output += "\n<END>"
 
-        QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
         txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
         setDisplayStatus(txt, "B")
-
 
     def OFX_view_CUSIP_settings():
 
@@ -6193,7 +6406,7 @@ Visit: %s (Author's site)
 
         output += "\n<END>"
 
-        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False,lAutoSize=True).show_the_frame()
 
         txt = "OFX: Your Security's hidden CUSIP settings have been retrieved and displayed...."
         setDisplayStatus(txt, "B")
@@ -6316,7 +6529,7 @@ Visit: %s (Author's site)
 
         output+="\n\n<END>"
 
-        QuickJFrame("VIEW SAVED ONLINE DATA",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        QuickJFrame("VIEW SAVED ONLINE DATA",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         txt = "OFX: Your Online saved Txns, Payees, Payments have been retrieved and displayed...."
         setDisplayStatus(txt, "B")
@@ -6735,7 +6948,7 @@ Visit: %s (Author's site)
             OFX[i] = OFX[i] + "\n"
         OFX = "".join(OFX)
 
-        QuickJFrame("VIEW INSTALLED SERVICE / BANK LOGON PROFILES",OFX,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+        QuickJFrame("VIEW INSTALLED SERVICE / BANK LOGON PROFILES",OFX,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
         txt = "OFX: Your installed Service / Bank logon profiles have been displayed...."
         setDisplayStatus(txt, "B")
@@ -6805,7 +7018,7 @@ Visit: %s (Author's site)
                         return "Internal mxt and also local Help file not found (please run as extension)"
 
             output = getHelpData()
-            QuickJFrame("HELP DOCUMENTATION", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+            QuickJFrame("HELP DOCUMENTATION", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
     # noinspection PyArgumentList
     class MyTxnSearchFilter(TxnSearch):
@@ -7257,7 +7470,7 @@ Visit: %s (Author's site)
             params.append("\n<END>")
             params = "".join(params)
 
-            jif = QuickJFrame("StuWareSoftSystems Pickle Parameter File:", params, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+            jif = QuickJFrame("StuWareSoftSystems Pickle Parameter File:", params, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
             if not myPopupAskQuestion(jif,
                                       "STUWARESOFTSYSTEMS' SAVED PARAMETERS PICKLE FILE",
@@ -7300,8 +7513,7 @@ Visit: %s (Author's site)
                 if lDelAll:
                     GlobalVars.parametersLoadedFromFile = {}
                     txt = "STUWARESOFTSYSTEMS' PARAMETERS SAVED TO PICKLE FILE DELETED/RESET"
-                    setDisplayStatus(txt, "DG")
-                    myPrint("B", txt)
+                    setDisplayStatus(txt, "DG"); myPrint("B", txt)
 
                     try:
                         save_StuWareSoftSystems_parameters_to_file()
@@ -7522,17 +7734,15 @@ Visit: %s (Author's site)
         if foundCurrCount or secCount or lFailTests:
             txt = "Currency %s ** IS BEING USED ** - Deletion not possible!" %(selectedCurrency)
             currOutput += "\n%s\n" %(txt)
-            myPrint("B",txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
         else:
             txt = "Currency %s is NOT being used - deletion should be possible...."  %(selectedCurrency)
             currOutput += "\n%s\n" %(txt)
-            myPrint("B", txt)
-            setDisplayStatus(txt, "B")
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
 
         currOutput += "\n<END>"
 
-        QuickJFrame("CAN I DELETE A CURRENCY?", currOutput, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame("CAN I DELETE A CURRENCY?", currOutput, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def can_I_delete_security():
@@ -7616,7 +7826,7 @@ Visit: %s (Author's site)
         setDisplayStatus(txt, "R")
 
         output += "\n<END>"
-        QuickJFrame("CAN I DELETE A SECURITY?", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame("CAN I DELETE A SECURITY?", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def list_security_currency_decimal_places():
@@ -7701,7 +7911,7 @@ Visit: %s (Author's site)
         txt = "DIAG: Currency/Security Decimal Places report executed"
         setDisplayStatus(txt, "DG")
 
-        QuickJFrame("LIST SECURITY / CURRENCY DECIMAL PLACES", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame("LIST SECURITY / CURRENCY DECIMAL PLACES", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def manually_edit_price_date_field():
@@ -7733,10 +7943,9 @@ Visit: %s (Author's site)
             return
 
         # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
-        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not checkCurrencyRawRatesOK(selectedCurrSec.obj):                                                            # noqa
+        if not isRRateCurrencyIssueFixedBuild() and not checkCurrencyRawRatesOK(selectedCurrSec.obj):                                                            # noqa
             txt = "@@ ERROR: Old format Currency record detected (empty relative rate). Please use 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix - No changes allowed!"
-            setDisplayStatus(txt, "R")
-            myPrint("B",txt)
+            setDisplayStatus(txt, "R"); myPrint("B",txt)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -7841,12 +8050,15 @@ Visit: %s (Author's site)
             selectedCurrSec.obj.setRate(Util.safeRate(newestSnapshotPrice),relCurr)                                     # noqa
         selectedCurrSec.obj.syncItem()                                                                                  # noqa
 
-        play_the_money_sound()
         _msg = "Edit of current price hidden 'price_date' field for curr/sec: %s successfully set to: %s (%s)" %(selectedCurrSec,newDate,convertStrippedIntDateFormattedText(user_selectDateStart.getDateInt()))
-        setDisplayStatus(_msg, "R")
-        myPrint("B", _msg)
+        setDisplayStatus(_msg, "R"); myPrint("B", _msg)
+
         if isGoodRate(newestSnapshotPrice) and user_selectHistoryPrice and user_selectHistoryPrice.isSelected():
             myPrint("B", "... current price also updated to: %s" %(safeInvertRate(newestSnapshotPrice)))
+
+        logToolboxUpdates("manually_edit_price_date_field", _msg)
+
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,_msg,"Edit current price hidden 'price_date' field",JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -8055,7 +8267,7 @@ Visit: %s (Author's site)
 
                 if lUpdateRequired:
                     # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
-                    if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not checkCurrencyRawRatesOK(sec_curr):
+                    if not isRRateCurrencyIssueFixedBuild() and not checkCurrencyRawRatesOK(sec_curr):
                         output += "@@@ ERROR: Currency object has an old underlying format (empty 'rate' / 'rrate' fields); please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to fix (skipping....) @@@\n"
                         _lMustRunFixCurrenciesFirst = True
                         lUpdateRequired = False
@@ -8105,13 +8317,11 @@ Visit: %s (Author's site)
                 output += "To Fix a Warning use Update Mode, MENU: FIX: Manually edit a currency/ security's current price hidden 'price_date' field (will also allow you to fix the current price/rate)\n" \
                           "or consider using FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)\n"
             _msg = "price_date: You have %s Warning(s).. Refer diagnostic file..." %(iWarnings)
-            setDisplayStatus(_msg, "R")
-            myPrint("J", _msg)
+            setDisplayStatus(_msg, "R"); myPrint("B", _msg)
         else:
             _msg = "All good, current price hidden 'price_date' looks clean! Congratulations!"
             output += "\n%s\n" %(_msg)
-            myPrint("J", _msg)
-            setDisplayStatus(_msg, "DG")
+            setDisplayStatus(_msg, "DG"); myPrint("B", _msg)
 
         output += "\n\n\nReport Parameters:\n"
         output += "All (Both Securities and Currencies): %s\n" %(lAll)
@@ -8124,12 +8334,11 @@ Visit: %s (Author's site)
 
         if not autofix: output += "\n<END>"
 
-        jif = QuickJFrame("DIAGNOSE SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        jif = QuickJFrame("DIAGNOSE SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
         if lMustRunFixCurrenciesFirst:
             txt = "@@ ERROR: old format Currency record(s) detected (review output). Consider running Fix relative currencies option @@"
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -8211,20 +8420,22 @@ Visit: %s (Author's site)
         output += txt
         output += "\n<END>\n"
 
+        logToolboxUpdates("list_security_currency_price_date", txt)
+
         jif = QuickJFrame("AUTOFIX SECURITY/CURRENCY CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD(S)", output,
-                          copyToClipboard=lCopyAllToClipBoard_TB, lRestartMDAfterClose=True, lWrapText=False, lAutoSize=True).show_the_frame()
+                          copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lRestartMDAfterClose=True, lWrapText=False, lAutoSize=True).show_the_frame()
 
         _msg = "AUTOFIX: %s records fixed" %(len(currs_to_fix))
         setDisplayStatus(_msg, "DG")
+        disableToolboxButtons()
         play_the_money_sound()
-        myPopupInformationBox(jif,_msg,"AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD")
+        myPopupInformationBox(jif, _msg, "AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD")
 
-        myPopupInformationBox(jif,"RESTART OF MONEYDANCE REQUIRED - MD WILL RESTART AFTER VIEWING THIS OUTPUT",
+        myPopupInformationBox(jif, "RESTART OF MONEYDANCE REQUIRED - MD WILL RESTART AFTER VIEWING THIS OUTPUT",
                               "AUTOFIX CURRENT PRICE HIDDEN 'PRICE_DATE' FIELD",
                               theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def read_preferences_file(lSaveFirst=False):
 
@@ -8461,62 +8672,6 @@ Visit: %s (Author's site)
         except:
             return [0,0]
 
-    def check_for_updatable_extensions_on_startup():
-        global lIgnoreOutdatedExtensions_TB     # global must be here as we can set it
-
-        Toolbox_version = 0
-
-        displayData = u"\nALERT INFORMATION ABOUT YOUR EXTENSIONS:\n\n"
-
-        try:
-            theUpdateList = get_extension_update_info()
-
-            if not theUpdateList or len(theUpdateList)<1:
-                return Toolbox_version
-
-            for key in theUpdateList.keys():
-                updateInfo = theUpdateList[key]
-                displayData+=u"** UPGRADEABLE EXTENSION: %s to version: %s\n" %(pad(key,20),(updateInfo[0].getBuild()))
-                myPrint(u"B", u"** UPGRADEABLE EXTENSION: %s to version: %s" %(pad(key,20),(updateInfo[0].getBuild())))
-                if key.lower() == u"%s" %myModuleID and int(updateInfo[0].getBuild()) > 0:
-                    Toolbox_version = int(updateInfo[0].getBuild())
-        except:
-            dump_sys_error_to_md_console_and_errorlog()
-            return Toolbox_version
-
-        displayData+=u"\n<END>\n"
-
-        howMany = int(len(theUpdateList))
-
-        if not lIgnoreOutdatedExtensions_TB:
-            txt = u"ALERT - YOU HAVE %s EXTENSION(S) THAT CAN BE UPGRADED!..." %(howMany)
-            setDisplayStatus(txt, "B")
-            jif = QuickJFrame(u"EXTENSIONS ALERT!", displayData, lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
-            options=[u"OK (keep reminding me)",u"OK - DON'T TELL ME AGAIN ON STARTUP!"]
-            response = JOptionPane.showOptionDialog(jif,
-                                                    u"INFO: You have %s older Extensions that can be upgraded" %howMany,
-                                                    u"OUTDATED EXTENSIONS",
-                                                    0,
-                                                    JOptionPane.QUESTION_MESSAGE,
-                                                    getMDIcon(None),
-                                                    options,
-                                                    options[0])
-
-            if response:
-                myPrint(u"B",u"User requested to ignore Outdated warning extensions going forward..... Acknowledged!!")
-                lIgnoreOutdatedExtensions_TB = True
-                try:
-                    save_StuWareSoftSystems_parameters_to_file()
-                except:
-                    myPrint(u"B", u"Error - failed to save parameters to pickle file...!")
-                    dump_sys_error_to_md_console_and_errorlog()
-
-        else:
-            txt = u"ALERT - YOU HAVE %s EXTENSION(S) THAT CAN BE UPGRADED!...STARTUP POPUP WARNINGS SUPPRESSED (by you)" %(howMany)
-            setDisplayStatus(txt, "B")
-
-        return Toolbox_version
-
 #     def check_for_old_StuWareSoftSystems_scripts():
 #         lVersionWarning = False
 #
@@ -8581,7 +8736,7 @@ Visit: %s (Author's site)
 # Please update any that you use before proceeding....
 # """
 #
-#             jif = QuickJFrame("StuWareSoftSystems - Scripts alert!", displayData, 1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+#             jif = QuickJFrame("StuWareSoftSystems - Scripts alert!", displayData, 1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 #
 #             txt = "PLEASE UPDATE OLDER VERSIONS OF STUWARESOFTSYSTEMS SCRIPTS!..."
 #             setDisplayStatus(txt, "B")
@@ -8610,7 +8765,6 @@ Visit: %s (Author's site)
         if not os.path.exists(vmoptionsPath): return defaultPath
 
         return vmoptionsPath
-
 
     def find_the_program_install_dir():
 
@@ -8645,7 +8799,7 @@ Visit: %s (Author's site)
                 continue    # skip
             confirmed_extn_keys[theKey.split('.')[1].lower().strip()]  = theKey
 
-        outdated={}
+        outdated = {}
         if float(MD_REF.getBuild()) < 3051:
             # .getOutdatedExtensionIDs() name changed prior to 3051
             x = MD_REF.getOutdatedExtensionIDs()                                                                        # noqa
@@ -8653,7 +8807,7 @@ Visit: %s (Author's site)
             x = MD_REF.getUnloadableExtensionIDs()  # now includes 'extension too new' extns....
         for y in x: outdated[y.lower().strip()] = True
 
-        ok={}
+        ok = {}
         x = MD_REF.getLoadedModules()
         for y in x: ok[str(y.getIDStr()).lower().strip()] = True
         x = MD_REF.getSuppressedExtensionIDs()
@@ -8673,8 +8827,8 @@ Visit: %s (Author's site)
             elif outdated.get(extn_pref.lower().strip()):
                 orphan_confirmed_extn_keys[extn_pref] = ["OUTDATED",confirmed_extn_keys.get(extn_pref.lower().strip())]
 
-        orphan_outdated_files={}
-        extn_files_found=[]
+        orphan_outdated_files = {}
+        extn_files_found = []
 
         extensionDir = Common.getFeatureModulesDirectory()
         if extensionDir:
@@ -8735,8 +8889,6 @@ Visit: %s (Author's site)
         # Securities should be set to Base (as None), or can be relative to another Currency (not Security)
         # Max relative relational depth is SEC>CURR>Base or CURR>Base
 
-        global fixRCurrencyCheck      # global must be here as we set it
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         _THIS_METHOD_NAME = "Diagnose currencies / securities (including relative currencies)"
@@ -8771,19 +8923,19 @@ Visit: %s (Author's site)
 
 
         if lFix:
-            if not fixRCurrencyCheck:
+            if not GlobalVars.fixRCurrencyCheck:
                 txt = "Sorry, you must run 'DIAG: Diagnose Currencies / Securities' first! - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
-            elif fixRCurrencyCheck == 1:
+            elif GlobalVars.fixRCurrencyCheck == 1:
                 txt = "'DIAG: Diagnose Currencies / Securities' reported no issues - so I will not run fixes - NO CHANGES MADE"
                 setDisplayStatus(txt, "B")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
-            elif fixRCurrencyCheck == 2:
+            elif GlobalVars.fixRCurrencyCheck == 2:
                 pass
-            elif fixRCurrencyCheck != 3:
+            elif GlobalVars.fixRCurrencyCheck != 3:
                 txt = "LOGIC ERROR reviewing 'DIAG: Diagnose Currencies / Securities' - so I will not run fixes - NO CHANGES MADE"
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -8806,7 +8958,7 @@ Visit: %s (Author's site)
             user_VERBOSE = JCheckBox("Verbose Output?",True)
             userFilters = JPanel(GridLayout(0, 1))
 
-            if fixRCurrencyCheck != 2:
+            if GlobalVars.fixRCurrencyCheck != 2:
                 userFilters.add(user_fixOnlyErrors)
             userFilters.add(user_fixErrorsAndWarnings)
             userFilters.add(JLabel("-------------"))
@@ -8855,7 +9007,7 @@ Visit: %s (Author's site)
 
 
         # OK - let's do it!
-        fixRCurrencyCheck = None
+        GlobalVars.fixRCurrencyCheck = None
 
         lNeedFixScript = False
         iWarnings = 0
@@ -9068,7 +9220,7 @@ Visit: %s (Author's site)
                                   %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
                             myPrint("J", txt); output += "---\n%s\n" %(txt)
 
-                            if lFix and lFixWarnings:
+                            if isGoodRate(newRate) and lFix and lFixWarnings:
                                 lSyncNeeded = True
                                 curr.setEditingMode()
                                 # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters)...
@@ -9079,6 +9231,10 @@ Visit: %s (Author's site)
                                 txt = "@@SECURITY FIX APPLIED (reset new 'rrate') @@"
                                 myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                             else:
+                                if not isGoodRate(newRate) and lFix and lFixWarnings:
+                                    txt = "!!SECURITY FIX NOT APPLIED (cannot set 'rrate' to ZERO) !!"
+                                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+
                                 lWarning = True; iWarnings  += 1
 
                         else:  # Relative to another currency....
@@ -9090,7 +9246,7 @@ Visit: %s (Author's site)
                                   %(curr, rCurr, get_rate, get_rrate, newRRate, safeInvertRate(newRRate))
                             myPrint("J", txt); output += "---\n%s\n" %(txt)
 
-                            if lFix and lFixWarnings:
+                            if isGoodRate(newRRate) and lFix and lFixWarnings:
                                 lSyncNeeded = True
                                 curr.setEditingMode()
                                 # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
@@ -9110,6 +9266,10 @@ Visit: %s (Author's site)
                                     txt = "@@EXTRA SECURITY FIX APPLIED (set both relative currency parameters) @@"
                                     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                             else:
+                                if not isGoodRate(newRRate) and lFix and lFixWarnings:
+                                    txt = "@@SECURITY FIX NOT APPLIED (cannot set new 'rrate' to ZERO) !!"
+                                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+
                                 lWarning = True; iWarnings  += 1
 
 
@@ -9221,7 +9381,7 @@ Visit: %s (Author's site)
                           %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
                     myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
 
-                    if lFix and lFixWarnings:
+                    if isGoodRate(newRate) and lFix and lFixWarnings:
                         lSyncNeeded = True
                         curr.setEditingMode()
                         # force the parameters in (sometimes setRate() detects a no change and doesn't apply the new parameters...
@@ -9231,6 +9391,10 @@ Visit: %s (Author's site)
                         txt = "@@CURRENCY FIX APPLIED (reset new 'rrate') @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     else:
+                        if not isGoodRate(newRate) and lFix and lFixWarnings:
+                            txt = "!!CURRENCY FIX NOT APPLIED (cannot set 'rrate' to ZERO) !!"
+                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+
                         lWarning = True; iWarnings  += 1
 
                 if lFix and lSyncNeeded:
@@ -9283,7 +9447,7 @@ Visit: %s (Author's site)
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB, lAlertLevel=2, lWrapText=False, lAutoSize=True).show_the_frame()
+            jif = QuickJFrame(txt,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lAlertLevel=2, lWrapText=False, lAutoSize=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -9294,7 +9458,7 @@ Visit: %s (Author's site)
                 MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
         if lFix:
-            fixRCurrencyCheck = None
+            GlobalVars.fixRCurrencyCheck = None
             myPrint("B", ">> Currency / Security errors / warning - FIXES APPLIED..")
             output += "\nRELEVANT FIXES APPLIED\n\n"
             output += "\nDISCLAIMER: Please verify your data before proceeding\n"
@@ -9303,14 +9467,17 @@ Visit: %s (Author's site)
                 output += "\n@@@@ You still have %s Warning(s)..\n" % iWarnings
 
             txt = "@@ CURRENCY / SECURITY FIXES APPLIED - Please review diagnostic report for details!"
-            play_the_money_sound()
             msgType = JOptionPane.WARNING_MESSAGE
             statusColor = "R"
+
+            logToolboxUpdates("diagnose_currencies", txt)
+
+            play_the_money_sound()
 
         else:
 
             if lNeedFixScript:
-                fixRCurrencyCheck = 3
+                GlobalVars.fixRCurrencyCheck = 3
                 txt = ">> Currency / Security errors detected - Consider running the FIX option.."
                 myPrint("B", txt); output += "%s\n" %(txt)
                 output += "\nERROR: You have Currency / Security errors..\n"
@@ -9321,7 +9488,7 @@ Visit: %s (Author's site)
                 statusColor = "R"
 
             elif lWarning:
-                fixRCurrencyCheck = 2
+                GlobalVars.fixRCurrencyCheck = 2
                 txt = "You have %s Warning(s).." %(iWarnings)
                 myPrint("B", txt); output += "%s\n" %(txt)
                 output += "These are where your Currency records show a relative currency that's not None...;\n" \
@@ -9337,7 +9504,7 @@ Visit: %s (Author's site)
                 statusColor = "R"
 
             else:
-                fixRCurrencyCheck = 1
+                GlobalVars.fixRCurrencyCheck = 1
                 txt = "All good, Currencies / Securities look clean! Congratulations!"
                 myPrint("J", txt); output += "\n%s\n" %(txt)
                 msgType = JOptionPane.INFORMATION_MESSAGE
@@ -9354,12 +9521,14 @@ Visit: %s (Author's site)
         if iWarnings: alertLevel = 1
         if lNeedFixScript: alertLevel = 2
 
-        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lRestartMDAfterClose=lFix, lAutoSize=True).show_the_frame()
+        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lRestartMDAfterClose=lFix, lAutoSize=True).show_the_frame()
 
         setDisplayStatus(txt, statusColor)
+        play_the_money_sound()
         myPopupInformationBox(jif, txt, theTitle=_THIS_METHOD_NAME.upper(), theMessageType=msgType)
 
         if lFix:
+            disableToolboxButtons()
             myPopupInformationBox(jif,"RESTART OF MONEYDANCE REQUIRED - MD WILL RESTART AFTER VIEWING THIS OUTPUT", _THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -9447,12 +9616,14 @@ Visit: %s (Author's site)
 
     def get_sync_folder():
 
+        if MD_REF.getCurrentAccountBook() is None: return None
+
         try:
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             syncMethod = SyncFolderUtil.getConfigurerForFile(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts(), syncMethods)
 
             # New feature and Mac only
-            if Platform.isOSX() and int(MD_REF.getBuild()) >= MD_ICLOUD_ENABLED and isinstance(syncMethod, ICloudSyncConfigurer):
+            if Platform.isOSX() and int(MD_REF.getBuild()) >= GlobalVars.MD_ICLOUD_ENABLED and isinstance(syncMethod, ICloudSyncConfigurer):
 
                 syncF = syncMethod.getSyncFolder()
 
@@ -9531,6 +9702,11 @@ Visit: %s (Author's site)
         myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
 
         try:
+            myPrint("DB", "Setting TOOLBOX_IS_NOW_RUNNING to False")
+            GlobalVars.TOOLBOX_IS_NOW_RUNNING = False
+        except: myPrint("B", "@@@ Failed to set TOOLBOX_IS_NOW_RUNNING to False?!")
+
+        try:
             # NOTE - .dispose() - The windowClosed event should set .isActiveInMoneydance False and .removeAppEventListener()
             if not SwingUtilities.isEventDispatchThread():
                 SwingUtilities.invokeLater(GenericDisposeRunnable(toolbox_frame_))
@@ -9539,7 +9715,6 @@ Visit: %s (Author's site)
         except:
             myPrint("B","Error. Final dispose failed....?")
             dump_sys_error_to_md_console_and_errorlog()
-
 
     def getUserSelectedServiceProfile(_theFrame, _theTitle, _theQuestion, lIncludePlaidWhenUnlocked=False):
 
@@ -9615,7 +9790,7 @@ Visit: %s (Author's site)
             output += "<NONE>\n"
 
         output+="\n<END>"
-        jif = QuickJFrame("VIEW ALL CACHED AUTHENTICATION KEYS",output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("VIEW ALL CACHED AUTHENTICATION KEYS",output,lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         service = getUserSelectedServiceProfile(jif, _THIS_METHOD_NAME, "Select a service clear the Authentication Cache", lIncludePlaidWhenUnlocked=False)  # type: OnlineService
         if not service:
@@ -9632,9 +9807,11 @@ Visit: %s (Author's site)
             # noinspection PyUnresolvedReferences
             service.clearAuthenticationCache()
             MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
-            play_the_money_sound()
+
             txt = "%s: Password(s) for %s have been cleared" %(_THIS_METHOD_NAME, service)
             setDisplayStatus(txt, "B"); myPrint("B", txt)
+            logToolboxUpdates("clearOneServiceAuthCache", txt)
+
             play_the_money_sound()
             myPopupInformationBox(jif,"Password(s) for %s have been cleared" %(service), _THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
 
@@ -9663,7 +9840,7 @@ Visit: %s (Author's site)
             output += "<NONE>\n"
 
         output+="\n<END>"
-        jif = QuickJFrame("VIEW ALL EXISTING AUTHENTICATION KEYS",output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("VIEW ALL EXISTING AUTHENTICATION KEYS",output,lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         if not backup_local_storage_settings():
             txt = "%s: ERROR making backup of LocalStorage() ./safe/settings - no changes made!" %(_THIS_METHOD_NAME)
@@ -9674,15 +9851,17 @@ Visit: %s (Author's site)
         if confirm_backup_confirm_disclaimer(jif,_THIS_METHOD_NAME,"Clear Authentication All Password(s) for **ALL** service(s)?"):
             MD_REF.getUI().getOnlineManager().clearAuthenticationCache()
             MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
-            play_the_money_sound()
+
             txt = "%s: **ALL** Password(s) for ALL Services have been cleared" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "B"); myPrint("B", txt)
+            logToolboxUpdates("clearAllServicesAuthCache", txt)
+
+            play_the_money_sound()
             myPopupInformationBox(jif, txt, _THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
 
         jif.dispose()       # already within the EDT
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     class MyOFXAuthInfo(OFXAuthInfo):
         def __init__(self, _user, _pass, _extra, _cookie, _type):
@@ -9755,7 +9934,7 @@ Visit: %s (Author's site)
             return
 
         output+="\n<END>"
-        jif = QuickJFrame("VIEW EXISTING AUTHENTICATION KEYS FOR SERVICE",output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("VIEW EXISTING AUTHENTICATION KEYS FOR SERVICE",output,lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         selectedAuthKeyRecord = JOptionPane.showInputDialog(jif,
                                                      "Select an Authentication Key to edit",
@@ -9812,14 +9991,16 @@ Visit: %s (Author's site)
         # service.cacheAuthentication(selectedAuthKeyRecord.theKey, authObj.getNewEncodedAuthObj().toCacheString())
 
         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()
-        play_the_money_sound()
+
         txt = "%s: UserID: %s Password set to: %s" %(_THIS_METHOD_NAME, authObj.getUserId(), authObj.getNewPassword())
         setDisplayStatus(txt, "B"); myPrint("B", txt)
+        logToolboxUpdates("editStoredOFXPasswords", "UserID: %s Password set to: <**REDACTED**>" %(authObj.getUserId()))
+
+        play_the_money_sound()
         myPopupInformationBox(jif,txt, _THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
         jif.dispose()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def my_createNewClientUID():
         # com.moneydance.apps.md.view.gui.DefaultOnlineUIProxy.createNewClientUID()
@@ -9884,7 +10065,7 @@ Visit: %s (Author's site)
 
         output += "\n<END>"
 
-        jif = QuickJFrame("REVIEW EXISTING USAA USERIDs/ClientUIDs (stored on ROOT) BEFORE CHANGES",output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+        jif = QuickJFrame("REVIEW EXISTING USAA USERIDs/ClientUIDs (stored on ROOT) BEFORE CHANGES",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
         defaultEntry = ""
         while True:
@@ -9999,9 +10180,11 @@ Visit: %s (Author's site)
 
         root.syncItem()
 
-        play_the_money_sound()
         txt = "SUCCESS! UserID: %s >> ClientUID primed to: %s (Default: %s)" %(userID, uuid, lSetDefaultUserID)
         setDisplayStatus(txt, "B"); myPrint("B", txt)
+        logToolboxUpdates("manuallyPrimeUSAARootUserIDClientIDs", txt)
+
+        play_the_money_sound()
         MyPopUpDialogBox(jif,
                          txt,
                          "Please now return to Moneydance and use Menu: Online>Set up Online Banking\n"
@@ -10058,22 +10241,22 @@ Visit: %s (Author's site)
 
             output = "LIST OF OFX BANK USERIDs/ClientUIDs STORED ON THE ROOT ACCOUNT\n" \
                      " =============================================================\n\n"
-            userIDKeys=[]
-            rootKeys=sorted(root.getParameterKeys())
+            userIDKeys = []
+            rootKeys = sorted(root.getParameterKeys())
             for userKey in rootKeys:
                 if userKey.startswith(userIDKeyPrefix):
                     userIDKeys.append(userKey)
-                    output+="Key: %s Data: %s\n" %(pad(userKey,40),root.getParameter(userKey, None))
+                    output += "Key: %s Data: %s\n" %(pad(userKey,40), root.getParameter(userKey, None))
 
             output+="\n<END>"
 
-            if len(userIDKeys)<1:
+            if len(userIDKeys) < 1:
                 txt = "You have no Bank OFX UserIDs/ClientUIDs stored on the Root Account"
                 setDisplayStatus(txt, "R")
-                myPopupInformationBox(toolbox_frame_,txt,"OFX BANK UserIDs/ClientUIDs",JOptionPane.WARNING_MESSAGE)
-                lDoIHaveAnyKeys=False
+                myPopupInformationBox(toolbox_frame_,txt,"OFX BANK UserIDs/ClientUIDs", JOptionPane.WARNING_MESSAGE)
+                lDoIHaveAnyKeys = False
 
-            jif=QuickJFrame("REVIEW OFX BANK USERIDs/ClientUIDs (stored on ROOT) BEFORE CHANGES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("REVIEW OFX BANK USERIDs/ClientUIDs (stored on ROOT) BEFORE CHANGES",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
             if lDoIHaveAnyKeys:
                 selectedWhat = JOptionPane.showInputDialog(jif,
@@ -10100,22 +10283,22 @@ Visit: %s (Author's site)
 
             lEditOne = lDeleteOne = lDeleteAll = lAddOne = False
 
-            if selectedWhat == what[_EDITONE]:      lEditOne=True
-            elif selectedWhat == what[_DELETEONE]:  lDeleteOne=True
-            elif selectedWhat == what[_DELETEALL]:  lDeleteAll=True
-            elif selectedWhat == what[_ADDONE]:     lAddOne=True
+            if selectedWhat == what[_EDITONE]:      lEditOne = True
+            elif selectedWhat == what[_DELETEONE]:  lDeleteOne = True
+            elif selectedWhat == what[_DELETEALL]:  lDeleteAll = True
+            elif selectedWhat == what[_ADDONE]:     lAddOne = True
             else:
                 jif.dispose()       # already within the EDT
                 continue
 
             do_what=""
-            if lDeleteOne:  do_what="DELETE"
-            if lEditOne:    do_what="EDIT"
-            if lDeleteAll:  do_what="DELETE ALL"
-            if lAddOne:     do_what="ADD ONE"
+            if lDeleteOne:  do_what = "DELETE"
+            if lEditOne:    do_what = "EDIT"
+            if lDeleteAll:  do_what = "DELETE ALL"
+            if lAddOne:     do_what = "ADD ONE"
 
-            selectedUserIDKey=None
-            UserIDKeyValue=None
+            selectedUserIDKey = None
+            UserIDKeyValue = None
 
             if lDeleteOne or lEditOne:
 
@@ -10132,8 +10315,8 @@ Visit: %s (Author's site)
 
                 UserIDKeyValue = root.getParameter(selectedUserIDKey, None)
 
-            chgKey=None
-            chgValue=None
+            chgKey = None
+            chgValue = None
             if lEditOne:
                 chgKey = myPopupAskForInput(jif,
                                               theTitle="OFX USERID/ClientUID MANAGEMENT",
@@ -10232,22 +10415,22 @@ Visit: %s (Author's site)
                     root.syncItem()
                     myPrint("DB", "KEYSAME post %s %s" %(selectedUserIDKey,root.getParameter(selectedUserIDKey)))
                 txt = "OFX UserID/ClientUID Record key %s now %s changed from %s to %s" %(selectedUserIDKey,chgKey,UserIDKeyValue,chgValue)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("manualEditOfRootUserIDs", txt)
 
             if lAddOne:
                 root.setParameter(chgKey,chgValue)
                 root.syncItem()
                 txt = "OFX new UserID/ClientUID parameter %s CREATED with data: %s" %(chgKey,chgValue)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("manualEditOfRootUserIDs", txt)
 
             if lDeleteOne:
                 root.setParameter(selectedUserIDKey, None)
                 root.syncItem()
                 txt = "OFX UserID/ClientUID parameter %s DELETED (was: %s)" %(selectedUserIDKey,UserIDKeyValue)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("manualEditOfRootUserIDs", txt)
 
             if lDeleteAll:
                 for keyToDelete in userIDKeys:
@@ -10255,8 +10438,8 @@ Visit: %s (Author's site)
                     root.syncItem()
                     myPrint("B", "DELETED OFX UserID/ClientUID Parameter %s from ROOT!" %(keyToDelete))
                 txt = "ALL OFX UserID/ClientUID records DELETED from ROOT"
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("manualEditOfRootUserIDs", txt)
 
             del userIDKeys
             play_the_money_sound()
@@ -10265,7 +10448,6 @@ Visit: %s (Author's site)
             continue
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def scriptRunner(_runThisScript, _method):
 
@@ -10304,6 +10486,7 @@ Visit: %s (Author's site)
                     myPrint("DB", "....I am back from script, within the special Thread().....")
                     self.scriptStream.close()
                     self.context.resetPythonInterpreter(self.python)
+                    logToolboxUpdates("scriptRunner", "Executed external script '%s' (this may or may not have updated the Dataset)" %(self.scriptToRun))
 
             scriptStream = MD_EXTENSION_LOADER.getResourceAsStream("/%s" %(_runThisScript))
 
@@ -10562,9 +10745,11 @@ Visit: %s (Author's site)
 
         theOnlineTxnRecord.obj.syncItem()
 
-        play_the_money_sound()
-        txt = "OFX alter OFXLastTxnUpdate date for acct: %s successfully set to: %s (%s)" %(selectedAcct,newDate,newDateTxt)
+        txt = "OFX alter OFXLastTxnUpdate date for acct: %s successfully set to: %s (%s)" %(selectedAcct, newDate, newDateTxt)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("OFX_update_OFXLastTxnUpdate", txt)
+
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -10608,9 +10793,11 @@ Visit: %s (Author's site)
         theOnlineTxnRecord.obj.resetLastUpdateDates()
         theOnlineTxnRecord.obj.syncItem()
 
-        play_the_money_sound()
         txt = "%s: All OFXLastTxnUpdate dates RESET" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("OFX_reset_OFXLastTxnUpdate_dates", txt)
+
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -10644,10 +10831,10 @@ Visit: %s (Author's site)
 
         # quick check first...
         olTxnLists = MD_REF.getCurrentAccount().getBook().getItemsWithType("oltxns")
-        lAny=False
+        lAny = False
         for txnList in olTxnLists:
             if txnList.getTxnCount() > 0:
-                lAny=True
+                lAny = True
                 break
 
         if not lAny and not myPopupAskQuestion(toolbox_frame_,"OFX PURGE OnlineTxnList OBJECTS","You don't seem to have any cached Online Txns. Proceed anyway (with general cleanup)?",theMessageType=JOptionPane.WARNING_MESSAGE):
@@ -10660,6 +10847,7 @@ Visit: %s (Author's site)
             return
 
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes....
+        SyncerDebug.changeState(debug)
 
         myPrint("B","Purging / cleaning all OnlineTxnList Cached txns.....")
 
@@ -10674,16 +10862,16 @@ Visit: %s (Author's site)
         # delete all online transactions from all downloaded-transaction-list objects,
         # which includes lists that are no longer associated with accounts
         for txnList in olTxnLists:
-            output+=("OnlineTxnList %s    with    %s cached txns\n" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
+            output += ("OnlineTxnList %s    with    %s cached txns\n" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
             if txnList.getTxnCount() > 0:
                 myPrint("J", "OnlineTxnList %s - DELETING %s cached txns" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
                 shouldSaveTrunk = True
-                output+=("   >> DELETING Cached Txns....\n")
+                output += ("   >> DELETING Cached Txns....\n")
                 txnList.setEditingMode()
                 while txnList.getTxnCount() > 0:
                     txnList.removeTxn(txnList.getTxnCount() - 1)
                 txnList.syncItem()
-                output+=("   OnlineTxnList %s now has %s cached txns\n" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
+                output += ("   OnlineTxnList %s now has %s cached txns\n" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
 
         output += "\n--------\n\n"
 
@@ -10693,7 +10881,7 @@ Visit: %s (Author's site)
             if olTxnsIdx >= 0:
                 if olTxns.getTxnCount() > 0:    # Note - I think this never finds any, as it will have been caught in the loop above....
                     shouldSaveTrunk = True
-                    output+=("Found OnlineTxnList %s at index %s for account %s - DELETING %s cached txns\n"
+                    output += ("Found OnlineTxnList %s at index %s for account %s - DELETING %s cached txns\n"
                           % (pad(olTxns.getUUID(),50), rpad(olTxnsIdx,10), pad(acct.getAccountName(),30), olTxns.getTxnCount()))
                     myPrint("J", "Found OnlineTxnList %s at index %s for account %s - DELETING %s cached txns"
                             % (pad(olTxns.getUUID(),50), rpad(olTxnsIdx,10), pad(acct.getAccountName(),30), olTxns.getTxnCount()))
@@ -10701,17 +10889,17 @@ Visit: %s (Author's site)
                     while olTxns.getTxnCount() > 0:
                         olTxns.removeTxn(olTxns.getTxnCount() - 1)
                     olTxns.syncItem()
-                    output+=("   OnlineTxnList %s                        >now has %s cached txns\n" % (pad(olTxns.getUUID(),50), rpad(olTxns.getTxnCount(),12)))
+                    output += ("   OnlineTxnList %s                        >now has %s cached txns\n" % (pad(olTxns.getUUID(),50), rpad(olTxns.getTxnCount(),12)))
                 olTxnLists.remove(olTxns)  # This check is OK though.....
             # else:
             #     output+=("@@ OnlineTxnList record NOT FOUND (orphaned), containing %s cached txns\n" % (rpad(olTxns.getTxnCount(),12)))
 
         output += "\n--------\n\n"
 
-        output+=("Remaining/orphan OnlineTxnList objects to delete:\n")
+        output += ("Remaining/orphan OnlineTxnList objects to delete:\n")
 
         for txnList in olTxnLists:
-            output+=(">> DELETING ORPHAN >> OnlineTxnList %s with %s cached txns\n" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
+            output += (">> DELETING ORPHAN >> OnlineTxnList %s with %s cached txns\n" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
             myPrint("J", ">> DELETING ORPHAN >> OnlineTxnList %s with %s cached txns" % (pad(txnList.getUUID(),50), rpad(txnList.getTxnCount(),12)))
             txnList.deleteItem()
             shouldSaveTrunk = True
@@ -10719,6 +10907,8 @@ Visit: %s (Author's site)
         output += "\n--------\n\n"
 
         MD_REF.getCurrentAccount().getBook().logRemovedItems(olTxnLists)
+
+        SyncerDebug.resetState()
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes....
 
         if shouldSaveTrunk:
@@ -10733,12 +10923,13 @@ Visit: %s (Author's site)
 
         myPrint("P",output)
 
-        jif = QuickJFrame("OFX PURGE ALL OnlineTxnList OBJECTS",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("OFX PURGE ALL OnlineTxnList OBJECTS",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+
+        txt = "OFX: Purge / Clean ALL OnlineTxnList Objects cached Txns completed..."
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("OFX_delete_ALL_saved_online_txns", txt)
 
         play_the_money_sound()
-        txt = "OFX: Purge / Clean ALL OnlineTxnList Objects cached Txns completed..."
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
         myPopupInformationBox(jif,txt,"OFX PURGE ALL OnlineTxnList",JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -10796,24 +10987,25 @@ Visit: %s (Author's site)
             lDeleteAllTxns  = (_options.index(selectedOption) == 0)
             lDeleteRecord   = (_options.index(selectedOption) == 1)
 
-            if lDeleteAllTxns and saveTxnCount<1: continue
+            if lDeleteAllTxns and saveTxnCount < 1: continue
 
             break
 
-        do_what=""
-        if lDeleteAllTxns: do_what="Delete all %s stored Txns within the record" %(saveTxnCount)
-        if lDeleteRecord:  do_what="Delete the whole OnlineTxnList record"
+        do_what = ""
+        if lDeleteAllTxns: do_what = "Delete all %s stored Txns within the record" %(saveTxnCount)
+        if lDeleteRecord:  do_what = "Delete the whole OnlineTxnList record"
 
         if not confirm_backup_confirm_disclaimer(toolbox_frame_,"OFX DELETE CHANGE OnlineTxnList","%s?" %(do_what)):
             return
 
         if lDeleteRecord:
             theOnlineTxnRecord.obj.deleteItem()
-            play_the_money_sound()
             txt = "OFX CHANGE OnlineTxnList whole record for acct: %s successfully deleted: " %(selectedAcct)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,"OFX DELETE CHANGE OnlineTxnList",JOptionPane.ERROR_MESSAGE)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("OFX_delete_saved_online_txns", txt)
+
+            play_the_money_sound()
+            myPopupInformationBox(toolbox_frame_,txt,"OFX DELETE CHANGE OnlineTxnList", JOptionPane.ERROR_MESSAGE)
 
         elif lDeleteAllTxns:
 
@@ -10825,14 +11017,13 @@ Visit: %s (Author's site)
             # for i in reversed(range(0,saveTxnCount)):
             #     theOnlineTxnRecord.obj.removeTxn(i)
             # theOnlineTxnRecord.obj.syncItem()
-            #
-            play_the_money_sound()
-            txt = "OFX CHANGE OnlineTxnList Record for acct: %s: %s Txns deleted" %(selectedAcct, saveTxnCount)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,"OFX DELETE OnlineTxnList Txns",JOptionPane.ERROR_MESSAGE)
 
-        del theOnlineTxnRecord
+            txt = "OFX CHANGE OnlineTxnList Record for acct: %s: %s Txns deleted" %(selectedAcct, saveTxnCount)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("OFX_delete_saved_online_txns", txt)
+
+            play_the_money_sound()
+            myPopupInformationBox(toolbox_frame_,txt,"OFX DELETE OnlineTxnList Txns",JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -10994,12 +11185,12 @@ Visit: %s (Author's site)
             else: continue
 
             do_what=""
-            if lDeleteOne: do_what="DELETE"
-            if lEditOne: do_what="EDIT"
-            if lDeleteAll: do_what="DELETE ALL"
+            if lDeleteOne: do_what = "DELETE"
+            if lEditOne: do_what = "EDIT"
+            if lDeleteAll: do_what = "DELETE ALL"
 
-            selectedCookie=None
-            selectedCookieIndex=None
+            selectedCookie = None
+            selectedCookieIndex = None
 
             if lDeleteOne or lEditOne:
 
@@ -11011,9 +11202,9 @@ Visit: %s (Author's site)
                                                              allCookieStrings,
                                                              None)
                 if not selectedCookie: continue
-                selectedCookieIndex=allCookieStrings.indexOf(selectedCookie)
+                selectedCookieIndex = allCookieStrings.indexOf(selectedCookie)
 
-            chgValue=None
+            chgValue = None
             if lEditOne:
                 chgValue = myPopupAskForInput(toolbox_frame_,
                                               theTitle="OFX COOKIE MANAGEMENT",
@@ -11030,27 +11221,26 @@ Visit: %s (Author's site)
 
             if not backup_local_storage_settings():
                 txt = "'OFX COOKIE MANAGEMENT': ERROR making backup of LocalStorage() ./safe/settings - no changes made!"
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
                 return
 
             if lEditOne:
                 allCookieStrings[selectedCookieIndex] = chgValue
                 txt = "OFX Cookie %s changed from %s to %s" %(selectedCookieIndex+1,selectedCookie,chgValue)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("OFX_cookie_management", txt)
 
             if lDeleteOne:
                 allCookieStrings.remove(selectedCookieIndex)
                 txt = "OFX Cookie %s DELETED (was: %s)" %(selectedCookieIndex+1,selectedCookie)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("OFX_cookie_management", txt)
 
             if lDeleteAll:
                 allCookieStrings.clear()
                 txt = "ALL OFX Cookies DELETED"
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("OFX_cookie_management", txt)
 
             myPrint("B","OFX Bank Management: Writing all Cookies back to Local Storage (after: %s)...." %(do_what))
             LS.put(cookieKey, allCookieStrings)
@@ -11059,7 +11249,6 @@ Visit: %s (Author's site)
             continue
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def OFXDEBUGToggle():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -11105,7 +11294,7 @@ Visit: %s (Author's site)
         # Variant of remove_ofx_security_bindings.py
 
         # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
-        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD and not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):
+        if not isRRateCurrencyIssueFixedBuild() and not check_all_currency_raw_rates_ok(CurrencyType.Type.SECURITY):
             myPrint("B","@@ Error: failed check_all_currency_raw_rates_ok(SECURITY) check... Exiting CUSIPFix() without any changes...")
             txt = "ERROR: You have old format Security record(s). Consider running 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' option first"
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
@@ -11130,9 +11319,9 @@ Visit: %s (Author's site)
         lReset = lEdit = lMove = lAdd = False
 
         if len(dropdownSecs)<1:
-            x="You have no existing CUSIP(s); Would you like to add a CUSIP?"
+            x = "You have no existing CUSIP(s); Would you like to add a CUSIP?"
         else:
-            x="You have %s securities with CUSIP(s) set; Would you like to manually add a CUSIP? (No brings up more options)" %(len(dropdownSecs))
+            x = "You have %s securities with CUSIP(s) set; Would you like to manually add a CUSIP? (No brings up more options)" %(len(dropdownSecs))
 
         if not myPopupAskQuestion(toolbox_frame_,"FIX CUSIP",x,theMessageType=JOptionPane.WARNING_MESSAGE):
             if len(dropdownSecs)<1:
@@ -11140,7 +11329,7 @@ Visit: %s (Author's site)
                 setDisplayStatus(txt, "B")
                 return
         else:
-            allSecs=sorted(allSecs, key=lambda sort_x: (sort_x.getName().upper()))
+            allSecs = sorted(allSecs, key=lambda sort_x: (sort_x.getName().upper()))
             selectedSecurity = JOptionPane.showInputDialog(toolbox_frame_,
                                                            "Select the security to add CUSIP data",
                                                            "FIX CUSIP",
@@ -11157,7 +11346,7 @@ Visit: %s (Author's site)
             lAdd = True
 
         if not lAdd:
-            dropdownSecs=sorted(dropdownSecs, key=lambda sort_x: (sort_x.getName().upper()))
+            dropdownSecs = sorted(dropdownSecs, key=lambda sort_x: (sort_x.getName().upper()))
             selectedSecurity = JOptionPane.showInputDialog(toolbox_frame_,
                                                            "Select the security with CUSIP data to view/change",
                                                            "FIX CUSIP",
@@ -11173,21 +11362,20 @@ Visit: %s (Author's site)
 
             del dropdownSecs
 
-            schemeText=""
-            theSchemes=[]
+            schemeText = ""
+            theSchemes = []
             for key in selectedSecurity.getParameterKeys():
                 if key.startswith(currID):
                     findScheme = key[len(currID):]
                     theSchemes.append([selectedSecurity,findScheme,selectedSecurity.getIDForScheme(findScheme)])
                     schemeText+="Scheme: %s ID: %s\n" %(findScheme,selectedSecurity.getIDForScheme(findScheme))
 
-            if len(theSchemes)<1:
+            if len(theSchemes) < 1:
                 txt = "FIX CUSIP - error iterating keys on %s for CUSIP(s) - NO CHANGES MADE!" %(selectedSecurity)
-                setDisplayStatus(txt, "R")
-                myPrint("B",txt)
+                setDisplayStatus(txt, "R"); myPrint("B",txt)
                 return
 
-            ask=MyPopUpDialogBox(toolbox_frame_,"Showing CUSIP data for Security: %s" %(selectedSecurity),schemeText,theTitle="FIX CUSIP",OKButtonText="NEXT STEP",lCancelButton=True)
+            ask = MyPopUpDialogBox(toolbox_frame_,"Showing CUSIP data for Security: %s" %(selectedSecurity),schemeText,theTitle="FIX CUSIP",OKButtonText="NEXT STEP",lCancelButton=True)
             if not ask.go():
                 txt = "FIX CUSIP - no changes made.."
                 setDisplayStatus(txt, "B")
@@ -11226,13 +11414,13 @@ Visit: %s (Author's site)
                 if curr == selectedSecurity: continue
                 dropdownSecsMoveTo.add(curr)
 
-            if len(dropdownSecsMoveTo)<1:
+            if len(dropdownSecsMoveTo) < 1:
                 txt = "FIX CUSIP - You have no other Securities to move to - No changes made..."
                 setDisplayStatus(txt, "R")
                 myPopupInformationBox(toolbox_frame_,txt,"FIX CUSIP",JOptionPane.ERROR_MESSAGE)
                 return
 
-            dropdownSecsMoveTo=sorted(dropdownSecsMoveTo, key=lambda sort_x: (sort_x.getName().upper()))
+            dropdownSecsMoveTo = sorted(dropdownSecsMoveTo, key=lambda sort_x: (sort_x.getName().upper()))
             selectedSecurityMoveTo = JOptionPane.showInputDialog(toolbox_frame_,
                                                                  "Select the security to move the CUSIP data to:",
                                                                  "FIX CUSIP",
@@ -11361,13 +11549,12 @@ Visit: %s (Author's site)
                 setDisplayStatus(txt, "R")
                 return
 
-            play_the_money_sound()
             txt = "FIX CUSIP - Changes successfully applied to Security: %s" %(selectedSecurity)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("CUSIPFix", txt)
+            play_the_money_sound()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     class StoreService():
         def __init__(self, obj):
@@ -11419,13 +11606,13 @@ Visit: %s (Author's site)
 
             cleanupMissingOnlineBankingLinks(lAutoPurge=True)
 
-            play_the_money_sound()
             txt = "Online Banking Service / Logon Profile successfully deleted: %s" %(service)
             setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
+            logToolboxUpdates("deleteOFXService", txt)
+            play_the_money_sound()
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME.upper(), JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def cleanupMissingOnlineBankingLinks(lAutoPurge=False):
 
@@ -11536,14 +11723,14 @@ Visit: %s (Author's site)
 
         txt = "%s dead/missing Online Banking links successfully removed (review console for details)" %(totalDead)
         myPrint("B", txt)
+        logToolboxUpdates("cleanupMissingOnlineBankingLinks", txt)
 
         if not lAutoPurge:
-            play_the_money_sound()
             setDisplayStatus(txt, "B")
-            myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
+            play_the_money_sound()
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME.upper(), JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     class StoreMDPlusLinkages():
 
@@ -11873,7 +12060,6 @@ Visit: %s (Author's site)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def export_MDPlus_LicenseObject():
 
@@ -11979,9 +12165,11 @@ Visit: %s (Author's site)
             fout.close()
             del cipher, exportMDPlusData, licenseObject
 
-            play_the_money_sound()
             txt = "Moneydance+ settings encrypted & exported to: %s" %(exportFile)
             setDisplayStatus(txt, "B"); myPrint("B", txt)
+            logToolboxUpdates("export_MDPlus_LicenseObject", txt)
+
+            play_the_money_sound()
             myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
             txt = "Exported (encrypted) file contains confidential MD+(Plaid) license key data. Use then DELETE file ASAP!"
@@ -12151,9 +12339,11 @@ Visit: %s (Author's site)
         try: os.remove(importFile)
         except: pass
 
-        play_the_money_sound()
         txt = "Moneydance+ license object IMPORTED (import file deleted) >> MONEYDANCE WILL NOW RELOAD DATASET/RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("import_MDPlus_LicenseObject", txt)
+
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -12255,10 +12445,11 @@ Visit: %s (Author's site)
         myPrint("B", "... Flushing changes to sync...")
         MD_REF.saveCurrentAccount()
 
-        play_the_money_sound()
-
         txt = "All Moneydance+ settings DELETED >> MONEYDANCE WILL NOW RELOAD DATASET/RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("zap_MDPlus_Profile", txt)
+
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -12298,10 +12489,11 @@ Visit: %s (Author's site)
         myPrint("B", "... Flushing changes to sync...")
         MD_REF.saveCurrentAccount()
 
-        play_the_money_sound()
-
         txt = "MD+ name cache & access tokens have been wiped..! MONEYDANCE WILL NOW RELOAD DATASET/RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("forceMDPlusNameCacheAccessTokensRebuild", txt)
+
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -12456,7 +12648,12 @@ Visit: %s (Author's site)
                     accountNum = acctInfo.getAccountNumber()
                     localAccount = mapping.getAccountForOnlineID(acctInfo.getAccountNumber(), None, False)
                     connectionTxt += "... ACCOUNT MAPPING: '%s' <> '%s'(%s)\n" %(acctInfo.getDisplayName(), localAccount, accountNum)
-    
+                    for _availAcct in accounts:
+                        if _availAcct.getAccountNumber() == accountNum:
+                            connectionTxt += "... (Raw Data >> desc: %s, official_name: %s, balance.available: %s, balance.current: %s, balance.limit: %s)\n" \
+                                             %(_availAcct.getDescription(), _availAcct.getOfficialName(), _availAcct.getBalanceAvailable(), _availAcct.getBalanceCurrent(), _availAcct.getBalanceLimit())
+                            break
+
             connectionTxt += "\n<END OF REPRODUCED MD+ CONNECTIONS LIST>\n"
 
             if lReturnConnectionInfoOnly: return connectionTxt
@@ -12469,7 +12666,7 @@ Visit: %s (Author's site)
                 myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
             ask = MyPopUpDialogBox(jif,
                                  theStatus="WARNING: User requests to force disconnect an MD+ connection",
@@ -12562,15 +12759,16 @@ Visit: %s (Author's site)
     
             pleaseWait.kill()
 
-            play_the_money_sound()
-
             txt = "Process to force disconnect '%s' MD+ connection completed.." %(selectedConnectionRow.institutionName)
             output += "%s\n" %(txt); myPrint("B", txt)
             setDisplayStatus(txt, "R")
+            logToolboxUpdates("forceDisconnectMDPlusConnection", txt)
 
             output += "\n<END>\n"
 
-            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+
+            play_the_money_sound()
             myPopupInformationBox(jif,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         except:
@@ -12578,7 +12776,7 @@ Visit: %s (Author's site)
             output += "\n\nERROR script has crashed - please review console\n".upper()
             txt = dump_sys_error_to_md_console_and_errorlog(True)
             output += txt
-            QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=2).show_the_frame()
+            QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=2).show_the_frame()
 
     def forgetOFXImportLink():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -12604,26 +12802,30 @@ Visit: %s (Author's site)
             selectedAccount.syncItem()                                                                      # noqa
 
             txt = "Banking Import link on account: %s forgotten!" %(selectedAccount)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("forgetOFXImportLink", txt)
+
             play_the_money_sound()
-            myPopupInformationBox(toolbox_frame_, txt, "RESET BANKING LINK",JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, txt, "RESET BANKING LINK", JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
-    def download_md_fiscal_setup_for_one_bank(bankID):
+    def download_md_fiscal_setup_for_one_bank(bankID, _jif):
 
-        if globalSaveFI_data is None or len(globalSaveFI_data)<1:
-            return
+        if GlobalVars.globalSaveFI_data is None or len(GlobalVars.globalSaveFI_data) < 1: return
 
-        FI = MD_OFX_BANK_SETTINGS_DIR + bankID.strip() + ".dct"
+        FI = GlobalVars.MD_OFX_BANK_SETTINGS_DIR + bankID.strip() + ".dct"
         output = ""
         inx = None
 
         myPrint("B","######################################################################################################################################################################")
         myPrint("B","### INFORMATION: Toolbox is connecting to Infinite Kind Servers to download the banking connection profiles for the bank you selected - IT IS NOT SENDING ANY DATA ###")
         myPrint("B","######################################################################################################################################################################")
+
+        _msgPad = 100
+        _msg = pad("INFO: Checking Internet (IK servers) for banking profile information...", _msgPad, padChar=".")
+        diag = MyPopUpDialogBox(_jif, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
+        diag.go()
 
         try:
             url = URL(FI)
@@ -12635,12 +12837,13 @@ Visit: %s (Author's site)
                     while True:
                         lineofdata = inx.readLine()
                         if lineofdata is None: break
-                        output+=(lineofdata+"\n")                                                                      # noqa
+                        output += (lineofdata + "\n")                                                                   # noqa
         except:
             myPrint("B", "ERROR downloading from Moneydance Fiscal Setup profiles link: %s " %(FI))
-            output+="\n@@ERROR downloading from Moneydance Fiscal Setup profiles link: %s\n" %(FI)
-            output+=dump_sys_error_to_md_console_and_errorlog(True)
+            output += "\n@@ERROR downloading from Moneydance Fiscal Setup profiles link: %s\n" %(FI)
+            output += dump_sys_error_to_md_console_and_errorlog(True)
         finally:
+            diag.kill()
             if inx:
                 try:
                     inx.close()
@@ -12667,15 +12870,13 @@ Visit: %s (Author's site)
     # noinspection PyUnresolvedReferences
     def download_md_fiscal_setup():
 
-        global globalSaveFI_data, globalSave_DEBUG_FI_data      # global must be here as we set them
-
         downloadInfo = StreamTable()
 
         inx = None
         tagText=""
         wait = None
 
-        if globalSaveFI_data is None or len(globalSaveFI_data)<1:
+        if GlobalVars.globalSaveFI_data is None or len(GlobalVars.globalSaveFI_data) < 1:
 
             wait = MyPopUpDialogBox(toolbox_frame_,"PLEASE WAIT - RETRIEVING FISCAL SETUP DATA...",lModal=False)
             wait.go()
@@ -12684,8 +12885,14 @@ Visit: %s (Author's site)
             myPrint("B","### INFORMATION: Toolbox is connecting to Infinite Kind Servers to download the latest banking connection profiles - IT IS NOT SENDING ANY DATA ###")
             myPrint("B","###################################################################################################################################################")
 
-            for theFile in [MD_OFX_DEBUG_SETTINGS_FILE,MD_OFX_DEFAULT_SETTINGS_FILE]:
+            for theFile in [GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE, GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE]:
                 myPrint("DB", "Attempting to download: %s" %(theFile))
+
+                _msgPad = 100
+                _msg = pad("INFO: Checking Internet (IK servers) for banking profile information...", _msgPad, padChar=".")
+                diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+                diag.go()
+
                 try:
                     url = URL(theFile)
                     urlConn = url.openConnection()
@@ -12699,6 +12906,7 @@ Visit: %s (Author's site)
                     myPrint("B", "ERROR downloading from Moneydance Fiscal Setup profiles link: %s " %(theFile))
                     dump_sys_error_to_md_console_and_errorlog(False)
                 finally:
+                    diag.kill()
                     if inx:
                         try:
                             inx.close()
@@ -12706,12 +12914,12 @@ Visit: %s (Author's site)
                             myPrint("B", "Error closing URL stream %s" %(theFile))
                             dump_sys_error_to_md_console_and_errorlog()
 
-                matches=None
+                matches = None
                 overrideMessage = downloadInfo.getStr("override_msg", None)
                 ifNoneAvailableMessage = downloadInfo.getStr("no_fis_msg", None)
                 infoMessage = downloadInfo.getStr("extra_msg", None)
                 if overrideMessage is not None:
-                    tagText=overrideMessage
+                    tagText = overrideMessage
                 else:
                     matchesObj = downloadInfo.get("matches")
                     matches = ArrayList()
@@ -12735,16 +12943,16 @@ Visit: %s (Author's site)
                             matchCount+=1
                             i+=1
                     if matchCount == 0 and ifNoneAvailableMessage is not None:
-                        tagText= ifNoneAvailableMessage
+                        tagText = ifNoneAvailableMessage
                     elif infoMessage is not None:
                         tagText=infoMessage
 
-                if theFile == MD_OFX_DEFAULT_SETTINGS_FILE:
-                    globalSaveFI_data=matches
-                    globalSaveFI_data = sorted(globalSaveFI_data, key=lambda sort_x: (sort_x.lowerName, sort_x.id))
+                if theFile == GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE:
+                    GlobalVars.globalSaveFI_data = matches
+                    GlobalVars.globalSaveFI_data = sorted(GlobalVars.globalSaveFI_data, key=lambda sort_x: (sort_x.lowerName, sort_x.id))
                 else:
-                    globalSave_DEBUG_FI_data=matches
-                    globalSave_DEBUG_FI_data = sorted(globalSave_DEBUG_FI_data, key=lambda sort_x: (sort_x.lowerName, sort_x.id))
+                    GlobalVars.globalSave_DEBUG_FI_data = matches
+                    GlobalVars.globalSave_DEBUG_FI_data = sorted(GlobalVars.globalSave_DEBUG_FI_data, key=lambda sort_x: (sort_x.lowerName, sort_x.id))
 
         output="Moneydance's Fiscal Institution Initial Dynamic Setup profiles..\n" \
                " ==============================================================\n\n"
@@ -12753,24 +12961,23 @@ Visit: %s (Author's site)
             output+="\n%s\n\n" %(tagText)
 
         miniList=[]
-        for bankSetup in globalSaveFI_data:
+        for bankSetup in GlobalVars.globalSaveFI_data:
             output += "\nName: %s (%s)\n" %(bankSetup.name,bankSetup.id)
             miniList.append(bankSetup.lowerName)
             for element in bankSetup.info:
                 if element == "id" or element == "fi_name": continue
                 output+=" %s %s\n" %(pad(element+":",30), bankSetup.info.get(element))
 
-        miniListDEBUG=[]
-        for bankSetup in globalSave_DEBUG_FI_data:
-            miniListDEBUG.append(bankSetup.lowerName)
+        miniListDEBUG = []
+        for bankSetup in GlobalVars.globalSave_DEBUG_FI_data: miniListDEBUG.append(bankSetup.lowerName)
 
-        if len(globalSaveFI_data) < 1: output+="\nNO SETUP FOUND... DID SOMETHING GO WRONG? REVIEW CONSOLE ERROR LOG..!\n\n"
+        if len(GlobalVars.globalSaveFI_data) < 1: output += "\nNO SETUP FOUND... DID SOMETHING GO WRONG? REVIEW CONSOLE ERROR LOG..!\n\n"
 
-        output+="\n<END>"
+        output += "\n<END>"
 
         if wait is not None: wait.kill()
 
-        jif = QuickJFrame("VIEW Moneydance's Dynamic / live Fiscal Institution setup profiles", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("VIEW Moneydance's Dynamic / live Fiscal Institution setup profiles", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
         if len(miniList) > 0:
             selectedID = JOptionPane.showInputDialog(jif,
@@ -12778,10 +12985,10 @@ Visit: %s (Author's site)
                                                       "VIEW SPECIFIC SETUP DATA",
                                                       JOptionPane.INFORMATION_MESSAGE,
                                                       getMDIcon(lAlwaysGetIcon=True),
-                                                      globalSaveFI_data,
+                                                      GlobalVars.globalSaveFI_data,
                                                       None)
             if selectedID:
-                specificText = download_md_fiscal_setup_for_one_bank(selectedID.id)
+                specificText = download_md_fiscal_setup_for_one_bank(selectedID.id, jif)
 
                 output="Moneydance's Fiscal Institution Initial Dynamic Setup profiles..\n" \
                        " ==============================================================\n\n" \
@@ -12792,30 +12999,30 @@ Visit: %s (Author's site)
                 for element in selectedID.info:
                     if element == "id" or element == "fi_name": continue
 
-                    extraText=""
-                    if element == "dt_prof_updated": extraText="(%s)" %(get_time_stamp_as_nice_text(int(selectedID.info.get(element))))
+                    extraText = ""
+                    if element == "dt_prof_updated": extraText = "(%s)" %(get_time_stamp_as_nice_text(int(selectedID.info.get(element))))
                     output+=" %s %s %s\n" %(pad(element+":",30), selectedID.info.get(element),extraText)
 
                 try:
                     output += "\n\nDEBUG Setup:\n" \
                               "--------------------------\n"
-                    for findID in globalSave_DEBUG_FI_data:
+                    for findID in GlobalVars.globalSave_DEBUG_FI_data:
                         if findID.id == selectedID.id:
                             for element in findID.info:
                                 if element == "id" or element == "fi_name": continue
-                                extraText=""
+                                extraText = ""
                                 if element == "dt_prof_updated": extraText="(%s)" %(get_time_stamp_as_nice_text(int(findID.info.get(element))))
-                                output+=" %s %s %s\n" %(pad(element+":",30), findID.info.get(element),extraText)
+                                output += " %s %s %s\n" %(pad(element+":", 30), findID.info.get(element), extraText)
                             break
                 except:
                     pass
 
                 output += "\n\nSPECIFIC OVERRIDING Setup:\n" \
                        "--------------------------\n"
-                output+=specificText
-                output+="\n<END>"
+                output += specificText
+                output += "\n<END>"
 
-                QuickJFrame("VIEW Moneydance's Specific (dynamic) Fiscal Institution setup profiles", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                QuickJFrame("VIEW Moneydance's Specific (dynamic) Fiscal Institution setup profiles", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
         txt = "OFX: Moneydance's Dynamic Fiscal Institution Setup profiles have been retrieved and displayed...."
         setDisplayStatus(txt, "B")
@@ -13202,8 +13409,8 @@ Visit: %s (Author's site)
                 continue
             filesToRemove.append(internal_filepath)
 
-        if len(filesToRemove)<1:
-            txt = "ADVANCED: DELETE internal / Default Dataset(s) from DISK - You have no files to DELETE - no changes made...."
+        if len(filesToRemove) < 1:
+            txt = "ADVANCED: DELETE internal (default location) Dataset(s) from DISK - You have no files to DELETE - no changes made...."
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
@@ -13231,12 +13438,12 @@ Visit: %s (Author's site)
                 UIManager.put("OptionPane.cancelButtonText", saveCancel)
 
             if not selectedFile:
-                if iFilesOnDiskRemoved<1:
+                if iFilesOnDiskRemoved < 1:
                     txt = "Thank you for using ADVANCED MODE!.. No changes made"
                     setDisplayStatus(txt, "B")
                     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
                 else:
-                    txt = "Thank you for using ADVANCED MODE!.. %s Datasets DELETED" %(iFilesOnDiskRemoved)
+                    txt = "Thank you for using ADVANCED MODE!.. %s Dataset(s) DELETED" %(iFilesOnDiskRemoved)
                     setDisplayStatus(txt, "B")
                     myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
@@ -13252,11 +13459,12 @@ Visit: %s (Author's site)
 
                 try:
                     shutil.rmtree(selectedFile)
-                    iFilesOnDiskRemoved+=1
-                    play_the_money_sound()
+                    iFilesOnDiskRemoved += 1
                     txt = "@@ ADVANCEDMODE: Dataset %s removed from disk" %(selectedFile)
-                    setDisplayStatus(txt, "R")
-                    myPrint("B",txt)
+                    setDisplayStatus(txt, "R"); myPrint("B",txt)
+                    logToolboxUpdates("advancedRemoveInternalFilesSettings", txt, onlyLogGenericEntry=True)
+
+                    play_the_money_sound()
                     myPopupInformationBox(toolbox_frame_,
                                           txt,
                                           "ADVANCED - DELETE FILE FROM DISK",
@@ -13264,8 +13472,7 @@ Visit: %s (Author's site)
                 except:
                     dump_sys_error_to_md_console_and_errorlog()
                     txt = "@ERROR@ ADVANCED - Dataset %s FAILED TO remove from disk" %(selectedFile)
-                    setDisplayStatus(txt, "R")
-                    myPrint("B",txt)
+                    setDisplayStatus(txt, "R"); myPrint("B",txt)
                     myPopupInformationBox(toolbox_frame_,
                                           "@ERROR@ ADVANCED - Dataset %s FAILED TO remove from disk" %(selectedFile),
                                           "ADVANCED - ERROR",
@@ -13331,6 +13538,7 @@ Visit: %s (Author's site)
 
         txt = "%s invalid/missing 'external' files removed from config.dict (review console for details)" %(invalidExtFiles)
         myPrint("B", txt)
+        logToolboxUpdates("cleanup_external_files_setting", txt, onlyLogGenericEntry=True)
 
         if not lAutoPurge:
             play_the_money_sound()
@@ -13393,25 +13601,27 @@ Visit: %s (Author's site)
                 UIManager.put("OptionPane.cancelButtonText", saveCancel)
 
             if not selectedFile:
-                if (iReferencesRemoved+iFilesOnDiskRemoved)<1:
+                if (iReferencesRemoved + iFilesOnDiskRemoved) < 1:
                     txt = "ADVANCED MODE!.. No changes made"
                     setDisplayStatus(txt, "B")
                     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
                 else:
                     txt = "ADVANCED MODE!.. %s references removed and %s Datasets DELETED" %(iReferencesRemoved, iFilesOnDiskRemoved)
                     setDisplayStatus(txt, "R")
+                    logToolboxUpdates("advancedRemoveExternalFilesSettings", txt, onlyLogGenericEntry=True)
                     myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-            iReferencesRemoved+=1
+            iReferencesRemoved += 1
             filesToRemove.remove(selectedFile)
 
             externalFilesVector.remove(selectedFile)
             prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFilesVector)
             MD_REF.savePreferences()
             txt = "I have removed the reference to file %s from config.dict (and file/open menu if present)" %(selectedFile)
-            myPrint("B",txt)
-            myPopupInformationBox(toolbox_frame_,txt,"ADVANCED",JOptionPane.WARNING_MESSAGE)
+            myPrint("B", txt)
+            logToolboxUpdates("advancedRemoveExternalFilesSettings", txt, onlyLogGenericEntry=True)
+            myPopupInformationBox(toolbox_frame_, txt, "ADVANCED", JOptionPane.WARNING_MESSAGE)
 
             if not os.path.exists(selectedFile): continue
 
@@ -13426,10 +13636,10 @@ Visit: %s (Author's site)
                 shutil.rmtree(selectedFile)
                 iFilesOnDiskRemoved+=1
 
-                myPrint("B","ADVANCED - Dataset %s removed from disk" %(selectedFile))
-                play_the_money_sound()
                 txt = "ADVANCED - Dataset %s removed from disk" %(selectedFile)
-                setDisplayStatus(txt, "R")
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("advancedRemoveExternalFilesSettings", txt, onlyLogGenericEntry=True)
+                play_the_money_sound()
                 myPopupInformationBox(toolbox_frame_, txt, "ADVANCED", theMessageType=JOptionPane.ERROR_MESSAGE)
             except:
                 dump_sys_error_to_md_console_and_errorlog()
@@ -13438,8 +13648,6 @@ Visit: %s (Author's site)
                 myPopupInformationBox(toolbox_frame_, txt, "ADVANCED", theMessageType=JOptionPane.WARNING_MESSAGE)
 
             continue
-
-        del filesToRemove
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
@@ -14420,7 +14628,7 @@ Visit: %s (Author's site)
 
             output += "<END>\n"
 
-            jif = QuickJFrame("Curious? View Internal Settings...: %s" % selectedWhat, output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+            jif = QuickJFrame("Curious? View Internal Settings...: %s" % selectedWhat, output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
             if self.lOFX:
                 txt = "OFX: Your OFX Bank related settings have been searched and displayed...."
@@ -14516,8 +14724,7 @@ Visit: %s (Author's site)
                         dump_sys_error_to_md_console_and_errorlog()
         except:
             txt = "@@ ERROR auto-pruning internal backup files... continuing....."
-            setDisplayStatus(txt, "R")
-            myPrint("B",txt)
+            setDisplayStatus(txt, "R"); myPrint("B",txt)
             dump_sys_error_to_md_console_and_errorlog()
             return
 
@@ -14574,7 +14781,7 @@ Visit: %s (Author's site)
                     displayFile = myFile.readlines()
 
                 # If VMOptions, stick a "'" at the beginning for clipboard to Excel to work OK
-                if lCopyAllToClipBoard_TB and x.lower().endswith(".vmoptions"):
+                if GlobalVars.lCopyAllToClipBoard_TB and x.lower().endswith(".vmoptions"):
                     newDisplayFile=[]
                     for line in displayFile:
                         line ="'"+line
@@ -14674,7 +14881,7 @@ now after saving the file, restart Moneydance
                     pass
                 time.sleep(0.5)
 
-            jif = QuickJFrame("View " + self.displayText + " file: " + x, displayFile, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("View " + self.displayText + " file: " + x, displayFile, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
             jif.toFront()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -14729,12 +14936,11 @@ now after saving the file, restart Moneydance
 
         txt = "%s: - Displaying NetWorth Settings" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "B")
-        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         del allAccounts
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
-
 
     def edit_shouldBeIncludedInNetWorth_settings():
 
@@ -14802,13 +15008,11 @@ now after saving the file, restart Moneydance
             iCountChanges += 1
 
             txt = "%s: Account: '%s' Parameter: '%s' set to %s" %(_THIS_METHOD_NAME, selectedAcct, PARAM_APPLIES_TO_NW, selectedIncludeInNW)
-            setDisplayStatus(txt, "B")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            logToolboxUpdates("edit_shouldBeIncludedInNetWorth_settings", txt)
             myPopupInformationBox(toolbox_frame_,txt)
 
             continue
-
-        del newAccounts
 
         if iCountChanges:
             txt = "%s: Updated the NW setting in %s Account(s)!" %(_THIS_METHOD_NAME, iCountChanges)
@@ -14818,8 +15022,6 @@ now after saving the file, restart Moneydance
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
-
 
     def zero_bal_categories(lFix):
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -14849,7 +15051,7 @@ now after saving the file, restart Moneydance
         root = MD_REF.getCurrentAccountBook()
         rems = root.getReminders().getAllReminders()
 
-        listOfRems={}
+        listOfRems = {}
 
         for rem in rems:
             remType = rem.getReminderType()  # NOTE or TRANSACTION
@@ -14878,7 +15080,7 @@ now after saving the file, restart Moneydance
 
                 if catValue:
                     theReminder = [acct, cat, catValue, desc, splitDesc]
-                    listOfRems[cat]=theReminder
+                    listOfRems[cat] = theReminder
 
         # ==========================================
 
@@ -14907,7 +15109,7 @@ now after saving the file, restart Moneydance
                 if listOfRems.get(cat):     # Found a reminder!
                     pass
                 else:
-                    categoriesToInactivate[cat]=True
+                    categoriesToInactivate[cat] = True
 
         # Run 2 - filter out parents.... if we are retaining any sub cats
         for cat in accounts:
@@ -14918,7 +15120,7 @@ now after saving the file, restart Moneydance
                 parentCats = cat.getPath()
                 for theParent in parentCats:
                     if categoriesToInactivate.get(theParent):   # Found a parent - so don't deactivate it!
-                        categoriesToInactivate[theParent]=False
+                        categoriesToInactivate[theParent] = False
 
         last = None
         iCountForInactivation = 0
@@ -14927,13 +15129,13 @@ now after saving the file, restart Moneydance
         # for cat in categoriesToInactivate.keys():
         for cat in sortedCategoriesToInactivate:
             if categoriesToInactivate.get(cat):
-                iCountForInactivation+=1
+                iCountForInactivation += 1
 
                 if not last or last != cat.getAccountType():
                     output += "\nCATEGORY TYPE: %s\n" % cat.getAccountType()
                     last = cat.getAccountType()
 
-                output += "Category: %s has Zero Balances\n" % pad(cat.getFullAccountName(),100)
+                output += "Category: %s has Zero Balances\n" % pad(cat.getFullAccountName(), 100)
             else:
                 output += "Category: %s ** But cannot be deactivated as it's the Parent of an active Category **\n" % pad(cat.getFullAccountName(),100)
 
@@ -15000,8 +15202,8 @@ now after saving the file, restart Moneydance
                     output += "\nCATEGORY TYPE: %s\n" % cat.getAccountType()
                     last = cat.getAccountType()
 
-                output += "Inactive Category: %s has Zero Balances\n" % pad(cat.getFullAccountName(),100)
-                ii+=1
+                output += "Inactive Category: %s has Zero Balances\n" % pad(cat.getFullAccountName(), 100)
+                ii += 1
 
         if not ii:
             output += "<NONE FOUND>\n\n"
@@ -15074,7 +15276,7 @@ now after saving the file, restart Moneydance
         # output += " " + rpad("RcrsRecBal", 12)
         output += "\n"
 
-        ii=0
+        ii = 0
         last = None
         for cat in accounts:
             if not cat.getAccountOrParentIsInactive(): continue
@@ -15107,7 +15309,7 @@ now after saving the file, restart Moneydance
                 output += " " + rpad("%s" % baseCurr.getDoubleValue(cat.getRecursiveUserCurrentBalance()*mult), 12)
                 # output += " " + rpad("%s" % baseCurr.getDoubleValue(cat.getRecursiveUserReconcilingBalance()*mult), 12)
                 output += "\n"
-                ii+=1
+                ii += 1
 
         if not ii:
             output += "<NONE FOUND>\n\n"
@@ -15130,12 +15332,12 @@ now after saving the file, restart Moneydance
         output += "<END>"
 
         if lFix:
-            output += "\nDISCLAIMER: I take no responsibility if you decide to execute the Inactivate Zero Balance Category fix script!\n"
+            output += "\nDISCLAIMER: Author takes no responsibility if you decide to execute the Inactivate Zero Balance Category fix function!\n"
 
         if not lFix:
-            jif = QuickJFrame("View your Active Categories with Zero Balances....", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+            jif = QuickJFrame("View your Active Categories with Zero Balances....", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         else:
-            jif = QuickJFrame("View your Active Categories with Zero Balances.... CLICK OK WHEN READY TO PROCEED", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+            jif = QuickJFrame("View your Active Categories with Zero Balances.... CLICK OK WHEN READY TO PROCEED", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
         myPrint("J", "There are %s Active Categories with Zero Balances that could be Inactivated!" % iCountForInactivation)
 
@@ -15155,7 +15357,7 @@ now after saving the file, restart Moneydance
             return
 
         # OK - so we are fixing...!
-        myPrint("B", ">> User selected to Inactivate %s Zero Balance Categories!?" % iCountForInactivation)
+        myPrint("B", ">> User selected to Inactivate %s Zero Balance Categories!?" %(iCountForInactivation))
 
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
@@ -15171,15 +15373,13 @@ now after saving the file, restart Moneydance
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
         MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
-        myPrint("B", "Finished Inactivating %s Categories with Zero Balances..." % iCountForInactivation)
-
-        txt = "FIX - I have set %s Categories with Zero Balances to Inactive as requested!" %(iCountForInactivation)
-        setDisplayStatus(txt, "R")
-        myPopupInformationBox(jif,txt,"INACTIVATE ZERO BALANCE CATEGORIES",JOptionPane.WARNING_MESSAGE)
+        txt = "FIX - %s Categories with Zero Balances made Inactive as requested!" %(iCountForInactivation)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("zero_bal_categories", txt)
         play_the_money_sound()
+        myPopupInformationBox(jif, txt, "INACTIVATE ZERO BALANCE CATEGORIES", JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def fix_account_parent():
 
@@ -15203,7 +15403,7 @@ now after saving the file, restart Moneydance
                 if _acct.getAccountType() == Account.AccountType.ROOT:      return True
                 if _acct is None:                                           return False
                 if iterations > 100:                                        return False
-                iterations+=1
+                iterations += 1
                 _acct = _acct.getParentAccount()
                 continue
 
@@ -15213,8 +15413,8 @@ now after saving the file, restart Moneydance
 
         def check_fix_accounts(lFix=False):
 
-            iErrors=0
-            textFixed=""
+            iErrors = 0
+            textFixed = ""
 
             for acct in allAccounts:
 
@@ -15225,7 +15425,7 @@ now after saving the file, restart Moneydance
                 parent = acct.getParentAccount()
                 if ((parent is None or parent == acct)
                         or (parent is not None and parent != root and not validate_path(acct))):
-                    iErrors+=1
+                    iErrors += 1
                     if lFix:
                         myPrint("B","Resetting parent account for %s to root" %(acct.getAccountName()))
                         textFixed+=("Resetting parent account for %s to root\n" %(acct.getAccountName()))
@@ -15240,16 +15440,15 @@ now after saving the file, restart Moneydance
         iCountErrors, x =  check_fix_accounts(lFix=False)
         output += x
 
-        if iCountErrors<1:
+        if iCountErrors < 1:
             txt = "'FIX: Account(s)'s Invalid Parent - CONGRATULATIONS - I found no Invalid parents......."
-            setDisplayStatus(txt, "B")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt)
             return
 
         myPrint("B","FIX - Account(s)' Invalid Parent Accounts - found %s errors..." %(iCountErrors))
 
-        jif=QuickJFrame("VIEW ACCOUNT(s) WITH INVALID PARENT ACCOUNTS", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif=QuickJFrame("VIEW ACCOUNT(s) WITH INVALID PARENT ACCOUNTS", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         if not confirm_backup_confirm_disclaimer(jif, "FIX ACCOUNT(S)' INVALID PARENTS","FIX %s Acct(s)'s Invalid Parent Accts?" %(iCountErrors)):
             return
@@ -15274,15 +15473,16 @@ now after saving the file, restart Moneydance
         root = MD_REF.getRootAccount()
         MD_REF.getCurrentAccount().getBook().notifyAccountModified(root)
 
-        play_the_money_sound()
         txt = "FIXED %s invalid Parent Accounts" %(iCountErrors)
-        setDisplayStatus(txt, "DG")
-        myPrint("B", txt)
-        jif = QuickJFrame("VIEW ACCOUNT(s) WITH INVALID PARENT ACCOUNTS", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        setDisplayStatus(txt, "DG"); myPrint("B", txt)
+        logToolboxUpdates("fix_account_parent", txt)
+
+        jif = QuickJFrame("VIEW ACCOUNT(s) WITH INVALID PARENT ACCOUNTS", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+
+        play_the_money_sound()
         myPopupInformationBox(jif,txt, "FIX INVALID PARENT ACCOUNTS", JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def fix_root_account_name():
 
@@ -15323,12 +15523,12 @@ now after saving the file, restart Moneydance
 
         MD_REF.getCurrentAccount().getBook().notifyAccountModified(root)
 
-        myPrint("B", "Root account renamed to: %s" % (bookName))
-        play_the_money_sound()
-
         txt = "Root Account Name changed to : %s" %(bookName)
-        setDisplayStatus(txt, "R")
-        myPopupInformationBox(toolbox_frame_,txt,"RENAME ROOT",JOptionPane.WARNING_MESSAGE)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("fix_root_account_name", txt)
+
+        play_the_money_sound()
+        myPopupInformationBox(toolbox_frame_, txt, "RENAME ROOT", JOptionPane.WARNING_MESSAGE)
 
     # noinspection PyUnresolvedReferences
     def force_change_account_type():
@@ -15336,7 +15536,7 @@ now after saving the file, restart Moneydance
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         # set_account_type.py
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to FORCE change an Account's Type?",
                              theTitle="FORCE CHANGE TYPE",
                              theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
@@ -15411,7 +15611,7 @@ now after saving the file, restart Moneydance
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to FORCE change this Account's Type?",
                              theTitle="FORCE CHANGE TYPE",
                              theMessage="Account: %s\n"
@@ -15432,14 +15632,14 @@ now after saving the file, restart Moneydance
             return
 
         myPrint("B","@@ User requested to Force Change the Type of Account: %s from: %s to %s - APPLYING UPDATE NOW...."
-                %(selectedAccount.getFullAccountName(),selectedAccount.getAccountType(),selectedType))          # noqa
+                %(selectedAccount.getFullAccountName(),selectedAccount.getAccountType(),selectedType))                  # noqa
 
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
-        selectedAccount.setAccountType(selectedType)                                                            # noqa
-        selectedAccount.syncItem()                                                                              # noqa
+        selectedAccount.setAccountType(selectedType)                                                                    # noqa
+        selectedAccount.syncItem()                                                                                      # noqa
 
         MD_REF.saveCurrentAccount()
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
@@ -15450,6 +15650,7 @@ now after saving the file, restart Moneydance
 
         txt = "The Account: %s has been changed to Type: %s - PLEASE REVIEW & THEN MANUALLY RESTART MD" %(selectedAccount.getAccountName(),selectedAccount.getAccountType())  # noqa
         setDisplayStatus(txt, "R")
+        logToolboxUpdates("force_change_account_type", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
@@ -15459,7 +15660,7 @@ now after saving the file, restart Moneydance
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         # force_change_account_currency.py
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to FORCE change an Account's / Category's Currency?",
                              theTitle="FORCE CHANGE CURRENCY",
                              theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
@@ -15480,7 +15681,7 @@ now after saving the file, restart Moneydance
             return
         del ask
 
-        currencies=[]
+        currencies = []
         book = MD_REF.getCurrentAccountBook()
         allCurrencies = book.getCurrencies().getAllCurrencies()
         for c in allCurrencies:
@@ -15526,7 +15727,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to FORCE change this Account's / Category's Currency?",
                              theTitle="FORCE CHANGE CURRENCY",
                              theMessage="Account: %s\n"
@@ -15566,6 +15767,7 @@ now after saving the file, restart Moneydance
         txt = "Account/Category: %s has been changed to Curr: %s - PLEASE REVIEW & THEN MANUALLY RESTART MD WHEN FINISHED"\
               %(selectedAccount.getAccountName(),selectedAccount.getCurrencyType())
         setDisplayStatus(txt, "R")
+        logToolboxUpdates("force_change_account_cat_currency", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
@@ -15576,7 +15778,7 @@ now after saving the file, restart Moneydance
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         # force_change_all_currencies.py
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to FORCE change ALL Accounts' / Categories' Currencies?",
                              theTitle="FORCE CHANGE ALL ACCOUNTS' / CATEGORYS' CURRENCIES",
                              theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
@@ -15601,7 +15803,7 @@ now after saving the file, restart Moneydance
         accounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(19))
         accounts = sorted(accounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
 
-        currencies=[]
+        currencies = []
         book = MD_REF.getCurrentAccountBook()
         allCurrencies = book.getCurrencies().getAllCurrencies()
         for c in allCurrencies:
@@ -15667,8 +15869,8 @@ now after saving the file, restart Moneydance
         MD_REF.getCurrentAccount().getBook().notifyAccountModified(root)
 
         txt = "FORCE CHANGE ALL ACCOUNTS' / CATEGORIES' CURRENCIES: %s Accts / Cats changed to curr: %s - MONEYDANCE WILL NOW RESTART - PLEASE REVIEW RESULTS" %(accountsChanged,selectedCurrency)
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("force_change_all_accounts_categories_currencies", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
@@ -15812,8 +16014,8 @@ now after saving the file, restart Moneydance
         txt = ("%s: %s Accts / Cats, and %s Securities, changed from curr: %s to %s - MD WILL RESTART - PLEASE REVIEW RESULTS"
                %(_THIS_METHOD_NAME, len(replaceAccts), len(replaceSecurities), selectedFromCurrency, selectedToCurrency))
 
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("force_change_accounts_cats_from_to_currency", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
@@ -15847,14 +16049,14 @@ now after saving the file, restart Moneydance
 
         if iErrors < 1:
             txt = u"FIX INVALID REL CURR RATES: You have no relative rates <= %s or >= %s to fix - NO CHANGES MADE" %((1.0 / upperLimit),upperLimit)
-            setDisplayStatus(txt, "B")
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_, txt, u"FIX INVALID REL CURR RATES")
             return
 
-        jif=QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         # force_change_account_currency.py
-        ask=MyPopUpDialogBox(jif,
+        ask = MyPopUpDialogBox(jif,
                              theStatus=u"Are you sure you want to FIX these %s INVALID RELATIVE CURRENCIES?" %iErrors,
                              theTitle=u"FIX INVALID RELATIVE CURRENCIES",
                              theMessage=u"Do not proceed unless you know you want to do this....!\n"
@@ -15902,15 +16104,16 @@ now after saving the file, restart Moneydance
 
         output += "\n<END"
 
-        jif = QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES",output,copyToClipboard=lCopyAllToClipBoard_TB,lRestartMDAfterClose=True).show_the_frame()
+        jif = QuickJFrame(u"FIX INVALID RELATIVE CURRENCIES", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lRestartMDAfterClose=True).show_the_frame()
 
         txt = u"%s Invalid Currency relative rates reset to 1.0 - MD WILL RESTART AFTER VIEWING THIS OUTPUT" %(iErrors)
-        setDisplayStatus(txt, "R")
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates(u"fix_invalid_relative_currency_rates", txt)
+        disableToolboxButtons()
         play_the_money_sound()
         myPopupInformationBox(jif,txt, u"FIX INVALID RELATIVE CURRENCIES", theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint(u"D", u"Exiting ", inspect.currentframe().f_code.co_name, u"()")
-        return
 
     def fix_invalid_price_history():
 
@@ -15944,8 +16147,7 @@ now after saving the file, restart Moneydance
 
         if len(badSnaps) < 1:
             txt = "CONGRATULATIONS >> No snaps with 'wild' rates (out of %s good found) found! No changes made!" %(iGood)
-            myPrint("DB", txt)
-            setDisplayStatus(txt, "B")
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt)
             return
 
@@ -15959,9 +16161,9 @@ now after saving the file, restart Moneydance
         txt = "Bad snaps with 'wild' rates found: %s" %(len(badSnaps))
         myPrint("B", txt); output += "%s\n" %(txt)
 
-        jif = QuickJFrame("FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
-        ask=MyPopUpDialogBox(jif,
+        ask = MyPopUpDialogBox(jif,
                              theStatus="Are you sure you want to DELETE these %s INVALID PRICE HISTORY RECORDS?" %(len(badSnaps)),
                              theTitle="FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",
                              theMessage="Do not proceed unless you know you want to do this....!\n"
@@ -15988,10 +16190,12 @@ now after saving the file, restart Moneydance
         myPrint("B", txt); output += "%s\n\n" %(txt)
 
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+        SyncerDebug.changeState(debug)
 
         output += "Logging snaps with 'wild' rates for deletion....\n"
         MD_REF.getCurrentAccount().getBook().logRemovedItems(badSnaps)
 
+        SyncerDebug.resetState()
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
 
         output += "Flushing dataset changes in memory back to disk....\n"
@@ -15999,22 +16203,22 @@ now after saving the file, restart Moneydance
 
         txt = "%s snaps with 'wild' rates DELETED." %(len(badSnaps))
         myPrint("B", txt); output += "%s\n\n" %(txt)
+        logToolboxUpdates("fix_invalid_price_history", txt)
 
         output += "\n<END>"
 
         setDisplayStatus(txt, "R")
         play_the_money_sound()
-        jif = QuickJFrame("FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("FIX - DELETE INVALID PRICE HISTORY WITH 'WILD' RATES",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
         myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, u"()")
-        return
 
     def reverse_txn_amounts():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         # reverse_txn_amounts.py
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to REVERSE Transaction amounts on an Account's Transactions (between two dates)?",
                              theTitle="REVERSE TRANSACTIONAL AMOUNTS",
                              theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
@@ -16126,13 +16330,12 @@ now after saving the file, restart Moneydance
         MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
         txt = "REVERSE %s Txns Amounts on Account %s between %s - %s COMPLETED - PLEASE REVIEW" %(iTxnsFound,selectedAccount,convertStrippedIntDateFormattedText(startDate), convertStrippedIntDateFormattedText(endDate))
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("reverse_txn_amounts", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def reverse_txn_exchange_rates_by_account_and_date():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -16280,13 +16483,12 @@ now after saving the file, restart Moneydance
 
         txt = "REVERSE %s Txns Exchange Rates on Account %s between %s - %s COMPLETED - PLEASE REVIEW"\
               %(iTxnsFound,selectedAccount,convertStrippedIntDateFormattedText(startDate), convertStrippedIntDateFormattedText(endDate))
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("reverse_txn_exchange_rates_by_account_and_date", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def isSplitTxnAccountAssignedRoot(_txn, _fix=False, _accounts=None, _fixAcctType=None):
         if _fix and (_accounts is None or _fixAcctType is None):
@@ -16342,7 +16544,6 @@ now after saving the file, restart Moneydance
             else:
                 _countValid += 1
         return _countValid, _countAssignedRoot, _countInvestmentAssignedRoot
-
 
     def detect_fix_txns_assigned_root():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -16476,8 +16677,8 @@ now after saving the file, restart Moneydance
                                 ".....>> NEEDS MANUAL INVESTIGATION'\n"
 
         txt = "%s: AUTO-FIX applied to %s Parent txns [%s investment txn(s)]" %(_THIS_METHOD_NAME, countAssignedRoot, countInvestmentAssignedRoot)
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("detect_fix_txns_assigned_root", txt)
         play_the_money_sound()
         MyPopUpDialogBox(toolbox_frame_,
                          theStatus=txt,
@@ -16543,16 +16744,8 @@ now after saving the file, restart Moneydance
         if MD_REF.getCurrentAccount().getBook().getSyncer() is None: return
         if MD_REF.getCurrentAccount().getBook().getSyncer().getSyncedDocument() is None: return
 
-        if GlobalVars.lMustRestartAfterSnapChanges:
-            x="Sorry - you have to RESTART MD after running 'FIX - Thin/Purge Price History' to update the csnap cache....."
-            myPrint("B",x)
-            setDisplayStatus(x, "R")
-            myPopupInformationBox(toolbox_frame_,x,"FIX - THIN/PURGE PRICE HISTORY",JOptionPane.ERROR_MESSAGE)
-            return
-
         txt = "Purge/Thin Price History"
         if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
-
 
         # prune historical exchange rates and price history from the given currency
         # this thins price history older than a year by keeping no more than one price per week
@@ -16567,22 +16760,22 @@ now after saving the file, restart Moneydance
             text = "Objects by type summary:\n"
             objectTypes = [ CurrencyType.SYNCABLE_TYPE_VALUE, CurrencySnapshot.SYNCABLE_TYPE_VALUE, CurrencySplit.SYNCABLE_TYPE_VALUE]
             for objectType in objectTypes:
-                xx=""
-                if objectType == CurrencyType.SYNCABLE_TYPE_VALUE: xx=" (Currency/Security records)"                     # noqa
-                if objectType == CurrencySnapshot.SYNCABLE_TYPE_VALUE: xx=" (Currency/Security price history records)"   # noqa
-                if objectType == CurrencySplit.SYNCABLE_TYPE_VALUE: xx=" (Security Stock Split records)"                 # noqa
+                xx = ""
+                if objectType == CurrencyType.SYNCABLE_TYPE_VALUE: xx = " (Currency/Security records)"                     # noqa
+                if objectType == CurrencySnapshot.SYNCABLE_TYPE_VALUE: xx = " (Currency/Security price history records)"   # noqa
+                if objectType == CurrencySplit.SYNCABLE_TYPE_VALUE: xx = " (Security Stock Split records)"                 # noqa
                 objects = MD_REF.getCurrentAccount().getBook().getItemsWithType(objectType)
-                text+="  %s: %s %s\n"%(pad(objectType,9), rpad(len(objects),12), xx)
-            text+="\n"
+                text+="  %s: %s %s\n"%(pad(objectType, 9), rpad(len(objects), 12), xx)
+            text += "\n"
             return text
 
         diagDisplay += objects_by_type()
 
         def hunt_down_orphans():
             # Hunt down the poor little orphans...!
-            orphanSnaps = totalSnaps = 0                                                                        # noqa
+            orphanSnaps = totalSnaps = 0                                                                                # noqa
             text = ""
-            saveRawSnaps={}
+            saveRawSnaps = {}
             for mdItem in MD_REF.getRootAccount().getBook().getSyncer().getSyncedDocument().allItems():
                 if not (isinstance(mdItem, MoneydanceSyncableItem)): continue
                 if mdItem.getParameter("obj_type", None) != CurrencySnapshot.SYNCABLE_TYPE_VALUE: continue
@@ -16593,9 +16786,9 @@ now after saving the file, restart Moneydance
                 for snap in snapshots:
                     saveRawSnaps.pop(snap.getParameter("id"))
 
-            oList=[]
-            if len(saveRawSnaps)>0:
-                lAllValid=True
+            oList = []
+            if len(saveRawSnaps) > 0:
+                lAllValid = True
                 for _value in saveRawSnaps.values():
                     if not _value.getCurrencyParameter(None, "curr", None): lAllValid=False
                     oList.append(_value)
@@ -16649,26 +16842,26 @@ now after saving the file, restart Moneydance
             _currencies = sorted(_currencies, key=lambda sort_x: (sort_x.getName().upper()))
             lastC = None
             # noinspection PyUnresolvedReferences
-            iAll=iCurrs=iSecs=0
-            for theCType in [CurrencyType.Type.CURRENCY, CurrencyType.Type.SECURITY]:                           # noqa
+            iAll = iCurrs = iSecs = 0
+            for theCType in [CurrencyType.Type.CURRENCY, CurrencyType.Type.SECURITY]:                                   # noqa
                 for _currency in _currencies:
                     if _currency.getCurrencyType() != theCType: continue
-                    iAll+=1
-                    if _currency.getCurrencyType() == CurrencyType.Type.CURRENCY: iCurrs+=1                     # noqa
-                    if _currency.getCurrencyType() == CurrencyType.Type.SECURITY: iSecs+=1                      # noqa
+                    iAll += 1
+                    if _currency.getCurrencyType() == CurrencyType.Type.CURRENCY: iCurrs+=1                             # noqa
+                    if _currency.getCurrencyType() == CurrencyType.Type.SECURITY: iSecs+=1                              # noqa
                     if lastC != _currency.getCurrencyType():
-                        text+="\n%s:\n" % _currency.getCurrencyType()
+                        text += "\n%s:\n" % _currency.getCurrencyType()
                         lastC = _currency.getCurrencyType()
                     _snapshots = _currency.getSnapshots()
-                    text+="  %s (snapshots: %s, splits: %s)\n" %(pad(_currency.getName(), 45), rpad(_snapshots.size(),10), rpad(_currency.getSplits().size(),10))
+                    text += "  %s (snapshots: %s, splits: %s)\n" %(pad(_currency.getName(), 45), rpad(_snapshots.size(),10), rpad(_currency.getSplits().size(),10))
 
-            text+="\n-----\nTotal Curr/Sec listed: %s Currencies: %s Securities: %s\n" %(iAll,iCurrs,iSecs)
+            text += "\n-----\nTotal Curr/Sec listed: %s Currencies: %s Securities: %s\n" %(iAll,iCurrs,iSecs)
 
             return text
 
         diagDisplay += snaps_by_currency()
 
-        def does_base_has_snaps(lDelete=False,lVerbose=True):
+        def does_base_has_snaps(lDelete=False, lVerbose=True):
 
             baseCurr = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
             baseSnapshots = baseCurr.getSnapshots()
@@ -16696,10 +16889,10 @@ now after saving the file, restart Moneydance
         x, y = does_base_has_snaps()
         diagDisplay += x
 
-        jif = QuickJFrame("Price History Analysis", diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("Price History Analysis", diagDisplay,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
 
-        if orphanSnaps>0:
+        if orphanSnaps > 0:
             MyPopUpDialogBox(jif,
                              "YOU HAVE ORPHAN/STRANDED Price History Records - READ THIS FIRST",
                              theMessage="These are either 'Orphaned' records with no Currency linkage;\n"
@@ -16721,14 +16914,14 @@ now after saving the file, restart Moneydance
         # this thins price history older than a year by keeping no more than one price per week
         # prices within the last year (or the age_limit_days parameter) are not removed
 
-        dropdownCurrs=ArrayList()
-        dropdownSecs=ArrayList()
+        dropdownCurrs = ArrayList()
+        dropdownSecs = ArrayList()
         currencies = MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
         for curr in currencies:
-            if curr.getCurrencyType() == CurrencyType.Type.CURRENCY: dropdownCurrs.add(curr)                    # noqa
-            if curr.getCurrencyType() == CurrencyType.Type.SECURITY: dropdownSecs.add(curr)                     # noqa
-        dropdownCurrs=sorted(dropdownCurrs, key=lambda sort_x: (sort_x.getName().upper()))
-        dropdownSecs=sorted(dropdownSecs, key=lambda sort_x: (sort_x.getName().upper()))
+            if curr.getCurrencyType() == CurrencyType.Type.CURRENCY: dropdownCurrs.add(curr)                            # noqa
+            if curr.getCurrencyType() == CurrencyType.Type.SECURITY: dropdownSecs.add(curr)                             # noqa
+        dropdownCurrs = sorted(dropdownCurrs, key=lambda sort_x: (sort_x.getName().upper()))
+        dropdownSecs = sorted(dropdownSecs, key=lambda sort_x: (sort_x.getName().upper()))
         dropdownCurrs.insert(0,"<EXCLUDE Currencies>")
         dropdownCurrs.insert(0,"<ALL Currencies>")
         dropdownSecs.insert(0,"<EXCLUDE Securities>")
@@ -17047,7 +17240,7 @@ now after saving the file, restart Moneydance
                 user_purgeOrphans.setForeground(getColorRed())
                 user_purgeOrThinMode.setForeground(getColorRed())
                 labelSTATUS.setText("ERROR: you cannot select both purge Orphans and purge ONLY orphans")
-                paramError=True
+                paramError = True
             else:
                 user_purgeOrphans.setForeground(saveColor)
                 user_purgeOrThinMode.setForeground(saveColor)
@@ -17056,7 +17249,7 @@ now after saving the file, restart Moneydance
                 user_purgeOrphans.setForeground(getColorRed())
                 user_purgeOrThinMode.setForeground(getColorRed())
                 labelSTATUS.setText("ERROR: You have no Orphan records to purge - please deselect these options")
-                paramError=True
+                paramError = True
             else:
                 user_purgeOrphans.setForeground(saveColor)
                 user_purgeOrThinMode.setForeground(saveColor)
@@ -17065,7 +17258,7 @@ now after saving the file, restart Moneydance
                 user_purgeBase.setForeground(getColorRed())
                 user_purgeOrThinMode.setForeground(getColorRed())
                 labelSTATUS.setText("ERROR: you cannot select both delete Base records and delete ONLY base records")
-                paramError=True
+                paramError = True
             else:
                 user_purgeBase.setForeground(saveColor)
                 user_purgeOrThinMode.setForeground(saveColor)
@@ -17074,7 +17267,7 @@ now after saving the file, restart Moneydance
                 user_purgeBase.setForeground(getColorRed())
                 user_purgeOrThinMode.setForeground(getColorRed())
                 labelSTATUS.setText("ERROR: You have no Base Currency snapshot records to delete - please deselect these options")
-                paramError=True
+                paramError = True
             else:
                 user_purgeBase.setForeground(saveColor)
                 user_purgeOrThinMode.setForeground(saveColor)
@@ -17172,7 +17365,7 @@ now after saving the file, restart Moneydance
                 snap_date = snapshot.getDateInt()
 
                 if _i+1 < len(old_snapshots):                        # not at end of the records
-                    safetyDate = old_snapshots[_i+1].getDateInt()    # take a peek at the next record..
+                    safetyDate = old_snapshots[_i + 1].getDateInt()    # take a peek at the next record..
                 else:
                     safetyDate = saveFirstSnapPreserved
 
@@ -17185,7 +17378,7 @@ now after saving the file, restart Moneydance
                     if lDelete:
                         if lVerbose:
                             myPrint("B","%s PRICE HISTORY: Deleting snapshot: %s" %(ThnTxt,repr(snapshot)))
-                        countChanges+=1
+                        countChanges += 1
                         snapshot.deleteItem()
                 else:
                     # don't thin this snapshot, and set the last seen date to it
@@ -17208,12 +17401,12 @@ now after saving the file, restart Moneydance
             lastC = None
             text = ""
 
-            if THIN_MODE: Thn_Txt="THIN"
-            else: Thn_Txt="PURGE"
+            if THIN_MODE: Thn_Txt = "THIN"
+            else: Thn_Txt = "PURGE"
 
             theList = []
-            if incCurrencies: theList.append(CurrencyType.Type.CURRENCY)                                        # noqa
-            if incSecurities: theList.append(CurrencyType.Type.SECURITY)                                        # noqa
+            if incCurrencies: theList.append(CurrencyType.Type.CURRENCY)                                                # noqa
+            if incSecurities: theList.append(CurrencyType.Type.SECURITY)                                                # noqa
 
             for theCType in theList:
 
@@ -17221,10 +17414,10 @@ now after saving the file, restart Moneydance
 
                     if _curr.getCurrencyType() != theCType: continue
 
-                    if (_curr.getCurrencyType() == CurrencyType.Type.CURRENCY                                                  # noqa
+                    if (_curr.getCurrencyType() == CurrencyType.Type.CURRENCY                                           # noqa
                             and incCurrencies and isinstance(incCurrencies,(CurrencyType)) and _curr != incCurrencies):
                         continue
-                    if (_curr.getCurrencyType() == CurrencyType.Type.SECURITY                                                   # noqa
+                    if (_curr.getCurrencyType() == CurrencyType.Type.SECURITY                                           # noqa
                             and incSecurities and isinstance(incSecurities,(CurrencyType)) and _curr != incSecurities):
                         continue
 
@@ -17274,7 +17467,7 @@ now after saving the file, restart Moneydance
 
             del _orphans
 
-            if len(filteredOrphanList)<1:
+            if len(filteredOrphanList) < 1:
                 text += "\nNo *filtered* currency or security snapshots were 'orphans' (duplicates/stranded)\n\n"
             else:
                 text += "\n%s *filtered* currency or security snapshots were 'orphans' (duplicates/stranded)\n\n"%(len(filteredOrphanList))
@@ -17286,7 +17479,7 @@ now after saving the file, restart Moneydance
                             text += "Logging 'Orphan' to delete: %s\n" %(repr(_o))
                             myPrint("B","Logging 'Orphan' to delete: %s" %(repr(_o)))
                     MD_REF.getCurrentAccount().getBook().logRemovedItems(filteredOrphanList)
-                    iPurgeCount+=len(filteredOrphanList)
+                    iPurgeCount += len(filteredOrphanList)
                 else:
                     if lVerbose:
                         for _o in filteredOrphanList: text += "  'Orphan' found: %s\n" %(_o)
@@ -17301,8 +17494,8 @@ now after saving the file, restart Moneydance
         elif purgeBaseONLY: ThnPurgeTxt="PURGE BASE CURRENCY RECORDS"
         else: ThnPurgeTxt="THIN/PURGE"
 
-        if simulate: x="SIMULATE"
-        else: x="DATABASE UPDATE"
+        if simulate: x = "SIMULATE"
+        else: x = "DATABASE UPDATE"
 
         purgingMsg = MyPopUpDialogBox(toolbox_frame_,
                                       "Please wait: Processing your %s request (%s).." %(ThnPurgeTxt,x),
@@ -17347,6 +17540,7 @@ now after saving the file, restart Moneydance
             MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
             MD_REF.getCurrentAccount().getBook().setRecalcBalances(False)
             MD_REF.getUI().setSuspendRefresh(True)
+            SyncerDebug.changeState(debug)
 
         if simulate:
             diagDisplay += "\n ** SIMULATION MODE - NO CHANGES MADE ** \n"
@@ -17369,6 +17563,7 @@ now after saving the file, restart Moneydance
             totalChangesMade += i
 
         if not simulate:
+            SyncerDebug.resetState()
             MD_REF.saveCurrentAccount()
             MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
             MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
@@ -17397,28 +17592,29 @@ now after saving the file, restart Moneydance
         diagDisplay+="\n"
 
         if simulate:
-            x="SIMULATION MODE ONLY"
+            x = "SIMULATION MODE ONLY"
         else:
-            x="UPDATE/%s MODE" %(ThnPurgeTxt)
+            x = "UPDATE/%s MODE" %(ThnPurgeTxt)
 
         if totalChangesMade > 0:
-            GlobalVars.lMustRestartAfterSnapChanges = True
             diagDisplay += ("\n\n *** %s changes were made! ***\n\n" %(totalChangesMade)).upper()
         else:
             diagDisplay += "\n\n *** no changes were made! ***\n\n".upper()
 
-        diagDisplay+="\n%s PRICE HISTORY in %s COMPLETED!\n" %(ThnPurgeTxt,x)
+        diagDisplay+="\n%s PRICE HISTORY in %s COMPLETED!\n" %(ThnPurgeTxt, x)
         diagDisplay+="\n<END>"
 
-        txt = "%s PRICE HISTORY - %s >> Successfully executed (%s changes made)" %(ThnPurgeTxt,x,totalChangesMade)
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        txt = "%s PRICE HISTORY - %s >> Successfully executed (%s changes made)" %(ThnPurgeTxt, x, totalChangesMade)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
 
-        jif = QuickJFrame("Price History Analysis", diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB,
-                          lRestartMDAfterClose=(not simulate and GlobalVars.lMustRestartAfterSnapChanges)).show_the_frame()
+        jif = QuickJFrame("Price History Analysis", diagDisplay, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False,
+                          lRestartMDAfterClose=(not simulate and totalChangesMade > 0)).show_the_frame()
         if simulate:
             MyPopUpDialogBox(jif, "%s PRICE HISTORY - %s >> Successfully executed" %(ThnPurgeTxt,x),"",theTitle="THIN/PRUNE PRICE HISTORY").go()
         else:
+            logToolboxUpdates("thin_price_history", txt)
+            if (not simulate and totalChangesMade > 0): disableToolboxButtons()
+
             if totalChangesMade > 0:
                 play_the_money_sound()
                 MyPopUpDialogBox(jif,
@@ -17430,15 +17626,13 @@ now after saving the file, restart Moneydance
                                  theTitle="THIN/PRUNE PRICE HISTORY").go()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def extract_attachments():
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         _THIS_METHOD_NAME = "EXTRACT ATTACHMENTS"
 
-        ask=MyPopUpDialogBox(toolbox_frame_,"EXTRACT ATTACHMENTS - For Your Information",
+        ask = MyPopUpDialogBox(toolbox_frame_,"EXTRACT ATTACHMENTS - For Your Information",
                              "This will extract all your attachments to a directory....\n"
                              "There is also an extension which will extract attachments alongside your Investment or Bank Account Registers\n"
                              ">> Extension: 'Extract Data' available from MD menu >> Manage Extensions\n"
@@ -17446,8 +17640,7 @@ now after saving the file, restart Moneydance
                              "I will create a sub-directory called 'EXTRACT_MD_ATTACHMENTS-x' (I will append a unique number)",
                              theTitle=_THIS_METHOD_NAME,
                              OKButtonText="PROCEED", lCancelButton=True)
-        if not ask.go():
-            return
+        if not ask.go(): return
 
         while True:
             lExit = False
@@ -17485,7 +17678,7 @@ now after saving the file, restart Moneydance
 
             break
 
-        iSkip=0
+        iSkip = 0
         iCountAttachments = 0
         textLog = "\n%s:\n" \
                   " ===================\n\n" %(_THIS_METHOD_NAME)
@@ -17519,7 +17712,7 @@ now after saving the file, restart Moneydance
                     File(attachFolder).mkdirs()
                     outputPath = os.path.join(attachFolder, "{:04d}-{:02d}-{:02d}-{}-{}".format(txnDate/10000, (txnDate/100)%100,  txnDate%100, str(iCountAttachments).zfill(5), attachFile))
                     if os.path.exists(outputPath):
-                        iSkip+=1
+                        iSkip += 1
                         myPrint("B", "Error - path: %s already exists... SKIPPING THIS ONE!" %outputPath)
                         textLog+=("Error - path: %s already exists... SKIPPING THIS ONE!\n" %outputPath)
                     else:
@@ -17538,13 +17731,13 @@ now after saving the file, restart Moneydance
                             textLog+=("Error extracting file - will SKIP : %s\n" %(outputPath))
                             iSkip+=1
 
-            textRecords=sorted(textRecords, key=lambda _sort: (_sort[0],_sort[1],_sort[2]))
+            textRecords = sorted(textRecords, key=lambda _sort: (_sort[0],_sort[1],_sort[2]))
             for r in textRecords:
-                textLog+=r[3]
+                textLog += r[3]
 
-            if iSkip: textLog+="\nERRORS/SKIPPED: %s (review console log for details)\n" %(iSkip)
+            if iSkip: textLog += "\nERRORS/SKIPPED: %s (review console log for details)\n" %(iSkip)
 
-            textLog+="\n<END>"
+            textLog += "\n<END>"
 
             try:
                 log = open(os.path.join(exportFolder,"Extract_Attachments_LOG.txt"), "w")
@@ -17555,7 +17748,9 @@ now after saving the file, restart Moneydance
             pleaseWait.kill()
 
             txt = "%s: FINISHED: %s attachments extracted (%s skipped)..." %(_THIS_METHOD_NAME,iCountAttachments,iSkip)
-            myPrint("B", txt); setDisplayStatus(txt, "B")
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+
+            logToolboxUpdates("extract_attachments", txt)
             play_the_money_sound()
 
             if iSkip < 1:
@@ -17570,7 +17765,7 @@ now after saving the file, restart Moneydance
 
         else:
             txt = "%s: NO ATTACHMENTS EXTRACTED!" %(_THIS_METHOD_NAME)
-            myPrint("B", txt); setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
 
         return
 
@@ -17599,19 +17794,19 @@ now after saving the file, restart Moneydance
         myPrint("P", "Scanning database for attachment data..")
         book = MD_REF.getCurrentAccount().getBook()
 
-        attachmentList={}
-        attachmentLocations={}
+        attachmentList = {}
+        attachmentLocations = {}
 
-        iObjectsScanned=0
-        iTxnsScanned=0
+        iObjectsScanned = 0
+        iTxnsScanned = 0
 
         iTxnsWithAttachments = 0
         iAttachmentsFound = 0
         iAttachmentsNotInLS = 0
         iDuplicateKeys = 0
-        attachmentsNotInLS=[]
+        attachmentsNotInLS = []
 
-        diagDisplay="ANALYSIS OF ATTACHMENTS\n\n"
+        diagDisplay = "ANALYSIS OF ATTACHMENTS\n\n"
 
         attachmentFullPath = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe", MD_REF.getCurrentAccountBook().getAttachmentsFolder())
 
@@ -17620,16 +17815,16 @@ now after saving the file, restart Moneydance
         txnSet = book.getTransactionSet()
         for _mdItem in txnSet.iterableTxns():
 
-            iObjectsScanned+=1
+            iObjectsScanned += 1
 
-            iTxnsScanned+=1
+            iTxnsScanned += 1
 
             if not (_mdItem.hasAttachments() or len(_mdItem.getAttachmentKeys())>0): continue
 
-            iTxnsWithAttachments+=1
-            x="Found Record with %s Attachment(s): %s" %(len(_mdItem.getAttachmentKeys()),_mdItem)
-            myPrint("D",x)
-            if debug: diagDisplay+=(x+"\n")
+            iTxnsWithAttachments += 1
+            x = "Found Record with %s Attachment(s): %s" %(len(_mdItem.getAttachmentKeys()),_mdItem)
+            myPrint("D", x)
+            if debug: diagDisplay += (x + "\n")
 
             if attachmentList.get(_mdItem.getUUID()):
                 iDuplicateKeys += 1
@@ -17645,17 +17840,17 @@ now after saving the file, restart Moneydance
                 _mdItem.getValue(),
                 _mdItem.getAttachmentKeys()
             ]
-            x="Attachment keys: %s" %_mdItem.getAttachmentKeys()
-            myPrint("D",x)
-            if debug: diagDisplay+=(x+"\n")
+            x = "Attachment keys: %s" %_mdItem.getAttachmentKeys()
+            myPrint("D", x)
+            if debug: diagDisplay += ( x + "\n")
 
             for _key in _mdItem.getAttachmentKeys():
-                iAttachmentsFound+=1
+                iAttachmentsFound += 1
                 if attachmentLocations.get(_mdItem.getAttachmentTag(_key)):
                     iDuplicateKeys += 1
                     x="@@ Error %s already exists in my attachment location list...!?" %_mdItem.getUUID()
                     myPrint("B", )
-                    if debug: diagDisplay+=(x+"\n")
+                    if debug: diagDisplay += (x + "\n")
 
                 attachmentLocations[_mdItem.getAttachmentTag(_key)] = [
                     _mdItem.getAttachmentTag(_key),
@@ -17664,7 +17859,7 @@ now after saving the file, restart Moneydance
                     LS.exists(_mdItem.getAttachmentTag(_key))
                 ]
                 if not LS.exists(_mdItem.getAttachmentTag(_key)):
-                    iAttachmentsNotInLS+=1
+                    iAttachmentsNotInLS += 1
                     attachmentsNotInLS.append([
                         _mdItem.getUUID(),
                         _mdItem.getAccount().getAccountName(),
@@ -17674,13 +17869,13 @@ now after saving the file, restart Moneydance
                         _mdItem.getAttachmentKeys()
                     ])
 
-                    x="@@ Error - Attachment for Txn DOES NOT EXIST! - Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
-                    myPrint("B",x)
-                    diagDisplay+=(x+"\n")
+                    x = "@@ Error - Attachment for Txn DOES NOT EXIST! - Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
+                    myPrint("B", x)
+                    diagDisplay += (x + "\n")
                 else:
-                    x="Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
+                    x = "Attachment tag: %s" %_mdItem.getAttachmentTag(_key)
                     myPrint("D", x)
-                    if debug: diagDisplay+=(x+"\n")
+                    if debug: diagDisplay += (x + "\n")
 
 
         # Now scan the file system for attachments
@@ -17688,7 +17883,7 @@ now after saving the file, restart Moneydance
 
         attachmentsRawListFound = []
 
-        typesFound={}
+        typesFound = {}
 
         for root, dirs, files in os.walk(attachmentFullPath):
 
@@ -17706,15 +17901,15 @@ now after saving the file, restart Moneydance
                     iBytes = typesFound.get(theExtension)[2]
                 typesFound[theExtension] = [theExtension, iCountExtensions+1, iBytes+byteSize ]
 
-                x="Found Attachment File: %s" %theFile
+                x = "Found Attachment File: %s" %theFile
                 myPrint("D", x)
-                if debug: diagDisplay+=(x+"\n")
+                if debug: diagDisplay += (x + "\n")
 
         # Now match file system to the list from the database
-        iOrphans=0
-        iOrphanBytes=0
+        iOrphans = 0
+        iOrphanBytes = 0
 
-        orphanList=[]
+        orphanList = []
 
         for fileDetails in attachmentsRawListFound:
             deriveTheKey = fileDetails[0]
@@ -17722,121 +17917,118 @@ now after saving the file, restart Moneydance
             deriveTheModified = fileDetails[2]
             deriveRawPath = fileDetails[3]
             if attachmentLocations.get(deriveTheKey.replace(os.path.sep,"/")):
-                x="Attachment file system link found in Moneydance database"
+                x = "Attachment file system link found in Moneydance database"
                 myPrint("D", x)
-                if debug: diagDisplay+=(x+"\n")
+                if debug: diagDisplay += (x + "\n")
             else:
-                x="Error: Attachment filesystem link missing in Moneydance database: %s" %deriveTheKey
+                x = "Error: Attachment filesystem link missing in Moneydance database: %s" %deriveTheKey
                 myPrint("DB", x)
-                if debug: diagDisplay+=(x+"\n")
-                iOrphans+=1
-                iOrphanBytes+=deriveTheBytes
+                if debug: diagDisplay += (x + "\n")
+                iOrphans += 1
+                iOrphanBytes += deriveTheBytes
                 if lFix:
                     orphanList.append([deriveTheKey, deriveTheBytes, deriveTheModified, deriveRawPath])
                 else:
                     orphanList.append([deriveTheKey, deriveTheBytes, deriveTheModified])
 
-        msgStr=""
+        msgStr = ""
 
-        myPrint("P","\n"*5)
+        myPrint("P", "\n"*5)
 
-        x="----------------------------------"
+        x = "----------------------------------"
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n")
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n")
 
         x = "Objects scanned: %s" %iObjectsScanned
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n")
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n")
 
-        x="Transactions scanned: %s" %iTxnsScanned
+        x = "Transactions scanned: %s" %iTxnsScanned
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n")
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n")
         x="Transactions with attachments: %s" %iTxnsWithAttachments
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n")
-        x="Total Attachments referenced in Moneydance database (a txn may have multi-attachments): %s" %iAttachmentsFound
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n")
+        x = "Total Attachments referenced in Moneydance database (a txn may have multi-attachments): %s" %iAttachmentsFound
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n")
-        x="Attachments missing from Local Storage: %s" %iAttachmentsNotInLS
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n")
+        x = "Attachments missing from Local Storage: %s" %iAttachmentsNotInLS
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n")
-        x="Total Attachments found in file system: %s (difference %s)" %(len(attachmentsRawListFound),len(attachmentsRawListFound)-iAttachmentsFound)
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n")
+        x = "Total Attachments found in file system: %s (difference %s)" %(len(attachmentsRawListFound),len(attachmentsRawListFound)-iAttachmentsFound)
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n")
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n")
 
-        myPrint("P","\n"*1)
+        myPrint("P", "\n"*1)
 
-        x="Attachment extensions found: %s" %len(typesFound)
+        x = "Attachment extensions found: %s" %len(typesFound)
         myPrint("B", x)
-        diagDisplay+=("\n"+x+"\n")
+        diagDisplay += ("\n" + x + "\n")
 
         iTotalBytes = 0
         sortedExtensions = sorted(typesFound.values(), key=lambda _x: (_x[2]), reverse=True)
 
         for x in sortedExtensions:
-            iTotalBytes+=x[2]
+            iTotalBytes += x[2]
 
-            x="Extension: %s Number: %s Size: %sMB" %(pad(x[0],6),rpad(x[1],12),rpad(round(x[2]/(1000.0 * 1000.0),2),12))
+            x = "Extension: %s Number: %s Size: %sMB" %(pad(x[0],6),rpad(x[1],12),rpad(round(x[2]/(1000.0 * 1000.0),2),12))
             myPrint("B", x)
-            diagDisplay+=(x+"\n")
+            diagDisplay += (x + "\n")
 
-        x="Attachments on disk are taking: %sMB" %(round(iTotalBytes/(1000.0 * 1000.0),2))
+        x = "Attachments on disk are taking: %sMB" %(round(iTotalBytes/(1000.0 * 1000.0),2))
         myPrint("B", x)
-        diagDisplay+=(x+"\n")
-        msgStr+=(x+"\n")
-        x="----------------------------------"
+        diagDisplay += (x + "\n")
+        msgStr += (x + "\n")
+        x = "----------------------------------"
         myPrint("B", x)
-        msgStr+=(x+"\n")
-        diagDisplay+=(x+"\n\n")
+        msgStr += (x + "\n")
+        diagDisplay += (x + "\n\n")
 
-        lErrors=False
+        lErrors = False
         if iAttachmentsNotInLS:
             x = "@@ ERROR: You have %s missing attachment(s) referenced on Moneydance Txns!" %(iAttachmentsNotInLS)
-            msgStr+=x+"\n"
-            diagDisplay+=(x+"\n\n")
-            myPrint("P","")
-            myPrint("B",x)
-            setDisplayStatus(x.upper(),"R")
-            lErrors=True
-            attachmentsNotInLS=sorted(attachmentsNotInLS, key=lambda _x: (_x[3]), reverse=False)
+            msgStr += x + "\n"
+            diagDisplay += (x + "\n\n")
+            myPrint("P", "")
+            setDisplayStatus(x.upper(), "R"); myPrint("B", x)
+            lErrors = True
+            attachmentsNotInLS = sorted(attachmentsNotInLS, key=lambda _x: (_x[3]), reverse=False)
             for theOrphanRecord in attachmentsNotInLS:
-                x="Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
+                x = "Attachment is missing from this Txn: AcctType: %s Account: %s Date: %s Value: %s AttachKey: %s" %(theOrphanRecord[1],
                                                                                                                      theOrphanRecord[2],
                                                                                                                      convertStrippedIntDateFormattedText(theOrphanRecord[3]),
                                                                                                                      theOrphanRecord[4],
                                                                                                                      theOrphanRecord[5])
                 myPrint("B", x)
-                diagDisplay+=(x+"\n")
-            diagDisplay+="\n"
+                diagDisplay += (x + "\n")
+            diagDisplay += "\n"
 
         if iOrphans:
             x = "@@ ERROR: %s Orphan attachment(s) found, taking up %sMBs" %(iOrphans,round(iOrphanBytes/(1000.0 * 1000.0),2))
-            msgStr+=x+"\n"
-            diagDisplay+=(x+"\n\n")
-            myPrint("P","")
-            setDisplayStatus(x.upper(),"R")
-
-            myPrint("B",x)
-            x="Base Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
-            myPrint("B",x)
-            diagDisplay+=(x+"\n")
-            lErrors=True
-            orphanList=sorted(orphanList, key=lambda _x: (_x[2]), reverse=False)
+            msgStr += x + "\n"
+            diagDisplay += (x + "\n\n")
+            myPrint("P", "")
+            setDisplayStatus(x.upper(), "R"); myPrint("B", x)
+            x = "Base Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
+            myPrint("B", x)
+            diagDisplay += (x + "\n")
+            lErrors = True
+            orphanList = sorted(orphanList, key=lambda _x: (_x[2]), reverse=False)
 
             for theOrphanRecord in orphanList:
 
                 try:
-                    x="Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" %(rpad(round(theOrphanRecord[1]/(1000.0),1),6),
+                    x = "Orphaned Attachment >> Txn Size: %sKB Modified %s for file: %s" %(rpad(round(theOrphanRecord[1]/(1000.0),1),6),
                                                                                          pad(theOrphanRecord[2],19),
                                                                                          theOrphanRecord[0])
-                    diagDisplay+=(x+"\n")
+                    diagDisplay += (x + "\n")
                     myPrint("B", x)
 
                 except:
@@ -17848,15 +18040,14 @@ now after saving the file, restart Moneydance
 
         if not lErrors:
             x = "Congratulations! - No orphan attachments detected!".upper()
-            myPrint("B",x)
-            diagDisplay+=(x+"\n")
-            setDisplayStatus(x.upper(),"B")
+            diagDisplay += (x + "\n")
+            setDisplayStatus(x.upper(), "B"); myPrint("B", x)
 
         if iAttachmentsFound:
-            diagDisplay+="\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
-            diagDisplay+=" ======================================\n"
-            x="\nBase Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
-            diagDisplay+=(x+"\n-----------\n")
+            diagDisplay += "\n\nLISTING VALID ATTACHMENTS FOR REFERENCE\n"
+            diagDisplay += " ======================================\n"
+            x = "\nBase Attachment Directory is: %s" %os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","")
+            diagDisplay += (x + "\n-----------\n")
 
             for validLocation in attachmentLocations:
                 locationRecord = attachmentLocations[validLocation]
@@ -17881,7 +18072,7 @@ now after saving the file, restart Moneydance
 
         scanningMsg.kill()
 
-        jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+        jif = QuickJFrame("ATTACHMENT ANALYSIS",diagDisplay,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
 
         if iOrphans:
             if lFix:
@@ -17920,7 +18111,7 @@ now after saving the file, restart Moneydance
                                       OKButtonText="OK",
                                       lAlertLevel=0)
 
-        myPrint("P","\n"*2)
+        myPrint("P", "\n"*2)
 
         if iOrphans and not lFix:
             if theMsg.go():                                                                                             # noqa
@@ -17973,13 +18164,13 @@ now after saving the file, restart Moneydance
 
                     try:
                         os.remove(theOrphanRecord[3])
-                        x="DELETED ORPHAN: %s" %(theOrphanRecord[3])
-                        myPrint("B",x)
-                        diagDisplay+=(x+"\n")
+                        x = "DELETED ORPHAN: %s" %(theOrphanRecord[3])
+                        myPrint("B", x)
+                        diagDisplay += (x + "\n")
                     except:
-                        x="@@ FAILED TO DELETE ORPHAN: %s" %(theOrphanRecord[3])
-                        myPrint("B",x)
-                        diagDisplay+=(x+"\n")
+                        x = "@@ FAILED TO DELETE ORPHAN: %s" %(theOrphanRecord[3])
+                        myPrint("B", x)
+                        diagDisplay += (x + "\n")
 
                 diagDisplay += ("Now removing empty attachment folder structures from disk......")
                 if removeEmptyDirs(attachmentFullPath):
@@ -17988,32 +18179,24 @@ now after saving the file, restart Moneydance
                     diagDisplay += ("Hit an error (review console log)")
 
                 diagDisplay+=("\n\n<END>\n")
-                jif = QuickJFrame("ATTACHMENT ANALYSIS & ORPHAN DELETION",diagDisplay,lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lJumpToEnd=True).show_the_frame()
+                jif = QuickJFrame("ATTACHMENT ANALYSIS & ORPHAN DELETION", diagDisplay, lAlertLevel=1, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lJumpToEnd=True).show_the_frame()
                 txt = "%s Orphan Attachments deleted from disk" %(iOrphans)
-                myPrint("B", txt)
-                setDisplayStatus(txt, "R")
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("diagnose_attachments", txt)
+                play_the_money_sound()
                 myPopupInformationBox(jif, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             else:
                 jif.dispose()
                 txt = "User declined disclaimer - no orphans deleted!"
-                myPrint("B",txt)
-                diagDisplay+=("\n"+txt+"\n"+"<END>\n")
-                setDisplayStatus(txt, "R")
-                jif = QuickJFrame("ATTACHMENT ANALYSIS & ORPHAN DELETION",diagDisplay,lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False,lJumpToEnd=True).show_the_frame()
+                diagDisplay += ("\n" + txt + "\n" + "<END>\n")
+                setDisplayStatus(txt, "R"); myPrint("B",txt)
+                jif = QuickJFrame("ATTACHMENT ANALYSIS & ORPHAN DELETION",diagDisplay,lAlertLevel=1, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False,lJumpToEnd=True).show_the_frame()
                 myPopupInformationBox(jif, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
-
-        del orphanList
-        del attachmentList
-        del attachmentLocations
-        del typesFound
-        del attachmentsRawListFound
-        del attachmentsNotInLS
 
         toolbox_frame_.toFront()
         jif.toFront()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     # noinspection PyUnresolvedReferences
     def detect_fix_nonlinked_investment_security_records():
@@ -18025,8 +18208,7 @@ now after saving the file, restart Moneydance
 
         if len(nonLinkedSecurityAccounts) < 1:
             txt = "Congratulations - No Investment Security Accounts not properly linked to a Security Master were detected - No changes made!"
-            setDisplayStatus(txt, "B")
-            myPrint("DB",txt)
+            setDisplayStatus(txt, "B"); myPrint("DB",txt)
             myPopupInformationBox(toolbox_frame_,txt)
             return
 
@@ -18056,8 +18238,7 @@ now after saving the file, restart Moneydance
 
         if len(securities) < 1:
             txt = "ERROR - You seem to have no Security Master records to link to - Create one first (Tools>Securities) - No changes made!"
-            setDisplayStatus(txt, "B")
-            myPrint("DB",txt)
+            setDisplayStatus(txt, "B"); myPrint("DB",txt)
             myPopupInformationBox(toolbox_frame_,txt)
             return
 
@@ -18090,13 +18271,12 @@ now after saving the file, restart Moneydance
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
 
         txt = "Fix/reassign Security (Sub Account) completed. Now reports '%s'. Please Check results" %(selectedSecSubAcct)
-        myPrint("B", txt)
-        setDisplayStatus(txt, "DG")
+        setDisplayStatus(txt, "DG"); myPrint("B", txt)
+        logToolboxUpdates("detect_fix_nonlinked_investment_security_records", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def fix_invalidLotRecords():
 
@@ -18196,8 +18376,7 @@ now after saving the file, restart Moneydance
 
         if not lLotErrors:
             txt = "Congratulations. No Buy/Sell matched LOT errors detected"
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
             return
 
@@ -18213,9 +18392,8 @@ now after saving the file, restart Moneydance
                                OKButtonText="PROCEED")
         if not ask.go():
             _txt = "%s: - User Aborted - No changes made!" %(_THIS_METHOD_NAME)
-            myPrint("B", _txt)
-            setDisplayStatus(_txt, "R")
-            _jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            setDisplayStatus(_txt, "R"); myPrint("B", _txt)
+            _jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(_jif, _txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
@@ -18258,18 +18436,17 @@ now after saving the file, restart Moneydance
         diag.kill()
 
         output += "\n\n%s transactions corrected (invalid LOT data has been wiped)...\n\n" %(len(securityTxnsToFix))
-        jif = QuickJFrame(_THIS_METHOD_NAME,output, lWrapText=False, lJumpToEnd=True, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame(_THIS_METHOD_NAME,output, lWrapText=False, lJumpToEnd=True, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
 
         txt = "%s: Completed. Please Check results and manually address any Buy/Sell LOT matching that needs to be resolved" %(_THIS_METHOD_NAME)
-        myPrint("B", txt)
-        setDisplayStatus(txt, "DG")
+        setDisplayStatus(txt, "DG"); myPrint("B", txt)
+        logToolboxUpdates("fix_invalidLotRecords", txt)
         play_the_money_sound()
         myPopupInformationBox(jif, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     # noinspection PyUnresolvedReferences
     def edit_security_decimal_places():
@@ -18429,7 +18606,7 @@ now after saving the file, restart Moneydance
             else:
                 output += "\nNOTE: No Invalid Lot Control/Cost Basis records were detected before any changes made....\n\n"
 
-            jif = QuickJFrame(("%s: Accounts, Txns, Balance Analysis" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(("%s: Accounts, Txns, Balance Analysis" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
             if (iTotalBalance + iTotalTxns + len(securitySubAccountsNeedChanging)) == 0:
                 txt = "NOTE - No related accounts, txns, balances were found for this security!"
@@ -18461,7 +18638,7 @@ now after saving the file, restart Moneydance
             myPrint("B", txt); output += "\n%s\n" %(txt)
 
             decimalAdjustmentMethod = "expand"
-            jif = QuickJFrame(("%s: Decimal Strategy" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(("%s: Decimal Strategy" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
             if newDecimal < securityToEdit.getDecimalPlaces():
 
@@ -18506,9 +18683,8 @@ now after saving the file, restart Moneydance
                                            OKButtonText="PROCEED")
                     if not ask.go():
                         txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
-                        myPrint("B",txt)
-                        setDisplayStatus(txt, "R")
-                        jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                        setDisplayStatus(txt, "R"); myPrint("B",txt)
+                        jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                         myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                         return
 
@@ -18535,9 +18711,8 @@ now after saving the file, restart Moneydance
                                    OKButtonText="PROCEED")
             if not ask.go():
                 txt = "%s... User Aborted - No changes made!" %(_THIS_METHOD_NAME)
-                myPrint("B",txt)
-                setDisplayStatus(txt, "R")
-                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                setDisplayStatus(txt, "R"); myPrint("B",txt)
+                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -18554,7 +18729,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -18746,7 +18921,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -18814,22 +18989,23 @@ now after saving the file, restart Moneydance
             output += "\n\n *** PLEASE CHECK YOUR PORTFOLIO VIEW & REPORTS TO BALANCES & THEN RESTART MONEYDANCE ***\n\n"
             output += "\n<END>"
 
+            logToolboxUpdates("edit_security_decimal_places", txt)
+
         except:
             txt = ("ERROR - %s crashed after the edit actions. Please review output, console, and VERIFY YOUR DATASET!" %(_THIS_METHOD_NAME)).upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
-        jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+        jif = QuickJFrame(txt,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
         setDisplayStatus(txt, optionColor)
         play_the_money_sound()
         myPopupInformationBox(jif,txt,theMessageType=optionMessage)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def fix_duplicate_securities_within_same_investment_account():
 
@@ -18995,12 +19171,12 @@ now after saving the file, restart Moneydance
         txt = "SUCCESS / FINISHED - Please review your investment portfolios"
         output += "\n%s\n" %(txt)
         setDisplayStatus(txt, "B"); myPrint("B", txt)
+        logToolboxUpdates("fix_duplicate_securities_within_same_investment_account", txt)
         play_the_money_sound()
         jif = QuickJFrame(_THIS_METHOD_NAME, output, lJumpToEnd=True, lWrapText=False).show_the_frame()
         myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     # noinspection PyUnresolvedReferences
     def merge_duplicate_securities():
@@ -19236,7 +19412,7 @@ now after saving the file, restart Moneydance
                 setDisplayStatus(txt, "R")
                 output += "\n<END>"
                 if lShowOutput:
-                    jif=QuickJFrame(txt, output, lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                    jif=QuickJFrame(txt, output, lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                     myPopupInformationBox(jif,txt)
                 else:
                     myPopupInformationBox(toolbox_frame_,txt)
@@ -19314,7 +19490,7 @@ now after saving the file, restart Moneydance
 
             output += "\n"
 
-            jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("%s: Candidates" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
             tickerToMerge = JOptionPane.showInputDialog(jif,
                                                          "Select Ticker / Security set to merge (sorted by Name, Ticker, ID)",
@@ -19567,7 +19743,7 @@ now after saving the file, restart Moneydance
                 txt = "\n\n INVESTMENT ACCOUNT: SECURITY HOLDING VALIDATION FAILED - CANNOT PROCEED! Review the report on screen for details.\n"
                 myPrint("DB", txt); output += "\n\n%s\n" %(txt)
                 setDisplayStatus(txt, "R")
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -19594,7 +19770,7 @@ now after saving the file, restart Moneydance
                 output += "Master Security has %s Price History records, the others have %s - STRATEGY REQUIRED...\n" %(primarySnaps, allOtherSnaps)
 
             if lSnapshotActionRequired:
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
 
                 options = ["Keep Master's %s Price History Records Only (dump the other's %s records)"  %(primarySnaps, allOtherSnaps),
                            "Merge all other %s history records into master's (currently holds %s)"      %(allOtherSnaps, primarySnaps),
@@ -19677,7 +19853,7 @@ now after saving the file, restart Moneydance
 
             selectedCUSIP = None
             if lCUSIPActionRequired:
-                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+                jif = QuickJFrame("Merge duplicate securities (by Ticker): REPORT/LOG",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
 
                 class StoreCUSIP:
                     def __init__(self, _objScheme, _objCUSIP):
@@ -19730,7 +19906,7 @@ now after saving the file, restart Moneydance
             output += "\n------\n"
 
 
-            jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
             ask = MyPopUpDialogBox(jif,
                                    "%s: REVIEW DIAGNOSTIC BELOW - THEN CLICK PROCEED TO EXECUTE THE SECURITY MERGE" %(_THIS_METHOD_NAME.upper()),
                                    output,
@@ -19739,8 +19915,7 @@ now after saving the file, restart Moneydance
                                    OKButtonText="PROCEED")
             if not ask.go():
                 txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
-                myPrint("B",txt)
-                setDisplayStatus(txt, "R")
+                setDisplayStatus(txt, "R"); myPrint("B",txt)
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -19775,7 +19950,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -19805,7 +19980,9 @@ now after saving the file, restart Moneydance
                     getSnaps = primary.getSnapshots()
                     txt = "Deleting %s price history records from %s" %(getSnaps.size(), getSecurityNameAndID(primary))
                     myPrint("B",txt); output += "%s\n" %(txt)
+                    SyncerDebug.changeState(debug)
                     for snap in getSnaps: snap.deleteItem()
+                    SyncerDebug.resetState()
 
                 if lSnapsMergeAll or lSnapsDumpMaster:
                     for security in tickerToMerge.getSecurityListWithoutPrimary():
@@ -19832,7 +20009,9 @@ now after saving the file, restart Moneydance
                     getSnaps = security.getSnapshots()
                     txt = "Now Deleting %s price history records from %s (post any merge actions)" %(getSnaps.size(), getSecurityNameAndID(security))
                     myPrint("B",txt); output += "%s\n" %(txt)
+                    SyncerDebug.changeState(debug)
                     for snap in getSnaps: snap.deleteItem()
+                    SyncerDebug.resetState()
 
                 output += "----\n"
                 output += "Master %s now contains: %s Price History records...\n" %(getSecurityNameAndID(primary), primary.getSnapshots().size())
@@ -20023,7 +20202,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -20094,17 +20273,17 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lJumpToEnd=True).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
-        jif = QuickJFrame(txt,output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame(txt,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
         setDisplayStatus(txt, optionColor)
+        logToolboxUpdates("merge_duplicate_securities", txt)
         play_the_money_sound()
         myPopupInformationBox(jif,txt,theMessageType=optionMessage)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def move_merge_investment_txns():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -20198,7 +20377,7 @@ now after saving the file, restart Moneydance
                 else:
                     txt = "ERROR: %s investment txn(s) with 'Orphaned' securities detected (probably an old QIF import or User has force removed a Security from this Investment Account)" %(iOrphans)
                     output += "\n%s\n" %(txt); myPrint("B",txt)
-                    jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+                    jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
                     if not confirm_backup_confirm_disclaimer(jif, _THIS_METHOD_NAME, "FIX %s orphaned security txns (using a dummy security)?" %(iOrphans)):
                         return
 
@@ -20368,7 +20547,7 @@ now after saving the file, restart Moneydance
                         MD_REF.saveCurrentAccount()
                         setDisplayStatus(txt, "B")
                         play_the_money_sound()
-                        jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+                        jif = QuickJFrame(_THIS_METHOD_NAME,output,lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
                         myPopupInformationBox(jif, txt)
                     return
                 txt = "%s: CONGRATULATIONS - I found no non-hierarchical / invalid txns......." %(_THIS_METHOD_NAME)
@@ -20382,7 +20561,7 @@ now after saving the file, restart Moneydance
 
             jif = None
             if not autofix:
-                jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output, lAlertLevel=1, lWrapText=False, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("VIEW Investment Security Txns with Invalid Parent Accounts".upper(), output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
             # if iCountUnfixable>0:
             #     txt = "%s: You have %s errors to manually first first!" %(_THIS_METHOD_NAME, iCountUnfixable)
@@ -20420,11 +20599,12 @@ now after saving the file, restart Moneydance
 
             txt = "FIXED %s Investment Security Txns with Invalid Parent Accounts (non-hierarchical txn errors)" %(iErrorsFixed)
             myPrint("B", txt)
+            logToolboxUpdates("fix_non_hier_sec_acct_txns", txt)
 
             if not autofix:
                 play_the_money_sound()
                 setDisplayStatus(txt, "B")
-                jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, lWrapText=False, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 myPopupInformationBox(jif,txt, _THIS_METHOD_NAME, JOptionPane.WARNING_MESSAGE)
             else:
                 myPrint("B", "AUTOFIX ENDING....")
@@ -20434,7 +20614,7 @@ now after saving the file, restart Moneydance
             txt = "%s: ERROR - Script has crashed. Review screen and console!" %(_THIS_METHOD_NAME)
             output += txt + "\n"
             setDisplayStatus(txt, "R"); myPrint("B", txt)
-            jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=2, lWrapText=False, copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=2, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
             myPopupInformationBox(jif, txt, _THIS_METHOD_NAME, JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -20472,7 +20652,6 @@ now after saving the file, restart Moneydance
 
         return count_the_errors
 
-
     def fix_delete_one_sided_txns():
 
         # delete_invalid_txns.py
@@ -20506,14 +20685,13 @@ now after saving the file, restart Moneydance
         if not len(toDelete)>0:
 
             txt = "You have no one-sided transactions to delete!!"
-            setDisplayStatus(txt, "B")
-            myPrint("B",txt)
+            setDisplayStatus(txt, "B"); myPrint("B",txt)
             myPopupInformationBox(toolbox_frame_, txt, "DELETE ONE-SIDE TXNS", JOptionPane.INFORMATION_MESSAGE)
             return
 
         output += "\n<END>"
 
-        jif=QuickJFrame("LIST OF ONE SIDED TRANSACTIONS (usually from Quicken Imports)", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        jif = QuickJFrame("LIST OF ONE SIDED TRANSACTIONS (usually from Quicken Imports)", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         myPrint("J","You have %s one-sided transactions that can be deleted!!"%len(toDelete))
         myPopupInformationBox(jif, "You have %s one-sided transactions that can de deleted!!"%len(toDelete), "DELETE ONE-SIDE TXNS", JOptionPane.WARNING_MESSAGE)
@@ -20533,14 +20711,13 @@ now after saving the file, restart Moneydance
         MD_REF.getCurrentAccount().getBook().setRecalcBalances(True)
         MD_REF.getUI().setSuspendRefresh(False)		# This does this too: book.notifyAccountModified(root)
 
-        play_the_money_sound()
         txt = "%s Invalid One-Sided Transactions DELETED!" %(len(toDelete))
-        setDisplayStatus(txt, "DG")
-        myPrint("B", txt)
+        setDisplayStatus(txt, "DG"); myPrint("B", txt)
+        logToolboxUpdates("fix_delete_one_sided_txns", txt)
+        play_the_money_sound()
         myPopupInformationBox(jif,txt, "DELETE ONE-SIDE TXNS", JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def convert_stock_avg_cst_control():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -20628,8 +20805,8 @@ now after saving the file, restart Moneydance
             Security.Obj.syncItem()
 
         txt = "CONVERT ACCT/STOCK TO Avg Cst Ctrl - Security %s Changed to Average Cost Control (and %s LOT records wiped)"%(accountSec,iErrors)
-        setDisplayStatus(txt, "R")
-        myPrint("B", txt)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("convert_stock_avg_cst_control", txt)
         play_the_money_sound()
         MyPopUpDialogBox(toolbox_frame_,
                          theStatus="Security %s converted to Average Cost Control (I wiped %s LOT records - shown below)" %(accountSec,iErrors),
@@ -20638,7 +20815,6 @@ now after saving the file, restart Moneydance
                          lAlertLevel=1).go()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def convert_stock_lot_FIFO():
         # MakeFifoCost.py (author unknown)
@@ -20804,8 +20980,7 @@ now after saving the file, restart Moneydance
                                       "WARNING: I found %s LOTS already set on account/security. Do you want to proceed (and overwrite) these?" %(iErrors),
                                       theMessageType=JOptionPane.ERROR_MESSAGE):
                 txt = "CONVERT STOCK FIFO - ABORTED - as Acct/Security %s already had %s LOT records!!??" %(accountSec, iErrors)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
                 myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -20861,7 +21036,7 @@ now after saving the file, restart Moneydance
             txt = "CONVERT STOCK FIFO: NOTE: MD is reporting that the cost basis for '%s' is VALID after the update.." %(accountSec)
         myPrint("B", txt); output += "\n%s\n" %(txt)
 
-        jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
         ask=MyPopUpDialogBox(jif,
                              theStatus="Please review results on security: %s" %(accountSec),
@@ -20905,17 +21080,15 @@ now after saving the file, restart Moneydance
             output+="\nCHANGES ACCEPTED and RETAINED...\n" \
                     "\n<END>"
             txt = "CONVERT STOCK FIFO - Changes to Security %s Accepted and retained - review report" %(accountSec)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("convert_stock_lot_FIFO", txt)
 
 
-        jif=QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif = QuickJFrame("CONVERT STOCK FIFO - REVIEW RESULTS", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         play_the_money_sound()
         myPopupInformationBox(jif, "REVIEW REPORT", "CONVERT STOCK FIFO", JOptionPane.WARNING_MESSAGE)
 
-
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def show_open_share_lots():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -21030,11 +21203,10 @@ now after saving the file, restart Moneydance
             toolbox_frame_.toFront()
             txt = "VIEW OPEN LOTS - Displaying %s open LOTS!" %(iFound)
             setDisplayStatus(txt, "B")
-            jif = QuickJFrame("VIEW OPEN LOTS",output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+            jif = QuickJFrame("VIEW OPEN LOTS",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def diagnose_matched_lot_data():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -21185,7 +21357,7 @@ now after saving the file, restart Moneydance
         toolbox_frame_.toFront()
         txt = "%s: Displaying invalid LOT matching data" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "B")
-        jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         myPopupInformationBox(jif,txt)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -21196,6 +21368,8 @@ now after saving the file, restart Moneydance
 
         def actionPerformed(self, event):
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+            if MD_REF.getCurrentAccountBook() is None: return
 
             helper = MD_REF.getPlatformHelper()
 
@@ -21267,7 +21441,6 @@ now after saving the file, restart Moneydance
                 setDisplayStatus(txt, "B")
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-            return
 
     def display_passwords():
         myPrint(u"D", u"In ", inspect.currentframe().f_code.co_name, u"()")
@@ -21370,8 +21543,10 @@ now after saving the file, restart Moneydance
                 return False
 
             txt = "DATASET CLOSED (review console if appropriate)"
-            myPopupInformationBox(toolbox_frame_, theMessage=txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
             setDisplayStatus(txt, "B"); myPrint("B", txt)
+            disableToolboxButtons()
+            play_the_money_sound()
+            myPopupInformationBox(toolbox_frame_, theMessage=txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
 
             try: WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
             except: myPrint("B", "%s: FAILED to launch the WelcomeWindow... ignoring the error...." %(_THIS_METHOD_NAME))
@@ -21391,7 +21566,6 @@ now after saving the file, restart Moneydance
             pleaseWait.kill()
 
         return False
-
 
     def rename_relocate_dataset(lRelocateDataset=False, lRelocateToInternal=True):
         # type: (bool, bool) -> None
@@ -21550,6 +21724,10 @@ now after saving the file, restart Moneydance
 
                 txt = "Dataset: %sd to: '%s" %(actionString, newName)
                 setDisplayStatus(txt, "B"); myPrint("B", txt)
+
+                txt2 = "Dataset: '%s' %sd to: '%s" %(fCurrentFilePath.getCanonicalPath(), actionString, fNewNamePath.getCanonicalPath())
+                logToolboxUpdates("rename_relocate_dataset", txt2, book=fNewNamePath.getCanonicalPath())
+
                 play_the_money_sound()
                 myPopupInformationBox(toolbox_frame_, "%s - Will close Toolbox and open %sd dataset" %(txt, actionString))
 
@@ -21628,14 +21806,60 @@ now after saving the file, restart Moneydance
 
         return
 
+    def remove_inactive_from_sidebar():
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "REMOVE INACTIVE ACCTS/CATS FROM SIDEBAR"
+
+        book = MD_REF.getCurrentAccountBook()
+
+        # fullList = FullSideBarItemList(book, MD_REF.getUI(), False)
+        dtm = SideBarNodeFactory.getBarModelFromSettings(book, MD_REF.getUI())
+        nodeList = SideBarNodeFactory.getNodesFromTree(dtm)
+
+        removeNodes = []
+
+        for node in nodeList:
+            if node.getChildType() not in [SideBarNodeType.ACCOUNT, SideBarNodeType.INCOME, SideBarNodeType.EXPENSE, SideBarNodeType.CATEGORY]:continue
+            acctId = node.getAccountId()
+            acct = book.getAccountByNum(acctId)
+            if acct is None: continue
+            active = False if acct.getAccountIsInactive() else True
+            if not active: removeNodes.append(node)
+
+        if len(removeNodes) < 1:
+            txt = "%s: NO inactive nodes found - NO CHANGES MADE!" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            return
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Remove %s inactive accounts/categories from sidebar?" %(len(removeNodes))):
+            return
+
+        nodesRemoved = 0
+        myPrint("B", "Removing inactive sidebar account/category nodes...:")
+        for node in removeNodes:
+            myPrint("B", "... %s" %(node))
+            nodesRemoved += 1
+            nodeList.remove(node)
+
+        myPrint("B", "Saving Sidebar Nodelist....")
+        SideBarNodeFactory.saveNodesToSettings(book, MD_REF.getUI(), nodeList)
+
+        txt = "%s: %s nodes removed from sidebar - Toolbox will now restart/reload dataset" %(_THIS_METHOD_NAME, nodesRemoved)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("remove_inactive_from_sidebar", txt)
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+
+        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def change_fonts():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if float(MD_REF.getBuild()) < 3030:
             txt = "Error - must be on Moneydance build 3030+ to change fonts! NO CHANGES MADE!"
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
@@ -21647,7 +21871,7 @@ now after saving the file, restart Moneydance
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        prefs=MD_REF.getUI().getPreferences()
+        prefs = MD_REF.getUI().getPreferences()
 
         systemFonts = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()
         for installedFont in systemFonts: myPrint("DB","System OS Font %s is installed in your system..:" %installedFont)
@@ -21746,10 +21970,12 @@ now after saving the file, restart Moneydance
 
             if lDelete:
                 if myPopupAskQuestion(toolbox_frame_,"DELETE FONT KEY","Are you sure you want to delete key: %s?" %theKey,JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE):
-                    prefs.setSetting(theKey,None)
+                    prefs.setSetting(theKey, None)
                     MD_REF.savePreferences()
-                    lAnyFontChanges=True
-                    myPrint("B", "Config.dict: key: %s DELETED - RESTART MD" %theKey)
+                    lAnyFontChanges = True
+                    txt = "Config.dict: key: %s DELETED - RESTART MD" %(theKey)
+                    myPrint("B", txt)
+                    logToolboxUpdates("change_fonts", txt, onlyLogGenericEntry=True)
                     myPopupInformationBox(toolbox_frame_, "Config.dict: key: %s DELETED - RESTART MD" %theKey, "FONTS", JOptionPane.WARNING_MESSAGE)
                     continue
                 else:
@@ -21791,7 +22017,7 @@ now after saving the file, restart Moneydance
 
                 for x in theFonts: myPrint("DB","Possible internal default fonts for your Platform...: %s" %x)
 
-                _options=["CHOOSE FROM MD INTERNAL LIST", "CHOOSE FROM YOUR OS' SYSTEM INSTALLED"]
+                _options = ["CHOOSE FROM MD INTERNAL LIST", "CHOOSE FROM YOUR OS' SYSTEM INSTALLED"]
                 selectedOption = JOptionPane.showInputDialog(toolbox_frame_,
                                                              "New Font Selection options for: %s?" %theKey,
                                                              "ALTER FONTS",
@@ -21818,8 +22044,10 @@ now after saving the file, restart Moneydance
                     else:
                         prefs.setSetting(theKey,selectedFont)
                         MD_REF.savePreferences()
-                        lAnyFontChanges=True
-                        myPrint("B", 'Config.dict: key: %s CHANGED to "%s" - RESTART MD' %(theKey,selectedFont))
+                        lAnyFontChanges = True
+                        txt = 'Config.dict: key: %s CHANGED to "%s" - RESTART MD' %(theKey, selectedFont)
+                        myPrint("B", txt)
+                        logToolboxUpdates("change_fonts", txt, onlyLogGenericEntry=True)
                         myPopupInformationBox(toolbox_frame_, 'Config.dict: key: %s CHANGED to "%s"\nRESTART MD' %(theKey,selectedFont), "FONTS", JOptionPane.WARNING_MESSAGE)
                         continue
 
@@ -21835,17 +22063,14 @@ now after saving the file, restart Moneydance
             except:
                 txt = "MD Font Changes made (failed to reinitialise MD Fonts) - PLEASE RESTART MONEYDANCE (config.dict was also backed up)...."
 
-            myPrint("DB", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("DB", txt)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
         else:
             txt = "NO FONT ACTIONS TAKEN! - NO CHANGES MADE...."
-            myPrint("D", txt)
-            setDisplayStatus(txt, "B")
+            setDisplayStatus(txt, "B"); myPrint("D", txt)
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def delete_theme_file():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -21888,27 +22113,24 @@ now after saving the file, restart Moneydance
 
             os.remove(customThemeFile)
             txt = "DELETED CUSTOM THEME FILE: %s" %(customThemeFile)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("delete_theme_file", txt, onlyLogGenericEntry=True)
             myPopupInformationBox(toolbox_frame_, txt, "DELETE CUSTOM THEME FILE", JOptionPane.WARNING_MESSAGE)
 
         except:
             dump_sys_error_to_md_console_and_errorlog()
             txt = "ERROR DELETING CUSTOM THEME FILE: %s" %(customThemeFile)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_, txt, "DELETE CUSTOM THEME FILE", JOptionPane.ERROR_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def find_IOS_sync_data():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if not(Platform.isOSX() or Platform.isWindows()):
             txt = "FindIOSSyncDataButtonAction() called, but not OSx or Windows!?"
-            setDisplayStatus(txt, "R")
-            myPrint("B",txt)
+            setDisplayStatus(txt, "R"); myPrint("B",txt)
             return
 
         instructions = """
@@ -22053,7 +22275,7 @@ Now you will have a text readable version of the file you can open in a text edi
 <END>            
 """
 
-        jif = QuickJFrame("View Instructions:", instructions,lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif = QuickJFrame("View Instructions:", instructions,lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         jif.setLocationRelativeTo(toolbox_frame_)
 
         if not myPopupAskQuestion(jif,
@@ -22173,8 +22395,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         if iFound < 1:
             txt = "Sorry - could not find the Moneydance Sync file(s) (%s) in iOS backup(s)..." %(theIKReference)
-            setDisplayStatus(txt, "R")
-            myPrint("B", txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPrint("B", fileList)
             x=""
             if Platform.isOSX():
@@ -22536,12 +22757,11 @@ Now you will have a text readable version of the file you can open in a text edi
         txt = "Find my iOS Backup(s) found %s files, with %s possible Sync Encryption keys" %(iFound,len(syncPassphrases))
         setDisplayStatus(txt, "DG")
 
-        jif=QuickJFrame("LIST OF MONEYDANCE iOS Backups and Sync Encryption keys FOUND".upper(), niceFileList, lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif = QuickJFrame("LIST OF MONEYDANCE iOS Backups and Sync Encryption keys FOUND".upper(), niceFileList, lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
         myPopupInformationBox(jif, "%s Sync Encryption keys found...." %(len(syncPassphrases)), "iOS BACKUP SEARCH", JOptionPane.INFORMATION_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def import_QIF():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -22755,15 +22975,14 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("J",">>FINISHED IMPORT................\n")
 
         txt = "%s: File %s imported (review console log for any messages)" %(_THIS_METHOD_NAME, os.path.basename(QIFfilename))
-        setDisplayStatus(txt, "B")
+        setDisplayStatus(txt, "B"); myPrint("B", txt)
+        logToolboxUpdates("import_QIF", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ConsoleWindow.showConsoleWindow(MD_REF.getUI())
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
-        return
 
     def convert_timestamp_readable_date():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -22780,7 +22999,6 @@ Now you will have a text readable version of the file you can open in a text edi
         myPopupInformationBox(toolbox_frame_,txt,"CONVERT TIMESTAMP")
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def force_remove_extension():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -22789,30 +23007,30 @@ Now you will have a text readable version of the file you can open in a text edi
 
         orphan_prefs, orphan_files, orphan_confirmed_extn_keys = get_orphaned_extension()
 
-        if len(orphan_prefs)<1 and len(orphan_files)<1 and len(orphan_confirmed_extn_keys)<1:
+        if len(orphan_prefs) < 1 and len(orphan_files) < 1 and len(orphan_confirmed_extn_keys) < 1:
             txt = "No orphaned Extension preferences or files detected - nothing to do!"
             setDisplayStatus(txt, "B")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        displayData="\nLISTING EXTENSIONS ORPHANED IN CONFIG.DICT OR FILES (*.MXT)\n\n"
+        displayData = "\nLISTING EXTENSIONS ORPHANED IN CONFIG.DICT OR FILES (*.MXT)\n\n"
 
         for x in orphan_prefs.keys():
-            displayData+="%s Extension: %s is %s\n" %(pad("config.dict:",40),pad(x,40),pad(orphan_prefs[x],40))
+            displayData += "%s Extension: %s is %s\n" %(pad("config.dict:",40),pad(x,40),pad(orphan_prefs[x],40))
 
-        displayData+="\n"
+        displayData += "\n"
 
         for x in orphan_confirmed_extn_keys.keys():
             _theVersion = MD_REF.getUI().getPreferences().getSetting(orphan_confirmed_extn_keys[x][1],None)
             displayData+="%s Extension: %s Key: %s (build: %s) is %s\n" %(pad("config.dict: ",40),pad(x,40),pad(orphan_confirmed_extn_keys[x][1],40),_theVersion,pad(orphan_confirmed_extn_keys[x][0],40))
 
-        displayData+="\n"
+        displayData += "\n"
 
         for x in orphan_files.keys():
-            displayData+="%s Extension: %s is %s\n" %(pad("File: "+orphan_files[x][1],40),pad(x,40),pad(orphan_files[x][0],40))
+            displayData += "%s Extension: %s is %s\n" %(pad("File: "+orphan_files[x][1],40),pad(x,40),pad(orphan_files[x][0],40))
 
-        displayData+="\n<END>"
-        jif = QuickJFrame("ORPHANED EXTENSIONS", displayData,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+        displayData += "\n<END>"
+        jif = QuickJFrame("ORPHANED EXTENSIONS", displayData,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
         if not confirm_backup_confirm_disclaimer(jif, "DELETE ORPHANED EXTENSIONS", "delete the Extension Orphans?"):
             return
@@ -22852,24 +23070,22 @@ Now you will have a text readable version of the file you can open in a text edi
 
         MD_REF.savePreferences()
 
-        lError=False
+        lError = False
         # extensionDir = Common.getFeatureModulesDirectory()
         for x in orphan_files.keys():
             # noinspection PyTypeChecker
             fileToDelete = os.path.join(extensionDir.getAbsolutePath(),orphan_files[x][1])
             if not os.path.exists(fileToDelete):
-                lError=True
+                lError = True
                 myPrint("B","ERROR orphaned extension file %s MISSING" %fileToDelete)
             else:
                 try:
                     os.remove(fileToDelete)
                     myPrint("B","Orphaned extension file %s deleted" %fileToDelete)
                 except:
-                    lError=True
+                    lError = True
                     myPrint("B","ERROR deleting orphaned extension file %s deleted" %fileToDelete)
                     dump_sys_error_to_md_console_and_errorlog()
-
-        play_the_money_sound()
 
         if lError:
             myPrint("B", "Orphaned Extensions have been deleted - WITH ERRORS - from config.dict and the .MXT files from the Extensions folder....")
@@ -22879,8 +23095,9 @@ Now you will have a text readable version of the file you can open in a text edi
             txt = "SUCCESS - YOUR ORPHANED EXTENSIONS HAVE BEEN DELETED - MANUALLY RESTART MONEYDANCE!"
 
         setDisplayStatus(txt, "R")
+        logToolboxUpdates("force_remove_extension", txt, onlyLogGenericEntry=True)
+        play_the_money_sound()
         myPopupInformationBox(jif, txt, "DELETE ORPHANED EXTENSIONS", JOptionPane.ERROR_MESSAGE)
-        return
 
     def reset_window_positions():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -23050,7 +23267,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     last = None
 
                     if lResetAll:
-                        for x in _COLWIDTHS:
+                        for x in GlobalVars.Strings.CONFIG_COLWIDTHS:
                             xx = acct.getPreference(dataPrefKey+x, None)
 
                             if xx:
@@ -23158,7 +23375,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                     configData.append("LS Key: %s Value: %s" %(pad(theKey+":",55),str(value).strip()))
 
                         # Now look for keys not linked to Accounts... Perhaps deleted ones?
-                        for theTypeToCheck in _COLWIDTHS:
+                        for theTypeToCheck in GlobalVars.Strings.CONFIG_COLWIDTHS:
 
                             if theKey.endswith(".col_widths."+theTypeToCheck):
 
@@ -23222,7 +23439,7 @@ Now you will have a text readable version of the file you can open in a text edi
             configData = "".join(configData)
 
             if not lReset:
-                jif = QuickJFrame("View the relevant RESET WINDOW DISPLAY SETTINGS that will be reset if you select OK to proceed", configData,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("View the relevant RESET WINDOW DISPLAY SETTINGS that will be reset if you select OK to proceed", configData,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 return jif
 
             return
@@ -23269,10 +23486,11 @@ Now you will have a text readable version of the file you can open in a text edi
         MD_REF.savePreferences()                                        # save config.dict
         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()   # Flush local storage to safe/settings
 
+        txt = "SUCCESS - %s data reset in config.dict config file, internally by Account & Local Storage.. RESTART MD" %(resetWhat)
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("reset_window_positions", txt)
+
         play_the_money_sound()
-        myPrint("B", "SUCCESS - %s data reset in config.dict config file, internally by Account & Local Storage...." %(resetWhat))
-        txt = "OK - %s settings forgotten.... RESTART MD!" %(resetWhat)
-        setDisplayStatus(txt, "R")
         myPopupInformationBox(theNewViewFrame, "SUCCESS - %s - MONEYDANCE WILL EXIT - PLEASE MANUALLY RESTART MD" %(resetWhat), "RESET WINDOW DISPLAY SETTINGS", JOptionPane.WARNING_MESSAGE)
 
         myPrint("B","Requesting Moneydance shuts down now...")
@@ -23281,7 +23499,7 @@ Now you will have a text readable version of the file you can open in a text edi
     def advanced_mode_suppress_dropbox_warning():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        ask=MyPopUpDialogBox(toolbox_frame_,theStatus="You can suppress the 'Your file seems to be in a shared folder' Warning..",
+        ask = MyPopUpDialogBox(toolbox_frame_,theStatus="You can suppress the 'Your file seems to be in a shared folder' Warning..",
                              theMessage="Moneydance support states that you should NEVER store your dataset in Dropbox.\n"
                                         "... and that you should store your dataset locally and use Moneydance's built-in syncing instead to share across computers and devices.\n"
                                         "THEREFORE YOU PROCEED AT ENTIRELY YOUR OWN RISK AND ACCEPT THAT STORING IN DROPBOX MIGHT DAMAGE YOUR DATA!",
@@ -23299,7 +23517,7 @@ Now you will have a text readable version of the file you can open in a text edi
             suppressFile = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "suppress_file_in_dropbox_restriction.txt")
             if not os.path.exists(suppressFile):
                 try:
-                    x=open(suppressFile, "w")
+                    x = open(suppressFile, "w")
                     x.write("DISCLAIMER - YOU SUPPRESS THE 'Your file is stored in a shared folder' (Dropbox) WARNING AT YOUR OWN RISK\n"
                             "STORING YOUR MD DATASET IN DROPBOX CAN DAMAGE YOUR DATASET\n\n"
                             "(Warning courtesy of Toolbox)")
@@ -23307,10 +23525,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     x.close()
                     myPrint("B","ADVANCED MODE: 'SUPPRESS DROPBOX WARNING': User requested to suppress the 'Your file is stored in a shared folder' (dropbox) warning....")
                     myPrint("B", "@@User accepted warnings and disclaimer about dataset damage and instructed Toolbox to create %s - EXECUTED" %(suppressFile))
-                    play_the_money_sound()
                     txt = "'SUPPRESS DROPBOX WARNING' - Suppressed >> 'Your file is stored in a shared folder' (dropbox) warning. MONEYDANCE WILL NOW RESTART"
                     setDisplayStatus(txt, "R")
-                    myPopupInformationBox(toolbox_frame_,txt,"'SUPPRESS DROPBOX WARNING'",JOptionPane.ERROR_MESSAGE)
+                    logToolboxUpdates("advanced_mode_suppress_dropbox_warning", txt)
+                    play_the_money_sound()
+                    myPopupInformationBox(toolbox_frame_, txt, "'SUPPRESS DROPBOX WARNING'", JOptionPane.ERROR_MESSAGE)
                     ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
                     return
                 except:
@@ -23322,8 +23541,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-        return
-
     def advanced_mode_save_trunk_file():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
@@ -23332,17 +23549,17 @@ Now you will have a text readable version of the file you can open in a text edi
         if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME,"Execute Save Trunk File function?"):
             return
 
-        myPrint("B","%s: Calling saveTrunkFile() now at user request...." %(_THIS_METHOD_NAME))
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
         MD_REF.getCurrentAccount().getBook().saveTrunkFile()
-        play_the_money_sound()
 
         txt = "%s: Save Trunk Executed!" %(_THIS_METHOD_NAME)
-        setDisplayStatus(txt, "R")
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("advanced_mode_save_trunk_file", txt)
+
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def advanced_clone_dataset():
         """This feature clones the open dataset. It takes a backup, restores the backup, wipes sync, removes transactional data.
@@ -23637,7 +23854,10 @@ Now you will have a text readable version of the file you can open in a text edi
                         output += "Setting account's initial / opening balance to zero (was: %s): %s\n"\
                                   %(rCurr.formatFancy(currentInitialBal, MD_decimal), acct)
                         acct.setStartBalance(0)
+
+                        SyncerDebug.changeState(debug)
                         newBook.logModifiedItem(acct)
+                        SyncerDebug.resetState()
                         # acct.syncItem()
 
             # noinspection PyArgumentList
@@ -23679,7 +23899,10 @@ Now you will have a text readable version of the file you can open in a text edi
                             attachmentsToDelete.append(attachTag)
                 tsList = ArrayList()
                 ts.copyInto(tsList)
+
+                SyncerDebug.changeState(debug)
                 if not newBook.logRemovedItems(tsList): raise Exception("ERROR: newBook.logRemovedItems(tsList) returned false?")
+                SyncerDebug.resetState()
 
                 if len(attachmentsToDelete):
                     output += "Deleting %s attachments from clone...\n" %(len(attachmentsToDelete))
@@ -23721,7 +23944,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 output += "Price history - keeping: %s 'csnaps', deleting: %s 'csnaps'\n" %(len(keepSnaps), allSnaps.size())
 
+                SyncerDebug.changeState(debug)
                 if not newBook.logRemovedItems(allSnaps): raise Exception("ERROR: newBook.logRemovedItems(allSnaps) returned false?")
+                SyncerDebug.resetState()
 
                 output += "Mass delete of %s currency rate / security price history 'csnaps' took: %s seconds\n"\
                           %(allSnaps.size(), (System.currentTimeMillis() - startTimeMs) / 1000.0)
@@ -23772,8 +23997,13 @@ Now you will have a text readable version of the file you can open in a text edi
             output += "-------------------------------------------------------------------------------------------------\n"
             output += "\n"
 
+            txt = "DATASET '%s' WAS CREATED FROM A CLONE OF '%s'" %(newBook.getName(), currentFilePath)
+            myPrint("B", txt)
+            logToolboxUpdates("advanced_clone_dataset", txt, book=newBook)
+
         except:
             txt = "Clone function has failed. Review log and console (CLONE INCOMPLETE)"
+            myPrint("B", txt)
             output += "%s\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             jif = QuickJFrame(title=_THIS_METHOD_NAME, output=output, lAlertLevel=2, copyToClipboard=True, lWrapText=False).show_the_frame()
@@ -23809,8 +24039,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         if not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode():
             txt = "%s: Sorry - can only push from a Primary Sync Dataset...(Toolbox can promote to Primary if required)" %(_THIS_METHOD_NAME)
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
 
         syncFolder = None                                                                                               # noqa
@@ -23819,15 +24048,13 @@ Now you will have a text readable version of the file you can open in a text edi
             syncFolder = False                                                                                          # noqa
             dump_sys_error_to_md_console_and_errorlog()
             txt = "Sorry - cannot proceed as error getting Sync status (review console for details)"
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
         if syncFolder is None:
             txt = "%s: Cannot proceed as you don't appear to be using Sync" %(_THIS_METHOD_NAME)
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -23846,6 +24073,8 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("B", "User accepted disclaimer - now executing: %s" %(txt))
         MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record..
 
+        SyncerDebug.changeState(debug)
+
         if lSyncPush:
             MD_REF.getCurrentAccount().getBook().getSyncer().forceResyncFromLocal()
             myPrint("B", "@@ Called .getSyncer().forceResyncFromLocal() to Force Push (Re)Sync to remotes...")
@@ -23862,13 +24091,16 @@ Now you will have a text readable version of the file you can open in a text edi
             # storage.writeToFileAtomically(PyByteArray(), PULL_RESYNC)
             # myPrint("B", "@@ Created: %s" %(PULL_RESYNC))
 
+        SyncerDebug.resetState()
         MD_REF.saveCurrentAccount()
-        play_the_money_sound()
 
         txt = "%s: Force Sync Push/Pull requested." %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "R")
+        logToolboxUpdates("advanced_mode_sync_push_pull", txt)
 
         ConsoleWindow.showConsoleWindow(MD_REF.getUI())
+
+        play_the_money_sound()
         MyPopUpDialogBox(toolbox_frame_,
                          "%s" %(txt),
                          "Check the Help>Console Window...\n"
@@ -23883,7 +24115,6 @@ Now you will have a text readable version of the file you can open in a text edi
                          lModal=True,OKButtonText="ACKNOWLEDGE").go()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def advanced_mode_set_check_days():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -23927,11 +24158,10 @@ Now you will have a text readable version of the file you can open in a text edi
 
         txt = "ADVANCED MODE: Next Check Number Algorithm look-back Threshold set to %s (days)" %(days_response)
         setDisplayStatus(txt, "B")
+        logToolboxUpdates("advanced_mode_set_check_days", txt)
         myPopupInformationBox(toolbox_frame_,txt,"NEXT CHEQUE NUMBER ALGORITHM",JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
-        return
 
     def advanced_mode_edit_parameter_keys():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -24039,10 +24269,10 @@ Now you will have a text readable version of the file you can open in a text edi
                         theObject.getParentTxn().syncItem()                                                             # noqa
                     else:
                         theObject.syncItem()                                                                            # noqa
-                    play_the_money_sound()
                     txt = "@@ ADVANCEDMODE: Parameter: %s Value: %s added to %s @@" %(addKey,addValue,theObject)
-                    setDisplayStatus(txt, "R")
-                    myPrint("B",txt)
+                    setDisplayStatus(txt, "R"); myPrint("B", txt)
+                    logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
+                    play_the_money_sound()
                     myPopupInformationBox(toolbox_frame_,
                                           "SUCCESS: Key %s added to %s!" % (addKey,theObject),
                                           "ADVANCED: ADD TO %s" %(theObject),
@@ -24066,11 +24296,11 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 output += "\n<END>"
                 if isinstance(theObject, SplitTxn):
-                    jif = QuickJFrame("REVIEW THE SPLIT TXN's DATA BEFORE DELETION (OF THE SPLIT)", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                    jif = QuickJFrame("REVIEW THE SPLIT TXN's DATA BEFORE DELETION (OF THE SPLIT)", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 elif isinstance(theObject, ParentTxn):
-                    jif = QuickJFrame("REVIEW THE PARENT'S TXN DATA BEFORE DELETION (OF THE WHOLE PARENT TXN)", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                    jif = QuickJFrame("REVIEW THE PARENT'S TXN DATA BEFORE DELETION (OF THE WHOLE PARENT TXN)", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 else:
-                    jif = QuickJFrame("REVIEW THE OBJECT's DATA BEFORE DELETION", output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                    jif = QuickJFrame("REVIEW THE OBJECT's DATA BEFORE DELETION", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
                 if confirm_backup_confirm_disclaimer(jif, "ADVANCED: DELETE OBJECT","DELETE OBJECT %s" %(theObject)):
 
@@ -24081,11 +24311,11 @@ Now you will have a text readable version of the file you can open in a text edi
                     else:
                         theObject.deleteItem()                                                                          # noqa
 
-                    play_the_money_sound()
                     txt = "@@ ADVANCEDMODE: OBJECT %s DELETED @@" %(theObject)
-                    setDisplayStatus(txt, "R")
-                    myPrint("B",txt)
+                    setDisplayStatus(txt, "R"); myPrint("B", txt)
+                    logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
 
+                    play_the_money_sound()
                     myPopupInformationBox(jif,
                                           "SUCCESS: OBJECT %s DELETED" %(theObject),
                                           "ADVANCED: DELETE OBJECT",
@@ -24119,7 +24349,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 output += "\n%s %s\n" %(pad("Value:",25), value)
 
                 output += "\n<END>"
-                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %(theObject), output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %(theObject), output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
                 chgValue = None
 
@@ -24162,15 +24392,19 @@ Now you will have a text readable version of the file you can open in a text edi
                     play_the_money_sound()
 
                     if lDel:
-                        myPrint("B","@@ ADVANCEDMODE: Parameter: %s DELETED from %s (old value: %s) @@" %(selectedKey,theObject,value))
+                        txt = "@@ ADVANCEDMODE: Parameter: %s DELETED from %s (old value: %s) @@" %(selectedKey, theObject,value)
+                        myPrint("B", txt)
+                        logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
                         myPopupInformationBox(jif,
-                                              "SUCCESS: Parameter: %s DELETED from %s (old value: %s)" %(selectedKey,theObject,value),
+                                              "SUCCESS: Parameter: %s DELETED from %s (old value: %s)" %(selectedKey, theObject, value),
                                               "ADVANCED: DELETE IN %s" %theObject,
                                               JOptionPane.WARNING_MESSAGE)
                     if lChg:
-                        myPrint("B","@@ ADVANCEDMODE: Parameter: %s CHANGED to %s in %s @@" %(selectedKey,chgValue, theObject))
+                        txt = "@@ ADVANCEDMODE: Parameter: %s CHANGED to %s in %s @@" %(selectedKey, chgValue, theObject)
+                        myPrint("B", txt)
+                        logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
                         myPopupInformationBox(jif,
-                                              "SUCCESS: Parameter: %s CHANGED to %s in %s" %(selectedKey,chgValue, theObject),
+                                              "SUCCESS: Parameter: %s CHANGED to %s in %s" %(selectedKey, chgValue, theObject),
                                               "ADVANCED: CHANGE IN %s" %theObject,
                                               JOptionPane.WARNING_MESSAGE)
                     jif.dispose()       # already within the EDT
@@ -24179,11 +24413,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 jif.dispose()       # already within the EDT
                 continue
 
-        # ENDWHILE
-
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
-        return
 
     def advanced_remove_int_external_files_settings():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -24230,7 +24460,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         "There will not be any backup prompt - please do this yourself first!\n\n"
                         "THIS IS THE DISCLAIMER UP FRONT - CLICK I AGREE TO PROCEED" )
 
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              "For Your Information",
                              theText,
                              theTitle="ADVANCED: REMOVE ENTRIES/DATASETS",
@@ -24313,11 +24543,11 @@ Now you will have a text readable version of the file you can open in a text edi
             if lConfigDict:
                 fileType = "config.dict"
                 st,tk = read_preferences_file(lSaveFirst=True)  # Must flush memory to disk first before we read the file....
-                prefs=sorted(tk)
+                prefs = sorted(tk)
             elif lLocalStorage:
                 fileType = "LocalStorage() ./safe/settings"
                 ls_keys = LS.keys()
-                prefs=sorted(ls_keys)
+                prefs = sorted(ls_keys)
             else:
                 raise(Exception("ERROR - Unknown type!"))
 
@@ -24372,11 +24602,13 @@ Now you will have a text readable version of the file you can open in a text edi
                         LS.put(addKey,addValue)
                         LS.save()    # Flush local storage to safe/settings
 
+                    txt = "@@ ADVANCEDMODE: key: %s value: %s added to %s @@" %(addKey, addValue, fileType)
+                    myPrint("B", txt)
+                    logToolboxUpdates("advanced_mode_edit_prefs", txt, onlyLogGenericEntry=lConfigDict)
                     play_the_money_sound()
-                    myPrint("B","@@ ADVANCEDMODE: key: %s value: %s added to %s @@" %(addKey,addValue,fileType))
                     myPopupInformationBox(toolbox_frame_,
-                                          "SUCCESS: Key %s added to %s!" % (addKey,fileType),
-                                          "ADVANCED: ADD TO %s" % fileType,
+                                          "SUCCESS: Key %s added to %s!" % (addKey, fileType),
+                                          "ADVANCED: ADD TO %s" %(fileType),
                                           JOptionPane.WARNING_MESSAGE)
                     continue
 
@@ -24418,8 +24650,8 @@ Now you will have a text readable version of the file you can open in a text edi
                         except:
                             pass
 
-                output =  "%s PLEASE REVIEW KEY & VALUE BEFORE MAKING CHANGES\n" %fileType
-                output += "%s------------------------------------------------\n\n" %("-"*len(fileType))
+                output =  "%s PLEASE REVIEW KEY & VALUE BEFORE MAKING CHANGES\n" %(fileType)
+                output += "%s------------------------------------------------\n\n" %("-" * len(fileType))
 
                 if isinstance(value,(StreamTable,StreamVector)) and lChg:
                     output += "\n@@ Sorry: StreamTable & StreamVector keys cannot be changed by this script (only deleted) @@\n"
@@ -24429,7 +24661,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     lOK_to_Change = True
                     output += "\n@@ This '%s' key can be changed/deleted by this script @@\n" % selectedKey
 
-                output += "\n%s %s\n" %(pad("%s KEY:"%fileType,25),selectedKey)
+                output += "\n%s %s\n" %(pad("%s KEY:" %(fileType),25), selectedKey)
                 output += "\n%s %s\n" %(pad("Type:",25), type(value))
 
                 if isinstance(value,(StreamTable,StreamVector)):
@@ -24442,7 +24674,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     output += "\n%s %s\n" %(pad("Value:",25), value)
 
                 output += "\n<END>"
-                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %fileType, output,copyToClipboard=lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %fileType, output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
                 if lChg and not lOK_to_Change:
                     myPopupInformationBox(jif,
@@ -24462,7 +24694,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                   False,
                                                   JOptionPane.WARNING_MESSAGE)
 
-                    if not chgValue or len(chgValue.strip()) <1 or chgValue == value: continue
+                    if not chgValue or len(chgValue.strip()) < 1 or chgValue == value: continue
                     chgValue = chgValue.strip()
 
                     if not check_if_key_data_string_valid(chgValue):
@@ -24475,27 +24707,31 @@ Now you will have a text readable version of the file you can open in a text edi
                 if agreed:
                     if lConfigDict:
                         if lDel:
-                            MD_REF.getUI().getPreferences().setSetting(selectedKey,None)
+                            MD_REF.getUI().getPreferences().setSetting(selectedKey, None)
                         if lChg:
-                            MD_REF.getUI().getPreferences().setSetting(selectedKey,chgValue)
+                            MD_REF.getUI().getPreferences().setSetting(selectedKey, chgValue)
                         MD_REF.savePreferences()            # Flush all in memory settings to config.dict file on disk
                     if lLocalStorage:
                         if lDel:
-                            LS.put(selectedKey,None)
+                            LS.put(selectedKey, None)
                         if lChg:
-                            LS.put(selectedKey,chgValue)
+                            LS.put(selectedKey, chgValue)
                         LS.save()                               # Flush local storage to safe/settings
 
                     play_the_money_sound()
 
                     if lDel:
-                        myPrint("B","@@ ADVANCEDMODE: key: %s DELETED from %s (old value: %s) @@" %(selectedKey,fileType,value))
+                        txt = "@@ ADVANCEDMODE: key: %s DELETED from %s (old value: %s) @@" %(selectedKey, fileType, value)
+                        myPrint("B", txt)
+                        logToolboxUpdates("advanced_mode_edit_prefs", txt)
                         myPopupInformationBox(jif,
                                               "SUCCESS: key: %s DELETED from %s (old value: %s)" %(selectedKey,fileType,value),
                                               "ADVANCED: DELETE IN %s" %fileType,
                                               JOptionPane.WARNING_MESSAGE)
                     if lChg:
-                        myPrint("B","@@ ADVANCEDMODE: key: %s CHANGED to %s in %s @@" %(selectedKey,chgValue, fileType))
+                        txt = "@@ ADVANCEDMODE: key: %s CHANGED to %s in %s @@" %(selectedKey, chgValue, fileType)
+                        myPrint("B", txt)
+                        logToolboxUpdates("advanced_mode_edit_prefs", txt)
                         myPopupInformationBox(jif,
                                               "SUCCESS: key: %s CHANGED to %s in %s" %(selectedKey,chgValue, fileType),
                                               "ADVANCED: CHANGE IN %s" %fileType,
@@ -24505,11 +24741,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 myPopupInformationBox(jif,"NO CHANGES MADE!", "ADVANCED", JOptionPane.INFORMATION_MESSAGE)
                 continue
 
-        # ENDWHILE
-
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
-        return
 
     def getModifiedDatesFomZip(_storage, _archiveFile):
         """Interrogates a zip archive, then processes all entries, and determines the oldest and newest modified dates"""
@@ -24545,7 +24777,6 @@ Now you will have a text readable version of the file you can open in a text edi
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         SIMULATE = False
-
         _THIS_METHOD_NAME = "ADVANCED: SHRINK DATASET SIZE"
 
         output = "%s:\n" \
@@ -24628,8 +24859,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 txt = "Sorry - cannot proceed as error processing %s (review console for details)" %(PROCESSED_FILES)
             elif len(processedTxnFiles) < 1:
                 txt = "Sorry - cannot proceed as %s contains no records?" %(PROCESSED_FILES)
-            myPrint("B", txt)                                                                                           # noqa
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)                                                                                           # noqa
             myPopupInformationBox(toolbox_frame_,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -24639,8 +24869,7 @@ Now you will have a text readable version of the file you can open in a text edi
             syncFolder = False                                                                                          # noqa
             dump_sys_error_to_md_console_and_errorlog()
             txt = "Sorry - cannot proceed as error getting Sync status (review console for details)"
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -24854,7 +25083,7 @@ Now you will have a text readable version of the file you can open in a text edi
                   "%s\n" \
                   "%s\n\n" %(txt1, txt2)
 
-        jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
         MyPopUpDialogBox(jif,
                          txt1,
@@ -24942,19 +25171,19 @@ Now you will have a text readable version of the file you can open in a text edi
 
         output += "\n<END>"
 
-        jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB, lJumpToEnd=True, lWrapText=False).show_the_frame()
+        jif = QuickJFrame(_THIS_METHOD_NAME, output, lAlertLevel=1, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lJumpToEnd=True, lWrapText=False).show_the_frame()
 
         if SIMULATE:
             txt = "SIMULATION - Dataset (not really) reduced by %sMBs (%s files) - review log for details" %(fileSize-newFileSize, fileCount-newFileCount)
         else:
             txt = "SUCCESS - Dataset reduced by %sMBs (%s files) - review log for details" %(fileSize-newFileSize, fileCount-newFileCount)
+            logToolboxUpdates("advanced_mode_shrink_dataset", txt)
 
         setDisplayStatus("%s: %s" %(_THIS_METHOD_NAME, txt), "R")
         myPrint("B","%s: %s" %(_THIS_METHOD_NAME, txt))
         myPopupInformationBox(jif,txt,theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def advanced_mode_encrypt_file():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -24974,8 +25203,8 @@ Now you will have a text readable version of the file you can open in a text edi
                                               False,              # Multi-file selection mode
                                               True,               # True for Open/Load, False for Save
                                               True,               # True = Files, else Dirs
-                                              None,               # Load/Save button text, None for defaults
-                                              "txt",              # File filter (non Mac only). Example: "txt" or "qif"
+                                              "IMPORT/ENCRYPT",   # Load/Save button text, None for defaults
+                                              None,               # File filter (non Mac only). Example: "txt" or "qif"
                                               lAllowTraversePackages=True,
                                               lForceJFC=False,
                                               lForceFD=True,
@@ -25004,8 +25233,7 @@ Now you will have a text readable version of the file you can open in a text edi
             helper.openDirectory(File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath(), "safe","tmp")))
         except:
             txt = "%s: SORRY - Failed to import (encrypt) file %s (view console error log)" %(_THIS_METHOD_NAME, selectedFile)
-            myPrint("B", txt)
-            setDisplayStatus(txt, "R")
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
@@ -25203,6 +25431,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         txt = "ENTIRE DATASET EXTRACTED/DECRYPTED TO %s" %(decryptionFolder.getCanonicalPath())
         setDisplayStatus(txt, "B")
+        logToolboxUpdates("advanced_mode_decrypt_dataset", txt)
         myPopupInformationBox(toolbox_frame_, txt)
 
         MD_REF.getPlatformHelper().openDirectory(decryptionFolder)
@@ -25325,7 +25554,7 @@ Now you will have a text readable version of the file you can open in a text edi
         len_lines = sum(len(line) for line in readLines)
         buildString = "\n".join(readLines)
 
-        jif = QuickJFrame(_THIS_METHOD_NAME+"(%s lines, %s chars)" %(len(readLines),len_lines), buildString,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif = QuickJFrame(_THIS_METHOD_NAME+"(%s lines, %s chars)" %(len(readLines),len_lines), buildString,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         del buildString
 
         txt = "ADVANCED MODE: File %s decrypted and shown to user" %(selectedFile)
@@ -25465,9 +25694,10 @@ Now you will have a text readable version of the file you can open in a text edi
         MD_REF.getUI().getCurrentAccounts().setIsMasterSyncNode(False)
         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()        # Flush local storage to safe/settings
 
-        play_the_money_sound()
         txt = "%s: Dataset DEMOTED to Secondary (non-Primary/Master) Node - MONEYDANCE WILL NOW RESTART" %(_THIS_METHOD_NAME)
-        myPrint("B", txt); setDisplayStatus(txt, "R")
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("advanced_mode_demote_primary_to_secondary", txt)
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -25501,9 +25731,10 @@ Now you will have a text readable version of the file you can open in a text edi
         storage.put(_PARAM_KEY, _NONE)
         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()        # Flush local storage to safe/settings
 
-        play_the_money_sound()
         txt = "Sync ('%s')has been force disabled/turned OFF - MONEYDANCE WILL NOW RESTART" %(_PARAM_KEY)
-        myPrint("B", txt); setDisplayStatus(txt, "R")
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("advanced_mode_force_sync_off", txt)
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
@@ -25563,9 +25794,10 @@ Now you will have a text readable version of the file you can open in a text edi
             for skey in SYNC_KEYS: root.removeParameter(skey)
             root.syncItem()
 
-        play_the_money_sound()
         txt = "ALL SYNC SETTINGS HAVE BEEN RESET - MONEYDANCE WILL NOW RESTART"
-        myPrint("B", txt); setDisplayStatus(txt, "R")
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("advanced_mode_force_reset_sync_settings", txt)
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -25593,9 +25825,10 @@ Now you will have a text readable version of the file you can open in a text edi
         storage.put("netsync.download_attachments", not shouldDownloadAllAttachments)
         storage.save()
 
-        play_the_money_sound()
         txt = "Sync download attachments setting now: %s - MONEYDANCE WILL NOW RESTART" %("ON" if getShouldDownloadAllAttachments() else "OFF")
-        myPrint("B", txt); setDisplayStatus(txt, "R")
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("toggle_sync_download_attachments", txt)
+        play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -25686,6 +25919,19 @@ Now you will have a text readable version of the file you can open in a text edi
         except:
             GlobalVars.mainPnl_memory_lbl.setText("<MEMORY STATS ERROR>")
             GlobalVars.mainPnl_memory_lbl.setForeground(getColorRed())
+
+    def disableToolboxButtons():
+
+        class DisableToolboxButtonsRunnable(Runnable):
+            def __init__(self): pass
+
+            def run(self):
+                try:
+                    for btn in GlobalVars.allButtonsList: btn.setEnabled(False)
+                except: pass
+
+        if not SwingUtilities.isEventDispatchThread(): SwingUtilities.invokeLater(DisableToolboxButtonsRunnable())
+        else: DisableToolboxButtonsRunnable().run()
 
     class DiagnosticDisplay(PreferencesListener):
 
@@ -25874,7 +26120,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 diagTxt += "\n<END>"
 
-                QuickJFrame("QUICK JVM DIAGNOSTICS", diagTxt, lAlertLevel=1, copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+                QuickJFrame("QUICK JVM DIAGNOSTICS", diagTxt, lAlertLevel=1, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
                 setDisplayStatus("Quick JVM Diagnostics displayed...", "B")
 
         class DisplayUUID(AbstractAction):
@@ -26120,6 +26366,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_createUSAAProfile)
 
                     while True:
+                        if MD_REF.getCurrentAccountBook() is None: return
+
                         options = ["EXIT", "PROCEED"]
                         jsp = MyJScrollPaneForJOptionPane(userFilters,775,725)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
@@ -26197,13 +26445,14 @@ Now you will have a text readable version of the file you can open in a text edi
                 LS.save()
 
                 MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record...
-                play_the_money_sound()
 
                 self.myButton.setVisible(False)
                 self.myButton.setEnabled(False)
 
                 txt = "%s: Completed. MONEYDANCE WILL NOW RESTART" %(titleText)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
+                logToolboxUpdates("FixDropboxOneWaySyncButtonAction", txt)
+                play_the_money_sound()
                 myPopupInformationBox(toolbox_frame_,txt,titleText,JOptionPane.WARNING_MESSAGE)
                 ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
@@ -26254,20 +26503,19 @@ Now you will have a text readable version of the file you can open in a text edi
                 try:
                     if File(baseFolder, ".moneydancesync").mkdir():
                         txt = "Created Dropbox .moneydancesync folder in Dropbox"
-                        setDisplayStatus(txt, "B")
-                        myPrint("B", txt)
+                        setDisplayStatus(txt, "B"); myPrint("B", txt)
+                        logToolboxUpdates("MakeDropBoxSyncFolder", txt, onlyLogGenericEntry=True)
+                        play_the_money_sound()
                         myPopupInformationBox(toolbox_frame_, txt, "DROPBOX", JOptionPane.WARNING_MESSAGE)
                         return
 
                 except: dump_sys_error_to_md_console_and_errorlog()
 
                 txt = "Error creating Dropbox .moneydancesync folder!?"
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
                 myPopupInformationBox(toolbox_frame_, txt, "DROPBOX", JOptionPane.ERROR_MESSAGE)
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class FindDatasetButtonAction(AbstractAction):
 
@@ -26503,7 +26751,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                             if response < 1:
                                 _txt = "%s: User Aborted Dataset search..." %(_THIS_METHOD_NAME)
-                                myPrint("B", _txt); setDisplayStatus(_txt, "R")
+                                setDisplayStatus(_txt, "R"); myPrint("B", _txt)
                                 return result, iFound
                             elif response == 1:
                                 lContinueToEnd = True
@@ -26575,7 +26823,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 jif = QuickJFrame("LIST OF MONEYDANCE %s DATASETS FOUND" %(theExtension),
                                   niceFileList,
-                                  lAlertLevel=1,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+                                  lAlertLevel=1,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
                 myPopupInformationBox(jif, "%s %s Datasets located...." %(iFound,theExtension), _THIS_METHOD_NAME, JOptionPane.INFORMATION_MESSAGE)
 
@@ -26725,6 +26973,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_fix_root_account_name)
 
                     while True:
+                        if MD_REF.getCurrentAccountBook() is None: return
 
                         bookName = MD_REF.getCurrentAccountBook().getName().strip()
                         root = MD_REF.getCurrentAccountBook().getRootAccount()
@@ -26855,7 +27104,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                     user_fix_curr_sec = JRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False)
                     user_fix_curr_sec.setToolTipText("This will apply fixes to your Currency (& security) / Relative Currency setup (use after running the diagnose option first). THIS CHANGES DATA!  (reset_relative_currencies.py)")
-                    user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
+                    user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1)
                     user_fix_curr_sec.setForeground(getColorRed())
 
                     user_fix_invalid_curr_sec = JRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates where <= (1.0/9999999999) or >= 9999999999 (fix_invalid_currency_rates.py)", False)
@@ -26933,13 +27182,13 @@ Now you will have a text readable version of the file you can open in a text edi
                     if not GlobalVars.UPDATE_MODE:
                         userFilters.add(labelFYI2)
                     else:
-                        if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
+                        if not isRRateCurrencyIssueFixedBuild():
                             userFilters.add(labelFYI_curr_fix)
 
                     userFilters.add(user_fix_curr_sec)
 
                     # These are new features - better supported from 2021.2 onwards
-                    if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
+                    if isRRateCurrencyIssueFixedBuild():
                         userFilters.add(user_edit_security_decimal_places)
                         userFilters.add(user_merge_duplicate_securities)
                         userFilters.add(user_autofix_price_date)
@@ -26958,8 +27207,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_force_change_accounts_cats_from_to_currency)
 
                     while True:
+                        if MD_REF.getCurrentAccountBook() is None: return
 
-                        user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and fixRCurrencyCheck is not None and fixRCurrencyCheck>1)
+                        user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1)
 
                         user_edit_security_decimal_places.setEnabled(GlobalVars.UPDATE_MODE and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
                         user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
@@ -26975,14 +27225,14 @@ Now you will have a text readable version of the file you can open in a text edi
 
                             if GlobalVars.UPDATE_MODE and not lAlertPopupShown:
 
-                                if int(MD_REF.getBuild()) < MD_RRATE_ISSUE_FIXED_BUILD:
+                                if not isRRateCurrencyIssueFixedBuild():
                                     MyPopUpDialogBox(toolbox_frame_,
                                                      "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
                                                      "You have some Currency / Security records which were created in an older version of Moneydance\n"
                                                      "These need to be updated to the latest 'format' before Toolbox can allow some options\n"
                                                      "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
                                                      "OR BETTER >> Upgrade to Moneydance build %s onwards (as the MD code was fixed to deal with this data issue)\n"
-                                                     "Menu items will remain disabled until you do this...." %(MD_RRATE_ISSUE_FIXED_BUILD),
+                                                     "Menu items will remain disabled until you do this...." %(GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD),
                                                      lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
                                 else:
                                     MyPopUpDialogBox(toolbox_frame_,
@@ -27008,7 +27258,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,1100,625)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,1200,625)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Currency / Security Diagnostics, Tools, Fixes",
@@ -27144,7 +27394,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         userFilters.add(labelFYI2)
 
                     # These are new features - better supported from 2021.2 onwards
-                    if int(MD_REF.getBuild()) >= MD_RRATE_ISSUE_FIXED_BUILD:
+                    if isRRateCurrencyIssueFixedBuild():
                         userFilters.add(user_move_invest_txns)
 
                     userFilters.add(user_diagnose_fix_attachments)
@@ -27155,8 +27405,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_detect_fix_txns_assigned_root)
 
                     while True:
+                        if MD_REF.getCurrentAccountBook() is None: return
 
-                        syncFolder = None                                                                                   # noqa
+                        syncFolder = None                                                                               # noqa
                         try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
                         except: syncFolder = False
                         user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
@@ -27268,6 +27519,12 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_advanced_delete_int_ext_files.setForeground(getColorRed())
                     user_advanced_delete_int_ext_files.setEnabled(GlobalVars.UPDATE_MODE)
 
+                    user_remove_inactive_from_sidebar = JRadioButton("Remove inactive accounts/categories from SideBar", False)
+                    user_remove_inactive_from_sidebar.setToolTipText("This remove inactive accounts/categories from SideBar. THIS CHANGES CONFIG!")
+                    user_remove_inactive_from_sidebar.setEnabled(GlobalVars.UPDATE_MODE
+                                                                 and MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True))
+                    user_remove_inactive_from_sidebar.setForeground(getColorRed())
+
                     user_change_moneydance_fonts = JRadioButton("Set/Change Default Moneydance FONTS", False)
                     user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
                     user_change_moneydance_fonts.setEnabled(GlobalVars.UPDATE_MODE and float(MD_REF.getBuild()) >= 3030)
@@ -27311,6 +27568,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_relocate_dataset_external)
                     bg.add(user_cleanup_external_files)
                     bg.add(user_advanced_delete_int_ext_files)
+                    bg.add(user_remove_inactive_from_sidebar)
                     bg.add(user_change_moneydance_fonts)
                     bg.add(user_delete_custom_theme_file)
                     bg.add(user_delete_orphan_extensions)
@@ -27341,11 +27599,13 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_relocate_dataset_external)
                     userFilters.add(user_cleanup_external_files)
                     userFilters.add(user_advanced_delete_int_ext_files)
+                    userFilters.add(user_remove_inactive_from_sidebar)
                     userFilters.add(user_change_moneydance_fonts)
                     userFilters.add(user_delete_custom_theme_file)
                     userFilters.add(user_delete_orphan_extensions)
 
                     while True:
+                        if MD_REF.getCurrentAccountBook() is None: return
 
                         user_view_java_vmoptions.setEnabled(os.path.exists(get_vmoptions_path()))
                         user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                             # noqa
@@ -27384,6 +27644,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_relocate_dataset_external.isSelected():             rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=False)
                         if user_cleanup_external_files.isSelected():                cleanup_external_files_setting()
                         if user_advanced_delete_int_ext_files.isSelected():         advanced_remove_int_external_files_settings()
+                        if user_remove_inactive_from_sidebar.isSelected():          remove_inactive_from_sidebar()
                         if user_change_moneydance_fonts.isSelected():               change_fonts()
                         if user_delete_custom_theme_file.isSelected():              delete_theme_file()
                         if user_delete_orphan_extensions.isSelected():              force_remove_extension()
@@ -27553,6 +27814,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     storage = MD_REF.getCurrentAccount().getBook().getLocalStorage()
 
                     while True:
+                        if MD_REF.getCurrentAccountBook() is None: return
 
                         lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
                         user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and (lDropbox and not lSuppressed))
@@ -27638,10 +27900,12 @@ Now you will have a text readable version of the file you can open in a text edi
                         MD_REF.getUI().getCurrentAccounts().setIsMasterSyncNode(True)
                         MD_REF.getCurrentAccount().getBook().getLocalStorage().save()        # Flush local storage to safe/settings
 
-                        play_the_money_sound()
                         txt = "Dataset Promoted to Primary/Master Node/Dataset - MONEYDANCE WILL NOW RESTART"
                         setDisplayStatus(txt, "R")
                         myPrint("B", txt)
+                        logToolboxUpdates("ConvertSecondaryButtonAction", txt)
+
+                        play_the_money_sound()
                         myPopupInformationBox(toolbox_frame_, txt, "PRIMARY DATASET", JOptionPane.WARNING_MESSAGE)
                         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
                         return
@@ -27664,7 +27928,12 @@ Now you will have a text readable version of the file you can open in a text edi
                 output = "DATASET FILE ANALYSIS\n" \
                          " ====================\n\n"
 
-                startDir=MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
+                _msgPad = 100
+                _msg = pad("Please wait: Analysing Dataset", _msgPad,padChar=".")
+                diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+                diag.go()
+
+                startDir = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
                 output += "Dataset path: %s\n\n" %(startDir)
 
                 attach = MD_REF.getCurrentAccountBook().getAttachmentsFolder()
@@ -27688,12 +27957,12 @@ Now you will have a text readable version of the file you can open in a text edi
                 countTIKfiles = 0
                 # safe_tmpSize = 0
                 keySize = 0
-                countValidFiles=0
-                countNonValidFiles=0
-                validSize=0
-                nonValidSize=0
-                listNonValidFiles=[]
-                listLargeFiles=[]
+                countValidFiles = 0
+                countNonValidFiles = 0
+                validSize = 0
+                nonValidSize = 0
+                listNonValidFiles = []
+                listLargeFiles = []
 
                 total_size = 0
                 start_path = startDir  # To get size of current directory
@@ -27708,7 +27977,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                         if os.path.basename(f) == "key" and path==keyDir and len:
                             lValidFile = True
-                            keySize=thisFileSize
+                            keySize = thisFileSize
                         if os.path.basename(f) == "settings" and path==settingsDir:
                             lValidFile = True
                             safe_settingsSize=thisFileSize
@@ -27717,31 +27986,31 @@ Now you will have a text readable version of the file you can open in a text edi
                             safe_trunkSize=thisFileSize
                         if path[:len(sync_outDir)] == sync_outDir and (f.endswith(".txn") ):
                             lValidFile = True
-                            sync_outSize+=thisFileSize
-                            sync_outCount+=1
+                            sync_outSize += thisFileSize
+                            sync_outCount += 1
                         if path[:len(trunkDir)] == trunkDir and (f.endswith("trunk") or f.endswith(".mdtxn") or f.endswith("processed.dct") or f.endswith("delete_to_push_sync_info") or f.endswith(".txn") or f.endswith("force_push_resync") ):
                             lValidFile = True
-                            safe_tiksyncSize+=thisFileSize
-                            countTIKfiles+=1
+                            safe_tiksyncSize += thisFileSize
+                            countTIKfiles += 1
                         if path[:len(attachDir)] == attachDir:
                             lValidFile = True
-                            safe_attachmentsSize+=thisFileSize
-                            countAttachments+=1
+                            safe_attachmentsSize += thisFileSize
+                            countAttachments += 1
                         if path[:len(archiveDir)] == archiveDir and f.endswith(".mdtxnarchive"):
                             lValidFile = True
-                            safe_archiveSize+=thisFileSize
-                            countArchiveFiles+=1
+                            safe_archiveSize += thisFileSize
+                            countArchiveFiles += 1
 
                         if lValidFile:
-                            countValidFiles+=1
-                            validSize+=thisFileSize
-                            if thisFileSize>500000:
+                            countValidFiles += 1
+                            validSize += thisFileSize
+                            if thisFileSize > 500000:
                                 listLargeFiles.append([fp,
                                                        thisFileSize,
                                                        pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),11)])
                         else:
-                            countNonValidFiles+=1
-                            nonValidSize+=thisFileSize
+                            countNonValidFiles += 1
+                            nonValidSize += thisFileSize
                             listNonValidFiles.append([fp,
                                                       thisFileSize,
                                                       pad(datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime(convertMDShortDateFormat_strftimeFormat(lForceYYMMDDHMS=True)),11)])
@@ -27768,22 +28037,22 @@ Now you will have a text readable version of the file you can open in a text edi
                     output+=("\nLARGE (core) file(s) > 0.5MB....:\n")
                     for largefile in listLargeFiles:
                         output+=("   - %sMB Mod: %s %s\n" %(rpad(convertBytesMBs(largefile[1]),5),largefile[2], largefile[0]))
-                output+="\n\n"
+                output += "\n\n"
 
-                output+=(count_database_objects())
+                output += (count_database_objects())
 
-                output+=(find_other_datasets())
+                output += (find_other_datasets())
 
-                output+="<END>"
+                output += "<END>"
 
-                QuickJFrame("VIEW DATASET FILE ANALYSIS", output,copyToClipboard=lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+                diag.kill()
+                QuickJFrame("VIEW DATASET FILE ANALYSIS", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
                 txt = ("Your dataset contains %s files and is %sMB. %s non-core files were found consuming %sMB"
                        %(countValidFiles,convertBytesMBs(validSize),countNonValidFiles,convertBytesMBs(nonValidSize)))
                 setDisplayStatus(txt, "B")
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class DoTheMenu(AbstractAction):
 
@@ -27793,7 +28062,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 self.callingClass = callingClass
 
             def actionPerformed(self, event):
-                global debug, lCopyAllToClipBoard_TB, lAutoPruneInternalBackups_TB  # Global must be here as we set these variables
+                global debug        # Global must be here as we set this variable (i.e. do not create a local instance/copy)
 
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
                 myPrint("DB", "DoTheMenu() - Command: '%s'" %(event.getActionCommand()))
@@ -27824,7 +28093,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 # ##########################################################################################################
                 if event.getActionCommand() == "Auto Prune Internal Backups":
 
-                    if not lAutoPruneInternalBackups_TB:
+                    if not GlobalVars.lAutoPruneInternalBackups_TB:
                         if not myPopupAskQuestion(toolbox_frame_,
                                                   "AUTO PRUNE INTERNAL BACKUPS",
                                                   "Turn on Auto-Prune of internal backups of config.dict & settings (will always keep 5 days and/or 5 copies)?",
@@ -27841,9 +28110,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     else:
                         myPrint("B", "User asked to turn OFF the auto-prune of internal backups of config.dict and settings.....")
 
-                    lAutoPruneInternalBackups_TB = not lAutoPruneInternalBackups_TB
+                    GlobalVars.lAutoPruneInternalBackups_TB = not GlobalVars.lAutoPruneInternalBackups_TB
 
-                    if lAutoPruneInternalBackups_TB:
+                    if GlobalVars.lAutoPruneInternalBackups_TB:
                         prune_internal_backups()
 
                 # ##########################################################################################################
@@ -27853,23 +28122,21 @@ Now you will have a text readable version of the file you can open in a text edi
                         setDisplayStatus(txt, "DG")
                     else:
                         txt = "Script Debug mode enabled..."
-                        setDisplayStatus(txt, "DG")
-                        myPrint("B", txt)
+                        setDisplayStatus(txt, "DG"); myPrint("B", txt)
 
                     debug = not debug
                     GlobalVars.mainPnl_debug_lbl.setText("<DEBUG ON>" if debug else "")
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Copy all Output to Clipboard":
-                    if lCopyAllToClipBoard_TB:
+                    if GlobalVars.lCopyAllToClipBoard_TB:
                         txt = "Diagnostic outputs will NOT be copied to Clipboard"
                         setDisplayStatus(txt, "DG")
                     else:
                         txt = "Diagnostic outputs WILL now all be copied to the Clipboard"
-                        setDisplayStatus(txt, "DG")
-                        myPrint("B", txt)
+                        setDisplayStatus(txt, "DG"); myPrint("B", txt)
 
-                    lCopyAllToClipBoard_TB = not lCopyAllToClipBoard_TB
+                    GlobalVars.lCopyAllToClipBoard_TB = not GlobalVars.lCopyAllToClipBoard_TB
 
                 # ##########################################################################################################
                 if event.getActionCommand() == "Advanced Mode":
@@ -27881,8 +28148,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                   JOptionPane.YES_NO_OPTION,
                                                   JOptionPane.ERROR_MESSAGE):
                             txt = "ADVANCED MODE DISABLED AS USER DECLINED DISCLAIMER"
-                            setDisplayStatus(txt, "R")
-                            myPrint("B", txt)
+                            setDisplayStatus(txt, "R"); myPrint("B", txt)
 
                             event.getSource().setSelected(False)
 
@@ -27906,8 +28172,7 @@ Now you will have a text readable version of the file you can open in a text edi
                             setDisplayStatus(txt, "R")
                     else:
                         txt = "ADVANCED MODE DISABLED"
-                        setDisplayStatus(txt, "B")
-                        myPrint("B",txt)
+                        setDisplayStatus(txt, "B"); myPrint("B",txt)
 
                     GlobalVars.ADVANCED_MODE = not GlobalVars.ADVANCED_MODE
                     for btn in GlobalVars.allButtonsList: btn.setColorsAndVisibility()
@@ -27988,7 +28253,7 @@ Now you will have a text readable version of the file you can open in a text edi
             GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder(MD_REF.getUI().getColors().headerBorder, 2))
 
             try:
-                if lCopyAllToClipBoard_TB:
+                if GlobalVars.lCopyAllToClipBoard_TB:
                     Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(displayString), None)
             except:
                 myPrint("J","Error copying diagnostic's main screen contents to Clipboard")
@@ -28031,7 +28296,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
             mainPnl = JPanel(GridBagLayout())
 
-            if lAutoPruneInternalBackups_TB:
+            if GlobalVars.lAutoPruneInternalBackups_TB:
                 prune_internal_backups(lStartup=True)
             else:
                 myPrint("J","Auto-prune of internal backups of config.dict, custom_theme.properties, ./safe/settings files is disabled... so no action")
@@ -28345,7 +28610,7 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemC.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, keyToUse))
             menuItemC.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemC.setToolTipText("When selected copies the output of all displays to Clipboard")
-            menuItemC.setSelected(lCopyAllToClipBoard_TB)
+            menuItemC.setSelected(GlobalVars.lCopyAllToClipBoard_TB)
             menu1.add(menuItemC)
 
             menuItemD = JCheckBoxMenuItem("Debug")
@@ -28360,7 +28625,7 @@ Now you will have a text readable version of the file you can open in a text edi
             menuItemP.setMnemonic(KeyEvent.VK_B)
             menuItemP.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
             menuItemP.setToolTipText("Enables auto pruning of the internal backups that Toolbox makes of config.dict, custom_theme.properties, and ./safe/settings")
-            menuItemP.setSelected(lAutoPruneInternalBackups_TB)
+            menuItemP.setSelected(GlobalVars.lAutoPruneInternalBackups_TB)
             menu1.add(menuItemP)
 
             menuItemF = JMenuItem("Find/Search")
@@ -28681,34 +28946,10 @@ Now you will have a text readable version of the file you can open in a text edi
                                          OKButtonText="ACKNOWLEDGE",
                                          lAlertLevel=1,
                                          lModal=True).go()
-            except:
-                pass
-
-            # check_for_old_StuWareSoftSystems_scripts()
-
-            _tb_extn_avail_version = check_for_updatable_extensions_on_startup()
-
-            checkModule = myModuleID
-            myExtensions = downloadStuWareSoftSystemsExtensions(checkModule)
-            if myExtensions:
-                myModule = myExtensions.get("id")
-                if myModule == checkModule:
-                    availableFromGitHubVersion = int(myExtensions.get("module_build"))
-
-                    if _tb_extn_avail_version > int(version_build):
-                        myPrint("B","@@ Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu @@" %_tb_extn_avail_version)
-                        theStr = "You are running version %s\n" %version_build
-                        theStr += "Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu\n" %_tb_extn_avail_version
-                        MyPopUpDialogBox(toolbox_frame_,"Toolbox Version:",theStr,theTitle="UPGRADE AVAILABLE",OKButtonText="Acknowledge").go()
-
-                    elif availableFromGitHubVersion > int(version_build) and availableFromGitHubVersion > _tb_extn_avail_version:
-                        myPrint("DB","@@ FYI - Toolbox upgrade to version %s (unsigned) is available from Author's code site.... @@" %(availableFromGitHubVersion))
-
-                    else:
-                        myPrint("DB","Toolbox is running latest version available: %s" %max(version_build,availableFromGitHubVersion))
+            except: pass
 
             checkForREADONLY()
-
+            MD_REF.getUI().setStatus("%s is loaded and running.." %(myModuleID.capitalize()), 0.0)
 
     if not GlobalVars.i_am_an_extension_so_run_headless: print("""
 Script/extension is analysing your moneydance & system settings....
@@ -28720,127 +28961,58 @@ Script/extension is analysing your moneydance & system settings....
 ------------------------------------------------------------------------------
 """)
 
-    # This gets the latest build info from the developer... and it overrides the program defaults...
-    download_toolbox_version_info()
+    # Download extension version data / requirements from IK and GitHib... Via new Thread in case of slow internet connection...
+    _t = Thread(DownloadExtensionVersionData(), "toolbox_DownloadExtensionVersionData".lower())
+    _t.setDaemon(True)
+    _t.start()
 
-    lAbort = False
-    if TOOLBOX_STOP_NOW:
-        lAbort = True
-    elif lFailed_get_StuWareSoftSystems_parameters_from_file:
-        lAbort = True
-    elif float(MD_REF.getVersion()) < TOOLBOX_MINIMUM_TESTED_MD_VERSION or not lImportOK:
-        lAbort = True
-    elif int(float(MD_REF.getVersion())) > int(TOOLBOX_MAXIMUM_TESTED_MD_VERSION):  # Just stick to major version checks....
-        lAbort = True
-    else:
-        if (float(MD_REF.getBuild()) <= TOOLBOX_MAXIMUM_TESTED_MD_BUILD
-                    or myPopupAskQuestion(None,"Toolbox(build: %s) - Moneydance Version/Build" %(version_build),
-                                      "MD build (%s)%s is newer than the Toolbox tested build of (%s)%s - Proceed?"
-                                      %(MD_REF.getVersion(),MD_REF.getBuild(),TOOLBOX_MAXIMUM_TESTED_MD_VERSION,TOOLBOX_MAXIMUM_TESTED_MD_BUILD),
-                                      JOptionPane.WARNING_MESSAGE)):
-
-            # if float(MD_REF.getBuild()) > TOOLBOX_MAXIMUM_TESTED_MD_BUILD:
-            #     myPrint("B","@@ WARNING - MD build (%s)%s is newer than the Toolbox tested build of (%s)%s....!"
-            #             %(MD_REF.getVersion(),MD_REF.getBuild(),TOOLBOX_MAXIMUM_TESTED_MD_VERSION,TOOLBOX_MAXIMUM_TESTED_MD_BUILD))
-
-            fixRCurrencyCheck = 0
-
-            MD_REF.getUI().setStatus(">> Infinite Kind (co-authored by Stuart Beesley: StuWareSoftSystems) - Toolbox launching.......",0)
-
-            # These checks already run at Dataset Load time:
-            # >> com.infinitekind.moneydance.model.AccountBook.performPostLoadVerification()
-            # That Currency BaseType is set
-            #   >> com.infinitekind.moneydance.model.CurrencyType.performPostLoadVerification()
-            #       >> Relative currency loops, zero rate
-            #   >> Orphan snapshots with no registered Currency - deletes them
-            #   >> Redundant Base currency snapshots - deletes them
-            #   >> On each snapshot com.infinitekind.moneydance.model.CurrencySnapshot.performPostLoadVerification
-            #       >> resets relative rates < 0 relative to base rate
-            #   >> For csplits registered with currency
-            #   >> Then sorts the Currency's snapshots and cplits
-            # That Account structures are valid
-            #   >> Broken acct numbers (old)
-            #   >> Validates account structures: com.infinitekind.moneydance.model.Account.ensureAccountStructure()
-            #       >> Iterates all accounts. If it finds acct eq type ROOT validates it's the root, fixes duplicate roots, replaces root
-            #       >> where not ROOT, validates the parent of this acct has sub accounts
-            #   >> Then checks that getRootAccount() is not None - else:
-            #       >> it finds it & sets it, or creates it
-            #       >> also it also detects and cleans up duplicate roots
-            #   >> It also finds orphan accounts, with no parent and links them to root
-            # That budget structures are OK.
-            # That Txns are valid
-            #   >> Txns with getOtherCount() <= 0 get deleted (when a parent)
-            #   >> That Txns are not linked to Root (warning only)
-            #   >> If Account does not exist:
-            #       >> Makes a new account (with ts = 0 = ghost account)
-            # Then sorts Accounts
-            # Then refreshes balances
-
-            # Check based on fix_restored_accounts.py
-            _root = MD_REF.getCurrentAccount().getBook().getRootAccount()   # Should never happen!
-            if _root is None or _root.getAccountType()!=Account.AccountType.ROOT:                                       # noqa
-                myPrint("B","@@ ERROR: I've Detected that your ROOT Account is Missing or not type ROOT! Contact support or the Author of Toolbox for a fix")
-                myPrint("B","@@ FYI - there used to be scripts called fix_restored_accounts.py or fix_root_account_type.py for this (but the last time I looked they were broken.....")
-                myPopupInformationBox(None,"ERROR: I've Detected that your ROOT Account is Missing or not type ROOT! Contact support or the Author of Toolbox for a fix",
-                                      "ROOT ACCOUNT WARNING",JOptionPane.ERROR_MESSAGE)
-                cleanup_references()
-            else:
-
-                class MainAppRunnable(Runnable):
-                    def __init__(self):
-                        pass
-
-                    def run(self):                                                                                      # noqa
-                        myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
-                        myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-
-                        theDisplay = DiagnosticDisplay()
-                        theDisplay.openDisplay()
-
-                        # At this point, Toolbox is running. Put bypass methods here for debug testing
-                        # GlobalVars.UPDATE_MODE = True
-                        # GlobalVars.ADVANCED_MODE = True
-                        # Call a function here if needed for debug
-
-
-                if not SwingUtilities.isEventDispatchThread():
-                    myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")
-                    SwingUtilities.invokeAndWait(MainAppRunnable())
-                else:
-                    myPrint("DB",".. Main App Already within the EDT so calling naked...")
-                    MainAppRunnable().run()
-
-                # myPrint("DB","Requesting System Garbage Collection....")
-                # System.gc()
-
-                myPrint("P","-----------------------------------------------------------------------------------------------------------")
-                myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", GlobalVars.thisScriptName, " script ending (frame is open/running)......")
-                myPrint("P","-----------------------------------------------------------------------------------------------------------")
-
-        else:
-            lAbort = True
-
-    if lAbort:
-        if TOOLBOX_STOP_NOW:
-            myPrint("B", "STOP-NOW (DISABLE) COMMAND RECEIVED!")
-            myPopupInformationBox(None,
-                                  "Toolbox DISABLED (check for version update Extension>Manage Extensions)",
-                                  "TOOLBOX DISABLED",
-                                  JOptionPane.ERROR_MESSAGE)
-        elif lFailed_get_StuWareSoftSystems_parameters_from_file:
-            myPrint("B", "lFailed_get_StuWareSoftSystems_parameters_from_file() triggered... Perhaps your dataset is closed?")
-            myPopupInformationBox(None,
-                                  "Failed to retrieve saved parameters from file, perhaps your dataset is closed?",
-                                  "TOOLBOX CANNOT OPEN",
-                                  JOptionPane.ERROR_MESSAGE)
-            try: WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
-            except: pass
-        else:
-            myPrint("B", "Sorry, this Toolbox (build %s) has only been tested on Moneydance versions %s thru' %s(build %s)... Yours is %s(%s) >> Exiting....."
-                    %(version_build, TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION,TOOLBOX_MAXIMUM_TESTED_MD_BUILD,MD_REF.getVersion(),MD_REF.getBuild()))
-            myPopupInformationBox(None,
-                                  "Sorry, this Toolbox (build %s) has only been tested on Moneydance versions %s thru' %s(build %s)... Yours is %s(%s) >> Exiting....."
-                                  %(version_build, TOOLBOX_MINIMUM_TESTED_MD_VERSION, TOOLBOX_MAXIMUM_TESTED_MD_VERSION,TOOLBOX_MAXIMUM_TESTED_MD_BUILD,MD_REF.getVersion(),MD_REF.getBuild()),
-                                  "Toolbox- VERSION TOO NEW",
-                                  JOptionPane.ERROR_MESSAGE)
+    if lFailed_get_StuWareSoftSystems_parameters_from_file:
+        myPrint("B", "lFailed_get_StuWareSoftSystems_parameters_from_file() triggered... Perhaps your dataset is closed?")
+        myPopupInformationBox(None,
+                              "Failed to retrieve saved parameters from file, perhaps your dataset is closed?",
+                              "TOOLBOX CANNOT OPEN",
+                              JOptionPane.ERROR_MESSAGE)
+        try: WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
+        except: pass
         cleanup_references()
+
+    else:
+
+        # Check based on fix_restored_accounts.py
+        _root = MD_REF.getCurrentAccount().getBook().getRootAccount()   # Should never happen!
+        if _root is None or _root.getAccountType()!=Account.AccountType.ROOT:                                           # noqa
+            myPrint("B", "@@ ERROR: Detected that your ROOT Account is Missing or not type ROOT! Contact support or the Author of Toolbox for a fix")
+            myPrint("B", "@@ FYI - there used to be scripts called fix_restored_accounts.py or fix_root_account_type.py for this (but the last time I looked they were broken.)")
+            myPopupInformationBox(None, "ERROR: I've Detected that your ROOT Account is Missing or not type ROOT! Contact support or the Author of Toolbox for a fix",
+                                  "ROOT ACCOUNT WARNING",JOptionPane.ERROR_MESSAGE)
+            cleanup_references()
+
+        else:
+
+            MD_REF.getUI().setStatus(">> Infinite Kind (co-authored by Stuart Beesley: StuWareSoftSystems) - %s launching......." %(myModuleID.capitalize()), 0)
+
+            class MainAppRunnable(Runnable):
+                def __init__(self):
+                    pass
+
+                def run(self):                                                                                          # noqa
+                    myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
+                    myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+                    theDisplay = DiagnosticDisplay()
+                    theDisplay.openDisplay()
+                    GlobalVars.TOOLBOX_IS_NOW_RUNNING = True
+
+                    # At this point, Toolbox is running. Put bypass methods here for debug testing
+                    # GlobalVars.UPDATE_MODE = True; GlobalVars.ADVANCED_MODE = True; Call a function here if needed for debug
+
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")
+                SwingUtilities.invokeAndWait(MainAppRunnable())
+            else:
+                myPrint("DB",".. Main App Already within the EDT so calling naked...")
+                MainAppRunnable().run()
+
+            # myPrint("DB","Requesting System Garbage Collection....")
+            # System.gc()
+            myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", GlobalVars.thisScriptName, " script ending (frame is open/running)......")

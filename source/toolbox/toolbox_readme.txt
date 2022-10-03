@@ -192,6 +192,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - DELETE Files from Menu>File>Open list and also from DISK (Removes files from 'Internal' and 'External' locations).
             >> External locations > Edits config.dict to remove references to external files for File/open - AND ALLOWS YOU TO DELETE THE FILES TOO
             >> Default / Internal locations > ALLOWS YOU TO DELETE THE Dataset from disk (this then removes it from the File/Open menu)
+        - FIX - Remove inactive accounts/categories from SideBar
         - FIX - Set/Change Default Moneydance FONTS
         - FIX - Delete Custom Theme file
         - FIX - Delete Orphaned/Outdated Extensions (from config.dict and .mxt files)

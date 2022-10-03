@@ -5,7 +5,7 @@
 
 global moneydance
 
-from java.lang import System, Runtime, Long, Runnable, Thread
+from java.lang import System, Runtime, Long, Runnable, Thread, InterruptedException
 from com.moneydance.util import Platform
 from java.io import File
 
@@ -130,9 +130,19 @@ class QuickDiag(Runnable):
 
                 Thread.sleep(60 * 1000)     # Sleep and repeat.....
 
-        except:
-            _specialPrint(u"ERROR: %s quick information failed...." %(self.thisis.capitalize()))
+        except InterruptedException: pass
 
+        except:
+            _specialPrint(u"ERROR: %s quick information failed....\n" %(self.thisis.capitalize()))
+
+
+try:
+    for t in Thread.getAllStackTraces().keySet():
+        for checkName in [u"toolbox_DownloadExtensionVersionData", u"%s_init_quickdiag" %(_THIS_IS_)]:
+            if checkName.lower() in t.getName().lower() and t.isAlive():
+                _specialPrint(u"Interrupting old Thread '%s'(id: %s) which seems to still be alive\n" %(t, t.getId()))
+                t.interrupt()
+except: _specialPrint(u"%s - error interrupting old Thread... (continuing)\n" %(_THIS_IS_))
 
 t = Thread(QuickDiag(moneydance, _THIS_IS_), u"%s_init_quickdiag" %(_THIS_IS_))
 t.setDaemon(True)
