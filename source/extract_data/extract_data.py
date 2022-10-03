@@ -101,6 +101,7 @@
 # build: 1025 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1025 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
 # build: 1025 - Add date range selector/filter to extract_investment_registers
+# build: 1025 - Fix SG2020 cost_basis conversion back to back on certain non-base security situations (it assumed the cost basis was base)
 
 # todo - consider creating a Yahoo Finance portfolio upload format
 
@@ -5535,22 +5536,22 @@ Visit: %s (Author's site)
                         columnTypes = ["Text", "Text", "TextNumber", "TextNumber", "TextC", "TextNumber", "TextNumber",
                                        "TextNumber", "TextNumber", "%", "Text", "N",
                                        "N", "N", "N", "N", "N", "N", "TEXT"]
-                        headingNames = columnNames                                                                              # noqa
-                        _SHRS_FORMATTED = 2                                                                                     # noqa
-                        _SHRS_RAW = 11                                                                                          # noqa
-                        _PRICE_FORMATTED = 3                                                                                    # noqa
-                        _PRICE_RAW = 12                                                                                         # noqa
-                        _CVALUE_FORMATTED = 5                                                                                   # noqa
-                        _CVALUE_RAW = 13                                                                                        # noqa
-                        _BVALUE_FORMATTED = 6                                                                                   # noqa
-                        _BVALUE_RAW = 14                                                                                        # noqa
-                        _CBVALUE_FORMATTED = 7                                                                                  # noqa
-                        _CBVALUE_RAW = 15                                                                                       # noqa
-                        _GAIN_FORMATTED = 8                                                                                     # noqa
-                        _GAIN_RAW = 16                                                                                          # noqa
-                        _GAINPCT = 9                                                                                            # noqa
-                        _SORT = 17                                                                                              # noqa
-                        _EXCLUDECSV = 18                                                                                        # noqa
+                        headingNames = columnNames                                                                      # noqa
+                        _SHRS_FORMATTED = 2                                                                             # noqa
+                        _SHRS_RAW = 11                                                                                  # noqa
+                        _PRICE_FORMATTED = 3                                                                            # noqa
+                        _PRICE_RAW = 12                                                                                 # noqa
+                        _CVALUE_FORMATTED = 5                                                                           # noqa
+                        _CVALUE_RAW = 13                                                                                # noqa
+                        _BVALUE_FORMATTED = 6                                                                           # noqa
+                        _BVALUE_RAW = 14                                                                                # noqa
+                        _CBVALUE_FORMATTED = 7                                                                          # noqa
+                        _CBVALUE_RAW = 15                                                                               # noqa
+                        _GAIN_FORMATTED = 8                                                                             # noqa
+                        _GAIN_RAW = 16                                                                                  # noqa
+                        _GAINPCT = 9                                                                                    # noqa
+                        _SORT = 17                                                                                      # noqa
+                        _EXCLUDECSV = 18                                                                                # noqa
 
                         def getTableModel(self, book):
                             global baseCurrency, rawDataTable, lAllCurrency, filterForCurrency, lAllSecurity, filterForSecurity
@@ -5654,13 +5655,15 @@ Visit: %s (Author's site)
                                                         if self.sameCurrency is None:               self.sameCurrency = self.currXrate
                                                         if self.sameCurrency != self.currXrate:     self.allOneCurrency = False
 
-                                                    balanceBase = (0.0 if (qty is None) else (curr.getDoubleValue(qty) * price / exchangeRate))  # Value in Base Currency
+                                                    balanceBase = (0.0 if (qty is None) else (curr.getDoubleValue(qty) * price / exchangeRate))                 # Value in Base Currency
                                                     balanceBaseSplit = (0.0 if (qtySplit is None) else (curr.getDoubleValue(qtySplit) * price / exchangeRate))  # Value in Base Currency
 
-                                                    costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis) / exchangeRate, 2))
+                                                    # costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis) / exchangeRate, 2))
+                                                    costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis), 2));
                                                     gainBase = round(balanceBase, 2) - costBasisBase
 
-                                                    costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]) / exchangeRate, 2)
+                                                    # costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]) / exchangeRate, 2)
+                                                    costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]), 2);
                                                     gainBaseSplit = round(balanceBaseSplit, 2) - costBasisBaseSplit
 
                                                     if debug:
@@ -5674,34 +5677,34 @@ Visit: %s (Author's site)
 
                                                     # If you're confused, these are the accounts within a security
                                                     entry = []
-                                                    entry.append(curr.getTickerSymbol())  # c0
-                                                    entry.append(curr.getName())  # c1
-                                                    entry.append(curr.formatSemiFancy(qtySplit, GlobalVars.decimalCharSep))  # c2
-                                                    entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))  # c3
-                                                    entry.append(self.currXrate.getIDString())  # c4
+                                                    entry.append(curr.getTickerSymbol())                                                                # c0
+                                                    entry.append(curr.getName())                                                                        # c1
+                                                    entry.append(curr.formatSemiFancy(qtySplit, GlobalVars.decimalCharSep))                             # c2
+                                                    entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))       # c3
+                                                    entry.append(self.currXrate.getIDString())                                                          # c4
                                                     x = None
                                                     if securityIsBase:
-                                                        entry.append(None)  # c5 - don't bother displaying if base curr
+                                                        entry.append(None)                                                                              # c5 - don't bother displaying if base curr
                                                     else:
                                                         self.lRemoveCurrColumn = False
-                                                        entry.append(self.myNumberFormatter(balanceSplit, False, self.currXrate, baseCurrency, 2))  # Local Curr Value
+                                                        entry.append(self.myNumberFormatter(balanceSplit, False, self.currXrate, baseCurrency, 2))      # Local Curr Value
                                                         x = round(balanceSplit, 2)
-                                                    entry.append(self.myNumberFormatter(balanceBaseSplit, True, self.currXrate, baseCurrency, 2))  # Value Base Currency
-                                                    entry.append(self.myNumberFormatter(costBasisBaseSplit, True, self.currXrate, baseCurrency, 2))  # Cost Basis
-                                                    entry.append(self.myNumberFormatter(gainBaseSplit, True, self.currXrate, baseCurrency, 2))  # Gain
+                                                    entry.append(self.myNumberFormatter(balanceBaseSplit, True, self.currXrate, baseCurrency, 2))       # Value Base Currency
+                                                    entry.append(self.myNumberFormatter(costBasisBaseSplit, True, self.currXrate, baseCurrency, 2))     # Cost Basis
+                                                    entry.append(self.myNumberFormatter(gainBaseSplit, True, self.currXrate, baseCurrency, 2))          # Gain
 
                                                     try: entry.append(round(gainBaseSplit / costBasisBaseSplit, 3))
                                                     except ZeroDivisionError: entry.append(0.0)
 
-                                                    entry.append(split_acct_array[iSplitAcctArray][0].replace(acctSeparator, "",1))  # Acct
-                                                    entry.append(curr.getDoubleValue(qtySplit))  # _Shrs
-                                                    entry.append(price)  # _Price = raw number
-                                                    entry.append(x)  # _CValue
-                                                    entry.append(round(balanceBaseSplit, 2))  # _BValue
-                                                    entry.append(costBasisBaseSplit)  # _Cost Basis
-                                                    entry.append(gainBaseSplit)  # _Gain
+                                                    entry.append(split_acct_array[iSplitAcctArray][0].replace(acctSeparator, "",1))                     # Acct
+                                                    entry.append(curr.getDoubleValue(qtySplit))                                                         # _Shrs
+                                                    entry.append(price)                                                                                 # _Price = raw number
+                                                    entry.append(x)                                                                                     # _CValue
+                                                    entry.append(round(balanceBaseSplit, 2))                                                            # _BValue
+                                                    entry.append(costBasisBaseSplit)                                                                    # _Cost Basis
+                                                    entry.append(gainBaseSplit)                                                                         # _Gain
                                                     entry.append(curr.getName().upper() + "000" + split_acct_array[iSplitAcctArray][0].upper().replace(acctSeparator, "", 1))  # _SORT
-                                                    entry.append(False)  # Never exclude
+                                                    entry.append(False)                                                                                 # Never exclude
                                                     rawDataTable.append(entry)
                                                 # NEXT
 
@@ -5731,24 +5734,24 @@ Visit: %s (Author's site)
 
                                                 entry = []
                                                 if lSplitSecuritiesByAccount:
-                                                    entry.append("totals: " + curr.getTickerSymbol())  # c0
+                                                    entry.append("totals: " + curr.getTickerSymbol())                                           # c0
                                                 else:
-                                                    entry.append(curr.getTickerSymbol())  # c0
-                                                entry.append(curr.getName())  # c1
-                                                entry.append(curr.formatSemiFancy(qty, GlobalVars.decimalCharSep))  # c2
-                                                entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))  # c3
-                                                entry.append(self.currXrate.getIDString())  # c4
+                                                    entry.append(curr.getTickerSymbol())                                                        # c0
+                                                entry.append(curr.getName())                                                                    # c1
+                                                entry.append(curr.formatSemiFancy(qty, GlobalVars.decimalCharSep))                              # c2
+                                                entry.append(self.myNumberFormatter(price, False, self.currXrate, baseCurrency, _roundPrice))   # c3
+                                                entry.append(self.currXrate.getIDString())                                                      # c4
                                                 x = None
-                                                if securityIsBase:                                                                          # noqa
-                                                    entry.append(None)  # c5 - don't bother displaying if base curr
+                                                if securityIsBase:                                                                              # noqa
+                                                    entry.append(None)                                                                          # c5 - don't bother displaying if base curr
                                                 else:
                                                     self.lRemoveCurrColumn = False
-                                                    entry.append(self.myNumberFormatter(balance, False, self.currXrate, baseCurrency,2))         # noqa
+                                                    entry.append(self.myNumberFormatter(balance, False, self.currXrate, baseCurrency,2))        # noqa
                                                     x = round(balance, 2)
 
-                                                entry.append(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency,2))     # noqa
-                                                entry.append(self.myNumberFormatter(costBasisBase, True, self.currXrate, baseCurrency,2))   # noqa
-                                                entry.append(self.myNumberFormatter(gainBase, True, self.currXrate, baseCurrency,2))        # noqa
+                                                entry.append(self.myNumberFormatter(balanceBase, True, self.currXrate, baseCurrency,2))         # noqa
+                                                entry.append(self.myNumberFormatter(costBasisBase, True, self.currXrate, baseCurrency,2)) ;      # noqa
+                                                entry.append(self.myNumberFormatter(gainBase, True, self.currXrate, baseCurrency,2))            # noqa
 
                                                 try: entry.append(round(gainBase / costBasisBase, 3))
                                                 except ZeroDivisionError: entry.append(0.0)
@@ -5757,14 +5760,14 @@ Visit: %s (Author's site)
                                                 for iIterateAccts in range(0, len(split_acct_array)):
                                                     buildAcctString += split_acct_array[iIterateAccts][0]
                                                 buildAcctString = buildAcctString[:-len(acctSeparator)]
-                                                entry.append(buildAcctString)  # Acct
-                                                entry.append(curr.getDoubleValue(qty))  # _Shrs = (raw number)
-                                                entry.append(price)  # _Price = (raw number)
-                                                entry.append(x)  # _CValue =  (raw number)
-                                                entry.append(round(balanceBase, 2))  # _BValue =  (raw number)
-                                                entry.append(costBasisBase)  # _Cost Basis
-                                                entry.append(gainBase)  # _Gain
-                                                entry.append(curr.getName().upper() + "888")  # _SORT
+                                                entry.append(buildAcctString)                                                                   # Acct
+                                                entry.append(curr.getDoubleValue(qty))                                                          # _Shrs = (raw number)
+                                                entry.append(price)                                                                             # _Price = (raw number)
+                                                entry.append(x)                                                                                 # _CValue =  (raw number)
+                                                entry.append(round(balanceBase, 2))                                                             # _BValue =  (raw number)
+                                                entry.append(costBasisBase)                                                                     # _Cost Basis
+                                                entry.append(gainBase)                                                                          # _Gain
+                                                entry.append(curr.getName().upper() + "888")                                                    # _SORT
                                                 entry.append((False if (not lSplitSecuritiesByAccount) else lExcludeTotalsFromCSV))
                                                 rawDataTable.append(entry)
 
@@ -5791,14 +5794,14 @@ Visit: %s (Author's site)
                                                     blankEntry.append(lExcludeTotalsFromCSV)
                                                     rawDataTable.append(blankEntry)
 
-                                                self.totalBalance += round(balance, 2)  # You can round here if you like....
-                                                self.totalBalanceBase += round(balanceBase, 2)  # You can round here if you like....
+                                                self.totalBalance += round(balance, 2)                                  # You can round here if you like....
+                                                self.totalBalanceBase += round(balanceBase, 2)                          # You can round here if you like....
 
                                                 self.totalCostBasisBase += costBasisBase
                                                 self.totalGainBase += gainBase
 
                                                 # if lIncludeCashBalances:
-                                                #     cash = 0.0                                                                  # noqa
+                                                #     cash = 0.0                                                        # noqa
                                                 #     # Search to see if Account exists/has been used already for Cash Balance - Only use once!
                                                 #     acct_string = ""
                                                 #     for keys in self.CashBalancesTable.keys():
@@ -5969,10 +5972,8 @@ Visit: %s (Author's site)
                                     entry.append(None)
                                     entry.append(None)
                                     entry.append(None)
-                                    entry.append(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase), True,
-                                                                        baseCurrency, baseCurrency, 2))
-                                    entry.append(self.myNumberFormatter(self.totalCostBasisBase, True, baseCurrency, baseCurrency,
-                                                                        2))  # Cost Basis
+                                    entry.append(self.myNumberFormatter((self.totalBalanceBase + self.totalCashBalanceBase), True, baseCurrency, baseCurrency, 2))
+                                    entry.append(self.myNumberFormatter(self.totalCostBasisBase, True, baseCurrency, baseCurrency, 2))  # Cost Basis
                                     entry.append(self.myNumberFormatter(self.totalGainBase, True, baseCurrency, baseCurrency, 2))  # Gain
 
                                     try: entry.append(round(self.totalGainBase / self.totalCostBasisBase, 3))
@@ -6151,6 +6152,8 @@ Visit: %s (Author's site)
 
                             myPrint("D","In ", inspect.currentframe().f_code.co_name, "()")
 
+                            base = MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
+
                             totals = {}  # Dictionary <CurrencyType, Long>
                             accounts = {}
                             cashTotals = {}  # Dictionary<CurrencyType, Long>
@@ -6198,8 +6201,8 @@ Visit: %s (Author's site)
                                                                                                 filterForSecurity,
                                                                                                 None)):
                                 curr = acct.getCurrencyType()
-                                account = accounts.get(curr)  # this returns None if curr doesn't exist yet
-                                total = totals.get(curr)  # this returns None if security/curr doesn't exist yet
+                                account = accounts.get(curr)    # this returns None if curr doesn't exist yet
+                                total = totals.get(curr)        # this returns None if security/curr doesn't exist yet
                                 costbasis = cbbasistotals.get(curr)
 
                                 if lIncludeFutureBalances_SG2020:
@@ -6214,7 +6217,8 @@ Visit: %s (Author's site)
                                     total = (0L if (total is None) else total) + _getBalance
                                     totals[curr] = total
 
-                                    getTheCostBasis = InvestUtil.getCostBasis(acct)
+                                    # getTheCostBasis = InvestUtil.getCostBasis(acct)
+                                    getTheCostBasis = CurrencyUtil.convertValue(InvestUtil.getCostBasis(acct), acct.getParentAccount().getCurrencyType(), base)
                                     costbasis = (0L if (costbasis is None) else costbasis) + getTheCostBasis
                                     cbbasistotals[curr] = costbasis
 

@@ -138,11 +138,10 @@
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - change from str() to unicode() where appropriate...
 
-# NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM. This is why:
+# NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM....:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
 # 2. At various times it may connect to the Infinite Kind server to gather information about extensions and versions
 # 3. Within the OFX banking menu, it can connect to the Infinite Kind server to get the latest bank connection profiles for viewing
-# >> NOTE: This may cause a 'lag' when launching Toolbox if you have a slow internet connection...
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
@@ -5132,6 +5131,14 @@ Visit: %s (Author's site)
         del grabEnvPassphrases
 
         textArray.append(u"")
+        if MD_REF.getUI().getCurrentAccounts().isMasterSyncNode():
+            txt = u"Dataset is a Master / PRIMARY sync node"
+            textArray.append(txt); myPrint("B", txt)
+        else:
+            txt = u"Dataset is NOT a Master Node >> It is a SECONDARY sync node"
+            textArray.append(txt); myPrint("B", txt)
+
+        textArray.append(u"")
         x, y = calculateMoneydanceDatasetSize(True)
         textArray.append(u"Dataset size: %sMBs (%s files)\n" %(x,y))
         myPrint("B", "Dataset size: %sMBs (%s files)\n" %(x,y))
@@ -5151,9 +5158,6 @@ Visit: %s (Author's site)
         cos = count_database_objects()
         textArray.append(cos)
         myPrint("B", "\n.\n.", cos, "-------------------------------------------------------------------")
-
-        textArray.append(u"Master Node (dataset): %s" %(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
-        myPrint("B", "Master Node (dataset): %s" %(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
 
         textArray.append(u"\nENCRYPTION")
         x = MD_REF.getUI().getCurrentAccounts().getEncryptionKey()

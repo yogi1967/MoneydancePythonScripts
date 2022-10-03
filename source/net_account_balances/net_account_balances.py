@@ -7331,6 +7331,12 @@ Visit: %s (Author's site)
             return result
 
         def getMoneydanceUI(self):
+            global debug;
+
+            saveDebug = debug;
+            debug = True;
+            myPrint("B", "*** DEREK: Flipping DEBUG ON HERE for .getMoneydanceUI() only......");
+
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -7341,10 +7347,12 @@ Visit: %s (Author's site)
 
                 if f_ui_result is None or f_ui_result.firstMainFrame is None:
                     myPrint("DB",".. Nope - the Moneydance UI is NOT yet loaded (fully)..... so exiting...")
+                    debug = saveDebug;
                     return False
 
                 if self.moneydanceContext.getCurrentAccountBook() is None:
                     myPrint("DB",".. The UI is loaded, but the dataset is not yet loaded... so exiting ...")
+                    debug = saveDebug;
                     return False
 
                 try:
@@ -7352,6 +7360,7 @@ Visit: %s (Author's site)
                     self.moneydanceContext.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0)
                 except:
                     myPrint("DB","@@ ERROR - failed using the UI..... will just exit for now...")
+                    debug = saveDebug;
                     return False
 
                 myPrint("DB","Success - the Moneydance UI is loaded.... Extension can execute properly now...!")
@@ -7366,6 +7375,10 @@ Visit: %s (Author's site)
                 self.isUIavailable = True
             else:
                 myPrint("DB","..UI is available - returning True....")
+
+            myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+
+            debug = saveDebug;
 
             return True
 
