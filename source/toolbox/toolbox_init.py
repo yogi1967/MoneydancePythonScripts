@@ -20,14 +20,14 @@ _TOOLBOX_PREFERENCES_ZAPPER = u"toolbox_preferences_zapper"
 
 keysToZap = moneydance.getPreferences().getVectorSetting(_TOOLBOX_PREFERENCES_ZAPPER, None)
 if keysToZap is None:
-    msgx = u"\n#####################################################################\n"\
-           u"%s: %s_init.py initializer script running - doing nothing - will exit....\n"\
-           u"#####################################################################\n\n" %(_THIS_IS_,_THIS_IS_)
+    msgx = u"\n#############################################################################################################################\n"\
+           u"%s: %s_init.py initializer script running - performing some quick checks, logging diagnostics, then will exit....\n"\
+           u"#############################################################################################################################\n\n" %(_THIS_IS_,_THIS_IS_)
     _specialPrint(msgx)
 else:
-    msgx = u"\n##########################################################################\n"\
+    msgx = u"\n########################################################################################\n"\
            u"%s: %s_init.py initializer script running - EXECUTING PREFERENCES ZAPPER....\n"\
-           u"############################################################################\n\n" %(_THIS_IS_,_THIS_IS_)
+           u"########################################################################################\n\n" %(_THIS_IS_,_THIS_IS_)
     _specialPrint(msgx)
 
     for zapKey in keysToZap:

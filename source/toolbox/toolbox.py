@@ -133,6 +133,7 @@
 # build: 1055 - Turned off Syncer.DEBUG when performing mass changes - to stop console log filling up etc...
 # build: 1055 - Added Remove inactive accounts from SideBar function...
 # build: 1055 - Rebuilt launch code so that latest extension version checks download(s) from internet occur in parallel in own thread....
+# build: 1055 - New feature: 'Toggle investment securities with zero shares status to active/inactive'
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -440,6 +441,7 @@ else:
     from org.python.core import PySystemState
 
     from javax.swing import BorderFactory, JSeparator, DefaultComboBoxModel                                                 # noqa
+    from javax.swing import JList, ListSelectionModel, DefaultListCellRenderer, DefaultListSelectionModel
 
     from java.io import ByteArrayInputStream, OutputStream, InputStream, BufferedOutputStream
     from java.net import URL, URLEncoder, URLDecoder                                                                        # noqa
@@ -516,6 +518,7 @@ else:
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
     GlobalVars.MD_EXTENSIONS_DIRECTORY_FILE = "https://infinitekind.com/app/md/extensions.dct"
+    GlobalVars.TOOLBOX_OWN_DICT_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/%s/meta_info.dict" %(myModuleID)
     GlobalVars.TOOLBOX_VERSION_VALIDATION_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/toolbox/toolbox_version_requirements.dict"
     # Alternatively perhaps use....: "https://raw.githubusercontent.com/TheInfiniteKind/moneydance_open/main/python_scripts/toolbox/toolbox_version_requirements.dict"
 
@@ -525,7 +528,6 @@ else:
     GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074
     GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090
 
-    GlobalVars.TOOLBOX_IS_NOW_RUNNING = False
     GlobalVars.fixRCurrencyCheck = 0
     GlobalVars.globalSaveFI_data = None
     GlobalVars.globalSave_DEBUG_FI_data = None
@@ -1244,7 +1246,7 @@ Visit: %s (Author's site)
             return self.lResult[0]
 
         def go(self):
-            myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+            myPrint("DB", "In MyPopUpDialogBox.", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
             class MyPopUpDialogBoxRunnable(Runnable):
@@ -1253,7 +1255,7 @@ Visit: %s (Author's site)
 
                 def run(self):                                                                                                      # noqa
 
-                    myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+                    myPrint("DB", "In MyPopUpDialogBoxRunnable.", inspect.currentframe().f_code.co_name, "()")
                     myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
                     # Create a fake JFrame so we can set the Icons...
@@ -3187,7 +3189,7 @@ Visit: %s (Author's site)
 
         for t in Thread.getAllStackTraces().keySet():
             if "toolbox_DownloadExtensionVersionData".lower() in t.getName().lower() and t.isAlive():
-                myPrint("DB", "** Interrupting Thread '%s'(id: %s) which seems to still be alive" %(t, t.getId()))
+                myPrint("B", "** Interrupting Thread '%s'(id: %s) (download of latest extension(s) version data) which seems to still be alive" %(t, t.getId()))
                 t.interrupt()
 
         try: MD_REF.getUI().setStatus(">> Infinite Kind (co-authored by Stuart Beesley: StuWareSoftSystems) - Thanks for using Toolbox.......",0)
@@ -3224,6 +3226,15 @@ Visit: %s (Author's site)
 
     # Prevent usage later on... We use MD_REF
     if "moneydance" in globals(): del moneydance
+
+    def html_strip_chars(_textToStrip):
+        _textToStrip = _textToStrip.replace("  ","&nbsp;&nbsp;")
+        _textToStrip = _textToStrip.replace("<","&lt;")
+        _textToStrip = _textToStrip.replace(">","&gt;")
+        return _textToStrip
+
+    def wrap_HTML_italics(_textToWrap):
+        return "<html><i>%s</i></html>" %(html_strip_chars(_textToWrap))
 
     class MoneybotURLDebug:
         saveState = None
@@ -3738,8 +3749,7 @@ Visit: %s (Author's site)
             frame_height = int(round((toolbox_frame_.getSize().height - self.borders) *.9,0))
             return Dimension(min(self.maxWidth, frame_width), min(self.maxHeight, frame_height))
 
-        def hierarchyChanged(self, e):
-            if e: pass
+        def hierarchyChanged(self, e):                                                                                  # noqa
             dialog = SwingUtilities.getWindowAncestor(self)
             if isinstance(dialog, Dialog):
                 if not dialog.isResizable():
@@ -4007,20 +4017,19 @@ Visit: %s (Author's site)
                 raise Exception("ERROR: Class DownloadExtensionVersionData - seems to have been initialized more than once?!")
 
         class DisplayErrorMsg(Runnable):
-            def __init__(self, _msg): self.msg = _msg
-            def run(self): myPopupInformationBox(None, self.msg, "ERROR", JOptionPane.ERROR_MESSAGE)
+            def __init__(self, _msg, _parent=None): self.msg = _msg; self.parent = _parent
+            def run(self): myPopupInformationBox(self.parent, self.msg, "ERROR", JOptionPane.ERROR_MESSAGE)
 
         def run(self):
             myPrint("DB", "EXECUTING::DownloadExtensionVersionData.run() in new Thread(): %s(id: %s)" %(Thread.currentThread(), Thread.currentThread().getId()))
             if SwingUtilities.isEventDispatchThread(): raise Exception("ERROR: Class DownloadExtensionVersionData.run() - should not run on the EDT!")
 
             MD_EXTNS_DICT_URL = System.getProperty("moneydance.extension_list_url", GlobalVars.MD_EXTENSIONS_DIRECTORY_FILE)
-            OWN_DICT_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/%s/meta_info.dict" %(myModuleID)
 
             loopConnections = [
                 [GlobalVars.TOOLBOX_VERSION_VALIDATION_URL, DownloadExtensionVersionData.downloadedGitHubVersionRequirementsDict, "Toolbox code servers"],
                 [MD_EXTNS_DICT_URL, DownloadExtensionVersionData.downloadedIKExtensionsDict, "IK Servers"],
-                [OWN_DICT_URL, DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict, "Toolbox code servers"]
+                [GlobalVars.TOOLBOX_OWN_DICT_URL, DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict, "Toolbox code servers"]
             ]
 
             DownloadExtensionVersionData._isDownloading = True
@@ -4029,10 +4038,8 @@ Visit: %s (Author's site)
 
             try:
                 for theURL, theVariable, txtType in loopConnections:
-                    if GlobalVars.TOOLBOX_IS_NOW_RUNNING: setDisplayStatus("Toolbox downloading latest extension(s) version information...", "B")
                     txt = "### INFORMATION: %s connecting to %s to check extension version data / requirement(s) - IT IS NOT SENDING ANY DATA ###" %(myModuleID.capitalize(), txtType)
                     myPrint("B", txt)
-                    MD_REF.getUI().setStatus(txt, -1.0)
                     MoneybotURLDebug.changeState(debug)
 
                     inx = None
@@ -4050,8 +4057,6 @@ Visit: %s (Author's site)
                         myPrint("B", "ERROR downloading extension version data / requirement(s) from: %s" %(theURL))
                         if debug: dump_sys_error_to_md_console_and_errorlog()
                     finally:
-                        txt = "INFO: FINISHED downloading %s extension version data / requirement(s) from %s" %(myModuleID.capitalize(), txtType)
-                        MD_REF.getUI().setStatus(txt, 0.0)
                         MoneybotURLDebug.resetState()
                         if inx:
                             try: inx.close()
@@ -4063,112 +4068,87 @@ Visit: %s (Author's site)
                 DownloadExtensionVersionData._isDownloading = False
                 DownloadExtensionVersionData._downloadsCompleted = True
 
-                txt = ">>> %s finished downloading latest extension(s) version data >> Took %s seconds" %(myModuleID.capitalize(), (System.currentTimeMillis() - startTimeMS) / 1000.0)
-                if GlobalVars.TOOLBOX_IS_NOW_RUNNING: setDisplayStatus(txt, "B")
-                myPrint("DB", txt)
+                txt = ">>> %s finished downloading latest extension(s) version data >> Took %s seconds... Performing version checks..." %(myModuleID.capitalize(), (System.currentTimeMillis() - startTimeMS) / 1000.0)
+                myPrint("DB", ">>> DownloadExtensionVersionData.run() %s" %(txt))
 
-                if not GlobalVars.TOOLBOX_IS_NOW_RUNNING:
-                    myPrint("DB", ">>> DownloadExtensionVersionData.run() - NOW WAITING FOR TOOLBOX TO FINISH LOADING......")
+                if DownloadExtensionVersionData.didErrorOccur():
+                    txt = "Error downloading latest extension(s) version data from Internet. Continuing without live version validation..."
+                    myPrint("B", txt)
+
+                self.updateWithLatestToolboxVersionRequirements()
+
+                lAbort = False
+                if (GlobalVars.TOOLBOX_STOP_NOW
+                        or (float(MD_REF.getVersion()) < GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION)
+                        or (int(float(MD_REF.getVersion())) > int(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))):
+                    lAbort = True
                 else:
-                    myPrint("DB", ">>> DownloadExtensionVersionData.run() - TOOLBOX HAS FINISHED LOADING - so continuing with version checks......")
+                    if (float(MD_REF.getBuild()) > GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD):
+                        sTxt = "MD build (%s)%s is newer than the Toolbox tested build of (%s)%s"\
+                              %(MD_REF.getVersion(), MD_REF.getBuild(), GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD)
+                        mTxt = "Toolbox(build: %s) has not been tested on this version of Moneydance\n" \
+                               "Click proceed to continue using Toolbox on untested newer MD version\n" \
+                               "... or cancel to quit Toolbox ..." %(version_build)
 
-                totalDelayMS = 0
-                delayTimeMS = 1000
-                maxDelaySeconds = 30
+                        ask = MyPopUpDialogBox(toolbox_frame_,
+                                             theStatus=sTxt,
+                                             theTitle="NEWER MD VERSION",
+                                             theMessage=mTxt,
+                                             lCancelButton=True,
+                                             OKButtonText="PROCEED",
+                                             lAlertLevel=1)
+                        if not ask.go(): lAbort = True
 
-                while True:
-                    if Thread.currentThread().isInterrupted(): raise InterruptedException
-                    if GlobalVars.TOOLBOX_IS_NOW_RUNNING: break
-                    if (totalDelayMS / 1000.0) > maxDelaySeconds:
-                        myPrint("B", ">>> DownloadExtensionVersionData.run() - After %s seconds Toolbox not yet loaded - ABORTING VERSION REQUIREMENT CHECKS!" %(maxDelaySeconds))
-                        break
-
-                    myPrint("DB", ">>> DownloadExtensionVersionData.run() - Toolbox not yet loaded (cumulative wait %s)... Will sleep for %s second(s) and try again..." %((totalDelayMS / 1000.0), (delayTimeMS / 1000.0)))
-                    Thread.sleep(delayTimeMS)
-                    totalDelayMS += delayTimeMS
-
-                if not GlobalVars.TOOLBOX_IS_NOW_RUNNING:
-                    myPrint("B", "*** WARNING: Toolbox has NOT fully launched in time to meet ::DownloadExtensionVersionData.run() validation *** (will ignore and continue) - PLEASE REPORT TO TOOLBOX AUTHOR")
-                    SwingUtilities.invokeLater(self.DisplayErrorMsg("TOOLBOX: NOT fully launched in time for extn version checks - will ignore and continue"))
-                else:
-
-                    if DownloadExtensionVersionData.didErrorOccur():
-                        txt = "Error downloading latest extension(s) version data from Internet. Continuing without live version validation..."
-                        setDisplayStatus(txt.upper(), "R"); myPrint("B", txt)
-
-                    self.validateDownloadedToolboxVersionRequirements()
-
-                    lAbort = False
-                    if (GlobalVars.TOOLBOX_STOP_NOW
-                            or (float(MD_REF.getVersion()) < GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION)
-                            or (int(float(MD_REF.getVersion())) > int(GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION))):
-                        lAbort = True
+                if lAbort:
+                    disableToolboxButtons()
+                    if GlobalVars.TOOLBOX_STOP_NOW:
+                        sTxt = "Toolbox DISABLED (check for version update Extension>Manage Extensions)"
+                        mTxt = "This is not necessarily a problem. Please check for an update\n" \
+                               "... if no updates are available, contact Mr Toolbox ..."
+                        myPrint("B", txt)
+                        MyPopUpDialogBox(toolbox_frame_, theStatus=sTxt, theMessage=mTxt, theTitle="TOOLBOX DISABLED", OKButtonText="QUIT", lAlertLevel=2).go()
                     else:
-                        if (float(MD_REF.getBuild()) > GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD):
-                            sTxt = "MD build (%s)%s is newer than the Toolbox tested build of (%s)%s"\
-                                  %(MD_REF.getVersion(), MD_REF.getBuild(), GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD)
-                            mTxt = "Toolbox(build: %s) has not been tested on this version of Moneydance\n" \
-                                   "Click proceed to continue using Toolbox on untested newer MD version\n" \
-                                   "... or cancel to quit Toolbox ..." %(version_build)
+                        sTxt = ("Sorry, this Toolbox (build %s) has only been tested on Moneydance versions %s thru' %s(build %s)... Yours is %s(%s)"
+                                %(version_build, GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD,MD_REF.getVersion(),MD_REF.getBuild()))
+                        mTxt = "Please install 'compatible' Toolbox / MD versions...."
+                        myPrint("B", txt)
+                        MyPopUpDialogBox(toolbox_frame_, theStatus=sTxt, theMessage=mTxt, theTitle="VERSION INCOMPATIBILITY", OKButtonText="QUIT", lAlertLevel=2).go()
 
-                            ask = MyPopUpDialogBox(toolbox_frame_,
-                                                 theStatus=sTxt,
-                                                 theTitle="NEWER MD VERSION",
-                                                 theMessage=mTxt,
-                                                 lCancelButton=True,
-                                                 OKButtonText="PROCEED",
-                                                 lAlertLevel=1)
-                            if not ask.go(): lAbort = True
+                    terminate_script()
 
-                    if lAbort:
-                        disableToolboxButtons()
-                        if GlobalVars.TOOLBOX_STOP_NOW:
-                            txt = "Toolbox DISABLED (check for version update Extension>Manage Extensions)"
-                            sTxt = "This is not necessarily a problem. Please check for an update\n" \
-                                   "... if no updates are available, contact Mr Toolbox ..."
-                            setDisplayStatus(txt, "R");  myPrint("B", txt)
-                            MyPopUpDialogBox(toolbox_frame_, theStatus=txt, theMessage=sTxt, theTitle="TOOLBOX DISABLED", OKButtonText="QUIT", lAlertLevel=2).go()
+                else:
+                    myPrint("DB", "FINISHED checking downloaded version requirements data... All OK!")
+
+                    myPrint("DB", "Checking for updatable extensions....")
+                    _tb_extn_avail_version = self.check_for_updatable_extensions_on_startup()
+
+                    myModule = DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict.get("id")
+                    if myModule == myModuleID:
+                        availableFromGitHubVersion = int(DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict.get("module_build"))
+
+                        if _tb_extn_avail_version > int(version_build):
+                            myPrint("B","@@ Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu @@" %(_tb_extn_avail_version))
+                            mTxt = "You are running version %s\n" %(version_build)
+                            mTxt += "Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu\n" %(_tb_extn_avail_version)
+                            MyPopUpDialogBox(toolbox_frame_, theStatus="Toolbox Version:", theMessage=mTxt, theTitle="UPGRADE AVAILABLE", OKButtonText="Acknowledge", lModal=False).go()
+
+                        elif availableFromGitHubVersion > int(version_build) and availableFromGitHubVersion > _tb_extn_avail_version:
+                            myPrint("DB","@@ FYI - Toolbox upgrade to version %s (unsigned) is available from Author's code site.... @@" %(availableFromGitHubVersion))
                         else:
-                            txt = ("Sorry, this Toolbox (build %s) has only been tested on Moneydance versions %s thru' %s(build %s)... Yours is %s(%s)"
-                                    %(version_build, GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION, GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD,MD_REF.getVersion(),MD_REF.getBuild()))
-                            sTxt = "Please install 'compatible' Toolbox / MD versions...."
-                            setDisplayStatus(txt, "R");  myPrint("B", txt)
-                            MyPopUpDialogBox(toolbox_frame_, theStatus=txt, theMessage=sTxt, theTitle="VERSION INCOMPATIBILITY", OKButtonText="QUIT", lAlertLevel=2).go()
+                            myPrint("DB","Toolbox is running latest version available: %s" %(max(version_build, availableFromGitHubVersion)))
 
-                        terminate_script()
+                    elif DownloadExtensionVersionData.didErrorOccur():
+                        txt = "TOOLBOX: Error occurred downloading latest extension(s) version data from internet"
+                        MyPopUpDialogBox(toolbox_frame_, theStatus=txt, theMessage="Toolbox will ignore and just continue", theTitle="INTERNET CONNECTION ERROR", OKButtonText="Acknowledge", lAlertLevel=2, lModal=False).go()
 
-                    else:
-                        myPrint("DB", "FINISHED checking downloaded version requirements data... All OK!")
-
-                        myPrint("DB", "Checking for updatable extensions....")
-                        _tb_extn_avail_version = self.check_for_updatable_extensions_on_startup()
-
-                        myModule = DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict.get("id")
-                        if myModule == myModuleID:
-                            availableFromGitHubVersion = int(DownloadExtensionVersionData.downloadedGitHubToolboxMetaInfoDict.get("module_build"))
-
-                            if _tb_extn_avail_version > int(version_build):
-                                myPrint("B","@@ Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu @@" %(_tb_extn_avail_version))
-                                mTxt = "You are running version %s\n" %(version_build)
-                                mTxt += "Extension version %s (signed) is available from Moneydance Menu>>Manage Extensions Menu\n" %(_tb_extn_avail_version)
-                                MyPopUpDialogBox(toolbox_frame_, theStatus="Toolbox Version:", theMessage=mTxt, theTitle="UPGRADE AVAILABLE", OKButtonText="Acknowledge").go()
-
-                            elif availableFromGitHubVersion > int(version_build) and availableFromGitHubVersion > _tb_extn_avail_version:
-                                myPrint("DB","@@ FYI - Toolbox upgrade to version %s (unsigned) is available from Author's code site.... @@" %(availableFromGitHubVersion))
-                            else:
-                                myPrint("DB","Toolbox is running latest version available: %s" %max(version_build,availableFromGitHubVersion))
-
-                        elif DownloadExtensionVersionData.didErrorOccur():
-                            SwingUtilities.invokeLater(self.DisplayErrorMsg("TOOLBOX: Error occurred downloading latest extension(s) version data - will ignore and continue"))
-
-                        myPrint("DB", "FINISHED checking for updatable extensions....")
+                    myPrint("DB", "FINISHED checking for updatable extensions....")
 
             except InterruptedException:
                 myPrint("DB", "** DownloadExtensionVersionData.run() - Interrupted (perhaps Toolbox (re)install/(re)launch?) - will just quit this thread...")
 
             myPrint("DB", ">>> Finished executing DownloadExtensionVersionData.run() - Took %s cumulative seconds" %((System.currentTimeMillis() - startTimeMS) / 1000.0))
 
-        def validateDownloadedToolboxVersionRequirements(self):
+        def updateWithLatestToolboxVersionRequirements(self):
 
             this_toolbox_build = int(version_build)
             if this_toolbox_build < 1000:
@@ -9706,11 +9686,6 @@ Visit: %s (Author's site)
         myPrint("DB","In ", inspect.currentframe().f_code.co_name, "()")
 
         try:
-            myPrint("DB", "Setting TOOLBOX_IS_NOW_RUNNING to False")
-            GlobalVars.TOOLBOX_IS_NOW_RUNNING = False
-        except: myPrint("B", "@@@ Failed to set TOOLBOX_IS_NOW_RUNNING to False?!")
-
-        try:
             # NOTE - .dispose() - The windowClosed event should set .isActiveInMoneydance False and .removeAppEventListener()
             if not SwingUtilities.isEventDispatchThread():
                 SwingUtilities.invokeLater(GenericDisposeRunnable(toolbox_frame_))
@@ -12882,7 +12857,7 @@ Visit: %s (Author's site)
 
         if GlobalVars.globalSaveFI_data is None or len(GlobalVars.globalSaveFI_data) < 1:
 
-            wait = MyPopUpDialogBox(toolbox_frame_,"PLEASE WAIT - RETRIEVING FISCAL SETUP DATA...",lModal=False)
+            wait = MyPopUpDialogBox(toolbox_frame_,"PLEASE WAIT - RETRIEVING FISCAL SETUP DATA...", lModal=False)
             wait.go()
 
             myPrint("B","###################################################################################################################################################")
@@ -12894,7 +12869,7 @@ Visit: %s (Author's site)
 
                 _msgPad = 100
                 _msg = pad("INFO: Checking Internet (IK servers) for banking profile information...", _msgPad, padChar=".")
-                diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+                diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
                 diag.go()
 
                 try:
@@ -15887,7 +15862,7 @@ now after saving the file, restart Moneydance
         _THIS_METHOD_NAME = "FORCE CHANGE ACCTs / CATs FROM / TO CURRENCY"
 
         # force_change_all_currencies.py
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to FORCE change Accounts / Categories FROM / TO Currency?",
                              theTitle=_THIS_METHOD_NAME,
                              theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
@@ -16024,6 +15999,160 @@ now after saving the file, restart Moneydance
         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+
+    def toggle_security_zero_shares_inactive():
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "TOGGLE SECURITY ZERO SHARES INACTIVE"
+        output = "%s:\n" \
+                 " ===================================\n\n" %(_THIS_METHOD_NAME)
+
+        class TSZSIAcctFilter(AcctFilter):
+            def __init__(self): pass
+            def matches(self, _acct):
+                if _acct.getAccountType() == Account.AccountType.SECURITY:                                              # noqa
+                    if _acct.getAccountIsInactive(): return True
+                    if _acct.getBalance() == 0: return True
+                return False
+
+        class TSZSIStoreAccountList():
+            def __init__(self, obj):
+                self.obj = obj
+                self.newAccountIsInactive = None
+            def getAccount(self): return self.obj
+            def getBalance(self): return self.getAccount().getBalance()
+            def getDisplayBalance(self): return self.getAccount().getCurrencyType().getDoubleValue(self.getBalance())
+            def getAccountIsInactive(self): return self.getAccount().getAccountIsInactive()
+            def getNewAccountIsInactive(self): return self.newAccountIsInactive
+            def setNewAccountIsInactive(self, newAccountIsInactive):
+                if self.getAccountIsInactive() != newAccountIsInactive: self.newAccountIsInactive = newAccountIsInactive
+            def __str__(self):
+                _txt =  "%s : (share bal: %s) - %s" %(self.getAccount().getFullAccountName(), self.getDisplayBalance(), "INACTIVE" if (self.getAccountIsInactive()) else "Active", )
+                return _txt if not self.getAccountIsInactive() else wrap_HTML_italics(_txt)
+            def __repr__(self): return self.__str__()
+            def toString(self): return self.__str__()
+
+        class MyJListRenderer(DefaultListCellRenderer):
+
+            def __init__(self):
+                super(DefaultListCellRenderer, self).__init__()                                                             # noqa
+
+            def getListCellRendererComponent(self, thelist, value, index, isSelected, cellHasFocus):
+                lightLightGray = Color.LIGHT_GRAY
+                c = super(MyJListRenderer, self).getListCellRendererComponent(thelist, value, index, isSelected, cellHasFocus) # noqa
+                # c.setBackground(self.getBackground() if index % 2 == 0 else lightLightGray)
+                c.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, lightLightGray))        # Create a line separator between accounts
+                return c
+
+        class MyDefaultListSelectionModel(DefaultListSelectionModel):
+            # Change the selector - so not to deselect items when selecting others...
+            def __init__(self):
+                super(DefaultListSelectionModel, self).__init__()                                                       # noqa
+
+            def setSelectionInterval(self, start, end):
+                if (start != end):
+                    super(MyDefaultListSelectionModel, self).setSelectionInterval(start, end)                           # noqa
+                elif self.isSelectedIndex(start):
+                    self.removeSelectionInterval(start, end)
+                else:
+                    self.addSelectionInterval(start, end)
+
+        listOfAccountsForJList = [TSZSIStoreAccountList(_acct) for _acct in sorted(AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), TSZSIAcctFilter()), key=lambda sort_x: (sort_x.getFullAccountName().lower()))]
+        if len(listOfAccountsForJList) < 1:
+            txt = "No securities with zero balance or an inactive account flag found - no changes made"
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            return
+
+        jlst = JList([])
+        jlst.setBackground(MD_REF.getUI().getColors().listBackground)
+        jlst.setCellRenderer(MyJListRenderer())
+        jlst.setFixedCellHeight(jlst.getFixedCellHeight()+25)
+        jlst.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+        jlst.setSelectionModel(MyDefaultListSelectionModel())
+        jlst.setListData(listOfAccountsForJList)
+
+        jlstIndex = 0
+        preSelectList = []
+        for acctObj in listOfAccountsForJList:
+            if acctObj.getAccountIsInactive(): preSelectList.append(jlstIndex)
+            jlstIndex += 1
+        jlst.setSelectedIndices(preSelectList)
+        del preSelectList
+
+        helpTextLbl = JLabel("<html>** HELP: Only security accounts with a zero share balance (or where already inactive) are listed<br>"
+                              "Highlighted rows are inactive. Select / deselect rows to toggle the status and click PROCEED **</html>")
+        helpTextLbl.setForeground(getColorBlue())
+
+        pnl = JPanel(GridBagLayout())
+        pnl.add(helpTextLbl, GridC.getc(0, 0).wx(0.1).wy(0.1).leftInset(0).rightInset(0).topInset(0).fillboth())
+        pnl.add(MyJScrollPaneForJOptionPane(jlst,1000,650), GridC.getc(0, 1).wx(9.0).wy(9.0).leftInset(0).rightInset(0).topInset(5).fillboth())
+
+        options = ["EXIT", "PROCEED"]
+        userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                   pnl,
+                                                   "%s: TOGGLE SECURITY's ACTIVE/INACTIVE STATUS" %(_THIS_METHOD_NAME),
+                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                   JOptionPane.QUESTION_MESSAGE,
+                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                   options, options[0]))
+        if userAction != 1:
+            txt = "User aborted toggle security active/inactive status screen - no changes made"
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            return
+
+        selectedSecObjs = jlst.getSelectedValuesList()
+        for secObj in listOfAccountsForJList:
+            secObj.setNewAccountIsInactive(False if secObj not in selectedSecObjs else True)
+
+        changeList = []
+        for secObj in listOfAccountsForJList:
+            if secObj.getNewAccountIsInactive() is not None:
+                output += "Requested to change status: Security: %s (share balance: %s), old inactive: %s, new inactive: %s\n"\
+                          %(secObj.getAccount().getFullAccountName(), secObj.getBalance(), secObj.getAccountIsInactive(), secObj.getNewAccountIsInactive())
+                changeList.append(secObj)
+        output += "\n<END>"
+
+        if len(changeList) < 1:
+            txt = "No changes detected / requested to inactive account flags - no changes made"
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            return
+
+        ask = MyPopUpDialogBox(toolbox_frame_,
+                             theTitle=_THIS_METHOD_NAME,
+                             theStatus="Change the active/inactive account status on %s Investment Securities?" %(len(changeList)),
+                             theMessage=output,
+                             lCancelButton=True,
+                             OKButtonText="I AGREE - PROCEED")
+
+        if not ask.go():
+            txt = "User did not say yes to %s - no changes made" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+        del ask
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "TOGGLE THE ACTIVE/INACTIVE ACCOUNT STATUS ON %s Investment Security Accounts?" %(len(changeList))):
+            return
+
+        myPrint("B","%s: @@ User requested to change the active/inactive account status on %s investment security accounts - APPLYING UPDATE NOW...." %(_THIS_METHOD_NAME, len(changeList)))
+
+        MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+        for secObj in changeList:
+            secObj.getAccount().setAccountIsInactive(secObj.getNewAccountIsInactive())
+            secObj.getAccount().syncItem()
+            myPrint("B", "CHANGED Investment Security Account '%s' - AccountIsInactive status is now '%s'" %(secObj.getAccount().getFullAccountName(), secObj.getAccountIsInactive()))
+        MD_REF.saveCurrentAccount()
+
+        txt = "%s: The active/inactive account status was changed on %s investment security accounts...." %(_THIS_METHOD_NAME, len(changeList))
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("toggle_security_zero_shares_inactive", txt)
+        play_the_money_sound()
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+
 
     def fix_invalid_relative_currency_rates():
 
@@ -16346,7 +16475,7 @@ now after saving the file, restart Moneydance
 
         # reverse_txn_exchange_rates_by_account_and_date.py
 
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Are you sure you want to REVERSE Exchange Rates on an Account's Transactions (between two dates)?",
                              theTitle="REVERSE TRANSACTIONAL EXCHANGE RATES",
                              theMessage="This is normally a BAD idea, unless you know you want to do it....!\n"
@@ -17504,7 +17633,7 @@ now after saving the file, restart Moneydance
         purgingMsg = MyPopUpDialogBox(toolbox_frame_,
                                       "Please wait: Processing your %s request (%s).." %(ThnPurgeTxt,x),
                                       theTitle="FIX - Thin/Purge",
-                                      lModal=False,OKButtonText="WAIT")
+                                      lModal=False, OKButtonText="WAIT")
         purgingMsg.go()
 
         diagDisplay += "\n\n *** EXECUTING %s PRICE HISTORY ***\n" %(ThnPurgeTxt)
@@ -17792,7 +17921,7 @@ now after saving the file, restart Moneydance
 
         scanningMsg = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching Database and filesystem for attachments..",
                                        theTitle="ATTACHMENT(S) SEARCH",
-                                       lModal=False,OKButtonText="WAIT")
+                                       lModal=False, OKButtonText="WAIT")
         scanningMsg.go()
 
         myPrint("P", "Scanning database for attachment data..")
@@ -18325,8 +18454,8 @@ now after saving the file, restart Moneydance
         output = "%s:\n\n" %(_THIS_METHOD_NAME.upper())
 
         _msgPad = 100
-        _msg = pad("Please wait: Analysing Security Accounts", _msgPad,padChar=".")
-        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        _msg = pad("Please wait: Analysing Security Accounts", _msgPad, padChar=".")
+        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
         diag.go()
 
         securityTxnsToFix = {}
@@ -18407,7 +18536,7 @@ now after saving the file, restart Moneydance
         output += "\nUSER ACCEPTED DISCLAIMER AND CONFIRMED TO PROCEED WITH FIX OF INVALID LOT MATCHING DATA.....\n\n"
 
         _msg = pad("Please wait: Fixing transactions...", _msgPad,padChar=".")
-        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
         diag.go()
 
         output += "Fixing Lot Matching data identified above for %s txns...:\n\n" %(len(securityTxnsToFix))
@@ -21532,7 +21661,7 @@ now after saving the file, restart Moneydance
         toolbox_frame_.toFront()
 
         _msg = pad("Please wait:", 50, padChar=".")
-        pleaseWait = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        pleaseWait = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
         pleaseWait.go()
 
         try:
@@ -21671,7 +21800,7 @@ now after saving the file, restart Moneydance
             return
 
         _msg = pad("Please wait:", 50, padChar=".")
-        pleaseWait = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        pleaseWait = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
         pleaseWait.go()
 
         try:
@@ -22321,7 +22450,7 @@ Now you will have a text readable version of the file you can open in a text edi
             return
 
         theIKReference = "c8c8dcebf5eab9bb14012e7df9ff46aa1d333a7c"  # WARNING, this may change? Might have to switch to finding the key..!
-        diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching iOS Backup(s)..",theTitle="SEARCH", lModal=False,OKButtonText="WAIT")
+        diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching iOS Backup(s)..",theTitle="SEARCH", lModal=False, OKButtonText="WAIT")
         diag.go()
 
         def findIOSBackup(pattern, path):
@@ -22951,7 +23080,7 @@ Now you will have a text readable version of the file you can open in a text edi
         theMsg += "Import Type:      %s (%s)\n"    %(IMPORT_TYPE[theImportType],theImportType)
         theMsg += "Structure Only:   %s\n"         %(user_importStructureOnly.isSelected())
 
-        ask=MyPopUpDialogBox(toolbox_frame_,
+        ask = MyPopUpDialogBox(toolbox_frame_,
                              theStatus="Please confirm parameters:",
                              theMessage=theMsg,
                              theTitle="QIF IMPORT",
@@ -23687,7 +23816,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         _msgPad = 100
         _msg = pad("Please wait:",_msgPad,padChar=".")
-        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
         diag.go()
 
         try:
@@ -25421,7 +25550,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         _msgPad = 100
         _msg = pad("Please wait: DECRYPTING", _msgPad, padChar=".")
-        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+        diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
         diag.go()
 
         myPrint("B","DECRYPTING ENTIRE DATASET to: '%s'" %(decryptionFolder.getCanonicalPath()))
@@ -25849,18 +25978,17 @@ Now you will have a text readable version of the file you can open in a text edi
                     %(checkDropbox, os.access(checkDropbox, os.W_OK), datasetPath, os.access(datasetPath, os.W_OK)))
 
             play_the_money_sound()
+            txt = "ERROR: YOUR KEY FOLDERS ARE NOT WRITABLE! - YOU NEED TO EXIT MD AND FIX MANUALLY"
             MyPopUpDialogBox(toolbox_frame_,
-                                   "ERROR: YOUR KEY FOLDERS ARE NOT WRITABLE! - YOU NEED TO EXIT MD AND FIX MANUALLY",
+                                   txt,
                                    "%s - Writable: %s\n"
                                    "%s - Writable: %s"
                                    %(checkDropbox, os.access(checkDropbox, os.W_OK), datasetPath, os.access(datasetPath, os.W_OK)),
                                    theTitle="FOLDER PROBLEM",
-                                   OKButtonText="OK - I WILL EXIT",
-                                   lAlertLevel=2).go()
-
-            txt = "ERROR: YOUR KEY FOLDERS ARE NOT WRITABLE! - YOU NEED TO EXIT MD AND FIX MANUALLY"
+                                   OKButtonText="I WILL EXIT",
+                                   lAlertLevel=2,
+                                   lModal=False).go()
             setDisplayStatus(txt, "R")
-
         return
 
 # END OF GLOBAL CLASSES and DEFs
@@ -26636,7 +26764,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
 
-                diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching..",theTitle=_THIS_METHOD_NAME, lModal=False,OKButtonText="WAIT")
+                diag = MyPopUpDialogBox(toolbox_frame_,"Please wait: searching..",theTitle=_THIS_METHOD_NAME, lModal=False, OKButtonText="WAIT")
                 diag.go()
 
                 save_list_of_found_files=[]
@@ -27136,6 +27264,10 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_force_change_accounts_cats_from_to_currency.setEnabled(GlobalVars.UPDATE_MODE)
                     user_force_change_accounts_cats_from_to_currency.setForeground(getColorRed())
 
+                    user_toggle_security_zero_shares_inactive = JRadioButton("Toggle investment securities with zero shares status to active/inactive", False)
+                    user_toggle_security_zero_shares_inactive.setToolTipText("Allows you toggle securities held in investment accounts with zero shares to inactive - THIS CHANGES DATA!")
+                    user_toggle_security_zero_shares_inactive.setEnabled(GlobalVars.UPDATE_MODE)
+                    user_toggle_security_zero_shares_inactive.setForeground(getColorRed())
 
                     labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
                     labelFYI2.setForeground(getColorRed())
@@ -27169,6 +27301,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_force_change_accounts_currency)
                     bg.add(user_force_change_all_accounts_cats_currency)
                     bg.add(user_force_change_accounts_cats_from_to_currency)
+                    bg.add(user_toggle_security_zero_shares_inactive)
                     bg.clearSelection()
 
                     userFilters.add(JLabel(" "))
@@ -27209,6 +27342,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_force_change_accounts_currency)
                     userFilters.add(user_force_change_all_accounts_cats_currency)
                     userFilters.add(user_force_change_accounts_cats_from_to_currency)
+                    userFilters.add(user_toggle_security_zero_shares_inactive)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -27299,6 +27433,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_force_change_accounts_currency.isSelected():                            force_change_account_cat_currency()
                         if user_force_change_all_accounts_cats_currency.isSelected():                   force_change_all_accounts_categories_currencies()
                         if user_force_change_accounts_cats_from_to_currency.isSelected():               force_change_accounts_cats_from_to_currency()
+                        if user_toggle_security_zero_shares_inactive.isSelected():                      toggle_security_zero_shares_inactive()
                         if user_fix_price_date.isSelected():                                            manually_edit_price_date_field()
 
                         for button in bg.getElements():
@@ -27934,7 +28069,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 _msgPad = 100
                 _msg = pad("Please wait: Analysing Dataset", _msgPad,padChar=".")
-                diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False,OKButtonText="WAIT")
+                diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
                 diag.go()
 
                 startDir = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
@@ -28773,7 +28908,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
             mainPnl.add(bottomPanel, GridC.getc(onCol, onRow).fillx().colspan(colSpan))
 
-            # toolbox_frame_.add(mainPnl)
             toolbox_frame_.getContentPane().setLayout(BorderLayout())
             toolbox_frame_.getContentPane().add(mainPnl, BorderLayout.CENTER)
 
@@ -28800,11 +28934,15 @@ Now you will have a text readable version of the file you can open in a text edi
                 System.setProperty("com.apple.macos.useScreenMenuBar", save_useScreenMenuBar)
 
 
+            ###################### PERFORM POST-LAUNCH VALIDATION(s) AND POPUP APPROPRIATE ALERTS ######################
+            ### MAKE SURE THESE POPUPS ARE NOT MODAL AND THUS DO NOT BLOCK THE EDT!
+            ############################################################################################################
+
             # Check for no currencies.. Popup alert message
             # noinspection PyUnresolvedReferences
             allCurrs = [c for c in MD_REF.getCurrentAccount().getBook().getCurrencies().getAllCurrencies() if c.getCurrencyType() == CurrencyType.Type.CURRENCY]
             if len(allCurrs) < 1:
-                MyPopUpDialogBox(toolbox_frame_,"PROBLEM DETECTED",
+                MyPopUpDialogBox(toolbox_frame_, "PROBLEM DETECTED",
                                                  "You seem to have no Currencies?!\n" 
                                                  "Please go to Tools/Currencies and add a Currency\n" 
                                                  "This would normally need to be your 'base' currency\n"
@@ -28812,12 +28950,12 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  theTitle="ERROR - NO CURRENCIES EXIST",
                                                  OKButtonText="ACKNOWLEDGE",
                                                  lAlertLevel=2,
-                                                 lModal=True).go()
+                                                 lModal=False).go()
             del allCurrs
 
             # Check for problem with java.io.tmpdir - causes missing icons etc.. Popup alert message
             if not detect_broken_critical_javaio_temp_dir_OK():
-                MyPopUpDialogBox(toolbox_frame_,"PROBLEM DETECTED",
+                MyPopUpDialogBox(toolbox_frame_, "PROBLEM DETECTED",
                                                  "Your 'java.io.tmpdir' setting points to a folder that cannot be accessed\n" 
                                                  "%s\n" 
                                                  "Review console for details and correct problem"
@@ -28825,7 +28963,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  theTitle="ERROR - JAVA TEMP FOLDER",
                                                  OKButtonText="ACKNOWLEDGE",
                                                  lAlertLevel=2,
-                                                 lModal=True).go()
+                                                 lModal=False).go()
 
             # Check for problem with 'auto' backup location... Popup alert message
             backupFolder = FileUtils.getBackupDir(MD_REF.getPreferences())
@@ -28839,7 +28977,8 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  theTitle="WARNING: AUTO BACKUPS DISABLED",
                                                  OKButtonText="ACKNOWLEDGE",
                                                  lAlertLevel=1,
-                                                 lModal=True).go()
+                                                 lModal=False).go()
+
             elif backupFolder is None or not isinstance(backupFolder, File) or not backupFolder.exists():
                 MyPopUpDialogBox(toolbox_frame_,"POTENTIAL PROBLEM DETECTED",
                                                  "Your (auto) backup location appears invalid...\n" 
@@ -28848,7 +28987,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  theTitle="ERROR: AUTO-BACKUP FOLDER INVALID",
                                                  OKButtonText="ACKNOWLEDGE",
                                                  lAlertLevel=1,
-                                                 lModal=True).go()
+                                                 lModal=False).go()
 
             # Check for secondary node (potentially restored from backup).. Popup alert message
             if not MD_REF.getUI().getCurrentAccounts().isMasterSyncNode():
@@ -28862,7 +29001,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                                  theTitle="SECONDARY DATASET/NODE",
                                                  OKButtonText="ACKNOWLEDGE",
                                                  lAlertLevel=1,
-                                                 lModal=True).go()
+                                                 lModal=False).go()
 
             # Now look for cached downloaded txns that can be purged..
             try:
@@ -28880,19 +29019,16 @@ Now you will have a text readable version of the file you can open in a text edi
                                          theTitle="ALERT: Cached OnlineTxnList records exist",
                                          OKButtonText="ACKNOWLEDGE",
                                          lAlertLevel=1,
-                                         lModal=True).go()
+                                         lModal=False).go()
 
                     else:
-                        myPrint("J","")
                         myPrint("B","#########################################################################################################################################################")
                         myPrint("B","### ALERT: You appear to have %s Accounts with %s cached OFX downloaded bank transactions."%(countCachedAccount, countCachedTxns))
                         myPrint("B","### These should not really be there.")
                         myPrint("B","### Consider using Online Banking (OFX) Tools menu to delete cached OnlineTxnList txns.")
                         myPrint("B","#########################################################################################################################################################\n")
-                        myPrint("J","")
                 del countCachedAccount, countCachedTxns
-            except:
-                pass
+            except: pass
 
             # Check to see if Tabbing mode needs changing on a MAc
             if lTabbingModeNeedsChanging:
@@ -28906,8 +29042,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                  theTitle="MacOS TABBING MODE WARNING",
                                  OKButtonText="ACKNOWLEDGE",
                                  lAlertLevel=1,
-                                 lModal=True).go()
-
+                                 lModal=False).go()
 
             # Check to see if any windows are off-screen
             if lWindowLocationsNeedZapping:
@@ -28920,7 +29055,8 @@ Now you will have a text readable version of the file you can open in a text edi
                                  theTitle="INVALID WINDOW LOCATIONS WARNING",
                                  OKButtonText="ACKNOWLEDGE",
                                  lAlertLevel=1,
-                                 lModal=True).go()
+                                 lModal=False).go()
+
             # Check whether UserHome is missing - probably on a development platform
             if Platform.isOSX() and System.getProperty(u"UserHome") is None:
                 MyPopUpDialogBox(toolbox_frame_,
@@ -28930,7 +29066,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                  theTitle="MacOS UserHome Warning",
                                  OKButtonText="ACKNOWLEDGE",
                                  lAlertLevel=1,
-                                 lModal=True).go()
+                                 lModal=False).go()
 
             # Check for repeated opening of backup files
             try:
@@ -28949,11 +29085,15 @@ Now you will have a text readable version of the file you can open in a text edi
                                          theTitle="POTENTIAL IMPROPER OPENING OF BACKUP FILES",
                                          OKButtonText="ACKNOWLEDGE",
                                          lAlertLevel=1,
-                                         lModal=True).go()
+                                         lModal=False).go()
             except: pass
 
             checkForREADONLY()
             MD_REF.getUI().setStatus("%s is loaded and running.." %(myModuleID.capitalize()), 0.0)
+            ################################################################################################################
+            ############# END OF OpenDisplay() #############################################################################
+            ################################################################################################################
+
 
     if not GlobalVars.i_am_an_extension_so_run_headless: print("""
 Script/extension is analysing your moneydance & system settings....
@@ -28964,11 +29104,6 @@ Script/extension is analysing your moneydance & system settings....
 >> If you do not accept this, please exit the script/extension
 ------------------------------------------------------------------------------
 """)
-
-    # Download extension version data / requirements from IK and GitHib... Via new Thread in case of slow internet connection...
-    _t = Thread(DownloadExtensionVersionData(), "toolbox_DownloadExtensionVersionData".lower())
-    _t.setDaemon(True)
-    _t.start()
 
     if lFailed_get_StuWareSoftSystems_parameters_from_file:
         myPrint("B", "lFailed_get_StuWareSoftSystems_parameters_from_file() triggered... Perhaps your dataset is closed?")
@@ -28984,20 +29119,19 @@ Script/extension is analysing your moneydance & system settings....
 
         # Check based on fix_restored_accounts.py
         _root = MD_REF.getCurrentAccount().getBook().getRootAccount()   # Should never happen!
-        if _root is None or _root.getAccountType()!=Account.AccountType.ROOT:                                           # noqa
-            myPrint("B", "@@ ERROR: Detected that your ROOT Account is Missing or not type ROOT! Contact support or the Author of Toolbox for a fix")
+        if _root is None or _root.getAccountType() != Account.AccountType.ROOT:                                         # noqa
+            msg = "@@ ERROR: Detected that your ROOT Account is Missing or not type ROOT! Contact support or the Author of Toolbox for a fix"
+            myPrint("B", msg)
             myPrint("B", "@@ FYI - there used to be scripts called fix_restored_accounts.py or fix_root_account_type.py for this (but the last time I looked they were broken.)")
-            myPopupInformationBox(None, "ERROR: I've Detected that your ROOT Account is Missing or not type ROOT! Contact support or the Author of Toolbox for a fix",
-                                  "ROOT ACCOUNT WARNING",JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(None, msg, "ROOT ACCOUNT WARNING", JOptionPane.ERROR_MESSAGE)
             cleanup_references()
 
         else:
 
-            MD_REF.getUI().setStatus(">> Infinite Kind (co-authored by Stuart Beesley: StuWareSoftSystems) - %s launching......." %(myModuleID.capitalize()), 0)
+            MD_REF.getUI().setStatus(">> Infinite Kind (co-authored by Stuart Beesley: StuWareSoftSystems) - %s launching application......." %(myModuleID.capitalize()), 0)
 
             class MainAppRunnable(Runnable):
-                def __init__(self):
-                    pass
+                def __init__(self): pass
 
                 def run(self):                                                                                          # noqa
                     myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
@@ -29005,7 +29139,6 @@ Script/extension is analysing your moneydance & system settings....
 
                     theDisplay = DiagnosticDisplay()
                     theDisplay.openDisplay()
-                    GlobalVars.TOOLBOX_IS_NOW_RUNNING = True
 
                     # At this point, Toolbox is running. Put bypass methods here for debug testing
                     # GlobalVars.UPDATE_MODE = True; GlobalVars.ADVANCED_MODE = True; Call a function here if needed for debug
@@ -29017,6 +29150,9 @@ Script/extension is analysing your moneydance & system settings....
                 myPrint("DB",".. Main App Already within the EDT so calling naked...")
                 MainAppRunnable().run()
 
-            # myPrint("DB","Requesting System Garbage Collection....")
-            # System.gc()
-            myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", GlobalVars.thisScriptName, " script ending (frame is open/running)......")
+            # Download extension version data / requirements from IK and GitHib... Via new Thread in case of slow internet connection...
+            _t = Thread(DownloadExtensionVersionData(), "toolbox_DownloadExtensionVersionData".lower())
+            _t.setDaemon(True)
+            _t.start()
+
+            myPrint("B", "Infinite Kind in conjunction with StuWareSoftSystems - ", GlobalVars.thisScriptName, " launch script ending (application is open/running)......")

@@ -8,5 +8,5 @@
   "module_name" = "Toolbox"
   "module_desc" = "Infinite Kind support tool: Displays Moneydance settings, diagnoses issues, run fixes, and much more....."
   "mac_sandbox_friendly" = "false"
-  "news" = "tweaks/fixes; Now logs all updates to new log file..."
+  "news" = "tweaks/fixes; Now logs all updates to new log file...; New feature Toggle investment securities' status to active/inactive"
 }

@@ -3173,7 +3173,7 @@ Visit: %s (Author's site)
     class MyJListRenderer(DefaultListCellRenderer):
 
         def __init__(self):
-            super(DefaultListCellRenderer, self).__init__()                                                         # noqa
+            super(DefaultListCellRenderer, self).__init__()                                                             # noqa
 
         def getListCellRendererComponent(self, thelist, value, index, isSelected, cellHasFocus):
             lightLightGray = Color(0xDCDCDC)
@@ -3187,11 +3187,11 @@ Visit: %s (Author's site)
     class MyDefaultListSelectionModel(DefaultListSelectionModel):
         # Change the selector - so not to deselect items when selecting others...
         def __init__(self):
-            super(DefaultListSelectionModel, self).__init__()                                           # noqa
+            super(DefaultListSelectionModel, self).__init__()                                                           # noqa
 
         def setSelectionInterval(self, start, end):
             if (start != end):
-                super(MyDefaultListSelectionModel, self).setSelectionInterval(start, end)               # noqa
+                super(MyDefaultListSelectionModel, self).setSelectionInterval(start, end)                               # noqa
             elif self.isSelectedIndex(start):
                 self.removeSelectionInterval(start, end)
             else:

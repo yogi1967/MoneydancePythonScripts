@@ -177,6 +177,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
                 More information here: https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac
         - FIX - Fix Remove legacy Dropbox Migrated Sync Key (runs the fix_dropbox_one_way_syncing.py / reset_sync_and_dropbox_settings.py script / fix).
         - FIX - FIX: REGISTER MONEYDANCE. Allows you to enter your Moneydance license key
+
     - MENU: General Tools (contains a variety of general Diagnostics, Fixes and Tools...)
         - FIX - RESET Window Display Settings
                 This allows you to tell Moneydance to forget remembered Display settings:
@@ -196,6 +197,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Set/Change Default Moneydance FONTS
         - FIX - Delete Custom Theme file
         - FIX - Delete Orphaned/Outdated Extensions (from config.dict and .mxt files)
+
     - MENU: Online (OFX) Banking Tools:
         - Forget OFX Banking Import Link (so it asks which account when importing ofx files) (remove_ofx_account_bindings.py) (MD versions < 2022)
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
@@ -230,6 +232,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency
         - FIX - Account's Invalid Parent Account (script fix_account_parent.py)
         - FIX - Correct the Name of Root to match Dataset
+
     - MENU: Currency & Security tools:
         - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
         - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).  >> 2021.2 onwards
@@ -247,6 +250,8 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - FORCE change an Account's / Category's Currency (use with care). (Does not update any transactions) (force_change_account_currency.py)
         - FIX - FORCE change ALL Accounts' / Categories' currencies (use with care). (Does not update any transactions) (force_change_all_currencies.py)
         - FIX - FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency
+        - Toggle investment securities with zero shares status to active/inactive
+
     - MENU: Transactions tools
         - Move/Merge Investment transactions from one account into another. DISABLED >> NOW RUN FROM EXTENSIONS MENU (you can pre-select register txns first)
         - FIX - Diagnose Attachments - DELETE Orphan attachments (allows you to delete Orphan attachments from Disk ** Syncing must be disabled **)

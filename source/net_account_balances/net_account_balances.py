@@ -7335,7 +7335,7 @@ Visit: %s (Author's site)
 
             saveDebug = debug;
             debug = True;
-            myPrint("B", "*** DEREK: Flipping DEBUG ON HERE for .getMoneydanceUI() only......");
+            myPrint("B", "*** Temporarily switching DEBUG ON HERE for .getMoneydanceUI() only......");
 
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
