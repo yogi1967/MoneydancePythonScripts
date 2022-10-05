@@ -28067,10 +28067,10 @@ Now you will have a text readable version of the file you can open in a text edi
                 output = "DATASET FILE ANALYSIS\n" \
                          " ====================\n\n"
 
-                _msgPad = 100
-                _msg = pad("Please wait: Analysing Dataset", _msgPad,padChar=".")
-                diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
-                diag.go()
+                # _msgPad = 100
+                # _msg = pad("Please wait: Analysing Dataset", _msgPad,padChar=".")
+                # diag = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
+                # diag.go()
 
                 startDir = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
                 output += "Dataset path: %s\n\n" %(startDir)
@@ -28184,12 +28184,14 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 output += "<END>"
 
-                diag.kill()
-                QuickJFrame("VIEW DATASET FILE ANALYSIS", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+                # diag.kill()
 
                 txt = ("Your dataset contains %s files and is %sMB. %s non-core files were found consuming %sMB"
                        %(countValidFiles,convertBytesMBs(validSize),countNonValidFiles,convertBytesMBs(nonValidSize)))
                 setDisplayStatus(txt, "B")
+
+                jif = QuickJFrame("VIEW DATASET FILE ANALYSIS", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+                myPopupInformationBox(jif, txt, "DATASET FILE ANALYSIS")
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
