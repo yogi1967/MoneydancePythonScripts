@@ -409,6 +409,8 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
+    GlobalVars.specialDebug = True;
+
     GlobalVars.__net_account_balances_extension = None
 
     GlobalVars.EXTENSION_LOCK = threading.Lock()
@@ -4107,6 +4109,8 @@ Visit: %s (Author's site)
             myPrint("B", "Extension: %s:%s (HomePageView widget) initialising...." %(self.myModuleID, GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME))
             myPrint("B", "##########################################################################################\n")
 
+            if GlobalVars.specialDebug: myPrint("B", "@@ SPECIAL DEBUG enabled")
+
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -7331,11 +7335,12 @@ Visit: %s (Author's site)
             return result
 
         def getMoneydanceUI(self):
-            global debug;
+            global debug    # global statement must be here as we can set debug here
+            saveDebug = debug
 
-            saveDebug = debug;
-            debug = True;
-            myPrint("B", "*** Temporarily switching DEBUG ON HERE for .getMoneydanceUI() only......");
+            if GlobalVars.specialDebug:
+                debug = True
+                myPrint("B", "*** Switching on SPECIAL DEBUG here for .getMoneydanceUI() only......")
 
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -7347,12 +7352,12 @@ Visit: %s (Author's site)
 
                 if f_ui_result is None or f_ui_result.firstMainFrame is None:
                     myPrint("DB",".. Nope - the Moneydance UI is NOT yet loaded (fully)..... so exiting...")
-                    debug = saveDebug;
+                    debug = saveDebug
                     return False
 
                 if self.moneydanceContext.getCurrentAccountBook() is None:
                     myPrint("DB",".. The UI is loaded, but the dataset is not yet loaded... so exiting ...")
-                    debug = saveDebug;
+                    debug = saveDebug
                     return False
 
                 try:
@@ -7360,7 +7365,7 @@ Visit: %s (Author's site)
                     self.moneydanceContext.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0)
                 except:
                     myPrint("DB","@@ ERROR - failed using the UI..... will just exit for now...")
-                    debug = saveDebug;
+                    debug = saveDebug
                     return False
 
                 myPrint("DB","Success - the Moneydance UI is loaded.... Extension can execute properly now...!")
@@ -7378,8 +7383,7 @@ Visit: %s (Author's site)
 
             myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-            debug = saveDebug;
-
+            debug = saveDebug
             return True
 
 
@@ -7446,9 +7450,24 @@ Visit: %s (Author's site)
                 self.listAllSwingWorkers()
 
             elif (appEvent == "md:file:opened"):  # This is the key event when a file is opened
-                myPrint("DB","%s Checking to see if UI loaded and create application Frame" %(appEvent))
-                self.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
-                myPrint("B", "... end of routines after receiving  'md:file:opened' command....")
+
+                if GlobalVars.specialDebug: myPrint("B","%s SPECIAL DEBUG - Checking to see whether UI loaded and create application Frame" %(appEvent))
+                myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
+
+                class GetMoneydanceUIRunnable(Runnable):
+                    def __init__(self, callingClass): self.callingClass = callingClass
+                    def run(self):
+                        if GlobalVars.specialDebug: myPrint("B", "... GetMoneydanceUIRunnable sleeping for 500ms...")
+                        Thread.sleep(500)
+                        if GlobalVars.specialDebug: myPrint("B", "... GetMoneydanceUIRunnable calling getMoneydanceUI()...")
+                        self.callingClass.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
+
+                if debug or GlobalVars.specialDebug: myPrint("B", "... firing off call to getMoneydanceUI() via new thread (so-as not to hang MD)...")
+                _t = Thread(GetMoneydanceUIRunnable(self), "NAB_GetMoneydanceUIRunnable".lower())
+                _t.setDaemon(True)
+                _t.start()
+
+                if GlobalVars.specialDebug: myPrint("B", "... end of routines after receiving  'md:file:opened' command....")
 
             elif (appEvent.lower().startswith(("%s:customevent:showConfig" %(self.myModuleID)).lower())):
                 myPrint("DB","%s Config screen requested - I might show it if conditions are appropriate" %(appEvent))
@@ -8366,13 +8385,13 @@ Visit: %s (Author's site)
                                 self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().west().pady(2))
 
                         else:
-                            myPrint("DB","@@ ERROR BuildHomePageWidgetSwingWorker:done().get() reported FALSE >> Either crashed or MD is closing (the 'book')...")
+                            myPrint("B","@@ ERROR BuildHomePageWidgetSwingWorker:done().get() reported FALSE >> Either crashed or MD is closing (the 'book')...")
 
                             self.callingClass.setVisible(False)
                             self.callingClass.listPanel.removeAll()
                             onPnlRow = 0
 
-                            rowText = "%s ERROR DETECTED (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
+                            rowText = "%s ERROR DETECTED? (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
                             nameLabel = JLinkLabel(rowText, "showConsole", JLabel.LEFT)
                             nameLabel.setDrawUnderline(False)
                             nameLabel.setForeground(md.getUI().colors.errorMessageForeground)                           # noqa
@@ -8403,7 +8422,7 @@ Visit: %s (Author's site)
                         self.callingClass.listPanel.removeAll()
                         onPnlRow = 0
 
-                        rowText = "%s ERROR DETECTED (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
+                        rowText = "%s ERROR DETECTED! (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
                         nameLabel = MyJLabel(rowText, JLabel.LEFT)
                         nameLabel.setForeground(md.getUI().colors.errorMessageForeground)
                         nameLabel.setBorder(self.callingClass.nameBorder)

@@ -7628,7 +7628,6 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         myPrint("B", "Analysing whether you can delete a Currency, or show where it's used....")
-        myPrint("P", "------------------------------------------------------------------------")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -7733,7 +7732,6 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         myPrint("B", "Script running to analyse whether you can delete a Security, or show where it's used....")
-        myPrint("P", "----------------------------------------------------------------------------------------")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -7817,7 +7815,6 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         myPrint("B", "Script is analysing your (hidden) Currency/Security decimal place settings...........")
-        myPrint("P", "-------------------------------------------------------------------------------------")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -8091,7 +8088,6 @@ Visit: %s (Author's site)
 
         if not justProvideFilter:
             myPrint("B", "Script is analysing your Currency & Security current price hidden 'price_date' fields...........")
-            myPrint("P", " -----------------------------------------------------------------------------------------------")
 
             txt = "Current Price (Hidden) 'price_date' fix"
             if not perform_qer_quote_loader_check(toolbox_frame_, txt): return
@@ -10899,8 +10895,6 @@ Visit: %s (Author's site)
             output+=("Purge/Clean ALL OnlineTxnList objects - NO CHANGES MADE....\n")
 
         output+="\n<END>"
-
-        myPrint("P",output)
 
         jif = QuickJFrame("OFX PURGE ALL OnlineTxnList OBJECTS",output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
@@ -15012,10 +15006,8 @@ now after saving the file, restart Moneydance
 
         if lFix:
             myPrint("B", "Script running to Analyse your Active Categories for Zero Balance...............")
-            myPrint("P", "---------------------------------------------------------")
         else:
             myPrint("B", "Script running to de-activate your Categories with Zero Balance...............")
-            myPrint("P", "---------------------------------------------------------")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
@@ -15367,7 +15359,6 @@ now after saving the file, restart Moneydance
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         myPrint("B", "Diagnosing INVALID Parent Accounts....")
-        myPrint("P", "--------------------------------------")
 
         book = MD_REF.getCurrentAccountBook()
         root = book.getRootAccount()
@@ -16033,6 +16024,23 @@ now after saving the file, restart Moneydance
             def __repr__(self): return self.__str__()
             def toString(self): return self.__str__()
 
+        class TSZSISelectAction(AbstractAction):
+
+            def __init__(self, _jlst, _preSelectList):
+                # type: (JList, []) -> None
+                self.jlst = _jlst
+                self.preSelectList = _preSelectList
+
+            def actionPerformed(self, event):
+                if event.getActionCommand().lower() == "select all":
+                    end = self.jlst.getModel().getSize() - 1
+                    if end >= 0:  self.jlst.setSelectionInterval(0, end)
+                elif event.getActionCommand().lower() == "clear selection":
+                    self.jlst.clearSelection()
+                elif event.getActionCommand().lower() == "reload original":
+                    self.jlst.setSelectedIndices(self.preSelectList)
+                else: raise Exception("ERROR: TSZSISelectAction.actionPerformed() passed unknown event: '%s'" %(event.getActionCommand()))
+
         class MyJListRenderer(DefaultListCellRenderer):
 
             def __init__(self):
@@ -16079,15 +16087,34 @@ now after saving the file, restart Moneydance
             if acctObj.getAccountIsInactive(): preSelectList.append(jlstIndex)
             jlstIndex += 1
         jlst.setSelectedIndices(preSelectList)
-        del preSelectList
 
         helpTextLbl = JLabel("<html>** HELP: Only security accounts with a zero share balance (or where already inactive) are listed<br>"
                               "Highlighted rows are inactive. Select / deselect rows to toggle the status and click PROCEED **</html>")
         helpTextLbl.setForeground(getColorBlue())
 
+        onRow = 0; onCol = 0
+
         pnl = JPanel(GridBagLayout())
-        pnl.add(helpTextLbl, GridC.getc(0, 0).wx(0.1).wy(0.1).leftInset(0).rightInset(0).topInset(0).fillboth())
-        pnl.add(MyJScrollPaneForJOptionPane(jlst,1000,650), GridC.getc(0, 1).wx(9.0).wy(9.0).leftInset(0).rightInset(0).topInset(5).fillboth())
+        pnl.add(helpTextLbl, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(0).rightInset(0).topInset(0).fillboth())
+
+        selectAllBtn = JButton("Select all")
+        selectNoneBtn = JButton("Clear selection")
+        reloadBtn = JButton("Reload original")
+
+        btnPnl = JPanel(GridBagLayout())
+
+        TSZSIListener = TSZSISelectAction(jlst, preSelectList)
+        onCol = 0
+        for btn in [selectAllBtn, selectNoneBtn, reloadBtn]:
+            btn.addActionListener(TSZSIListener)
+            btnPnl.add(btn, GridC.getc(onCol, 0).wx(0.1).wy(0.1).leftInset(0).rightInset(0).topInset(0).fillboth())
+            onCol += 1
+
+        onRow += 1; onCol = 0
+        pnl.add(btnPnl, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(0).rightInset(0).topInset(5).fillboth()); onRow += 1
+
+        onRow += 1; onCol = 0
+        pnl.add(MyJScrollPaneForJOptionPane(jlst,1000,650), GridC.getc(onCol, onRow).wx(9.0).wy(9.0).leftInset(0).rightInset(0).topInset(5).fillboth()); onRow += 1
 
         options = ["EXIT", "PROCEED"]
         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
@@ -17796,7 +17823,7 @@ now after saving the file, restart Moneydance
 
             if theDir is None or theDir == "":
                 _txt = "%s: User did not select Extract Directory to put attachments... Aborting" %(_THIS_METHOD_NAME)
-                myPrint("P", _txt); myPopupInformationBox(None, _txt)
+                myPopupInformationBox(None, _txt)
                 lExit = True
                 break
 
@@ -17847,7 +17874,7 @@ now after saving the file, restart Moneydance
                     if os.path.exists(outputPath):
                         iSkip += 1
                         myPrint("B", "Error - path: %s already exists... SKIPPING THIS ONE!" %outputPath)
-                        textLog+=("Error - path: %s already exists... SKIPPING THIS ONE!\n" %outputPath)
+                        textLog += ("Error - path: %s already exists... SKIPPING THIS ONE!\n" %outputPath)
                     else:
                         myPrint("P", "Exporting attachment [%s]" %(os.path.basename(outputPath)))
                         try:
@@ -17861,10 +17888,10 @@ now after saving the file, restart Moneydance
                                                 %(pad(str(txn.getAccount().getAccountType()),15),pad(txn.getAccount().getAccountName(),30),convertStrippedIntDateFormattedText(txn.getDateInt()),rpad(txn.getValue()/100.0,10),pad(txn.getDescription(),20),outputPath[len(exportFolder):])])
                         except:
                             myPrint("B","Error extracting file - will SKIP : %s" %(outputPath))
-                            textLog+=("Error extracting file - will SKIP : %s\n" %(outputPath))
-                            iSkip+=1
+                            textLog += ("Error extracting file - will SKIP : %s\n" %(outputPath))
+                            iSkip += 1
 
-            textRecords = sorted(textRecords, key=lambda _sort: (_sort[0],_sort[1],_sort[2]))
+            textRecords = sorted(textRecords, key=lambda _sort: (_sort[0], _sort[1], _sort[2]))
             for r in textRecords:
                 textLog += r[3]
 
