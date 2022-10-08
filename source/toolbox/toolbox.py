@@ -134,6 +134,7 @@
 # build: 1055 - Added Remove inactive accounts from SideBar function...
 # build: 1055 - Rebuilt launch code so that latest extension version checks download(s) from internet occur in parallel in own thread....
 # build: 1055 - New feature: 'Toggle investment securities with zero shares status to active/inactive'
+# build: 1055 - New options added to open md folder button: View Toolbox's common & dataset update logfile
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -3266,15 +3267,25 @@ Visit: %s (Author's site)
             if SyncerDebug.saveState is None: return
             Syncer.DEBUG = SyncerDebug.saveState
 
-    def logToolboxUpdates(methodName, comments, book=None, onlyLogGenericEntry=False):
-        # type: (basestring, basestring, AccountBook, bool) -> bool
+    def logToolboxUpdates(methodName, comments, book=None, onlyLogGenericEntry=False, lOnlyRtnCommonPath=False, lOnlyRtnDatasetPath=False):
+        """
+        :type methodName: basestring
+        :type comments: basestring
+        :type book: AccountBook | basestring
+        :type onlyLogGenericEntry: bool
+        :type lOnlyRtnCommonPath: bool
+        :type lOnlyRtnDatasetPath: bool
+        :rtype: bool | basestring
+        """
+
+        LOGNAME = "toolbox_update_log.txt"
 
         try:
-            LOGNAME = "toolbox_update_log.txt"
             nowTimeMS = System.currentTimeMillis()
             intNowTime = DateUtil.convertLongDateToInt(nowTimeMS)
 
             logPathGeneric = os.path.join(MD_REF.getLogFile().getParent(), LOGNAME)
+            if lOnlyRtnCommonPath: return logPathGeneric
 
             logPathDataset = datasetPath = None
             if not onlyLogGenericEntry or book is not None:
@@ -3289,6 +3300,8 @@ Visit: %s (Author's site)
                     if isinstance(book, AccountBook): pass
                     datasetPath = book.getRootFolder().getAbsolutePath()
                     logPathDataset = os.path.join(datasetPath, LOGNAME)
+
+                if lOnlyRtnDatasetPath: return logPathDataset
 
             i = 0
             for logPath in [logPathGeneric, logPathDataset]:
@@ -21539,13 +21552,13 @@ now after saving the file, restart Moneydance
             grabSyncFolder = get_sync_folder()
 
             locations = [
-                "Show Preferences (config.dict) Folder",
-                "Show Custom themes Folder",
-                "Show Console (error) log Folder",
-                "Show Contents of your current Dataset Folder",
-                "Show Extensions Folder",
-                "Show Auto Backup Folder",
-                "Show Last used (Manual) Backup Folder"]
+                "Show preferences (config.dict) folder",
+                "Show custom themes folder",
+                "Show console (error) log folder",
+                "Show contents of your current dataset folder",
+                "Show extensions folder",
+                "Show auto Backup folder",
+                "Show last used (manual) backup folder"]
 
             # noinspection PyUnresolvedReferences
             locationsDirs = [
@@ -21558,12 +21571,22 @@ now after saving the file, restart Moneydance
                 File(MD_REF.getUI().getPreferences().getSetting("backup.last_saved", ""))]
 
             if grabSyncFolder:
-                locations.append("Open Sync Folder")
+                locations.append("Open sync folder")
                 locationsDirs.append(File(grabSyncFolder))
 
             if grabProgramDir:
-                locations.append("Open Program's Install Directory")
+                locations.append("Open program's install directory")
                 locationsDirs.append(File(grabProgramDir))
+
+            logPath = logToolboxUpdates(None, None, lOnlyRtnCommonPath=True)
+            if os.path.exists(logPath):
+                locations.append("Open Toolbox's update log folder: common log")
+                locationsDirs.append(File(logPath))
+
+            logPath = logToolboxUpdates(None, None, lOnlyRtnDatasetPath=True)
+            if os.path.exists(logPath):
+                locations.append("Open Toolbox's update log folder: this dataset's log")
+                locationsDirs.append(File(logPath))
 
             selectedFolder = JOptionPane.showInputDialog(toolbox_frame_,
                                                          "Select the Folder you would like to open",
@@ -21577,17 +21600,15 @@ now after saving the file, restart Moneydance
                 setDisplayStatus(txt, "R")
                 return
 
-            try:
-                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(str(locationsDirs[locations.index(selectedFolder)])),None)
-            except:
-                pass
+            try: Toolkit.getDefaultToolkit().getSystemClipboard().setContents(StringSelection(str(locationsDirs[locations.index(selectedFolder)])),None)
+            except: pass
 
             if not os.path.exists(str(locationsDirs[locations.index(selectedFolder)])):
                 txt = "Sorry - File/Folder does not exist! (path copied to clipboard)"
                 setDisplayStatus(txt, "R")
                 return
 
-            thePathString = locationsDirs[locations.index(selectedFolder)].getCanonicalPath()   # type: str
+            thePathString = locationsDirs[locations.index(selectedFolder)].getCanonicalPath()                           # type: str
 
             if (Platform.isOSX() and grabSyncFolder and
                     ("iCloud~com~infinitekind~moneydancesync" in thePathString or "dropbox" in thePathString.lower())):

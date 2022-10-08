@@ -103,7 +103,8 @@ TOOLBAR / MENU BAR Contains the following:
     - Help/About menu
     - Button: Launch Console Window (opens the Moneydance Help>Show Console Window)
     - Button: Save Console Log (to a file of your choosing)
-    - Button: Open MD Folder (Preferences, Themes, Console log, Dataset, Extensions, Auto-backup folder, last backup folder[, Sync Dir][, Install Dir])
+    - Button: Open MD Folder (Preferences, Themes, Console log, Dataset, Extensions, Auto-backup folder,
+              last backup folder[, Sync Dir][, Install Dir][, Toolbox's own update log [common / this dataset]])
     - Button: Copy/Save/Print Diagnostics below (to Clipboard (copies the main screen output to clipboard), or save to file, or print)
 
 POPUP Output/Report Window(s):
@@ -127,6 +128,7 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - Find my Sync Encryption password(s) in iOS Backup(s)
         - Execute the 'older' Import QIF file and set parameters for import (useful if you want to import Account Structure Only)
         - Convert a TimeStamp number into a readable date/time (display only)
+
     - MENU: Online (OFX) Banking Tools:
         - Search for stored OFX related data
         - View your installed Service / Bank logon profiles
@@ -136,10 +138,12 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)
         - View your accounts' calculated reconcile window auto 'as of' date (active accounts only)
         - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
+
     - MENU: Accounts & Categories tools
         - View Check number settings
         - DIAGnostics - View Categories with zero balance. You can also inactivate using Update mode.
         - DIAGnostics - View Accounts' shouldBeIncludedInNetWorth() settings...
+
     - MENU: Currency & Security tools:
         - DIAGnostics - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
         - DIAGnostics - Can I delete a Security (tells you whether a security/stock is being used - and where)
@@ -148,6 +152,7 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - DIAGnostics - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
         - DIAGnostics - Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)
         - DIAGnostics - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
+
     - MENU: Transactions tools
         - View Register Txn Sort Orders
         - Extract your Attachments (this decrypts and extracts your attachments to a directory of your choice) (export_all_attachments.py)
@@ -286,7 +291,7 @@ CMD-P - View parameters file (StuWareSoftSystems). Also allows user to Delete al
 CMD-/ - View quick JVM diagnostics
 
 Menu - DEBUG MODE
-    >> Turns on this Extension's own internal debug messages...
+    >> Turns on Toolbox's own internal debug messages...
 
 Menu - Auto Prune of Internal Backup files
     >> Toolbox makes extra backups of config.dict, ./safe/settings and custom_theme.properties. This setting auto-prunes
