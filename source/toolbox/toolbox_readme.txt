@@ -129,10 +129,10 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - Execute the 'older' Import QIF file and set parameters for import (useful if you want to import Account Structure Only)
         - Convert a TimeStamp number into a readable date/time (display only)
 
-    - MENU: Online (OFX) Banking Tools:
-        - Search for stored OFX related data
-        - View your installed Service / Bank logon profiles
-        - View full list of all MD's Bank dynamic setup profiles (and then select one to view specific details)
+    - MENU: Online Banking Tools (for OFX/DC and MD+):
+        - View online banking configuration / connection data (OFX/DC and MD+) - VERY USEFUL, START HERE!
+        - Search for stored OFX/MD+ related data
+        - View full list of all MD's Bank dynamic OFX/DC setup profiles (and then select one to view specific details)
         - View your Security's hidden CUSIP settings (These link your downloads on Investment Securities to MD Securities)
         - View your Online saved Txns, Payees, Payments
         - View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)

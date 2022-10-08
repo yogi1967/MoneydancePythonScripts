@@ -135,6 +135,7 @@
 # build: 1055 - Rebuilt launch code so that latest extension version checks download(s) from internet occur in parallel in own thread....
 # build: 1055 - New feature: 'Toggle investment securities with zero shares status to active/inactive'
 # build: 1055 - New options added to open md folder button: View Toolbox's common & dataset update logfile
+# build: 1055 - Tweaked md+ connections routines to call .getMask() to grab last digits of account number... ;->
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -3800,7 +3801,7 @@ Visit: %s (Author's site)
     if isMDPlusGetPlaidClientEnabledBuild():
         from com.infinitekind.moneydance.model import OnlineAccountMapping
         from com.moneydance.apps.md.controller.olb.plaid import PlaidConnection
-        from com.plaid.client.request import ItemRemoveRequest
+        from com.plaid.client.request import ItemRemoveRequest, AccountsGetRequest
 
     def getMDPlusLicenseInfoForBook():
         _licenseObject = MD_REF.getCurrentAccountBook().getItemForID("tik.mdplus-license")	    # type: MoneydanceSyncableItem
@@ -5160,7 +5161,7 @@ Visit: %s (Author's site)
             x = u"***************"
         textArray.append(u"'Master' / Encryption Passphrase: %s" %x)
 
-        x = u"Encryption Store Online Banking (OFX) Passwords in File: %s" %(isCachingPasswords())
+        x = u"Encryption Store Online Banking Passwords in File: %s" %(isCachingPasswords())
         if isCachingPasswords():
             textArray.append(x+u" (This means you are able to save your online banking passwords)")
         else:
@@ -6321,7 +6322,7 @@ Visit: %s (Author's site)
         if count < 1:
             output += "No enabled as_of dates were detected\n\n"
         else:
-            output += "To zap the OFXLedgerDate, use Toolbox>Online Banking (OFX) Tools Menu\n" \
+            output += "To zap the OFXLedgerDate, use Toolbox>Online Banking Tools Menu\n" \
                       "                          option 'Delete Single cached OnlineTxnList Record/Txns'\n" \
                       "                          and delete whole record\n\n" \
                       "To change OFXLastTxnDownloadDate, use Toolbox>Update OFX Last Txn Update Date (Downloaded) field for an account\n" \
@@ -6556,9 +6557,9 @@ Visit: %s (Author's site)
             originalAuthToRedact = redactedAuthKey.toCacheString()
         return originalAuthToRedact
 
-    def ofx_view_service_profile_data():
+    def online_banking_view_configuration_data():
 
-        _THIS_METHOD_NAME = "OFX: View your installed Bank / Service Profiles"
+        _THIS_METHOD_NAME = "View online banking configuration data"
 
         OFX = []
 
@@ -6566,8 +6567,8 @@ Visit: %s (Author's site)
 
         GlobalVars.redact = myPopupAskQuestion(toolbox_frame_, _THIS_METHOD_NAME, "Redact confidential information?")
 
-        OFX.append("VIEW YOUR INSTALLED OFX SERVICE / BANK LOGON PROFILES\n"
-                   " ====================================================\n\n")
+        OFX.append("VIEW YOUR ONLINE BANKING CONFIGURATION/CONNECTION DATA\n"
+                   " =====================================================\n\n")
 
         if GlobalVars.redact:
             OFX.append("** Confidential data will be redacted **\n")
@@ -6585,7 +6586,7 @@ Visit: %s (Author's site)
             OFX.append("NOTE: Account linkages for MD+/Plaid Services may be incomplete as you are running an older version of Moneydance...!\n")
 
         # Build a list of Moneydance accounts that are enabled for download and have a service profile linked....
-        listAccountMDProxies=[]
+        listAccountMDProxies = []
         olAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(11))
         if len(olAccounts) > 0:
             for acctObj in olAccounts:
@@ -6621,6 +6622,11 @@ Visit: %s (Author's site)
                                                                                                gbs.size(),
                                                                                                bs.getService()))
         OFX.append("")
+
+        if not GlobalVars.redact:
+            # This will not disconnect anything, just reproduce the md+ connection information...
+            OFX.append(forceDisconnectMDPlusConnection(lReturnConnectionInfoOnly=True))
+
 
         for service in MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices():
 
@@ -6677,10 +6683,6 @@ Visit: %s (Author's site)
                 else:
                     OFX.append("<NONE>")
                 del mdp_cache
-
-                if not GlobalVars.redact:
-                    # This will not disconnect anything, just reproduce the md+ connection information...
-                    OFX.append(forceDisconnectMDPlusConnection(lReturnConnectionInfoOnly=True))
 
             OFX.append(pad("\n>>Accounts configured within bank profile:",120))
             if len(service.getAvailableAccounts())<1:
@@ -12495,7 +12497,7 @@ Visit: %s (Author's site)
         output = "%s:\n" \
                  " ========================================\n\n" %(_THIS_METHOD_NAME)
 
-        connectionTxt = "\n\n** WARNING: There was a script problem reproducing the md+ connection list **\n\n"
+        connectionTxt = "\n\n** WARNING: There was a problem reproducing the md+ connection list - ignore if md+ is not configured **\n\n"
 
         try:
             book = MD_REF.getCurrentAccountBook()
@@ -12527,7 +12529,13 @@ Visit: %s (Author's site)
 
             mapping = OnlineAccountMapping(book, service)
             licenseInfo = getMDPlusLicenseInfoForBook()
-    
+            if licenseInfo is None:
+                if lReturnConnectionInfoOnly: return connectionTxt
+                txt = "WARNING: getMDPlusLicenseInfoForBook() returned None - NO CHANGES MADE"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
             # noinspection PyUnresolvedReferences
             p_mdpl = MDPlus.MDPlusLicense.getDeclaredConstructor(MoneydanceSyncableItem)
             p_mdpl.setAccessible(True)
@@ -12606,8 +12614,8 @@ Visit: %s (Author's site)
                     connectionRows.append(AccountMappingRow(itemInfo, acctInfo))
 
             connectionTxt = "\n" \
-                            "CONNECTIONS (should duplicate Menu>Online>Setup Moneydance+):\n" \
-                            "-------------------------------------------------------------\n"
+                            "MD+ CONNECTIONS (should duplicate Menu>Online>Setup Moneydance+):\n" \
+                            "-----------------------------------------------------------------\n"
 
             class StoreConnectionRow:
                 def __init__(self, _connectionRow, _institutionName):
@@ -12617,23 +12625,43 @@ Visit: %s (Author's site)
                 def __repr__(self): return self.__str__()
                 def toString(self): return self.__str__()
 
+            accountMasks = {}
             connectionRowSelector = []
             for connectionRow in connectionRows:
                 if connectionRow.isItemRow():
+                    accountMasks.clear()
                     itemInfo = plaidConnection.getItemInfo(connectionRow.itemInfo.getItemID())
                     institutionInfo = plaidConnection.getInstitutionInfo(itemInfo.getStr("inst", ""))
                     institutionName = institutionInfo.getName("no name") + " (%s)" %(connectionRow.itemInfo.getItemID())
                     connectionTxt += "\nConnection: %s\n" %(institutionName)
+
+                    for _token in connectionRow.allAccessTokens:
+                        _accessToken = invokeMethodByReflection(_token, "getAccessToken", [])
+                        _response = plaidClient.service().accountsGet(AccountsGetRequest(_accessToken)).execute()
+                        success = _response.isSuccessful()
+                        if success:
+                            _accountsResponse = _response.body()
+                            status = _accountsResponse.getItem()
+                            error = status.getError()
+                            if error is None:
+                                retrievedAccountsFromPlaid = _accountsResponse.getAccounts()
+                                for retrievedAccount in retrievedAccountsFromPlaid:
+                                    accountMasks[retrievedAccount.getAccountId()] = retrievedAccount.getMask()
+
                     if len(connectionRow.allAccessTokens) > 1:
                         connectionTxt += "... Found multiple payloads for this connection:\n"
                         for token in connectionRow.allAccessTokens:
                             connectionTxt += "...... payloadid=%s token=%s\n" %(token.getPayloadID(), invokeMethodByReflection(token, "getAccessToken", []))
                     connectionRowSelector.append(StoreConnectionRow(connectionRow, institutionName))
+
                 else:
+
                     acctInfo = connectionRow.accountInfo
                     accountNum = acctInfo.getAccountNumber()
                     localAccount = mapping.getAccountForOnlineID(acctInfo.getAccountNumber(), None, False)
-                    connectionTxt += "... ACCOUNT MAPPING: '%s' <> '%s'(%s)\n" %(acctInfo.getDisplayName(), localAccount, accountNum)
+                    lastDigits = accountMasks.get(accountNum, None)
+                    lastDigits = "" if not lastDigits else "(last digits: ...%s)" %(lastDigits)
+                    connectionTxt += "... ACCOUNT MAPPING: '%s'%s <> '%s'(%s)\n" %(acctInfo.getDisplayName(), lastDigits, localAccount, accountNum)
                     for _availAcct in accounts:
                         if _availAcct.getAccountNumber() == accountNum:
                             connectionTxt += "... (Raw Data >> desc: %s, official_name: %s, balance.available: %s, balance.current: %s, balance.limit: %s)\n" \
@@ -12758,9 +12786,11 @@ Visit: %s (Author's site)
             myPopupInformationBox(jif,txt,_THIS_METHOD_NAME.upper(),JOptionPane.WARNING_MESSAGE)
 
         except:
-            if lReturnConnectionInfoOnly: return connectionTxt
-            output += "\n\nERROR script has crashed - please review console\n".upper()
             txt = dump_sys_error_to_md_console_and_errorlog(True)
+            if lReturnConnectionInfoOnly:
+                connectionTxt += "\n\n** WARNING: error occurred when analysing live Paid connections... review console **\n\n".upper()
+                return connectionTxt
+            output += "\n\nERROR script has crashed - please review console\n".upper()
             output += txt
             QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=2).show_the_frame()
 
@@ -13931,7 +13961,7 @@ Visit: %s (Author's site)
                 if GlobalVars.redact:
                     output += "** Confidential data will be redacted **\n"
                 else:
-                    output += "** WARNING: Confidential data will be visible **\n"
+                    output += "** WARNING: NO REDACTION >> so confidential data will be visible **\n".upper()
 
             try:
                 if lObject:  # selected object
@@ -14372,7 +14402,7 @@ Visit: %s (Author's site)
                     else:
                         if not lCachePasswords:
                             output += "** Your system is not setup to cache passwords... Cannot display this session's cache **\n"
-                            output += "** Use Menu Online Banking (OFX) Tools > View installed Bank / Service Profiles to view specific cached items **\n"
+                            output += "** Use Menu Online Banking Tools > 'View online banking configuration / connection data (OFX/DC and MD+)' to view specific cached items **\n"
                         output += "<NONE>\n"
 
 
@@ -26350,13 +26380,13 @@ Now you will have a text readable version of the file you can open in a text edi
                     # user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().futureTxnIndicator)
                     user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().accountIconTint)
 
-                    user_searchOFXData = JRadioButton("Search for stored OFX related data", False)
-                    user_searchOFXData.setToolTipText("This searches for Online Banking (OFX) related setup information in most places...")
+                    user_online_banking_view_configuration_data = JRadioButton("View online banking configuration / connection data (OFX/DC and MD+) - VERY USEFUL, START HERE!", False)
+                    user_online_banking_view_configuration_data.setToolTipText("This will display all the stored setup data relating to your online banking configurations (OFX and MD+)")
 
-                    user_viewInstalledBankProfiles = JRadioButton("View your installed Bank / Service Profiles", False)
-                    user_viewInstalledBankProfiles.setToolTipText("This will display all the setup data stored on your service/banking logon profile(s)")
+                    user_searchOFXData = JRadioButton("Search for stored OFX/MD+ related data", False)
+                    user_searchOFXData.setToolTipText("This searches for Online Banking (OFX/DC & MD+) related setup information in most places...")
 
-                    user_viewListALLMDServices = JRadioButton("View list of MD's Bank dynamic setup profiles (then select one)", False)
+                    user_viewListALLMDServices = JRadioButton("View list of MD's Bank dynamic OFX/DC setup profiles (then select one)", False)
                     user_viewListALLMDServices.setToolTipText("This will display Moneydance's dynamic setup profiles for all banks - pulled from Infinite Kind's website..")
 
                     user_view_CUSIP_settings = JRadioButton("View your Security's hidden CUSIP settings (The link between your Bank's Securities & MD Securities)", False)
@@ -26475,7 +26505,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_manageCUSIPLink)
                     bg.add(user_searchOFXData)
                     bg.add(user_UNLOCKMDPlusDiagnostic)
-                    bg.add(user_viewInstalledBankProfiles)
+                    bg.add(user_online_banking_view_configuration_data)
                     bg.add(user_view_CUSIP_settings)
                     bg.add(user_viewOnlineTxnsPayeesPayments)
                     bg.add(user_viewAllLastTxnDownloadDates)
@@ -26504,8 +26534,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     if isToolboxUnlocked():
                         userFilters.add(user_UNLOCKMDPlusDiagnostic)
 
+                    userFilters.add(user_online_banking_view_configuration_data)
                     userFilters.add(user_searchOFXData)
-                    userFilters.add(user_viewInstalledBankProfiles)
                     userFilters.add(user_viewListALLMDServices)
                     userFilters.add(user_view_CUSIP_settings)
                     userFilters.add(user_viewOnlineTxnsPayeesPayments)
@@ -26552,13 +26582,13 @@ Now you will have a text readable version of the file you can open in a text edi
                         jsp = MyJScrollPaneForJOptionPane(userFilters,775,725)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
-                                                                   "Online Banking (OFX) Tools",
+                                                                   "Online Banking Tools",
                                                                    JOptionPane.OK_CANCEL_OPTION,
                                                                    JOptionPane.QUESTION_MESSAGE,
                                                                    getMDIcon(lAlwaysGetIcon=True),
                                                                    options, options[0]))
                         if userAction != 1:
-                            txt = "Online Banking (OFX) Tools - No menu item selected..."
+                            txt = "Online Banking Tools - No menu item selected..."
                             setDisplayStatus(txt, "B")
                             return
 
@@ -26589,7 +26619,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_viewOnlineTxnsPayeesPayments.isSelected():              OFX_view_online_txns_payees_payments()
                         if user_viewAllLastTxnDownloadDates.isSelected():               OFX_view_all_last_txn_download_dates()
                         if user_viewReconcileAsOfDates.isSelected():                    OFX_view_reconcile_AsOf_Dates()
-                        if user_viewInstalledBankProfiles.isSelected():                 ofx_view_service_profile_data()
+                        if user_online_banking_view_configuration_data.isSelected():    online_banking_view_configuration_data()
 
                         for button in bg.getElements():
                             if button.isSelected(): return      # Quit the menu system after running something....
@@ -27856,7 +27886,7 @@ Now you will have a text readable version of the file you can open in a text edi
                 # if not GlobalVars.ADVANCED_MODE: return
 
                 try:
-                    user_ofx_features = JRadioButton("OFX Advanced Mode Options appear in 'MENU: Online Banking (OFX) Tools'...", False)
+                    user_ofx_features = JRadioButton("OFX/MD+ Advanced Mode Options appear in 'MENU: Online Banking Tools'...", False)
                     user_ofx_features.setEnabled(False)
 
                     user_advanced_mode_edit_prefs = JRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False)
@@ -28615,7 +28645,7 @@ Now you will have a text readable version of the file you can open in a text edi
             generalToolsMenu_button.addActionListener(self.GeneralToolsMenuButtonAction())
             GlobalVars.allButtonsList.append(generalToolsMenu_button)
 
-            onlineBankingTools_button = MyJButton("<html><center>MENU: Online Banking<BR>(OFX) Tools</center></html>", updateCapable=True, advancedCapable=True)
+            onlineBankingTools_button = MyJButton("<html><center>MENU: Online Banking<BR>Tools</center></html>", updateCapable=True, advancedCapable=True)
             onlineBankingTools_button.setToolTipText("A selection of tools for Online Banking - SOME OPTIONS CAN CHANGE DATA!")
             onlineBankingTools_button.addActionListener(self.OnlineBankingToolsButtonAction())
             GlobalVars.allButtonsList.append(onlineBankingTools_button)
@@ -29064,7 +29094,7 @@ Now you will have a text readable version of the file you can open in a text edi
                                          theMessage="You appear to have %s Accounts\n"
                                                     "with %s cached OFX downloaded bank transactions.\n"
                                                     "These should not really be there.\n"
-                                                    "Consider using Online Banking (OFX) Tools menu to delete cached OnlineTxnList txns"
+                                                    "Consider using Online Banking Tools menu to delete cached OnlineTxnList txns"
                                                     %(countCachedAccount, countCachedTxns),
                                          theTitle="ALERT: Cached OnlineTxnList records exist",
                                          OKButtonText="ACKNOWLEDGE",
@@ -29075,7 +29105,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         myPrint("B","#########################################################################################################################################################")
                         myPrint("B","### ALERT: You appear to have %s Accounts with %s cached OFX downloaded bank transactions."%(countCachedAccount, countCachedTxns))
                         myPrint("B","### These should not really be there.")
-                        myPrint("B","### Consider using Online Banking (OFX) Tools menu to delete cached OnlineTxnList txns.")
+                        myPrint("B","### Consider using Online Banking Tools menu to delete cached OnlineTxnList txns.")
                         myPrint("B","#########################################################################################################################################################\n")
                 del countCachedAccount, countCachedTxns
             except: pass
