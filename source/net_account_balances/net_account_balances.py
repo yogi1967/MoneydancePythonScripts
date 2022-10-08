@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 # net_account_balances.py build: 1014 - Jul thru 2022 - Stuart Beesley - StuWareSoftSystems
-# Display Name in MD now 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
+# Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
 # further thanks to Kevin(N) and dwg for their testing and input too...
@@ -3117,6 +3117,38 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
+
+    "HERE";
+    def genericSwingEDTRunner(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, *args):
+        """Will detect and then run the codeblock on the EDT"""
+
+        isOnEDT = SwingUtilities.isEventDispatchThread()
+        myPrint("B", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args));
+        myPrint("B", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT);
+
+        class GenericSwingEDTRunner(Runnable):
+
+            def __init__(self, _codeblock, arguments):
+                self.codeBlock = _codeblock
+                self.params = arguments
+
+            def run(self):
+                myPrint("B", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... about to execute codeblock.... isOnEDT:", SwingUtilities.isEventDispatchThread());
+                self.codeBlock(*self.params)
+                myPrint("B", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... finished executing codeblock....");
+
+        _gser = GenericSwingEDTRunner(codeblock, args)
+
+        if ((isOnEDT and not ifOnEDTThenRunNowAndWait) or (not isOnEDT and not ifOffEDTThenRunNowAndWait)):
+            myPrint("B", "... calling codeblock via .invokeLater()...");
+            SwingUtilities.invokeLater(_gser)
+        elif not isOnEDT:
+            myPrint("B", "... calling codeblock via .invokeAndWait()...");
+            SwingUtilities.invokeAndWait(_gser)
+        else:
+            myPrint("B", "... calling codeblock.run() naked...");
+            _gser.run()
+
 
     # noinspection PyUnresolvedReferences
     def isAccountActive(acct, balType, checkParents=True, sudoAccount=None):                                            # noqa
@@ -7346,15 +7378,17 @@ Visit: %s (Author's site)
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
             if not self.isUIavailable:
-                myPrint("DB","Checking to see whether the Moneydance UI is loaded yet....")
+                myPrint("DB", "Checking to see whether the Moneydance UI is loaded yet....")
 
                 f_ui_result = getFieldByReflection(self.moneydanceContext, "ui")
 
+                myPrint("DB", "** SPECIAL: f_ui_result:", f_ui_result);
                 if f_ui_result is None or f_ui_result.firstMainFrame is None:
                     myPrint("DB",".. Nope - the Moneydance UI is NOT yet loaded (fully)..... so exiting...")
                     debug = saveDebug
                     return False
 
+                myPrint("DB", "** SPECIAL: book:", self.moneydanceContext.getCurrentAccountBook());
                 if self.moneydanceContext.getCurrentAccountBook() is None:
                     myPrint("DB",".. The UI is loaded, but the dataset is not yet loaded... so exiting ...")
                     debug = saveDebug
@@ -7362,22 +7396,38 @@ Visit: %s (Author's site)
 
                 try:
                     # I'm calling this on firstMainFrame rather than just .getUI().setStatus() to confirm GUI is properly loaded.....
-                    self.moneydanceContext.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0)
+                    myPrint("DB", "SPECIAL: pre-calling .firstMainFrame.setStatus()");
+                    # self.moneydanceContext.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0)
+
+                    genericSwingEDTRunner(True, True,
+                                          self.moneydanceContext.getUI().firstMainFrame.setStatus,
+                                          ">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0);
+
+                    myPrint("DB", "SPECIAL: post-calling .firstMainFrame.setStatus()");
                 except:
+                    dump_sys_error_to_md_console_and_errorlog();
                     myPrint("DB","@@ ERROR - failed using the UI..... will just exit for now...")
                     debug = saveDebug
                     return False
 
                 myPrint("DB","Success - the Moneydance UI is loaded.... Extension can execute properly now...!")
 
+                myPrint("DB", "SPECIAL: pre-calling setDefaultFonts()");
                 # Have to do .getUI() etc stuff here (and not at startup) as UI not loaded then. As of 4069, is blocked by MD!
-                setDefaultFonts()
+
+                # setDefaultFonts()       # todo - Do I need to check for and be on the EDT?
+                genericSwingEDTRunner(True, True, setDefaultFonts);
+
+                setDefaultFonts()       # todo - Do I need to check for and be on the EDT?
+                myPrint("DB", "SPECIAL: post-calling setDefaultFonts()");
 
                 try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
                 except: GlobalVars.defaultPrintFontSize = 12
 
+                myPrint("DB", "SPECIAL: pre-calling build_main_frame()");
                 self.build_main_frame()
                 self.isUIavailable = True
+                myPrint("DB", "SPECIAL: post-calling build_main_frame()");
             else:
                 myPrint("DB","..UI is available - returning True....")
 
