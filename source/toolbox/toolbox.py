@@ -3427,6 +3427,8 @@ Visit: %s (Author's site)
 
             if lRestart and not lAllowSaveWorkspace: raise Exception("Sorry: you cannot use lRestart=True and lAllowSaveWorkspace=False together...!")
 
+            disableToolboxButtons()
+
             if lRestart:
                 myPrint("B", "@@ RESTARTING MONEYDANCE >> RELOADING SAME DATASET @@")
                 Thread(ManuallyCloseAndReloadDataset(), "toolbox_moneydanceExitOrRestart").start()
@@ -21883,7 +21885,7 @@ now after saving the file, restart Moneydance
             MD_REF.getUI().setStatus("Toolbox will now %s your dataset" %(actionString), -1.0)
 
             myPrint("B", "Updating Root's internal name to match new name")
-            currentRoot.setAccountName(newName)
+            currentRoot.setAccountName(os.path.splitext(newName)[0])
             currentRoot.syncItem()
 
             myPrint("B", "Executing '%s' on current dataset: %s - will %s to: %s" %(_THIS_METHOD_NAME, fCurrentFilePath.getCanonicalPath(), actionString, fNewNamePath.getCanonicalPath()))
