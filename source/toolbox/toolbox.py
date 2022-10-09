@@ -6618,9 +6618,7 @@ Visit: %s (Author's site)
                     gbs = acctObj.getBankingServices()
                     if gbs.size() < 1: continue
                     for bs in gbs:
-                        OFX.append("- Account: {:40} Banking Service (out of {}) {:40}".format(acctObj.getFullAccountName(),
-                                                                                               gbs.size(),
-                                                                                               bs.getService()))
+                        OFX.append("- Account: {:40} Banking Service (out of {}) {:40}".format(acctObj.getFullAccountName(), gbs.size(), bs.getService()))
         OFX.append("")
 
         if not GlobalVars.redact:
@@ -6631,7 +6629,7 @@ Visit: %s (Author's site)
         for service in MD_REF.getCurrentAccount().getBook().getOnlineInfo().getAllServices():
 
             # Find the MD accounts specifically linked to this service profile
-            thisServiceMDAccountProxies=[]
+            thisServiceMDAccountProxies = []
             for olacct in listAccountMDProxies:
                 if olacct[1] == service:
                     thisServiceMDAccountProxies.append(olacct)
@@ -6655,7 +6653,7 @@ Visit: %s (Author's site)
 
             mappingObject = None                                                                                        # noqa
             if isMDPlusEnabledBuild():
-                OFX.append(pad("\n>>MD2022+ Online Banking Mapping table entries...:",120))
+                OFX.append(pad("\n>>MD2022+ Online Banking Mapping table entries...:", 120))
                 mappingObject = MD_REF.getCurrentAccountBook().getItemForID("online_acct_mapping")
                 if mappingObject is not None:
                     OFX.append(special_toMultilineHumanReadableString(mappingObject,lSkipSecrets=GlobalVars.redact,sFilterServiceID=service.getTIKServiceID(),lRedact=GlobalVars.redact))
@@ -6676,7 +6674,7 @@ Visit: %s (Author's site)
                 del tokens
 
                 mdp_cache = MD_REF.getCurrentAccountBook().getLocalStorage().getSubset("mdp_items")
-                OFX.append(pad("\n>>Moneydance+ Plaid Cache (local storage 'mdp_items')...:",120))
+                OFX.append(pad("\n>>Moneydance+ Plaid Cache (local storage 'mdp_items')...:", 120))
                 if len(mdp_cache) > 0:
                     for cacheItem in mdp_cache:
                         OFX.append("Key: %s Value: %s" %(cacheItem, mdp_cache.get(cacheItem)))
@@ -6685,7 +6683,7 @@ Visit: %s (Author's site)
                 del mdp_cache
 
             OFX.append(pad("\n>>Accounts configured within bank profile:",120))
-            if len(service.getAvailableAccounts())<1:
+            if len(service.getAvailableAccounts()) < 1:
                 OFX.append("<NONE FOUND>")
             else:
                 _availableAccounts = service.getAvailableAccounts()
@@ -6702,7 +6700,7 @@ Visit: %s (Author's site)
                     OFX.append(" -- List All accounts configured in profile: %s\n" %(service.getAvailableAccounts()))
 
                 for availAccount in service.getAvailableAccounts():
-                    OFX.append(">> ACCOUNT: %s (%s) ('Key': %s)" %(availAccount.getDescription(),redactor(availAccount.getAccountNumber()),availAccount.getAccountKey()))
+                    OFX.append(">> ACCOUNT: %s (%s) ('Key': %s)" %(availAccount.getDescription(), redactor(availAccount.getAccountNumber()), availAccount.getAccountKey()))
 
                     if service.getTIKServiceID() != "md:plaid":         # Don't bother with MD+ as these are all empty anyway...
                         try:
@@ -6719,14 +6717,14 @@ Visit: %s (Author's site)
                                                 result = redactor(result)
                                                 break
                                     if result is not None:
-                                        OFX.append(" >> %s %s" %(pad(meth.getName(), 40),result) )
+                                        OFX.append(" >> %s %s" %(pad(meth.getName(), 40), result) )
                             OFX.append("\n")
                         except:
                             pass
 
             OFX.append("")
 
-            OFX.append(pad("\n>>MD Accounts linked to this service / bank profile:",120))
+            OFX.append(pad("\n>>MD Accounts linked to this service / bank profile:", 120))
             if len(thisServiceMDAccountProxies)<1:
                 OFX.append("<NONE FOUND>")
             else:
@@ -6749,7 +6747,7 @@ Visit: %s (Author's site)
                     myPrint("B", "ERROR: getting getAuthenticationCachePrefix() or getSessionCookiePrefix()... (continuing)")
                     dump_sys_error_to_md_console_and_errorlog()
 
-                OFX.append(pad("\n>>ROOT Data associated with service profile:",120))
+                OFX.append(pad("\n>>ROOT Data associated with service profile:", 120))
                 authKeyPrefix = "ofx.client_uid"
                 root = MD_REF.getRootAccount()
                 iCount = 0
@@ -6758,7 +6756,7 @@ Visit: %s (Author's site)
                         rk_redact = rk
                         val_redact = root.getParameter(rk)
                         if GlobalVars.redact:
-                            redactSearch = authKeyPrefix+"::"+service.getTIKServiceID()+"::"
+                            redactSearch = authKeyPrefix+"::"+service.getTIKServiceID() + "::"
                             if rk.startswith("ofx.client_uid_default_user::"):
                                 val_redact = redactor(val_redact)
                             elif rk.startswith(redactSearch):
@@ -6768,10 +6766,10 @@ Visit: %s (Author's site)
                 if not iCount: OFX.append("<NONE>")
                 del root, iCount, authKeyPrefix
 
-                OFX.append(pad("\n>>REALMs configured:",120))
+                OFX.append(pad("\n>>REALMs configured:", 120))
                 realmsToCheck = service.getRealms()
                 if "DEFAULT" not in realmsToCheck:
-                    realmsToCheck.insert(0,"DEFAULT")
+                    realmsToCheck.insert(0, "DEFAULT")
 
                 for realm in realmsToCheck:
 
@@ -6930,7 +6928,7 @@ Visit: %s (Author's site)
 
             OFX.append("")
 
-            sortKeys=sorted(service.getParameterKeys())
+            sortKeys = sorted(service.getParameterKeys())
             OFX.append(pad("Raw Parameter keys:",40))
             for x in sortKeys:
                 val = service.getParameter(x,None)
@@ -6938,7 +6936,7 @@ Visit: %s (Author's site)
                     if checkKey in x:
                         val = redactor(val, ("balance" in x))
                         break
-                OFX.append("%s %s" %(pad(x,40), val))
+                OFX.append("%s %s" %(pad(x, 40), val))
 
             OFX.append("\n------------------------------------------------------------------\n\n")
 
@@ -6947,9 +6945,9 @@ Visit: %s (Author's site)
             OFX[i] = OFX[i] + "\n"
         OFX = "".join(OFX)
 
-        QuickJFrame("VIEW INSTALLED SERVICE / BANK LOGON PROFILES",OFX,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+        QuickJFrame(_THIS_METHOD_NAME, OFX, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
-        txt = "OFX: Your installed Service / Bank logon profiles have been displayed...."
+        txt = "Your online banking configuration / connection data has been displayed...."
         setDisplayStatus(txt, "B")
 
     def load_help_file():
