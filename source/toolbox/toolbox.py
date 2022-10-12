@@ -130,7 +130,7 @@
 # build: 1054 - Tweaked rename/relocate dataset to detect crash when calling .setCurrentBook() - e.g. out of memory.....
 # build: 1055 - Tweaked Dropbox Config error popup to recommend / try reset sync method...; New logger for all updates performed.....
 # build: 1055 - Tweaked diagnose_currencies... Stopped fix applying if newRate was still zero/NaN..... Remains as a warning....
-# build: 1055 - Turned off Syncer.DEBUG when performing mass changes - to stop console log filling up etc...
+# build: 1055 - Turned off Syncer.DEBUG when performing mass changes - to stop console log filling up etc...; also MD_REF.DEBUG when refreshing (GUI) sync status
 # build: 1055 - Added Remove inactive accounts from SideBar function...
 # build: 1055 - Rebuilt launch code so that latest extension version checks download(s) from internet occur in parallel in own thread....
 # build: 1055 - New feature: 'Toggle investment securities with zero shares status to active/inactive'
@@ -3267,6 +3267,21 @@ Visit: %s (Author's site)
         def resetState():
             if SyncerDebug.saveState is None: return
             Syncer.DEBUG = SyncerDebug.saveState
+
+    class MainDebug:
+        saveState = None
+
+        def __init__(self): raise Exception("ERROR: Do not call this constructor!")
+
+        @staticmethod
+        def changeState(newState):
+            MainDebug.saveState = MD_REF.DEBUG
+            MD_REF.DEBUG = newState
+
+        @staticmethod
+        def resetState():
+            if MainDebug.saveState is None: return
+            MD_REF.DEBUG = MainDebug.saveState
 
     def logToolboxUpdates(methodName, comments, book=None, onlyLogGenericEntry=False, lOnlyRtnCommonPath=False, lOnlyRtnDatasetPath=False):
         """
@@ -24379,8 +24394,7 @@ Now you will have a text readable version of the file you can open in a text edi
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
-        if not myPopupAskQuestion(toolbox_frame_,"ADVANCED: EDIT OBJ'S MODE","DANGER - ARE YOU SURE YOU WANT TO VISIT THIS FUNCTION?",
-                                  theMessageType=JOptionPane.ERROR_MESSAGE):
+        if not myPopupAskQuestion(toolbox_frame_,"ADVANCED: EDIT OBJ'S MODE","DANGER - ARE YOU SURE YOU WANT TO VISIT THIS FUNCTION?", theMessageType=JOptionPane.ERROR_MESSAGE):
             txt = "ADVANCED Edit Obj Mode - User declined to proceed - aborting.."
             setDisplayStatus(txt, "R")
             return
@@ -24389,7 +24403,7 @@ Now you will have a text readable version of the file you can open in a text edi
         theObject = objSelecter.actionPerformed("")  # type: list
         del objSelecter
 
-        if theObject is None or len(theObject)!=1:
+        if theObject is None or len(theObject)!= 1:
             # txt = "ADVANCED Edit Obj Mode - No Object selected/found - aborting.."
             # setDisplayStatus(txt, "R")
             return
@@ -24507,13 +24521,13 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 output += "\n<END>"
                 if isinstance(theObject, SplitTxn):
-                    jif = QuickJFrame("REVIEW THE SPLIT TXN's DATA BEFORE DELETION (OF THE SPLIT)", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                    jif = QuickJFrame("REVIEW THE SPLIT TXN's DATA BEFORE DELETION (OF THE SPLIT)", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 elif isinstance(theObject, ParentTxn):
-                    jif = QuickJFrame("REVIEW THE PARENT'S TXN DATA BEFORE DELETION (OF THE WHOLE PARENT TXN)", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                    jif = QuickJFrame("REVIEW THE PARENT'S TXN DATA BEFORE DELETION (OF THE WHOLE PARENT TXN)", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
                 else:
-                    jif = QuickJFrame("REVIEW THE OBJECT's DATA BEFORE DELETION", output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                    jif = QuickJFrame("REVIEW THE OBJECT's DATA BEFORE DELETION", output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
-                if confirm_backup_confirm_disclaimer(jif, "ADVANCED: DELETE OBJECT","DELETE OBJECT %s" %(theObject)):
+                if confirm_backup_confirm_disclaimer(jif, "ADVANCED: DELETE OBJECT", "DELETE OBJECT %s" %(theObject)):
 
                     if isinstance(theObject, SplitTxn):                                                                 # noqa
                         # This will delete the split only; thus we also must sync the parent
@@ -24553,14 +24567,14 @@ Now you will have a text readable version of the file you can open in a text edi
                 output =  "%s PLEASE REVIEW PARAMETER & VALUE BEFORE MAKING CHANGES\n" %(theObject)
                 output += "------------------------------------------------\n\n"
 
-                output += "\n@@ This '%s' key can be changed/deleted by this script @@\n" % selectedKey
+                output += "\n@@ This '%s' key can be changed/deleted by this script @@\n" %(selectedKey)
 
-                output += "\n%s %s\n" %(pad("%s PARAMETER:"%(theObject),25),selectedKey)
+                output += "\n%s %s\n" %(pad("%s PARAMETER:"%(theObject), 25), selectedKey)
                 output += "\n%s %s\n" %(pad("Type:",25), type(value))
                 output += "\n%s %s\n" %(pad("Value:",25), value)
 
                 output += "\n<END>"
-                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %(theObject), output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %(theObject), output, lAutoSize=True, lWrapText=False, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
                 chgValue = None
 
@@ -24582,11 +24596,14 @@ Now you will have a text readable version of the file you can open in a text edi
 
                 confAction = ""
                 if lDel:
-                    confAction = "%s key: %s (with old value: %s)" %(text,selectedKey,value)
+                    if isinstance(value, basestring) and value.count('\n') > 10:
+                        confAction = "%s key: %s (old value to long to display)" %(text, selectedKey)
+                    else:
+                        confAction = "%s key: %s (with old value: %s)" %(text, selectedKey, value)
                 if lChg:
-                    confAction = "%s key: %s to new value: %s" %(text,selectedKey,chgValue)
+                    confAction = "%s key: %s to new value: %s" %(text, selectedKey, chgValue)
 
-                if confirm_backup_confirm_disclaimer(jif, "ADVANCED: %s VALUE IN %s" %(text,theObject),confAction):
+                if confirm_backup_confirm_disclaimer(jif, "ADVANCED: %s VALUE IN %s" %(text, theObject), confAction):
 
                     if lDel:
                         theObject.setParameter(selectedKey,None)                                                        # noqa
@@ -24603,20 +24620,23 @@ Now you will have a text readable version of the file you can open in a text edi
                     play_the_money_sound()
 
                     if lDel:
-                        txt = "@@ ADVANCEDMODE: Parameter: %s DELETED from %s (old value: %s) @@" %(selectedKey, theObject,value)
+                        if isinstance(value, basestring) and value.count('\n') > 10:
+                            txt = "@@ ADVANCEDMODE: Parameter: %s DELETED from %s (old value to long to display) @@" %(selectedKey, theObject)
+                            _msgTxt = "SUCCESS: Parameter: %s DELETED from %s (old value to long to display)" %(selectedKey, theObject)
+                        else:
+                            txt = "@@ ADVANCEDMODE: Parameter: %s DELETED from %s (old value: %s) @@" %(selectedKey, theObject, value)
+                            _msgTxt = "SUCCESS: Parameter: %s DELETED from %s (old value: %s)" %(selectedKey, theObject, value)
                         myPrint("B", txt)
                         logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
-                        myPopupInformationBox(jif,
-                                              "SUCCESS: Parameter: %s DELETED from %s (old value: %s)" %(selectedKey, theObject, value),
-                                              "ADVANCED: DELETE IN %s" %theObject,
-                                              JOptionPane.WARNING_MESSAGE)
+
+                        myPopupInformationBox(jif, _msgTxt, "ADVANCED: DELETE IN %s" %(theObject), JOptionPane.WARNING_MESSAGE)
                     if lChg:
                         txt = "@@ ADVANCEDMODE: Parameter: %s CHANGED to %s in %s @@" %(selectedKey, chgValue, theObject)
                         myPrint("B", txt)
                         logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
                         myPopupInformationBox(jif,
                                               "SUCCESS: Parameter: %s CHANGED to %s in %s" %(selectedKey, chgValue, theObject),
-                                              "ADVANCED: CHANGE IN %s" %theObject,
+                                              "ADVANCED: CHANGE IN %s" %(theObject),
                                               JOptionPane.WARNING_MESSAGE)
                     jif.dispose()       # already within the EDT
                     continue
@@ -24872,8 +24892,8 @@ Now you will have a text readable version of the file you can open in a text edi
                     lOK_to_Change = True
                     output += "\n@@ This '%s' key can be changed/deleted by this script @@\n" % selectedKey
 
-                output += "\n%s %s\n" %(pad("%s KEY:" %(fileType),25), selectedKey)
-                output += "\n%s %s\n" %(pad("Type:",25), type(value))
+                output += "\n%s %s\n" %(pad("%s KEY:" %(fileType), 25), selectedKey)
+                output += "\n%s %s\n" %(pad("Type:", 25), type(value))
 
                 if isinstance(value,(StreamTable,StreamVector)):
                     try:
@@ -24885,12 +24905,12 @@ Now you will have a text readable version of the file you can open in a text edi
                     output += "\n%s %s\n" %(pad("Value:",25), value)
 
                 output += "\n<END>"
-                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %fileType, output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("REVIEW THE KEY BEFORE CHANGES to %s" %(fileType), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
 
                 if lChg and not lOK_to_Change:
                     myPopupInformationBox(jif,
-                                          "SORRY: I cannot change the key %s in %s" %(selectedKey,fileType),
-                                          "ADVANCED: CHANGE KEY IN %s" %fileType,
+                                          "SORRY: I cannot change the key %s in %s" %(selectedKey, fileType),
+                                          "ADVANCED: CHANGE KEY IN %s" %(fileType),
                                           JOptionPane.ERROR_MESSAGE)
                     continue
 
@@ -24913,8 +24933,8 @@ Now you will have a text readable version of the file you can open in a text edi
                         continue    # back to ADVANCED menu
 
                 agreed = False
-                if lDel: agreed = doesUserAcceptDisclaimer(jif, "ADVANCED: %s KEY VALUE IN %s" %(text,fileType), "%s key: %s (with old value: %s)?" %(text,selectedKey,value))
-                if lChg: agreed = doesUserAcceptDisclaimer(jif, "ADVANCED: %s KEY VALUE IN %s" %(text,fileType), "%s key: %s to new value: %s?" %(text,selectedKey,chgValue))
+                if lDel: agreed = doesUserAcceptDisclaimer(jif, "ADVANCED: %s KEY VALUE IN %s" %(text,fileType), "%s key: %s (with old value: %s)?" %(text, selectedKey, value))
+                if lChg: agreed = doesUserAcceptDisclaimer(jif, "ADVANCED: %s KEY VALUE IN %s" %(text,fileType), "%s key: %s to new value: %s?" %(text, selectedKey, chgValue))
                 if agreed:
                     if lConfigDict:
                         if lDel:
@@ -25826,11 +25846,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
         txt = "All Moneydance internal debug settings turned %s" %(toggleText)
         setDisplayStatus(txt,"B")
-        myPopupInformationBox(toolbox_frame_,"All Moneydance internal debug settings turned %s" %toggleText,"TOGGLE MONEYDANCE INTERNAL DEBUG",JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(toolbox_frame_, txt, "TOGGLE MONEYDANCE INTERNAL DEBUG", JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-
-        return
 
     def advanced_mode_other_DEBUG():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -25875,10 +25893,9 @@ Now you will have a text readable version of the file you can open in a text edi
 
         txt = "Moneydance internal debug settings %s turned %s" %(selectedKey, not currentSetting)
         setDisplayStatus(txt, "B")
-        myPopupInformationBox(toolbox_frame_,"Moneydance internal debug settings %s turned %s" %(selectedKey, not currentSetting),"TOGGLE MONEYDANCE INTERNAL OTHER DEBUG",JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(toolbox_frame_, txt, "TOGGLE MONEYDANCE INTERNAL OTHER DEBUG", JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
 
     def advanced_mode_demote_primary_to_secondary():
         # the reverse of convert_secondary_to_primary_data_set
@@ -25909,12 +25926,11 @@ Now you will have a text readable version of the file you can open in a text edi
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         logToolboxUpdates("advanced_mode_demote_primary_to_secondary", txt)
         play_the_money_sound()
-        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
     def advanced_mode_force_sync_off():
-
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         _THIS_METHOD_NAME = "ADVANCED: FORCE DISABLE/TURN SYNC OFF"
@@ -25927,7 +25943,7 @@ Now you will have a text readable version of the file you can open in a text edi
         if storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE:
             txt = "Your Sync is already disabled/turned off! NO ACTION TAKEN"
             setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Force Disable/Turn OFF Sync?"):
@@ -25936,7 +25952,7 @@ Now you will have a text readable version of the file you can open in a text edi
         if not backup_local_storage_settings():
             txt = "%s: ERROR making backup of LocalStorage() ./safe/settings - no changes made!" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         storage.put(_PARAM_KEY, _NONE)
@@ -25946,7 +25962,7 @@ Now you will have a text readable version of the file you can open in a text edi
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         logToolboxUpdates("advanced_mode_force_sync_off", txt)
         play_the_money_sound()
-        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
     def getNetSyncKeys():
@@ -25985,7 +26001,7 @@ Now you will have a text readable version of the file you can open in a text edi
         if not backup_local_storage_settings():
             txt = "%s: ERROR making backup of LocalStorage() ./safe/settings - no changes made!" %(_THIS_METHOD_NAME)
             setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         SYNC_KEYS = getNetSyncKeys()
@@ -26009,7 +26025,7 @@ Now you will have a text readable version of the file you can open in a text edi
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         logToolboxUpdates("advanced_mode_force_reset_sync_settings", txt)
         play_the_money_sound()
-        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
@@ -26040,12 +26056,11 @@ Now you will have a text readable version of the file you can open in a text edi
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         logToolboxUpdates("toggle_sync_download_attachments", txt)
         play_the_money_sound()
-        myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
     def checkForREADONLY():
-
         checkDropbox = tell_me_if_dropbox_folder_exists()
         datasetPath = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
 
@@ -26087,6 +26102,8 @@ Now you will have a text readable version of the file you can open in a text edi
         return theList
 
     def setSyncingLabel():
+
+        MainDebug.changeState(False)   # Prevent "ICloudContainer.isContainerAvailable(): ..." console messages
         try:
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
             noSyncOption = SyncFolderUtil.configurerForIDFromList(u"none", syncMethods)
@@ -26100,6 +26117,8 @@ Now you will have a text readable version of the file you can open in a text edi
         except:
             GlobalVars.mainPnl_syncing_lbl.setText("<ERROR GETTING SYNC STATUS>")
             GlobalVars.mainPnl_syncing_lbl.setForeground(getColorRed())
+
+        finally: MainDebug.resetState()
 
     def setMemoryLabel():
         try:
@@ -26165,7 +26184,6 @@ Now you will have a text readable version of the file you can open in a text edi
 
             def windowActivated(self, windowEvent):
                 myPrint("D","In ", inspect.currentframe().f_code.co_name, "()", windowEvent)
-                setSyncingLabel()
                 setSyncingLabel()
                 setMemoryLabel()
 
