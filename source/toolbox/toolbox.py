@@ -6584,6 +6584,10 @@ Visit: %s (Author's site)
 
         GlobalVars.redact = myPopupAskQuestion(toolbox_frame_, _THIS_METHOD_NAME, "Redact confidential information?")
 
+        _msg = pad("Please wait:", 50, padChar=".")
+        pleaseWait = MyPopUpDialogBox(toolbox_frame_, theStatus=_msg, theTitle=_msg, lModal=False)
+        pleaseWait.go()
+
         OFX.append("VIEW YOUR ONLINE BANKING CONFIGURATION/CONNECTION DATA\n"
                    " =====================================================\n\n")
 
@@ -6736,8 +6740,7 @@ Visit: %s (Author's site)
                                     if result is not None:
                                         OFX.append(" >> %s %s" %(pad(meth.getName(), 40), result) )
                             OFX.append("\n")
-                        except:
-                            pass
+                        except: pass
 
             OFX.append("")
 
@@ -6961,6 +6964,8 @@ Visit: %s (Author's site)
         for i in range(0, len(OFX)):
             OFX[i] = OFX[i] + "\n"
         OFX = "".join(OFX)
+
+        pleaseWait.kill()
 
         QuickJFrame(_THIS_METHOD_NAME, OFX, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 

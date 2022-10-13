@@ -7418,7 +7418,7 @@ Visit: %s (Author's site)
                 # setDefaultFonts()       # todo - Do I need to check for and be on the EDT?
                 genericSwingEDTRunner(True, True, setDefaultFonts);
 
-                setDefaultFonts()       # todo - Do I need to check for and be on the EDT?
+                setDefaultFonts();       # todo - Do I need to check for and be on the EDT?
                 myPrint("DB", "SPECIAL: post-calling setDefaultFonts()");
 
                 try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
