@@ -86,6 +86,8 @@
 # build: 1014 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1014 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
 # build: 1014 - Bug fix... When old format parameters were loaded, then switch to newer format parameters, migratedParameters flag was sticking as True, and hence loading wrong autoSum defaults...
+# build: 1014 - Small fix for possible MD GUI hang on startup (EDT thing....)
+# build: 1014 - Added icon to allow user to collapse widget.....
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -370,34 +372,27 @@ else:
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
     import threading
+    from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil, QuickSearchField
+    # from com.moneydance.awt import CollapsibleRefresher
     from com.moneydance.apps.md.view import HomePageView
-    from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener
-    from com.moneydance.apps.md.controller import FeatureModule
+    from com.moneydance.apps.md.view.gui import MoneydanceLAF, DateRangeChooser, ConsoleWindow
+    from com.moneydance.apps.md.controller import FeatureModule, PreferencesListener
+    from com.moneydance.apps.md.controller.time import DateRangeOption
+    from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener, DateRange
+    # from com.infinitekind.moneydance.model import TxnIterator
+    from com.infinitekind.util import StringUtils, StreamVector
+
     from javax.swing import JList, ListSelectionModel, DefaultComboBoxModel, DefaultListSelectionModel, JSeparator
     from javax.swing import DefaultListCellRenderer, BorderFactory
-    from com.moneydance.apps.md.view.gui import MoneydanceLAF
-    from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil
-    # from com.moneydance.awt import CollapsibleRefresher
-    from com.infinitekind.util import StringUtils, StreamVector
-    from java.awt.event import FocusAdapter
-
-    from com.moneydance.awt import QuickSearchField
     from javax.swing.event import DocumentListener, ListSelectionListener
+
     from java.awt import RenderingHints
-    from com.moneydance.apps.md.controller import PreferencesListener
-    from com.moneydance.apps.md.controller.time import DateRangeOption
-    from com.infinitekind.moneydance.model import DateRange
-    from com.moneydance.apps.md.view.gui import DateRangeChooser
+    from java.awt.event import FocusAdapter, MouseListener
 
-    from java.lang import ArrayIndexOutOfBoundsException, Integer
+    from java.lang import ArrayIndexOutOfBoundsException, Integer, InterruptedException
     from java.util import Comparator, Iterator, Collections, Iterator
-    # from com.infinitekind.moneydance.model import TxnIterator
-
-    from java.lang import InterruptedException
-    # from java.util import ConcurrentModificationException
     from java.util.concurrent import CancellationException
-
-    from com.moneydance.apps.md.view.gui import ConsoleWindow
+    # from java.util import ConcurrentModificationException
 
     # renamed in MD build 3067
     if int(MD_REF.getBuild()) >= 3067:
@@ -409,7 +404,7 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    GlobalVars.specialDebug = True;
+    GlobalVars.specialDebug = False
 
     GlobalVars.__net_account_balances_extension = None
 
@@ -436,6 +431,8 @@ else:
     GlobalVars.extn_param_NEW_autoSumDefault_NAB            = None
     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = None
     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = None
+
+    GlobalVars.extn_param_NEW_expandedView_NAB              = None
 
     GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME          = "Custom Balances"
     GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED    = "<NOT CONFIGURED>"
@@ -3035,6 +3032,8 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_showDashesInsteadOfZeros_NAB") is not None:     GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_showDashesInsteadOfZeros_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_treatSecZeroBalInactive_NAB") is not None:      GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_treatSecZeroBalInactive_NAB")
 
+        if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_expandedView_NAB") is not None:                 GlobalVars.extn_param_NEW_expandedView_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_expandedView_NAB")
+
         myPrint("DB","parametersLoadedFromFile{} set into memory (as variables).....:", GlobalVars.parametersLoadedFromFile)
 
         return
@@ -3077,6 +3076,8 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_showDashesInsteadOfZeros_NAB"]     = GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_treatSecZeroBalInactive_NAB"]      = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
 
+        GlobalVars.parametersLoadedFromFile["extn_param_NEW_expandedView_NAB"]                 = GlobalVars.extn_param_NEW_expandedView_NAB
+
         myPrint("DB","variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
 
         return
@@ -3118,13 +3119,12 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
-    "HERE";
     def genericSwingEDTRunner(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, *args):
         """Will detect and then run the codeblock on the EDT"""
 
         isOnEDT = SwingUtilities.isEventDispatchThread()
-        myPrint("B", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args));
-        myPrint("B", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT);
+        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        myPrint("DB", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT)
 
         class GenericSwingEDTRunner(Runnable):
 
@@ -3133,21 +3133,23 @@ Visit: %s (Author's site)
                 self.params = arguments
 
             def run(self):
-                myPrint("B", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... about to execute codeblock.... isOnEDT:", SwingUtilities.isEventDispatchThread());
+                myPrint("DB", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... about to execute codeblock.... isOnEDT:", SwingUtilities.isEventDispatchThread())
                 self.codeBlock(*self.params)
-                myPrint("B", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... finished executing codeblock....");
+                myPrint("DB", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... finished executing codeblock....")
 
         _gser = GenericSwingEDTRunner(codeblock, args)
 
         if ((isOnEDT and not ifOnEDTThenRunNowAndWait) or (not isOnEDT and not ifOffEDTThenRunNowAndWait)):
-            myPrint("B", "... calling codeblock via .invokeLater()...");
+            myPrint("DB", "... calling codeblock via .invokeLater()...")
             SwingUtilities.invokeLater(_gser)
         elif not isOnEDT:
-            myPrint("B", "... calling codeblock via .invokeAndWait()...");
+            myPrint("DB", "... calling codeblock via .invokeAndWait()...")
             SwingUtilities.invokeAndWait(_gser)
         else:
-            myPrint("B", "... calling codeblock.run() naked...");
+            myPrint("DB", "... calling codeblock.run() naked...")
             _gser.run()
+
+        myPrint("DB", "... finished calling the codeblock via method reported above...")
 
 
     # noinspection PyUnresolvedReferences
@@ -4197,6 +4199,8 @@ Visit: %s (Author's site)
             self.savedShowDashesInsteadOfZeros  = None
             self.savedTreatSecZeroBalInactive   = None
 
+            self.savedExpandedView              = None
+
             self.isPreview = None
 
             self.menuItemDEBUG = None
@@ -4449,6 +4453,8 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = NAB.savedDisableWidgetTitle
             GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = NAB.savedShowDashesInsteadOfZeros
             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = NAB.savedTreatSecZeroBalInactive
+
+            GlobalVars.extn_param_NEW_expandedView_NAB              = NAB.savedExpandedView
 
             try:
                 # Preventing debug ON from being saved... Stops users leaving 'expensive' debug logging on
@@ -4725,6 +4731,7 @@ Visit: %s (Author's site)
         def disableWidgetTitleDefault(self):        return False
         def showDashesInsteadOfZerosDefault(self):  return False
         def treatSecZeroBalInactiveDefault(self):   return False
+        def expandedViewDefault(self):              return True
 
         # noinspection PyUnusedLocal
         def validateParameters(self):
@@ -4793,24 +4800,26 @@ Visit: %s (Author's site)
                 self.resetParameters(13)
             elif self.savedTreatSecZeroBalInactive is None or not isinstance(self.savedTreatSecZeroBalInactive, bool):
                 self.resetParameters(14)
-            elif len(self.savedBalanceType) != self.getNumberOfRows():
+            elif self.savedExpandedView is None or not isinstance(self.savedExpandedView, bool):
                 self.resetParameters(15)
-            elif len(self.savedWidgetName) != self.getNumberOfRows():
+            elif len(self.savedBalanceType) != self.getNumberOfRows():
                 self.resetParameters(16)
-            elif len(self.savedCurrencyTable) != self.getNumberOfRows():
+            elif len(self.savedWidgetName) != self.getNumberOfRows():
                 self.resetParameters(17)
-            elif len(self.savedIncludeInactive) != self.getNumberOfRows():
+            elif len(self.savedCurrencyTable) != self.getNumberOfRows():
                 self.resetParameters(18)
-            elif len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
+            elif len(self.savedIncludeInactive) != self.getNumberOfRows():
                 self.resetParameters(19)
-            elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
+            elif len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
                 self.resetParameters(20)
-            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
+            elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
                 self.resetParameters(21)
-            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
+            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
                 self.resetParameters(22)
-            elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
+            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
                 self.resetParameters(23)
+            elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
+                self.resetParameters(24)
             else:
                 for i in range(0, self.getNumberOfRows()):
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
@@ -4872,6 +4881,7 @@ Visit: %s (Author's site)
                 self.savedDisableWidgetTitle        = self.disableWidgetTitleDefault()
                 self.savedShowDashesInsteadOfZeros  = self.showDashesInsteadOfZerosDefault()
                 self.savedTreatSecZeroBalInactive   = self.treatSecZeroBalInactiveDefault()
+                self.savedExpandedView              = self.expandedViewDefault()
 
             self.setSelectedRowIndex(0)
 
@@ -5131,6 +5141,8 @@ Visit: %s (Author's site)
             myPrint("DB",".....savedShowDashesInsteadOfZeros: %s"           %(self.savedShowDashesInsteadOfZeros))
             myPrint("DB",".....savedTreatSecZeroBalInactive: %s"            %(self.savedTreatSecZeroBalInactive))
 
+            myPrint("DB",".....savedExpandedView: %s"                       %(self.savedExpandedView))
+
             myPrint("DB",".....%s accountsToShow matched UUIDs and selected in JList" %(len(self.jlst.getSelectedIndices())))
 
         def setSelectedRowIndex(self, row): self.rowSelectedSaved = row
@@ -5326,6 +5338,7 @@ Visit: %s (Author's site)
             myPrint("B", " %s" %(pad("savedDisableWidgetTitle",30)),        NAB.savedDisableWidgetTitle)
             myPrint("B", " %s" %(pad("savedShowDashesInsteadOfZeros",30)),  NAB.savedShowDashesInsteadOfZeros)
             myPrint("B", " %s" %(pad("savedTreatSecZeroBalInactive",30)),   NAB.savedTreatSecZeroBalInactive)
+            myPrint("B", " %s" %(pad("savedExpandedView",30)),              NAB.savedExpandedView)
             myPrint("B", " ----")
 
             for iRowIdx in range(0, NAB.getNumberOfRows()):
@@ -5416,6 +5429,8 @@ Visit: %s (Author's site)
                     NAB.configPanelOpen = True
                     NAB.rebuildFrameComponents(NAB.getSelectedRowIndex())
 
+                    NAB.savedExpandedView = NAB.expandedViewDefault()   # Force widget to be fully visible....
+
                 else:
                     myPrint("B","WARNING: getCurrentAccount() or 'Book' is None.. Perhaps MD is shutting down.. Will do nothing....")
 
@@ -5485,7 +5500,6 @@ Visit: %s (Author's site)
                 except:
                     myPrint("B","@@ Error. Final dispose of application failed....?")
                     dump_sys_error_to_md_console_and_errorlog()
-
 
             def windowClosing(self, WindowEvent):                                                                       # noqa
 
@@ -6075,44 +6089,44 @@ Visit: %s (Author's site)
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("AutoSum Default".lower()):
-                    myPrint("B", "User has changed 'AutoSum Default for new rows' to: %s" %(NAB.savedAutoSumDefault))
                     NAB.savedAutoSumDefault = not NAB.savedAutoSumDefault
                     NAB.menuItemAutoSumDefault.setSelected(NAB.savedAutoSumDefault)
                     NAB.configSaved = False
+                    myPrint("B", "User has changed 'AutoSum Default for new rows' to: %s" %(NAB.savedAutoSumDefault))
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Show Dashes".lower()):
-                    myPrint("B", "User has changed 'Show Dashes instead of Zeros' to: %s" %(NAB.savedShowDashesInsteadOfZeros))
                     NAB.savedShowDashesInsteadOfZeros = not NAB.savedShowDashesInsteadOfZeros
                     NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
                     NAB.simulateTotalForRow()
                     NAB.jlst.repaint()
                     NAB.configSaved = False
+                    myPrint("B", "User has changed 'Show Dashes instead of Zeros' to: %s" %(NAB.savedShowDashesInsteadOfZeros))
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Disable Widget Title".lower()):
-                    myPrint("B", "User has changed 'Disable Widget Title' to: %s" %(NAB.savedDisableWidgetTitle))
                     NAB.savedDisableWidgetTitle = not NAB.savedDisableWidgetTitle
                     NAB.menuItemDisableWidgetTitle.setSelected(NAB.savedDisableWidgetTitle)
                     NAB.configSaved = False
+                    myPrint("B", "User has changed 'Disable Widget Title' to: %s" %(NAB.savedDisableWidgetTitle))
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Treat Securities".lower()):
-                    myPrint("B", "User has changed 'Treat Securities With Zero Balance as Inactive' to: %s" %(NAB.savedTreatSecZeroBalInactive))
                     NAB.savedTreatSecZeroBalInactive = not NAB.savedTreatSecZeroBalInactive
                     NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
 
                     # NAB.rebuildJList()
                     NAB.searchFiltersUpdated()
                     NAB.configSaved = False
+                    myPrint("B", "User has changed 'Treat Securities With Zero Balance as Inactive' to: %s" %(NAB.savedTreatSecZeroBalInactive))
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Hide Controls".lower()):
-                    myPrint("DB", "User has changed 'Hide Control Panel' to: %s" %(NAB.savedHideControlPanel))
                     NAB.savedHideControlPanel = not NAB.savedHideControlPanel
                     NAB.menuBarItemHideControlPanel_CB.setSelected(NAB.savedHideControlPanel)
 
                     hideUnideCollapsiblePanels(NAB.theFrame, not NAB.savedHideControlPanel)
+                    myPrint("DB", "User has changed 'Hide Control Panel' to: %s" %(NAB.savedHideControlPanel))
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("deactivate"):
@@ -6137,7 +6151,6 @@ Visit: %s (Author's site)
                 # ######################################################################################################
 
                 myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-                return
 
         class MyJListRenderer(DefaultListCellRenderer):     # Reference: com.moneydance.apps.md.view.gui.AccountTreeCellRenderer
 
@@ -6461,6 +6474,8 @@ Visit: %s (Author's site)
                         GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB      = self.showDashesInsteadOfZerosDefault()     # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB       = self.treatSecZeroBalInactiveDefault()      # Loading will overwrite if saved, else pre-load defaults
 
+                        GlobalVars.extn_param_NEW_expandedView_NAB                  = self.expandedViewDefault()                 # Loading will overwrite if saved, else pre-load defaults
+
                         get_StuWareSoftSystems_parameters_from_file(myFile="%s_extension.dict" %(self.myModuleID))
 
                         # Migrate parameters from old to new multi-row format....
@@ -6485,6 +6500,8 @@ Visit: %s (Author's site)
                             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = self.disableWidgetTitleDefault()           # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = self.showDashesInsteadOfZerosDefault()     # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()      # Loading will overwrite if saved, else pre-load defaults
+
+                            GlobalVars.extn_param_NEW_expandedView_NAB              = self.expandedViewDefault()                 # Loading will overwrite if saved, else pre-load defaults
 
                             GlobalVars.extn_param_listAccountUUIDs_NAB      = None
                             GlobalVars.extn_param_balanceType_NAB           = None
@@ -6511,6 +6528,8 @@ Visit: %s (Author's site)
                         self.savedDisableWidgetTitle        = GlobalVars.extn_param_NEW_disableWidgetTitle_NAB
                         self.savedShowDashesInsteadOfZeros  = GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB
                         self.savedTreatSecZeroBalInactive   = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
+
+                        self.savedExpandedView              = GlobalVars.extn_param_NEW_expandedView_NAB
 
                         self.setSelectedRowIndex(0)
 
@@ -7382,13 +7401,13 @@ Visit: %s (Author's site)
 
                 f_ui_result = getFieldByReflection(self.moneydanceContext, "ui")
 
-                myPrint("DB", "** SPECIAL: f_ui_result:", f_ui_result);
+                myPrint("DB", "** SPECIAL: f_ui_result:", f_ui_result)
                 if f_ui_result is None or f_ui_result.firstMainFrame is None:
                     myPrint("DB",".. Nope - the Moneydance UI is NOT yet loaded (fully)..... so exiting...")
                     debug = saveDebug
                     return False
 
-                myPrint("DB", "** SPECIAL: book:", self.moneydanceContext.getCurrentAccountBook());
+                myPrint("DB", "** SPECIAL: book:", self.moneydanceContext.getCurrentAccountBook())
                 if self.moneydanceContext.getCurrentAccountBook() is None:
                     myPrint("DB",".. The UI is loaded, but the dataset is not yet loaded... so exiting ...")
                     debug = saveDebug
@@ -7396,38 +7415,38 @@ Visit: %s (Author's site)
 
                 try:
                     # I'm calling this on firstMainFrame rather than just .getUI().setStatus() to confirm GUI is properly loaded.....
-                    myPrint("DB", "SPECIAL: pre-calling .firstMainFrame.setStatus()");
-                    # self.moneydanceContext.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0)
+                    myPrint("DB", "SPECIAL: pre-calling .firstMainFrame.setStatus()")
 
-                    genericSwingEDTRunner(True, True,
+                    # self.moneydanceContext.getUI().firstMainFrame.setStatus(">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()), -1.0)
+
+                    genericSwingEDTRunner(False, False,
                                           self.moneydanceContext.getUI().firstMainFrame.setStatus,
-                                          ">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0);
+                                          ">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0)
 
-                    myPrint("DB", "SPECIAL: post-calling .firstMainFrame.setStatus()");
+                    myPrint("DB", "SPECIAL: post-calling .firstMainFrame.setStatus()")
+
                 except:
-                    dump_sys_error_to_md_console_and_errorlog();
-                    myPrint("DB","@@ ERROR - failed using the UI..... will just exit for now...")
+                    dump_sys_error_to_md_console_and_errorlog()
+                    myPrint("B","@@ ERROR - failed using the UI..... will just exit for now...")
                     debug = saveDebug
                     return False
 
                 myPrint("DB","Success - the Moneydance UI is loaded.... Extension can execute properly now...!")
 
-                myPrint("DB", "SPECIAL: pre-calling setDefaultFonts()");
                 # Have to do .getUI() etc stuff here (and not at startup) as UI not loaded then. As of 4069, is blocked by MD!
+                myPrint("DB", "SPECIAL: pre-calling setDefaultFonts()")
 
-                # setDefaultFonts()       # todo - Do I need to check for and be on the EDT?
-                genericSwingEDTRunner(True, True, setDefaultFonts);
+                genericSwingEDTRunner(False, False, setDefaultFonts)
 
-                setDefaultFonts();       # todo - Do I need to check for and be on the EDT?
-                myPrint("DB", "SPECIAL: post-calling setDefaultFonts()");
+                myPrint("DB", "SPECIAL: post-calling setDefaultFonts()")
 
                 try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
                 except: GlobalVars.defaultPrintFontSize = 12
 
-                myPrint("DB", "SPECIAL: pre-calling build_main_frame()");
+                myPrint("DB", "SPECIAL: pre-calling build_main_frame()")
                 self.build_main_frame()
                 self.isUIavailable = True
-                myPrint("DB", "SPECIAL: post-calling build_main_frame()");
+                myPrint("DB", "SPECIAL: post-calling build_main_frame()")
             else:
                 myPrint("DB","..UI is available - returning True....")
 
@@ -7504,20 +7523,25 @@ Visit: %s (Author's site)
                 if GlobalVars.specialDebug: myPrint("B","%s SPECIAL DEBUG - Checking to see whether UI loaded and create application Frame" %(appEvent))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
-                class GetMoneydanceUIRunnable(Runnable):
-                    def __init__(self, callingClass): self.callingClass = callingClass
-                    def run(self):
-                        if GlobalVars.specialDebug: myPrint("B", "... GetMoneydanceUIRunnable sleeping for 500ms...")
-                        Thread.sleep(500)
-                        if GlobalVars.specialDebug: myPrint("B", "... GetMoneydanceUIRunnable calling getMoneydanceUI()...")
-                        self.callingClass.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
+                # class GetMoneydanceUIRunnable(Runnable):
+                #     def __init__(self, callingClass): self.callingClass = callingClass
+                #     def run(self):
+                #         if GlobalVars.specialDebug: myPrint("B", "... GetMoneydanceUIRunnable sleeping for 500ms...")
+                #         Thread.sleep(500)
+                #         if GlobalVars.specialDebug: myPrint("B", "... GetMoneydanceUIRunnable calling getMoneydanceUI()...")
+                #         self.callingClass.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
+                #
+                # if debug or GlobalVars.specialDebug: myPrint("B", "... firing off call to getMoneydanceUI() via new thread (so-as not to hang MD)...")
+                # _t = Thread(GetMoneydanceUIRunnable(self), "NAB_GetMoneydanceUIRunnable".lower())
+                # _t.setDaemon(True)
+                # _t.start()
+                #
+                # if GlobalVars.specialDebug: myPrint("B", "... end of routines after receiving  'md:file:opened' command....")
 
-                if debug or GlobalVars.specialDebug: myPrint("B", "... firing off call to getMoneydanceUI() via new thread (so-as not to hang MD)...")
-                _t = Thread(GetMoneydanceUIRunnable(self), "NAB_GetMoneydanceUIRunnable".lower())
-                _t.setDaemon(True)
-                _t.start()
+                myPrint("DB","%s Checking to see if UI loaded and create application Frame" %(appEvent))
+                self.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
+                myPrint("B", "... end of routines after receiving  'md:file:opened' command....")
 
-                if GlobalVars.specialDebug: myPrint("B", "... end of routines after receiving  'md:file:opened' command....")
 
             elif (appEvent.lower().startswith(("%s:customevent:showConfig" %(self.myModuleID)).lower())):
                 myPrint("DB","%s Config screen requested - I might show it if conditions are appropriate" %(appEvent))
@@ -7730,7 +7754,7 @@ Visit: %s (Author's site)
                 return self.view
 
 
-        class ViewPanel(JPanel, AccountListener, CurrencyListener, JLinkListener):
+        class ViewPanel(JPanel, AccountListener, CurrencyListener, JLinkListener, MouseListener):
 
             def currencyTableModified(self, currencyTable):                                                             # noqa
                 myPrint("DB", "In ViewPanel.currencyTableModified()")
@@ -7779,6 +7803,30 @@ Visit: %s (Author's site)
                     if (link.lower().startswith("showConsole".lower())):
                         myPrint("DB",".. calling .showURL() to trigger Help>Console Window ('%s')..." %(link))
                         NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
+
+            def mouseClicked(self, evt):
+                myPrint("DB", "In mouseClicked. Event:", evt, evt.getSource())
+                if evt.getSource() is self.collapsableIconLbl:
+                    myPrint("DB", "mouseClicked: detected collapsableIconLbl... going for toggle collapse....")
+                    self.toggleExpandCollapse()
+
+            def mousePressed(self, evt): pass
+            def mouseReleased(self, evt): pass
+            def mouseExited(self, evt): pass
+            def mouseEntered(self, evt): pass
+
+            def toggleExpandCollapse(self):
+                NAB = NetAccountBalancesExtension.getNAB()
+                if not NAB.configSaved:
+                    myPrint("B", "Alert - Blocking expand/collapse widget as (changed) parameters not yet saved...!")
+                else:
+                    NAB.savedExpandedView = not NAB.savedExpandedView
+
+                    SwingUtilities.invokeLater(NAB.SaveSettingsRunnable())
+                    self.refresher.enqueueRefresh()
+
+                    # NAB.saveSettings()
+                    # self.reallyRefresh()
 
             # The Runnable for CollapsibleRefresher() >> Doesn't really need to be a Runnable as .run() is called directly
             class GUIRunnable(Runnable):
@@ -8188,9 +8236,9 @@ Visit: %s (Author's site)
                 self.headerLabel = JLinkLabel(" ", "showConfig", JLabel.LEFT)
                 self.headerLabel.setDrawUnderline(False)
                 self.headerLabel.setFont(NAB.moneydanceContext.getUI().getFonts().header)                               # noqa
-                self.headerLabel.setBorder(self.nameBorder)                                                             # noqa
+                # self.headerLabel.setBorder(self.nameBorder)                                                             # noqa
 
-                self.balTypeLabel = JLinkLabel(" ", "showConfig", JLabel.RIGHT)
+                self.balTypeLabel = JLinkLabel("", "showConfig", JLabel.RIGHT)
                 self.balTypeLabel.setFont(NAB.moneydanceContext.getUI().getFonts().defaultText)                         # noqa
                 self.balTypeLabel.setBorder(self.amountBorder)                                                          # noqa
                 self.balTypeLabel.setDrawUnderline(False)
@@ -8198,7 +8246,18 @@ Visit: %s (Author's site)
                 self.headerLabel.addLinkListener(self)
                 self.balTypeLabel.addLinkListener(self)
 
-                self.headerPanel.add(self.headerLabel, GridC.getc().xy(0, 0).wx(1.0).fillx().west())
+                self.titlePnl = JPanel(GridBagLayout())
+                self.titlePnl.setOpaque(False)
+
+                self.collapsableIconLbl = JLabel(" ")
+                self.collapsableIconLbl.setFont(NAB.moneydanceContext.getUI().getFonts().header)
+                self.collapsableIconLbl.setBorder(self.nameBorder)
+
+                self.titlePnl.add(self.collapsableIconLbl, GridC.getc().xy(0, 0).wx(0.1).east())
+                self.titlePnl.add(self.headerLabel, GridC.getc().xy(1, 0).wx(9.0).fillx().west())
+
+                # self.headerPanel.add(self.headerLabel, GridC.getc().xy(0, 0).wx(1.0).fillx().west())
+                self.headerPanel.add(self.titlePnl, GridC.getc().xy(0, 0).wx(1.0).fillx().east())
                 self.headerPanel.add(self.balTypeLabel, GridC.getc().xy(1, 0))
 
                 if NAB.savedDisableWidgetTitle:
@@ -8213,6 +8272,9 @@ Visit: %s (Author's site)
 
                 if MyHomePageView.getHPV().i_am_active:
                     self.activate()
+
+                self.collapsableIconLbl.addMouseListener(self)
+
 
             def activate(self):
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -8333,7 +8395,8 @@ Visit: %s (Author's site)
 
                         altFG = md.getUI().colors.tertiaryTextFG
 
-                        if result:
+                        if result and not NAB.savedExpandedView: pass
+                        elif result:
 
                             baseCurr = md.getCurrentAccountBook().getCurrencies().getBaseType()
 
@@ -8516,38 +8579,48 @@ Visit: %s (Author's site)
                 self.headerLabel.setText(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title())                                # noqa
                 self.headerLabel.setForeground(md.getUI().colors.secondaryTextFG)                                       # noqa
 
-                self.balTypeLabel.setText("Calculated Total")                                                           # noqa
-                self.balTypeLabel.setForeground(md.getUI().colors.secondaryTextFG)                                      # noqa
-
-                # if isParallelBalanceTableOperational():
-                if debug:
+                if not NAB.savedExpandedView:
+                    myPrint("DB", "Widget is collapsed, so doing nothing....")
+                    self.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor("/com/moneydance/apps/md/view/gui/glyphs/glyph_triangle_right.png", self.collapsableIconLbl.getForeground()))
                     self.listPanel.removeAll()
-                    onPnlRow = 0
-
-                    REFRESHX2 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_refresh.png"
-                    mdImages = NAB.moneydanceContext.getUI().getImages()
-                    iconTintPleaseWait = NAB.moneydanceContext.getUI().colors.errorMessageForeground
-                    iconPleaseWait = mdImages.getIconWithColor(REFRESHX2, iconTintPleaseWait)
-
-                    pleaseWaitLabel = JLabel("Please wait - widget is updating...")
-                    pleaseWaitLabel.setIcon(iconPleaseWait)
-                    pleaseWaitLabel.setHorizontalAlignment(JLabel.CENTER)
-                    pleaseWaitLabel.setHorizontalTextPosition(JLabel.LEFT)
-                    pleaseWaitLabel.setForeground(md.getUI().colors.errorMessageForeground)
-                    pleaseWaitLabel.setBorder(self.nameBorder)
-
-                    onCol = 0
-                    self.listPanel.add(pleaseWaitLabel, GridC.getc().xy(onCol, onPnlRow).wx(1.0).filly().colspan(2).pady(2))
-
                     self.listPanel.getParent().revalidate()
                     self.listPanel.getParent().repaint()
 
                 else:
-                    pleaseWaitLabel = JLabel("")
+                    self.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor("/com/moneydance/apps/md/view/gui/glyphs/glyph_triangle_down.png", self.collapsableIconLbl.getForeground()))
 
-                myPrint("DB","About to start swing worker to offload processing to non EDT thread....")
-                sw = self.BuildHomePageWidgetSwingWorker(pleaseWaitLabel, self)
-                sw.execute()
+                    self.balTypeLabel.setText("Calculated Total")                                                       # noqa
+                    self.balTypeLabel.setForeground(md.getUI().colors.secondaryTextFG)                                  # noqa
+
+                    # if isParallelBalanceTableOperational():
+                    if debug:
+                        self.listPanel.removeAll()
+                        onPnlRow = 0
+
+                        REFRESHX2 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_refresh.png"
+                        mdImages = NAB.moneydanceContext.getUI().getImages()
+                        iconTintPleaseWait = NAB.moneydanceContext.getUI().colors.errorMessageForeground
+                        iconPleaseWait = mdImages.getIconWithColor(REFRESHX2, iconTintPleaseWait)
+
+                        pleaseWaitLabel = JLabel("Please wait - widget is updating...")
+                        pleaseWaitLabel.setIcon(iconPleaseWait)
+                        pleaseWaitLabel.setHorizontalAlignment(JLabel.CENTER)
+                        pleaseWaitLabel.setHorizontalTextPosition(JLabel.LEFT)
+                        pleaseWaitLabel.setForeground(md.getUI().colors.errorMessageForeground)
+                        pleaseWaitLabel.setBorder(self.nameBorder)
+
+                        onCol = 0
+                        self.listPanel.add(pleaseWaitLabel, GridC.getc().xy(onCol, onPnlRow).wx(1.0).filly().colspan(2).pady(2))
+
+                        self.listPanel.getParent().revalidate()
+                        self.listPanel.getParent().repaint()
+
+                    else:
+                        pleaseWaitLabel = JLabel("")
+
+                    myPrint("DB","About to start swing worker to offload processing to non EDT thread....")
+                    sw = self.BuildHomePageWidgetSwingWorker(pleaseWaitLabel, self)
+                    sw.execute()
 
 
             def updateUI(self):
