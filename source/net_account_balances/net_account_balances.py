@@ -406,6 +406,12 @@ else:
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
     GlobalVars.specialDebug = False
 
+    GlobalVars.Strings.MD_GLYPH_APPICON_64 = "/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"
+    GlobalVars.Strings.MD_GLYPH_REFRESH = "/com/moneydance/apps/md/view/gui/glyphs/glyph_refresh.png"
+    GlobalVars.Strings.MD_GLYPH_TRIANGLE_RIGHT = "/com/moneydance/apps/md/view/gui/glyphs/glyph_triangle_right.png"
+    GlobalVars.Strings.MD_GLYPH_TRIANGLE_DOWN = "/com/moneydance/apps/md/view/gui/glyphs/glyph_triangle_down.png"
+    GlobalVars.Strings.MD_GLYPH_REMINDERS = "/com/moneydance/apps/md/view/gui/glyphs/glyph_reminders.png"
+
     GlobalVars.__net_account_balances_extension = None
 
     GlobalVars.EXTENSION_LOCK = threading.Lock()
@@ -4931,14 +4937,13 @@ Visit: %s (Author's site)
                 NAB.keyLabel.repaint()
 
         def setParallelBalancesWarningLabel(self, _row):
-            REFRESHX2 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_refresh.png"
             NAB = NetAccountBalancesExtension.getNAB()
             myPrint("DB", "about to set parallelBalancesWarningLabel..")
             if not isIncomeExpenseAllDatesSelected(_row):
                 if NAB.parallelBalancesWarningLabel.getIcon() is None:
                     mdImages = NAB.moneydanceContext.getUI().getImages()
                     iconTintParallel = NAB.moneydanceContext.getUI().colors.errorMessageForeground
-                    iconParallel = mdImages.getIconWithColor(REFRESHX2, iconTintParallel)
+                    iconParallel = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_REFRESH, iconTintParallel)
                     NAB.parallelBalancesWarningLabel.setIcon(iconParallel)
                 NAB.parallelBalancesWarningLabel.setText(wrap_HTML_small("","PARALLEL BALANCE TABLE"))
                 NAB.parallelBalancesWarningLabel.setHorizontalAlignment(JLabel.LEFT)
@@ -5859,7 +5864,7 @@ Visit: %s (Author's site)
                             options=["SAVE DATES","Cancel"]
                             if (JOptionPane.showOptionDialog(NAB.theFrame, tmpPanel, "Enter Custom Date Range:",
                                                              JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE,
-                                                             NAB.moneydanceContext.getUI().getIcon("/com/moneydance/apps/md/view/gui/glyphs/appicon_64.png"),
+                                                             NAB.moneydanceContext.getUI().getIcon(GlobalVars.Strings.MD_GLYPH_APPICON_64),
                                                              options,
                                                              options[0])
                                     != 0):
@@ -8581,13 +8586,16 @@ Visit: %s (Author's site)
 
                 if not NAB.savedExpandedView:
                     myPrint("DB", "Widget is collapsed, so doing nothing....")
-                    self.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor("/com/moneydance/apps/md/view/gui/glyphs/glyph_triangle_right.png", self.collapsableIconLbl.getForeground()))
+                    self.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor(GlobalVars.Strings.MD_GLYPH_TRIANGLE_RIGHT, self.collapsableIconLbl.getForeground()))
                     self.listPanel.removeAll()
                     self.listPanel.getParent().revalidate()
                     self.listPanel.getParent().repaint()
 
                 else:
-                    self.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor("/com/moneydance/apps/md/view/gui/glyphs/glyph_triangle_down.png", self.collapsableIconLbl.getForeground()))
+                    if not NAB.configSaved:
+                        self.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor(GlobalVars.Strings.MD_GLYPH_REMINDERS, self.collapsableIconLbl.getForeground()))
+                    else:
+                        self.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor(GlobalVars.Strings.MD_GLYPH_TRIANGLE_DOWN, self.collapsableIconLbl.getForeground()))
 
                     self.balTypeLabel.setText("Calculated Total")                                                       # noqa
                     self.balTypeLabel.setForeground(md.getUI().colors.secondaryTextFG)                                  # noqa
@@ -8597,10 +8605,9 @@ Visit: %s (Author's site)
                         self.listPanel.removeAll()
                         onPnlRow = 0
 
-                        REFRESHX2 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_refresh.png"
                         mdImages = NAB.moneydanceContext.getUI().getImages()
                         iconTintPleaseWait = NAB.moneydanceContext.getUI().colors.errorMessageForeground
-                        iconPleaseWait = mdImages.getIconWithColor(REFRESHX2, iconTintPleaseWait)
+                        iconPleaseWait = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_REFRESH, iconTintPleaseWait)
 
                         pleaseWaitLabel = JLabel("Please wait - widget is updating...")
                         pleaseWaitLabel.setIcon(iconPleaseWait)
