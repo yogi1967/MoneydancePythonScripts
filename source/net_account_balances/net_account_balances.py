@@ -5189,7 +5189,12 @@ Visit: %s (Author's site)
             myPrint("DB", "..about to set rowSelected_COMBO..")
             rowItems = []
             for i in range(0, self.getNumberOfRows()):
-                thisRowItemTxt = "*" if (self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NEVER) else " "
+                if self.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
+                    thisRowItemTxt = "*" if (self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NEVER) else " "
+                elif self.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO:
+                    thisRowItemTxt = "~" if (self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NEVER) else " "
+                else:
+                    thisRowItemTxt = " "
                 thisRowItemTxt += pad(i + 1, 2)
                 rowItems.append(thisRowItemTxt)
             # self.rowSelected_COMBO.setModel(DefaultComboBoxModel([str(i) for i in range(1,self.getNumberOfRows()+1)]))
@@ -7154,7 +7159,7 @@ Visit: %s (Author's site)
                         def getListCellRendererComponent(self, _list, value, index, isSelected, cellHasFocus):
                             c = super(RowComboListRenderer, self).getListCellRendererComponent(_list, value, index, isSelected, cellHasFocus)    # noqa
                             if isinstance(value, basestring):
-                                c.setForeground(getColorRed() if ("*" in value) else self.getForeground())
+                                c.setForeground(getColorRed() if ("*" in value or "~" in value) else self.getForeground())
                             c.setOpaque(False)
                             return c
 
@@ -8695,6 +8700,9 @@ Visit: %s (Author's site)
                     self.callingClass = callingClass
                     self.netAmountTable = None
 
+                    self.widgetOnPnlRow = 0
+                    self.widgetLastSeparatorRow = None
+
                     with NetAccountBalancesExtension.getNAB().swingWorkers_LOCK:
                         NetAccountBalancesExtension.getNAB().swingWorkers.append(self)
 
@@ -8737,6 +8745,12 @@ Visit: %s (Author's site)
 
                     return result
 
+                def addRowSeparator(self):
+                    if (self.widgetOnPnlRow - 1) == self.widgetLastSeparatorRow: return     # Don't double up on separators...
+                    self.callingClass.listPanel.add(JSeparator(), GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillx().pady(2).leftInset(15).rightInset(15).colspan(2))
+                    self.widgetLastSeparatorRow = self.widgetOnPnlRow
+                    self.widgetOnPnlRow += 1
+
                 def done(self):                                                                                         # Executes on the EDT
                     myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
@@ -8747,7 +8761,7 @@ Visit: %s (Author's site)
                         result = self.get()  # wait for process to finish
                         myPrint("DB","..done() reports: %s" %(result))
 
-                        onPnlRow = 0
+                        self.widgetOnPnlRow = 0
 
                         myPrint("DB",".. Rebuilding the widget view panel...")
                         self.callingClass.setVisible(False)
@@ -8769,6 +8783,8 @@ Visit: %s (Author's site)
 
                             _curIdx = 0; _valIdx = 1; _secLabelTextIdx = 2
 
+                            hiddenRows = False
+
                             if not NAB.configSaved:
                                 rowText = " ** CLICK TO SAVE SETTINGS **"
                                 nameLabel = JLinkLabel(rowText, "saveSettings", JLabel.LEFT)
@@ -8776,35 +8792,43 @@ Visit: %s (Author's site)
                                 nameLabel.setDrawUnderline(False)
                                 nameLabel.setBorder(self.callingClass.nameBorder)                                       # noqa
 
-                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).filly().west().pady(2))
-                                onPnlRow += 1
+                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).filly().west().pady(2))
+                                self.widgetOnPnlRow += 1
 
                                 nameLabel.addLinkListener(self.callingClass)
 
-                                self.callingClass.listPanel.add(JSeparator(), GridC.getc().xy(0, onPnlRow).wx(1.0).fillx().pady(2).leftInset(15).rightInset(15).colspan(2)); onPnlRow += 1
+                                self.addRowSeparator()
 
                             for i in range(0,len(self.netAmountTable)):
 
                                 onRow = i + 1
 
                                 if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
-                                    myPrint("B", "** Skipping disabled row %s" %(onRow));
+                                    myPrint("DB", "** Skipping disabled row %s" %(onRow))
+                                    hiddenRows = True
                                     continue
+
+                                skippingRow = False
                                 if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ZERO and self.netAmountTable[i][_valIdx] == 0:
-                                    myPrint("B", "** Hiding/skipping zero balance row %s" %(onRow));
-                                    continue
+                                    myPrint("DB", "** Hiding/skipping zero balance row %s" %(onRow))
+                                    skippingRow = True
                                 if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE and self.netAmountTable[i][_valIdx] < 0:
-                                    myPrint("B", "** Hiding/skipping negative balance row %s" %(onRow));
-                                    continue
+                                    myPrint("DB", "** Hiding/skipping negative balance row %s" %(onRow))
+                                    skippingRow = True
                                 if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_POSITIVE and self.netAmountTable[i][_valIdx] > 0:
-                                    myPrint("B", "** Hiding/skipping positive balance row %s" %(onRow));
-                                    continue
+                                    myPrint("DB", "** Hiding/skipping positive balance row %s" %(onRow))
+                                    skippingRow = True
                                 if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO and self.netAmountTable[i][_valIdx] != 0:
-                                    myPrint("B", "** Hiding/skipping non zero balance row %s" %(onRow));
+                                    myPrint("DB", "** Hiding/skipping non zero balance row %s" %(onRow))
+                                    skippingRow = True
+
+                                if skippingRow:
+                                    if NAB.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_NEVER: self.addRowSeparator()
+                                    hiddenRows = True
                                     continue
 
                                 if NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_ABOVE or NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BOTH:
-                                    self.callingClass.listPanel.add(JSeparator(), GridC.getc().xy(0, onPnlRow).wx(1.0).fillx().pady(2).leftInset(15).rightInset(15).colspan(2)); onPnlRow += 1
+                                    self.addRowSeparator()
 
                                 showCurrText = ""
                                 if self.netAmountTable[i][_curIdx] is not baseCurr:
@@ -8840,15 +8864,15 @@ Visit: %s (Author's site)
                                 nameLabel.setDrawUnderline(False)
                                 netTotalLbl.setDrawUnderline(False)
 
-                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().pady(2))
-                                self.callingClass.listPanel.add(netTotalLbl, GridC.getc().xy(1, onPnlRow).fillboth().pady(2))
-                                onPnlRow += 1
+                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().pady(2))
+                                self.callingClass.listPanel.add(netTotalLbl, GridC.getc().xy(1, self.widgetOnPnlRow).fillboth().pady(2))
+                                self.widgetOnPnlRow += 1
 
                                 nameLabel.addLinkListener(self.callingClass)
                                 netTotalLbl.addLinkListener(self.callingClass)
 
                                 if NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BELOW or NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BOTH:
-                                    self.callingClass.listPanel.add(JSeparator(), GridC.getc().xy(0, onPnlRow).wx(1.0).fillx().pady(2).leftInset(15).rightInset(15).colspan(2)); onPnlRow += 1
+                                    self.addRowSeparator()
 
 
                             self.netAmountTable = None
@@ -8875,30 +8899,30 @@ Visit: %s (Author's site)
                                 nameLabel.setDrawUnderline(False)
                                 nameLabel.setForeground(md.getUI().colors.errorMessageForeground)                       # noqa
                                 nameLabel.addLinkListener(self.callingClass)
-                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().west().pady(2))
-                                onPnlRow += 1
+                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
+                                self.widgetOnPnlRow += 1
 
 
                             if NAB.isPreview or debug:
-                                onPnlRow += 1
-                                previewText = "" if not NAB.isPreview else "PREVIEW BUILD (%s) " %(version_build)
-                                debugText = "" if not debug else "DEBUG ENABLED "
-                                migratedText = "" if not NAB.migratedParameters else "*MIGRATED PARAMETERS* "
-                                warningCheckText = "" if not NAB.warningInParametersDetected else "*WARNING DETECTED* "
-                                warningsTurnedOffText = "" if not lAnyShowWarningsDisabled else "*SOME WARNINGS TURNED OFF* "
-                                parallelText = "" if not NAB.parallelBalanceTableOperating else "*PARALLEL BALANCE CALCS* "
-
-                                rowText = wrap_HTML_small("", previewText+debugText+migratedText+warningCheckText+warningsTurnedOffText+parallelText, altFG)
+                                self.widgetOnPnlRow += 1
+                                previewText = "" if not NAB.isPreview else "*PREVIEW(%s)* " %(version_build)
+                                debugText = "" if not debug else "*DEBUG* "
+                                migratedText = "" if not NAB.migratedParameters else "*MIGRATED PARAMS* "
+                                warningCheckText = "" if not NAB.warningInParametersDetected else "*WARNING!* "
+                                warningsTurnedOffText = "" if not lAnyShowWarningsDisabled else "*SOME WARNINGS OFF* "
+                                parallelText = "" if not NAB.parallelBalanceTableOperating else "*PARALLEL BAL CALCS* "
+                                hiddenRowsText = "" if not hiddenRows else "*HIDDEN ROW(s)* "
+                                rowText = wrap_HTML_small("", previewText+debugText+migratedText+warningCheckText+warningsTurnedOffText+parallelText+hiddenRowsText, altFG)
                                 nameLabel = MyJLabel(rowText, JLabel.LEFT)
                                 nameLabel.setBorder(self.callingClass.nameBorder)
-                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().west().pady(2))
+                                self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
 
                         else:
                             myPrint("B","@@ ERROR BuildHomePageWidgetSwingWorker:done().get() reported FALSE >> Either crashed or MD is closing (the 'book')...")
 
                             self.callingClass.setVisible(False)
                             self.callingClass.listPanel.removeAll()
-                            onPnlRow = 0
+                            self.widgetOnPnlRow = 0
 
                             rowText = "%s ERROR DETECTED? (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
                             nameLabel = JLinkLabel(rowText, "showConsole", JLabel.LEFT)
@@ -8906,8 +8930,8 @@ Visit: %s (Author's site)
                             nameLabel.setForeground(md.getUI().colors.errorMessageForeground)                           # noqa
                             nameLabel.setBorder(self.callingClass.nameBorder)                                           # noqa
                             nameLabel.addLinkListener(self.callingClass)
-                            self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().west().pady(2))
-                            onPnlRow += 1
+                            self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
+                            self.widgetOnPnlRow += 1
 
 
                     except AttributeError as e:
@@ -8929,14 +8953,14 @@ Visit: %s (Author's site)
 
                         self.callingClass.setVisible(False)
                         self.callingClass.listPanel.removeAll()
-                        onPnlRow = 0
+                        self.widgetOnPnlRow = 0
 
                         rowText = "%s ERROR DETECTED! (review console)" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME)
                         nameLabel = MyJLabel(rowText, JLabel.LEFT)
                         nameLabel.setForeground(md.getUI().colors.errorMessageForeground)
                         nameLabel.setBorder(self.callingClass.nameBorder)
-                        self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, onPnlRow).wx(1.0).fillboth().west().pady(2))
-                        onPnlRow += 1
+                        self.callingClass.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().west().pady(2))
+                        self.widgetOnPnlRow += 1
 
                     finally:
                         NAB = NetAccountBalancesExtension.getNAB()
