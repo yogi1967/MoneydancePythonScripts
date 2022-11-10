@@ -35,9 +35,12 @@ This extension creates a 'widget' that displays Totals for items you select on t
 
 - You can change the name of each row, the balance type, and the currency to display. Also Active/Inactive items.
 
-- Hide row when zero balance: Will hide that row from the Summary screen widget if the calculated balance returns zero
-- Disable row: Disables that row from being calculated or displayed in the Summary screen widget
+- Hide row when ... options: Never, Always(Disable), Zero balance, Positive balance, Negative balance, non zero balance
 - Row separator: optionally put horizontal lines above / below rows to separate sections
+
+** NOTE: When rows can be hidden, they may not display on the Summary screen widget.
+         - Click on the widget to launch the config screen
+         - In the row selector, rows prefixed with a '*' and colored red have a hide flag configured...
 
 - AutoSum:
   - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
