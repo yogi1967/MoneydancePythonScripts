@@ -94,8 +94,8 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 - <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1013 - 2nd May 2022) (Updated: Multi-row, Currency, Custom Dates etc)
 
 ### Signed Versions (hosted on this site)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1004 - 28th May 2022) (enable expand all, search collapsed)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1000 - 28th May 2022) - (Initial preview release)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1005 - 17th November 2022) (enable expand all, search collapsed; CMD-T; tweaks)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1002 - 17th November 2022) - (Initial preview release; plus tweaks)
 
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
@@ -145,4 +145,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 15th September 2022)_
+_(site last updated 17th November 2022)_
