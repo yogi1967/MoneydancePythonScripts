@@ -72,7 +72,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 
 ### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of all prior extract scripts in one, including: 
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of various extracts in one, including: 
     - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
     - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
     - extract_currency_history_csv          Extract currency history to csv
@@ -87,13 +87,13 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
-### Signed Versions (hosted by Moneydance at InfiniteKind)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1054 - 14th September 2022) (Added rename/relocate dataset features; New LOT matching diag report; Force disconnect md+ connection; CMD-/; Improved restarts; backup location checks; JVM memory stats; fixes/tweaks)
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1024 - 28th May 2022)
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1017 - 28th May 2022) (Added expand all button, also search collapsed items)
-- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1013 - 2nd May 2022) (Updated: Multi-row, Currency, Custom Dates etc)
+### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1055 - 22nd November 2022) (update logfile; sidebar feature; improved launch code;Toggle active/inactive investment securities; diagnostics: show md+ last digits using Plaid .getMask())
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1025 - 22nd November 2022) (Tweaks/fixes; Add date range selector/filter to extract_investment_registers; SG2020 cost_basis conversion fix)
+- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1018 - 22nd November 2022) (Added right-click popup to allow deletion of Reminder...; Search field now grabs focus too..)
+- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1016 - 22nd November 2022) (fix startup GUI hang; support Indian numbering system; row separators; allow auto hiding of rows)
 
-### Signed Versions (hosted on this site)
+### Signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - may be newer than appear (or not available) in Moneydance's Extensions menu)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and prior signed builds
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1005 - 17th November 2022) (enable expand all, search collapsed; CMD-T; tweaks)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1002 - 17th November 2022) - (Initial preview release; plus tweaks)
@@ -145,4 +145,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 17th November 2022)_
+_(site last updated 24th November 2022)_
