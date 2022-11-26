@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1055 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1056 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -137,6 +137,7 @@
 # build: 1055 - New options added to open md folder button: View Toolbox's common & dataset update logfile
 # build: 1055 - Tweaked md+ connections routines to call .getMask() to grab last digits of account number... ;->
 # build: 1055 - Added MD Build and Toolbox Build to logger...
+# build: 1056 - Tweaked toolbox_init.py with error message
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -157,7 +158,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1055"
+version_build = "1056"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

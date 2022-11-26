@@ -5,6 +5,7 @@
 
 global moneydance
 
+import sys
 from java.lang import System, Runtime, Long, Runnable, Thread, InterruptedException
 from com.moneydance.util import Platform
 from java.io import File
@@ -42,11 +43,11 @@ class QuickDiag(Runnable):
         self.thisis = _thisis
 
     def run(self):
+        msg = u"\n"
         try:
             Thread.sleep(10 * 1000)     # Sleep to allow JVM Memory to settle down.....
             def convertBytesGBs(_size): return round((_size/(1000.0*1000.0*1000)),1)
             from com.moneydance.apps.md.controller import Common
-            msg = u"\n"
             msg += u"-----------------------------------------------------\n"
             msg += (u"%s - quick information:\n" %(self.thisis.capitalize()))
             msg += u"-----\n"
@@ -127,13 +128,17 @@ class QuickDiag(Runnable):
                 msg += u"\n"
                 _specialPrint(msg)
                 msg = u"-----------------------------------------------------\n"
-
                 Thread.sleep(60 * 1000)     # Sleep and repeat.....
 
         except InterruptedException: pass
 
         except:
-            _specialPrint(u"ERROR: %s quick information failed....\n" %(self.thisis.capitalize()))
+            if msg is not None and isinstance(msg, basestring):
+                msg += u"\n"
+                _specialPrint(msg)
+
+            _specialPrint(u"*** ERROR: %s quick information failed.... (%s, %s, line: %s)\n"
+                          %(self.thisis.capitalize(), unicode(sys.exc_info()[0]), unicode(sys.exc_info()[1]), unicode(sys.exc_info()[2].tb_lineno)));
 
 
 try:
