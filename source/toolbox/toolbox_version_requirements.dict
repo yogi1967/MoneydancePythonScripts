@@ -1,11 +1,11 @@
 {
-    "last_updated" = "20221126"
+    "last_updated" = "20221127"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1056"
                     "disable" = "n"
-                    "news" = "tweaks/fixes; Now logs all updates to new log file...; New feature Toggle investment securities with zero shares status to active/inactive"
+                    "news" = "tweaks/fixes"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4091"

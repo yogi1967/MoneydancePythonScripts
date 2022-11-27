@@ -137,7 +137,7 @@
 # build: 1055 - New options added to open md folder button: View Toolbox's common & dataset update logfile
 # build: 1055 - Tweaked md+ connections routines to call .getMask() to grab last digits of account number... ;->
 # build: 1055 - Added MD Build and Toolbox Build to logger...
-# build: 1056 - Tweaked toolbox_init.py with error message
+# build: 1056 - Tweaked toolbox_init.py with error message; tweaked OFX_view_reconcile_AsOf_Dates()
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -552,6 +552,9 @@ else:
     GlobalVars.ADVANCED_MODE = False                                                                                    # Previously Hacker Mode
 
     GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
+    GlobalVars.Strings.MD_KEY_ASOF_PREF = "gen.rec_asof_enabled"
+    GlobalVars.Strings.MD_KEY_OLFITID = "ol_fitid_"
+
     GlobalVars.Strings.EXTENSION_QL_ID = "securityquoteload"
     GlobalVars.Strings.EXTENSION_QER_ID = "yahooqt"
 
@@ -6235,16 +6238,16 @@ Visit: %s (Author's site)
         txt = "OFX: All your last txn download txn dates have been retrieved and displayed...."
         setDisplayStatus(txt, "B")
 
-    def OFX_view_reconcile_AsOf_Dates():
+    def OFX_view_reconcile_AsOf_Dates(ljustReturnEnabledAccounts=False):
 
         # Code copied from com.moneydance.apps.md.view.gui.PreReconcilerWindow
 
         _THIS_METHOD_NAME = "OFX - View accounts' calculated reconcile 'as_of' dates".upper()
-        _KEY_ASOF_PREF = "gen.rec_asof_enabled"
 
         output = "\n%s\n" \
                  "%s\n\n" %(_THIS_METHOD_NAME, ("-"*len(_THIS_METHOD_NAME)))
 
+        enabledAccounts = {}
         allActiveAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(0))
 
         count = 0
@@ -6268,10 +6271,10 @@ Visit: %s (Author's site)
             for acct in allActiveAccounts:
                 txns = acct.getDownloadedTxns()
 
-                if acct.getPreference(_KEY_ASOF_PREF, None) is None:
+                if acct.getPreference(GlobalVars.Strings.MD_KEY_ASOF_PREF, None) is None:
                     asOfPref = "<not set>"  # Deliberately find out if not set
                 else:
-                    asOfPref = acct.getPreferenceBoolean(_KEY_ASOF_PREF, True)
+                    asOfPref = acct.getPreferenceBoolean(GlobalVars.Strings.MD_KEY_ASOF_PREF, True)
 
                 lastUpdate = txns.getOnlineLedgerBalanceDate()
 
@@ -6303,33 +6306,38 @@ Visit: %s (Author's site)
 
                 # Do it again so we can show the last txn date too
                 txnDate = 0
-                txnLastUpdate = None
+                txnLastUpdate = 0
+                iCountTxns = 0
                 for txn in tset.iterableTxns():
                     if not acct.isAncestorOf(txn.getAccount()): continue
-                    if txn.getDateInt() <= txnDate or not TxnUtil.wasTxnDownloaded(txn): continue
-                    txnDate = txn.getDateInt()
+                    if not TxnUtil.wasTxnDownloaded(txn): continue
+                    iCountTxns += 1
+                    if txn.getDateInt() > txnDate: txnDate = txn.getDateInt()
                 if txnDate != 0:
                     txnLastUpdate = Util.convertIntDateToLong(txnDate).getTime()
 
                 hasAsOfOption = lastUpdate != 0
                 if not hasAsOfOption: continue
+
                 asOfEnabled = True
                 asOfDate = lastUpdate
                 asOfEndBalance = txns.getOnlineLedgerBalance()
                 count += 1
 
+                enabledAccounts[acct] = asOfDate
+
                 output += "Account: %s\n" %(acct.getFullAccountName())
                 output += "   as_of enabled:           %s\n" %(safeStr(asOfEnabled))
                 output += "   calculated 'as_of' date: %s\n" %(get_time_stamp_as_nice_text(asOfDate, lUseHHMMSS=False))
-                output += "   as_of end balance:       %s\n" %("" if asOfEndBalance == 0 else rpad(acct.getCurrencyType().formatFancy(asOfEndBalance,MD_decimal),10))
-                output += "         as_of Preference:                 %s\n" %(pad(asOfPref,9))
-                output += "         OFXLedgerDate:                    %s\n" %("" if val_ledgerDate == 0 else get_time_stamp_as_nice_text(val_ledgerDate, lUseHHMMSS=False))
-                output += "         Most Recent Downloaded Txn Date:  %s\n" %("" if txnLastUpdate == 0 else get_time_stamp_as_nice_text(txnLastUpdate, lUseHHMMSS=False))
+                output += "   as_of end balance:       %s\n" %(rpad("<not set>", 10) if asOfEndBalance == 0 else rpad(acct.getCurrencyType().formatFancy(asOfEndBalance,MD_decimal), 10))
+                output += "         as_of Preference:                 %s\n" %(pad(asOfPref, 10))
+                output += "         OFXLedgerDate:                    %s\n" %(pad("<not set>", 10) if val_ledgerDate == 0 else get_time_stamp_as_nice_text(val_ledgerDate, lUseHHMMSS=False))
+                output += "         Most Recent Downloaded Txn Date:  %s (%s txns)\n" %(pad("<none fnd>", 10) if txnLastUpdate == 0 else get_time_stamp_as_nice_text(txnLastUpdate, lUseHHMMSS=False), iCountTxns)
 
                 if isMulti_OFXLastTxnUpdate_build():
-                    output += "         Most recent OFXLastTxnUpdateDate: %s\n" %("" if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
+                    output += "         Most recent OFXLastTxnUpdateDate: %s\n" %(pad("<not set>", 10) if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
                 else:
-                    output += "         OFXLastTxnUpdateDate:             %s\n" %("" if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
+                    output += "         OFXLastTxnUpdateDate:             %s\n" %(pad("<not set>", 10) if val_lastTxnUpdateDate == 0 else get_time_stamp_as_nice_text(val_lastTxnUpdateDate, lUseHHMMSS=False))
 
                 for k,v in OFXLastTxnUpdate_dates:
                     output += "         ... Multi keys found:             %s %s\n" %(v, k)
@@ -6343,14 +6351,16 @@ Visit: %s (Author's site)
         else:
             output += "To zap the OFXLedgerDate, use Toolbox>Online Banking Tools Menu\n" \
                       "                          option 'Delete Single cached OnlineTxnList Record/Txns'\n" \
-                      "                          and delete whole record\n\n" \
+                      "                          and then the option 'delete whole record'\n\n" \
                       "To change OFXLastTxnDownloadDate, use Toolbox>Update OFX Last Txn Update Date (Downloaded) field for an account\n" \
-                      "                          and edit the date (or if available Toolbox>Reset ALL OFX Last Txn Update Dates)\n\n"
+                      "                          and edit the date (or if available Toolbox>Reset ALL OFX Last Txn Update Dates)\n\n" \
+                      "If 'Most Recent Downloaded Txn Date' shown then not a lot can be done. You have previously downloaded txns\n\n"
 
         output += "\n<END>"
 
-        QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+        if ljustReturnEnabledAccounts: return enabledAccounts
 
+        QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
         txt = "OFX: Your active accounts' calculated reconcile as_of dates have been displayed...."
         setDisplayStatus(txt, "B")
 
@@ -7320,6 +7330,7 @@ Visit: %s (Author's site)
 
         return None
 
+    # com.infinitekind.moneydance.model.Account.getDownloadedTxns() : OnlineTxnList
     def MyGetDownloadedTxns(theAcct):       # Use my version to prevent creation of default record(s)
 
         myID = theAcct.getParameter("id", None)
