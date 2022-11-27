@@ -26437,9 +26437,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_viewReconcileAsOfDates = JRadioButton("View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)", False)
                     user_viewReconcileAsOfDates.setToolTipText("Displays how the reconcile as_of date is calculated for your active accounts")
 
-                    user_toggleMDDebug = JRadioButton("Toggle Moneydance Debug (ONLY use for debugging)", False)
-                    user_toggleMDDebug.setToolTipText("This toggles Moneydance's internal DEBUG(s) on/off. When ON you get more messages in the Console Log (the same as opening console)")
-
                     user_forgetOFXBankingLink = JRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False)
                     user_forgetOFXBankingLink.setToolTipText("Force MD to forget OFX Banking Import link attributed to an Account. Moneydance will ask you to recreate the link on next import.. THIS CHANGES DATA! (remove_ofx_account_bindings.py)")
                     user_forgetOFXBankingLink.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
@@ -26561,7 +26558,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_reset_OFXLastTxnUpdate_dates)
                     bg.add(user_viewListALLMDServices)
                     # bg.add(user_toggleOFXDebug)
-                    bg.add(user_toggleMDDebug)
                     bg.clearSelection()
 
                     userFilters.add(JLabel(" "))
@@ -26577,7 +26573,6 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(user_viewOnlineTxnsPayeesPayments)
                     userFilters.add(user_viewAllLastTxnDownloadDates)
                     userFilters.add(user_viewReconcileAsOfDates)
-                    userFilters.add(user_toggleMDDebug)
                     # userFilters.add(user_toggleOFXDebug)
                     userFilters.add(JLabel(" "))
                     userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
@@ -26634,7 +26629,6 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_deleteOFXBankingLogonProfile.isSelected():              deleteOFXService()
                         if user_cleanupMissingOnlineBankingLinks.isSelected():          cleanupMissingOnlineBankingLinks(lAutoPurge=False)
                         if user_manageCUSIPLink.isSelected():                           CUSIPFix()
-                        if user_toggleMDDebug.isSelected():                             advanced_mode_DEBUG()
                         if user_UNLOCKMDPlusDiagnostic.isSelected():                    UNLOCKMDPlusDiagnostic()
                         if user_authenticationManagement.isSelected():                  OFX_authentication_management()
                         if user_forceMDPlusNameCacheAccessTokensRebuild.isSelected():   forceMDPlusNameCacheAccessTokensRebuild()

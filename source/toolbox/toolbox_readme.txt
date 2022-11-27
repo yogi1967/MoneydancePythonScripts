@@ -120,10 +120,10 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
     - MENU: General Tools (contains a variety of general Diagnostics, Fixes and Tools...)
         - Display Dataset Password/Hint and Sync Passphrase
         - View MD Console (the whole file - searchable)
-        - View MD Config.dict file
+        - View MD Config.dict file (the whole file - searchable)
         - View MD Custom Theme file  (only appears if it exists)
         - View your Java .vmoptions file (only appears if it exists) - INCLUDES VARIOUS INSTRUCTIONS TOO
-        - View Extensions details
+        - View Extension(s) details
         - View memorised reports (parameters and default settings)
         - Find my Sync Encryption password(s) in iOS Backup(s)
         - Execute the 'older' Import QIF file and set parameters for import (useful if you want to import Account Structure Only)
@@ -137,12 +137,6 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - View your Online saved Txns, Payees, Payments
         - View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)
         - View your accounts' calculated reconcile window auto 'as of' date (active accounts only)
-        - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
-
-    - MENU: Accounts & Categories tools
-        - View Check number settings
-        - DIAGnostics - View Categories with zero balance. You can also inactivate using Update mode.
-        - DIAGnostics - View Accounts' shouldBeIncludedInNetWorth() settings...
 
     - MENU: Currency & Security tools:
         - DIAGnostics - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
@@ -152,6 +146,11 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - DIAGnostics - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
         - DIAGnostics - Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)
         - DIAGnostics - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
+
+    - MENU: Accounts & Categories tools
+        - View Check number settings
+        - DIAGnostics - View Categories with zero balance. You can also inactivate using Update mode.
+        - DIAGnostics - View Accounts' shouldBeIncludedInNetWorth() settings...
 
     - MENU: Transactions tools
         - View Register Txn Sort Orders
@@ -205,20 +204,20 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
 
     - MENU: Online (OFX) Banking Tools:
         - Forget OFX Banking Import Link (so it asks which account when importing ofx files) (remove_ofx_account_bindings.py) (MD versions < 2022)
+        - Reset/Fix/Edit/Add CUSIP Banking Link. This is the link for downloaded securities.... (remove_ofx_security_bindings.py and change-security-cusip.py)
+        - Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
+        - Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
         - Cleanup missing Online Banking Links (NOTE: This is always called when running 'Delete OFX Banking Logon Profile / Service' above
-        - Reset/Fix/Edit/Add CUSIP Banking Link. This is the link for downloaded securities.... (remove_ofx_security_bindings.py and change-security-cusip.py)
-        - Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)
-        - Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
-        - Delete Single cached OnlineTxnList Record/Txns
-        - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
         - OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)
             - SUBMENU: OFX Authentication Management
                 - Clear the Authentication Cache (Passwords) for One Service / Bank Profile
-                - Clear ALL Authentication Cache (Passwords)
+                - ClOFX_view_reconcile_AsOf_Datesear ALL Authentication Cache (Passwords)
                 - Edit/Setup (multiple) UserIDs / Passwords (executes a special script) (ofx_populate_multiple_userids.py)
                 - Edit stored authentication passwords linked to a working OFX Profile
                 - Manual Edit of stored Root UserIDs/ClientUIDs
+        - Delete Single cached OnlineTxnList Record/Txns
+        - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
         - OFX Cookie Management (requires Advanced mode)
         - Force MD+ name cache & access tokens rebuild - Names and Access Tokens should rebuild themselves - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
         - Force Disconnect an MD+ Connection - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
@@ -228,23 +227,13 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs
         - USAA Only: Executes the special script to create a working USAA OFX Profile (ofx_create_new_usaa_bank_custom_profile.py)
 
-    - MENU: Accounts & Categories tools
-        - FIX - Inactivate all Categories with Zero Balance
-        - FIX - Edit an Account's shouldBeIncludedInNetWorth() setting
-        - FIX - FORCE change an Account's Type (use with care. Does not update any transactions) (set_account_type.py)
-        - FIX - FORCE change an Account's / Category's Currency (use with care. Does not update any transactions) (force_change_account_currency.py)
-        - FIX - FORCE change ALL Accounts' / Categories' currencies (use with care. Does not update any transactions) (force_change_all_currencies.py)
-        - FIX - FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency
-        - FIX - Account's Invalid Parent Account (script fix_account_parent.py)
-        - FIX - Correct the Name of Root to match Dataset
-
     - MENU: Currency & Security tools:
         - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
         - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).  >> 2021.2 onwards
         - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).        >> 2021.2 onwards
-        - FIX - Detect and merge/fix duplicate Securities within same Investment Account(s)
         - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price whilst fixing too..   >> 2021.2 onwards
         - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
+        - FIX - Detect and merge/fix duplicate Securities within same Investment Account(s)
         - FIX - Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid
         - FIX - Convert Stock to LOT Controlled and Allocate LOTs using FiFo method (MakeFifoCost.py)
         - FIX - Convert Stock to Average Cost Control (and wipe any LOT control records)
@@ -257,6 +246,16 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency
         - Toggle investment securities with zero shares status to active/inactive
 
+    - MENU: Accounts & Categories tools
+        - FIX - Inactivate all Categories with Zero Balance
+        - FIX - Edit an Account's shouldBeIncludedInNetWorth() setting
+        - FIX - FORCE change an Account's Type (use with care. Does not update any transactions) (set_account_type.py)
+        - FIX - FORCE change an Account's / Category's Currency (use with care. Does not update any transactions) (force_change_account_currency.py)
+        - FIX - FORCE change ALL Accounts' / Categories' currencies (use with care. Does not update any transactions) (force_change_all_currencies.py)
+        - FIX - FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency
+        - FIX - Account's Invalid Parent Account (script fix_account_parent.py)
+        - FIX - Correct the Name of Root to match Dataset
+
     - MENU: Transactions tools
         - Move/Merge Investment transactions from one account into another. DISABLED >> NOW RUN FROM EXTENSIONS MENU (you can pre-select register txns first)
         - FIX - Diagnose Attachments - DELETE Orphan attachments (allows you to delete Orphan attachments from Disk ** Syncing must be disabled **)
@@ -268,25 +267,25 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
 
 ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
     >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
-    - Toggle other known DEBUG settings on (extra messages in Console)
-    - Toggle all internal Moneydance DEBUG settings ON/OFF (same as viewing console)
+    - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
+    - Toggle other Moneydance DEBUGs
     - Extract a (single) file from within LocalStorage. Decrypts a LocalStorage file to TMP dir for viewing (file self destructs after MD restart)
     - Decrypt entire dataset. Decrypts entire dataset to a folder of your choosing...
     - Peek at an encrypted file located in your Sync Folder.... Decrypts a Sync (e.g. Dropbox) file and shows it to you...
     - Shrink Dataset. This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...
-    - Import (a single) File back into LocalStorage. Encrypts a file of your choosing and puts it into LocalStorage/safe/TMP...
-    - Allows User to Add/Change/Delete Settings/Prefs >> key/value in config.dict or LocalStorage() (./safe/settings)
-    - Edit/Change/Delete an Object's Parameter keys (this can change data in your dataset/database directly)
     - Clone Dataset's structure (purge transactional data) - Copy dataset keeping structures, purging all transactional data.
     - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
+    - DEMOTE your Primary Sync dataset/node back to a Secondary Node
     - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
     - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
-    - Toggle Sync Downloading of Attachments (Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync)
     - Force reset Sync settings (This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync)
-    - DEMOTE your Primary Sync dataset/node back to a Secondary Node
+    - Toggle Sync Downloading of Attachments (Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync)
+    - Import (a single) File back into LocalStorage. Encrypts a file of your choosing and puts it into LocalStorage/safe/TMP...
+    - Allows User to Add/Change/Delete Settings/Prefs >> key/value in config.dict or LocalStorage() (./safe/settings)
+    - Allows User to Add/Change/Delete an Object's Parameter keys (this can change data in your dataset/database directly)
     - Suppress the "Your file seems to be in a shared folder (Dropbox)" warning... (optional when condition exists)
 
-CMD-P - View parameters file (StuWareSoftSystems). Also allows user to Delete all, and/or change/delete single saved parameters
+CMD-P - View Toolbox's parameters file (StuWareSoftSystems). Also allows user to Delete all, and/or change/delete single saved parameters
 
 CMD-/ - View quick JVM diagnostics
 
