@@ -138,6 +138,8 @@
 # build: 1055 - Tweaked md+ connections routines to call .getMask() to grab last digits of account number... ;->
 # build: 1055 - Added MD Build and Toolbox Build to logger...
 # build: 1056 - Tweaked toolbox_init.py with error message; tweaked OFX_view_reconcile_AsOf_Dates()
+# build: 1056 - New feature: 'DIAG: Produce report of Accounts and bank/account number information'
+# build: 1056 - Added startup check for accounts that have both OFX AND md+ connections configured...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -574,6 +576,8 @@ else:
     GlobalVars.lIgnoreOutdatedExtensions_TB = False
     GlobalVars.lAutoPruneInternalBackups_TB = True 
     GlobalVars.TOOLBOX_STOP_NOW = False
+
+    GlobalVars.saveSettings_reportAccountNumbers = {}
 
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
@@ -14935,6 +14939,258 @@ now after saving the file, restart Moneydance
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
+    def reportAccountNumbers():
+        _THIS_METHOD_NAME = "DIAG: Produce report of Accounts and bank/account number information"
+        TOOLBOX_IGNORE = "<toolbox ignore>"
+
+        input_includeBankAccounts = JCheckBox("include account type: Bank?",                                            GlobalVars.saveSettings_reportAccountNumbers.get("input_includeBankAccounts",       True))
+        input_includeCCAccounts = JCheckBox("include account type: Credit Card?",                                       GlobalVars.saveSettings_reportAccountNumbers.get("input_includeCCAccounts",         True))
+        input_includeInvestmentAccounts = JCheckBox("include account type: Investment?",                                GlobalVars.saveSettings_reportAccountNumbers.get("input_includeInvestmentAccounts", True))
+        input_includeAssetAccounts = JCheckBox("include account type: Asset?",                                          GlobalVars.saveSettings_reportAccountNumbers.get("input_includeAssetAccounts",      True))
+        input_includeLiabilityAccounts = JCheckBox("include account type: Liability?",                                  GlobalVars.saveSettings_reportAccountNumbers.get("input_includeLiabilityAccounts",  True))
+        input_includeLoanAccounts = JCheckBox("include account type: Loan?",                                            GlobalVars.saveSettings_reportAccountNumbers.get("input_includeLoanAccounts",       True))
+
+        input_includeBalance = JCheckBox("include account Balance(s)?",                                                 GlobalVars.saveSettings_reportAccountNumbers.get("input_includeBalance",            True))
+        input_includeZeroBalance = JCheckBox("include accounts with zero balance?",                                     GlobalVars.saveSettings_reportAccountNumbers.get("input_includeZeroBalance",        True))
+        input_showZeroBalanceAsBlank = JCheckBox("show zero balances as blank?",                                        GlobalVars.saveSettings_reportAccountNumbers.get("input_showZeroBalanceAsBlank",    True))
+        input_includeWhenDetailsMissing = JCheckBox("include when Account number/sort/routing details missing?",        GlobalVars.saveSettings_reportAccountNumbers.get("input_includeWhenDetailsMissing", True))
+        input_includeHiddenHomePage = JCheckBox("include when 'Hide on summary page (if balance is zero) selected'?",   GlobalVars.saveSettings_reportAccountNumbers.get("input_includeHiddenHomePage",     True))
+        input_includeInactive = JCheckBox("include inactive accounts?",                                                 GlobalVars.saveSettings_reportAccountNumbers.get("input_includeInactive",           False))
+        input_includeComments = JCheckBox("include comments?",                                                          GlobalVars.saveSettings_reportAccountNumbers.get("input_includeComments",           False))
+        input_includeToolboxIgnore = JCheckBox("include when '%s' found inside comments?" %(TOOLBOX_IGNORE),            GlobalVars.saveSettings_reportAccountNumbers.get("input_includeToolboxIgnore",      False))
+
+        allAccountTypes = [input_includeBankAccounts, input_includeCCAccounts, input_includeInvestmentAccounts, input_includeAssetAccounts, input_includeLiabilityAccounts, input_includeLoanAccounts]
+
+        userFilters = JPanel(GridLayout(0, 1))
+
+        userFilters.add(JLabel("Select account types to include:"))
+        for comp in allAccountTypes: userFilters.add(comp)
+        userFilters.add(JLabel(""))
+        userFilters.add(JLabel("Select report options:"))
+        userFilters.add(input_includeBalance)
+        userFilters.add(input_includeZeroBalance)
+        userFilters.add(input_showZeroBalanceAsBlank)
+        userFilters.add(input_includeWhenDetailsMissing)
+        userFilters.add(input_includeHiddenHomePage)
+        userFilters.add(input_includeInactive)
+        userFilters.add(input_includeComments)
+        userFilters.add(input_includeToolboxIgnore)
+
+        while True:
+            options = ["EXIT", "REPORT"]
+            userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
+                                                       userFilters,
+                                                       _THIS_METHOD_NAME.upper(),
+                                                       JOptionPane.OK_CANCEL_OPTION,
+                                                       JOptionPane.QUESTION_MESSAGE,
+                                                       getMDIcon(lAlwaysGetIcon=True),
+                                                       options, options[0]))
+            if userAction != 1:
+                txt = "USER QUIT REPORT"
+                setDisplayStatus(txt, "B")
+                myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            selectedAccountTypes = False
+            for jcb in allAccountTypes:
+                if jcb.isSelected():
+                    selectedAccountTypes = True
+                    break
+            if not selectedAccountTypes: continue
+
+            break
+
+        includedAccountTypes = []
+        if input_includeBankAccounts.isSelected():          includedAccountTypes.append(Account.AccountType.BANK)           # noqa
+        if input_includeCCAccounts.isSelected():            includedAccountTypes.append(Account.AccountType.CREDIT_CARD)    # noqa
+        if input_includeInvestmentAccounts.isSelected():    includedAccountTypes.append(Account.AccountType.INVESTMENT)     # noqa
+        if input_includeAssetAccounts.isSelected():         includedAccountTypes.append(Account.AccountType.ASSET)          # noqa
+        if input_includeLiabilityAccounts.isSelected():     includedAccountTypes.append(Account.AccountType.LIABILITY)      # noqa
+        if input_includeLoanAccounts.isSelected():          includedAccountTypes.append(Account.AccountType.LOAN)           # noqa
+
+        allAccounts = [acct for acct in AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), AcctFilter.ALL_ACCOUNTS_FILTER) if acct.getAccountType() in includedAccountTypes]
+        allAccounts = sorted(allAccounts, key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+
+        iCountOFXAccounts = 0
+        iCountMDPlusAccounts = 0
+
+        output = "Report of accounts and bank/account number information:\n" \
+                 "-------------------------------------------------------\n\n"
+
+        date = datetime.datetime.today()
+        baseCurr = MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
+        output += "Base currency: %s %s(%s) - report as of: %s\n\n" %(baseCurr, baseCurr.getIDString(),baseCurr.getPrefix(), date.strftime(convertMDShortDateFormat_strftimeFormat()))
+
+        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
+        colWidths = [13, 12, 10, 8, 5, 0, 0, 15, 13, 9]
+
+        for i in [0, 1]:
+
+            if i == 1:
+                colWidths[1] = 0        # Account Description should never get set...!?
+                colWidths[4] = colWidths[4] if input_includeBalance.isSelected() else 0
+                colWidths[9] = colWidths[9] if input_includeComments.isSelected() else 0
+
+                output += "%s %s %s %s %s   %s %s %s %s %s\n" %(
+                    pad("Account name:", colWidths[0]),
+                    pad("Description:", colWidths[1]),
+                    pad("Bank name:", colWidths[2]),
+                    rpad("Balance:", colWidths[3]),
+                    pad("Curr:", colWidths[4]),
+                    pad("", colWidths[5]),
+                    pad("", colWidths[6]),
+                    pad("Account number:", colWidths[7]),
+                    pad("Sort/Routing:", colWidths[8]),
+                    pad("Comments:", colWidths[9])
+                )
+
+                output += "%s %s %s %s %s   %s %s %s %s %s\n" %(
+                    pad("", colWidths[0], "-"),
+                    pad("", colWidths[1], "-"),
+                    pad("", colWidths[2], "-"),
+                    rpad("", colWidths[3], "-"),
+                    pad("", colWidths[4], "-"),
+                    pad("", colWidths[5], " "),
+                    pad("", colWidths[6], " "),
+                    pad("", colWidths[7], "-"),
+                    pad("", colWidths[8], "-"),
+                    pad("", colWidths[9], "-")
+                )
+
+            lastAccountType = None
+
+            for acct in allAccounts:
+
+                xBal = acct.getRecursiveBalance() if acct.getAccountType() == Account.AccountType.INVESTMENT else acct.getBalance()     # noqa
+
+                if not input_includeInactive.isSelected():
+                    if (acct.getAccountOrParentIsInactive()): continue
+
+                if not input_includeHiddenHomePage.isSelected():
+                    if (acct.getHideOnHomePage() and xBal == 0): continue
+
+                if not input_includeZeroBalance.isSelected():
+                    if xBal == 0: continue
+
+                if not input_includeToolboxIgnore.isSelected():
+                    if TOOLBOX_IGNORE in acct.getComment().lower().strip(): continue
+
+                hiddenTxt = ""
+                if acct.getAccountOrParentIsInactive(): hiddenTxt += "I"
+                if acct.getHideOnHomePage() and xBal == 0: hiddenTxt += "H"
+
+                depth = (acct.getDepth() - 1)
+                extraPad = "" if (depth == 0) else " "
+                accountNameTxt = ("." * depth) + extraPad + acct.getAccountName()
+
+                # noinspection PyUnresolvedReferences
+                if acct.getAccountType() == Account.AccountType.CREDIT_CARD:
+                    accountNumberTxt = acct.getCardNumber()
+                elif acct.getAccountType() == Account.AccountType.INVESTMENT:
+                    accountNumberTxt = acct.getInvestAccountNumber()
+                else:
+                    accountNumberTxt = acct.getBankAccountNumber()      # Not all account Types have account numbers!
+
+                # noinspection PyUnresolvedReferences
+                if acct.getAccountType() == Account.AccountType.INVESTMENT:
+                    bankNameTxt = acct.getInstitutionName()
+                else:
+                    bankNameTxt = acct.getBankName()
+
+                currTxt = "" if acct.getCurrencyType() is baseCurr else acct.getCurrencyType().getIDString()
+                commentsTxt = acct.getComment().strip().replace("\n", "|").replace(TOOLBOX_IGNORE, "")
+                xBalTxt = "" if (xBal == 0 and input_showZeroBalanceAsBlank.isSelected()) else acct.getCurrencyType().formatFancy(xBal, MD_decimal)
+
+                if not input_includeWhenDetailsMissing.isSelected():
+                    if (accountNumberTxt.strip() + acct.getOFXBankID().strip()) == "": continue
+
+                downloadEnabledTxt = ""
+                if acct.canDownloadTxns():
+                    if not isMDPlusEnabledBuild():
+                        if i > 0: iCountOFXAccounts += 1
+                        downloadEnabledTxt = ">"
+                    else:
+                        for link in acct.getBankingServices():
+                            service = link.getService()
+                            if service is not None and service.canDownloadTransactionsForAccount(acct):
+                                if service.isMoneydancePlusService():
+                                    if "+" not in downloadEnabledTxt:
+                                        if i > 0: iCountMDPlusAccounts += 1
+                                        downloadEnabledTxt += "+"
+                                else:
+                                    if ">" not in downloadEnabledTxt:
+                                        if i > 0: iCountOFXAccounts += 1
+                                        downloadEnabledTxt += ">"
+
+                if i == 0:
+                    colWidths[0] = max(colWidths[0], len(accountNameTxt))
+                    colWidths[1] = max(colWidths[1], len(acct.getAccountDescription()))
+                    colWidths[2] = max(colWidths[2], len(bankNameTxt))
+                    colWidths[3] = max(colWidths[3], len(xBalTxt))
+                    colWidths[4] = max(colWidths[4], len(currTxt))
+                    colWidths[5] = max(colWidths[5], len(hiddenTxt))
+                    colWidths[6] = max(colWidths[6], len(downloadEnabledTxt))
+                    colWidths[7] = max(colWidths[7], len(accountNumberTxt))
+                    colWidths[8] = max(colWidths[8], len(acct.getOFXBankID()))
+                    colWidths[9] = max(colWidths[9], len(commentsTxt))
+                    continue
+
+                if acct.getAccountType() != lastAccountType:
+                    outputTxt = "%s ACCOUNTS:" %(acct.getAccountType())
+                    output += "\n%s\n%s\n" %(outputTxt, "-"*len(outputTxt))
+                    lastAccountType = acct.getAccountType()
+
+                output += "%s %s %s %s %s   %s %s %s %s %s\n" %(
+                    pad(accountNameTxt, colWidths[0]),
+                    pad(acct.getAccountDescription(), colWidths[1]),
+                    pad(bankNameTxt, colWidths[2]),
+                    rpad(xBalTxt, colWidths[3]),
+                    pad(currTxt, colWidths[4]),
+                    pad(hiddenTxt, colWidths[5]),
+                    pad(downloadEnabledTxt, colWidths[6]),
+                    pad(accountNumberTxt, colWidths[7]),
+                    pad(acct.getOFXBankID(), colWidths[8]),
+                    pad(commentsTxt, colWidths[9])
+                )
+
+        output += "\n----------------------------------------------------------------------------------------------------------------------------\n"
+
+        if input_includeInactive.isSelected():
+            output += "**KEY: 'I' = Account is Inactive...\n"
+
+        if input_includeHiddenHomePage.isSelected():
+            output += "**KEY: 'H' = Account is hidden on Home/Summary page...\n"
+
+        if iCountOFXAccounts > 0 or iCountMDPlusAccounts > 0:
+            if iCountMDPlusAccounts > 0:
+                output += "**KEY: '+' = MD+ enabled account (%s in total)'\n" %(iCountMDPlusAccounts)
+
+            if iCountOFXAccounts > 0:
+                output += "**KEY: '>' = OFX enabled account (%s in total)'\n" %(iCountOFXAccounts)
+
+            output += "\n WARNING: Take care when editing 'Account number' or 'Sort/Routing' on OFX enabled accounts (MD+ accounts should be OK to change)....!\n"
+
+        output += "\n<END>"
+
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeBankAccounts"]           = input_includeBankAccounts.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeCCAccounts"]             = input_includeCCAccounts.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeInvestmentAccounts"]     = input_includeInvestmentAccounts.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeAssetAccounts"]          = input_includeAssetAccounts.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeLiabilityAccounts"]      = input_includeLiabilityAccounts.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeLoanAccounts"]           = input_includeLoanAccounts.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeBalance"]                = input_includeBalance.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeZeroBalance"]            = input_includeZeroBalance.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_showZeroBalanceAsBlank"]        = input_showZeroBalanceAsBlank.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeWhenDetailsMissing"]     = input_includeWhenDetailsMissing.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeHiddenHomePage"]         = input_includeHiddenHomePage.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeInactive"]               = input_includeInactive.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeComments"]               = input_includeComments.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeToolboxIgnore"]          = input_includeToolboxIgnore.isSelected()
+
+        QuickJFrame(_THIS_METHOD_NAME.upper(), output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+
+
     def view_shouldBeIncludedInNetWorth_settings():
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -17132,7 +17388,7 @@ now after saving the file, restart Moneydance
             MyPopUpDialogBox(jif,
                              "YOU HAVE ORPHAN/STRANDED Price History Records - READ THIS FIRST",
                              theMessage="These are either 'Orphaned' records with no Currency linkage;\n"
-                                        "or they are duplicated records (i.e. multiple records with the same date due to a MD bug)..\n"
+                                        "or they are duplicated records (i.e. multiple records with the same date due to a MD bug/flaw)..\n"
                                         "These are 'stranded' / hidden from view. Once you delete the visible record, any Orphan on the same date will reappear\n"
                                         "BEST PRACTICE (after reviewing the Simulation Log) is as follows:\n"
                                         "1. Select 'Only Delete Orphans Mode' and ALL Currencies and ALL Securities. Then Execute\n"
@@ -27149,6 +27405,9 @@ Now you will have a text readable version of the file you can open in a text edi
                     user_inactivate_zero_bal_cats.setEnabled(GlobalVars.UPDATE_MODE)
                     user_inactivate_zero_bal_cats.setForeground(getColorRed())
 
+                    user_reportAccountNumbers = JRadioButton("DIAG: Produce report of Accounts and bank/account number information", False)
+                    user_reportAccountNumbers.setToolTipText("This produces a report of bank accounts along with account & sort numbers etc... ")
+
                     user_view_shouldBeIncludedInNetWorth_settings = JRadioButton("DIAG: View Accounts' shouldBeIncludedInNetWorth() settings...", False)
                     user_view_shouldBeIncludedInNetWorth_settings.setToolTipText("This will list all Accounts/Categories and the shouldBeIncludedInNetWorth() setting - USE UPDATE MODE TO EDIT")
 
@@ -27182,6 +27441,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     bg.add(user_view_check_number_settings)
                     bg.add(user_view_zero_bal_cats)
                     bg.add(user_inactivate_zero_bal_cats)
+                    bg.add(user_reportAccountNumbers)
                     bg.add(user_view_shouldBeIncludedInNetWorth_settings)
                     bg.add(user_edit_shouldBeIncludedInNetWorth_settings)
                     bg.add(user_force_change_an_accounts_type)
@@ -27196,6 +27456,7 @@ Now you will have a text readable version of the file you can open in a text edi
                     userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
                     userFilters.add(user_view_check_number_settings)
                     userFilters.add(user_view_zero_bal_cats)
+                    userFilters.add(user_reportAccountNumbers)
                     userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
                     userFilters.add(JLabel(" "))
                     userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
@@ -27242,6 +27503,7 @@ Now you will have a text readable version of the file you can open in a text edi
                         if user_view_check_number_settings.isSelected():                        view_check_num_settings()
                         if user_view_zero_bal_cats.isSelected():                                zero_bal_categories(False)
                         if user_inactivate_zero_bal_cats.isSelected():                          zero_bal_categories(True)
+                        if user_reportAccountNumbers.isSelected():                              reportAccountNumbers()
                         if user_view_shouldBeIncludedInNetWorth_settings.isSelected():          view_shouldBeIncludedInNetWorth_settings()
                         if user_edit_shouldBeIncludedInNetWorth_settings.isSelected():          edit_shouldBeIncludedInNetWorth_settings()
                         if user_force_change_an_accounts_type.isSelected():                     force_change_account_type()
@@ -29047,6 +29309,38 @@ Now you will have a text readable version of the file you can open in a text edi
             ###################### PERFORM POST-LAUNCH VALIDATION(s) AND POPUP APPROPRIATE ALERTS ######################
             ### MAKE SURE THESE POPUPS ARE NOT MODAL AND THUS DO NOT BLOCK THE EDT!
             ############################################################################################################
+
+            # Check for accounts that have both OFX and MD+ configured.....
+            if isMDPlusEnabledBuild():
+                output = None
+                allAccounts = sorted(AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), AcctFilter.ALL_ACCOUNTS_FILTER), key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().upper()))
+                for acct in allAccounts:
+                    if not acct.canDownloadTxns(): continue
+                    lOFXConfigured = lMDPlusConfigured = False
+                    for link in acct.getBankingServices():
+                        service = link.getService()
+                        if service is not None and service.canDownloadTransactionsForAccount(acct):
+                            if service.isMoneydancePlusService():
+                                lMDPlusConfigured = True
+                            else:
+                                lOFXConfigured = True
+                    if lOFXConfigured and lMDPlusConfigured:
+                        if output is None: output = ""
+                        output += "%s - %s\n" %(acct.getAccountType(), acct.getFullAccountName())
+                    del lOFXConfigured, lMDPlusConfigured
+                if output is not None:
+                    output += "\n>> Use Online Banking Tools Menu>Delete OFX Banking Service / Logon Profile to remove OFX profile..."
+                    statusTxt = "WARNING: You have both OFX and MD+ configured on these Account(s)...:"
+                    myPrint("B", statusTxt, "\n", output)
+                    MyPopUpDialogBox(toolbox_frame_,
+                                     theStatus=statusTxt,
+                                     theMessage=output,
+                                     theTitle="WARNING - ONLINE BANKING CONFIGURATION",
+                                     OKButtonText="ACKNOWLEDGE",
+                                     lAlertLevel=2,
+                                     lModal=False).go()
+                del allAccounts, output
+
 
             # Check for no currencies.. Popup alert message
             # noinspection PyUnresolvedReferences

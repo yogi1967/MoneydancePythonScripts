@@ -139,23 +139,24 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - View your accounts' calculated reconcile window auto 'as of' date (active accounts only)
 
     - MENU: Currency & Security tools:
-        - DIAGnostics - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
-        - DIAGnostics - Can I delete a Security (tells you whether a security/stock is being used - and where)
-        - DIAGnostics - Can I delete a Currency (tells you whether a currency is being used - and where)
-        - DIAGnostics - List decimal places (currency & security). Shows you the hidden setting and related data.
-        - DIAGnostics - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
-        - DIAGnostics - Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)
-        - DIAGnostics - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
+        - DIAG - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
+        - DIAG - Can I delete a Security (tells you whether a security/stock is being used - and where)
+        - DIAG - Can I delete a Currency (tells you whether a currency is being used - and where)
+        - DIAG - List decimal places (currency & security). Shows you the hidden setting and related data.
+        - DIAG - Show your open LOTs on stocks/shares (when using LOT control) (show_open_tax_lots.py)
+        - DIAG - Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)
+        - DIAG - Diagnose currency / security's current price hidden 'price_date' field. If warnings, then go to FIX below
 
     - MENU: Accounts & Categories tools
         - View Check number settings
-        - DIAGnostics - View Categories with zero balance. You can also inactivate using Update mode.
-        - DIAGnostics - View Accounts' shouldBeIncludedInNetWorth() settings...
+        - DIAG - View Categories with zero balance. You can also inactivate using Update mode.
+        - DIAG - Produce report of Accounts and bank/account number information
+        - DIAG - View Accounts' shouldBeIncludedInNetWorth() settings...
 
     - MENU: Transactions tools
         - View Register Txn Sort Orders
         - Extract your Attachments (this decrypts and extracts your attachments to a directory of your choice) (export_all_attachments.py)
-        - DIAGnostics - Analise your  attachments (and Detect Orphans)
+        - DIAG - Analise your  attachments (and Detect Orphans)
 
 Menu - CURIOUS? VIEW INTERNAL SETTINGS (Read-Only - very safe)
     >> Allows you to view internal / raw settings / data
