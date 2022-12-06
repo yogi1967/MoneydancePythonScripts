@@ -125,7 +125,7 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
         - View your Java .vmoptions file (only appears if it exists) - INCLUDES VARIOUS INSTRUCTIONS TOO
         - View Extension(s) details
         - View memorised reports (parameters and default settings)
-        - Find my Sync Encryption password(s) in iOS Backup(s)
+        - Find my Sync Encryption password(s) in iOS Backup(s) - DECOMMISSIONED >> NO LONGER AVAILABLE
         - Execute the 'older' Import QIF file and set parameters for import (useful if you want to import Account Structure Only)
         - Convert a TimeStamp number into a readable date/time (display only)
 
