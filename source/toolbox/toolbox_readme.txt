@@ -150,7 +150,7 @@ Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update mo
     - MENU: Accounts & Categories tools
         - View Check number settings
         - DIAG - View Categories with zero balance. You can also inactivate using Update mode.
-        - DIAG - Produce report of Accounts and bank/account number information
+        - DIAG - Produce report of Accounts and bank/account number information (Useful for legacy / Will making)
         - DIAG - View Accounts' shouldBeIncludedInNetWorth() settings...
 
     - MENU: Transactions tools

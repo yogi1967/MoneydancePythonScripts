@@ -15205,10 +15205,15 @@ now after saving the file, restart Moneydance
             datasetKey = keyInfo.getString(u"key", None)
             datasetKey = "<?NOT FOUND?>" if (datasetKey is None or datasetKey == "") else "'%s'" %(datasetKey)
 
+            licenseKey = "<not found>"
+            licenseInfo = MD_REF.getLicenseInfo()
+            if licenseInfo is not None and licenseInfo.isRegistered():
+                licenseKey = "'%s'" %(licenseInfo.getLicenseKey())
+
             output += "\n----------------------------------------------------------------------------------------------------------------------------\n"
             output += "Confidential details needed to open Moneydance dataset:\n".upper()
             output += "- Location of dataset: '%s'\n" %(MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath())
-            output += "- This application: '%s'\n" %(find_the_program_install_dir())
+            output += "- This application: '%s' Version: %s(%s) - License key: %s\n" %(find_the_program_install_dir(), MD_REF.getVersion(), MD_REF.getBuild(), licenseKey)
             output += "- Master password used to open this dataset: %s\n" %(MD_enc)
             output += "- Syncing: %s - Sync password: %s\n" %(syncMethodTxt, MD_syn)
             output += "- Secret internal KEY used for dataset encryption seed: %s\n" %(datasetKey)
@@ -27450,7 +27455,7 @@ now after saving the file, restart Moneydance
                     user_inactivate_zero_bal_cats.setEnabled(GlobalVars.UPDATE_MODE)
                     user_inactivate_zero_bal_cats.setForeground(getColorRed())
 
-                    user_reportAccountNumbers = JRadioButton("DIAG: Produce report of Accounts and bank/account number information", False)
+                    user_reportAccountNumbers = JRadioButton("DIAG: Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
                     user_reportAccountNumbers.setToolTipText("This produces a report of bank accounts along with account & sort numbers etc... ")
 
                     user_view_shouldBeIncludedInNetWorth_settings = JRadioButton("DIAG: View Accounts' shouldBeIncludedInNetWorth() settings...", False)
@@ -27530,7 +27535,7 @@ now after saving the file, restart Moneydance
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,700,425)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters,900,425)
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Accounts / Categories Diagnostics, Tools, Fixes",
