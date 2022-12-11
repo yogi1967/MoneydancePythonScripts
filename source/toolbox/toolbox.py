@@ -140,8 +140,8 @@
 # build: 1056 - Tweaked toolbox_init.py with error message; tweaked OFX_view_reconcile_AsOf_Dates()
 # build: 1056 - New feature: 'DIAG: Produce report of Accounts and bank/account number information'
 # build: 1056 - Added startup check for accounts that have both OFX AND md+ connections configured...
-# build: 1056 - DECOMISSIONED find_IOS_sync_data() as py file too large...
-# build: 1056 - Added SwingTimer Blinking JMenuItem for Toolbox Options....
+# build: 1056 - DECOMMISSIONED find_IOS_sync_data() as py file too large...
+# build: 1056 - Added SwingTimer Blinking JMenuItem for Toolbox Options....; Changed menus to hide options when update/advanced modes not enabled...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -26829,12 +26829,6 @@ now after saving the file, restart Moneydance
                     user_createUSAAProfile.setEnabled(GlobalVars.UPDATE_MODE)
                     user_createUSAAProfile.setForeground(getColorRed())
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
-                    labelFYI3 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
-                    labelFYI3.setForeground(getColorRed())
-
                     userFilters = JPanel(GridLayout(0, 1))
 
                     bg = ButtonGroup()
@@ -26866,10 +26860,12 @@ now after saving the file, restart Moneydance
                     # bg.add(user_toggleOFXDebug)
                     bg.clearSelection()
 
-                    userFilters.add(JLabel(" "))
+                    rowHeight = 23
+                    rows = 8
                     userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
 
                     if isToolboxUnlocked():
+                        rows += 1
                         userFilters.add(user_UNLOCKMDPlusDiagnostic)
 
                     userFilters.add(user_online_banking_view_configuration_data)
@@ -26880,43 +26876,48 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_viewAllLastTxnDownloadDates)
                     userFilters.add(user_viewReconcileAsOfDates)
                     # userFilters.add(user_toggleOFXDebug)
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-                    if not GlobalVars.UPDATE_MODE:
-                        userFilters.add(labelFYI2)
 
-                    userFilters.add(user_forgetOFXBankingLink)
-                    userFilters.add(user_manageCUSIPLink)
-                    userFilters.add(user_updateOFXLastTxnUpdate)
-                    userFilters.add(user_reset_OFXLastTxnUpdate_dates)
-                    userFilters.add(user_deleteOFXBankingLogonProfile)
-                    userFilters.add(user_cleanupMissingOnlineBankingLinks)
-                    userFilters.add(user_authenticationManagement)
-                    userFilters.add(user_deleteOnlineTxns)
-                    userFilters.add(user_deleteALLOnlineTxns)
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("---- ADVANCED MODE ONLY -----"))
-                    if not GlobalVars.ADVANCED_MODE:
-                        userFilters.add(labelFYI3)
-                    userFilters.add(user_cookieManagement)
+                    if GlobalVars.UPDATE_MODE:
+                        rows += 11
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    if isMDPlusEnabledBuild():
-                        userFilters.add(user_forceMDPlusNameCacheAccessTokensRebuild)
-                        userFilters.add(user_forceDisconnectMDPlusConnection)
-                        userFilters.add(user_export_MDPlus_LicenseObject)
-                        userFilters.add(user_import_MDPlus_LicenseObject)
-                        userFilters.add(user_zapMDPlusProfile)
+                        userFilters.add(user_forgetOFXBankingLink)
+                        userFilters.add(user_manageCUSIPLink)
+                        userFilters.add(user_updateOFXLastTxnUpdate)
+                        userFilters.add(user_reset_OFXLastTxnUpdate_dates)
+                        userFilters.add(user_deleteOFXBankingLogonProfile)
+                        userFilters.add(user_cleanupMissingOnlineBankingLinks)
+                        userFilters.add(user_authenticationManagement)
+                        userFilters.add(user_deleteOnlineTxns)
+                        userFilters.add(user_deleteALLOnlineTxns)
 
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("---- USAA ONLY (Update Mode)-----"))
-                    userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
-                    userFilters.add(user_createUSAAProfile)
+                    if GlobalVars.ADVANCED_MODE:
+                        rows += 3
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(JLabel("---- ADVANCED MODE ONLY -----"))
+                        userFilters.add(user_cookieManagement)
+
+                        if isMDPlusEnabledBuild():
+                            rows += 5
+                            userFilters.add(user_forceMDPlusNameCacheAccessTokensRebuild)
+                            userFilters.add(user_forceDisconnectMDPlusConnection)
+                            userFilters.add(user_export_MDPlus_LicenseObject)
+                            userFilters.add(user_import_MDPlus_LicenseObject)
+                            userFilters.add(user_zapMDPlusProfile)
+
+                    if GlobalVars.UPDATE_MODE:
+                        rows += 4
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(JLabel("---- USAA ONLY (Update Mode)-----"))
+                        userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
+                        userFilters.add(user_createUSAAProfile)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,775,725)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 775, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Online Banking Tools",
@@ -27479,9 +27480,6 @@ now after saving the file, restart Moneydance
                     user_fix_root_account_name.setEnabled(GlobalVars.UPDATE_MODE and (rootName != bookName))
                     user_fix_root_account_name.setForeground(getColorRed())
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
                     labelFYI_curr_fix = JLabel("       ** disabled when a serious currency/security issue has been detected **")
                     labelFYI_curr_fix.setForeground(getColorRed())
 
@@ -27502,26 +27500,27 @@ now after saving the file, restart Moneydance
                     bg.add(user_fix_root_account_name)
                     bg.clearSelection()
 
-                    userFilters.add(JLabel(" "))
+                    rowHeight = 23
+                    rows = 5
+
                     userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
                     userFilters.add(user_view_check_number_settings)
                     userFilters.add(user_view_zero_bal_cats)
                     userFilters.add(user_reportAccountNumbers)
                     userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    if not GlobalVars.UPDATE_MODE:
-                        userFilters.add(labelFYI2)
-
-                    userFilters.add(user_inactivate_zero_bal_cats)
-                    userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
-                    userFilters.add(user_force_change_an_accounts_type)
-                    userFilters.add(user_force_change_accounts_currency)
-                    userFilters.add(user_force_change_all_accounts_cats_currency)
-                    userFilters.add(user_force_change_accounts_cats_from_to_currency)
-                    userFilters.add(user_fix_accounts_parent)
-                    userFilters.add(user_fix_root_account_name)
+                    if GlobalVars.UPDATE_MODE:
+                        rows += 10
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                        userFilters.add(user_inactivate_zero_bal_cats)
+                        userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
+                        userFilters.add(user_force_change_an_accounts_type)
+                        userFilters.add(user_force_change_accounts_currency)
+                        userFilters.add(user_force_change_all_accounts_cats_currency)
+                        userFilters.add(user_force_change_accounts_cats_from_to_currency)
+                        userFilters.add(user_fix_accounts_parent)
+                        userFilters.add(user_fix_root_account_name)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -27535,7 +27534,7 @@ now after saving the file, restart Moneydance
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,900,425)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 900, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Accounts / Categories Diagnostics, Tools, Fixes",
@@ -27689,9 +27688,6 @@ now after saving the file, restart Moneydance
                     user_toggle_security_zero_shares_inactive.setEnabled(GlobalVars.UPDATE_MODE)
                     user_toggle_security_zero_shares_inactive.setForeground(getColorRed())
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
                     labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected **")
                     labelFYI_curr_fix.setForeground(getColorRed())
 
@@ -27724,7 +27720,9 @@ now after saving the file, restart Moneydance
                     bg.add(user_toggle_security_zero_shares_inactive)
                     bg.clearSelection()
 
-                    userFilters.add(JLabel(" "))
+                    rowHeight = 23
+                    rows = 8
+
                     userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
                     userFilters.add(user_diag_curr_sec)
                     userFilters.add(user_can_i_delete_security)
@@ -27733,36 +27731,38 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_show_open_share_lots)
                     userFilters.add(user_diagnose_matched_lot_data)
                     userFilters.add(user_diag_price_date)
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    if not GlobalVars.UPDATE_MODE:
-                        userFilters.add(labelFYI2)
-                    else:
+                    if GlobalVars.UPDATE_MODE:
+                        rows += 15
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+
                         if not isRRateCurrencyIssueFixedBuild():
+                            rows += 1
                             userFilters.add(labelFYI_curr_fix)
 
-                    userFilters.add(user_fix_curr_sec)
+                        userFilters.add(user_fix_curr_sec)
 
-                    # These are new features - better supported from 2021.2 onwards
-                    if isRRateCurrencyIssueFixedBuild():
-                        userFilters.add(user_edit_security_decimal_places)
-                        userFilters.add(user_merge_duplicate_securities)
-                        userFilters.add(user_autofix_price_date)
-                        userFilters.add(user_fix_price_date)
+                        # These are new features - better supported from 2021.2 onwards
+                        if isRRateCurrencyIssueFixedBuild():
+                            rows += 4
+                            userFilters.add(user_edit_security_decimal_places)
+                            userFilters.add(user_merge_duplicate_securities)
+                            userFilters.add(user_autofix_price_date)
+                            userFilters.add(user_fix_price_date)
 
-                    userFilters.add(user_fix_duplicate_securities_within_same_investment_account)
-                    userFilters.add(user_fix_invalidLotRecords)
-                    userFilters.add(user_convert_stock_lot_FIFO)
-                    userFilters.add(user_convert_stock_avg_cst_control)
-                    userFilters.add(user_fix_nonlinked_security_records)
-                    userFilters.add(user_thin_price_history)
-                    userFilters.add(user_fix_invalid_curr_sec)
-                    userFilters.add(user_fix_invalid_price_history)
-                    userFilters.add(user_force_change_accounts_currency)
-                    userFilters.add(user_force_change_all_accounts_cats_currency)
-                    userFilters.add(user_force_change_accounts_cats_from_to_currency)
-                    userFilters.add(user_toggle_security_zero_shares_inactive)
+                        userFilters.add(user_fix_duplicate_securities_within_same_investment_account)
+                        userFilters.add(user_fix_invalidLotRecords)
+                        userFilters.add(user_convert_stock_lot_FIFO)
+                        userFilters.add(user_convert_stock_avg_cst_control)
+                        userFilters.add(user_fix_nonlinked_security_records)
+                        userFilters.add(user_thin_price_history)
+                        userFilters.add(user_fix_invalid_curr_sec)
+                        userFilters.add(user_fix_invalid_price_history)
+                        userFilters.add(user_force_change_accounts_currency)
+                        userFilters.add(user_force_change_all_accounts_cats_currency)
+                        userFilters.add(user_force_change_accounts_cats_from_to_currency)
+                        userFilters.add(user_toggle_security_zero_shares_inactive)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -27816,7 +27816,7 @@ now after saving the file, restart Moneydance
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,1200,625)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 1200, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Currency / Security Diagnostics, Tools, Fixes",
@@ -27923,9 +27923,6 @@ now after saving the file, restart Moneydance
                     user_detect_fix_txns_assigned_root.setEnabled(GlobalVars.UPDATE_MODE)
                     user_detect_fix_txns_assigned_root.setForeground(getColorRed())
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
                     userFilters = JPanel(GridLayout(0, 1))
 
                     bg = ButtonGroup()
@@ -27941,27 +27938,31 @@ now after saving the file, restart Moneydance
                     bg.add(user_detect_fix_txns_assigned_root)
                     bg.clearSelection()
 
-                    userFilters.add(JLabel(" "))
+                    rowHeight = 23
+                    rows = 4
+
                     userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
                     userFilters.add(user_view_txn_sort)
                     userFilters.add(user_extract_attachments)
                     userFilters.add(user_diagnose_attachments)
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    if not GlobalVars.UPDATE_MODE:
-                        userFilters.add(labelFYI2)
+                    if GlobalVars.UPDATE_MODE:
+                        rows += 8
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    # These are new features - better supported from 2021.2 onwards
-                    if isRRateCurrencyIssueFixedBuild():
-                        userFilters.add(user_move_invest_txns)
 
-                    userFilters.add(user_diagnose_fix_attachments)
-                    userFilters.add(user_fix_non_hier_sec_acct_txns)
-                    userFilters.add(user_fix_delete_one_sided_txns)
-                    userFilters.add(user_reverse_txn_amounts)
-                    userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
-                    userFilters.add(user_detect_fix_txns_assigned_root)
+                        # These are new features - better supported from 2021.2 onwards
+                        if isRRateCurrencyIssueFixedBuild():
+                            rows += 1
+                            userFilters.add(user_move_invest_txns)
+
+                        userFilters.add(user_diagnose_fix_attachments)
+                        userFilters.add(user_fix_non_hier_sec_acct_txns)
+                        userFilters.add(user_fix_delete_one_sided_txns)
+                        userFilters.add(user_reverse_txn_amounts)
+                        userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
+                        userFilters.add(user_detect_fix_txns_assigned_root)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -27972,7 +27973,7 @@ now after saving the file, restart Moneydance
                         user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,350)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 850, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Transaction(s) Diagnostics, Tools, Fixes",
@@ -28105,9 +28106,6 @@ now after saving the file, restart Moneydance
                     user_reset_window_display_settings.setEnabled(GlobalVars.UPDATE_MODE and GlobalVars.i_am_an_extension_so_run_headless)
                     user_reset_window_display_settings.setForeground(getColorRed())
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
                     userFilters = JPanel(GridLayout(0, 1))
 
                     bg = ButtonGroup()
@@ -28134,7 +28132,8 @@ now after saving the file, restart Moneydance
                     bg.add(user_delete_orphan_extensions)
                     bg.clearSelection()
 
-                    userFilters.add(JLabel(" "))
+                    rowHeight = 23
+                    rows = 10
                     userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
                     userFilters.add(user_display_passwords)
                     userFilters.add(user_view_searchable_console_log)
@@ -28146,23 +28145,22 @@ now after saving the file, restart Moneydance
                     # userFilters.add(user_find_sync_password_in_ios_backups)
                     userFilters.add(user_import_QIF)
                     userFilters.add(user_convert_timestamp)
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                    if not GlobalVars.UPDATE_MODE:
-                        userFilters.add(labelFYI2)
-
-                    userFilters.add(user_reset_window_display_settings)
-                    userFilters.add(user_close_dataset)
-                    userFilters.add(user_rename_dataset)
-                    userFilters.add(user_relocate_dataset_internal)
-                    userFilters.add(user_relocate_dataset_external)
-                    userFilters.add(user_cleanup_external_files)
-                    userFilters.add(user_advanced_delete_int_ext_files)
-                    userFilters.add(user_remove_inactive_from_sidebar)
-                    userFilters.add(user_change_moneydance_fonts)
-                    userFilters.add(user_delete_custom_theme_file)
-                    userFilters.add(user_delete_orphan_extensions)
+                    if GlobalVars.UPDATE_MODE:
+                        rows += 13
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                        userFilters.add(user_reset_window_display_settings)
+                        userFilters.add(user_close_dataset)
+                        userFilters.add(user_rename_dataset)
+                        userFilters.add(user_relocate_dataset_internal)
+                        userFilters.add(user_relocate_dataset_external)
+                        userFilters.add(user_cleanup_external_files)
+                        userFilters.add(user_advanced_delete_int_ext_files)
+                        userFilters.add(user_remove_inactive_from_sidebar)
+                        userFilters.add(user_change_moneydance_fonts)
+                        userFilters.add(user_delete_custom_theme_file)
+                        userFilters.add(user_delete_orphan_extensions)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -28173,7 +28171,7 @@ now after saving the file, restart Moneydance
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,550,600)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 550, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "General Diagnostics, Tools, Fixes",
@@ -28226,9 +28224,18 @@ now after saving the file, restart Moneydance
             def actionPerformed(self, event):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-                # if not GlobalVars.ADVANCED_MODE: return
-
                 try:
+                    if not GlobalVars.ADVANCED_MODE:
+                        MyPopUpDialogBox(toolbox_frame_,
+                                         theStatus="ALERT: ADVANCED MODE has not been activated!",
+                                         theMessage="To enable 'Advanced Mode', click 'TOOLBOX Options'"
+                                                    "...on the Toolbox menu bar (top left)...",
+                                         theTitle="ALERT",
+                                         OKButtonText="ACKNOWLEDGE",
+                                         lAlertLevel=1,
+                                         lModal=False).go()
+                        return
+
                     user_ofx_features = JRadioButton("OFX/MD+ Advanced Mode Options appear in 'MENU: Online Banking Tools'...", False)
                     user_ofx_features.setEnabled(False)
 
@@ -28341,12 +28348,8 @@ now after saving the file, restart Moneydance
                     bg.add(user_advanced_suppress_dropbox_warning)
                     bg.clearSelection()
 
-                    if not GlobalVars.ADVANCED_MODE:
-                        jlbl = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
-                        jlbl.setForeground(getColorRed())
-                        userFilters.add(jlbl)
-                    else:
-                        userFilters.add(JLabel(" "))
+                    rowHeight = 23
+                    rows = 21
                     userFilters.add(JLabel("--- READONLY / NON-UPDATE FUNCTIONS ---"))
                     userFilters.add(user_advanced_toggle_DEBUG)
                     userFilters.add(user_advanced_toggle_other_DEBUGs)
@@ -28387,7 +28390,7 @@ now after saving the file, restart Moneydance
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters,850,500)
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 850, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "ADVANCED - Diagnostics, Tools, Fixes",
