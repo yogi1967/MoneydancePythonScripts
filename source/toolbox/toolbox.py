@@ -141,7 +141,7 @@
 # build: 1056 - New feature: 'DIAG: Produce report of Accounts and bank/account number information'
 # build: 1056 - Added startup check for accounts that have both OFX AND md+ connections configured...
 # build: 1056 - DECOMMISSIONED find_IOS_sync_data() as py file too large...
-# build: 1056 - Added SwingTimer Blinking JMenuItem for Toolbox Options....; Changed menus to hide options when update/advanced modes not enabled...
+# build: 1056 - Added SwingTimer Blinking JMenuItem for Toolbox Options....; Changed menus to popup alerts when update/advanced modes not enabled...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -457,7 +457,7 @@ else:
     from java.io import ByteArrayInputStream, OutputStream, InputStream, BufferedOutputStream
     from java.net import URL, URLEncoder, URLDecoder                                                                        # noqa
     from java.awt import GraphicsEnvironment, Rectangle, GraphicsDevice, Desktop, Event, GridBagConstraints, Window, Frame  # noqa
-    from java.awt.event import ComponentAdapter, ItemListener, ItemEvent, HierarchyListener, ActionListener                 # noqa
+    from java.awt.event import ComponentAdapter, ItemListener, ItemEvent, HierarchyListener, ActionListener, MouseAdapter   # noqa
     from java.util import UUID, Timer, TimerTask, Map, HashMap, Vector
     from java.util.zip import ZipInputStream, ZipEntry, ZipOutputStream
     from java.nio.charset import StandardCharsets
@@ -557,6 +557,7 @@ else:
 
     GlobalVars.UPDATE_MODE = False                                                                                      # Previously Advanced Mode
     GlobalVars.ADVANCED_MODE = False                                                                                    # Previously Hacker Mode
+    GlobalVars.globalShowDisabledMenuItems = True       # set to False to hide menu items when Update / Advanced mode disabled
 
     GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
     GlobalVars.Strings.MD_KEY_ASOF_PREF = "gen.rec_asof_enabled"
@@ -11107,19 +11108,13 @@ Visit: %s (Author's site)
 
         userFilters = JPanel(GridLayout(0, 1))
 
-        bg = ButtonGroup()
-        bg.add(user_clearOneServiceAuthCache)
-        bg.add(user_clearAllServicesAuthCache)
-        bg.add(user_editSetupMultipleUserIDs)
-        bg.add(user_editStoredOFXPasswords)
-        bg.add(user_manualEditOfRootUserIDs)
-        bg.clearSelection()
-
         userFilters.add(user_clearOneServiceAuthCache)
         userFilters.add(user_clearAllServicesAuthCache)
         userFilters.add(user_editSetupMultipleUserIDs)
         userFilters.add(user_editStoredOFXPasswords)
         userFilters.add(user_manualEditOfRootUserIDs)
+
+        setupMenuRadioButtons(userFilters)
 
         while True:
             options = ["EXIT", "PROCEED"]
@@ -26488,6 +26483,45 @@ now after saving the file, restart Moneydance
         if not SwingUtilities.isEventDispatchThread(): SwingUtilities.invokeLater(DisableToolboxButtonsRunnable())
         else: DisableToolboxButtonsRunnable().run()
 
+    class MenuJRadioButton(JRadioButton):
+        def __init__(self, *args, **kwargs):
+            self.updateMenuItem = kwargs.pop("updateMenu", False)
+            self.advancedMenuItem = kwargs.pop("advancedMenu", False)
+            self.secondaryEnabledCondition = kwargs.pop("secondaryEnabled", True)
+            super(self.__class__, self).__init__(*args, **kwargs)
+            if self.isUpdateMenuItem(): self.setEnabled(GlobalVars.UPDATE_MODE and self.secondaryEnabledCondition)
+            elif self.isAdvancedMenuItem(): self.setEnabled(GlobalVars.ADVANCED_MODE and self.secondaryEnabledCondition)
+            else: self.setEnabled(self.secondaryEnabledCondition)
+        def isUpdateMenuItem(self): return self.updateMenuItem
+        def isAdvancedMenuItem(self): return self.advancedMenuItem
+
+    class DisabledButtonMouseAdapter(MouseAdapter):
+        def __init__(self): pass
+        def mouseClicked(self, event):
+            jrb = event.getSource()
+            if not isinstance(jrb, MenuJRadioButton) or jrb.isEnabled(): return
+            if ((jrb.isUpdateMenuItem() and not GlobalVars.UPDATE_MODE) or (jrb.isAdvancedMenuItem() and not GlobalVars.ADVANCED_MODE)):
+                if jrb.isUpdateMenuItem():
+                    txt = "Update"
+                else:
+                    txt = "Advanced"
+                myPopupInformationBox(SwingUtilities.getWindowAncestor(jrb), "OPTION DISABLED - Enable 'Toolbox Options' %s Mode first!" %(txt), "ALERT", JOptionPane.WARNING_MESSAGE)
+            else:
+                myPopupInformationBox(SwingUtilities.getWindowAncestor(jrb), "OPTION DISABLED - Feature NOT allowed at this time...", "ALERT", JOptionPane.WARNING_MESSAGE)
+
+
+    def setupMenuRadioButtons(componentHoldingRBs):
+        dma = DisabledButtonMouseAdapter()
+        _bg = ButtonGroup()
+        for jrb in componentHoldingRBs.getComponents():
+            if isinstance(jrb, JRadioButton): _bg.add(jrb)
+            if isinstance(jrb, MenuJRadioButton):
+                jrb.addMouseListener(dma)
+                if jrb.isUpdateMenuItem() or jrb.isAdvancedMenuItem():
+                    jrb.setForeground(getColorRed())
+        _bg.clearSelection()
+        return _bg
+
     class DiagnosticDisplay(PreferencesListener):
 
         def __init__(self):
@@ -26716,149 +26750,89 @@ now after saving the file, restart Moneydance
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 try:
-                    user_UNLOCKMDPlusDiagnostic = JRadioButton("UNLOCKED - Moneydance+ Diagnostics (READONLY)", False)
+                    user_UNLOCKMDPlusDiagnostic = MenuJRadioButton("UNLOCKED - Moneydance+ Diagnostics (READONLY)", False, secondaryEnabled=(isToolboxUnlocked() and isMDPlusEnabledBuild()))
                     user_UNLOCKMDPlusDiagnostic.setToolTipText("When Toolbox is unlocked, will display extra MD+ Diagnostics - DO NOT SHARE WITH OTHERS!")
-                    user_UNLOCKMDPlusDiagnostic.setEnabled(isToolboxUnlocked() and isMDPlusEnabledBuild())
-                    # user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().futureTxnIndicator)
                     user_UNLOCKMDPlusDiagnostic.setForeground(MD_REF.getUI().getColors().accountIconTint)
 
-                    user_online_banking_view_configuration_data = JRadioButton("View online banking configuration / connection data (OFX/DC and MD+) - VERY USEFUL, START HERE!", False)
+                    user_online_banking_view_configuration_data = MenuJRadioButton("View online banking configuration / connection data (OFX/DC and MD+) - VERY USEFUL, START HERE!", False)
                     user_online_banking_view_configuration_data.setToolTipText("This will display all the stored setup data relating to your online banking configurations (OFX and MD+)")
 
-                    user_searchOFXData = JRadioButton("Search for stored OFX/MD+ related data", False)
+                    user_searchOFXData = MenuJRadioButton("Search for stored OFX/MD+ related data", False)
                     user_searchOFXData.setToolTipText("This searches for Online Banking (OFX/DC & MD+) related setup information in most places...")
 
-                    user_viewListALLMDServices = JRadioButton("View list of MD's Bank dynamic OFX/DC setup profiles (then select one)", False)
+                    user_viewListALLMDServices = MenuJRadioButton("View list of MD's Bank dynamic OFX/DC setup profiles (then select one)", False)
                     user_viewListALLMDServices.setToolTipText("This will display Moneydance's dynamic setup profiles for all banks - pulled from Infinite Kind's website..")
 
-                    user_view_CUSIP_settings = JRadioButton("View your Security's hidden CUSIP settings (The link between your Bank's Securities & MD Securities)", False)
+                    user_view_CUSIP_settings = MenuJRadioButton("View your Security's hidden CUSIP settings (The link between your Bank's Securities & MD Securities)", False)
                     user_view_CUSIP_settings.setToolTipText("This will show your Security's hidden CUSIP settings. These link your downloads on Investment Securities to MD Securities")
 
-                    user_viewOnlineTxnsPayeesPayments = JRadioButton("View your Online Txns/Payees/Payments", False)
+                    user_viewOnlineTxnsPayeesPayments = MenuJRadioButton("View your Online Txns/Payees/Payments", False)
                     user_viewOnlineTxnsPayeesPayments.setToolTipText("This will show you your cached Online Txns (there should be none) and also your saved online payees and payments")
 
-                    user_viewAllLastTxnDownloadDates = JRadioButton("View all your OFX last download txn dates (for all accounts)", False)
+                    user_viewAllLastTxnDownloadDates = MenuJRadioButton("View all your OFX last download txn dates (for all accounts)", False)
                     user_viewAllLastTxnDownloadDates.setToolTipText("View all your OFX last download txn dates (across all accounts)")
 
-                    user_viewReconcileAsOfDates = JRadioButton("View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)", False)
+                    user_viewReconcileAsOfDates = MenuJRadioButton("View your active accounts' calculated reconcile window auto 'as of' dates (Bank/Credit Cards/Investment)", False)
                     user_viewReconcileAsOfDates.setToolTipText("Displays how the reconcile as_of date is calculated for your active accounts")
 
-                    user_forgetOFXBankingLink = JRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False)
+                    user_forgetOFXBankingLink = MenuJRadioButton("Forget OFX Banking File Import Link (remove_ofx_account_bindings.py) (MD versions < MD2022)", False, updateMenu=True, secondaryEnabled=(not isMDPlusEnabledBuild() or isToolboxUnlocked()))
                     user_forgetOFXBankingLink.setToolTipText("Force MD to forget OFX Banking Import link attributed to an Account. Moneydance will ask you to recreate the link on next import.. THIS CHANGES DATA! (remove_ofx_account_bindings.py)")
-                    user_forgetOFXBankingLink.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
-                    user_forgetOFXBankingLink.setForeground(getColorRed())
 
-                    user_manageCUSIPLink = JRadioButton("Reset/Fix/Edit/Add CUSIP Banking Link (remove_ofx_security_bindings.py)", False)
+                    user_manageCUSIPLink = MenuJRadioButton("Reset/Fix/Edit/Add CUSIP Banking Link (remove_ofx_security_bindings.py)", False, updateMenu=True)
                     user_manageCUSIPLink.setToolTipText("Allows you to reset/add/edit/move your CUSIP banking link between security records. THIS CHANGES DATA! (remove_ofx_security_bindings.py)")
-                    user_manageCUSIPLink.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_manageCUSIPLink.setForeground(getColorRed())
 
-                    user_updateOFXLastTxnUpdate = JRadioButton("Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False)
+                    user_updateOFXLastTxnUpdate = MenuJRadioButton("Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False, updateMenu=True)
                     user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download txn date which is used to set the start date for txn downloads - THIS CHANGES DATA!")
-                    # user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE and (not isMDPlusEnabledBuild() or isToolboxUnlocked()))
-                    user_updateOFXLastTxnUpdate.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_updateOFXLastTxnUpdate.setForeground(getColorRed())
 
-                    user_reset_OFXLastTxnUpdate_dates = JRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)", False)
+                    user_reset_OFXLastTxnUpdate_dates = MenuJRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)", False, updateMenu=True, secondaryEnabled=(isMulti_OFXLastTxnUpdate_build()))
                     user_reset_OFXLastTxnUpdate_dates.setToolTipText("Allows you to reset ALL the last download txn dates used to set the start date for txn downloads (4074 onwards) - THIS CHANGES DATA!")
-                    user_reset_OFXLastTxnUpdate_dates.setEnabled(GlobalVars.UPDATE_MODE and isMulti_OFXLastTxnUpdate_build())
-                    user_reset_OFXLastTxnUpdate_dates.setForeground(getColorRed())
 
-                    user_deleteOFXBankingLogonProfile = JRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False)
+                    user_deleteOFXBankingLogonProfile = MenuJRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False, updateMenu=True)
                     user_deleteOFXBankingLogonProfile.setToolTipText("This will allow you to delete an Online Banking logon / service profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA! (remove_one_service.py)")
-                    user_deleteOFXBankingLogonProfile.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_deleteOFXBankingLogonProfile.setForeground(getColorRed())
 
-                    user_cleanupMissingOnlineBankingLinks = JRadioButton("Cleanup missing Online Banking Links", False)
+                    user_cleanupMissingOnlineBankingLinks = MenuJRadioButton("Cleanup missing Online Banking Links", False, updateMenu=True)
                     user_cleanupMissingOnlineBankingLinks.setToolTipText("This Cleans up missing Online Banking Links - NOTE: Always called when 'Delete OFX Banking Service / Logon Profile' is run. THIS CHANGES DATA!")
-                    user_cleanupMissingOnlineBankingLinks.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_cleanupMissingOnlineBankingLinks.setForeground(getColorRed())
 
-                    user_authenticationManagement = JRadioButton("OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)", False)
+                    user_authenticationManagement = MenuJRadioButton("OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)", False, updateMenu=True)
                     user_authenticationManagement.setToolTipText("Brings up the sub menu. Allows you to clear your authentication cache (single or all) and edit user IDs/ClientUIDs. THIS CAN CHANGE DATA!")
-                    user_authenticationManagement.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_authenticationManagement.setForeground(getColorRed())
 
-                    user_deleteOnlineTxns = JRadioButton("Delete Single cached OnlineTxnList Record/Txns", False)
+                    user_deleteOnlineTxns = MenuJRadioButton("Delete Single cached OnlineTxnList Record/Txns", False, updateMenu=True)
                     user_deleteOnlineTxns.setToolTipText("Allows you to surgically remove your cached Online Txn List txns - THESE SHOULD NOT BE HERE! THIS CHANGES DATA!")
-                    user_deleteOnlineTxns.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_deleteOnlineTxns.setForeground(getColorRed())
 
-                    user_deleteALLOnlineTxns = JRadioButton("Delete ALL cached OnlineTxnList Record/Txns (delete_intermediate_downloaded_transaction_caches.py)", False)
+                    user_deleteALLOnlineTxns = MenuJRadioButton("Delete ALL cached OnlineTxnList Record/Txns (delete_intermediate_downloaded_transaction_caches.py)", False, updateMenu=True)
                     user_deleteALLOnlineTxns.setToolTipText("Purges/cleans any/all your cached Online Txn List records / txns - THERE SHOULD BE NONE! VERY SAFE TO RUN! THIS CHANGES DATA! (delete_intermediate_downloaded_transaction_caches.py)")
-                    user_deleteALLOnlineTxns.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_deleteALLOnlineTxns.setForeground(getColorRed())
 
-                    user_cookieManagement = JRadioButton("OFX Cookie Management", False)
+                    user_cookieManagement = MenuJRadioButton("OFX Cookie Management", False, advancedMenu=True)
                     user_cookieManagement.setToolTipText("Brings up the sub menu. Allows you to manage your OFX cookies - THIS CAN CHANGE DATA!")
-                    user_cookieManagement.setEnabled(GlobalVars.ADVANCED_MODE)
-                    user_cookieManagement.setForeground(getColorRed())
 
-                    user_forceMDPlusNameCacheAccessTokensRebuild = JRadioButton("Force MD+ name cache & access tokens rebuild", False)
+                    user_forceMDPlusNameCacheAccessTokensRebuild = MenuJRadioButton("Force MD+ name cache & access tokens rebuild", False, advancedMenu=True)
                     user_forceMDPlusNameCacheAccessTokensRebuild.setToolTipText("Wipes your internal MD+ cached bank names and access tokens. These should rebuild themselves. THIS CHANGES DATA!")
-                    user_forceMDPlusNameCacheAccessTokensRebuild.setEnabled(GlobalVars.ADVANCED_MODE)
-                    user_forceMDPlusNameCacheAccessTokensRebuild.setForeground(getColorRed())
 
-                    user_forceDisconnectMDPlusConnection = JRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE)", False)
+                    user_forceDisconnectMDPlusConnection = MenuJRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE)", False, advancedMenu=True, secondaryEnabled=(isMDPlusGetPlaidClientEnabledBuild()))
                     user_forceDisconnectMDPlusConnection.setToolTipText("Attempts to force disconnect and MD+ connection. THIS CHANGES DATA!")
-                    user_forceDisconnectMDPlusConnection.setEnabled(GlobalVars.ADVANCED_MODE and isMDPlusGetPlaidClientEnabledBuild())
-                    user_forceDisconnectMDPlusConnection.setForeground(getColorRed())
 
-                    user_export_MDPlus_LicenseObject = JRadioButton("Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant')", False)
+                    user_export_MDPlus_LicenseObject = MenuJRadioButton("Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant')", False, advancedMenu=True)
                     user_export_MDPlus_LicenseObject.setToolTipText("This will Export your stored Moneydance+ (Plaid) license (keys) etc to a file (for 'transplant'). READONLY")
-                    user_export_MDPlus_LicenseObject.setEnabled(GlobalVars.ADVANCED_MODE)
-                    user_export_MDPlus_LicenseObject.setForeground(getColorRed())
 
-                    user_import_MDPlus_LicenseObject = JRadioButton("Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox)", False)
+                    user_import_MDPlus_LicenseObject = MenuJRadioButton("Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox)", False, advancedMenu=True)
                     user_import_MDPlus_LicenseObject.setToolTipText("This will Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file exported by Toolbox. THIS CHANGES DATA!")
-                    user_import_MDPlus_LicenseObject.setEnabled(GlobalVars.ADVANCED_MODE)
-                    user_import_MDPlus_LicenseObject.setForeground(getColorRed())
 
-                    user_zapMDPlusProfile = JRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False)
+                    user_zapMDPlusProfile = MenuJRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False, advancedMenu=True, secondaryEnabled=(not isMDPlusLicenseActivated() or isToolboxUnlocked()))
                     user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys (including banking links) etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
-                    user_zapMDPlusProfile.setEnabled((GlobalVars.ADVANCED_MODE) and (not isMDPlusLicenseActivated() or isToolboxUnlocked()))
-                    user_zapMDPlusProfile.setForeground(getColorRed())
 
-                    user_manuallyPrimeUSAARootUserIDClientIDs = JRadioButton("USAA ONLY: (NEW METHOD) Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False)
+                    user_manuallyPrimeUSAARootUserIDClientIDs = MenuJRadioButton("USAA ONLY: (NEW METHOD) Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False, updateMenu=True)
                     user_manuallyPrimeUSAARootUserIDClientIDs.setToolTipText("USAA Only: Allows you to 'prime' / overwrite stored UserIDs/ClientUIDs for USSA")
-                    user_manuallyPrimeUSAARootUserIDClientIDs.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_manuallyPrimeUSAARootUserIDClientIDs.setForeground(getColorRed())
 
-                    user_createUSAAProfile = JRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False)
+                    user_createUSAAProfile = MenuJRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False, updateMenu=True)
                     user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
-                    user_createUSAAProfile.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_createUSAAProfile.setForeground(getColorRed())
+
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
+
+                    labelFYI3 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
+                    labelFYI3.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
-
-                    bg = ButtonGroup()
-                    bg.add(user_forgetOFXBankingLink)
-                    bg.add(user_deleteOFXBankingLogonProfile)
-                    bg.add(user_cleanupMissingOnlineBankingLinks)
-                    bg.add(user_manageCUSIPLink)
-                    bg.add(user_searchOFXData)
-                    bg.add(user_UNLOCKMDPlusDiagnostic)
-                    bg.add(user_online_banking_view_configuration_data)
-                    bg.add(user_view_CUSIP_settings)
-                    bg.add(user_viewOnlineTxnsPayeesPayments)
-                    bg.add(user_viewAllLastTxnDownloadDates)
-                    bg.add(user_viewReconcileAsOfDates)
-                    bg.add(user_cookieManagement)
-                    bg.add(user_forceMDPlusNameCacheAccessTokensRebuild)
-                    bg.add(user_forceDisconnectMDPlusConnection)
-                    bg.add(user_export_MDPlus_LicenseObject)
-                    bg.add(user_import_MDPlus_LicenseObject)
-                    bg.add(user_zapMDPlusProfile)
-                    bg.add(user_authenticationManagement)
-                    bg.add(user_deleteOnlineTxns)
-                    bg.add(user_deleteALLOnlineTxns)
-                    bg.add(user_manuallyPrimeUSAARootUserIDClientIDs)
-                    bg.add(user_createUSAAProfile)
-                    bg.add(user_updateOFXLastTxnUpdate)
-                    bg.add(user_reset_OFXLastTxnUpdate_dates)
-                    bg.add(user_viewListALLMDServices)
-                    # bg.add(user_toggleOFXDebug)
-                    bg.clearSelection()
 
                     rowHeight = 23
                     rows = 8
@@ -26877,10 +26851,13 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_viewReconcileAsOfDates)
                     # userFilters.add(user_toggleOFXDebug)
 
-                    if GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
                         rows += 11
                         userFilters.add(JLabel(" "))
                         userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                        if not GlobalVars.UPDATE_MODE:
+                            rows += 1
+                            userFilters.add(labelFYI2)
 
                         userFilters.add(user_forgetOFXBankingLink)
                         userFilters.add(user_manageCUSIPLink)
@@ -26892,10 +26869,14 @@ now after saving the file, restart Moneydance
                         userFilters.add(user_deleteOnlineTxns)
                         userFilters.add(user_deleteALLOnlineTxns)
 
-                    if GlobalVars.ADVANCED_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.ADVANCED_MODE:
                         rows += 3
                         userFilters.add(JLabel(" "))
                         userFilters.add(JLabel("---- ADVANCED MODE ONLY -----"))
+                        if not GlobalVars.ADVANCED_MODE:
+                            rows += 1
+                            userFilters.add(labelFYI3)
+
                         userFilters.add(user_cookieManagement)
 
                         if isMDPlusEnabledBuild():
@@ -26906,18 +26887,20 @@ now after saving the file, restart Moneydance
                             userFilters.add(user_import_MDPlus_LicenseObject)
                             userFilters.add(user_zapMDPlusProfile)
 
-                    if GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
                         rows += 4
                         userFilters.add(JLabel(" "))
                         userFilters.add(JLabel("---- USAA ONLY (Update Mode)-----"))
                         userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
                         userFilters.add(user_createUSAAProfile)
 
+                    bg = setupMenuRadioButtons(userFilters)
+
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters, 775, (rowHeight * rows))
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 875, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Online Banking Tools",
@@ -27425,80 +27408,52 @@ now after saving the file, restart Moneydance
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 try:
-                    user_view_check_number_settings = JRadioButton("View Check Number Settings", False)
+                    user_view_check_number_settings = MenuJRadioButton("View Check Number Settings", False)
                     user_view_check_number_settings.setToolTipText("View the Check Number settings that will display in the Transaction Register")
 
-                    user_force_change_accounts_currency = JRadioButton("FIX: FORCE Change an Account's / Category's Currency (force_change_account_currency.py)", False)
+                    user_force_change_accounts_currency = MenuJRadioButton("FIX: FORCE Change an Account's / Category's Currency (force_change_account_currency.py)", False, updateMenu=True)
                     user_force_change_accounts_currency.setToolTipText("This allows you to FORCE change an Account's / Category's currency - USE WITH CARE!.. THIS CHANGES DATA! (force_change_account_currency.py)")
-                    user_force_change_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_force_change_accounts_currency.setForeground(getColorRed())
 
-                    user_force_change_all_accounts_cats_currency = JRadioButton("FIX: FORCE Change ALL Accounts' / Categories' Currencies (force_change_all_currencies.py)", False)
+                    user_force_change_all_accounts_cats_currency = MenuJRadioButton("FIX: FORCE Change ALL Accounts' / Categories' Currencies (force_change_all_currencies.py)", False, updateMenu=True)
                     user_force_change_all_accounts_cats_currency.setToolTipText("This allows you to FORCE change ALL Accounts' / Categories' Currencies - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
-                    user_force_change_all_accounts_cats_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_force_change_all_accounts_cats_currency.setForeground(getColorRed())
 
-                    user_force_change_accounts_cats_from_to_currency = JRadioButton("FIX: FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency", False)
+                    user_force_change_accounts_cats_from_to_currency = MenuJRadioButton("FIX: FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency", False, updateMenu=True)
                     user_force_change_accounts_cats_from_to_currency.setToolTipText("This allows you to FORCE change Accounts / Categories [& Securities] from one currency to another - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
-                    user_force_change_accounts_cats_from_to_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_force_change_accounts_cats_from_to_currency.setForeground(getColorRed())
 
-                    user_force_change_an_accounts_type = JRadioButton("FIX: FORCE Change an Account's Type (set_account_type.py)", False)
+                    user_force_change_an_accounts_type = MenuJRadioButton("FIX: FORCE Change an Account's Type (set_account_type.py)", False, updateMenu=True)
                     user_force_change_an_accounts_type.setToolTipText("This allows you to FORCE change an Account's Type - USE WITH CARE!.. THIS CHANGES DATA! (set_account_type.py)")
-                    user_force_change_an_accounts_type.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_force_change_an_accounts_type.setForeground(getColorRed())
 
-                    user_view_zero_bal_cats = JRadioButton("DIAG: Categories and Balances Report", False)
+                    user_view_zero_bal_cats = MenuJRadioButton("DIAG: Categories and Balances Report", False)
                     user_view_zero_bal_cats.setToolTipText("This will list all your Categories and show which have Zero Balances - USE UPDATE MODE TO MAKE THESE INACTIVE")
 
-                    user_inactivate_zero_bal_cats = JRadioButton("FIX: Make Zero Balance Categories Inactive", False)
+                    user_inactivate_zero_bal_cats = MenuJRadioButton("FIX: Make Zero Balance Categories Inactive", False, updateMenu=True)
                     user_inactivate_zero_bal_cats.setToolTipText("This will allow you Inactivate all Categories with Zero Balances (you will see the report first). THIS CHANGES DATA!")
-                    user_inactivate_zero_bal_cats.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_inactivate_zero_bal_cats.setForeground(getColorRed())
 
-                    user_reportAccountNumbers = JRadioButton("DIAG: Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
+                    user_reportAccountNumbers = MenuJRadioButton("DIAG: Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
                     user_reportAccountNumbers.setToolTipText("This produces a report of bank accounts along with account & sort numbers etc... ")
 
-                    user_view_shouldBeIncludedInNetWorth_settings = JRadioButton("DIAG: View Accounts' shouldBeIncludedInNetWorth() settings...", False)
+                    user_view_shouldBeIncludedInNetWorth_settings = MenuJRadioButton("DIAG: View Accounts' shouldBeIncludedInNetWorth() settings...", False)
                     user_view_shouldBeIncludedInNetWorth_settings.setToolTipText("This will list all Accounts/Categories and the shouldBeIncludedInNetWorth() setting - USE UPDATE MODE TO EDIT")
 
-                    user_edit_shouldBeIncludedInNetWorth_settings = JRadioButton("FIX: Edit an Account's shouldBeIncludedInNetWorth() setting", False)
+                    user_edit_shouldBeIncludedInNetWorth_settings = MenuJRadioButton("FIX: Edit an Account's shouldBeIncludedInNetWorth() setting", False, updateMenu=True)
                     user_edit_shouldBeIncludedInNetWorth_settings.setToolTipText("This will allow you to edit an Account's shouldBeIncludedInNetWorth() setting. THIS CHANGES DATA!")
-                    user_edit_shouldBeIncludedInNetWorth_settings.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_edit_shouldBeIncludedInNetWorth_settings.setForeground(getColorRed())
 
-                    user_fix_accounts_parent = JRadioButton("FIX: Account's Invalid Parent Account (fix_account_parent.py)", False)
+                    user_fix_accounts_parent = MenuJRadioButton("FIX: Account's Invalid Parent Account (fix_account_parent.py)", False, updateMenu=True)
                     user_fix_accounts_parent.setToolTipText("This will diagnose your Parent Accounts and fix if invalid. THIS CHANGES DATA! (fix_account_parent.py)")
-                    user_fix_accounts_parent.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_accounts_parent.setForeground(getColorRed())
 
                     bookName = MD_REF.getCurrentAccountBook().getName().strip()
                     root = MD_REF.getCurrentAccountBook().getRootAccount()
                     rootName = root.getAccountName().strip()
-                    user_fix_root_account_name = JRadioButton("FIX: Correct Root Account Name (Only enabled if the name is incorrect)", False)
+                    user_fix_root_account_name = MenuJRadioButton("FIX: Correct Root Account Name (Only enabled if the name is incorrect)", False, updateMenu=True, secondaryEnabled=(rootName != bookName))
                     user_fix_root_account_name.setToolTipText("This allows you to change the (nearly) hidden Master/Parent Account Name in Moneydance (referred to as ROOT) to match the name of your Dataset (referred to as BOOK). THIS CHANGES DATA!")
-                    user_fix_root_account_name.setEnabled(GlobalVars.UPDATE_MODE and (rootName != bookName))
-                    user_fix_root_account_name.setForeground(getColorRed())
+
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
 
                     labelFYI_curr_fix = JLabel("       ** disabled when a serious currency/security issue has been detected **")
                     labelFYI_curr_fix.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
-
-                    bg = ButtonGroup()
-                    bg.add(user_view_check_number_settings)
-                    bg.add(user_view_zero_bal_cats)
-                    bg.add(user_inactivate_zero_bal_cats)
-                    bg.add(user_reportAccountNumbers)
-                    bg.add(user_view_shouldBeIncludedInNetWorth_settings)
-                    bg.add(user_edit_shouldBeIncludedInNetWorth_settings)
-                    bg.add(user_force_change_an_accounts_type)
-                    bg.add(user_force_change_accounts_currency)
-                    bg.add(user_force_change_all_accounts_cats_currency)
-                    bg.add(user_force_change_accounts_cats_from_to_currency)
-                    bg.add(user_fix_accounts_parent)
-                    bg.add(user_fix_root_account_name)
-                    bg.clearSelection()
 
                     rowHeight = 23
                     rows = 5
@@ -27509,10 +27464,15 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_reportAccountNumbers)
                     userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
 
-                    if GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
                         rows += 10
                         userFilters.add(JLabel(" "))
                         userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+
+                        if not GlobalVars.UPDATE_MODE:
+                            rows += 1
+                            userFilters.add(labelFYI2)
+
                         userFilters.add(user_inactivate_zero_bal_cats)
                         userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
                         userFilters.add(user_force_change_an_accounts_type)
@@ -27521,6 +27481,8 @@ now after saving the file, restart Moneydance
                         userFilters.add(user_force_change_accounts_cats_from_to_currency)
                         userFilters.add(user_fix_accounts_parent)
                         userFilters.add(user_fix_root_account_name)
+
+                    bg = setupMenuRadioButtons(userFilters)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -27534,7 +27496,7 @@ now after saving the file, restart Moneydance
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters, 900, (rowHeight * rows))
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 950, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "Accounts / Categories Diagnostics, Tools, Fixes",
@@ -27582,143 +27544,85 @@ now after saving the file, restart Moneydance
                 try:
                     lAlertPopupShown = False
 
-                    user_show_open_share_lots = JRadioButton("DIAG: Show Open Share LOTS (unconsumed) (show_open_tax_lots.py)", False)
+                    user_show_open_share_lots = MenuJRadioButton("DIAG: Show Open Share LOTS (unconsumed) (show_open_tax_lots.py)", False)
                     user_show_open_share_lots.setToolTipText("This will list all Stocks/Shares with Open/Unconsumed LOTS (when LOT Control ON) - READONLY (show_open_tax_lots.py)")
 
-                    user_diagnose_matched_lot_data = JRadioButton("DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)", False)
+                    user_diagnose_matched_lot_data = MenuJRadioButton("DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)", False)
                     user_diagnose_matched_lot_data.setToolTipText("Diagnose LOT matching data and highlights 'invalid' matching (causing LOT matching window to appear) - READONLY")
 
-                    user_convert_stock_lot_FIFO = JRadioButton("FIX: Convert Stock to LOT controlled with FIFO lot matching (MakeFifoCost.py)", False)
+                    user_convert_stock_lot_FIFO = MenuJRadioButton("FIX: Convert Stock to LOT controlled with FIFO lot matching (MakeFifoCost.py)", False, updateMenu=True)
                     user_convert_stock_lot_FIFO.setToolTipText("Convert Average Cost Controlled Stock to LOT Controlled and Allocate LOTs using FiFo method - THIS CHANGES DATA! (MakeFifoCost.py)")
-                    user_convert_stock_lot_FIFO.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_convert_stock_lot_FIFO.setForeground(getColorRed())
 
-                    user_convert_stock_avg_cst_control = JRadioButton("FIX: Convert Stock to Average Cost Control", False)
+                    user_convert_stock_avg_cst_control = MenuJRadioButton("FIX: Convert Stock to Average Cost Control", False, updateMenu=True)
                     user_convert_stock_avg_cst_control.setToolTipText("Convert LOT Controlled Stock to Average Cost Control (and wipe any LOT records) - THIS CHANGES DATA!")
-                    user_convert_stock_avg_cst_control.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_convert_stock_avg_cst_control.setForeground(getColorRed())
 
-                    user_thin_price_history = JRadioButton("FIX: Thin/Purge Price History (price_history_thinner.py)", False)
+                    user_thin_price_history = MenuJRadioButton("FIX: Thin/Purge Price History (price_history_thinner.py)", False, updateMenu=True)
                     user_thin_price_history.setToolTipText("This will allow you to Thin / Prune your Price History based on user parameters. THIS CHANGES DATA! (price_history_thinner.py)")
-                    user_thin_price_history.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_thin_price_history.setForeground(getColorRed())
 
-                    user_fix_nonlinked_security_records = JRadioButton("FIX: Detect and fix Investment Security records not properly linked to Security Master records", False)
+                    user_fix_nonlinked_security_records = MenuJRadioButton("FIX: Detect and fix Investment Security records not properly linked to Security Master records", False, updateMenu=True)
                     user_fix_nonlinked_security_records.setToolTipText("This will scan your Investment Security record and check that it's properly linked to a security master record... Allows you to fix this too")
-                    user_fix_nonlinked_security_records.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_nonlinked_security_records.setForeground(getColorRed())
 
-                    user_fix_invalidLotRecords = JRadioButton("FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid", False)
+                    user_fix_invalidLotRecords = MenuJRadioButton("FIX: Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid", False, updateMenu=True)
                     user_fix_invalidLotRecords.setToolTipText("Scans LOT matching data and detects where matched records are invalid (missing)... Allows you to fix by wiping the LOT data")
-                    user_fix_invalidLotRecords.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_invalidLotRecords.setForeground(getColorRed())
 
-                    user_can_i_delete_security = JRadioButton("DIAG: Can I Delete a Security? (i.e. this is a show where used)", False)
+                    user_can_i_delete_security = MenuJRadioButton("DIAG: Can I Delete a Security? (i.e. this is a show where used)", False)
                     user_can_i_delete_security.setToolTipText("This will tell you whether a Selected Security is in use and whether you can delete it in Moneydance")
 
-                    user_can_i_delete_currency = JRadioButton("DIAG: Can I Delete a Currency?  (i.e. this is a show where used)", False)
+                    user_can_i_delete_currency = MenuJRadioButton("DIAG: Can I Delete a Currency?  (i.e. this is a show where used)", False)
                     user_can_i_delete_currency.setToolTipText("This will tell you whether a Selected Currency is in use and whether you can delete it in Moneydance")
 
-                    user_list_curr_sec_dpc = JRadioButton("DIAG: List Security / Currency (hidden) decimal place settings", False)
+                    user_list_curr_sec_dpc = MenuJRadioButton("DIAG: List Security / Currency (hidden) decimal place settings", False)
                     user_list_curr_sec_dpc.setToolTipText("This will list your Security and Currency hidden decimal place settings (and attempt to advise of setup errors)")
 
-                    user_diag_curr_sec = JRadioButton("DIAG: Diagnose currencies / securities (including relative currencies) (if errors see fix below) (based on reset_relative_currencies.py)", False)
+                    user_diag_curr_sec = MenuJRadioButton("DIAG: Diagnose currencies / securities (including relative currencies) (if errors see fix below) (based on reset_relative_currencies.py)", False)
                     user_diag_curr_sec.setToolTipText("This will diagnose your Currency & Security setup, also checking relative currencies (and advise if you need to run a fix) (reset_relative_currencies.py)")
 
-                    user_diag_price_date = JRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
+                    user_diag_price_date = MenuJRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
                     user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
 
-                    user_edit_security_decimal_places = JRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly)", False)
+                    user_edit_security_decimal_places = MenuJRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly)", False, updateMenu=True, secondaryEnabled=(int(MD_REF.getBuild()) >= 1904))
                     user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
-                    user_edit_security_decimal_places.setEnabled(GlobalVars.UPDATE_MODE and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
-                    user_edit_security_decimal_places.setForeground(getColorRed())
 
-                    user_merge_duplicate_securities = JRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False)
+                    user_merge_duplicate_securities = MenuJRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False, updateMenu=True)
                     user_merge_duplicate_securities.setToolTipText("Scans for 'duplicated' Securities and can merge together.. Tools>Securities>TickerSymbol is key, ID must be different... (Dpc, RelCurr, Rate, Splits must also match)")
-                    user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_merge_duplicate_securities.setForeground(getColorRed())
 
-                    user_fix_duplicate_securities_within_same_investment_account = JRadioButton("FIX: Detect and merge/fix duplicate Securities within same Investment Account(s)", False)
+                    user_fix_duplicate_securities_within_same_investment_account = MenuJRadioButton("FIX: Detect and merge/fix duplicate Securities within same Investment Account(s)", False, updateMenu=True)
                     user_fix_duplicate_securities_within_same_investment_account.setToolTipText("Scans and merges 'duplicated' Securities within the same Investment account(s).. THIS CHANGES DATA!")
-                    user_fix_duplicate_securities_within_same_investment_account.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_duplicate_securities_within_same_investment_account.setForeground(getColorRed())
 
-                    user_autofix_price_date = JRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)", False)
+                    user_autofix_price_date = MenuJRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)", False, updateMenu=True)
                     user_autofix_price_date.setToolTipText("This will diagnose then fix your Currency & Security's current price hidden price_date field (and current price/rate)....")
-                    user_autofix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_autofix_price_date.setForeground(getColorRed())
 
-                    user_fix_price_date = JRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field", False)
+                    user_fix_price_date = MenuJRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field", False, updateMenu=True)
                     user_fix_price_date.setToolTipText("Allows you to manually edit a Currency / Security's current price hidden 'price_date' field....")
-                    user_fix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_price_date.setForeground(getColorRed())
 
-                    user_fix_curr_sec = JRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False)
+                    user_fix_curr_sec = MenuJRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False, updateMenu=True, secondaryEnabled=(GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1))
                     user_fix_curr_sec.setToolTipText("This will apply fixes to your Currency (& security) / Relative Currency setup (use after running the diagnose option first). THIS CHANGES DATA!  (reset_relative_currencies.py)")
-                    user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1)
-                    user_fix_curr_sec.setForeground(getColorRed())
 
-                    user_fix_invalid_curr_sec = JRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates where <= (1.0/9999999999) or >= 9999999999 (fix_invalid_currency_rates.py)", False)
+                    user_fix_invalid_curr_sec = MenuJRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates where <= (1.0/9999999999) or >= 9999999999 (fix_invalid_currency_rates.py)", False, updateMenu=True)
                     user_fix_invalid_curr_sec.setToolTipText("This will reset any relative rates back to 1.0 where <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!  (fix_invalid_currency_rates.py)")
-                    user_fix_invalid_curr_sec.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_invalid_curr_sec.setForeground(getColorRed())
 
-                    user_fix_invalid_price_history = JRadioButton("FIX: Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.", False)
+                    user_fix_invalid_price_history = MenuJRadioButton("FIX: Delete invalid price history records where rate <= (1.0/9999999999) or >= 9999999999.", False, updateMenu=True)
                     user_fix_invalid_price_history.setToolTipText("This will delete and invalid price history records where rate <= (1.0/9999999999) or >= 9999999999. THIS CHANGES DATA!")
-                    user_fix_invalid_price_history.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_invalid_price_history.setForeground(getColorRed())
 
-                    user_force_change_accounts_currency = JRadioButton("FIX: FORCE Change an Account's / Category's Currency (force_change_account_currency.py)", False)
+                    user_force_change_accounts_currency = MenuJRadioButton("FIX: FORCE Change an Account's / Category's Currency (force_change_account_currency.py)", False, updateMenu=True)
                     user_force_change_accounts_currency.setToolTipText("This allows you to FORCE change an Account's / Category's currency - USE WITH CARE!.. THIS CHANGES DATA! (force_change_account_currency.py)")
-                    user_force_change_accounts_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_force_change_accounts_currency.setForeground(getColorRed())
 
-                    user_force_change_all_accounts_cats_currency = JRadioButton("FIX: FORCE Change ALL Accounts' / Categories' Currencies (force_change_all_currencies.py)", False)
+                    user_force_change_all_accounts_cats_currency = MenuJRadioButton("FIX: FORCE Change ALL Accounts' / Categories' Currencies (force_change_all_currencies.py)", False, updateMenu=True)
                     user_force_change_all_accounts_cats_currency.setToolTipText("This allows you to FORCE change ALL Accounts' / Categories' Currencies - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
-                    user_force_change_all_accounts_cats_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_force_change_all_accounts_cats_currency.setForeground(getColorRed())
 
-                    user_force_change_accounts_cats_from_to_currency = JRadioButton("FIX: FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency", False)
+                    user_force_change_accounts_cats_from_to_currency = MenuJRadioButton("FIX: FORCE Change Accounts / Categories [& Securities] FROM Currency TO Currency", False, updateMenu=True)
                     user_force_change_accounts_cats_from_to_currency.setToolTipText("This allows you to FORCE change Accounts / Categories [& Securities] from one currency to another - USE WITH CARE!.. THIS CHANGES DATA! (force_change_all_currencies.py)")
-                    user_force_change_accounts_cats_from_to_currency.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_force_change_accounts_cats_from_to_currency.setForeground(getColorRed())
 
-                    user_toggle_security_zero_shares_inactive = JRadioButton("Toggle investment securities with zero shares status to active/inactive", False)
+                    user_toggle_security_zero_shares_inactive = MenuJRadioButton("Toggle investment securities with zero shares status to active/inactive", False, updateMenu=True)
                     user_toggle_security_zero_shares_inactive.setToolTipText("Allows you toggle securities held in investment accounts with zero shares to inactive - THIS CHANGES DATA!")
-                    user_toggle_security_zero_shares_inactive.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_toggle_security_zero_shares_inactive.setForeground(getColorRed())
+
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
 
                     labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected **")
                     labelFYI_curr_fix.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
-
-                    bg = ButtonGroup()
-                    bg.add(user_fix_invalidLotRecords)
-                    bg.add(user_show_open_share_lots)
-                    bg.add(user_diagnose_matched_lot_data)
-                    bg.add(user_convert_stock_lot_FIFO)
-                    bg.add(user_convert_stock_avg_cst_control)
-                    bg.add(user_fix_nonlinked_security_records)
-                    bg.add(user_thin_price_history)
-                    bg.add(user_can_i_delete_security)
-                    bg.add(user_can_i_delete_currency)
-                    bg.add(user_list_curr_sec_dpc)
-                    bg.add(user_diag_curr_sec)
-                    bg.add(user_diag_price_date)
-                    bg.add(user_edit_security_decimal_places)
-                    bg.add(user_merge_duplicate_securities)
-                    bg.add(user_fix_duplicate_securities_within_same_investment_account)
-                    bg.add(user_autofix_price_date)
-                    bg.add(user_fix_price_date)
-                    bg.add(user_fix_curr_sec)
-                    bg.add(user_fix_invalid_curr_sec)
-                    bg.add(user_fix_invalid_price_history)
-                    bg.add(user_force_change_accounts_currency)
-                    bg.add(user_force_change_all_accounts_cats_currency)
-                    bg.add(user_force_change_accounts_cats_from_to_currency)
-                    bg.add(user_toggle_security_zero_shares_inactive)
-                    bg.clearSelection()
 
                     rowHeight = 23
                     rows = 8
@@ -27732,14 +27636,18 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_diagnose_matched_lot_data)
                     userFilters.add(user_diag_price_date)
 
-                    if GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
                         rows += 15
                         userFilters.add(JLabel(" "))
                         userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
-                        if not isRRateCurrencyIssueFixedBuild():
+                        if not GlobalVars.UPDATE_MODE:
                             rows += 1
-                            userFilters.add(labelFYI_curr_fix)
+                            userFilters.add(labelFYI2)
+                        else:
+                            if not isRRateCurrencyIssueFixedBuild():
+                                rows += 1
+                                userFilters.add(labelFYI_curr_fix)
 
                         userFilters.add(user_fix_curr_sec)
 
@@ -27763,6 +27671,8 @@ now after saving the file, restart Moneydance
                         userFilters.add(user_force_change_all_accounts_cats_currency)
                         userFilters.add(user_force_change_accounts_cats_from_to_currency)
                         userFilters.add(user_toggle_security_zero_shares_inactive)
+
+                    bg = setupMenuRadioButtons(userFilters)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -27873,70 +27783,44 @@ now after saving the file, restart Moneydance
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 try:
-                    user_view_txn_sort = JRadioButton("View Register Transactional Sort Orders", False)
+                    user_view_txn_sort = MenuJRadioButton("View Register Transactional Sort Orders", False)
                     user_view_txn_sort.setToolTipText("Allows you  to view the current transaction register sort orders in operation")
 
-                    user_extract_attachments = JRadioButton("Extract Attachments to Folder", False)
+                    user_extract_attachments = MenuJRadioButton("Extract Attachments to Folder", False)
                     user_extract_attachments.setToolTipText("Extract all your attachments to a folder of your choosing...")
 
-                    user_diagnose_attachments = JRadioButton("DIAG: Diagnose Attachments and detect Orphans too", False)
+                    user_diagnose_attachments = MenuJRadioButton("DIAG: Diagnose Attachments and detect Orphans too", False)
                     user_diagnose_attachments.setToolTipText("This will analise your Attachments, show you the file storage consumed, and detect Orphans/issues")
 
                     syncFolder = None                                                                                       # noqa
                     try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
                     except: syncFolder = False
 
-                    user_diagnose_fix_attachments = JRadioButton("FIX: Diagnose Attachments - DELETE Orphan attachments (** Syncing must be Disabled **)", False)
+                    user_diagnose_fix_attachments = MenuJRadioButton("FIX: Diagnose Attachments - DELETE Orphan attachments (** Syncing must be Disabled **)", False, updateMenu=True, secondaryEnabled=(syncFolder is None))
                     user_diagnose_fix_attachments.setToolTipText("This will analise your Attachments, detect Orphans/issues - AND ALLOW YOU TO DELETE THE ORPHAN ATTACHMENTS")
-                    user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
-                    user_diagnose_fix_attachments.setForeground(getColorRed())
 
-                    # user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions from one account to another (DISABLED >> NOW RUN FROM EXTENSIONS MENU)", False)
-                    user_move_invest_txns = JRadioButton("Move/Merge Investment Transactions >> NOW RUN FROM EXTENSIONS MENU <<", False)
+                    user_move_invest_txns = MenuJRadioButton("Move/Merge Investment Transactions >> NOW RUN FROM EXTENSIONS MENU <<", False, updateMenu=True, secondaryEnabled=(isToolboxUnlocked()))
                     user_move_invest_txns.setToolTipText("This allows you to move your investment transactions from one account into (merges with) another")
-                    user_move_invest_txns.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_move_invest_txns.setForeground(getColorRed())
-                    user_move_invest_txns.setEnabled(isToolboxUnlocked())
 
-                    user_fix_non_hier_sec_acct_txns = JRadioButton("FIX: Non-Hierarchical Security Acct Txns (& detect Orphans) (fix_non-hierarchical_security_account_txns.py)", False)
+                    user_fix_non_hier_sec_acct_txns = MenuJRadioButton("FIX: Non-Hierarchical Security Acct Txns (& detect Orphans) (fix_non-hierarchical_security_account_txns.py)", False, updateMenu=True)
                     user_fix_non_hier_sec_acct_txns.setToolTipText("This reviews your Investment Security Txns and fixes where the Account reference is cross-linked and incorrect (fix_non-hierarchical_security_account_txns.py & fix_investment_txns_to_wrong_security.py)")
-                    user_fix_non_hier_sec_acct_txns.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_non_hier_sec_acct_txns.setForeground(getColorRed())
 
-                    user_fix_delete_one_sided_txns = JRadioButton("FIX: Delete One-Sided Transactions (delete_invalid_txns.py)", False)
+                    user_fix_delete_one_sided_txns = MenuJRadioButton("FIX: Delete One-Sided Transactions (delete_invalid_txns.py)", False, updateMenu=True)
                     user_fix_delete_one_sided_txns.setToolTipText("This allows you to DELETE 'invalid' one-sided transactions - usually from a bad quicken import. THIS CHANGES DATA! (delete_invalid_txns.py)")
-                    user_fix_delete_one_sided_txns.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_fix_delete_one_sided_txns.setForeground(getColorRed())
 
-                    user_reverse_txn_amounts = JRadioButton("FIX: Reverse Transaction Amounts (reverse_txn_amounts.py)", False)
+                    user_reverse_txn_amounts = MenuJRadioButton("FIX: Reverse Transaction Amounts (reverse_txn_amounts.py)", False, updateMenu=True)
                     user_reverse_txn_amounts.setToolTipText("This allows you to REVERSE the transaction values/amounts for an account within a date range. THIS CHANGES DATA! (reverse_txn_amounts.py)")
-                    user_reverse_txn_amounts.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_reverse_txn_amounts.setForeground(getColorRed())
 
-                    user_reverse_txn_exchange_rates_by_account_and_date = JRadioButton("FIX: Reverse Transaction Exchange Rates (reverse_txn_exchange_rates_by_account_and_date)", False)
+                    user_reverse_txn_exchange_rates_by_account_and_date = MenuJRadioButton("FIX: Reverse Transaction Exchange Rates (reverse_txn_exchange_rates_by_account_and_date)", False, updateMenu=True)
                     user_reverse_txn_exchange_rates_by_account_and_date.setToolTipText("This allows you to REVERSE the transactional exchange rates for an account within a date range. THIS CHANGES DATA! (reverse_txn_exchange_rates_by_account_and_date)")
-                    user_reverse_txn_exchange_rates_by_account_and_date.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_reverse_txn_exchange_rates_by_account_and_date.setForeground(getColorRed())
 
-                    user_detect_fix_txns_assigned_root = JRadioButton("FIX: Detect and fix transactions assigned to 'root' account", False)
+                    user_detect_fix_txns_assigned_root = MenuJRadioButton("FIX: Detect and fix transactions assigned to 'root' account", False, updateMenu=True)
                     user_detect_fix_txns_assigned_root.setToolTipText("This detects transactions assigned to 'root' and offers options to display/fix. THIS CHANGES DATA!")
-                    user_detect_fix_txns_assigned_root.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_detect_fix_txns_assigned_root.setForeground(getColorRed())
+
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
-
-                    bg = ButtonGroup()
-                    bg.add(user_view_txn_sort)
-                    bg.add(user_extract_attachments)
-                    bg.add(user_diagnose_attachments)
-                    bg.add(user_diagnose_fix_attachments)
-                    bg.add(user_move_invest_txns)
-                    bg.add(user_fix_non_hier_sec_acct_txns)
-                    bg.add(user_fix_delete_one_sided_txns)
-                    bg.add(user_reverse_txn_amounts)
-                    bg.add(user_reverse_txn_exchange_rates_by_account_and_date)
-                    bg.add(user_detect_fix_txns_assigned_root)
-                    bg.clearSelection()
 
                     rowHeight = 23
                     rows = 4
@@ -27946,11 +27830,14 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_extract_attachments)
                     userFilters.add(user_diagnose_attachments)
 
-                    if GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
                         rows += 8
                         userFilters.add(JLabel(" "))
                         userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
 
+                        if not GlobalVars.UPDATE_MODE:
+                            rows += 1
+                            userFilters.add(labelFYI2)
 
                         # These are new features - better supported from 2021.2 onwards
                         if isRRateCurrencyIssueFixedBuild():
@@ -27963,6 +27850,8 @@ now after saving the file, restart Moneydance
                         userFilters.add(user_reverse_txn_amounts)
                         userFilters.add(user_reverse_txn_exchange_rates_by_account_and_date)
                         userFilters.add(user_detect_fix_txns_assigned_root)
+
+                    bg = setupMenuRadioButtons(userFilters)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -28016,121 +27905,75 @@ now after saving the file, restart Moneydance
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 try:
-                    user_display_passwords = JRadioButton("Display Dataset Password/Hint and Sync Passphrase", False)
+                    user_display_passwords = MenuJRadioButton("Display Dataset Password/Hint and Sync Passphrase", False)
                     user_display_passwords.setToolTipText("Display the password/hint used to open your Encrypted Dataset, and also your Sync passphrase (if set)")
 
-                    user_view_MD_config_file = JRadioButton("View MD Config File", False)
+                    user_view_MD_config_file = MenuJRadioButton("View MD Config File", False)
                     user_view_MD_config_file.setToolTipText("View the contents of your Moneydance configuration file")
 
-                    user_view_searchable_console_log = JRadioButton("View Searchable Console Log", False)
+                    user_view_searchable_console_log = MenuJRadioButton("View Searchable Console Log", False)
                     user_view_searchable_console_log.setToolTipText("View the whole Console log file - searchable")
 
-                    user_view_MD_custom_theme_file = JRadioButton("View MD Custom Theme File", False)
+                    user_view_MD_custom_theme_file = MenuJRadioButton("View MD Custom Theme File", False, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
                     user_view_MD_custom_theme_file.setToolTipText("View the contents of your Moneydance custom Theme file (if you have set one up)")
-                    user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))    # noqa
 
-                    user_view_java_vmoptions = JRadioButton("View Java VM Options File", False)
+                    user_view_java_vmoptions = MenuJRadioButton("View Java VM Options File", False, secondaryEnabled=(os.path.exists(get_vmoptions_path())))
                     user_view_java_vmoptions.setToolTipText("View the contents of the Java VM Options runtime file that Moneydance uses")
-                    user_view_java_vmoptions.setEnabled(os.path.exists(get_vmoptions_path()))
 
-                    user_view_extensions_details = JRadioButton("View Extension(s) details", False)
+                    user_view_extensions_details = MenuJRadioButton("View Extension(s) details", False)
                     user_view_extensions_details.setToolTipText("View details about the Extensions installed in your Moneydance system")
 
-                    user_view_memorised_reports = JRadioButton("View Memorised Reports", False)
+                    user_view_memorised_reports = MenuJRadioButton("View Memorised Reports", False)
                     user_view_memorised_reports.setToolTipText("View a list of your Memorised reports")
 
-                    # user_find_sync_password_in_ios_backups = JRadioButton("Find Sync Password in iOS Backups (only on Windows and Mac)", False)
+                    # user_find_sync_password_in_ios_backups = MenuJRadioButton("Find Sync Password in iOS Backups (only on Windows and Mac)", False)
                     # user_find_sync_password_in_ios_backups.setToolTipText("This search for iOS backup(s) and look for your Sync Encryption password(s)")
                     # user_find_sync_password_in_ios_backups.setEnabled(Platform.isOSX() or Platform.isWindows())
                     # user_find_sync_password_in_ios_backups.setEnabled(Platform.isOSX() or Platform.isWindows())
 
-                    user_import_QIF = JRadioButton("'Older' Import QIF file and set parameters", False)
+                    user_import_QIF = MenuJRadioButton("'Older' Import QIF file and set parameters", False)
                     user_import_QIF.setToolTipText("Runs the 'older' MD importQIFIntoAccount() function and allows you to set parameters (you can select create Account Structure Only) - WILL IMPORT / CHANGE DATA!")
 
-                    user_convert_timestamp = JRadioButton("Convert a TimeStamp number into a readable date/time", False)
+                    user_convert_timestamp = MenuJRadioButton("Convert a TimeStamp number into a readable date/time", False)
                     user_convert_timestamp.setToolTipText("Allows you to input a TimeStamp (Milliseconds) and it will display a readable date/time")
 
-                    user_close_dataset = JRadioButton("Close this dataset (and related windows)", False)
+                    user_close_dataset = MenuJRadioButton("Close this dataset (and related windows)", False, updateMenu=True, secondaryEnabled=(isToolboxUnlocked()))
                     user_close_dataset.setToolTipText("Manually closes the dataset, all related windows, but leaves MD open....")
-                    user_close_dataset.setEnabled(GlobalVars.UPDATE_MODE and isToolboxUnlocked())
-                    user_close_dataset.setForeground(getColorRed())
 
-                    user_rename_dataset = JRadioButton("Rename this dataset (within the same location)", False)
+                    user_rename_dataset = MenuJRadioButton("Rename this dataset (within the same location)", False, updateMenu=True)
                     user_rename_dataset.setToolTipText("This will allow you to rename this dataset (within the same location) - THIS CHANGES DATA!")
-                    user_rename_dataset.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_rename_dataset.setForeground(getColorRed())
 
-                    user_relocate_dataset_internal = JRadioButton("Relocate this dataset back to the default 'internal' location", False)
+                    user_relocate_dataset_internal = MenuJRadioButton("Relocate this dataset back to the default 'internal' location", False, updateMenu=True, secondaryEnabled=(not AccountBookUtil.isWithinInternalStorage(MD_REF.getCurrentAccountBook())))
                     user_relocate_dataset_internal.setToolTipText("This will allow you to relocate this dataset back to the internal default location - THIS CHANGES DATA!")
-                    user_relocate_dataset_internal.setEnabled(GlobalVars.UPDATE_MODE and not AccountBookUtil.isWithinInternalStorage(MD_REF.getCurrentAccountBook()))
-                    user_relocate_dataset_internal.setForeground(getColorRed())
 
-                    user_relocate_dataset_external = JRadioButton("Relocate this dataset to another location [Note: IK do not recommend this]", False)
+                    user_relocate_dataset_external = MenuJRadioButton("Relocate this dataset to another location [Note: IK do not recommend this]", False, updateMenu=True, secondaryEnabled=(not Platform.isOSX() or not MD_REF.getPlatformHelper().isConstrainedToSandbox()))
                     user_relocate_dataset_external.setToolTipText("This will allow you to relocate this dataset to another (non-default) location - THIS CHANGES DATA!")
-                    user_relocate_dataset_external.setEnabled(GlobalVars.UPDATE_MODE and (not Platform.isOSX() or not MD_REF.getPlatformHelper().isConstrainedToSandbox()))
-                    user_relocate_dataset_external.setForeground(getColorRed())
 
-                    user_cleanup_external_files = JRadioButton("Cleanup MD's File/Open list of 'external' files (does not touch actual files)", False)
+                    user_cleanup_external_files = MenuJRadioButton("Cleanup MD's File/Open list of 'external' files (does not touch actual files)", False, updateMenu=True)
                     user_cleanup_external_files.setToolTipText("Cleans up the list of files shown on the MD File/Open menu - THIS CHANGES CONFIG.DICT!")
-                    user_cleanup_external_files.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_cleanup_external_files.setForeground(getColorRed())
 
-                    user_advanced_delete_int_ext_files = JRadioButton("DELETE Files from Menu>File>Open list and also from DISK", False)
+                    user_advanced_delete_int_ext_files = MenuJRadioButton("DELETE Files from Menu>File>Open list and also from DISK", False, updateMenu=True)
                     user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
-                    user_advanced_delete_int_ext_files.setForeground(getColorRed())
-                    user_advanced_delete_int_ext_files.setEnabled(GlobalVars.UPDATE_MODE)
 
-                    user_remove_inactive_from_sidebar = JRadioButton("Remove inactive accounts/categories from SideBar", False)
+                    user_remove_inactive_from_sidebar = MenuJRadioButton("Remove inactive accounts/categories from SideBar", False, updateMenu=True, secondaryEnabled=(MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True)))
                     user_remove_inactive_from_sidebar.setToolTipText("This remove inactive accounts/categories from SideBar. THIS CHANGES CONFIG!")
-                    user_remove_inactive_from_sidebar.setEnabled(GlobalVars.UPDATE_MODE
-                                                                 and MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True))
-                    user_remove_inactive_from_sidebar.setForeground(getColorRed())
 
-                    user_change_moneydance_fonts = JRadioButton("Set/Change Default Moneydance FONTS", False)
+                    user_change_moneydance_fonts = MenuJRadioButton("Set/Change Default Moneydance FONTS", False, updateMenu=True, secondaryEnabled=(float(MD_REF.getBuild()) >= 3030))
                     user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
-                    user_change_moneydance_fonts.setEnabled(GlobalVars.UPDATE_MODE and float(MD_REF.getBuild()) >= 3030)
-                    user_change_moneydance_fonts.setForeground(getColorRed())
 
-                    user_delete_custom_theme_file = JRadioButton("Delete Custom Theme file", False)
+                    user_delete_custom_theme_file = MenuJRadioButton("Delete Custom Theme file", False, updateMenu=True, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
                     user_delete_custom_theme_file.setToolTipText("Delete your custom Theme file (if it exists). This is pretty safe. MD will create a new one if you select in Preferences. THIS DELETES A FILE!")
-                    user_delete_custom_theme_file.setEnabled(GlobalVars.UPDATE_MODE and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
-                    user_delete_custom_theme_file.setForeground(getColorRed())
 
-                    user_delete_orphan_extensions = JRadioButton("FIX: Delete Orphaned Extensions", False)
+                    user_delete_orphan_extensions = MenuJRadioButton("FIX: Delete Orphaned Extensions", False, updateMenu=True)
                     user_delete_orphan_extensions.setToolTipText("This will delete any references to orphaned / outdated Extensions (config.dict & .mxt files). THIS CHANGES DATA!")
-                    user_delete_orphan_extensions.setEnabled(GlobalVars.UPDATE_MODE)
-                    user_delete_orphan_extensions.setForeground(getColorRed())
 
-                    user_reset_window_display_settings = JRadioButton("RESET Window Display Settings", False)
+                    user_reset_window_display_settings = MenuJRadioButton("RESET Window Display Settings", False, updateMenu=True, secondaryEnabled=(GlobalVars.i_am_an_extension_so_run_headless))
                     user_reset_window_display_settings.setToolTipText("This tells MD to 'forget' window display settings. CLOSE ALL REGISTER WINDOWS FIRST! The beauty is it keeps all other settings intact! THIS CHANGES DATA!")
-                    user_reset_window_display_settings.setEnabled(GlobalVars.UPDATE_MODE and GlobalVars.i_am_an_extension_so_run_headless)
-                    user_reset_window_display_settings.setForeground(getColorRed())
+
+                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
+                    labelFYI2.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
-
-                    bg = ButtonGroup()
-                    bg.add(user_display_passwords)
-                    bg.add(user_view_MD_config_file)
-                    bg.add(user_view_searchable_console_log)
-                    bg.add(user_view_MD_custom_theme_file)
-                    bg.add(user_view_java_vmoptions)
-                    bg.add(user_view_extensions_details)
-                    bg.add(user_view_memorised_reports)
-                    # bg.add(user_find_sync_password_in_ios_backups)
-                    bg.add(user_import_QIF)
-                    bg.add(user_convert_timestamp)
-                    bg.add(user_reset_window_display_settings)
-                    bg.add(user_close_dataset)
-                    bg.add(user_rename_dataset)
-                    bg.add(user_relocate_dataset_internal)
-                    bg.add(user_relocate_dataset_external)
-                    bg.add(user_cleanup_external_files)
-                    bg.add(user_advanced_delete_int_ext_files)
-                    bg.add(user_remove_inactive_from_sidebar)
-                    bg.add(user_change_moneydance_fonts)
-                    bg.add(user_delete_custom_theme_file)
-                    bg.add(user_delete_orphan_extensions)
-                    bg.clearSelection()
 
                     rowHeight = 23
                     rows = 10
@@ -28146,10 +27989,15 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_import_QIF)
                     userFilters.add(user_convert_timestamp)
 
-                    if GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
                         rows += 13
                         userFilters.add(JLabel(" "))
                         userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+
+                        if not GlobalVars.UPDATE_MODE:
+                            rows += 1
+                            userFilters.add(labelFYI2)
+
                         userFilters.add(user_reset_window_display_settings)
                         userFilters.add(user_close_dataset)
                         userFilters.add(user_rename_dataset)
@@ -28161,6 +28009,8 @@ now after saving the file, restart Moneydance
                         userFilters.add(user_change_moneydance_fonts)
                         userFilters.add(user_delete_custom_theme_file)
                         userFilters.add(user_delete_orphan_extensions)
+
+                    bg = setupMenuRadioButtons(userFilters)
 
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
@@ -28226,130 +28076,75 @@ now after saving the file, restart Moneydance
 
                 try:
                     if not GlobalVars.ADVANCED_MODE:
-                        MyPopUpDialogBox(toolbox_frame_,
-                                         theStatus="ALERT: ADVANCED MODE has not been activated!",
-                                         theMessage="To enable 'Advanced Mode', click 'TOOLBOX Options'"
-                                                    "...on the Toolbox menu bar (top left)...",
-                                         theTitle="ALERT",
-                                         OKButtonText="ACKNOWLEDGE",
-                                         lAlertLevel=1,
-                                         lModal=False).go()
-                        return
+                        myPopupInformationBox(toolbox_frame_,
+                                              theTitle="ALERT - ADVANCED MODE NOT ENABLED",
+                                              theMessage="To enable, click 'TOOLBOX Options' on Toolbox menu bar (top left)...",
+                                              theMessageType=JOptionPane.WARNING_MESSAGE)
+                        if not GlobalVars.globalShowDisabledMenuItems: return
 
-                    user_ofx_features = JRadioButton("OFX/MD+ Advanced Mode Options appear in 'MENU: Online Banking Tools'...", False)
-                    user_ofx_features.setEnabled(False)
+                    user_ofx_features = MenuJRadioButton("OFX/MD+ Advanced Mode Options appear in 'MENU: Online Banking Tools'...", False, advancedMenu=True, secondaryEnabled=False)
 
-                    user_advanced_mode_edit_prefs = JRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False)
+                    user_advanced_mode_edit_prefs = MenuJRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False, advancedMenu=True)
                     user_advanced_mode_edit_prefs.setToolTipText("This allows you to MODIFY (add/change/delete) config.dict and LocalStorage() (./safe/settings) keys..... CAN UPDATE DATA")
-                    user_advanced_mode_edit_prefs.setForeground(getColorRed())
-                    user_advanced_mode_edit_prefs.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_edit_param_keys = JRadioButton("ADD/CHG/DEL Database Object (ie Account, Currency, any object)", False)
+                    user_advanced_edit_param_keys = MenuJRadioButton("ADD/CHG/DEL Database Object (ie Account, Currency, any object)", False, advancedMenu=True)
                     user_advanced_edit_param_keys.setToolTipText("This allows you to MODIFY (add/change/delete) an Object's Parameter keys..... CAN UPDATE DATA - ONLY USE IF YOU KNOW WHAT YOU ARE DOING")
-                    user_advanced_edit_param_keys.setForeground(getColorRed())
-                    user_advanced_edit_param_keys.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_toggle_DEBUG = JRadioButton("Toggle Moneydance DEBUG", False)
+                    user_advanced_toggle_DEBUG = MenuJRadioButton("Toggle Moneydance DEBUG", False, advancedMenu=True)
                     user_advanced_toggle_DEBUG.setToolTipText("This will toggle Moneydance's internal DEBUG setting(s) ON/OFF.....")
-                    user_advanced_toggle_DEBUG.setForeground(getColorRed())
-                    user_advanced_toggle_DEBUG.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_toggle_other_DEBUGs = JRadioButton("Toggle Other Moneydance DEBUGs", False)
+                    user_advanced_toggle_other_DEBUGs = MenuJRadioButton("Toggle Other Moneydance DEBUGs", False, advancedMenu=True)
                     user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
-                    user_advanced_toggle_other_DEBUGs.setForeground(getColorRed())
-                    user_advanced_toggle_other_DEBUGs.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_extract_from_storage = JRadioButton("Extract a File from LocalStorage", False)
+                    user_advanced_extract_from_storage = MenuJRadioButton("Extract a File from LocalStorage", False, advancedMenu=True)
                     user_advanced_extract_from_storage.setToolTipText("This allows you to select & extract (decrypt) a file from inside LocalStorage (copied to TMP dir)..... FILE SELF DESTRUCTS AFTER RESTART")
-                    user_advanced_extract_from_storage.setForeground(getColorRed())
-                    user_advanced_extract_from_storage.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_decrypt_dataset = JRadioButton("Decrypt entire dataset...", False)
+                    user_advanced_decrypt_dataset = MenuJRadioButton("Decrypt entire dataset...", False, advancedMenu=True)
                     user_advanced_decrypt_dataset.setToolTipText("Decrypts your entire Dataset (to a folder of your choosing)")
-                    user_advanced_decrypt_dataset.setForeground(getColorRed())
-                    user_advanced_decrypt_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_extract_from_sync = JRadioButton("Peek at an encrypted file located in your Sync Folder...", False)
+                    user_advanced_extract_from_sync = MenuJRadioButton("Peek at an encrypted file located in your Sync Folder...", False, advancedMenu=True)
                     user_advanced_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
-                    user_advanced_extract_from_sync.setForeground(getColorRed())
-                    user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_shrink_dataset = JRadioButton("Shrink Dataset size", False)
+                    user_advanced_shrink_dataset = MenuJRadioButton("Shrink Dataset size", False, advancedMenu=True)
                     user_advanced_shrink_dataset.setToolTipText("This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...")
-                    user_advanced_shrink_dataset.setForeground(getColorRed())
-                    user_advanced_shrink_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_import_to_storage = JRadioButton("Import a File back into LocalStorage", False)
+                    user_advanced_import_to_storage = MenuJRadioButton("Import a File back into LocalStorage", False, advancedMenu=True)
                     user_advanced_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
-                    user_advanced_import_to_storage.setForeground(getColorRed())
-                    user_advanced_import_to_storage.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_save_trunk = JRadioButton("Save Trunk File (Flush all in-memory changes & dataset to disk)", False)
+                    user_advanced_save_trunk = MenuJRadioButton("Save Trunk File (Flush all in-memory changes & dataset to disk)", False, advancedMenu=True)
                     user_advanced_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart). UPDATES YOUR DATASET")
-                    user_advanced_save_trunk.setForeground(getColorRed())
-                    user_advanced_save_trunk.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_sync_push = JRadioButton("Force a refresh/PUSH of your local dataset to Sync.", False)
+                    user_advanced_sync_push = MenuJRadioButton("Force a refresh/PUSH of your local dataset to Sync.", False, advancedMenu=True)
                     user_advanced_sync_push.setToolTipText("Push new Sync data (and rebuild remote copies). Use with care! UPDATES YOUR DATASET")
-                    user_advanced_sync_push.setForeground(getColorRed())
-                    user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_advanced_clone_dataset = JRadioButton("Clone Dataset's structure (purge transactional data)", False)
+                    user_advanced_clone_dataset = MenuJRadioButton("Clone Dataset's structure (purge transactional data)", False, advancedMenu=True)
                     user_advanced_clone_dataset.setToolTipText("Clones you dataset, keeps the structures, purges the transactional data - CREATES NEW DATASET")
-                    user_advanced_clone_dataset.setForeground(getColorRed())
-                    user_advanced_clone_dataset.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_force_sync_off = JRadioButton("Force DISABLE/turn Sync OFF", False)
+                    user_force_sync_off = MenuJRadioButton("Force DISABLE/turn Sync OFF", False, advancedMenu=True)
                     user_force_sync_off.setToolTipText("This sets your Sync method to None - all other settings are preserved. You can turn it back on again later - UPDATES YOUR DATASET")
-                    user_force_sync_off.setForeground(getColorRed())
-                    user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_force_reset_sync_settings = JRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False)
+                    user_force_reset_sync_settings = MenuJRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False, advancedMenu=True)
                     user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
-                    user_force_reset_sync_settings.setForeground(getColorRed())
-                    user_force_reset_sync_settings.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_toggle_sync_download_attachments = JRadioButton("Toggle Sync Downloading of Attachments", False)
+                    user_toggle_sync_download_attachments = MenuJRadioButton("Toggle Sync Downloading of Attachments", False, advancedMenu=True)
                     user_toggle_sync_download_attachments.setToolTipText("Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync - UPDATES YOUR DATASET")
-                    user_toggle_sync_download_attachments.setForeground(getColorRed())
-                    user_toggle_sync_download_attachments.setEnabled(GlobalVars.ADVANCED_MODE)
 
-                    user_demote_primary_to_secondary = JRadioButton("DEMOTE Primary dataset back to a Secondary Node", False)
+                    user_demote_primary_to_secondary = MenuJRadioButton("DEMOTE Primary dataset back to a Secondary Node", False, advancedMenu=True, secondaryEnabled=(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
                     user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
-                    user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and MD_REF.getUI().getCurrentAccounts().isMasterSyncNode())
-                    user_demote_primary_to_secondary.setForeground(getColorRed())
 
                     lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
-                    user_advanced_suppress_dropbox_warning = JRadioButton("Suppress File in Dropbox Warning", False)
+                    user_advanced_suppress_dropbox_warning = MenuJRadioButton("Suppress File in Dropbox Warning", False, advancedMenu=True, secondaryEnabled=(lDropbox and not lSuppressed))
                     user_advanced_suppress_dropbox_warning.setToolTipText("This allows you to suppress the 'Your file seems to be in a shared folder (Dropbox)' warning")
-                    user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and lDropbox and not lSuppressed)
-                    user_advanced_suppress_dropbox_warning.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
 
-                    bg = ButtonGroup()
-                    bg.add(user_ofx_features)
-                    bg.add(user_advanced_toggle_DEBUG)
-                    bg.add(user_advanced_toggle_other_DEBUGs)
-                    bg.add(user_advanced_extract_from_storage)
-                    bg.add(user_advanced_decrypt_dataset)
-                    bg.add(user_advanced_extract_from_sync)
-                    bg.add(user_advanced_shrink_dataset)
-                    bg.add(user_advanced_import_to_storage)
-                    bg.add(user_advanced_mode_edit_prefs)
-                    bg.add(user_advanced_edit_param_keys)
-                    bg.add(user_advanced_clone_dataset)
-                    bg.add(user_advanced_save_trunk)
-                    bg.add(user_advanced_sync_push)
-                    bg.add(user_force_sync_off)
-                    bg.add(user_force_reset_sync_settings)
-                    bg.add(user_toggle_sync_download_attachments)
-                    bg.add(user_demote_primary_to_secondary)
-                    bg.add(user_advanced_suppress_dropbox_warning)
-                    bg.clearSelection()
-
                     rowHeight = 23
                     rows = 21
+                    if not GlobalVars.ADVANCED_MODE:
+                        rows += 1
+                        jlbl = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
+                        jlbl.setForeground(getColorRed())
+                        userFilters.add(jlbl)
                     userFilters.add(JLabel("--- READONLY / NON-UPDATE FUNCTIONS ---"))
                     userFilters.add(user_advanced_toggle_DEBUG)
                     userFilters.add(user_advanced_toggle_other_DEBUGs)
@@ -28371,6 +28166,8 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_advanced_mode_edit_prefs)
                     userFilters.add(user_advanced_edit_param_keys)
                     userFilters.add(user_advanced_suppress_dropbox_warning)
+
+                    bg = setupMenuRadioButtons(userFilters)
 
                     _NONE = "none"
                     _PARAM_KEY = "netsync.sync_type"
