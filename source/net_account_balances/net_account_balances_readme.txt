@@ -122,6 +122,9 @@ This extension creates a 'widget' that displays Totals for items you select on t
   - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
+  - Blink displayed Auto-Hide rows: Enables the blinking of rows that are flagged as auto-hidden, but are displayed
+  - Hide Decimal places: Will hide all decimal places on calculated balances (e.g. 1.99 will show as 1)
+
   - Debug: Generates program debug messages in Help>Console Window. DO NOT LEAVE THIS PERMANENTLY ON
 
 >> DON'T FORGET TO SAVE CHANGES <<
