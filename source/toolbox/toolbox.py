@@ -19160,7 +19160,7 @@ now after saving the file, restart Moneydance
                     myPopupInformationBox(toolbox_frame_, txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
 
-                if int(newDecimal) >= 0 and int(newDecimal) <= 8:
+                if int(newDecimal) >= 0 and int(newDecimal) <= 16:
                     newDecimal = int(newDecimal)
                     break
 
