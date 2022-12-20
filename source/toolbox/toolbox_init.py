@@ -14,6 +14,16 @@ def _specialPrint(_what):
     print(_what)
     System.err.write(_what)
 
+def returnPathStrings(fileReference, arePathsIdentical=False):
+    _pathStr = u""
+    if fileReference is not None and isinstance(fileReference, File):
+        _pathStr = u"'%s'" %(fileReference.getAbsolutePath())
+        if fileReference.getAbsolutePath() != fileReference.getCanonicalPath():
+            _pathStr += u" (alias to: '%s')" %(fileReference.getCanonicalPath())
+
+    if arePathsIdentical: return (fileReference.getAbsolutePath() == fileReference.getCanonicalPath())
+    return _pathStr
+
 
 _THIS_IS_ = u"toolbox"
 
@@ -52,8 +62,8 @@ class QuickDiag(Runnable):
             msg += (u"%s - quick information:\n" %(self.thisis.capitalize()))
             msg += u"-----\n"
 
-            msg += (u"MD CONSOLE FILE LOCATION:       '%s'\n" %(self.mdRef.getLogFile().getCanonicalPath()))
-            msg += (u"MD CONFIG/PREFERENCES LOCATION: '%s'\n" %(Common.getPreferencesFile().getCanonicalPath()))
+            msg += (u"MD CONSOLE FILE LOCATION:       %s\n" %(returnPathStrings(self.mdRef.getLogFile())))
+            msg += (u"MD CONFIG/PREFERENCES LOCATION: %s\n" %(returnPathStrings(Common.getPreferencesFile())))
 
             msg += u"-----\n"
             from com.moneydance.apps.md.controller.io import FileUtils
@@ -84,7 +94,7 @@ class QuickDiag(Runnable):
             else:
                 backupFileTxt = u"(backup location exists)"
 
-            msg += (u"BACKUPS - Backup Folder:        '%s' %s\n" %(backupFolder.getCanonicalPath(), backupFileTxt))
+            msg += (u"BACKUPS - Backup Folder:        %s %s\n" %(returnPathStrings(backupFolder), backupFileTxt))
 
             msg += (u"..key - 'backup.location':      '%s'\n" %(self.mdRef.getPreferences().getSetting(u"backup.location", u"<not set>")))
             msg += (u"..key - 'backup.last_browsed':  '%s'\n" %(self.mdRef.getPreferences().getSetting(u"backup.last_browsed", u"<not set>")))
@@ -138,7 +148,7 @@ class QuickDiag(Runnable):
                 _specialPrint(msg)
 
             _specialPrint(u"*** ERROR: %s quick information failed.... (%s, %s, line: %s)\n"
-                          %(self.thisis.capitalize(), unicode(sys.exc_info()[0]), unicode(sys.exc_info()[1]), unicode(sys.exc_info()[2].tb_lineno)));
+                          %(self.thisis.capitalize(), unicode(sys.exc_info()[0]), unicode(sys.exc_info()[1]), unicode(sys.exc_info()[2].tb_lineno)))
 
 
 try:

@@ -12,8 +12,8 @@
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
 # Designed to show user a number of settings / fixes / updates they may find useful (some normally hidden)
-# Basic mode and Curious (view settings) are readonly and very safe >> They do NOT change any data or settings
-# If you switch to Update / Advanced mode(s) then you have the ability to perform fixes, change data, change config etc
+# READ-ONLY and Curious (view settings) are very safe >> They do NOT change any data or settings
+# If you switch to Update mode then you have the ability to perform fixes, change data, change config etc
 # NOTE: Any change that impacts config.dict, custom_theme.properties, LocalStorage() ./safe/settings...
 #       will always backup that single config/settings file (in the directory where it's located).
 #       This is not the same as backing up your Dataset that contains your financial data.
@@ -142,6 +142,9 @@
 # build: 1056 - Added startup check for accounts that have both OFX AND md+ connections configured...
 # build: 1056 - DECOMMISSIONED find_IOS_sync_data() as py file too large...
 # build: 1056 - Added SwingTimer Blinking JMenuItem for Toolbox Options....; Changed menus to popup alerts when update/advanced modes not enabled...
+# build: 1056 - Eliminated Advanced Mode... Now all updates within Update Mode..
+# build: 1056 - Tweaks for .getAbsolutePath() vs .getCanonicalPath() and Dropbox updated Dropbox location on MacOS
+# build: 1056 - Accepted Pull Request from xx whereby Edit Security Decimals Places was changed to allow 16dpc. NOTE: 922.3372036854775807 is the max shares number MD can hold at 16dpc
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -546,8 +549,6 @@ else:
     GlobalVars.mainPnl_preview_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_debug_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_syncing_lbl = JLabel("", JLabel.CENTER)
-    GlobalVars.mainPnl_updateMode_lbl = JLabel("", JLabel.CENTER)
-    GlobalVars.mainPnl_advancedMode_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_toolboxUnlocked_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_memory_lbl = JLabel("", JLabel.CENTER)
 
@@ -555,9 +556,7 @@ else:
     GlobalVars.TOOLBOX_UNLOCK = False
     GlobalVars.SCRIPT_RUNNING_LOCK = threading.Lock()
 
-    GlobalVars.UPDATE_MODE = False                                                                                      # Previously Advanced Mode
-    GlobalVars.ADVANCED_MODE = False                                                                                    # Previously Hacker Mode
-    GlobalVars.globalShowDisabledMenuItems = True       # set to False to hide menu items when Update / Advanced mode disabled
+    GlobalVars.globalShowDisabledMenuItems = True       # set to False to hide menu items when Update Mode disabled
 
     GlobalVars.Strings.OFX_LAST_TXN_UPDATE = "ofx_last_txn_update"
     GlobalVars.Strings.MD_KEY_ASOF_PREF = "gen.rec_asof_enabled"
@@ -2528,7 +2527,53 @@ Visit: %s (Author's site)
                 SetupMDColors.FOREGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultBackground
                 SetupMDColors.BACKGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultTextForeground
 
-    global ManuallyCloseAndReloadDataset            # Declare it for QuickJFrame/IDE, but not present in common code. Other code will ignore it 
+    class ToolboxMode:
+
+        DEFAULT_TEXT = "Update Mode"
+        DEFAULT_CMD = "update_mode"
+        DEFAULT_MENU_LBL = JLabel("       ** to activate.. EXIT, click '%s' on menu bar **" %(DEFAULT_TEXT))
+        DEFAULT_MENU_READONLY_TXT_LBL = JLabel("---------- READONLY FUNCTIONS ----------")
+        DEFAULT_MENU_UPDATE_TXT_LBL = JLabel("----------- UPDATE FUNCTIONS -----------")
+        DEFAULT_MENU_LBL.setForeground(getColorRed())
+        DEFAULT_KEY = KeyEvent.VK_M
+        DEFAULT_KEY_CMD = "m"
+        UPDATE_MODE = False
+        STATUS_LABEL = JLabel("", JLabel.CENTER)
+        JCB = JCheckBox(DEFAULT_TEXT, UPDATE_MODE)
+        JCB.setActionCommand(DEFAULT_CMD)
+
+        def __init__(self): raise Exception("ERROR - Should not create instance of this class!")
+
+        @staticmethod
+        def getJCheckBox(): return ToolboxMode.JCB
+
+        @staticmethod
+        def getStatusLabel(): return ToolboxMode.STATUS_LABEL
+
+        @staticmethod
+        def getMenuLabel(): return ToolboxMode.DEFAULT_MENU_LBL
+
+        @staticmethod
+        def isUpdateMode(): return ToolboxMode.UPDATE_MODE
+
+        @staticmethod
+        def setUpdateMode(newMode):
+            ToolboxMode.UPDATE_MODE = newMode
+            ToolboxMode.getJCheckBox().setSelected(newMode)
+            ToolboxMode.getJCheckBox().setForeground(getColorRed() if newMode else MD_REF.getUI().getColors().defaultTextForeground)
+            ToolboxMode.STATUS_LABEL.setText("<%s>" %(ToolboxMode.DEFAULT_TEXT.upper()) if newMode else "")
+            ToolboxMode.STATUS_LABEL.setForeground(getColorRed())
+
+        @staticmethod
+        def addActionListener(*args, **kwargs): ToolboxMode.getJCheckBox().addActionListener(*args, **kwargs)
+
+        @staticmethod
+        def setForeground(*args, **kwargs): ToolboxMode.getJCheckBox().setForeground(*args, **kwargs)
+
+        @staticmethod
+        def setBackground(*args, **kwargs): ToolboxMode.getJCheckBox().setBackground(*args, **kwargs)
+
+    global ManuallyCloseAndReloadDataset            # Declare it for QuickJFrame/IDE, but not present in common code. Other code will ignore it
 
     class GetFirstMainFrame:
 
@@ -5014,6 +5059,40 @@ Visit: %s (Author's site)
     def getShouldDownloadAllAttachments():
         return MD_REF.getCurrentAccountBook().getLocalStorage().getBoolean("netsync.download_attachments", True)
 
+    def returnPathStrings(fileReference, arePathsIdentical=False):
+        _pathStr = u""
+        if fileReference is not None and isinstance(fileReference, File):
+            _pathStr = u"'%s'" %(fileReference.getAbsolutePath())
+            if fileReference.getAbsolutePath() != fileReference.getCanonicalPath():
+                _pathStr += u" (alias to: '%s')" %(fileReference.getCanonicalPath())
+
+        if arePathsIdentical: return (fileReference.getAbsolutePath() == fileReference.getCanonicalPath())
+        return _pathStr
+
+    def detectMigratedDropboxFolderProblem(createSymbolicLink=False):
+        homeDir = get_home_dir()
+        oldDropboxPath = os.path.join(homeDir, "Dropbox")
+        newDropboxPath = os.path.join(homeDir, "Library", "CloudStorage", "Dropbox")
+        if not Platform.isOSX() or not os.path.exists(homeDir) or not os.path.exists(newDropboxPath): return False
+        if os.path.exists(oldDropboxPath):
+            oldPath = Paths.get(oldDropboxPath)
+            if Files.isSymbolicLink(oldPath):
+                myPrint("DB", "Dropbox folder appears to have been successfully migrated to: '%s'" %(newDropboxPath))
+                return False
+            myPrint("B", "ERROR: Dropbox folder appears to have been migrated to: '%s', but old Folder exists: '%s' (it should be an alias)" %(newDropboxPath, oldDropboxPath))
+            if createSymbolicLink:
+                myPrint("B", "ERROR: Because Dropbox folder folder exists in old location, a new Alias CANNOT BE CREATED!")
+        else:
+            myPrint("B", "ERROR: Dropbox folder appears to have been migrated to: '%s', but no alias from old location ('%s') exists!" %(newDropboxPath, oldDropboxPath))
+            if createSymbolicLink:
+                try:
+                    Files.createSymbolicLink(Paths.get(oldDropboxPath), Paths.get(newDropboxPath))
+                    myPrint("B", "ALIAS from old Dropbox folder '%s' to migrated folder: '%s' CREATED!" %(oldDropboxPath, newDropboxPath))
+                    return False
+                except:
+                    myPrint("B", "ERROR - COULD NOT CREATE ALIAS from old Dropbox folder '%s' to migrated folder: '%s'" %(oldDropboxPath, newDropboxPath))
+        return True
+
     def buildDiagText():
 
         textArray = []                                                                                                  # noqa
@@ -5125,18 +5204,18 @@ Visit: %s (Author's site)
 
         if x:
             textArray.append(u"\n"
-                             u"Current Dataset:               %s" %(x))
+                             u"Current Dataset:               '%s'" %(x))
         if y:
             textArray.append(u"\n"
-                             u"Current Dataset:               %s" %(y))
+                             u"Current Dataset:               '%s'" %(y))
 
-        textArray.append(u"Full location of this Dataset: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder()))
+        textArray.append(u"Full location of this Dataset: %s" %(returnPathStrings(MD_REF.getCurrentAccount().getBook().getRootFolder())))
 
         x = find_the_program_install_dir()
         if x and Platform.isOSX() and System.getProperty(u"install4j.exeDir", "") != "":     # Special 'not normal' check.... will normally never trigger
-            textArray.append(u"Application Install Directory (Mac running manual launch script): %s" %(x))
+            textArray.append(u"Application Install Directory (Mac running manual launch script): '%s'" %(x))
         elif x:
-            textArray.append(u"Application Install Directory: %s" %(x))
+            textArray.append(u"Application Install Directory: '%s'" %(x))
         else:
             textArray.append(u"UNABLE TO DETERMINE Application's Install Directory! (are you running Moneydance by manually executing the .jar file?)")
 
@@ -5233,6 +5312,9 @@ Visit: %s (Author's site)
         textArray.append(u"Sync Password:                 %s" %x)
 
         try:
+            if detectMigratedDropboxFolderProblem():
+                textArray.append(u"Dropbox Folder Migrated:       *** YOU APPEAR TO HAVE A MISSING SYSTEM ALIAS TO NEW DROPBOX LOCATION ***")
+
             # NOTE: If there is a problem with Dropbox, then .getSyncFolder() will crash
             # MD2021.2 Build 3088 adds iCloud Sync which crashes if launched from command line....
             syncMethods = SyncFolderUtil.getAvailableFolderConfigurers(MD_REF.getUI(), MD_REF.getUI().getCurrentAccounts())
@@ -5244,7 +5326,7 @@ Visit: %s (Author's site)
                 syncMethod = syncMethod
             textArray.append(u"Sync Method:                   %s" %(syncMethod.getSyncFolder()))
             myPrint("B", "Sync Method: %s" %(syncMethod.getSyncFolder()))
-            x = get_sync_folder()
+            x = returnPathStrings(get_sync_folder(lReturnFileObject=True))
             if x:
                 textArray.append(u"Sync local disk base location: %s" %(x))
                 myPrint("B", "Sync local disk base location: %s" %(x))
@@ -5258,7 +5340,7 @@ Visit: %s (Author's site)
                              u"You seem to have a Dropbox configuration issue!?\n"
                              u"(or you have launched from command line, not the code-signed app bundle)\n"
                              u"Toolbox cannot directly fix this for you - please review your console logs\n"
-                             u"... You can try... Toolbox Advanced Mode, Option 'Force RESET Sync settings'\n"
+                             u"... Try... Toolbox (Update Mode) Advanced Option 'Force RESET Sync settings'\n"
                              u"...... to setup Sync again from scratch (sometimes  fixes old Dropbox settings)",
                              theTitle=u"DROPBOX ERROR",
                              lModal=False,
@@ -5281,9 +5363,11 @@ Visit: %s (Author's site)
         myPrint("B", "Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID), x, y, z))
 
         # noinspection PyUnresolvedReferences
-        x = ThemeInfo.customThemeFile.getCanonicalPath()
-        if not os.path.exists(x):
+        if not os.path.exists(ThemeInfo.customThemeFile.getCanonicalPath()):
             x = u"custom_theme.properties file DOES NOT EXIST!"
+        else:
+            x = returnPathStrings(ThemeInfo.customThemeFile)
+
         textArray.append(u"Custom Theme File:   %s" %(x))
         # noinspection PyUnresolvedReferences
         textArray.append(u"Available themes:    %s" %(ThemeInfo.getAllThemes()))
@@ -5364,9 +5448,9 @@ Visit: %s (Author's site)
 
         textArray.append(u"\nFOLDER / FILE LOCATIONS")
 
-        textArray.append(u"MD Dataset internal top level (root) Directory: %s" %(MD_REF.getCurrentAccount().getBook().getRootFolder().getParent()))
-        textArray.append(u"Auto Backup Folder:                             %s " %(FileUtils.getBackupDir(MD_REF.getPreferences()).getCanonicalPath() ) )
-        textArray.append(u"(Last backup location:                          %s)" %(MD_REF.getUI().getPreferences().getSetting(u"backup.last_saved", u"")))
+        textArray.append(u"MD Dataset internal top level (root) Directory: %s" %(returnPathStrings(MD_REF.getCurrentAccount().getBook().getRootFolder().getParent())))
+        textArray.append(u"Auto Backup Folder:                             %s " %(returnPathStrings(FileUtils.getBackupDir(MD_REF.getPreferences()))))
+        textArray.append(u"(Last backup location:                          '%s')" %(MD_REF.getUI().getPreferences().getSetting(u"backup.last_saved", u"")))
 
         internalFiles = AccountBookUtil.getInternalAccountBooks()
         externalFiles = AccountBookUtil.getExternalAccountBooks()
@@ -7959,7 +8043,7 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
-        if not (GlobalVars.UPDATE_MODE): return
+        if not (ToolboxMode.isUpdateMode()): return
 
         currencies = list_security_currency_price_date(autofix=False, justProvideFilter=True)
         if currencies is None:
@@ -9618,8 +9702,8 @@ Visit: %s (Author's site)
 
         # I would rather have called LocalStorage() to get the filepath, but it doesn't give the path
         # NOTE  - This backup copy will be encrypted, so you can just put it back to ./safe/settings.
-        localStorage_file = File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(),"safe","settings"))
-        copy_localStorage_filename = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(),"settings")
+        localStorage_file = File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(), "safe", "settings"))
+        copy_localStorage_filename = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(), "settings")
 
         try:
             newFileName = copy_localStorage_filename+get_filename_addition()+"_$SAVED$"
@@ -9654,7 +9738,7 @@ Visit: %s (Author's site)
 
         return False
 
-    def get_sync_folder():
+    def get_sync_folder(lReturnFileObject=False):
 
         if MD_REF.getCurrentAccountBook() is None: return None
 
@@ -9680,8 +9764,8 @@ Visit: %s (Author's site)
                 saveSyncFolder = syncBaseFolder
 
                 if os.path.exists(saveSyncFolder):
-                    myPrint("DB","icloud folder found:", saveSyncFolder)
-                    return saveSyncFolder
+                    myPrint("DB", "icloud folder found:", saveSyncFolder)
+                    return (saveSyncFolder if not lReturnFileObject else File(saveSyncFolder))
 
             elif isinstance(syncMethod, DropboxSyncConfigurer): return None
 
@@ -9690,7 +9774,7 @@ Visit: %s (Author's site)
                 saveSyncFolder = syncBaseFolder.getCanonicalPath()
                 if os.path.exists(saveSyncFolder):
                     myPrint("DB","sync folder found:", syncBaseFolder)
-                    return saveSyncFolder
+                    return (saveSyncFolder if not lReturnFileObject else syncBaseFolder)
         except:
             myPrint("B","ERROR: in .get_sync_folder()")
             dump_sys_error_to_md_console_and_errorlog()
@@ -10677,7 +10761,7 @@ Visit: %s (Author's site)
         _THIS_METHOD_NAME = "OFX: update OFXLastTxnUpdate date".upper()
 
         if MD_REF.getCurrentAccount().getBook() is None: return
-        if not (GlobalVars.UPDATE_MODE): return
+        if not (ToolboxMode.isUpdateMode()): return
 
         accountsListForOlTxns = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(15))
         accountsListForOlTxns = sorted(accountsListForOlTxns, key=lambda sort_x: (sort_x.getFullAccountName().upper()))
@@ -10796,7 +10880,7 @@ Visit: %s (Author's site)
         _THIS_METHOD_NAME = "OFX: reset all OFXLastTxnUpdate dates".upper()
 
         if MD_REF.getCurrentAccount().getBook() is None:    return
-        if not (GlobalVars.UPDATE_MODE):                    return
+        if not (ToolboxMode.isUpdateMode()):                    return
         if not isMulti_OFXLastTxnUpdate_build():            return
 
         accountsListForOlTxns = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(15))
@@ -10862,7 +10946,7 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
-        if not (GlobalVars.UPDATE_MODE): return
+        if not (ToolboxMode.isUpdateMode()): return
 
         # quick check first...
         olTxnLists = MD_REF.getCurrentAccount().getBook().getItemsWithType("oltxns")
@@ -10975,7 +11059,7 @@ Visit: %s (Author's site)
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
-        if not (GlobalVars.UPDATE_MODE): return
+        if not (ToolboxMode.isUpdateMode()): return
 
         accountsListForOlTxns = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(18))
         accountsListForOlTxns = sorted(accountsListForOlTxns, key=lambda sort_x: (sort_x.getFullAccountName().upper()))
@@ -11154,7 +11238,7 @@ Visit: %s (Author's site)
     def OFX_cookie_management():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        if not GlobalVars.ADVANCED_MODE: return
+        if not ToolboxMode.isUpdateMode(): return
 
         cookieKey="ofxcookies"
 
@@ -11277,38 +11361,38 @@ Visit: %s (Author's site)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def OFXDEBUGToggle():
-        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-
-        key = "ofx.debug.console"
-        props_ofx_debug = System.getProperty(key, None)
-
-        toggleText = "ON"
-        if (props_ofx_debug is not None and props_ofx_debug!="false"):
-            toggleText = "OFF"
-
-        ask = MyPopUpDialogBox(toolbox_frame_,
-                               "OFX DEBUG CONSOLE STATUS:",
-                               'System.getProperty("%s") currently set to: %s\n'%(key,props_ofx_debug),
-                               theTitle="TOGGLE MONEYDANCE INTERNAL OFX DEBUG",
-                               lCancelButton=True,OKButtonText="SET to %s" %toggleText)
-        if not ask.go():
-            txt = "ADVANCED MODE: NO CHANGES MADE TO OFX DEBUG CONSOLE!"
-            setDisplayStatus(txt, "B")
-            return
-
-        myPrint("B","ADVANCED MODE: User requested to toggle System Property '%s' to %s - setting this now...!" %(key,toggleText))
-        if toggleText == "OFF":
-            System.clearProperty(key)
-        else:
-            System.setProperty(key, "true")
-
-        txt = "Internal debug ofx debug console setting turned %s" %(toggleText)
-        setDisplayStatus(txt, "B")
-        myPopupInformationBox(toolbox_frame_,txt,"TOGGLE MONEYDANCE INTERNAL OFX DEBUG",JOptionPane.WARNING_MESSAGE)
-
-        myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-        return
+    # def OFXDEBUGToggle():
+    #     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+    #
+    #     key = "ofx.debug.console"
+    #     props_ofx_debug = System.getProperty(key, None)
+    #
+    #     toggleText = "ON"
+    #     if (props_ofx_debug is not None and props_ofx_debug!="false"):
+    #         toggleText = "OFF"
+    #
+    #     ask = MyPopUpDialogBox(toolbox_frame_,
+    #                            "OFX DEBUG CONSOLE STATUS:",
+    #                            'System.getProperty("%s") currently set to: %s\n'%(key,props_ofx_debug),
+    #                            theTitle="TOGGLE MONEYDANCE INTERNAL OFX DEBUG",
+    #                            lCancelButton=True,OKButtonText="SET to %s" %toggleText)
+    #     if not ask.go():
+    #         txt = "NO CHANGES MADE TO OFX DEBUG CONSOLE!"
+    #         setDisplayStatus(txt, "B")
+    #         return
+    #
+    #     myPrint("B","OFX DEBUG CONSOLE: User requested to toggle System Property '%s' to %s - setting this now...!" %(key,toggleText))
+    #     if toggleText == "OFF":
+    #         System.clearProperty(key)
+    #     else:
+    #         System.setProperty(key, "true")
+    #
+    #     txt = "Internal debug ofx debug console setting turned %s" %(toggleText)
+    #     setDisplayStatus(txt, "B")
+    #     myPopupInformationBox(toolbox_frame_, txt, "TOGGLE MONEYDANCE INTERNAL OFX DEBUG", JOptionPane.WARNING_MESSAGE)
+    #
+    #     myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+    #     return
 
     # noinspection PyUnresolvedReferences
     def CUSIPFix():
@@ -13454,7 +13538,7 @@ Visit: %s (Author's site)
 
         return objects, lReportDefaultsSelected
 
-    def advancedRemoveInternalFilesSettings():
+    def removeInternalFilesSettings():
         thisDataset = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
 
         filesToRemove = []
@@ -13465,7 +13549,7 @@ Visit: %s (Author's site)
             filesToRemove.append(internal_filepath)
 
         if len(filesToRemove) < 1:
-            txt = "ADVANCED: DELETE internal (default location) Dataset(s) from DISK - You have no files to DELETE - no changes made...."
+            txt = "DELETE internal (default location) Dataset(s) from DISK - You have no files to DELETE - no changes made...."
             setDisplayStatus(txt, "R")
             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
             return
@@ -13483,7 +13567,7 @@ Visit: %s (Author's site)
 
                 selectedFile = JOptionPane.showInputDialog(toolbox_frame_,
                                                            "Select the default/internal location Dataset to DELETE from disk",
-                                                           "ADVANCED - DELETE FROM DISK",
+                                                           "DELETE FILE FROM DISK",
                                                            JOptionPane.ERROR_MESSAGE,
                                                            getMDIcon(None),
                                                            filesToRemove,
@@ -13494,19 +13578,19 @@ Visit: %s (Author's site)
 
             if not selectedFile:
                 if iFilesOnDiskRemoved < 1:
-                    txt = "Thank you for using ADVANCED MODE!.. No changes made"
+                    txt = "DELETE FILES/REFERENCES! No changes made"
                     setDisplayStatus(txt, "B")
                     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
                 else:
-                    txt = "Thank you for using ADVANCED MODE!.. %s Dataset(s) DELETED" %(iFilesOnDiskRemoved)
+                    txt = "DELETE FILES/REFERENCES - %s Dataset(s) DELETED" %(iFilesOnDiskRemoved)
                     setDisplayStatus(txt, "B")
                     myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                 return
 
             if os.path.exists(selectedFile):
                 if not myPopupAskQuestion(toolbox_frame_,
-                                      "ADVANCED - DISCLAIMER - ARE YOU SURE?",
-                                      "Are you SURE you REALLY want me to DELETE the %s dataset from disk?" %(selectedFile),
+                                      "DELETE FILES/REFERENCES - DISCLAIMER",
+                                      "Really DELETE '%s' dataset from disk?" %(selectedFile),
                                       theMessageType=JOptionPane.ERROR_MESSAGE):
                     continue
 
@@ -13515,23 +13599,20 @@ Visit: %s (Author's site)
                 try:
                     shutil.rmtree(selectedFile)
                     iFilesOnDiskRemoved += 1
-                    txt = "@@ ADVANCEDMODE: Dataset %s removed from disk" %(selectedFile)
+                    txt = "DELETE FILES/REFERENCES: Dataset %s removed from disk" %(selectedFile)
                     setDisplayStatus(txt, "R"); myPrint("B",txt)
-                    logToolboxUpdates("advancedRemoveInternalFilesSettings", txt, onlyLogGenericEntry=True)
+                    logToolboxUpdates("removeInternalFilesSettings", txt, onlyLogGenericEntry=True)
 
                     play_the_money_sound()
                     myPopupInformationBox(toolbox_frame_,
                                           txt,
-                                          "ADVANCED - DELETE FILE FROM DISK",
+                                          "DELETE FILES/REFERENCES - DELETE FILE FROM DISK",
                                           JOptionPane.ERROR_MESSAGE)
                 except:
                     dump_sys_error_to_md_console_and_errorlog()
-                    txt = "@ERROR@ ADVANCED - Dataset %s FAILED TO remove from disk" %(selectedFile)
+                    txt = "ERROR - Dataset %s FAILED TO remove from disk" %(selectedFile)
                     setDisplayStatus(txt, "R"); myPrint("B",txt)
-                    myPopupInformationBox(toolbox_frame_,
-                                          "@ERROR@ ADVANCED - Dataset %s FAILED TO remove from disk" %(selectedFile),
-                                          "ADVANCED - ERROR",
-                                          JOptionPane.ERROR_MESSAGE)
+                    myPopupInformationBox(toolbox_frame_, txt, "DELETE FILES/REFERENCES - ERROR", JOptionPane.ERROR_MESSAGE)
 
             continue
 
@@ -13602,15 +13683,15 @@ Visit: %s (Author's site)
 
         return True
 
-    def advancedRemoveExternalFilesSettings():
+    def removeExternalFilesSettings():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
         if not backup_config_dict():
-            txt = "ADVANCED: Remove files from 'External' (non-default) file list in File/Open - Error backing up config.dict preferences file - no changes made...."
+            txt = "Remove files from 'External' (non-default) file list in File/Open - Error backing up config.dict preferences file - no changes made...."
             setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         # Just clean up orphans anyway first.....
@@ -13627,9 +13708,9 @@ Visit: %s (Author's site)
                 filesToRemove.append(externalFileObj)
 
         if externalFilesVector is None or len(filesToRemove)<1:
-            txt = "ADVANCED: Remove files from 'External' (non-default) file list in File/Open - You have no %s files in config.dict to edit - no changes made...." %(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES)
+            txt = "Remove files from 'External' (non-default) file list in File/Open - No '%s' files in config.dict to remove - no changes made...." %(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES)
             setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_,"You have no 'External' file references in config.dict to remove - NO CHANGES MADE!",theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, "No 'External' file references in config.dict to remove - NO CHANGES MADE!", theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
         iReferencesRemoved = 0
@@ -13646,7 +13727,7 @@ Visit: %s (Author's site)
 
                 selectedFile = JOptionPane.showInputDialog(toolbox_frame_,
                                                            "Select the 'External' (non-default) file reference to remove",
-                                                           "ADVANCED",
+                                                           "DELETE FILES/REFERENCES - REMOVE DATASET REFERENCE",
                                                            JOptionPane.WARNING_MESSAGE,
                                                            getMDIcon(None),
                                                            filesToRemove,
@@ -13657,13 +13738,13 @@ Visit: %s (Author's site)
 
             if not selectedFile:
                 if (iReferencesRemoved + iFilesOnDiskRemoved) < 1:
-                    txt = "ADVANCED MODE!.. No changes made"
+                    txt = "DELETE FILES/REFERENCES - No changes made"
                     setDisplayStatus(txt, "B")
                     myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
                 else:
-                    txt = "ADVANCED MODE!.. %s references removed and %s Datasets DELETED" %(iReferencesRemoved, iFilesOnDiskRemoved)
+                    txt = "DELETE FILES/REFERENCES: %s references removed and %s Datasets DELETED" %(iReferencesRemoved, iFilesOnDiskRemoved)
                     setDisplayStatus(txt, "R")
-                    logToolboxUpdates("advancedRemoveExternalFilesSettings", txt, onlyLogGenericEntry=True)
+                    logToolboxUpdates("removeExternalFilesSettings", txt, onlyLogGenericEntry=True)
                     myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -13673,16 +13754,16 @@ Visit: %s (Author's site)
             externalFilesVector.remove(selectedFile)
             prefs.setSetting(GlobalVars.Strings.MD_CONFIGDICT_EXTERNAL_FILES, externalFilesVector)
             MD_REF.savePreferences()
-            txt = "I have removed the reference to file %s from config.dict (and file/open menu if present)" %(selectedFile)
+            txt = "Removed reference to file %s from config.dict (and file/open menu if present)" %(selectedFile)
             myPrint("B", txt)
-            logToolboxUpdates("advancedRemoveExternalFilesSettings", txt, onlyLogGenericEntry=True)
-            myPopupInformationBox(toolbox_frame_, txt, "ADVANCED", JOptionPane.WARNING_MESSAGE)
+            logToolboxUpdates("removeExternalFilesSettings", txt, onlyLogGenericEntry=True)
+            myPopupInformationBox(toolbox_frame_, txt, "DELETE FILES/REFERENCES", JOptionPane.WARNING_MESSAGE)
 
             if not os.path.exists(selectedFile): continue
 
             if not myPopupAskQuestion(toolbox_frame_,
-                                  "ADVANCED",
-                                  "Would you like me to DELETE the %s dataset from disk too?" %(selectedFile),
+                                  "DELETE FILES/REFERENCES",
+                                  "Also DELETE '%s' dataset from disk too?" %(selectedFile),
                                   theMessageType=JOptionPane.ERROR_MESSAGE):
                 continue
 
@@ -13691,16 +13772,16 @@ Visit: %s (Author's site)
                 shutil.rmtree(selectedFile)
                 iFilesOnDiskRemoved+=1
 
-                txt = "ADVANCED - Dataset %s removed from disk" %(selectedFile)
+                txt = "DELETE FILES/REFERENCES - Dataset %s removed from disk" %(selectedFile)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
-                logToolboxUpdates("advancedRemoveExternalFilesSettings", txt, onlyLogGenericEntry=True)
+                logToolboxUpdates("removeExternalFilesSettings", txt, onlyLogGenericEntry=True)
                 play_the_money_sound()
-                myPopupInformationBox(toolbox_frame_, txt, "ADVANCED", theMessageType=JOptionPane.ERROR_MESSAGE)
+                myPopupInformationBox(toolbox_frame_, txt, "DELETE FILES/REFERENCES", theMessageType=JOptionPane.ERROR_MESSAGE)
             except:
                 dump_sys_error_to_md_console_and_errorlog()
-                txt = "@ERROR@ ADVANCED - Dataset %s FAILED TO remove from disk" %(selectedFile)
+                txt = "ERROR: Dataset %s FAILED to remove from disk" %(selectedFile)
                 myPrint("B",txt)
-                myPopupInformationBox(toolbox_frame_, txt, "ADVANCED", theMessageType=JOptionPane.WARNING_MESSAGE)
+                myPopupInformationBox(toolbox_frame_, txt, "DELETE FILES/REFERENCES", theMessageType=JOptionPane.WARNING_MESSAGE)
 
             continue
 
@@ -13790,7 +13871,7 @@ Visit: %s (Author's site)
             LS = MD_REF.getCurrentAccount().getBook().getLocalStorage()
             LS.save()
 
-            localFile = File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(),"safe","settings"))
+            localFile = File(os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(), "safe", "settings"))
             if localFile.exists() and localFile.canRead():
                 inx = LS.openFileForReading("settings")
                 _storage.readSet(inx)
@@ -13956,13 +14037,13 @@ Visit: %s (Author's site)
             if selectedWhat == what[_OBJKEYS]:
                 lObject = True
 
-                titleText="CURIOUS? VIEW: INTERNAL SETTINGS"
-                moreText="VIEW"
-                lFindInAdvancedMode=False
+                titleText = "CURIOUS? VIEW: INTERNAL SETTINGS"
+                moreText = "VIEW"
+                lFindInUpdateMode = False
                 if self.EDIT_MODE:
-                    titleText="ADVANCED"
-                    lFindInAdvancedMode=True
-                    moreText="CHANGE"
+                    titleText = "ADVANCED"
+                    lFindInUpdateMode = True
+                    moreText = "CHANGE"
 
                 selectedObjType = JOptionPane.showInputDialog(toolbox_frame_,
                                                               "Select the type of Object you want to %s" %(moreText),
@@ -13978,7 +14059,7 @@ Visit: %s (Author's site)
 
                 baseCurr = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
 
-                objects, lReportDefaultsSelected = get_the_objects_for_curious_view_and_advanced_edit(objWhat, selectedObjType, "%s" % (titleText), lFindInAdvancedMode)
+                objects, lReportDefaultsSelected = get_the_objects_for_curious_view_and_advanced_edit(objWhat, selectedObjType, "%s" % (titleText), lFindInUpdateMode)
                 if self.EDIT_MODE:
                     return objects
                 else:
@@ -14710,7 +14791,7 @@ Visit: %s (Author's site)
             # backup_custom_theme_path = os.path.dirname(ThemeInfo.customThemeFile.getCanonicalPath())
 
             settingsFile = "settings"
-            # backup_localStorage_filename = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(),"settings")
+            # backup_localStorage_filename = os.path.join(MD_REF.getCurrentAccount().getBook().getRootFolder().getAbsolutePath(), "settings")
             # configFile = Common.getPreferencesFile().getName()
             # themeFile = ThemeInfo.customThemeFile.getName()
 
@@ -18452,7 +18533,7 @@ now after saving the file, restart Moneydance
             deriveTheBytes = fileDetails[1]
             deriveTheModified = fileDetails[2]
             deriveRawPath = fileDetails[3]
-            if attachmentLocations.get(deriveTheKey.replace(os.path.sep,"/")):
+            if attachmentLocations.get(deriveTheKey.replace(os.path.sep, "/")):
                 x = "Attachment file system link found in Moneydance database"
                 myPrint("D", x)
                 if debug: diagDisplay += (x + "\n")
@@ -21912,7 +21993,7 @@ now after saving the file, restart Moneydance
             grabProgramDir = find_the_program_install_dir()
             if not os.path.exists((grabProgramDir)): grabProgramDir = None
 
-            grabSyncFolder = get_sync_folder()
+            grabSyncFolder = get_sync_folder(lReturnFileObject=True)
 
             locations = [
                 "Show preferences (config.dict) folder",
@@ -21935,7 +22016,7 @@ now after saving the file, restart Moneydance
 
             if grabSyncFolder:
                 locations.append("Open sync folder")
-                locationsDirs.append(File(grabSyncFolder))
+                locationsDirs.append(grabSyncFolder)
 
             if grabProgramDir:
                 locations.append("Open program's install directory")
@@ -22037,7 +22118,7 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        if not GlobalVars.UPDATE_MODE or not isToolboxUnlocked(): return False
+        if not ToolboxMode.isUpdateMode() or not isToolboxUnlocked(): return False
 
         _THIS_METHOD_NAME = "CLOSE DATASET"
 
@@ -24042,10 +24123,10 @@ now after saving the file, restart Moneydance
         myPrint("B","Requesting Moneydance shuts down now...")
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False, lAllowSaveWorkspace=False)
 
-    def advanced_mode_suppress_dropbox_warning():
+    def advanced_options_suppress_dropbox_warning():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        ask = MyPopUpDialogBox(toolbox_frame_,theStatus="You can suppress the 'Your file seems to be in a shared folder' Warning..",
+        ask = MyPopUpDialogBox(toolbox_frame_, theStatus="You can suppress the 'Your file seems to be in a shared folder' Warning..",
                              theMessage="Moneydance support states that you should NEVER store your dataset in Dropbox.\n"
                                         "... and that you should store your dataset locally and use Moneydance's built-in syncing instead to share across computers and devices.\n"
                                         "THEREFORE YOU PROCEED AT ENTIRELY YOUR OWN RISK AND ACCEPT THAT STORING IN DROPBOX MIGHT DAMAGE YOUR DATA!",
@@ -24069,11 +24150,11 @@ now after saving the file, restart Moneydance
                             "(Warning courtesy of Toolbox)")
 
                     x.close()
-                    myPrint("B","ADVANCED MODE: 'SUPPRESS DROPBOX WARNING': User requested to suppress the 'Your file is stored in a shared folder' (dropbox) warning....")
+                    myPrint("B","SUPPRESS DROPBOX WARNING: User requested to suppress the 'Your file is stored in a shared folder' (dropbox) warning....")
                     myPrint("B", "@@User accepted warnings and disclaimer about dataset damage and instructed Toolbox to create %s - EXECUTED" %(suppressFile))
                     txt = "'SUPPRESS DROPBOX WARNING' - Suppressed >> 'Your file is stored in a shared folder' (dropbox) warning. MONEYDANCE WILL NOW RESTART"
                     setDisplayStatus(txt, "R")
-                    logToolboxUpdates("advanced_mode_suppress_dropbox_warning", txt)
+                    logToolboxUpdates("advanced_options_suppress_dropbox_warning", txt)
                     play_the_money_sound()
                     myPopupInformationBox(toolbox_frame_, txt, "'SUPPRESS DROPBOX WARNING'", JOptionPane.ERROR_MESSAGE)
                     ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -24087,10 +24168,10 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_save_trunk_file():
+    def advanced_options_save_trunk_file():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        _THIS_METHOD_NAME = "ADVANCED: SAVE TRUNK FILE"
+        _THIS_METHOD_NAME = "SAVE TRUNK FILE"
 
         if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME,"Execute Save Trunk File function?"):
             return
@@ -24100,7 +24181,7 @@ now after saving the file, restart Moneydance
 
         txt = "%s: Save Trunk Executed!" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
-        logToolboxUpdates("advanced_mode_save_trunk_file", txt)
+        logToolboxUpdates("advanced_options_save_trunk_file", txt)
 
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME,JOptionPane.WARNING_MESSAGE)
@@ -24114,7 +24195,7 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        _THIS_METHOD_NAME = "ADVANCED: Clone Dataset".upper()
+        _THIS_METHOD_NAME = "Clone Dataset".upper()
         PARAMETER_KEY = "toolbox_clone_dataset"
 
 
@@ -24525,7 +24606,7 @@ now after saving the file, restart Moneydance
                     if (filename.endswith(TXN_FILE_EXTENSION_TMP)
                             or filename.endswith(OUTGOING_TXN_FILE_EXTENSION)
                             or filename.endswith(TXN_FILE_EXTENSION)):
-                        newStorage.delete(mdDir+"/"+filename)
+                        newStorage.delete(mdDir + "/" + filename)
             output += "Deleted clone's 'processed.dct' and all .txn type files.....\n"
 
             output += "\n\n" \
@@ -24563,10 +24644,10 @@ now after saving the file, restart Moneydance
         jif = QuickJFrame(title=_THIS_METHOD_NAME,output=output,copyToClipboard=True,lWrapText=False).show_the_frame()
         myPopupInformationBox(jif,"Clone dataset: %s created (review output)" %(newBook.getName()))
 
-    def advanced_mode_sync_push_pull(_push_pull):
+    def advanced_options_sync_push_pull(_push_pull):
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
 
-        _THIS_METHOD_NAME = "ADVANCED: FORCE SYNC PUSH/PULL"
+        _THIS_METHOD_NAME = "FORCE SYNC PUSH/PULL"
 
         PUSH_RESYNC = "tiksync/force_push_resync"                                                                       # noqa
         PULL_RESYNC = "tiksync/force_pull_resync"                                                                       # noqa
@@ -24578,8 +24659,8 @@ now after saving the file, restart Moneydance
 
         if lSyncPull: raise Exception("%s: Sorry - PULL function is disabled" %(_THIS_METHOD_NAME))
 
-        if lSyncPull: _THIS_METHOD_NAME = "ADVANCED: FORCE SYNC PULL"
-        if lSyncPush: _THIS_METHOD_NAME = "ADVANCED: FORCE SYNC PUSH"
+        if lSyncPull: _THIS_METHOD_NAME = "FORCE SYNC PULL"
+        if lSyncPush: _THIS_METHOD_NAME = "FORCE SYNC PUSH"
 
         storage = MD_REF.getCurrentAccountBook().getLocalStorage()                                                      # noqa
 
@@ -24642,7 +24723,7 @@ now after saving the file, restart Moneydance
 
         txt = "%s: Force Sync Push/Pull requested." %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "R")
-        logToolboxUpdates("advanced_mode_sync_push_pull", txt)
+        logToolboxUpdates("advanced_options_sync_push_pull", txt)
 
         ConsoleWindow.showConsoleWindow(MD_REF.getUI())
 
@@ -24662,18 +24743,18 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_set_check_days():
+    def advanced_options_set_check_days():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         key = "moneydance.checknum_series_threshold"
         props_lookback_days = System.getProperty(key, "180")
 
-        ask = MyPopUpDialogBox(toolbox_frame_,"Next Check Number Algorithm look-back Threshold:",
+        ask = MyPopUpDialogBox(toolbox_frame_, "Next Check Number Algorithm look-back Threshold:",
                                'System.getProperty("%s") currently set to: %s\n'%(key,props_lookback_days),
                                theTitle="NEXT CHEQUE NUMBER ALGORITHM",
                                lCancelButton=True,OKButtonText="CHANGE")
         if not ask.go():
-            txt = "ADVANCED MODE: NO CHANGES MADE TO NEXT CHECK NUMBER LOOK-BACK THRESHOLD"
+            txt = "NO CHANGES MADE TO NEXT CHECK NUMBER LOOK-BACK THRESHOLD"
             setDisplayStatus(txt, "B")
             return
 
@@ -24696,26 +24777,26 @@ now after saving the file, restart Moneydance
 
         if lDidIChangeDays:
             System.setProperty(key,str(days_response))
-            myPrint("B","ADVANCED MODE: System Property '%s' set to %s" %(key,days_response))
+            myPrint("B","ADVANCED: System Property '%s' set to %s" %(key,days_response))
         else:
-            txt = "ADVANCED MODE: NO CHANGES MADE TO NEXT CHECK NUMBER LOOK-BACK THRESHOLD"
+            txt = "ADVANCED: NO CHANGES MADE TO NEXT CHECK NUMBER LOOK-BACK THRESHOLD"
             setDisplayStatus(txt, "B")
             return
 
-        txt = "ADVANCED MODE: Next Check Number Algorithm look-back Threshold set to %s (days)" %(days_response)
+        txt = "ADVANCED: Next Check Number Algorithm look-back Threshold set to %s (days)" %(days_response)
         setDisplayStatus(txt, "B")
-        logToolboxUpdates("advanced_mode_set_check_days", txt)
+        logToolboxUpdates("advanced_options_set_check_days", txt)
         myPopupInformationBox(toolbox_frame_,txt,"NEXT CHEQUE NUMBER ALGORITHM",JOptionPane.WARNING_MESSAGE)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_edit_parameter_keys():
+    def advanced_options_edit_parameter_keys():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
 
-        if not myPopupAskQuestion(toolbox_frame_,"ADVANCED: EDIT OBJ'S MODE","DANGER - ARE YOU SURE YOU WANT TO VISIT THIS FUNCTION?", theMessageType=JOptionPane.ERROR_MESSAGE):
-            txt = "ADVANCED Edit Obj Mode - User declined to proceed - aborting.."
+        if not myPopupAskQuestion(toolbox_frame_,"ADVANCED: EDIT OBJs MODE","DANGER - ARE YOU SURE YOU WANT TO VISIT THIS FUNCTION?", theMessageType=JOptionPane.ERROR_MESSAGE):
+            txt = "ADVANCED: Edit Obj Mode - User declined to proceed - aborting.."
             setDisplayStatus(txt, "R")
             return
 
@@ -24755,7 +24836,7 @@ now after saving the file, restart Moneydance
                                                        None)
 
             if not selectedWhat:
-                txt = "Thank you for using ADVANCED MODE!.. Exiting"
+                txt = "ADVANCED - Exiting"
                 setDisplayStatus(txt, "B")
                 return
 
@@ -24784,13 +24865,13 @@ now after saving the file, restart Moneydance
 
                 if not check_if_key_string_valid(addKey):
                     myPopupInformationBox(toolbox_frame_, "ERROR: Parameter %s is NOT valid!" % addKey, "ADVANCED: ADD TO %s" %(theObject), JOptionPane.ERROR_MESSAGE)
-                    continue    # back to ADVANCED menu
+                    continue    # back to ADVANCED Options menu
 
                 testKeyExists = theObject.getParameter(addKey,None)                                                     # noqa
 
                 if testKeyExists:
                     myPopupInformationBox(toolbox_frame_, "ERROR: Parameter %s already exists - cannot add - aborting..!" %(addKey), "ADVANCED: ADD TO %s" %(theObject), JOptionPane.ERROR_MESSAGE)
-                    continue    # back to ADVANCED menu
+                    continue    # back to ADVANCED Options menu
 
                 addValue = myPopupAskForInput(toolbox_frame_,
                                               "ADVANCED: ADD PARAMETER VALUE TO %s" %(theObject),
@@ -24805,18 +24886,18 @@ now after saving the file, restart Moneydance
 
                 if not check_if_key_data_string_valid(addValue):
                     myPopupInformationBox(toolbox_frame_, "ERROR: Parameter value %s is NOT valid!" %(addValue), "ADVANCED: ADD TO %s" %(theObject), JOptionPane.ERROR_MESSAGE)
-                    continue    # back to ADVANCED menu
+                    continue    # back to ADVANCED Options menu
 
-                if confirm_backup_confirm_disclaimer(toolbox_frame_, "ADVANCED MODE","ADD PARAMETER VALUE TO %s" %(theObject)):
+                if confirm_backup_confirm_disclaimer(toolbox_frame_, "ADVANCED OPTIONS", "ADD PARAMETER VALUE TO %s" %(theObject)):
 
                     theObject.setParameter(addKey,addValue)                                                             # noqa
                     if isinstance(theObject, SplitTxn):                                                                 # noqa
                         theObject.getParentTxn().syncItem()                                                             # noqa
                     else:
                         theObject.syncItem()                                                                            # noqa
-                    txt = "@@ ADVANCEDMODE: Parameter: %s Value: %s added to %s @@" %(addKey,addValue,theObject)
+                    txt = "Parameter: %s Value: %s added to %s @@" %(addKey,addValue,theObject)
                     setDisplayStatus(txt, "R"); myPrint("B", txt)
-                    logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
+                    logToolboxUpdates("advanced_options_edit_parameter_keys", txt)
                     play_the_money_sound()
                     myPopupInformationBox(toolbox_frame_,
                                           "SUCCESS: Key %s added to %s!" % (addKey,theObject),
@@ -24856,9 +24937,9 @@ now after saving the file, restart Moneydance
                     else:
                         theObject.deleteItem()                                                                          # noqa
 
-                    txt = "@@ ADVANCEDMODE: OBJECT %s DELETED @@" %(theObject)
+                    txt = "ADVANCED OPTIONS: OBJECT %s DELETED @@" %(theObject)
                     setDisplayStatus(txt, "R"); myPrint("B", txt)
-                    logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
+                    logToolboxUpdates("advanced_options_edit_parameter_keys", txt)
 
                     play_the_money_sound()
                     myPopupInformationBox(jif,
@@ -24875,7 +24956,7 @@ now after saving the file, restart Moneydance
                 paramKeys = sorted(theObject.getParameterKeys())                                                        # noqa
                 selectedKey = JOptionPane.showInputDialog(toolbox_frame_,
                                                           "Select the %s Parameter you want to %s" % (theObject,text),
-                                                          "ADVANCED",
+                                                          "ADVANCED OPTIONS",
                                                           JOptionPane.WARNING_MESSAGE,
                                                           getMDIcon(None),
                                                           paramKeys,
@@ -24912,7 +24993,7 @@ now after saving the file, restart Moneydance
 
                     if not check_if_key_data_string_valid(chgValue):
                         myPopupInformationBox(jif,"ERROR: value %s is NOT valid!" %chgValue,"ADVANCED: CHANGE IN %s" %(theObject),JOptionPane.ERROR_MESSAGE)
-                        continue    # back to ADVANCED menu
+                        continue    # back to ADVANCED Options menu
 
                 confAction = ""
                 if lDel:
@@ -24941,19 +25022,20 @@ now after saving the file, restart Moneydance
 
                     if lDel:
                         if isinstance(value, basestring) and value.count('\n') > 10:
-                            txt = "@@ ADVANCEDMODE: Parameter: %s DELETED from %s (old value to long to display) @@" %(selectedKey, theObject)
+                            txt = "ADVANCED: Parameter: %s DELETED from %s (old value to long to display) @@" %(selectedKey, theObject)
                             _msgTxt = "SUCCESS: Parameter: %s DELETED from %s (old value to long to display)" %(selectedKey, theObject)
                         else:
-                            txt = "@@ ADVANCEDMODE: Parameter: %s DELETED from %s (old value: %s) @@" %(selectedKey, theObject, value)
+                            txt = "ADVANCED: Parameter: %s DELETED from %s (old value: %s) @@" %(selectedKey, theObject, value)
                             _msgTxt = "SUCCESS: Parameter: %s DELETED from %s (old value: %s)" %(selectedKey, theObject, value)
                         myPrint("B", txt)
-                        logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
+                        logToolboxUpdates("advanced_options_edit_parameter_keys", txt)
 
                         myPopupInformationBox(jif, _msgTxt, "ADVANCED: DELETE IN %s" %(theObject), JOptionPane.WARNING_MESSAGE)
+
                     if lChg:
-                        txt = "@@ ADVANCEDMODE: Parameter: %s CHANGED to %s in %s @@" %(selectedKey, chgValue, theObject)
+                        txt = "ADVANCED: Parameter: %s CHANGED to %s in %s @@" %(selectedKey, chgValue, theObject)
                         myPrint("B", txt)
-                        logToolboxUpdates("advanced_mode_edit_parameter_keys", txt)
+                        logToolboxUpdates("advanced_options_edit_parameter_keys", txt)
                         myPopupInformationBox(jif,
                                               "SUCCESS: Parameter: %s CHANGED to %s in %s" %(selectedKey, chgValue, theObject),
                                               "ADVANCED: CHANGE IN %s" %(theObject),
@@ -24966,7 +25048,7 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_remove_int_external_files_settings():
+    def remove_int_external_files_settings():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
@@ -25024,16 +25106,16 @@ now after saving the file, restart Moneydance
             return
 
         if lInternal:
-            advancedRemoveInternalFilesSettings()
+            removeInternalFilesSettings()
 
         elif lExternal:
-            advancedRemoveExternalFilesSettings()
+            removeExternalFilesSettings()
 
         MD_REF.getUI().updateOpenFilesMenus()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_edit_prefs():
+    def advanced_options_edit_prefs():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         if MD_REF.getCurrentAccount().getBook() is None: return
@@ -25071,7 +25153,7 @@ now after saving the file, restart Moneydance
                                                        None)
 
             if not selectedWhat:
-                txt = "Thank you for using ADVANCED MODE!.."
+                txt = "Thank you for using ADVANCED OPTIONS!.."
                 setDisplayStatus(txt, "B")
                 return
 
@@ -25120,7 +25202,7 @@ now after saving the file, restart Moneydance
 
                 if not check_if_key_string_valid(addKey):
                     myPopupInformationBox(toolbox_frame_, "ERROR: Key %s is NOT valid!" % addKey, "ADVANCED: ADD TO %s" % fileType, JOptionPane.ERROR_MESSAGE)
-                    continue    # back to ADVANCED menu
+                    continue    # back to ADVANCED Options menu
 
                 testKeyExists = True
                 if lConfigDict:     testKeyExists = MD_REF.getUI().getPreferences().getSetting(addKey,None)
@@ -25128,7 +25210,7 @@ now after saving the file, restart Moneydance
 
                 if testKeyExists:
                     myPopupInformationBox(toolbox_frame_, "ERROR: Key %s already exists - cannot add - aborting..!" % addKey, "ADVANCED: ADD TO %s" % fileType, JOptionPane.ERROR_MESSAGE)
-                    continue    # back to 'Advanced' menu
+                    continue    # back to ADVANCED Options menu
 
                 addValue = myPopupAskForInput(toolbox_frame_,
                                               "ADVANCED: ADD KEY VALUE TO %s" % fileType,
@@ -25143,7 +25225,7 @@ now after saving the file, restart Moneydance
 
                 if not check_if_key_data_string_valid(addValue):
                     myPopupInformationBox(toolbox_frame_, "ERROR: Key value %s is NOT valid!" % addValue, "ADVANCED: ADD TO %s" % fileType, JOptionPane.ERROR_MESSAGE)
-                    continue    # back to ADVANCED menu
+                    continue    # back to ADVANCED Options menu
 
                 if doesUserAcceptDisclaimer(toolbox_frame_, "ADVANCED: ADD KEY VALUE TO %s" %(fileType), "Add key: '%s' with value: '%s'?" %(addKey,addValue)):
                     if lConfigDict:
@@ -25153,9 +25235,9 @@ now after saving the file, restart Moneydance
                         LS.put(addKey,addValue)
                         LS.save()    # Flush local storage to safe/settings
 
-                    txt = "@@ ADVANCEDMODE: key: %s value: %s added to %s @@" %(addKey, addValue, fileType)
+                    txt = "ADVANCED: key: %s value: %s added to %s @@" %(addKey, addValue, fileType)
                     myPrint("B", txt)
-                    logToolboxUpdates("advanced_mode_edit_prefs", txt, onlyLogGenericEntry=lConfigDict)
+                    logToolboxUpdates("advanced_options_edit_prefs", txt, onlyLogGenericEntry=lConfigDict)
                     play_the_money_sound()
                     myPopupInformationBox(toolbox_frame_,
                                           "SUCCESS: Key %s added to %s!" % (addKey, fileType),
@@ -25250,7 +25332,7 @@ now after saving the file, restart Moneydance
 
                     if not check_if_key_data_string_valid(chgValue):
                         myPopupInformationBox(jif,"ERROR: Key value %s is NOT valid!" %chgValue,"ADVANCED: CHANGE IN %s" %fileType,JOptionPane.ERROR_MESSAGE)
-                        continue    # back to ADVANCED menu
+                        continue    # back to ADVANCED Options menu
 
                 agreed = False
                 if lDel: agreed = doesUserAcceptDisclaimer(jif, "ADVANCED: %s KEY VALUE IN %s" %(text,fileType), "%s key: %s (with old value: %s)?" %(text, selectedKey, value))
@@ -25272,17 +25354,17 @@ now after saving the file, restart Moneydance
                     play_the_money_sound()
 
                     if lDel:
-                        txt = "@@ ADVANCEDMODE: key: %s DELETED from %s (old value: %s) @@" %(selectedKey, fileType, value)
+                        txt = "ADVANCED: key: %s DELETED from %s (old value: %s) @@" %(selectedKey, fileType, value)
                         myPrint("B", txt)
-                        logToolboxUpdates("advanced_mode_edit_prefs", txt)
+                        logToolboxUpdates("advanced_options_edit_prefs", txt)
                         myPopupInformationBox(jif,
                                               "SUCCESS: key: %s DELETED from %s (old value: %s)" %(selectedKey,fileType,value),
                                               "ADVANCED: DELETE IN %s" %fileType,
                                               JOptionPane.WARNING_MESSAGE)
                     if lChg:
-                        txt = "@@ ADVANCEDMODE: key: %s CHANGED to %s in %s @@" %(selectedKey, chgValue, fileType)
+                        txt = "ADVANCED: key: %s CHANGED to %s in %s @@" %(selectedKey, chgValue, fileType)
                         myPrint("B", txt)
-                        logToolboxUpdates("advanced_mode_edit_prefs", txt)
+                        logToolboxUpdates("advanced_options_edit_prefs", txt)
                         myPopupInformationBox(jif,
                                               "SUCCESS: key: %s CHANGED to %s in %s" %(selectedKey,chgValue, fileType),
                                               "ADVANCED: CHANGE IN %s" %fileType,
@@ -25322,7 +25404,7 @@ now after saving the file, restart Moneydance
 
         return (oldestMInt, newestMInt)
 
-    def advanced_mode_shrink_dataset():
+    def advanced_options_shrink_dataset():
         """Attempts to reduce dataset size by 'purging' txn log files - relies on processed.dct as failsafe for dates"""
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -25581,7 +25663,7 @@ now after saving the file, restart Moneydance
 
             if not filename.endswith(ARCHIVE_EXTENSION): continue
 
-            oldestModInt, newestModInt = getModifiedDatesFomZip(storage, ARCHIVE_PATH+"/"+filename)
+            oldestModInt, newestModInt = getModifiedDatesFomZip(storage, ARCHIVE_PATH + "/" + filename)
             if oldestModInt < 1 or newestModInt < 1: continue
 
             if newestModInt <= lookBackDateInt:
@@ -25728,7 +25810,7 @@ now after saving the file, restart Moneydance
             txt = "SIMULATION - Dataset (not really) reduced by %sMBs (%s files) - review log for details" %(fileSize-newFileSize, fileCount-newFileCount)
         else:
             txt = "SUCCESS - Dataset reduced by %sMBs (%s files) - review log for details" %(fileSize-newFileSize, fileCount-newFileCount)
-            logToolboxUpdates("advanced_mode_shrink_dataset", txt)
+            logToolboxUpdates("advanced_options_shrink_dataset", txt)
 
         setDisplayStatus("%s: %s" %(_THIS_METHOD_NAME, txt), "R")
         myPrint("B","%s: %s" %(_THIS_METHOD_NAME, txt))
@@ -25736,7 +25818,7 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_encrypt_file():
+    def advanced_options_encrypt_file():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         _THIS_METHOD_NAME = "ADVANCED: IMPORT/ENCRYPT INTO LOCAL STORAGE"
@@ -25835,7 +25917,7 @@ now after saving the file, restart Moneydance
 
         return selectedFile
 
-    def advanced_mode_decrypt_file():
+    def advanced_options_decrypt_file():
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -25898,7 +25980,7 @@ now after saving the file, restart Moneydance
             msgType = JOptionPane.ERROR_MESSAGE
         else:
             myPrint("B","User requested to extract file: %s from LocalStorage()/safe and copy to TMP dir... SUCCESS!" %(selectedFile))
-            txt = "ADVANCED MODE: File decrypted and copied to TMP dir: '%s'" %(selectedFile)
+            txt = "ADVANCED: File decrypted and copied to TMP dir: '%s'" %(selectedFile)
             txtColor = "B"
             msgType = JOptionPane.INFORMATION_MESSAGE
 
@@ -25910,7 +25992,7 @@ now after saving the file, restart Moneydance
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
-    def advanced_mode_decrypt_dataset():
+    def advanced_options_decrypt_dataset():
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -25982,14 +26064,14 @@ now after saving the file, restart Moneydance
 
         txt = "ENTIRE DATASET EXTRACTED/DECRYPTED TO %s" %(decryptionFolder.getCanonicalPath())
         setDisplayStatus(txt, "B")
-        logToolboxUpdates("advanced_mode_decrypt_dataset", txt)
+        logToolboxUpdates("advanced_options_decrypt_dataset", txt)
         myPopupInformationBox(toolbox_frame_, txt)
 
         MD_REF.getPlatformHelper().openDirectory(decryptionFolder)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_decrypt_file_from_sync():
+    def advanced_options_decrypt_file_from_sync():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         _THIS_METHOD_NAME = "ADVANCED: EXTRACT/PEEK AT SYNC FILE"
@@ -26108,14 +26190,14 @@ now after saving the file, restart Moneydance
         jif = QuickJFrame(_THIS_METHOD_NAME+"(%s lines, %s chars)" %(len(readLines),len_lines), buildString,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         del buildString
 
-        txt = "ADVANCED MODE: File %s decrypted and shown to user" %(selectedFile)
+        txt = "ADVANCED: File %s decrypted and shown to user" %(selectedFile)
         setDisplayStatus(txt,"B")
         myPopupInformationBox(jif, txt)
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
         return
 
-    def advanced_mode_DEBUG(lForceON=False):
+    def advanced_options_DEBUG(lForceON=False):
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         key = "moneydance.debug"
@@ -26139,11 +26221,11 @@ now after saving the file, restart Moneydance
                                    theTitle="TOGGLE MONEYDANCE INTERNAL DEBUG",
                                    lCancelButton=True,OKButtonText="SET ALL to %s" %toggleText)
             if not ask.go():
-                txt = "ADVANCED MODE: NO CHANGES MADE TO DEBUG!"
+                txt = "ADVANCED: NO CHANGES MADE TO DEBUG!"
                 setDisplayStatus(txt,"B")
                 return
 
-            myPrint("B","ADVANCED MODE: User requested to change all internal DEBUG modes to %s - setting these now...!" %(toggleText))
+            myPrint("B","ADVANCED: User requested to change all internal DEBUG modes to %s - setting these now...!" %(toggleText))
 
         if toggleText == "OFF":
             MD_REF.DEBUG = False
@@ -26170,7 +26252,7 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_other_DEBUG():
+    def advanced_options_other_DEBUG():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         debugKeys = ["com.moneydance.apps.md.view.gui.txnreg.DownloadedTxnsView.DEBUG",
@@ -26200,11 +26282,11 @@ now after saving the file, restart Moneydance
                                theTitle="TOGGLE THIS MONEYDANCE INTERNAL OTHER DEBUG",
                                lCancelButton=True,OKButtonText="SET to %s" %(not currentSetting))
         if not ask.go():
-            txt = "ADVANCED MODE: NO CHANGES MADE TO OTHER DEBUG!"
+            txt = "ADVANCED: NO CHANGES MADE TO OTHER DEBUG!"
             setDisplayStatus(txt, "B")
             return
 
-        myPrint("B","ADVANCED MODE: User requested to change DEBUG %s to %s - setting now...!" %(selectedKey,not currentSetting))
+        myPrint("B","ADVANCED: User requested to change DEBUG %s to %s - setting now...!" %(selectedKey,not currentSetting))
 
         if debugKeys.index(selectedKey) == 0:
             DownloadedTxnsView.DEBUG = not currentSetting
@@ -26217,7 +26299,7 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def advanced_mode_demote_primary_to_secondary():
+    def advanced_options_demote_primary_to_secondary():
         # the reverse of convert_secondary_to_primary_data_set
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -26244,13 +26326,13 @@ now after saving the file, restart Moneydance
 
         txt = "%s: Dataset DEMOTED to Secondary (non-Primary/Master) Node - MONEYDANCE WILL NOW RESTART" %(_THIS_METHOD_NAME)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
-        logToolboxUpdates("advanced_mode_demote_primary_to_secondary", txt)
+        logToolboxUpdates("advanced_options_demote_primary_to_secondary", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
 
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
-    def advanced_mode_force_sync_off():
+    def advanced_options_force_sync_off():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
         _THIS_METHOD_NAME = "ADVANCED: FORCE DISABLE/TURN SYNC OFF"
@@ -26280,7 +26362,7 @@ now after saving the file, restart Moneydance
 
         txt = "Sync ('%s')has been force disabled/turned OFF - MONEYDANCE WILL NOW RESTART" %(_PARAM_KEY)
         setDisplayStatus(txt, "R"); myPrint("B", txt)
-        logToolboxUpdates("advanced_mode_force_sync_off", txt)
+        logToolboxUpdates("advanced_options_force_sync_off", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
@@ -26306,7 +26388,7 @@ now after saving the file, restart Moneydance
                       ]
         return _SYNC_KEYS
 
-    def advanced_mode_force_reset_sync_settings():
+    def advanced_options_force_reset_sync_settings():
         # Resets all Sync settings, generates a new Sync ID, Turns Sync Off. You can turn it back on later....
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -26343,7 +26425,49 @@ now after saving the file, restart Moneydance
 
         txt = "ALL SYNC SETTINGS HAVE BEEN RESET - MONEYDANCE WILL NOW RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
-        logToolboxUpdates("advanced_mode_force_reset_sync_settings", txt)
+        logToolboxUpdates("advanced_options_force_reset_sync_settings", txt)
+        play_the_money_sound()
+        myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+
+    def advanced_options_repair_migrated_dropbox_alias():
+        # Attempts to (re)create the missing Alias pointing to new Dropbox location...
+
+        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        _THIS_METHOD_NAME = "ADVANCED: REPAIR MIGRATED DROPBOX ALIAS"
+
+        if not detectMigratedDropboxFolderProblem():
+            txt = "%s: No problem detected - no changes made!" %(_THIS_METHOD_NAME)
+            setDisplayStatus(txt, "B")
+            myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+            return
+
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Attempt to (re)create missing alias pointing to new Dropbox location?"):
+            return
+
+        if detectMigratedDropboxFolderProblem(createSymbolicLink=True):
+            statusTxt = "ERROR: Could not (re)create the alias (review console log)"
+            setDisplayStatus(statusTxt, "R"); myPrint("B", statusTxt)
+            output = ("You may need to manually intervene...\n"
+                      "- MD / File / Syncing. Select Method 'Don't Sync' ...\n"
+                      "- Quit MD, use Finder to locate your Home Folder...\n"
+                      "- Highlight Dropbox, then rename it to old_dropbox...\n"
+                      "- Launch Moneydance, launch Toolbox, Update Mode...\n"
+                      "- Rerun this fix to (re)create the alias....")
+            MyPopUpDialogBox(toolbox_frame_,
+                             theStatus=statusTxt,
+                             theMessage=output,
+                             theTitle="ERROR - COULD NOT (RE)CREATE DROPBOX ALIAS",
+                             OKButtonText="ACKNOWLEDGE",
+                             lAlertLevel=2,
+                             lModal=False).go()
+            return
+
+        txt = "Dropbox alias to new location has been (re)created - MONEYDANCE WILL NOW RESTART"
+        setDisplayStatus(txt, "R"); myPrint("B", txt)
+        logToolboxUpdates("advanced_options_repair_migrated_dropbox_alias", txt)
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
 
@@ -26486,26 +26610,20 @@ now after saving the file, restart Moneydance
     class MenuJRadioButton(JRadioButton):
         def __init__(self, *args, **kwargs):
             self.updateMenuItem = kwargs.pop("updateMenu", False)
-            self.advancedMenuItem = kwargs.pop("advancedMenu", False)
             self.secondaryEnabledCondition = kwargs.pop("secondaryEnabled", True)
             super(self.__class__, self).__init__(*args, **kwargs)
-            if self.isUpdateMenuItem(): self.setEnabled(GlobalVars.UPDATE_MODE and self.secondaryEnabledCondition)
-            elif self.isAdvancedMenuItem(): self.setEnabled(GlobalVars.ADVANCED_MODE and self.secondaryEnabledCondition)
+            if self.isUpdateMenuItem(): self.setEnabled(ToolboxMode.isUpdateMode() and self.secondaryEnabledCondition)
             else: self.setEnabled(self.secondaryEnabledCondition)
         def isUpdateMenuItem(self): return self.updateMenuItem
-        def isAdvancedMenuItem(self): return self.advancedMenuItem
 
     class DisabledButtonMouseAdapter(MouseAdapter):
         def __init__(self): pass
         def mouseClicked(self, event):
             jrb = event.getSource()
             if not isinstance(jrb, MenuJRadioButton) or jrb.isEnabled(): return
-            if ((jrb.isUpdateMenuItem() and not GlobalVars.UPDATE_MODE) or (jrb.isAdvancedMenuItem() and not GlobalVars.ADVANCED_MODE)):
-                if jrb.isUpdateMenuItem():
-                    txt = "Update"
-                else:
-                    txt = "Advanced"
-                myPopupInformationBox(SwingUtilities.getWindowAncestor(jrb), "OPTION DISABLED - Enable 'Toolbox Options' %s Mode first!" %(txt), "ALERT", JOptionPane.WARNING_MESSAGE)
+            if (jrb.isUpdateMenuItem() and not ToolboxMode.isUpdateMode()):
+                txt = "Update"
+                myPopupInformationBox(SwingUtilities.getWindowAncestor(jrb), "OPTION DISABLED - Enable '%s Mode' first!" %(txt), "ALERT", JOptionPane.WARNING_MESSAGE)
             else:
                 myPopupInformationBox(SwingUtilities.getWindowAncestor(jrb), "OPTION DISABLED - Feature NOT allowed at this time...", "ALERT", JOptionPane.WARNING_MESSAGE)
 
@@ -26517,10 +26635,53 @@ now after saving the file, restart Moneydance
             if isinstance(jrb, JRadioButton): _bg.add(jrb)
             if isinstance(jrb, MenuJRadioButton):
                 jrb.addMouseListener(dma)
-                if jrb.isUpdateMenuItem() or jrb.isAdvancedMenuItem():
+                if jrb.isUpdateMenuItem():
                     jrb.setForeground(getColorRed())
         _bg.clearSelection()
         return _bg
+
+    class BlinkSwingTimer(SwingTimer, ActionListener):
+        def __init__(self, timeMS, swComponents, flipColor=None):
+            self.uuid = UUID.randomUUID().toString()
+            self.isForeground = True
+            self.countBlinkLoops = 0
+
+            if isinstance(swComponents, JComponent):
+                swComponents = [swComponents]
+            elif not isinstance(swComponents, list) or len(swComponents) < 1:
+                return
+
+            self.swComponents = []
+            for swComponent in swComponents:
+                self.swComponents.append([swComponent,
+                                          swComponent.getForeground(),
+                                          swComponent.getBackground() if (flipColor is None) else flipColor])
+            super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
+            self.addActionListener(self)
+            myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
+
+        def actionPerformed(self, event):                                                                               # noqa
+            try:
+                for i in range(0, len(self.swComponents)):
+                    swComponent = self.swComponents[i][0]
+                    if (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
+                            or SwingUtilities.getWindowAncestor(swComponent) is None):
+                        myPrint("DB", ">>> Shutting down blinker (id: %s) as component index: %s no longer available" %(self.uuid, i))
+                        self.stop()
+                        return
+
+                for i in range(0, len(self.swComponents)):
+                    swComponent = self.swComponents[i][0]
+                    fg = self.swComponents[i][1]
+                    bg = self.swComponents[i][2]
+
+                    swComponent.setForeground(fg if self.isForeground else bg)
+
+                self.countBlinkLoops += 1
+                self.isForeground = not self.isForeground
+                if self.countBlinkLoops % 100 == 0: myPrint("DB", "** Blinker (id: %s), has now iterated %s blink loops" %(self.uuid, self.countBlinkLoops))
+
+            except: pass
 
     class DiagnosticDisplay(PreferencesListener):
 
@@ -26802,22 +26963,22 @@ now after saving the file, restart Moneydance
                     user_deleteALLOnlineTxns = MenuJRadioButton("Delete ALL cached OnlineTxnList Record/Txns (delete_intermediate_downloaded_transaction_caches.py)", False, updateMenu=True)
                     user_deleteALLOnlineTxns.setToolTipText("Purges/cleans any/all your cached Online Txn List records / txns - THERE SHOULD BE NONE! VERY SAFE TO RUN! THIS CHANGES DATA! (delete_intermediate_downloaded_transaction_caches.py)")
 
-                    user_cookieManagement = MenuJRadioButton("OFX Cookie Management", False, advancedMenu=True)
+                    user_cookieManagement = MenuJRadioButton("OFX Cookie Management", False, updateMenu=True)
                     user_cookieManagement.setToolTipText("Brings up the sub menu. Allows you to manage your OFX cookies - THIS CAN CHANGE DATA!")
 
-                    user_forceMDPlusNameCacheAccessTokensRebuild = MenuJRadioButton("Force MD+ name cache & access tokens rebuild", False, advancedMenu=True)
+                    user_forceMDPlusNameCacheAccessTokensRebuild = MenuJRadioButton("Force MD+ name cache & access tokens rebuild", False, updateMenu=True)
                     user_forceMDPlusNameCacheAccessTokensRebuild.setToolTipText("Wipes your internal MD+ cached bank names and access tokens. These should rebuild themselves. THIS CHANGES DATA!")
 
-                    user_forceDisconnectMDPlusConnection = MenuJRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE)", False, advancedMenu=True, secondaryEnabled=(isMDPlusGetPlaidClientEnabledBuild()))
+                    user_forceDisconnectMDPlusConnection = MenuJRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE) (4090 onwards)", False, updateMenu=True, secondaryEnabled=(isMDPlusGetPlaidClientEnabledBuild()))
                     user_forceDisconnectMDPlusConnection.setToolTipText("Attempts to force disconnect and MD+ connection. THIS CHANGES DATA!")
 
-                    user_export_MDPlus_LicenseObject = MenuJRadioButton("Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant')", False, advancedMenu=True)
+                    user_export_MDPlus_LicenseObject = MenuJRadioButton("Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant')", False, updateMenu=True)
                     user_export_MDPlus_LicenseObject.setToolTipText("This will Export your stored Moneydance+ (Plaid) license (keys) etc to a file (for 'transplant'). READONLY")
 
-                    user_import_MDPlus_LicenseObject = MenuJRadioButton("Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox)", False, advancedMenu=True)
+                    user_import_MDPlus_LicenseObject = MenuJRadioButton("Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox)", False, updateMenu=True)
                     user_import_MDPlus_LicenseObject.setToolTipText("This will Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file exported by Toolbox. THIS CHANGES DATA!")
 
-                    user_zapMDPlusProfile = MenuJRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False, advancedMenu=True, secondaryEnabled=(not isMDPlusLicenseActivated() or isToolboxUnlocked()))
+                    user_zapMDPlusProfile = MenuJRadioButton("ZAP your Moneydance+ (Plaid) settings (only when status is NOT 'activated')", False, updateMenu=True, secondaryEnabled=(not isMDPlusLicenseActivated() or isToolboxUnlocked()))
                     user_zapMDPlusProfile.setToolTipText("This will delete your stored Moneydance+ (Plaid) data/keys (including banking links) etc - E.g. you will have to set this up again. THIS CHANGES DATA!")
 
                     user_manuallyPrimeUSAARootUserIDClientIDs = MenuJRadioButton("USAA ONLY: (NEW METHOD) Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False, updateMenu=True)
@@ -26826,17 +26987,11 @@ now after saving the file, restart Moneydance
                     user_createUSAAProfile = MenuJRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False, updateMenu=True)
                     user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
-                    labelFYI3 = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
-                    labelFYI3.setForeground(getColorRed())
-
                     userFilters = JPanel(GridLayout(0, 1))
 
-                    rowHeight = 23
+                    rowHeight = 24
                     rows = 8
-                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
 
                     if isToolboxUnlocked():
                         rows += 1
@@ -26851,13 +27006,13 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_viewReconcileAsOfDates)
                     # userFilters.add(user_toggleOFXDebug)
 
-                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
-                        rows += 11
+                    if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
+                        rows += 12
                         userFilters.add(JLabel(" "))
-                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-                        if not GlobalVars.UPDATE_MODE:
+                        userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
+                        if not ToolboxMode.isUpdateMode():
                             rows += 1
-                            userFilters.add(labelFYI2)
+                            userFilters.add(ToolboxMode.getMenuLabel())
 
                         userFilters.add(user_forgetOFXBankingLink)
                         userFilters.add(user_manageCUSIPLink)
@@ -26868,15 +27023,6 @@ now after saving the file, restart Moneydance
                         userFilters.add(user_authenticationManagement)
                         userFilters.add(user_deleteOnlineTxns)
                         userFilters.add(user_deleteALLOnlineTxns)
-
-                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.ADVANCED_MODE:
-                        rows += 3
-                        userFilters.add(JLabel(" "))
-                        userFilters.add(JLabel("---- ADVANCED MODE ONLY -----"))
-                        if not GlobalVars.ADVANCED_MODE:
-                            rows += 1
-                            userFilters.add(labelFYI3)
-
                         userFilters.add(user_cookieManagement)
 
                         if isMDPlusEnabledBuild():
@@ -26887,10 +27033,9 @@ now after saving the file, restart Moneydance
                             userFilters.add(user_import_MDPlus_LicenseObject)
                             userFilters.add(user_zapMDPlusProfile)
 
-                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
-                        rows += 4
+                    if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
+                        rows += 3
                         userFilters.add(JLabel(" "))
-                        userFilters.add(JLabel("---- USAA ONLY (Update Mode)-----"))
                         userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
                         userFilters.add(user_createUSAAProfile)
 
@@ -27447,31 +27592,28 @@ now after saving the file, restart Moneydance
                     user_fix_root_account_name = MenuJRadioButton("FIX: Correct Root Account Name (Only enabled if the name is incorrect)", False, updateMenu=True, secondaryEnabled=(rootName != bookName))
                     user_fix_root_account_name.setToolTipText("This allows you to change the (nearly) hidden Master/Parent Account Name in Moneydance (referred to as ROOT) to match the name of your Dataset (referred to as BOOK). THIS CHANGES DATA!")
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
                     labelFYI_curr_fix = JLabel("       ** disabled when a serious currency/security issue has been detected **")
                     labelFYI_curr_fix.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
 
-                    rowHeight = 23
+                    rowHeight = 24
                     rows = 5
 
-                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     userFilters.add(user_view_check_number_settings)
                     userFilters.add(user_view_zero_bal_cats)
                     userFilters.add(user_reportAccountNumbers)
                     userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
 
-                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
                         rows += 10
                         userFilters.add(JLabel(" "))
-                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                        userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
-                        if not GlobalVars.UPDATE_MODE:
+                        if not ToolboxMode.isUpdateMode():
                             rows += 1
-                            userFilters.add(labelFYI2)
+                            userFilters.add(ToolboxMode.getMenuLabel())
 
                         userFilters.add(user_inactivate_zero_bal_cats)
                         userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
@@ -27491,7 +27633,7 @@ now after saving the file, restart Moneydance
                         root = MD_REF.getCurrentAccountBook().getRootAccount()
                         rootName = root.getAccountName().strip()
 
-                        user_fix_root_account_name.setEnabled(GlobalVars.UPDATE_MODE and (rootName != bookName))
+                        user_fix_root_account_name.setEnabled(ToolboxMode.isUpdateMode() and (rootName != bookName))
 
                         bg.clearSelection()
 
@@ -27580,7 +27722,7 @@ now after saving the file, restart Moneydance
                     user_diag_price_date = MenuJRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
                     user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
 
-                    user_edit_security_decimal_places = MenuJRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly)", False, updateMenu=True, secondaryEnabled=(int(MD_REF.getBuild()) >= 1904))
+                    user_edit_security_decimal_places = MenuJRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly) (1904 onwards)", False, updateMenu=True, secondaryEnabled=(int(MD_REF.getBuild()) >= 1904))
                     user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
 
                     user_merge_duplicate_securities = MenuJRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False, updateMenu=True)
@@ -27595,7 +27737,7 @@ now after saving the file, restart Moneydance
                     user_fix_price_date = MenuJRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field", False, updateMenu=True)
                     user_fix_price_date.setToolTipText("Allows you to manually edit a Currency / Security's current price hidden 'price_date' field....")
 
-                    user_fix_curr_sec = MenuJRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) - MUST RUN DIAGNOSE ABOVE FIRST", False, updateMenu=True, secondaryEnabled=(GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1))
+                    user_fix_curr_sec = MenuJRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) (MUST RUN DIAGNOSE ABOVE FIRST)", False, updateMenu=True, secondaryEnabled=(GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1))
                     user_fix_curr_sec.setToolTipText("This will apply fixes to your Currency (& security) / Relative Currency setup (use after running the diagnose option first). THIS CHANGES DATA!  (reset_relative_currencies.py)")
 
                     user_fix_invalid_curr_sec = MenuJRadioButton("FIX: Fix Invalid Relative Currency (& security) Rates where <= (1.0/9999999999) or >= 9999999999 (fix_invalid_currency_rates.py)", False, updateMenu=True)
@@ -27616,18 +27758,15 @@ now after saving the file, restart Moneydance
                     user_toggle_security_zero_shares_inactive = MenuJRadioButton("Toggle investment securities with zero shares status to active/inactive", False, updateMenu=True)
                     user_toggle_security_zero_shares_inactive.setToolTipText("Allows you toggle securities held in investment accounts with zero shares to inactive - THIS CHANGES DATA!")
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
                     labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected **")
                     labelFYI_curr_fix.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
 
-                    rowHeight = 23
+                    rowHeight = 24
                     rows = 8
 
-                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     userFilters.add(user_diag_curr_sec)
                     userFilters.add(user_can_i_delete_security)
                     userFilters.add(user_can_i_delete_currency)
@@ -27636,14 +27775,14 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_diagnose_matched_lot_data)
                     userFilters.add(user_diag_price_date)
 
-                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
                         rows += 15
                         userFilters.add(JLabel(" "))
-                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                        userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
-                        if not GlobalVars.UPDATE_MODE:
+                        if not ToolboxMode.isUpdateMode():
                             rows += 1
-                            userFilters.add(labelFYI2)
+                            userFilters.add(ToolboxMode.getMenuLabel())
                         else:
                             if not isRRateCurrencyIssueFixedBuild():
                                 rows += 1
@@ -27677,21 +27816,21 @@ now after saving the file, restart Moneydance
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
 
-                        user_fix_curr_sec.setEnabled(GlobalVars.UPDATE_MODE and GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1)
+                        user_fix_curr_sec.setEnabled(ToolboxMode.isUpdateMode() and GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1)
 
-                        user_edit_security_decimal_places.setEnabled(GlobalVars.UPDATE_MODE and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
-                        user_merge_duplicate_securities.setEnabled(GlobalVars.UPDATE_MODE)
-                        user_autofix_price_date.setEnabled(GlobalVars.UPDATE_MODE)
-                        user_thin_price_history.setEnabled(GlobalVars.UPDATE_MODE)
-                        user_fix_invalid_curr_sec.setEnabled(GlobalVars.UPDATE_MODE)
-                        user_fix_invalid_price_history.setEnabled(GlobalVars.UPDATE_MODE)
+                        user_edit_security_decimal_places.setEnabled(ToolboxMode.isUpdateMode() and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
+                        user_merge_duplicate_securities.setEnabled(ToolboxMode.isUpdateMode())
+                        user_autofix_price_date.setEnabled(ToolboxMode.isUpdateMode())
+                        user_thin_price_history.setEnabled(ToolboxMode.isUpdateMode())
+                        user_fix_invalid_curr_sec.setEnabled(ToolboxMode.isUpdateMode())
+                        user_fix_invalid_price_history.setEnabled(ToolboxMode.isUpdateMode())
 
                         # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
                         if not check_all_currency_raw_rates_ok():
 
                             user_diag_curr_sec.setForeground(getColorBlue())
 
-                            if GlobalVars.UPDATE_MODE and not lAlertPopupShown:
+                            if ToolboxMode.isUpdateMode() and not lAlertPopupShown:
 
                                 if not isRRateCurrencyIssueFixedBuild():
                                     MyPopUpDialogBox(toolbox_frame_,
@@ -27817,27 +27956,24 @@ now after saving the file, restart Moneydance
                     user_detect_fix_txns_assigned_root = MenuJRadioButton("FIX: Detect and fix transactions assigned to 'root' account", False, updateMenu=True)
                     user_detect_fix_txns_assigned_root.setToolTipText("This detects transactions assigned to 'root' and offers options to display/fix. THIS CHANGES DATA!")
 
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
-
                     userFilters = JPanel(GridLayout(0, 1))
 
-                    rowHeight = 23
+                    rowHeight = 24
                     rows = 4
 
-                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     userFilters.add(user_view_txn_sort)
                     userFilters.add(user_extract_attachments)
                     userFilters.add(user_diagnose_attachments)
 
-                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
                         rows += 8
                         userFilters.add(JLabel(" "))
-                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                        userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
-                        if not GlobalVars.UPDATE_MODE:
+                        if not ToolboxMode.isUpdateMode():
                             rows += 1
-                            userFilters.add(labelFYI2)
+                            userFilters.add(ToolboxMode.getMenuLabel())
 
                         # These are new features - better supported from 2021.2 onwards
                         if isRRateCurrencyIssueFixedBuild():
@@ -27859,7 +27995,7 @@ now after saving the file, restart Moneydance
                         syncFolder = None                                                                               # noqa
                         try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
                         except: syncFolder = False
-                        user_diagnose_fix_attachments.setEnabled(GlobalVars.UPDATE_MODE and syncFolder is None)
+                        user_diagnose_fix_attachments.setEnabled(ToolboxMode.isUpdateMode() and syncFolder is None)
 
                         options = ["EXIT", "PROCEED"]
                         jsp = MyJScrollPaneForJOptionPane(userFilters, 850, (rowHeight * rows))
@@ -27914,10 +28050,10 @@ now after saving the file, restart Moneydance
                     user_view_searchable_console_log = MenuJRadioButton("View Searchable Console Log", False)
                     user_view_searchable_console_log.setToolTipText("View the whole Console log file - searchable")
 
-                    user_view_MD_custom_theme_file = MenuJRadioButton("View MD Custom Theme File", False, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
+                    user_view_MD_custom_theme_file = MenuJRadioButton("View MD Custom Theme File (only when exists)", False, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
                     user_view_MD_custom_theme_file.setToolTipText("View the contents of your Moneydance custom Theme file (if you have set one up)")
 
-                    user_view_java_vmoptions = MenuJRadioButton("View Java VM Options File", False, secondaryEnabled=(os.path.exists(get_vmoptions_path())))
+                    user_view_java_vmoptions = MenuJRadioButton("View Java VM Options File (only when exists)", False, secondaryEnabled=(os.path.exists(get_vmoptions_path())))
                     user_view_java_vmoptions.setToolTipText("View the contents of the Java VM Options runtime file that Moneydance uses")
 
                     user_view_extensions_details = MenuJRadioButton("View Extension(s) details", False)
@@ -27937,7 +28073,7 @@ now after saving the file, restart Moneydance
                     user_convert_timestamp = MenuJRadioButton("Convert a TimeStamp number into a readable date/time", False)
                     user_convert_timestamp.setToolTipText("Allows you to input a TimeStamp (Milliseconds) and it will display a readable date/time")
 
-                    user_close_dataset = MenuJRadioButton("Close this dataset (and related windows)", False, updateMenu=True, secondaryEnabled=(isToolboxUnlocked()))
+                    user_close_dataset = MenuJRadioButton("Close this dataset (and related windows) (only with developer unlock)", False, updateMenu=True, secondaryEnabled=(isToolboxUnlocked()))
                     user_close_dataset.setToolTipText("Manually closes the dataset, all related windows, but leaves MD open....")
 
                     user_rename_dataset = MenuJRadioButton("Rename this dataset (within the same location)", False, updateMenu=True)
@@ -27955,29 +28091,26 @@ now after saving the file, restart Moneydance
                     user_advanced_delete_int_ext_files = MenuJRadioButton("DELETE Files from Menu>File>Open list and also from DISK", False, updateMenu=True)
                     user_advanced_delete_int_ext_files.setToolTipText("This allows you to delete internal/external filenames from the list of File>Open files settings>> AND ASKS IF YOU WANT TO DELETE THE FILES TOO..... UPDATES CONFIG.DICT/CAN DELETE FILES")
 
-                    user_remove_inactive_from_sidebar = MenuJRadioButton("Remove inactive accounts/categories from SideBar", False, updateMenu=True, secondaryEnabled=(MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True)))
+                    user_remove_inactive_from_sidebar = MenuJRadioButton("Remove inactive accounts/categories from SideBar (only when sidebar visible)", False, updateMenu=True, secondaryEnabled=(MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True)))
                     user_remove_inactive_from_sidebar.setToolTipText("This remove inactive accounts/categories from SideBar. THIS CHANGES CONFIG!")
 
-                    user_change_moneydance_fonts = MenuJRadioButton("Set/Change Default Moneydance FONTS", False, updateMenu=True, secondaryEnabled=(float(MD_REF.getBuild()) >= 3030))
+                    user_change_moneydance_fonts = MenuJRadioButton("Set/Change Default Moneydance FONTS (3030 onwards)", False, updateMenu=True, secondaryEnabled=(float(MD_REF.getBuild()) >= 3030))
                     user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
 
-                    user_delete_custom_theme_file = MenuJRadioButton("Delete Custom Theme file", False, updateMenu=True, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
+                    user_delete_custom_theme_file = MenuJRadioButton("Delete Custom Theme file (only when exists)", False, updateMenu=True, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
                     user_delete_custom_theme_file.setToolTipText("Delete your custom Theme file (if it exists). This is pretty safe. MD will create a new one if you select in Preferences. THIS DELETES A FILE!")
 
                     user_delete_orphan_extensions = MenuJRadioButton("FIX: Delete Orphaned Extensions", False, updateMenu=True)
                     user_delete_orphan_extensions.setToolTipText("This will delete any references to orphaned / outdated Extensions (config.dict & .mxt files). THIS CHANGES DATA!")
 
-                    user_reset_window_display_settings = MenuJRadioButton("RESET Window Display Settings", False, updateMenu=True, secondaryEnabled=(GlobalVars.i_am_an_extension_so_run_headless))
+                    user_reset_window_display_settings = MenuJRadioButton("RESET Window Display Settings (disabled when script)", False, updateMenu=True, secondaryEnabled=(GlobalVars.i_am_an_extension_so_run_headless))
                     user_reset_window_display_settings.setToolTipText("This tells MD to 'forget' window display settings. CLOSE ALL REGISTER WINDOWS FIRST! The beauty is it keeps all other settings intact! THIS CHANGES DATA!")
-
-                    labelFYI2 = JLabel("       ** to activate Exit, Select Toolbox Options, Update mode **")
-                    labelFYI2.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
 
-                    rowHeight = 23
+                    rowHeight = 24
                     rows = 10
-                    userFilters.add(JLabel("---------- READONLY FUNCTIONS ----------"))
+                    userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     userFilters.add(user_display_passwords)
                     userFilters.add(user_view_searchable_console_log)
                     userFilters.add(user_view_MD_config_file)
@@ -27989,14 +28122,14 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_import_QIF)
                     userFilters.add(user_convert_timestamp)
 
-                    if GlobalVars.globalShowDisabledMenuItems or GlobalVars.UPDATE_MODE:
+                    if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
                         rows += 13
                         userFilters.add(JLabel(" "))
-                        userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
+                        userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
-                        if not GlobalVars.UPDATE_MODE:
+                        if not ToolboxMode.isUpdateMode():
                             rows += 1
-                            userFilters.add(labelFYI2)
+                            userFilters.add(ToolboxMode.getMenuLabel())
 
                         userFilters.add(user_reset_window_display_settings)
                         userFilters.add(user_close_dataset)
@@ -28017,11 +28150,11 @@ now after saving the file, restart Moneydance
 
                         user_view_java_vmoptions.setEnabled(os.path.exists(get_vmoptions_path()))
                         user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                             # noqa
-                        user_delete_custom_theme_file.setEnabled(GlobalVars.UPDATE_MODE and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
+                        user_delete_custom_theme_file.setEnabled(ToolboxMode.isUpdateMode() and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
                         bg.clearSelection()
 
                         options = ["EXIT", "PROCEED"]
-                        jsp = MyJScrollPaneForJOptionPane(userFilters, 550, (rowHeight * rows))
+                        jsp = MyJScrollPaneForJOptionPane(userFilters, 700, (rowHeight * rows))
                         userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
                                                                    jsp,
                                                                    "General Diagnostics, Tools, Fixes",
@@ -28051,7 +28184,7 @@ now after saving the file, restart Moneydance
                         if user_relocate_dataset_internal.isSelected():             rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=True)
                         if user_relocate_dataset_external.isSelected():             rename_relocate_dataset(lRelocateDataset=True, lRelocateToInternal=False)
                         if user_cleanup_external_files.isSelected():                cleanup_external_files_setting()
-                        if user_advanced_delete_int_ext_files.isSelected():         advanced_remove_int_external_files_settings()
+                        if user_advanced_delete_int_ext_files.isSelected():         remove_int_external_files_settings()
                         if user_remove_inactive_from_sidebar.isSelected():          remove_inactive_from_sidebar()
                         if user_change_moneydance_fonts.isSelected():               change_fonts()
                         if user_delete_custom_theme_file.isSelected():              delete_theme_file()
@@ -28067,7 +28200,7 @@ now after saving the file, restart Moneydance
                     myPopupInformationBox(toolbox_frame_,"ALERT: Toolbox function has crashed (review console) - Contact author!", "UNEXPECTED ERROR", JOptionPane.ERROR_MESSAGE)
                     dump_sys_error_to_md_console_and_errorlog()
 
-        class AdvancedMenuButtonAction(AbstractAction):
+        class AdvancedOptionsMenuButtonAction(AbstractAction):
 
             def __init__(self): pass
 
@@ -28075,97 +28208,95 @@ now after saving the file, restart Moneydance
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
                 try:
-                    if not GlobalVars.ADVANCED_MODE:
-                        myPopupInformationBox(toolbox_frame_,
-                                              theTitle="ALERT - ADVANCED MODE NOT ENABLED",
-                                              theMessage="To enable, click 'TOOLBOX Options' on Toolbox menu bar (top left)...",
-                                              theMessageType=JOptionPane.WARNING_MESSAGE)
-                        if not GlobalVars.globalShowDisabledMenuItems: return
-
-                    user_ofx_features = MenuJRadioButton("OFX/MD+ Advanced Mode Options appear in 'MENU: Online Banking Tools'...", False, advancedMenu=True, secondaryEnabled=False)
-
-                    user_advanced_mode_edit_prefs = MenuJRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False, advancedMenu=True)
-                    user_advanced_mode_edit_prefs.setToolTipText("This allows you to MODIFY (add/change/delete) config.dict and LocalStorage() (./safe/settings) keys..... CAN UPDATE DATA")
-
-                    user_advanced_edit_param_keys = MenuJRadioButton("ADD/CHG/DEL Database Object (ie Account, Currency, any object)", False, advancedMenu=True)
-                    user_advanced_edit_param_keys.setToolTipText("This allows you to MODIFY (add/change/delete) an Object's Parameter keys..... CAN UPDATE DATA - ONLY USE IF YOU KNOW WHAT YOU ARE DOING")
-
-                    user_advanced_toggle_DEBUG = MenuJRadioButton("Toggle Moneydance DEBUG", False, advancedMenu=True)
+                    user_advanced_toggle_DEBUG = MenuJRadioButton("Toggle Moneydance DEBUG", False)
                     user_advanced_toggle_DEBUG.setToolTipText("This will toggle Moneydance's internal DEBUG setting(s) ON/OFF.....")
 
-                    user_advanced_toggle_other_DEBUGs = MenuJRadioButton("Toggle Other Moneydance DEBUGs", False, advancedMenu=True)
+                    user_advanced_toggle_other_DEBUGs = MenuJRadioButton("Toggle Other Moneydance DEBUGs", False)
                     user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
 
-                    user_advanced_extract_from_storage = MenuJRadioButton("Extract a File from LocalStorage", False, advancedMenu=True)
+                    user_advanced_extract_from_storage = MenuJRadioButton("Extract a File from LocalStorage", False)
                     user_advanced_extract_from_storage.setToolTipText("This allows you to select & extract (decrypt) a file from inside LocalStorage (copied to TMP dir)..... FILE SELF DESTRUCTS AFTER RESTART")
 
-                    user_advanced_decrypt_dataset = MenuJRadioButton("Decrypt entire dataset...", False, advancedMenu=True)
+                    user_advanced_decrypt_dataset = MenuJRadioButton("Decrypt entire dataset...", False)
                     user_advanced_decrypt_dataset.setToolTipText("Decrypts your entire Dataset (to a folder of your choosing)")
 
-                    user_advanced_extract_from_sync = MenuJRadioButton("Peek at an encrypted file located in your Sync Folder...", False, advancedMenu=True)
+                    user_advanced_extract_from_sync = MenuJRadioButton("Peek at an encrypted file located in your Sync Folder (only when sync detected)", False)
                     user_advanced_extract_from_sync.setToolTipText("This allows you to select, extract (decrypt) and then peek at a file inside your Sync folder")
 
-                    user_advanced_shrink_dataset = MenuJRadioButton("Shrink Dataset size", False, advancedMenu=True)
+                    user_advanced_shrink_dataset = MenuJRadioButton("Shrink Dataset size", False, updateMenu=True)
                     user_advanced_shrink_dataset.setToolTipText("This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...")
 
-                    user_advanced_import_to_storage = MenuJRadioButton("Import a File back into LocalStorage", False, advancedMenu=True)
-                    user_advanced_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
-
-                    user_advanced_save_trunk = MenuJRadioButton("Save Trunk File (Flush all in-memory changes & dataset to disk)", False, advancedMenu=True)
-                    user_advanced_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart). UPDATES YOUR DATASET")
-
-                    user_advanced_sync_push = MenuJRadioButton("Force a refresh/PUSH of your local dataset to Sync.", False, advancedMenu=True)
-                    user_advanced_sync_push.setToolTipText("Push new Sync data (and rebuild remote copies). Use with care! UPDATES YOUR DATASET")
-
-                    user_advanced_clone_dataset = MenuJRadioButton("Clone Dataset's structure (purge transactional data)", False, advancedMenu=True)
+                    user_advanced_clone_dataset = MenuJRadioButton("Clone Dataset's structure (purge transactional data)", False, updateMenu=True)
                     user_advanced_clone_dataset.setToolTipText("Clones you dataset, keeps the structures, purges the transactional data - CREATES NEW DATASET")
 
-                    user_force_sync_off = MenuJRadioButton("Force DISABLE/turn Sync OFF", False, advancedMenu=True)
-                    user_force_sync_off.setToolTipText("This sets your Sync method to None - all other settings are preserved. You can turn it back on again later - UPDATES YOUR DATASET")
+                    user_advanced_save_trunk = MenuJRadioButton("Save Trunk File (Flush all in-memory changes & dataset to disk)", False, updateMenu=True)
+                    user_advanced_save_trunk.setToolTipText("This allows you to call the Save Trunk File function)..... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart). UPDATES YOUR DATASET")
 
-                    user_force_reset_sync_settings = MenuJRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False, advancedMenu=True)
-                    user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
-
-                    user_toggle_sync_download_attachments = MenuJRadioButton("Toggle Sync Downloading of Attachments", False, advancedMenu=True)
-                    user_toggle_sync_download_attachments.setToolTipText("Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync - UPDATES YOUR DATASET")
-
-                    user_demote_primary_to_secondary = MenuJRadioButton("DEMOTE Primary dataset back to a Secondary Node", False, advancedMenu=True, secondaryEnabled=(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+                    user_demote_primary_to_secondary = MenuJRadioButton("DEMOTE Primary dataset back to a Secondary Node (only when primary)", False, updateMenu=True, secondaryEnabled=(MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
                     user_demote_primary_to_secondary.setToolTipText("DEMOTE your Primary Sync Node/Dataset to a Secondary Node)..... UPDATES YOUR DATASET")
 
+                    user_advanced_sync_push = MenuJRadioButton("Force a refresh/PUSH of your local dataset to Sync (only when master sync mode)", False, updateMenu=True)
+                    user_advanced_sync_push.setToolTipText("Push new Sync data (and rebuild remote copies). Use with care! UPDATES YOUR DATASET")
+
+                    user_force_sync_off = MenuJRadioButton("Force DISABLE/turn Sync OFF (only when sync detected)", False, updateMenu=True)
+                    user_force_sync_off.setToolTipText("This sets your Sync method to None - all other settings are preserved. You can turn it back on again later - UPDATES YOUR DATASET")
+
+                    user_force_reset_sync_settings = MenuJRadioButton("Force RESET Sync settings (generates new SyncID and turns Sync off. You can turn it back on after MD restart)", False, updateMenu=True)
+                    user_force_reset_sync_settings.setToolTipText("This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync - You can turn it back on again later - UPDATES YOUR DATASET")
+
+                    user_toggle_sync_download_attachments = MenuJRadioButton("Toggle Sync Downloading of Attachments (only when sync detected)", False, updateMenu=True)
+                    user_toggle_sync_download_attachments.setToolTipText("Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync - UPDATES YOUR DATASET")
+
+                    user_repair_migrated_dropbox_alias = MenuJRadioButton("Repair migrated Dropbox location 'alias' (MacOS & only when problem detected)", False, updateMenu=True, secondaryEnabled=(detectMigratedDropboxFolderProblem()))
+                    user_repair_migrated_dropbox_alias.setToolTipText("Attempts to (re)create the missing alias from old to new Dropbox location(s)")
+
+                    user_advanced_import_to_storage = MenuJRadioButton("Import a File back into LocalStorage", False, updateMenu=True)
+                    user_advanced_import_to_storage.setToolTipText("This allows you to select & import (encrypt) a file back into LocalStorage/safe/tmp dir.....")
+
+                    user_advanced_options_edit_prefs = MenuJRadioButton("ADD/CHG/DEL System Settings/Prefs (ie config.dict / LocalStorage() settings", False, updateMenu=True)
+                    user_advanced_options_edit_prefs.setToolTipText("This allows you to MODIFY (add/change/delete) config.dict and LocalStorage() (./safe/settings) keys..... CAN UPDATE DATA")
+
+                    user_advanced_edit_param_keys = MenuJRadioButton("ADD/CHG/DEL Database Object (ie Account, Currency, any object)", False, updateMenu=True)
+                    user_advanced_edit_param_keys.setToolTipText("This allows you to MODIFY (add/change/delete) an Object's Parameter keys..... CAN UPDATE DATA - ONLY USE IF YOU KNOW WHAT YOU ARE DOING")
+
                     lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
-                    user_advanced_suppress_dropbox_warning = MenuJRadioButton("Suppress File in Dropbox Warning", False, advancedMenu=True, secondaryEnabled=(lDropbox and not lSuppressed))
+                    user_advanced_suppress_dropbox_warning = MenuJRadioButton("Suppress File in Dropbox Warning (only when sync is dropbox)", False, updateMenu=True, secondaryEnabled=(lDropbox and not lSuppressed))
                     user_advanced_suppress_dropbox_warning.setToolTipText("This allows you to suppress the 'Your file seems to be in a shared folder (Dropbox)' warning")
 
                     userFilters = JPanel(GridLayout(0, 1))
 
-                    rowHeight = 23
-                    rows = 21
-                    if not GlobalVars.ADVANCED_MODE:
-                        rows += 1
-                        jlbl = JLabel("       ** to activate Exit, Select Toolbox Options, Advanced Mode **")
-                        jlbl.setForeground(getColorRed())
-                        userFilters.add(jlbl)
-                    userFilters.add(JLabel("--- READONLY / NON-UPDATE FUNCTIONS ---"))
+                    rowHeight = 24
+                    rows = 6
+
+                    userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     userFilters.add(user_advanced_toggle_DEBUG)
                     userFilters.add(user_advanced_toggle_other_DEBUGs)
                     userFilters.add(user_advanced_extract_from_storage)
                     userFilters.add(user_advanced_decrypt_dataset)
                     userFilters.add(user_advanced_extract_from_sync)
-                    userFilters.add(JLabel(" "))
-                    userFilters.add(JLabel("----------- UPDATE FUNCTIONS -----------"))
-                    userFilters.add(user_ofx_features)
-                    userFilters.add(user_advanced_shrink_dataset)
-                    userFilters.add(user_advanced_clone_dataset)
-                    userFilters.add(user_advanced_save_trunk)
-                    userFilters.add(user_demote_primary_to_secondary)
-                    userFilters.add(user_advanced_sync_push)
-                    userFilters.add(user_force_sync_off)
-                    userFilters.add(user_force_reset_sync_settings)
-                    userFilters.add(user_toggle_sync_download_attachments)
-                    userFilters.add(user_advanced_import_to_storage)
-                    userFilters.add(user_advanced_mode_edit_prefs)
-                    userFilters.add(user_advanced_edit_param_keys)
-                    userFilters.add(user_advanced_suppress_dropbox_warning)
+
+                    if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
+                        rows += 15
+                        userFilters.add(JLabel(" "))
+                        userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
+
+                        if not ToolboxMode.isUpdateMode():
+                            rows += 1
+                            userFilters.add(ToolboxMode.getMenuLabel())
+
+                        userFilters.add(user_advanced_shrink_dataset)
+                        userFilters.add(user_advanced_clone_dataset)
+                        userFilters.add(user_advanced_save_trunk)
+                        userFilters.add(user_demote_primary_to_secondary)
+                        userFilters.add(user_advanced_sync_push)
+                        userFilters.add(user_force_sync_off)
+                        userFilters.add(user_force_reset_sync_settings)
+                        userFilters.add(user_toggle_sync_download_attachments)
+                        userFilters.add(user_repair_migrated_dropbox_alias)
+                        userFilters.add(user_advanced_import_to_storage)
+                        userFilters.add(user_advanced_options_edit_prefs)
+                        userFilters.add(user_advanced_edit_param_keys)
+                        userFilters.add(user_advanced_suppress_dropbox_warning)
 
                     bg = setupMenuRadioButtons(userFilters)
 
@@ -28177,12 +28308,12 @@ now after saving the file, restart Moneydance
                         if MD_REF.getCurrentAccountBook() is None: return
 
                         lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
-                        user_advanced_suppress_dropbox_warning.setEnabled(GlobalVars.ADVANCED_MODE and (lDropbox and not lSuppressed))
-                        user_demote_primary_to_secondary.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
-                        user_advanced_sync_push.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
-                        user_force_sync_off.setEnabled(GlobalVars.ADVANCED_MODE and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
-                        user_toggle_sync_download_attachments.setEnabled(GlobalVars.ADVANCED_MODE and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
-                        user_advanced_extract_from_sync.setEnabled(GlobalVars.ADVANCED_MODE and (MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None))
+                        user_advanced_suppress_dropbox_warning.setEnabled(ToolboxMode.isUpdateMode() and (lDropbox and not lSuppressed))
+                        user_demote_primary_to_secondary.setEnabled(ToolboxMode.isUpdateMode() and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+                        user_advanced_sync_push.setEnabled(ToolboxMode.isUpdateMode() and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
+                        user_force_sync_off.setEnabled(ToolboxMode.isUpdateMode() and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
+                        user_toggle_sync_download_attachments.setEnabled(ToolboxMode.isUpdateMode() and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
+                        user_advanced_extract_from_sync.setEnabled(MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None)
 
                         bg.clearSelection()
 
@@ -28202,23 +28333,24 @@ now after saving the file, restart Moneydance
 
                         selectHomeScreen()      # Stops the LOT Control box popping up..... Get back to home screen....
 
-                        if user_advanced_toggle_DEBUG.isSelected():                 advanced_mode_DEBUG()
-                        if user_advanced_toggle_other_DEBUGs.isSelected():          advanced_mode_other_DEBUG()
-                        if user_advanced_extract_from_storage.isSelected():         advanced_mode_decrypt_file()
-                        if user_advanced_decrypt_dataset.isSelected():              advanced_mode_decrypt_dataset()
-                        if user_advanced_extract_from_sync.isSelected():            advanced_mode_decrypt_file_from_sync()
-                        if user_advanced_shrink_dataset.isSelected():               advanced_mode_shrink_dataset()
-                        if user_advanced_import_to_storage.isSelected():            advanced_mode_encrypt_file()
-                        if user_advanced_mode_edit_prefs.isSelected():              advanced_mode_edit_prefs()
-                        if user_advanced_edit_param_keys.isSelected():              advanced_mode_edit_parameter_keys()
-                        if user_advanced_save_trunk.isSelected():                   advanced_mode_save_trunk_file()
-                        if user_advanced_sync_push.isSelected():                    advanced_mode_sync_push_pull("PUSH")
+                        if user_advanced_toggle_DEBUG.isSelected():                 advanced_options_DEBUG()
+                        if user_advanced_toggle_other_DEBUGs.isSelected():          advanced_options_other_DEBUG()
+                        if user_advanced_extract_from_storage.isSelected():         advanced_options_decrypt_file()
+                        if user_advanced_decrypt_dataset.isSelected():              advanced_options_decrypt_dataset()
+                        if user_advanced_extract_from_sync.isSelected():            advanced_options_decrypt_file_from_sync()
+                        if user_advanced_shrink_dataset.isSelected():               advanced_options_shrink_dataset()
+                        if user_advanced_import_to_storage.isSelected():            advanced_options_encrypt_file()
+                        if user_advanced_options_edit_prefs.isSelected():           advanced_options_edit_prefs()
+                        if user_advanced_edit_param_keys.isSelected():              advanced_options_edit_parameter_keys()
+                        if user_advanced_save_trunk.isSelected():                   advanced_options_save_trunk_file()
+                        if user_advanced_sync_push.isSelected():                    advanced_options_sync_push_pull("PUSH")
                         if user_advanced_clone_dataset.isSelected():                advanced_clone_dataset()
-                        if user_force_sync_off.isSelected():                        advanced_mode_force_sync_off()
-                        if user_force_reset_sync_settings.isSelected():             advanced_mode_force_reset_sync_settings()
+                        if user_force_sync_off.isSelected():                        advanced_options_force_sync_off()
+                        if user_force_reset_sync_settings.isSelected():             advanced_options_force_reset_sync_settings()
+                        if user_repair_migrated_dropbox_alias.isSelected():         advanced_options_repair_migrated_dropbox_alias()
                         if user_toggle_sync_download_attachments.isSelected():      toggle_sync_download_attachments()
-                        if user_demote_primary_to_secondary.isSelected():           advanced_mode_demote_primary_to_secondary()
-                        if user_advanced_suppress_dropbox_warning.isSelected():     advanced_mode_suppress_dropbox_warning()
+                        if user_demote_primary_to_secondary.isSelected():           advanced_options_demote_primary_to_secondary()
+                        if user_advanced_suppress_dropbox_warning.isSelected():     advanced_options_suppress_dropbox_warning()
 
                         for button in bg.getElements():
                             if button.isSelected(): return      # Quit the menu system after running something....
@@ -28418,10 +28550,7 @@ now after saving the file, restart Moneydance
 
         class DoTheMenu(AbstractAction):
 
-            def __init__(self, displayPanel, menu, callingClass=None):
-                self.displayPanel = displayPanel
-                self.menu = menu
-                self.callingClass = callingClass
+            def __init__(self): pass
 
             def actionPerformed(self, event):
                 global debug        # Global must be here as we set this variable (i.e. do not create a local instance/copy)
@@ -28451,7 +28580,6 @@ now after saving the file, restart Moneydance
 
                     abtWin.setVisible(True)
 
-
                 # ##########################################################################################################
                 if event.getActionCommand() == "Auto Prune Internal Backups":
 
@@ -28478,7 +28606,7 @@ now after saving the file, restart Moneydance
                         prune_internal_backups()
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "Debug" or event.getActionCommand() == "Debug":
+                if event.getActionCommand().lower() == "Debug".lower():
                     if debug:
                         txt = "Script Debug mode disabled"
                         setDisplayStatus(txt, "DG")
@@ -28501,48 +28629,8 @@ now after saving the file, restart Moneydance
                     GlobalVars.lCopyAllToClipBoard_TB = not GlobalVars.lCopyAllToClipBoard_TB
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "Advanced Mode":
-
-                    if not GlobalVars.ADVANCED_MODE:
-                        if not myPopupAskQuestion(toolbox_frame_,
-                                              "ADVANCED MODE",
-                                              "ADVANCED MODE >> DISCLAIMER: DO YOU ACCEPT THAT YOU USE THIS TOOLBOX AT YOUR OWN RISK?",
-                                                  JOptionPane.YES_NO_OPTION,
-                                                  JOptionPane.ERROR_MESSAGE):
-                            txt = "ADVANCED MODE DISABLED AS USER DECLINED DISCLAIMER"
-                            setDisplayStatus(txt, "R"); myPrint("B", txt)
-
-                            event.getSource().setSelected(False)
-
-                            return
-                        else:
-                            myPrint("B", "User accepted Disclaimer and agreed to use Toolbox Advanced Mode at own risk.....")
-
-                            backup = BackupButtonAction("Would you like to create a backup before starting Advanced Mode?")
-                            backup.actionPerformed(None)
-
-                            if not backup_local_storage_settings() or not backup_config_dict():
-                                txt = "ADVANCED MODE DISABLED: SORRY - ERROR WHEN SAVING LocalStorage() ./safe/settings and config.dict to backup file!!??"
-                                setDisplayStatus(txt, "R")
-
-                                event.getSource().setSelected(False)
-                                return
-
-                            myPrint("B","@@ ADVANCED MODE ENABLED. config.dict and safe/settings have been backed up...! @@")
-
-                            txt = "ADVANCED MODE SELECTED - ONLY USE THIS IF YOU KNOW WHAT YOU ARE DOING - THIS CAN CHANGE DATA!"
-                            setDisplayStatus(txt, "R")
-                    else:
-                        txt = "ADVANCED MODE DISABLED"
-                        setDisplayStatus(txt, "B"); myPrint("B",txt)
-
-                    GlobalVars.ADVANCED_MODE = not GlobalVars.ADVANCED_MODE
-                    for btn in GlobalVars.allButtonsList: btn.setColorsAndVisibility()
-                    GlobalVars.mainPnl_advancedMode_lbl.setText("<ADVANCED MODE>" if GlobalVars.ADVANCED_MODE else "")
-
-                # ##########################################################################################################
-                if event.getActionCommand() == "Update Mode":
-                    if not GlobalVars.UPDATE_MODE and myPopupAskQuestion(toolbox_frame_,
+                if event.getActionCommand() == ToolboxMode.DEFAULT_CMD or event.getActionCommand() == ToolboxMode.DEFAULT_KEY_CMD:
+                    if not ToolboxMode.isUpdateMode() and myPopupAskQuestion(toolbox_frame_,
                                           "ENABLE UPDATE MODE",
                                           "UPDATE MODE >> DISCLAIMER: DO YOU ACCEPT THAT YOU USE THIS TOOLBOX AT YOUR OWN RISK?",
                                           JOptionPane.YES_NO_OPTION,
@@ -28553,25 +28641,24 @@ now after saving the file, restart Moneydance
                         backup = BackupButtonAction("Would you like to create a backup before enabling UPDATE mode?")
                         backup.actionPerformed(None)
 
+                        backup_local_storage_settings()
+                        backup_config_dict()
+
                         txt = "UPDATE MODE ENABLED - RED BUTTONS CAN CHANGE YOUR DATA (%s+I for Help)" %(MD_REF.getUI().ACCELERATOR_MASK_STR)
                         setDisplayStatus(txt, "R")
 
-                        GlobalVars.UPDATE_MODE = True
+                        ToolboxMode.setUpdateMode(True)
 
                     else:
 
-                        txt = "BASIC MODE IN OPERATION (Update mode NOT enabled)"
+                        txt = "READ-ONLY MODE IN OPERATION (Update Mode NOT enabled)"
                         setDisplayStatus(txt, "DG")
 
-                        GlobalVars.UPDATE_MODE = False
-
-                    event.getSource().setSelected(GlobalVars.UPDATE_MODE)
+                        ToolboxMode.setUpdateMode(False)
 
                     for btn in GlobalVars.allButtonsList: btn.setColorsAndVisibility()
 
-                    GlobalVars.mainPnl_updateMode_lbl.setText("<UPDATE MODE>" if GlobalVars.UPDATE_MODE else "")
-
-
+                # ##########################################################################################################
                 # Save parameters now...
                 if (event.getActionCommand() == "Copy all Output to Clipboard"
                         or event.getActionCommand() == "Debug"
@@ -28591,7 +28678,7 @@ now after saving the file, restart Moneydance
             global toolbox_frame_   # global must be here as we define it here
 
             # ConsoleWindow.showConsoleWindow(MD_REF.getUI())
-            advanced_mode_DEBUG(lForceON=True)
+            advanced_options_DEBUG(lForceON=True)
 
             screenSize = Toolkit.getDefaultToolkit().getScreenSize()
 
@@ -28610,7 +28697,7 @@ now after saving the file, restart Moneydance
 
             displayString = buildDiagText()
 
-            GlobalVars.STATUS_LABEL = JLabel("Infinite Kind (Moneydance) support tool >> DIAG STATUS: BASIC MODE RUNNING...", JLabel.LEFT)
+            GlobalVars.STATUS_LABEL = JLabel("Infinite Kind (Moneydance) support tool >> DIAG STATUS: READ-ONLY MODE ACTIVE...", JLabel.LEFT)
             GlobalVars.STATUS_LABEL.setForeground(GlobalVars.DARK_GREEN)
             GlobalVars.STATUS_LABEL.setBorder(BorderFactory.createLineBorder(MD_REF.getUI().getColors().headerBorder, 2))
 
@@ -28620,6 +28707,8 @@ now after saving the file, restart Moneydance
             except:
                 myPrint("J","Error copying diagnostic's main screen contents to Clipboard")
                 dump_sys_error_to_md_console_and_errorlog()
+
+            doTheMenu = self.DoTheMenu()
 
             shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
 
@@ -28644,6 +28733,9 @@ now after saving the file, restart Moneydance
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, shortcut), "display-help")
             toolbox_frame_.getRootPane().getActionMap().put("display-help", DisplayHelp())
+
+            toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(ToolboxMode.DEFAULT_KEY, shortcut), ToolboxMode.DEFAULT_CMD)
+            toolbox_frame_.getRootPane().getActionMap().put(ToolboxMode.DEFAULT_CMD, doTheMenu)
 
             frame_width = min(GetFirstMainFrame.DEFAULT_MAX_WIDTH, min(screenSize.width-20, max(GetFirstMainFrame.DEFAULT_MAX_WIDTH, int(round(GetFirstMainFrame.getSize().width *.95,0)))))
             frame_height = min(screenSize.height-20, max(GetFirstMainFrame.DEFAULT_MAX_HEIGHT, int(round(GetFirstMainFrame.getSize().height *.95,0))))
@@ -28738,17 +28830,17 @@ now after saving the file, restart Moneydance
                         self.setForeground(adhocFG)
                         self.setBackground(adhocBG)
                         if adhocBOLD: self.setFont(self.getFont().deriveFont(Font.BOLD))
-                        self.setVisible(GlobalVars.UPDATE_MODE)
+                        self.setVisible(ToolboxMode.isUpdateMode())
                         return
 
-                    if self.isAdvancedCapable() and GlobalVars.ADVANCED_MODE and not self.isUpdateCapable():
+                    if self.isAdvancedCapable() and ToolboxMode.isUpdateMode() and not self.isUpdateCapable():
                         self.setForeground(advancedEnabledFG)
                         self.setBackground(advancedEnabledBG)
                         if advancedEnabledBOLD: self.setFont(self.getFont().deriveFont(Font.BOLD))
                         return
 
-                    if ((self.isUpdateCapable() and GlobalVars.UPDATE_MODE)
-                            or (self.isAdvancedCapable() and GlobalVars.ADVANCED_MODE)):
+                    if ((self.isUpdateCapable() and ToolboxMode.isUpdateMode())
+                            or (self.isAdvancedCapable() and ToolboxMode.isUpdateMode())):
                         self.setForeground(updateEnabledFG)
                         if updateEnabledBOLD: self.setFont(self.getFont().deriveFont(Font.BOLD))
                     else:
@@ -28810,15 +28902,15 @@ now after saving the file, restart Moneydance
             transactionMenu_button.addActionListener(self.TransactionMenuButtonAction())
             GlobalVars.allButtonsList.append(transactionMenu_button)
 
+            advancedOptions_button = MyJButton("<html><center>MENU: Advanced<BR>Options</center></html>", updateCapable=True, advancedCapable=True)
+            advancedOptions_button.setToolTipText("Menu containing 'Advanced' Tools, options, fixes...")
+            advancedOptions_button.addActionListener(self.AdvancedOptionsMenuButtonAction())
+            GlobalVars.allButtonsList.append(advancedOptions_button)
+
             CuriousViewInternalSettings_button = MyJButton("<html><center>CURIOUS?<BR>View Internal Settings</center></html>")
             CuriousViewInternalSettings_button.setToolTipText("This allows you to display very Technical Information on the Moneydance System and many key objects..... READONLY")
             CuriousViewInternalSettings_button.addActionListener(CuriousViewInternalSettingsButtonAction())
             GlobalVars.allButtonsList.append(CuriousViewInternalSettings_button)
-
-            advancedMenu_button = MyJButton("<html><center>ADVANCED MODE</center></html>", advancedCapable=True)
-            advancedMenu_button.setToolTipText("Menu containing 'Advanced' Tools...")
-            advancedMenu_button.addActionListener(self.AdvancedMenuButtonAction())
-            GlobalVars.allButtonsList.append(advancedMenu_button)
 
             # ----------------------------------------------------------------------------------------------------------
 
@@ -28951,56 +29043,25 @@ now after saving the file, restart Moneydance
             menu1.setMnemonic(KeyEvent.VK_T)
             menu1.setForeground(SetupMDColors.FOREGROUND_REVERSED); menu1.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
-            class SwingTimerListener(ActionListener):
-                def __init__(self, swComponent):
-                    self.isForeground = True
-                    self.swComponent = swComponent
-                    self.fg = self.swComponent.getForeground()
-                    self.bg = getColorRed()
-
-                def actionPerformed(self, event):                                                                       # noqa
-                    self.swComponent.setForeground(self.fg if self.isForeground else self.bg)
-                    self.isForeground = not self.isForeground
-
-            swTimer = SwingTimer(1000, SwingTimerListener(menu1))
-            swTimer.start()
-
-
-            menuItem0 = JCheckBoxMenuItem("Update Mode")
-            menuItem0.setMnemonic(KeyEvent.VK_U)
-            menuItem0.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, keyToUse))
-            menuItem0.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
-            menuItem0.setToolTipText("Enables UPDATE (Fix Mode) >> can update data/settings...")
-            menuItem0.setSelected(False)
-            menu1.add(menuItem0)
-
-            menuItemA = JCheckBoxMenuItem("Advanced Mode")      # (Previously Hacker mode)
-            menuItemA.setMnemonic(KeyEvent.VK_A)
-            menuItemA.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_M, (keyToUse | Event.SHIFT_MASK)))
-            menuItemA.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
-            menuItemA.setToolTipText("Enables 'ADVANCED' Mode - Do not do this unless you know what you are doing... Allows you to update data!")
-            menuItemA.setSelected(False)
-            menu1.add(menuItemA)
-
-            menuItemC = JCheckBoxMenuItem("Copy all Output to Clipboard")
-            menuItemC.setMnemonic(KeyEvent.VK_O)  # Can't think of a spare letter to use!!!!
-            menuItemC.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, keyToUse))
-            menuItemC.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
-            menuItemC.setToolTipText("When selected copies the output of all displays to Clipboard")
-            menuItemC.setSelected(GlobalVars.lCopyAllToClipBoard_TB)
-            menu1.add(menuItemC)
-
             menuItemD = JCheckBoxMenuItem("Debug")
             menuItemD.setMnemonic(KeyEvent.VK_D)
             menuItemD.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_D, (keyToUse | Event.SHIFT_MASK)))
-            menuItemD.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
+            menuItemD.addActionListener(doTheMenu)
             menuItemD.setToolTipText("Enables script to output debug information - technical stuff - readonly")
             menuItemD.setSelected(debug)
             menu1.add(menuItemD)
 
+            menuItemC = JCheckBoxMenuItem("Copy all Output to Clipboard")
+            menuItemC.setMnemonic(KeyEvent.VK_O)  # Can't think of a spare letter to use!!!!
+            menuItemC.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, keyToUse))
+            menuItemC.addActionListener(doTheMenu)
+            menuItemC.setToolTipText("When selected copies the output of all displays to Clipboard")
+            menuItemC.setSelected(GlobalVars.lCopyAllToClipBoard_TB)
+            menu1.add(menuItemC)
+
             menuItemP = JCheckBoxMenuItem("Auto Prune Internal Backups")
             menuItemP.setMnemonic(KeyEvent.VK_B)
-            menuItemP.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
+            menuItemP.addActionListener(doTheMenu)
             menuItemP.setToolTipText("Enables auto pruning of the internal backups that Toolbox makes of config.dict, custom_theme.properties, and ./safe/settings")
             menuItemP.setSelected(GlobalVars.lAutoPruneInternalBackups_TB)
             menu1.add(menuItemP)
@@ -29014,7 +29075,7 @@ now after saving the file, restart Moneydance
             menuItemPS = JMenuItem("Page Setup")
             menuItemPS.setMnemonic(KeyEvent.VK_P)
             menuItemPS.setToolTipText("Printer Page Setup")
-            menuItemPS.addActionListener(self.DoTheMenu(mainPnl, menu1, self))
+            menuItemPS.addActionListener(doTheMenu)
             menu1.add(menuItemPS)
 
             menuItem2 = JMenuItem("Exit")
@@ -29035,18 +29096,18 @@ now after saving the file, restart Moneydance
             menuItemH.setMnemonic(KeyEvent.VK_I)
             menuItemH.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I, keyToUse))
             menuItemH.setToolTipText("Display Help")
-            menuItemH.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
+            menuItemH.addActionListener(doTheMenu)
             menuH.add(menuItemH)
 
             menuItemA = JMenuItem("About Toolbox")
             menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setToolTipText("About...")
-            menuItemA.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
+            menuItemA.addActionListener(doTheMenu)
             menuH.add(menuItemA)
 
             menuItemAMD = JMenuItem("About Moneydance")
             menuItemAMD.setToolTipText("About...")
-            menuItemAMD.addActionListener(self.DoTheMenu(mainPnl, menuH, self))
+            menuItemAMD.addActionListener(doTheMenu)
             menuH.add(menuItemAMD)
 
             mb.add(menuH)
@@ -29055,6 +29116,10 @@ now after saving the file, restart Moneydance
 
             mb.add(Box.createHorizontalGlue())
 
+            ToolboxMode.addActionListener(doTheMenu)
+            ToolboxMode.setForeground(SetupMDColors.FOREGROUND_REVERSED)
+            ToolboxMode.setBackground(SetupMDColors.BACKGROUND_REVERSED)
+
             btnConsole = JButton("Launch Console Window")
             btnConsole.setToolTipText("launches the Moneydance Console Window (and turns DEBUG on).. Useful for extra diagnostics!")
 
@@ -29062,11 +29127,11 @@ now after saving the file, restart Moneydance
             btnConsole.setBackground(SetupMDColors.BACKGROUND)
             btnConsole.setForeground(SetupMDColors.FOREGROUND)
 
-            btnSaveConsole = JButton("Save Console Log")
-            btnSaveConsole.setToolTipText("Copy/save the Console Error log file to a directory of your choosing..")
-            btnSaveConsole.setOpaque(SetupMDColors.OPAQUE)
-            btnSaveConsole.setBackground(SetupMDColors.BACKGROUND)
-            btnSaveConsole.setForeground(SetupMDColors.FOREGROUND)
+            # btnSaveConsole = JButton("Save Console Log")
+            # btnSaveConsole.setToolTipText("Copy/save the Console Error log file to a directory of your choosing..")
+            # btnSaveConsole.setOpaque(SetupMDColors.OPAQUE)
+            # btnSaveConsole.setBackground(SetupMDColors.BACKGROUND)
+            # btnSaveConsole.setForeground(SetupMDColors.FOREGROUND)
 
             btnOpenMDFolder = JButton("Open MD Folder")
             btnOpenMDFolder.setToolTipText("Open the selected Moneydance (internal) folder in Explorer/Finder window (etc)")
@@ -29080,10 +29145,12 @@ now after saving the file, restart Moneydance
             btnCopyDiagnostics.setBackground(SetupMDColors.BACKGROUND)
             btnCopyDiagnostics.setForeground(SetupMDColors.FOREGROUND)
 
+            mb.add(ToolboxMode.getJCheckBox())
+            mb.add(Box.createRigidArea(Dimension(10, 0)))
             mb.add(btnConsole)
             mb.add(Box.createRigidArea(Dimension(10, 0)))
-            mb.add(btnSaveConsole)
-            mb.add(Box.createRigidArea(Dimension(10, 0)))
+            # mb.add(btnSaveConsole)
+            # mb.add(Box.createRigidArea(Dimension(10, 0)))
             mb.add(btnOpenMDFolder)
             mb.add(Box.createRigidArea(Dimension(10, 0)))
             mb.add(btnCopyDiagnostics)
@@ -29091,7 +29158,7 @@ now after saving the file, restart Moneydance
             mb.add(Box.createRigidArea(Dimension(30, 0)))
 
             btnConsole.addActionListener(ShowTheConsole())
-            btnSaveConsole.addActionListener(CopyConsoleLogFileButtonAction(MD_REF.getLogFile()))
+            # btnSaveConsole.addActionListener(CopyConsoleLogFileButtonAction(MD_REF.getLogFile()))
             btnOpenMDFolder.addActionListener(OpenFolderButtonAction())
             btnCopyDiagnostics.addActionListener(ClipboardButtonAction(displayString))
             # ##############
@@ -29123,14 +29190,7 @@ now after saving the file, restart Moneydance
             bottomPanel.add(GlobalVars.mainPnl_preview_lbl, GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
             bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
 
-            GlobalVars.mainPnl_updateMode_lbl.setText("<UPDATE MODE>" if GlobalVars.UPDATE_MODE else "")
-            GlobalVars.mainPnl_updateMode_lbl.setForeground(getColorRed())
-            bottomPanel.add(GlobalVars.mainPnl_updateMode_lbl, GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
-            bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
-
-            GlobalVars.mainPnl_advancedMode_lbl.setText("<ADVANCED MODE>" if GlobalVars.ADVANCED_MODE else "")
-            GlobalVars.mainPnl_advancedMode_lbl.setForeground(getColorRed())
-            bottomPanel.add(GlobalVars.mainPnl_advancedMode_lbl, GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
+            bottomPanel.add(ToolboxMode.getStatusLabel(), GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
             bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
 
             GlobalVars.mainPnl_toolboxUnlocked_lbl.setText("<TOOLBOX UNLOCKED>" if isToolboxUnlocked() else "")
@@ -29163,6 +29223,9 @@ now after saving the file, restart Moneydance
             toolbox_frame_.setVisible(True)     # already on the EDT
             toolbox_frame_.toFront()            # already on the EDT
             toolbox_frame_.isActiveInMoneydance = True
+
+            myPrint("DB","Adding BlinkSwingTimer")
+            BlinkSwingTimer(1200, ToolboxMode.getJCheckBox(), getColorRed()).start()
 
             myPrint("DB","Adding Preferences listener:", self)
             MD_REF.getPreferences().addListener(self)
@@ -29337,6 +29400,19 @@ now after saving the file, restart Moneydance
                                  lAlertLevel=1,
                                  lModal=False).go()
 
+            # Check whether Dropbox has been migrated to new location on Mac.... Is there a problem with the Alias?
+            if detectMigratedDropboxFolderProblem():
+                MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus="MacOS Dropbox Location (migration) Warning:",
+                                 theMessage="Your Dropbox location appears to have been migrated\n"
+                                            ".. but there is problem with the Alias from the old location\n"
+                                            "Use 'Update Mode' Menu: Advanced Options to attempt a fix....\n"
+                                            "... (you may have to perform a manual fix)...",
+                                 theTitle="Dropbox Location Warning",
+                                 OKButtonText="ACKNOWLEDGE",
+                                 lAlertLevel=1,
+                                 lModal=False).go()
+
             # Check for repeated opening of backup files
             try:
                 datapath = MD_REF.getCurrentAccount().getBook().getRootFolder().getCanonicalPath()
@@ -29410,7 +29486,7 @@ Script/extension is analysing your moneydance & system settings....
                     theDisplay.openDisplay()
 
                     # At this point, Toolbox is running. Put bypass methods here for debug testing
-                    # GlobalVars.UPDATE_MODE = True; GlobalVars.ADVANCED_MODE = True; Call a function here if needed for debug
+                    # ToolboxMode.setUpdateMode(True); Call a function here if needed for debug
 
             if not SwingUtilities.isEventDispatchThread():
                 myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")

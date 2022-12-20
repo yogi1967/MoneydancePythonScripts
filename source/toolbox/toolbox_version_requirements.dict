@@ -1,11 +1,11 @@
 {
-    "last_updated" = "20221127"
+    "last_updated" = "20221217"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1056"
                     "disable" = "n"
-                    "news" = "tweaks/fixes; New feature: 'DIAG: Produce report of Accounts and bank/account number information'"
+                    "news" = "tweaks/fixes; New feature: 'DIAG: Produce report of Accounts and bank/account number information'; Eliminated Advanced Mode"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2022.5"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "4091"

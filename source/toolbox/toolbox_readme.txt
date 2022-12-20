@@ -21,9 +21,8 @@ PLEASE ALWAYS BACKUP YOUR DATA FIRST! You  can use the Create Backup (green) but
 PURPOSE
 
 To enable the User to self-diagnose problems, or access key diagnostics to enable support to help
-- Basic mode:                       The default mode. Very safe and contains useful / view options only
+- Read-Only mode:                   The default mode. Very safe and contains useful / view options only
 - Update Mode:                      Allows running of fixes/updates. CAN CHANGE DATA (you will always be asked to confirm first)
-- Advanced Mode:                    Enables 'advanced' features. USE WITH CARE!
 - Curious? View Internal Settings:  View technical information/settings in various places (this is readonly)
 
 - The Toolbox offers the option to Backup first  - ALWAYS BACKUP (But this is your choice!)
@@ -112,8 +111,8 @@ POPUP Output/Report Window(s):
     - Wrap Contents: Turns on line wrap. Also enables print 'fit-to-width'
     - Print, Save to file: Prints the contents or saves to file.
 
-Basic Mode (Default at launch) - Use ALT-M to toggle between Basic and Update modes
-- Basic mode: Buttons
+Read-Only Mode (Default at launch) - Use ALT-M to toggle between Read-Only and Update mode
+- Read-Only mode: Buttons
     - CREATE BACKUP (This calls the Moneydance 'Export Backup' function to backup your dataset)
     - Analyse Dataset Objects Size & Files
     - Find my Dataset (Search for *.moneydance & *.moneydancearchive Datasets)
@@ -173,7 +172,7 @@ Menu - CURIOUS? VIEW INTERNAL SETTINGS (Read-Only - very safe)
     - Show all Operating System Environment Variables
 
 ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / security data issues detected. Some only available from 2021.2 onwards)
-    All basic mode settings plus (note the text of buttons turn red when update mode enabled):
+    All Read-Only mode settings plus (note the text of buttons turn red when update mode enabled):
     - These four buttons will only appear if they are necessary / possible in your system, on the last button row
         - FIX - Make me a Primary Dataset (convert from Secondary dataset to enable Sync) (convert_secondary_to_primary_data_set.py)
         - FIX - Zap Invalid Window Locations (Appears if any of your saved windows are 'off screen')
@@ -219,12 +218,12 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
                 - Manual Edit of stored Root UserIDs/ClientUIDs
         - Delete Single cached OnlineTxnList Record/Txns
         - Delete ALL cached OnlineTxnList record/Txns (delete_intermediate_downloaded_transaction_caches.py)
-        - OFX Cookie Management (requires Advanced mode)
-        - Force MD+ name cache & access tokens rebuild - Names and Access Tokens should rebuild themselves - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
-        - Force Disconnect an MD+ Connection - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
-        - Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant') - MD Version 2022 onwards. READONLY (requires Advanced mode)
-        - Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE. (requires Advanced mode)
-        - ZAP Dataset's Moneydance+ (Plaid) settings (requires Advanced mode) - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
+        - OFX Cookie Management
+        - Force MD+ name cache & access tokens rebuild - Names and Access Tokens should rebuild themselves - MD Version 2022 onwards. USE WITH CARE.
+        - Force Disconnect an MD+ Connection - MD Version 2022 onwards. USE WITH CARE.
+        - Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant') - MD Version 2022 onwards. READONLY
+        - Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE.
+        - ZAP Dataset's Moneydance+ (Plaid) settings - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
         - USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs
         - USAA Only: Executes the special script to create a working USAA OFX Profile (ofx_create_new_usaa_bank_custom_profile.py)
 
@@ -266,25 +265,26 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Reverse Transaction Exchange rates between dates (reverse_txn_amounts.py)
         - FIX - Detect and fix transactions assigned to 'root' account (Offers options to display / fix these transactions)
 
-ALT-SHIFT-M - Menu - ADVANCED MODE (button turns red when enabled)
-    >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
-    - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
-    - Toggle other Moneydance DEBUGs
-    - Extract a (single) file from within LocalStorage. Decrypts a LocalStorage file to TMP dir for viewing (file self destructs after MD restart)
-    - Decrypt entire dataset. Decrypts entire dataset to a folder of your choosing...
-    - Peek at an encrypted file located in your Sync Folder.... Decrypts a Sync (e.g. Dropbox) file and shows it to you...
-    - Shrink Dataset. This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...
-    - Clone Dataset's structure (purge transactional data) - Copy dataset keeping structures, purging all transactional data.
-    - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
-    - DEMOTE your Primary Sync dataset/node back to a Secondary Node
-    - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
-    - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
-    - Force reset Sync settings (This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync)
-    - Toggle Sync Downloading of Attachments (Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync)
-    - Import (a single) File back into LocalStorage. Encrypts a file of your choosing and puts it into LocalStorage/safe/TMP...
-    - Allows User to Add/Change/Delete Settings/Prefs >> key/value in config.dict or LocalStorage() (./safe/settings)
-    - Allows User to Add/Change/Delete an Object's Parameter keys (this can change data in your dataset/database directly)
-    - Suppress the "Your file seems to be in a shared folder (Dropbox)" warning... (optional when condition exists)
+    - MENU: Advanced options
+        >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
+        - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
+        - Toggle other Moneydance DEBUGs
+        - Extract a (single) file from within LocalStorage. Decrypts a LocalStorage file to TMP dir for viewing (file self destructs after MD restart)
+        - Decrypt entire dataset. Decrypts entire dataset to a folder of your choosing...
+        - Peek at an encrypted file located in your Sync Folder.... Decrypts a Sync (e.g. Dropbox) file and shows it to you...
+        - Shrink Dataset. This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...
+        - Clone Dataset's structure (purge transactional data) - Copy dataset keeping structures, purging all transactional data.
+        - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
+        - DEMOTE your Primary Sync dataset/node back to a Secondary Node
+        - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
+        - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
+        - Force reset Sync settings (This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync)
+        - Toggle Sync Downloading of Attachments (Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync)
+        - Repair migrated Dropbox location 'alias' (MacOS only) (Attempts to (re)create the missing file system alias that points to new location)
+        - Import (a single) File back into LocalStorage. Encrypts a file of your choosing and puts it into LocalStorage/safe/TMP...
+        - Allows User to Add/Change/Delete Settings/Prefs >> key/value in config.dict or LocalStorage() (./safe/settings)
+        - Allows User to Add/Change/Delete an Object's Parameter keys (this can change data in your dataset/database directly)
+        - Suppress the "Your file seems to be in a shared folder (Dropbox)" warning... (optional when condition exists)
 
 CMD-P - View Toolbox's parameters file (StuWareSoftSystems). Also allows user to Delete all, and/or change/delete single saved parameters
 
