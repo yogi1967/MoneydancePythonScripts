@@ -19063,12 +19063,13 @@ now after saving the file, restart Moneydance
                       "Current Decimal Places set to: %s\n" %(securityToEdit, securityToEdit.getDecimalPlaces())
 
             while True:
-
+                dp_limit = 16
+                dp_current = securityToEdit.getDecimalPlaces()
                 newDecimal = myPopupAskForInput(toolbox_frame_,
                                                 _THIS_METHOD_NAME,
                                                 "New Decimal Places:",
-                                                "Enter the new Decimal Places setting (currently %s)" %(securityToEdit.getDecimalPlaces()),
-                                                defaultValue=securityToEdit.getDecimalPlaces())
+                                                "Enter the new Decimal Places setting (0-%s allowed, currently %s)" % (dp_limit, dp_current),
+                                                defaultValue=dp_current)
 
                 if newDecimal is not None and not StringUtils.isInteger(newDecimal):
                     continue
@@ -19079,7 +19080,7 @@ now after saving the file, restart Moneydance
                     myPopupInformationBox(toolbox_frame_, txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                     return
 
-                if int(newDecimal) >= 0 and int(newDecimal) <= 16:
+                if int(newDecimal) >= 0 and int(newDecimal) <= dp_limit:
                     newDecimal = int(newDecimal)
                     break
 
