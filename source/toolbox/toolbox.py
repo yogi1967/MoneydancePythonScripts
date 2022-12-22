@@ -19145,7 +19145,7 @@ now after saving the file, restart Moneydance
 
             while True:
                 dp_limit = 16
-                dp_current = securityToEdit.getDecimalPlaces()
+                dp_current = str(securityToEdit.getDecimalPlaces())
                 newDecimal = myPopupAskForInput(toolbox_frame_,
                                                 _THIS_METHOD_NAME,
                                                 "New Decimal Places:",
@@ -19167,9 +19167,32 @@ now after saving the file, restart Moneydance
 
                 continue
 
+            newMaxNumber = None
+            if newDecimal > securityToEdit.getDecimalPlaces() and newDecimal > 8:
+                maxNumberStr = str(Long.MAX_VALUE)
+                maxDigits = len(maxNumberStr)
+                oldWholeDigitsMax = maxDigits - securityToEdit.getDecimalPlaces()
+                newWholeDigitsMax = maxDigits - newDecimal
+                # oldMaxWholeNumber = maxNumberStr[:oldWholeDigitsMax]
+                # newMaxWholeNumber = maxNumberStr[:newWholeDigitsMax]
+                # oldMaxFractional = maxNumberStr[oldWholeDigitsMax:]
+                # newMaxFractional = maxNumberStr[newWholeDigitsMax:]
+                oldMaxNumber = "%s.%s" %(maxNumberStr[:oldWholeDigitsMax], maxNumberStr[oldWholeDigitsMax:])
+                newMaxNumber = "%s.%s" %(maxNumberStr[:newWholeDigitsMax], maxNumberStr[newWholeDigitsMax:])
+                if not myPopupAskQuestion(toolbox_frame_,
+                                          _THIS_METHOD_NAME.upper(),
+                                          "WARNING: at %s dpc, new maximum number is: '%s' - OK?"
+                                          %(newDecimal, newMaxNumber)):
+                    txt = "%s: User aborted.. - NO CHANGES MADE!" %(_THIS_METHOD_NAME)
+                    setDisplayStatus(txt, "B")
+                    myPopupInformationBox(toolbox_frame_, txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+                    return
+                output += "\n" \
+                          "** User accepted warning that at %s decimals, the maximum number that MD can store is '%s' (was: '%s')! **\n\n" %(newDecimal, newMaxNumber, oldMaxNumber)
+                del maxDigits, oldWholeDigitsMax, newWholeDigitsMax, oldMaxNumber
+
             # MyAcctFilter() - 22 Security Sub Accounts; 23 Investment Accounts
             allInvestmentSecurityAccounts = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(22))
-
 
             iTotalTxns = 0
             iTotalBalance = 0
@@ -19224,7 +19247,7 @@ now after saving the file, restart Moneydance
             else:
                 output += "\nNOTE: No Invalid Lot Control/Cost Basis records were detected before any changes made....\n\n"
 
-            jif = QuickJFrame(("%s: Accounts, Txns, Balance Analysis" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(("%s: Accounts, Txns, Balance Analysis" %(_THIS_METHOD_NAME)).upper(), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
             if (iTotalBalance + iTotalTxns + len(securitySubAccountsNeedChanging)) == 0:
                 txt = "NOTE - No related accounts, txns, balances were found for this security!"
@@ -19256,7 +19279,7 @@ now after saving the file, restart Moneydance
             myPrint("B", txt); output += "\n%s\n" %(txt)
 
             decimalAdjustmentMethod = "expand"
-            jif = QuickJFrame(("%s: Decimal Strategy" %(_THIS_METHOD_NAME)).upper(),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(("%s: Decimal Strategy" %(_THIS_METHOD_NAME)).upper(), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
 
             if newDecimal < securityToEdit.getDecimalPlaces():
 
@@ -19302,7 +19325,7 @@ now after saving the file, restart Moneydance
                     if not ask.go():
                         txt = "%s: User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                         setDisplayStatus(txt, "R"); myPrint("B",txt)
-                        jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                        jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
                         myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                         return
 
@@ -19310,10 +19333,13 @@ now after saving the file, restart Moneydance
                     myPrint("B",txt); output += "\n\n%s\n\n" %(txt)
 
             else:
-                output += "\nDecimal Strategy selected: %s (Increased so no loss of values)\n\n" %(decimalAdjustmentMethod)
-                txt = "DECIMAL INCREASE STRATEGY: You are increasing the number of decimal places; so no values will be lost.."
+                output += "\nDecimal Strategy selected: %s (Increased so no loss of decimal precision)\n\n" %(decimalAdjustmentMethod)
+                txt = "DECIMAL INCREASE STRATEGY: You are increasing the number of decimal places; so no decimal precision will be lost.."
                 output += "\n%s\n" %(txt)
                 myPopupInformationBox(jif, txt,theMessageType=JOptionPane.INFORMATION_MESSAGE)
+
+                if newDecimal > 8:
+                    output += "\n\n *** HOWEVER, you have accepted that at %s decimal places, the maximum number that MD can store is '%s'\n\n" %(newDecimal, newMaxNumber)
 
                 if lUsingLotControl:
                     output += "\n\n *** NOTE: LOT CONTROLLED RECORDS using Cost Basis Tags found - As you are increasing the decimal precision, no fractional losses should occur ***\n\n"
@@ -19330,7 +19356,7 @@ now after saving the file, restart Moneydance
             if not ask.go():
                 txt = "%s... User Aborted - No changes made!" %(_THIS_METHOD_NAME)
                 setDisplayStatus(txt, "R"); myPrint("B",txt)
-                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME),output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+                jif = QuickJFrame("%s: REPORT/LOG" %(_THIS_METHOD_NAME), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
                 myPopupInformationBox(jif,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
                 return
 
@@ -19343,11 +19369,11 @@ now after saving the file, restart Moneydance
             output += "\n"
 
         except:
-            txt = ("MINOR ERROR - %s: crashed before any merge actions. Please review output and console" %(_THIS_METHOD_NAME)).upper()
+            txt = ("MINOR ERROR - %s: crashed before any update actions. Please review output and console" %(_THIS_METHOD_NAME)).upper()
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -19539,7 +19565,7 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt,output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
@@ -19614,11 +19640,11 @@ now after saving the file, restart Moneydance
             myPrint("B",txt); output += "\n\n\n%s\n\n" %(txt)
             output += dump_sys_error_to_md_console_and_errorlog(True)
             setDisplayStatus(txt, "R")
-            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame(txt, output, lAlertLevel=2, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
             myPopupInformationBox(jif,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
             return
 
-        jif = QuickJFrame(txt,output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB,lWrapText=False).show_the_frame()
+        jif = QuickJFrame(txt, output,copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
         setDisplayStatus(txt, optionColor)
         play_the_money_sound()
         myPopupInformationBox(jif,txt,theMessageType=optionMessage)
