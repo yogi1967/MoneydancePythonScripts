@@ -198,7 +198,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
             >> External locations > Edits config.dict to remove references to external files for File/open - AND ALLOWS YOU TO DELETE THE FILES TOO
             >> Default / Internal locations > ALLOWS YOU TO DELETE THE Dataset from disk (this then removes it from the File/Open menu)
         - FIX - Remove inactive accounts/categories from SideBar
-        - FIX - Set/Change Default Moneydance FONTS
+        - FIX - Set/Change Default Moneydance FONTS                                                                     >> 2021.1 onwards
         - FIX - Delete Custom Theme file
         - FIX - Delete Orphaned/Outdated Extensions (from config.dict and .mxt files)
 
@@ -206,7 +206,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - Forget OFX Banking Import Link (so it asks which account when importing ofx files) (remove_ofx_account_bindings.py) (MD versions < 2022)
         - Reset/Fix/Edit/Add CUSIP Banking Link. This is the link for downloaded securities.... (remove_ofx_security_bindings.py and change-security-cusip.py)
         - Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
-        - Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)
+        - Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD 2022.3(4074) onwards)
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
         - Cleanup missing Online Banking Links (NOTE: This is always called when running 'Delete OFX Banking Logon Profile / Service' above
         - OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)
@@ -232,7 +232,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).  >> 2021.2 onwards
         - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).        >> 2021.2 onwards
         - FIX - Fix currency / security's current price hidden 'price_date' field. Also corrects current price whilst fixing too..   >> 2021.2 onwards
-        - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field
+        - FIX - Manually edit a Security/Currency's current price hidden 'price_date' field                                          >> 2021.2 onwards
         - FIX - Detect and merge/fix duplicate Securities within same Investment Account(s)
         - FIX - Detect and fix (wipe) LOT records where matched Buy/Sell records are invalid
         - FIX - Convert Stock to LOT Controlled and Allocate LOTs using FiFo method (MakeFifoCost.py)
@@ -277,7 +277,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - Call Save Trunk File option.... Immediately flushes all in memory changes to disk, including your dataset (rather than wait for restart)
         - DEMOTE your Primary Sync dataset/node back to a Secondary Node
         - Force a refresh/PUSH of your local dataset to Sync. Push new Sync data (and rebuild remote copies). Use carefully!
-        - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again)
+        - Force disable/turn Sync OFF (This just sets your Sync method to None - all other settings are preserved. You can turn it back on again) >> 2022.5 onwards
         - Force reset Sync settings (This resets all Sync settings, changes your Sync ID, and turns Sync off. You can then re-enable it for a fresh Sync)
         - Toggle Sync Downloading of Attachments (Normally this defaults to ON; Change to OFF to prevent attachments downloading via Sync)
         - Repair migrated Dropbox location 'alias' (MacOS only) (Attempts to (re)create the missing file system alias that points to new location)

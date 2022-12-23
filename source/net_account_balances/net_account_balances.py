@@ -92,6 +92,7 @@
 # build: 1015 - Added new options to allow auto hiding of rows when balance is xxx...
 # build: 1016 - Fix phantom linking of account selection when using duplicate row function...
 # build: 1017 - Enable blinking of auto hidden rows....; Added option to hide decimals...; use my code for all .formatXXX() calls...
+# build: 1017 - Added underline 'dots' to match the other Summary Screen visual laf... Also option to enable / disable...
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -390,9 +391,11 @@ else:
     from javax.swing import JList, ListSelectionModel, DefaultComboBoxModel, DefaultListSelectionModel, JSeparator
     from javax.swing import DefaultListCellRenderer, BorderFactory, Timer as SwingTimer
     from javax.swing.event import DocumentListener, ListSelectionListener
+    # from javax.swing.text import View
 
-    from java.awt import RenderingHints
+    from java.awt import RenderingHints, BasicStroke, Graphics2D, Rectangle
     from java.awt.event import FocusAdapter, MouseListener, ActionListener
+    from java.awt.geom import Path2D
 
     from java.lang import ArrayIndexOutOfBoundsException, Integer, InterruptedException, Character
     from java.util import Comparator, Iterator, Collections, Iterator, UUID
@@ -454,6 +457,7 @@ else:
     GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = None
     GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB         = None
     GlobalVars.extn_param_NEW_hideDecimals_NAB              = None
+    GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = None
 
     GlobalVars.extn_param_NEW_expandedView_NAB              = None
 
@@ -3073,6 +3077,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_useIndianNumberFormat_NAB") is not None:        GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_useIndianNumberFormat_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_blinkAutoHideRows_NAB") is not None:            GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_blinkAutoHideRows_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideDecimals_NAB") is not None:                 GlobalVars.extn_param_NEW_hideDecimals_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideDecimals_NAB")
+        if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_displayVisualUnderDots_NAB") is not None:       GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_displayVisualUnderDots_NAB")
 
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_expandedView_NAB") is not None:                 GlobalVars.extn_param_NEW_expandedView_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_expandedView_NAB")
 
@@ -3123,6 +3128,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_useIndianNumberFormat_NAB"]        = GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_blinkAutoHideRows_NAB"]            = GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_hideDecimals_NAB"]                 = GlobalVars.extn_param_NEW_hideDecimals_NAB
+        GlobalVars.parametersLoadedFromFile["extn_param_NEW_displayVisualUnderDots_NAB"]       = GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB
 
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_expandedView_NAB"]                 = GlobalVars.extn_param_NEW_expandedView_NAB
 
@@ -4344,6 +4350,7 @@ Visit: %s (Author's site)
             self.savedUseIndianNumberFormat     = None
             self.savedBlinkAutoHideRows         = None
             self.savedHideDecimals              = None
+            self.savedDisplayVisualUnderDots    = None
 
             self.savedExpandedView              = None
 
@@ -4616,6 +4623,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = NAB.savedUseIndianNumberFormat
             GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB         = NAB.savedBlinkAutoHideRows
             GlobalVars.extn_param_NEW_hideDecimals_NAB              = NAB.savedHideDecimals
+            GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = NAB.savedDisplayVisualUnderDots
 
             GlobalVars.extn_param_NEW_expandedView_NAB              = NAB.savedExpandedView
 
@@ -4900,6 +4908,7 @@ Visit: %s (Author's site)
         def useIndianNumberFormatDefault(self):     return False
         def blinkAutoHideRowsDefault(self):         return False
         def hideDecimalsDefault(self):              return False
+        def displayVisualUnderDotsDefault(self):    return False
         def expandedViewDefault(self):              return True
 
         # noinspection PyUnusedLocal
@@ -4989,30 +4998,32 @@ Visit: %s (Author's site)
                 self.resetParameters(19)
             elif self.savedHideDecimals is None or not isinstance(self.savedHideDecimals, bool):
                 self.resetParameters(20)
-            elif self.savedExpandedView is None or not isinstance(self.savedExpandedView, bool):
+            elif self.savedDisplayVisualUnderDots is None or not isinstance(self.savedDisplayVisualUnderDots, bool):
                 self.resetParameters(21)
-            elif len(self.savedBalanceType) != self.getNumberOfRows():
+            elif self.savedExpandedView is None or not isinstance(self.savedExpandedView, bool):
                 self.resetParameters(22)
-            elif len(self.savedWidgetName) != self.getNumberOfRows():
+            elif len(self.savedBalanceType) != self.getNumberOfRows():
                 self.resetParameters(23)
-            elif len(self.savedCurrencyTable) != self.getNumberOfRows():
+            elif len(self.savedWidgetName) != self.getNumberOfRows():
                 self.resetParameters(24)
-            elif len(self.savedIncludeInactive) != self.getNumberOfRows():
+            elif len(self.savedCurrencyTable) != self.getNumberOfRows():
                 self.resetParameters(25)
-            elif len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
+            elif len(self.savedIncludeInactive) != self.getNumberOfRows():
                 self.resetParameters(26)
-            elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
+            elif len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
                 self.resetParameters(27)
-            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
+            elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
                 self.resetParameters(28)
-            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
+            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
                 self.resetParameters(29)
-            elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
+            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
                 self.resetParameters(30)
-            elif len(self.savedRowSeparatorTable) != self.getNumberOfRows():
+            elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
                 self.resetParameters(31)
-            elif len(self.savedHideRowWhenXXXTable) != self.getNumberOfRows():
+            elif len(self.savedRowSeparatorTable) != self.getNumberOfRows():
                 self.resetParameters(32)
+            elif len(self.savedHideRowWhenXXXTable) != self.getNumberOfRows():
+                self.resetParameters(33)
             else:
                 for i in range(0, self.getNumberOfRows()):
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
@@ -5085,6 +5096,7 @@ Visit: %s (Author's site)
                 self.savedUseIndianNumberFormat     = self.useIndianNumberFormatDefault()
                 self.savedBlinkAutoHideRows         = self.blinkAutoHideRowsDefault()
                 self.savedHideDecimals              = self.hideDecimalsDefault()
+                self.savedDisplayVisualUnderDots    = self.displayVisualUnderDotsDefault()
                 self.savedExpandedView              = self.expandedViewDefault()
 
             self.setSelectedRowIndex(0)
@@ -5384,6 +5396,7 @@ Visit: %s (Author's site)
             myPrint("DB",".....savedUseIndianNumberFormat: %s"              %(self.savedUseIndianNumberFormat))
             myPrint("DB",".....savedBlinkAutoHideRows: %s"                  %(self.savedBlinkAutoHideRows))
             myPrint("DB",".....savedHideDecimals: %s"                       %(self.savedHideDecimals))
+            myPrint("DB",".....savedDisplayVisualUnderDots: %s"             %(self.savedDisplayVisualUnderDots))
 
             myPrint("DB",".....savedExpandedView: %s"                       %(self.savedExpandedView))
 
@@ -5585,6 +5598,7 @@ Visit: %s (Author's site)
             myPrint("B", " %s" %(pad("savedUseIndianNumberFormat",30)),     NAB.savedUseIndianNumberFormat)
             myPrint("B", " %s" %(pad("savedBlinkAutoHideRows",30)),         NAB.savedBlinkAutoHideRows)
             myPrint("B", " %s" %(pad("savedHideDecimals",30)),              NAB.savedHideDecimals)
+            myPrint("B", " %s" %(pad("savedDisplayVisualUnderDots",30)),    NAB.savedDisplayVisualUnderDots)
             myPrint("B", " %s" %(pad("savedExpandedView",30)),              NAB.savedExpandedView)
             myPrint("B", " ----")
 
@@ -6411,6 +6425,15 @@ Visit: %s (Author's site)
                     myPrint("B", "User has changed 'Hide Decimal places' to: %s" %(NAB.savedHideDecimals))
 
                 # ######################################################################################################
+                if event.getActionCommand().lower().startswith("Display underline dots".lower()):
+                    NAB.savedDisplayVisualUnderDots = not NAB.savedDisplayVisualUnderDots
+                    NAB.menuDisplayVisualUnderDots.setSelected(NAB.savedDisplayVisualUnderDots)
+                    NAB.simulateTotalForRow()
+                    NAB.jlst.repaint()
+                    NAB.configSaved = False
+                    myPrint("B", "User has changed 'Display underline dots' to: %s" %(NAB.savedDisplayVisualUnderDots))
+
+                # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Disable Widget Title".lower()):
                     NAB.savedDisableWidgetTitle = not NAB.savedDisableWidgetTitle
                     NAB.menuItemDisableWidgetTitle.setSelected(NAB.savedDisableWidgetTitle)
@@ -6790,6 +6813,7 @@ Visit: %s (Author's site)
                         GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB         = self.useIndianNumberFormatDefault()        # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB             = self.blinkAutoHideRowsDefault()            # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_hideDecimals_NAB                  = self.hideDecimalsDefault()                 # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB        = self.displayVisualUnderDotsDefault()       # Loading will overwrite if saved, else pre-load defaults
 
                         GlobalVars.extn_param_NEW_expandedView_NAB                  = self.expandedViewDefault()                 # Loading will overwrite if saved, else pre-load defaults
 
@@ -6823,6 +6847,7 @@ Visit: %s (Author's site)
                             GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = self.useIndianNumberFormatDefault()        # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB         = self.blinkAutoHideRowsDefault()            # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_hideDecimals_NAB              = self.hideDecimalsDefault()                 # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = self.displayVisualUnderDotsDefault()       # Loading will overwrite if saved, else pre-load defaults
 
                             GlobalVars.extn_param_NEW_expandedView_NAB              = self.expandedViewDefault()                 # Loading will overwrite if saved, else pre-load defaults
 
@@ -6856,6 +6881,7 @@ Visit: %s (Author's site)
                         self.savedUseIndianNumberFormat     = GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB
                         self.savedBlinkAutoHideRows         = GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB
                         self.savedHideDecimals              = GlobalVars.extn_param_NEW_hideDecimals_NAB
+                        self.savedDisplayVisualUnderDots    = GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB
 
                         self.savedExpandedView              = GlobalVars.extn_param_NEW_expandedView_NAB
 
@@ -6999,6 +7025,12 @@ Visit: %s (Author's site)
             NAB.menuItemHideDecimals.setSelected(NAB.savedHideDecimals)
             menuO.add(NAB.menuItemHideDecimals)
 
+            NAB.menuDisplayVisualUnderDots = MyJCheckBoxMenuItem("Display underline dots")
+            NAB.menuDisplayVisualUnderDots.addActionListener(NAB.saveActionListener)
+            NAB.menuDisplayVisualUnderDots.setToolTipText("Display 'underline' dots that fill the blank space between row names and values...")
+            NAB.menuDisplayVisualUnderDots.setSelected(NAB.savedDisplayVisualUnderDots)
+            menuO.add(NAB.menuDisplayVisualUnderDots)
+
             menuItemDeactivate = MyJMenuItem("Deactivate Extension")
             menuItemDeactivate.addActionListener(NAB.saveActionListener)
             menuItemDeactivate.setToolTipText("Deactivates this extension and also the HomePage 'widget' (will reactivate upon MD restart)")
@@ -7076,6 +7108,7 @@ Visit: %s (Author's site)
             NAB.menuItemUseIndianNumberFormat.setSelected(NAB.savedUseIndianNumberFormat)
             NAB.menuItemBlinkAutoHideRows.setSelected(NAB.savedBlinkAutoHideRows)
             NAB.menuItemHideDecimals.setSelected(NAB.savedHideDecimals)
+            NAB.menuDisplayVisualUnderDots.setSelected(NAB.savedDisplayVisualUnderDots)
 
         def build_main_frame(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -7265,7 +7298,7 @@ Visit: %s (Author's site)
                             c = super(RowComboListRenderer, self).getListCellRendererComponent(_list, value, index, isSelected, cellHasFocus)    # noqa
                             if isinstance(value, basestring):
                                 c.setForeground(getColorRed() if ("*" in value or "~" in value) else self.getForeground())
-                            c.setOpaque(False)
+                            if not Platform.isWindows(): c.setOpaque(False)
                             return c
 
                     NAB.rowSelected_COMBO.setRenderer(RowComboListRenderer())
@@ -8107,6 +8140,81 @@ Visit: %s (Author's site)
             self.moneydanceContext.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s....... >> I am now unloaded...." %(GlobalVars.thisScriptName),0)
 
             myPrint("DB","... Completed unload routines...")
+
+    class SpecialJLinkLabel(JLinkLabel):
+        def __init__(self, *args):
+            super(self.__class__, self).__init__(*args)
+
+            self.NAB = NetAccountBalancesExtension.getNAB()
+            self.md = self.NAB.moneydanceContext
+            self.fonts = self.md.getUI().getFonts()
+            self.fonts.updateMetricsIfNecessary(self.getGraphics())
+            self.maxBaseline = self.fonts.defaultMetrics.getMaxDescent()
+            self.underlineStroke = BasicStroke(1.0, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0, [1.0, 6.0], 1.0 if (self.getHorizontalAlignment() == JLabel.LEFT) else 0.0)
+
+        def paintComponent(self, g2d):
+            if isinstance(self, JLabel): pass                                                                           # trick IDE into type checking
+            if isinstance(g2d, Graphics2D): pass                                                                        # trick IDE into type checking
+
+            super(self.__class__, self).paintComponent(g2d)
+            if (not self.NAB.savedDisplayVisualUnderDots or g2d is None): return
+
+            # html_view = self.getClientProperty("html")
+            # if html_view is None: return
+            # if isinstance(html_view, View): pass
+
+            isLeftAlign = (self.getHorizontalAlignment() == JLabel.LEFT)
+
+            x = 0
+            y = 0
+            w = self.getWidth()
+            h = self.getHeight()
+            insets = self.getInsets()
+
+            # self.fonts.updateMetricsIfNecessary(g2d)
+            # g2d.setFont(self.fonts.defaultText)
+
+            viewR = Rectangle(w, h)
+            iconR = Rectangle()
+            textR = Rectangle()
+
+            clippedText = SwingUtilities.layoutCompoundLabel(
+                self,
+                g2d.getFontMetrics(),
+                self.getText(),
+                self.getIcon(),
+                self.getVerticalAlignment(),
+                self.getHorizontalAlignment(),
+                self.getVerticalTextPosition(),
+                self.getHorizontalTextPosition(),
+                viewR,
+                iconR,
+                textR,
+                self.getIconTextGap()
+            )
+            if clippedText is None: pass
+
+            visibleTextWidth = int(textR.getWidth())
+
+            # visibleTextWidth = int(html_view.getPreferredSpan(View.X_AXIS))   # Only useful when html...
+
+            baselineY = (y + self.getHeight() - self.maxBaseline - 1)
+
+            if isLeftAlign:
+                startDots = (visibleTextWidth + insets.left)
+                lengthOfDots = (self.getWidth() - startDots)
+            else:
+                startDots = x
+                lengthOfDots = (self.getWidth() - visibleTextWidth - insets.right)
+
+            line = Path2D.Double()                                                                                      # noqa
+            line.moveTo(w if isLeftAlign else 0.0, baselineY - insets.top)
+            line.lineTo(0.0 if isLeftAlign else w, baselineY - insets.top)
+
+            g2d.setColor(self.md.getUI().colors.defaultTextForeground)
+            g2d.clipRect(startDots, 0, lengthOfDots, h)
+            g2d.setStroke(self.underlineStroke)
+            g2d.draw(line)
 
     class MyHomePageView(HomePageView):
 
@@ -8958,7 +9066,7 @@ Visit: %s (Author's site)
 
                                 rowText = wrap_HTML_small(NAB.savedWidgetName[i], self.netAmountTable[i][_secLabelTextIdx]+showCurrText, altFG)
 
-                                nameLabel = JLinkLabel(rowText, "showConfig?%s" %(str(onRow)), JLabel.LEFT)
+                                nameLabel = SpecialJLinkLabel(rowText, "showConfig?%s" %(str(onRow)), JLabel.LEFT)
 
                                 if self.netAmountTable[i][_valIdx] is None:
                                     netTotalLbl = JLinkLabel(GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(), "showConfig?%s" %(str(onRow)), JLabel.RIGHT)
@@ -8969,7 +9077,7 @@ Visit: %s (Author's site)
 
                                     theFormattedValue = formatFancy(self.netAmountTable[i][_curIdx], self.netAmountTable[i][_valIdx], NAB.decimal, fancy=(not NAB.savedDisableCurrencyFormatting[i]), indianFormat=NAB.savedUseIndianNumberFormat, includeDecimals=(not NAB.savedHideDecimals))
 
-                                    netTotalLbl = JLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT)
+                                    netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT)
                                     netTotalLbl.setFont((md.getUI().getFonts()).mono)                                   # noqa
 
                                     if self.netAmountTable[i][_valIdx] < 0:

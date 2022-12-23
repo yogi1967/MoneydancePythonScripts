@@ -430,8 +430,8 @@ else:
             i_am_an_extension_so_run_headless = None
             parametersLoadedFromFile = {}
             thisScriptName = None
-            MD_MDPLUS_BUILD = 4040
-            MD_ALERTCONTROLLER_BUILD = 4077
+            MD_MDPLUS_BUILD = 4040                          # 2022.0
+            MD_ALERTCONTROLLER_BUILD = 4077                 # 2022.3
             def __init__(self): pass    # Leave empty
 
             class Strings:
@@ -536,11 +536,11 @@ else:
     GlobalVars.TOOLBOX_VERSION_VALIDATION_URL = "https://raw.githubusercontent.com/yogi1967/MoneydancePythonScripts/master/source/toolbox/toolbox_version_requirements.dict"
     # Alternatively perhaps use....: "https://raw.githubusercontent.com/TheInfiniteKind/moneydance_open/main/python_scripts/toolbox/toolbox_version_requirements.dict"
 
-    GlobalVars.MD_ICLOUD_ENABLED = 3088
-    GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD = 3089
-    GlobalVars.MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078
-    GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074
-    GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090
+    GlobalVars.MD_ICLOUD_ENABLED = 3088                                     # 2021.2 (special beta, but really from 2022.0)
+    GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD = 3089                            # 2021.2 (special beta, but really from 2022.0)
+    GlobalVars.MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078          # 2022.4
+    GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                     # 2022.3
+    GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090                        # 2022.5
 
     GlobalVars.fixRCurrencyCheck = 0
     GlobalVars.globalSaveFI_data = None
@@ -3153,9 +3153,9 @@ Visit: %s (Author's site)
                 return fm
         return None
 
-    def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_BUILD)
+    def isMDPlusEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_BUILD)                         # 2022.0
 
-    def isAlertControllerEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_ALERTCONTROLLER_BUILD)
+    def isAlertControllerEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_ALERTCONTROLLER_BUILD)       # 2022.3
 
     def shutdownMDPlusPoller():
         if isMDPlusEnabledBuild():
@@ -3865,11 +3865,11 @@ Visit: %s (Author's site)
 
     def isToolboxUnlocked(): return GlobalVars.TOOLBOX_UNLOCK
 
-    def isMDPlusUniqueBankingServicesEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD)
+    def isMDPlusUniqueBankingServicesEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD)   # 2022.4
 
-    def isMDPlusGetPlaidClientEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD)
+    def isMDPlusGetPlaidClientEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD)                        # 2022.5
 
-    def isRRateCurrencyIssueFixedBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD)
+    def isRRateCurrencyIssueFixedBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD)                                # 2021.2
 
     if isMDPlusEnabledBuild():
         from com.moneydance.apps.md.controller import MDPlus
@@ -6289,7 +6289,7 @@ Visit: %s (Author's site)
 
         return fileIsUnderDropbox, suppressionFileExists
 
-    def isMulti_OFXLastTxnUpdate_build(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD)
+    def isMulti_OFXLastTxnUpdate_build(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD)     # 2022.3
 
     def OFX_view_all_last_txn_download_dates():
         accountsDL = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), MyAcctFilter(21))
@@ -26972,8 +26972,8 @@ now after saving the file, restart Moneydance
                     user_updateOFXLastTxnUpdate = MenuJRadioButton("Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 use Online menu)", False, updateMenu=True)
                     user_updateOFXLastTxnUpdate.setToolTipText("Allows you to edit the last download txn date which is used to set the start date for txn downloads - THIS CHANGES DATA!")
 
-                    user_reset_OFXLastTxnUpdate_dates = MenuJRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD build 4074 onwards)", False, updateMenu=True, secondaryEnabled=(isMulti_OFXLastTxnUpdate_build()))
-                    user_reset_OFXLastTxnUpdate_dates.setToolTipText("Allows you to reset ALL the last download txn dates used to set the start date for txn downloads (4074 onwards) - THIS CHANGES DATA!")
+                    user_reset_OFXLastTxnUpdate_dates = MenuJRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD 2022.3(4074) onwards)", False, updateMenu=True, secondaryEnabled=(isMulti_OFXLastTxnUpdate_build()))
+                    user_reset_OFXLastTxnUpdate_dates.setToolTipText("Allows you to reset ALL the last download txn dates used to set the start date for txn downloads (2022.3(4074) onwards) - THIS CHANGES DATA!")
 
                     user_deleteOFXBankingLogonProfile = MenuJRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False, updateMenu=True)
                     user_deleteOFXBankingLogonProfile.setToolTipText("This will allow you to delete an Online Banking logon / service profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA! (remove_one_service.py)")
@@ -26996,7 +26996,7 @@ now after saving the file, restart Moneydance
                     user_forceMDPlusNameCacheAccessTokensRebuild = MenuJRadioButton("Force MD+ name cache & access tokens rebuild", False, updateMenu=True)
                     user_forceMDPlusNameCacheAccessTokensRebuild.setToolTipText("Wipes your internal MD+ cached bank names and access tokens. These should rebuild themselves. THIS CHANGES DATA!")
 
-                    user_forceDisconnectMDPlusConnection = MenuJRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE) (4090 onwards)", False, updateMenu=True, secondaryEnabled=(isMDPlusGetPlaidClientEnabledBuild()))
+                    user_forceDisconnectMDPlusConnection = MenuJRadioButton("Force Disconnect an MD+ Connection (USE WITH CARE) (MD 2022.5(4090) onwards)", False, updateMenu=True, secondaryEnabled=(isMDPlusGetPlaidClientEnabledBuild()))
                     user_forceDisconnectMDPlusConnection.setToolTipText("Attempts to force disconnect and MD+ connection. THIS CHANGES DATA!")
 
                     user_export_MDPlus_LicenseObject = MenuJRadioButton("Export your Moneydance+ (Plaid) license (keys) to a file (for 'transplant')", False, updateMenu=True)
@@ -27749,19 +27749,19 @@ now after saving the file, restart Moneydance
                     user_diag_price_date = MenuJRadioButton("DIAG: Diagnose currency and security's current price hidden 'price_date' field", False)
                     user_diag_price_date.setToolTipText("This will diagnose your Currency & Security's current price hidden price_date field....")
 
-                    user_edit_security_decimal_places = MenuJRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly) (1904 onwards)", False, updateMenu=True, secondaryEnabled=(int(MD_REF.getBuild()) >= 1904))
+                    user_edit_security_decimal_places = MenuJRadioButton("FIX: Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly) (2021.2(3089) onwards)", False, updateMenu=True, secondaryEnabled=(isRRateCurrencyIssueFixedBuild()))
                     user_edit_security_decimal_places.setToolTipText("This allows you to edit the hidden decimal places setting stored against a security (that you determined when you set the security up)")
 
-                    user_merge_duplicate_securities = MenuJRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record.", False, updateMenu=True)
+                    user_merge_duplicate_securities = MenuJRadioButton("FIX: Merge 'duplicate' securities (and related Investment txns) into one master security record (2021.2(3089) onwards)", False, updateMenu=True, secondaryEnabled=(isRRateCurrencyIssueFixedBuild()))
                     user_merge_duplicate_securities.setToolTipText("Scans for 'duplicated' Securities and can merge together.. Tools>Securities>TickerSymbol is key, ID must be different... (Dpc, RelCurr, Rate, Splits must also match)")
 
                     user_fix_duplicate_securities_within_same_investment_account = MenuJRadioButton("FIX: Detect and merge/fix duplicate Securities within same Investment Account(s)", False, updateMenu=True)
                     user_fix_duplicate_securities_within_same_investment_account.setToolTipText("Scans and merges 'duplicated' Securities within the same Investment account(s).. THIS CHANGES DATA!")
 
-                    user_autofix_price_date = MenuJRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate)", False, updateMenu=True)
+                    user_autofix_price_date = MenuJRadioButton("FIX: Diagnose then fix your currency / security's current price hidden 'price_date' field (along with the current price/rate) (2021.2(3089) onwards)", False, updateMenu=True, secondaryEnabled=(isRRateCurrencyIssueFixedBuild()))
                     user_autofix_price_date.setToolTipText("This will diagnose then fix your Currency & Security's current price hidden price_date field (and current price/rate)....")
 
-                    user_fix_price_date = MenuJRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field", False, updateMenu=True)
+                    user_fix_price_date = MenuJRadioButton("FIX: Manually edit a currency/ security's current price hidden 'price_date' field (2021.2(3089) onwards)", False, updateMenu=True, secondaryEnabled=(isRRateCurrencyIssueFixedBuild()))
                     user_fix_price_date.setToolTipText("Allows you to manually edit a Currency / Security's current price hidden 'price_date' field....")
 
                     user_fix_curr_sec = MenuJRadioButton("FIX: Fix currencies / securities (including relative currencies) (based on reset_relative_currencies.py) (MUST RUN DIAGNOSE ABOVE FIRST)", False, updateMenu=True, secondaryEnabled=(GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1))
@@ -27785,7 +27785,7 @@ now after saving the file, restart Moneydance
                     user_toggle_security_zero_shares_inactive = MenuJRadioButton("Toggle investment securities with zero shares status to active/inactive", False, updateMenu=True)
                     user_toggle_security_zero_shares_inactive.setToolTipText("Allows you toggle securities held in investment accounts with zero shares to inactive - THIS CHANGES DATA!")
 
-                    labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected **")
+                    labelFYI_curr_fix = JLabel("       ** only enabled if no serious currency/security issues detected (Some only available from 2021.2 onwards) **")
                     labelFYI_curr_fix.setForeground(getColorRed())
 
                     userFilters = JPanel(GridLayout(0, 1))
@@ -27803,7 +27803,7 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_diag_price_date)
 
                     if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
-                        rows += 15
+                        rows += 19
                         userFilters.add(JLabel(" "))
                         userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
@@ -27817,13 +27817,10 @@ now after saving the file, restart Moneydance
 
                         userFilters.add(user_fix_curr_sec)
 
-                        # These are new features - better supported from 2021.2 onwards
-                        if isRRateCurrencyIssueFixedBuild():
-                            rows += 4
-                            userFilters.add(user_edit_security_decimal_places)
-                            userFilters.add(user_merge_duplicate_securities)
-                            userFilters.add(user_autofix_price_date)
-                            userFilters.add(user_fix_price_date)
+                        userFilters.add(user_edit_security_decimal_places)
+                        userFilters.add(user_merge_duplicate_securities)
+                        userFilters.add(user_autofix_price_date)
+                        userFilters.add(user_fix_price_date)
 
                         userFilters.add(user_fix_duplicate_securities_within_same_investment_account)
                         userFilters.add(user_fix_invalidLotRecords)
@@ -27845,10 +27842,11 @@ now after saving the file, restart Moneydance
 
                         user_fix_curr_sec.setEnabled(ToolboxMode.isUpdateMode() and GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1)
 
-                        user_edit_security_decimal_places.setEnabled(ToolboxMode.isUpdateMode() and int(MD_REF.getBuild()) >= 1904)  # Pre-2019.4(1904) different usage of rate/rrate/dpc
-                        user_merge_duplicate_securities.setEnabled(ToolboxMode.isUpdateMode())
-                        user_autofix_price_date.setEnabled(ToolboxMode.isUpdateMode())
-                        user_thin_price_history.setEnabled(ToolboxMode.isUpdateMode())
+                        # Don't remove these as they are checked/disabled in the section below if certain conditions fail.....
+                        user_edit_security_decimal_places.setEnabled(ToolboxMode.isUpdateMode() and isRRateCurrencyIssueFixedBuild())
+                        user_merge_duplicate_securities.setEnabled(ToolboxMode.isUpdateMode() and isRRateCurrencyIssueFixedBuild())
+                        user_autofix_price_date.setEnabled(ToolboxMode.isUpdateMode() and isRRateCurrencyIssueFixedBuild())
+                        user_thin_price_history.setEnabled(ToolboxMode.isUpdateMode() and isRRateCurrencyIssueFixedBuild())
                         user_fix_invalid_curr_sec.setEnabled(ToolboxMode.isUpdateMode())
                         user_fix_invalid_price_history.setEnabled(ToolboxMode.isUpdateMode())
 
@@ -28121,7 +28119,7 @@ now after saving the file, restart Moneydance
                     user_remove_inactive_from_sidebar = MenuJRadioButton("Remove inactive accounts/categories from SideBar (only when sidebar visible)", False, updateMenu=True, secondaryEnabled=(MD_REF.getPreferences().getBoolSetting("gui.source_list_visible", True)))
                     user_remove_inactive_from_sidebar.setToolTipText("This remove inactive accounts/categories from SideBar. THIS CHANGES CONFIG!")
 
-                    user_change_moneydance_fonts = MenuJRadioButton("Set/Change Default Moneydance FONTS (3030 onwards)", False, updateMenu=True, secondaryEnabled=(float(MD_REF.getBuild()) >= 3030))
+                    user_change_moneydance_fonts = MenuJRadioButton("Set/Change Default Moneydance FONTS (MD 2021.1(3030) onwards)", False, updateMenu=True, secondaryEnabled=(float(MD_REF.getBuild()) >= 3030))
                     user_change_moneydance_fonts.setToolTipText("This will allow you to Set/Change the Default Moneydance Fonts. THIS CHANGES DATA!")
 
                     user_delete_custom_theme_file = MenuJRadioButton("Delete Custom Theme file (only when exists)", False, updateMenu=True, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
