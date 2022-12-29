@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated November 2022
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated December 2022
 Credit: Dan T Davis for his input, testing and suggestions to make a better product......
 
 >> Display Name changed to 'Custom Balances' (from 'Net Account Balances') Dec 2021.
@@ -35,8 +35,13 @@ This extension creates a 'widget' that displays Totals for items you select on t
 
 - You can change the name of each row, the balance type, and the currency to display. Also Active/Inactive items.
 
-- Hide row when options: Never, Always(Disable), Zero balance, Positive >= 0 balance, Negative <= 0 balance.
+- Hide row when options: Never, Always(Disable), balance=X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
+... You can set X to any value (positive or negative)
+... NOTE: If you select Menu Option Hide Decimal Places, AND set an X value with no decimals, then on auto-hidden rows
+......... the X value will be truncated when comparing to X. This means that X=0 would include -0.99 to +0.99 (example)
+
 - Row separator: optionally put horizontal lines above / below rows to separate sections
+- Blink: Enables the blinking of the selected rows (when displayed / visible)
 
 ** NOTE: When rows can be hidden, they may not display on the Summary screen widget. Click on the widget to config:
          - In the row selector:
@@ -122,8 +127,8 @@ This extension creates a 'widget' that displays Totals for items you select on t
   - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
-  - Blink displayed Auto-Hide rows: Enables the blinking of rows that are flagged as auto-hidden, but are displayed
   - Hide Decimal places: Will hide all decimal places on calculated balances (e.g. 1.99 will show as 1)
+                         This option impacts auto-hide logic in some situations - refer: Hide row when options....
   - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
 
   - Debug: Generates program debug messages in Help>Console Window. DO NOT LEAVE THIS PERMANENTLY ON

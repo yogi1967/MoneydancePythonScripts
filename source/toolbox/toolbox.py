@@ -26668,45 +26668,66 @@ now after saving the file, restart Moneydance
         return _bg
 
     class BlinkSwingTimer(SwingTimer, ActionListener):
+        ALL_BLINKERS = []
+        blinker_LOCK = threading.Lock()
+
+        @staticmethod
+        def stopAllBlinkers():
+            myPrint("DB", "BlinkSwingTimer.stopAllBlinkers() called....")
+            with BlinkSwingTimer.blinker_LOCK:
+                for i in range(0, len(BlinkSwingTimer.ALL_BLINKERS)):
+                    blinker = BlinkSwingTimer.ALL_BLINKERS[i]
+                    try:
+                        blinker.stop()
+                        myPrint("DB", "... stopped blinker: id: %s" %(blinker.uuid))
+                    except:
+                        myPrint("DB", ">> ERROR stopping blinker: id: %s" %(blinker.uuid))
+                del BlinkSwingTimer.ALL_BLINKERS[:]
+
         def __init__(self, timeMS, swComponents, flipColor=None):
-            self.uuid = UUID.randomUUID().toString()
-            self.isForeground = True
-            self.countBlinkLoops = 0
+            with BlinkSwingTimer.blinker_LOCK:
+                self.uuid = UUID.randomUUID().toString()
+                self.isForeground = True
+                self.countBlinkLoops = 0
 
-            if isinstance(swComponents, JComponent):
-                swComponents = [swComponents]
-            elif not isinstance(swComponents, list) or len(swComponents) < 1:
-                return
+                if isinstance(swComponents, JComponent):
+                    swComponents = [swComponents]
+                elif not isinstance(swComponents, list) or len(swComponents) < 1:
+                    return
 
-            self.swComponents = []
-            for swComponent in swComponents:
-                self.swComponents.append([swComponent,
-                                          swComponent.getForeground(),
-                                          swComponent.getBackground() if (flipColor is None) else flipColor])
-            super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
-            self.addActionListener(self)
-            myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
+                self.swComponents = []
+                for swComponent in swComponents:
+                    self.swComponents.append([swComponent,
+                                              swComponent.getForeground(),
+                                              swComponent.getBackground() if (flipColor is None) else flipColor])
+                super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
+                self.addActionListener(self)
+                BlinkSwingTimer.ALL_BLINKERS.append(self)
+                myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
 
         def actionPerformed(self, event):                                                                               # noqa
             try:
-                for i in range(0, len(self.swComponents)):
-                    swComponent = self.swComponents[i][0]
-                    if (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
-                            or SwingUtilities.getWindowAncestor(swComponent) is None):
-                        myPrint("DB", ">>> Shutting down blinker (id: %s) as component index: %s no longer available" %(self.uuid, i))
-                        self.stop()
-                        return
+                with BlinkSwingTimer.blinker_LOCK:
+                    for i in range(0, len(self.swComponents)):
+                        swComponent = self.swComponents[i][0]
+                        if (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
+                                or SwingUtilities.getWindowAncestor(swComponent) is None):
+                            myPrint("DB", ">>> Shutting down blinker (id: %s) as component index: %s no longer available" %(self.uuid, i))
+                            self.stop()
+                            BlinkSwingTimer.ALL_BLINKERS.remove(self)
+                            return
 
-                for i in range(0, len(self.swComponents)):
-                    swComponent = self.swComponents[i][0]
-                    fg = self.swComponents[i][1]
-                    bg = self.swComponents[i][2]
+                    for i in range(0, len(self.swComponents)):
+                        swComponent = self.swComponents[i][0]
+                        fg = self.swComponents[i][1]
+                        bg = self.swComponents[i][2]
 
-                    swComponent.setForeground(fg if self.isForeground else bg)
+                        swComponent.setForeground(fg if self.isForeground else bg)
 
-                self.countBlinkLoops += 1
-                self.isForeground = not self.isForeground
-                if self.countBlinkLoops % 100 == 0: myPrint("DB", "** Blinker (id: %s), has now iterated %s blink loops" %(self.uuid, self.countBlinkLoops))
+                    self.countBlinkLoops += 1
+                    self.isForeground = not self.isForeground
+                    if self.countBlinkLoops % 100 == 0:
+                        myPrint("DB", "** Blinker (id: %s), has now iterated %s blink loops" %(self.uuid, self.countBlinkLoops))
 
             except: pass
 

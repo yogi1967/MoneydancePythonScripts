@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1017 - Jul 2022 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1018 - Dec 2022 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -93,6 +93,9 @@
 # build: 1016 - Fix phantom linking of account selection when using duplicate row function...
 # build: 1017 - Enable blinking of auto hidden rows....; Added option to hide decimals...; use my code for all .formatXXX() calls...
 # build: 1017 - Added underline 'dots' to match the other Summary Screen visual laf... Also option to enable / disable...
+# build: 1017 - Reengineered the row popup selector to fix background issues...
+# build: 1017 - Added option for autohide row when value is not x (rather than zero); change blink to per row...
+# build: 1018 - Change blink to per row...
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -102,7 +105,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1017"
+version_build = "1018"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -378,7 +381,7 @@ else:
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
     import copy
     import threading
-    from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil, QuickSearchField
+    from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil, QuickSearchField, JRateField
     # from com.moneydance.awt import CollapsibleRefresher
     from com.moneydance.apps.md.view import HomePageView
     from com.moneydance.apps.md.view.gui import MoneydanceLAF, DateRangeChooser, ConsoleWindow
@@ -447,7 +450,9 @@ else:
     GlobalVars.extn_param_NEW_showWarningsTable_NAB         = None
     GlobalVars.extn_param_NEW_customDatesTable_NAB          = None
     GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = None
+    GlobalVars.extn_param_NEW_blinkTable_NAB                = None
     GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = None
+    GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = None
 
     GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = None
     GlobalVars.extn_param_NEW_autoSumDefault_NAB            = None
@@ -455,7 +460,6 @@ else:
     GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = None
 
     GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = None
-    GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB         = None
     GlobalVars.extn_param_NEW_hideDecimals_NAB              = None
     GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = None
 
@@ -476,12 +480,12 @@ else:
     GlobalVars.ROW_SEPARATOR_BELOW      = 2
     GlobalVars.ROW_SEPARATOR_BOTH       = 3
 
-    GlobalVars.HIDE_ROW_WHEN_NEVER      = 0
-    GlobalVars.HIDE_ROW_WHEN_ALWAYS     = 1
-    GlobalVars.HIDE_ROW_WHEN_ZERO       = 2
-    GlobalVars.HIDE_ROW_WHEN_NEGATIVE   = 3
-    GlobalVars.HIDE_ROW_WHEN_POSITIVE   = 4
-    GlobalVars.HIDE_ROW_WHEN_NOT_ZERO   = 5
+    GlobalVars.HIDE_ROW_WHEN_NEVER          = 0
+    GlobalVars.HIDE_ROW_WHEN_ALWAYS         = 1
+    GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X      = 2     
+    GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X  = 3     
+    GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X  = 4     
+    GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X  = 5     
 
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
@@ -3061,6 +3065,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_incomeExpenseDateRange_NAB") is not None:       GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_incomeExpenseDateRange_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_customDatesTable_NAB") is not None:             GlobalVars.extn_param_NEW_customDatesTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_customDatesTable_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_rowSeparatorTable_NAB") is not None:            GlobalVars.extn_param_NEW_rowSeparatorTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_rowSeparatorTable_NAB")
+        if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_blinkTable_NAB") is not None:                   GlobalVars.extn_param_NEW_blinkTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_blinkTable_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_autoSumAccounts_NAB") is not None:              GlobalVars.extn_param_NEW_autoSumAccounts_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_autoSumAccounts_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_includeInactive_NAB") is not None:              GlobalVars.extn_param_NEW_includeInactive_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_includeInactive_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_widget_display_name_NAB") is not None:          GlobalVars.extn_param_NEW_widget_display_name_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_widget_display_name_NAB")
@@ -3068,6 +3073,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_disableCurrencyFormatting_NAB") is not None:    GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_disableCurrencyFormatting_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_showWarningsTable_NAB") is not None:            GlobalVars.extn_param_NEW_showWarningsTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_showWarningsTable_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowWhenXXXTable_NAB") is not None:          GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowWhenXXXTable_NAB")
+        if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowXValueTable_NAB") is not None:           GlobalVars.extn_param_NEW_hideRowXValueTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowXValueTable_NAB")
 
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_autoSumDefault_NAB") is not None:               GlobalVars.extn_param_NEW_autoSumDefault_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_autoSumDefault_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_disableWidgetTitle_NAB") is not None:           GlobalVars.extn_param_NEW_disableWidgetTitle_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_disableWidgetTitle_NAB")
@@ -3075,7 +3081,6 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_treatSecZeroBalInactive_NAB") is not None:      GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_treatSecZeroBalInactive_NAB")
 
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_useIndianNumberFormat_NAB") is not None:        GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_useIndianNumberFormat_NAB")
-        if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_blinkAutoHideRows_NAB") is not None:            GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_blinkAutoHideRows_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideDecimals_NAB") is not None:                 GlobalVars.extn_param_NEW_hideDecimals_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideDecimals_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_displayVisualUnderDots_NAB") is not None:       GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_displayVisualUnderDots_NAB")
 
@@ -3112,6 +3117,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_incomeExpenseDateRange_NAB"]       = GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_customDatesTable_NAB"]             = GlobalVars.extn_param_NEW_customDatesTable_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_rowSeparatorTable_NAB"]            = GlobalVars.extn_param_NEW_rowSeparatorTable_NAB
+        GlobalVars.parametersLoadedFromFile["extn_param_NEW_blinkTable_NAB"]                   = GlobalVars.extn_param_NEW_blinkTable_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_autoSumAccounts_NAB"]              = GlobalVars.extn_param_NEW_autoSumAccounts_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_includeInactive_NAB"]              = GlobalVars.extn_param_NEW_includeInactive_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_widget_display_name_NAB"]          = GlobalVars.extn_param_NEW_widget_display_name_NAB
@@ -3119,6 +3125,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_disableCurrencyFormatting_NAB"]    = GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_showWarningsTable_NAB"]            = GlobalVars.extn_param_NEW_showWarningsTable_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_hideRowWhenXXXTable_NAB"]          = GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB
+        GlobalVars.parametersLoadedFromFile["extn_param_NEW_hideRowXValueTable_NAB"]           = GlobalVars.extn_param_NEW_hideRowXValueTable_NAB
 
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_autoSumDefault_NAB"]               = GlobalVars.extn_param_NEW_autoSumDefault_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_disableWidgetTitle_NAB"]           = GlobalVars.extn_param_NEW_disableWidgetTitle_NAB
@@ -3126,7 +3133,6 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_treatSecZeroBalInactive_NAB"]      = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
 
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_useIndianNumberFormat_NAB"]        = GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB
-        GlobalVars.parametersLoadedFromFile["extn_param_NEW_blinkAutoHideRows_NAB"]            = GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_hideDecimals_NAB"]                 = GlobalVars.extn_param_NEW_hideDecimals_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_displayVisualUnderDots_NAB"]       = GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB
 
@@ -3327,11 +3333,11 @@ Visit: %s (Author's site)
     def wrap_HTML_italics(_textToWrap):
         return "<html><i>%s</i></html>" %(html_strip_chars(_textToWrap))
 
-    def wrap_HTML_small(_bigText, _smallText, _smallColor=None):
+    def wrap_HTML_small(_bigText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True):
         if _smallColor is None: _smallColor = GlobalVars.CONTEXT.getUI().colors.tertiaryTextFG
         _smallColorHex = AwtUtil.hexStringForColor(_smallColor)
-        _htmlBigText = html_strip_chars(_bigText)
-        _htmlSmallText = html_strip_chars(_smallText)
+        _htmlBigText = html_strip_chars(_bigText) if stripBigChars else _bigText
+        _htmlSmallText = html_strip_chars(_smallText) if stripSmallChars else _smallText
         return "<html>%s<small><font color=#%s>%s</font></small></html>" %(_htmlBigText, _smallColorHex, _htmlSmallText)
 
     class StoreAccountList():
@@ -3459,20 +3465,20 @@ Visit: %s (Author's site)
     class MyJPanel(JPanel):
 
         def __init__(self, *args, **kwargs):
-            super(JPanel, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJPanel, self).updateUI()
+            super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
     class MyJLabel(JLabel):
 
         def __init__(self, *args, **kwargs):
             self.hasMDHeaderBorder = False
-            super(JLabel, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJLabel, self).updateUI()
+            super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
             if self.hasMDHeaderBorder: self.setMDHeaderBorder()
@@ -3484,112 +3490,121 @@ Visit: %s (Author's site)
     class MyJComboBox(JComboBox):
 
         def __init__(self, *args, **kwargs):
-            super(JComboBox, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJComboBox, self).updateUI()
+            super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
     class MyJButton(JButton):
 
         def __init__(self, *args, **kwargs):
-            super(JButton, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJButton, self).updateUI()
+            super(self.__class__, self).updateUI()
             # setJComponentStandardUIDefaults(self, key, opaque=True, border=True)
             setJComponentStandardUIDefaults(self)
 
     class MyJRadioButton(JRadioButton):
 
         def __init__(self, *args, **kwargs):
-            super(JRadioButton, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJRadioButton, self).updateUI()
+            super(self.__class__, self).updateUI()
             # setJComponentStandardUIDefaults(self, key, opaque=True, border=True)
             setJComponentStandardUIDefaults(self)
 
     class MyJTextField(JTextField):
 
         def __init__(self, *args, **kwargs):
-            super(JTextField, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJTextField, self).updateUI()
+            super(self.__class__, self).updateUI()
+            setJComponentStandardUIDefaults(self)
+
+    class MyJRateField(JRateField):
+
+        def __init__(self, *args, **kwargs):
+            super(self.__class__, self).__init__(*args, **kwargs)
+
+        def updateUI(self):
+            super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
     class MyJCheckBox(JCheckBox):
 
         def __init__(self, *args, **kwargs):
-            super(JCheckBox, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJCheckBox, self).updateUI()
+            super(self.__class__, self).updateUI()
             # setJComponentStandardUIDefaults(self, border=True)
             setJComponentStandardUIDefaults(self)
 
     class MyJScrollPane(JScrollPane):
 
         def __init__(self, *args, **kwargs):
-            super(JScrollPane, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJScrollPane, self).updateUI()
+            super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self, border=True)
 
     class MyJMenu(JMenu):
 
         def __init__(self, *args, **kwargs):
-            super(JMenu, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJMenu, self).updateUI()
+            super(self.__class__, self).updateUI()
             # setJComponentStandardUIDefaults(self)
 
     class MyJMenuBar(JMenuBar):
 
         def __init__(self, *args, **kwargs):
-            super(JMenuBar, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJMenuBar, self).updateUI()
+            super(self.__class__, self).updateUI()
             # setJComponentStandardUIDefaults(self)
 
     class MyJCheckBoxMenuItem(JCheckBoxMenuItem):
 
         def __init__(self, *args, **kwargs):
-            super(JCheckBoxMenuItem, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJCheckBoxMenuItem, self).updateUI()
+            super(self.__class__, self).updateUI()
             # setJComponentStandardUIDefaults(self, border=True)
 
     class MyJMenuItem(JMenuItem):
 
         def __init__(self, *args, **kwargs):
-            super(JMenuItem, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJMenuItem, self).updateUI()
+            super(self.__class__, self).updateUI()
             # setJComponentStandardUIDefaults(self, border=True)
 
     class MyJSeparator(JSeparator):
 
         def __init__(self, *args, **kwargs):
-            super(JSeparator, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyJSeparator, self).updateUI()
+            super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self, border=True, background=False)
 
     class MyQuickSearchField(QuickSearchField):
 
         def __init__(self, *args, **kwargs):
-            super(QuickSearchField, self).__init__(*args, **kwargs)
+            super(self.__class__, self).__init__(*args, **kwargs)
 
         def updateUI(self):
-            super(MyQuickSearchField, self).updateUI()
+            super(self.__class__, self).updateUI()
             self.setBackground(GlobalVars.CONTEXT.getUI().colors.defaultBackground)
             self.setOuterBackground(GlobalVars.CONTEXT.getUI().colors.headerBG)
             self.setForeground(GlobalVars.CONTEXT.getUI().colors.defaultTextForeground)
@@ -4212,45 +4227,66 @@ Visit: %s (Author's site)
         def run(self):      ConsoleWindow.showConsoleWindow(GlobalVars.CONTEXT.getUI())
 
     class BlinkSwingTimer(SwingTimer, ActionListener):
+        ALL_BLINKERS = []
+        blinker_LOCK = threading.Lock()
+
+        @staticmethod
+        def stopAllBlinkers():
+            myPrint("DB", "BlinkSwingTimer.stopAllBlinkers() called....")
+            with BlinkSwingTimer.blinker_LOCK:
+                for i in range(0, len(BlinkSwingTimer.ALL_BLINKERS)):
+                    blinker = BlinkSwingTimer.ALL_BLINKERS[i]
+                    try:
+                        blinker.stop()
+                        myPrint("DB", "... stopped blinker: id: %s" %(blinker.uuid))
+                    except:
+                        myPrint("DB", ">> ERROR stopping blinker: id: %s" %(blinker.uuid))
+                del BlinkSwingTimer.ALL_BLINKERS[:]
+
         def __init__(self, timeMS, swComponents, flipColor=None):
-            self.uuid = UUID.randomUUID().toString()
-            self.isForeground = True
-            self.countBlinkLoops = 0
+            with BlinkSwingTimer.blinker_LOCK:
+                self.uuid = UUID.randomUUID().toString()
+                self.isForeground = True
+                self.countBlinkLoops = 0
 
-            if isinstance(swComponents, JComponent):
-                swComponents = [swComponents]
-            elif not isinstance(swComponents, list) or len(swComponents) < 1:
-                return
+                if isinstance(swComponents, JComponent):
+                    swComponents = [swComponents]
+                elif not isinstance(swComponents, list) or len(swComponents) < 1:
+                    return
 
-            self.swComponents = []
-            for swComponent in swComponents:
-                self.swComponents.append([swComponent,
-                                          swComponent.getForeground(),
-                                          swComponent.getBackground() if (flipColor is None) else flipColor])
-            super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
-            self.addActionListener(self)
-            myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
+                self.swComponents = []
+                for swComponent in swComponents:
+                    self.swComponents.append([swComponent,
+                                              swComponent.getForeground(),
+                                              swComponent.getBackground() if (flipColor is None) else flipColor])
+                super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
+                self.addActionListener(self)
+                BlinkSwingTimer.ALL_BLINKERS.append(self)
+                myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
 
         def actionPerformed(self, event):                                                                               # noqa
             try:
-                for i in range(0, len(self.swComponents)):
-                    swComponent = self.swComponents[i][0]
-                    if (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
-                            or SwingUtilities.getWindowAncestor(swComponent) is None):
-                        myPrint("DB", ">>> Shutting down blinker (id: %s) as component index: %s no longer available" %(self.uuid, i))
-                        self.stop()
-                        return
+                with BlinkSwingTimer.blinker_LOCK:
+                    for i in range(0, len(self.swComponents)):
+                        swComponent = self.swComponents[i][0]
+                        if (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
+                                or SwingUtilities.getWindowAncestor(swComponent) is None):
+                            myPrint("DB", ">>> Shutting down blinker (id: %s) as component index: %s no longer available" %(self.uuid, i))
+                            self.stop()
+                            BlinkSwingTimer.ALL_BLINKERS.remove(self)
+                            return
 
-                for i in range(0, len(self.swComponents)):
-                    swComponent = self.swComponents[i][0]
-                    fg = self.swComponents[i][1]
-                    bg = self.swComponents[i][2]
+                    for i in range(0, len(self.swComponents)):
+                        swComponent = self.swComponents[i][0]
+                        fg = self.swComponents[i][1]
+                        bg = self.swComponents[i][2]
 
-                    swComponent.setForeground(fg if self.isForeground else bg)
+                        swComponent.setForeground(fg if self.isForeground else bg)
 
-                self.countBlinkLoops += 1
-                self.isForeground = not self.isForeground
-                if self.countBlinkLoops % 100 == 0: myPrint("DB", "** Blinker (id: %s), has now iterated %s blink loops" %(self.uuid, self.countBlinkLoops))
+                    self.countBlinkLoops += 1
+                    self.isForeground = not self.isForeground
+                    if self.countBlinkLoops % 100 == 0:
+                        myPrint("DB", "** Blinker (id: %s), has now iterated %s blink loops" %(self.uuid, self.countBlinkLoops))
 
             except: pass
 
@@ -4281,8 +4317,6 @@ Visit: %s (Author's site)
             return NetAccountBalancesExtension.NAB
 
         def __init__(self):  # This is the class' own initialise, just to set up variables
-            # super(FeatureModule, self).__init__()                                                                     # noqa
-
             self.myModuleID = myModuleID
 
             myPrint("B", "\n##########################################################################################")
@@ -4339,8 +4373,10 @@ Visit: %s (Author's site)
             self.savedIncomeExpenseDateRange    = None
             self.savedCustomDatesTable          = None
             self.savedRowSeparatorTable         = None
+            self.savedBlinkTable                = None
             self.savedShowWarningsTable         = None
             self.savedHideRowWhenXXXTable       = None
+            self.savedHideRowXValueTable        = None
 
             self.savedAutoSumDefault            = None
             self.savedDisableWidgetTitle        = None
@@ -4348,7 +4384,6 @@ Visit: %s (Author's site)
             self.savedTreatSecZeroBalInactive   = None
 
             self.savedUseIndianNumberFormat     = None
-            self.savedBlinkAutoHideRows         = None
             self.savedHideDecimals              = None
             self.savedDisplayVisualUnderDots    = None
 
@@ -4385,10 +4420,12 @@ Visit: %s (Author's site)
             self.showWarnings_CB                    = None
             self.hideRowWhenNever_JRB               = None
             self.hideRowWhenAlways_JRB              = None
-            self.hideRowWhenZero_JRB                = None
-            self.hideRowWhenNeg_JRB                 = None
-            self.hideRowWhenPos_JRB                 = None
-            self.hideRowWhenNotZero_JRB             = None
+            self.hideRowWhenZeroOrX_JRB             = None
+            self.hideRowWhenLtEqZeroOrX_JRB         = None
+            self.hideRowWhenGrEqZeroOrX_JRB         = None
+            self.hideRowWhenNotZeroOrX_JRB          = None
+            self.hideRowXValue_JRF                  = None
+            self.blinkRow_CB                        = None
             self.filterOutZeroBalAccts_INACTIVE_CB  = None
             self.filterOutZeroBalAccts_ACTIVE_CB    = None
             self.filterIncludeSelected_CB           = None
@@ -4607,6 +4644,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = NAB.savedIncomeExpenseDateRange
             GlobalVars.extn_param_NEW_customDatesTable_NAB          = NAB.savedCustomDatesTable
             GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = NAB.savedRowSeparatorTable
+            GlobalVars.extn_param_NEW_blinkTable_NAB                = NAB.savedBlinkTable
             GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = NAB.savedAutoSumAccounts
             GlobalVars.extn_param_NEW_includeInactive_NAB           = NAB.savedIncludeInactive
             GlobalVars.extn_param_NEW_widget_display_name_NAB       = NAB.savedWidgetName
@@ -4614,6 +4652,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = NAB.savedDisableCurrencyFormatting
             GlobalVars.extn_param_NEW_showWarningsTable_NAB         = NAB.savedShowWarningsTable
             GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = NAB.savedHideRowWhenXXXTable
+            GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = NAB.savedHideRowXValueTable
 
             GlobalVars.extn_param_NEW_autoSumDefault_NAB            = NAB.savedAutoSumDefault
             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = NAB.savedDisableWidgetTitle
@@ -4621,7 +4660,6 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = NAB.savedTreatSecZeroBalInactive
 
             GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = NAB.savedUseIndianNumberFormat
-            GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB         = NAB.savedBlinkAutoHideRows
             GlobalVars.extn_param_NEW_hideDecimals_NAB              = NAB.savedHideDecimals
             GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = NAB.savedDisplayVisualUnderDots
 
@@ -4897,16 +4935,17 @@ Visit: %s (Author's site)
         def incomeExpenseDateRangeDefault(self):    return DateRangeOption.DR_ALL_DATES.getResourceKey()
         def customDatesDefault(self):               return [0, 0]
         def rowSeparatorDefault(self):              return GlobalVars.ROW_SEPARATOR_NEVER
+        def blinkDefault(self):                     return False
         def includeInactiveDefault(self):           return 0
         def autoSumDefault(self):                   return (False if self.savedAutoSumDefault is None else self.savedAutoSumDefault)
         def showWarningsDefault(self):              return True
         def disableRowDefault(self):                return False
         def hideRowWhenXXXDefault(self):            return GlobalVars.HIDE_ROW_WHEN_NEVER
+        def hideRowXValueDefault(self):             return 0.0
         def disableWidgetTitleDefault(self):        return False
         def showDashesInsteadOfZerosDefault(self):  return False
         def treatSecZeroBalInactiveDefault(self):   return False
         def useIndianNumberFormatDefault(self):     return False
-        def blinkAutoHideRowsDefault(self):         return False
         def hideDecimalsDefault(self):              return False
         def displayVisualUnderDotsDefault(self):    return False
         def expandedViewDefault(self):              return True
@@ -4956,9 +4995,19 @@ Visit: %s (Author's site)
                 myPrint("B", "New parameter savedHideRowWhenXXXTable detected, pre-populating with %s (= Default row not hidden - i.e. it's visible)" %(self.savedHideRowWhenXXXTable))
 
             # New parameter - pre-populate with default
+            if self.savedHideRowXValueTable == [self.hideRowXValueDefault()] and len(self.savedHideRowXValueTable) != self.getNumberOfRows():
+                self.savedHideRowXValueTable = [self.hideRowXValueDefault() for i in range(0,self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
+                myPrint("B", "New parameter savedHideRowXValueTable detected, pre-populating with %s (= Default row not hidden x value = 0)" %(self.savedHideRowXValueTable))
+
+            # New parameter - pre-populate with default
             if self.savedRowSeparatorTable == [self.rowSeparatorDefault()] and len(self.savedRowSeparatorTable) != self.getNumberOfRows():
                 self.savedRowSeparatorTable = [self.rowSeparatorDefault() for i in range(0,self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedRowSeparatorTable detected, pre-populating with %s (= Default no row separators)" %(self.savedRowSeparatorTable))
+
+            # New parameter - pre-populate with default
+            if self.savedBlinkTable == [self.blinkDefault()] and len(self.savedBlinkTable) != self.getNumberOfRows():
+                self.savedBlinkTable = [self.blinkDefault() for i in range(0,self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
+                myPrint("B", "New parameter savedBlinkTable detected, pre-populating with %s (= Default Blinking OFF)" %(self.savedBlinkTable))
 
             if self.savedAccountListUUIDs is None or not isinstance(self.savedAccountListUUIDs, list) or self.getNumberOfRows() < 1:
                 self.resetParameters(1)
@@ -4980,50 +5029,56 @@ Visit: %s (Author's site)
                 self.resetParameters(9)
             elif self.savedRowSeparatorTable is None or not isinstance(self.savedRowSeparatorTable, list) or len(self.savedRowSeparatorTable) < 1:
                 self.resetParameters(10)
-            elif self.savedShowWarningsTable is None or not isinstance(self.savedShowWarningsTable, list) or len(self.savedShowWarningsTable) < 1:
+            elif self.savedBlinkTable is None or not isinstance(self.savedBlinkTable, list) or len(self.savedBlinkTable) < 1:
                 self.resetParameters(11)
+            elif self.savedShowWarningsTable is None or not isinstance(self.savedShowWarningsTable, list) or len(self.savedShowWarningsTable) < 1:
+                self.resetParameters(12)
             elif self.savedHideRowWhenXXXTable is None or not isinstance(self.savedHideRowWhenXXXTable, list) or len(self.savedHideRowWhenXXXTable) < 1:
                 self.resetParameters(13)
-            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
-                self.resetParameters(14)
-            elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
+            elif self.savedHideRowXValueTable is None or not isinstance(self.savedHideRowXValueTable, list) or len(self.savedHideRowXValueTable) < 1:
                 self.resetParameters(15)
-            elif self.savedDisableWidgetTitle is None or not isinstance(self.savedDisableWidgetTitle, bool):
-                self.resetParameters(16)
-            elif self.savedTreatSecZeroBalInactive is None or not isinstance(self.savedTreatSecZeroBalInactive, bool):
+            elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
                 self.resetParameters(17)
-            elif self.savedUseIndianNumberFormat is None or not isinstance(self.savedUseIndianNumberFormat, bool):
-                self.resetParameters(18)
-            elif self.savedBlinkAutoHideRows is None or not isinstance(self.savedBlinkAutoHideRows, bool):
+            elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
                 self.resetParameters(19)
-            elif self.savedHideDecimals is None or not isinstance(self.savedHideDecimals, bool):
-                self.resetParameters(20)
-            elif self.savedDisplayVisualUnderDots is None or not isinstance(self.savedDisplayVisualUnderDots, bool):
+            elif self.savedDisableWidgetTitle is None or not isinstance(self.savedDisableWidgetTitle, bool):
                 self.resetParameters(21)
-            elif self.savedExpandedView is None or not isinstance(self.savedExpandedView, bool):
-                self.resetParameters(22)
-            elif len(self.savedBalanceType) != self.getNumberOfRows():
+            elif self.savedTreatSecZeroBalInactive is None or not isinstance(self.savedTreatSecZeroBalInactive, bool):
                 self.resetParameters(23)
-            elif len(self.savedWidgetName) != self.getNumberOfRows():
-                self.resetParameters(24)
-            elif len(self.savedCurrencyTable) != self.getNumberOfRows():
+            elif self.savedUseIndianNumberFormat is None or not isinstance(self.savedUseIndianNumberFormat, bool):
                 self.resetParameters(25)
-            elif len(self.savedIncludeInactive) != self.getNumberOfRows():
-                self.resetParameters(26)
-            elif len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
-                self.resetParameters(27)
-            elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
-                self.resetParameters(28)
-            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
+            elif self.savedHideDecimals is None or not isinstance(self.savedHideDecimals, bool):
                 self.resetParameters(29)
-            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
+            elif self.savedDisplayVisualUnderDots is None or not isinstance(self.savedDisplayVisualUnderDots, bool):
                 self.resetParameters(30)
-            elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
-                self.resetParameters(31)
-            elif len(self.savedRowSeparatorTable) != self.getNumberOfRows():
+            elif self.savedExpandedView is None or not isinstance(self.savedExpandedView, bool):
                 self.resetParameters(32)
+            elif len(self.savedBalanceType) != self.getNumberOfRows():
+                self.resetParameters(35)
+            elif len(self.savedWidgetName) != self.getNumberOfRows():
+                self.resetParameters(37)
+            elif len(self.savedCurrencyTable) != self.getNumberOfRows():
+                self.resetParameters(39)
+            elif len(self.savedIncludeInactive) != self.getNumberOfRows():
+                self.resetParameters(41)
+            elif len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
+                self.resetParameters(43)
+            elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
+                self.resetParameters(45)
+            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
+                self.resetParameters(47)
+            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
+                self.resetParameters(49)
+            elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
+                self.resetParameters(51)
+            elif len(self.savedRowSeparatorTable) != self.getNumberOfRows():
+                self.resetParameters(53)
+            elif len(self.savedBlinkTable) != self.getNumberOfRows():
+                self.resetParameters(54)
             elif len(self.savedHideRowWhenXXXTable) != self.getNumberOfRows():
-                self.resetParameters(33)
+                self.resetParameters(55)
+            elif len(self.savedHideRowXValueTable) != self.getNumberOfRows():
+                self.resetParameters(57)
             else:
                 for i in range(0, self.getNumberOfRows()):
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
@@ -5056,14 +5111,20 @@ Visit: %s (Author's site)
                     if self.savedRowSeparatorTable[i] is None or not isinstance(self.savedRowSeparatorTable[i], int) or self.savedRowSeparatorTable[i] < GlobalVars.ROW_SEPARATOR_NEVER or self.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_BOTH:
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedRowSeparatorTable", i))
                         self.savedRowSeparatorTable[i] = self.rowSeparatorDefault()
+                    if self.savedBlinkTable[i] is None or not isinstance(self.savedBlinkTable[i], bool):
+                        myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedBlinkTable", i))
+                        self.savedBlinkTable[i] = self.blinkDefault()
                     if not isValidDateRange(self.savedCustomDatesTable[i][0], self.savedCustomDatesTable[i][1]):
                         self.savedCustomDatesTable[i] = self.customDatesDefault()
                     if self.savedShowWarningsTable[i] is None or not isinstance(self.savedShowWarningsTable[i], bool):
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedShowWarningsTable", i))
                         self.savedShowWarningsTable[i] = self.showWarningsDefault()
-                    if self.savedHideRowWhenXXXTable[i] is None or not isinstance(self.savedHideRowWhenXXXTable[i], int) or self.savedHideRowWhenXXXTable[i] < GlobalVars.HIDE_ROW_WHEN_NEVER or self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NOT_ZERO:
+                    if self.savedHideRowWhenXXXTable[i] is None or not isinstance(self.savedHideRowWhenXXXTable[i], int) or self.savedHideRowWhenXXXTable[i] < GlobalVars.HIDE_ROW_WHEN_NEVER or self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X:
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedHideRowWhenXXXTable", i))
                         self.savedHideRowWhenXXXTable[i] = self.hideRowWhenXXXDefault()
+                    if self.savedHideRowXValueTable[i] is None or not isinstance(self.savedHideRowXValueTable[i], float):
+                        myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedHideRowXValueTable", i))
+                        self.savedHideRowXValueTable[i] = self.hideRowXValueDefault()
 
         def resetParameters(self, iError=None, lJustRowSettings=False):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -5080,6 +5141,7 @@ Visit: %s (Author's site)
             self.savedIncomeExpenseDateRange        = [self.incomeExpenseDateRangeDefault()]
             self.savedCustomDatesTable              = [self.customDatesDefault()]
             self.savedRowSeparatorTable             = [self.rowSeparatorDefault()]
+            self.savedBlinkTable                    = [self.blinkDefault()]
             self.savedIncludeInactive               = [self.includeInactiveDefault()]
             self.savedAutoSumAccounts               = [self.autoSumDefault()]
             self.savedWidgetName                    = [self.widgetRowDefault()]
@@ -5087,6 +5149,7 @@ Visit: %s (Author's site)
             self.savedDisableCurrencyFormatting     = [self.disableCurrencyFormattingDefault()]
             self.savedShowWarningsTable             = [self.showWarningsDefault()]
             self.savedHideRowWhenXXXTable           = [self.hideRowWhenXXXDefault()]
+            self.savedHideRowXValueTable            = [self.hideRowXValueDefault()]
 
             if not lJustRowSettings:
                 self.savedAutoSumDefault            = self.autoSumDefault()
@@ -5094,7 +5157,6 @@ Visit: %s (Author's site)
                 self.savedShowDashesInsteadOfZeros  = self.showDashesInsteadOfZerosDefault()
                 self.savedTreatSecZeroBalInactive   = self.treatSecZeroBalInactiveDefault()
                 self.savedUseIndianNumberFormat     = self.useIndianNumberFormatDefault()
-                self.savedBlinkAutoHideRows         = self.blinkAutoHideRowsDefault()
                 self.savedHideDecimals              = self.hideDecimalsDefault()
                 self.savedDisplayVisualUnderDots    = self.displayVisualUnderDotsDefault()
                 self.savedExpandedView              = self.expandedViewDefault()
@@ -5216,10 +5278,11 @@ Visit: %s (Author's site)
                                       self.showWarnings_CB,
                                       self.hideRowWhenNever_JRB,
                                       self.hideRowWhenAlways_JRB,
-                                      self.hideRowWhenZero_JRB,
-                                      self.hideRowWhenNeg_JRB,
-                                      self.hideRowWhenPos_JRB,
-                                      self.hideRowWhenNotZero_JRB,
+                                      self.hideRowWhenZeroOrX_JRB,
+                                      self.hideRowWhenLtEqZeroOrX_JRB,
+                                      self.hideRowWhenGrEqZeroOrX_JRB,
+                                      self.hideRowWhenNotZeroOrX_JRB,
+                                      self.blinkRow_CB,
                                       self.autoSumAccounts_CB]
 
             saveMyActionListeners = {}
@@ -5265,7 +5328,7 @@ Visit: %s (Author's site)
             for i in range(0, self.getNumberOfRows()):
                 if self.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
                     thisRowItemTxt = "*" if (self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NEVER) else " "
-                elif self.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO:
+                elif self.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
                     thisRowItemTxt = "~" if (self.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_NEVER) else " "
                 else:
                     thisRowItemTxt = " "
@@ -5296,13 +5359,19 @@ Visit: %s (Author's site)
             myPrint("DB", "..about to set savedShowWarningsTable..")
             self.showWarnings_CB.setSelected(self.savedShowWarningsTable[selectRowIndex])
 
-            myPrint("DB", "..about to set hideRowWhenNever_JRB, hideRowWhenAlways_JRB, hideRowWhenZero_JRB, hideRowWhenNeg_JRB, hideRowWhenPos_JRB, hideRowWhenNotZero_JRB..")
-            self.hideRowWhenNever_JRB.setSelected(   True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_NEVER    else False)
-            self.hideRowWhenAlways_JRB.setSelected(  True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_ALWAYS   else False)
-            self.hideRowWhenZero_JRB.setSelected(    True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_ZERO     else False)
-            self.hideRowWhenNeg_JRB.setSelected(     True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE else False)
-            self.hideRowWhenPos_JRB.setSelected(     True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_POSITIVE else False)
-            self.hideRowWhenNotZero_JRB.setSelected( True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO else False)
+            myPrint("DB", "..about to set hideRowWhenNever_JRB, hideRowWhenAlways_JRB, hideRowWhenZeroOrX_JRB, hideRowWhenLtEqZeroOrX_JRB, hideRowWhenGrEqZeroOrX_JRB, hideRowWhenNotZeroOrX_JRB..")
+            self.hideRowWhenNever_JRB.setSelected(       True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_NEVER            else False)
+            self.hideRowWhenAlways_JRB.setSelected(      True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_ALWAYS           else False)
+            self.hideRowWhenZeroOrX_JRB.setSelected(     True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X        else False)
+            self.hideRowWhenLtEqZeroOrX_JRB.setSelected( True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X    else False)
+            self.hideRowWhenGrEqZeroOrX_JRB.setSelected( True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X    else False)
+            self.hideRowWhenNotZeroOrX_JRB.setSelected(  True if self.savedHideRowWhenXXXTable[selectRowIndex] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X    else False)
+
+            myPrint("DB", "..about to set savedBlinkTable..")
+            self.blinkRow_CB.setSelected(self.savedBlinkTable[selectRowIndex])
+
+            myPrint("DB", "about to set hideRowXValue_JRF..")
+            self.hideRowXValue_JRF.setValue(self.savedHideRowXValueTable[selectRowIndex])
 
             myPrint("DB", "about to set widget name..")
             self.widgetNameField_JTF.setText(self.savedWidgetName[selectRowIndex])
@@ -5313,7 +5382,7 @@ Visit: %s (Author's site)
 
             # Rebuild Currency Dropdown, and pre-select correct one
             currencyChoices = []
-            base = self.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getBaseType()
+            base = self.moneydanceContext.getCurrentAccountBook().getCurrencies().getBaseType()
             allCurrencies = self.moneydanceContext.getCurrentAccount().getBook().getCurrencies().getAllCurrencies()
             # allCurrencies = sorted(allCurrencies, key=lambda sort_x: ((0 if sort_x is base else 1), sort_x.getName().upper()))
             allCurrencies = sorted(allCurrencies, key=lambda sort_x: ((0 if sort_x is base else 1),
@@ -5373,12 +5442,16 @@ Visit: %s (Author's site)
             myPrint("DB",".....savedShowWarningsTable: %s"                  %(self.savedShowWarningsTable[selectRowIndex]))
             myPrint("DB",".....showWarnings_CB: %s"                         %(self.showWarnings_CB.isSelected()))
             myPrint("DB",".....savedHideRowWhenXXXTable: %s"                %(self.savedHideRowWhenXXXTable[selectRowIndex]))
+            myPrint("DB",".....savedHideRowXValueTable: %s"                 %(self.savedHideRowXValueTable[selectRowIndex]))
             myPrint("DB",".....hideRowWhenNever_JRB: %s"                    %(self.hideRowWhenNever_JRB.isSelected()))
             myPrint("DB",".....hideRowWhenAlways_JRB: %s"                   %(self.hideRowWhenAlways_JRB.isSelected()))
-            myPrint("DB",".....hideRowWhenZero_JRB: %s"                     %(self.hideRowWhenZero_JRB.isSelected()))
-            myPrint("DB",".....hideRowWhenNeg_JRB: %s"                      %(self.hideRowWhenNeg_JRB.isSelected()))
-            myPrint("DB",".....hideRowWhenPos_JRB: %s"                      %(self.hideRowWhenPos_JRB.isSelected()))
-            myPrint("DB",".....hideRowWhenNotZero_JRB: %s"                  %(self.hideRowWhenNotZero_JRB.isSelected()))
+            myPrint("DB",".....hideRowWhenZeroOrX_JRB: %s"                  %(self.hideRowWhenZeroOrX_JRB.isSelected()))
+            myPrint("DB",".....hideRowWhenLtEqZeroOrX_JRB: %s"              %(self.hideRowWhenLtEqZeroOrX_JRB.isSelected()))
+            myPrint("DB",".....hideRowWhenGrEqZeroOrX_JRB: %s"              %(self.hideRowWhenGrEqZeroOrX_JRB.isSelected()))
+            myPrint("DB",".....hideRowWhenNotZeroOrX_JRB: %s"               %(self.hideRowWhenNotZeroOrX_JRB.isSelected()))
+            myPrint("DB",".....hideRowXValue_JRF: %s"                       %(self.hideRowXValue_JRF.getValue()))
+            myPrint("DB",".....savedBlinkTable: %s"                         %(self.savedBlinkTable[selectRowIndex]))
+            myPrint("DB",".....blinkRow_CB: %s"                             %(self.blinkRow_CB.isSelected()))
             myPrint("DB",".....filterOutZeroBalAccts_INACTIVE_CB: %s"       %(self.filterOutZeroBalAccts_INACTIVE_CB.isSelected()))
             myPrint("DB",".....filterOutZeroBalAccts_ACTIVE_CB: %s"         %(self.filterOutZeroBalAccts_ACTIVE_CB.isSelected()))
             myPrint("DB",".....filterIncludeSelected_CB: %s"                %(self.filterIncludeSelected_CB.isSelected()))
@@ -5394,7 +5467,6 @@ Visit: %s (Author's site)
             myPrint("DB",".....savedTreatSecZeroBalInactive: %s"            %(self.savedTreatSecZeroBalInactive))
 
             myPrint("DB",".....savedUseIndianNumberFormat: %s"              %(self.savedUseIndianNumberFormat))
-            myPrint("DB",".....savedBlinkAutoHideRows: %s"                  %(self.savedBlinkAutoHideRows))
             myPrint("DB",".....savedHideDecimals: %s"                       %(self.savedHideDecimals))
             myPrint("DB",".....savedDisplayVisualUnderDots: %s"             %(self.savedDisplayVisualUnderDots))
 
@@ -5408,7 +5480,7 @@ Visit: %s (Author's site)
 
         def getNumberOfRows(self):          return len(self.savedAccountListUUIDs)
 
-        def storeWidgetNameForSelectedRow(self):
+        def storeJTextFieldsForSelectedRow(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
             if self.switchFromHomeScreen:
@@ -5419,6 +5491,13 @@ Visit: %s (Author's site)
                 if self.savedWidgetName[self.getSelectedRowIndex()] != self.widgetNameField_JTF.getText():
                     myPrint("DB", "..... saving widget name....")
                     self.savedWidgetName[self.getSelectedRowIndex()] = self.widgetNameField_JTF.getText()
+                    self.configSaved = False
+
+                jrfValue = self.hideRowXValue_JRF.getValue()
+                myPrint("DB", ".. selectedRowIndex(): %s was: '%s', will set to: '%s'" %(self.getSelectedRowIndex(), self.savedHideRowXValueTable[self.getSelectedRowIndex()], jrfValue))
+                if self.savedHideRowXValueTable[self.getSelectedRowIndex()] != jrfValue:
+                    myPrint("DB", "..... saving hide row's X-Value....")
+                    self.savedHideRowXValueTable[self.getSelectedRowIndex()] = jrfValue
                     self.configSaved = False
 
         def storeCurrentJListSelected(self):
@@ -5596,7 +5675,6 @@ Visit: %s (Author's site)
             myPrint("B", " %s" %(pad("savedShowDashesInsteadOfZeros",30)),  NAB.savedShowDashesInsteadOfZeros)
             myPrint("B", " %s" %(pad("savedTreatSecZeroBalInactive",30)),   NAB.savedTreatSecZeroBalInactive)
             myPrint("B", " %s" %(pad("savedUseIndianNumberFormat",30)),     NAB.savedUseIndianNumberFormat)
-            myPrint("B", " %s" %(pad("savedBlinkAutoHideRows",30)),         NAB.savedBlinkAutoHideRows)
             myPrint("B", " %s" %(pad("savedHideDecimals",30)),              NAB.savedHideDecimals)
             myPrint("B", " %s" %(pad("savedDisplayVisualUnderDots",30)),    NAB.savedDisplayVisualUnderDots)
             myPrint("B", " %s" %(pad("savedExpandedView",30)),              NAB.savedExpandedView)
@@ -5614,9 +5692,11 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedIncludeInactive",60)),          NAB.savedIncludeInactive[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedShowWarningsTable",60)),        NAB.savedShowWarningsTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedHideRowWhenXXXTable",60)),      NAB.savedHideRowWhenXXXTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedHideRowXValueTable",60)),       NAB.savedHideRowXValueTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncomeExpenseDateRange",60)),   NAB.savedIncomeExpenseDateRange[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedCustomDatesTable",60)),         NAB.savedCustomDatesTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedRowSeparatorTable",60)),        NAB.savedRowSeparatorTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedBlinkTable",60)),               NAB.savedBlinkTable[iRowIdx])
 
                 dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[iRowIdx])
                 myPrint("B", "  %s" %(pad(">> System Default for savedIncomeExpenseDateRange will be:",60)),   dateRange.getDateRange())
@@ -5818,19 +5898,29 @@ Visit: %s (Author's site)
 
                 cleanup_actions(self.theFrame, NAB.moneydanceContext)
 
-        class MyWidgetNameFocusAdapter(FocusAdapter):
+        class MyJFieldFocusAdapter(FocusAdapter):
             def __init__(self): pass
 
             def focusLost(self, event):
+                myPrint("DB", "In MyJFieldFocusAdapter.focusLost() ... Checking whether I need to capture / set JTextField contents..")
                 NAB = NetAccountBalancesExtension.getNAB()
                 if event.getSource().getName().lower() == "widgetNameField_JTF".lower():
-                    myPrint("DB", "In MyWidgetNameFocusAdapter.focusLost() ... Checking whether I need to set widgetNameField_JTF..")
                     if NAB.savedWidgetName[NAB.getSelectedRowIndex()] != event.getSource().getText():
                         myPrint("DB", "... Yup - Setting widgetNameField_JTF to: '%s'" %(event.getSource().getText()))
                         NAB.savedWidgetName[NAB.getSelectedRowIndex()] = event.getSource().getText()
                         NAB.configSaved = False
                     else:
                         myPrint("DB", "... Nope.. No change to widgetNameField_JTF")
+
+                if event.getSource().getName().lower() == "hideRowXValue_JRF".lower():
+                    jrfValue = event.getSource().getValue()
+                    if NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()] != jrfValue:
+                        myPrint("DB", "... Yup - Setting hideRowXValue_JRF to: %s (was: %s" %(jrfValue, NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()]))
+                        NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()] = jrfValue
+                        NAB.configSaved = False
+                        # event.getSource().setValue(jrfValue)    # Only in case user entered negative value
+                    else:
+                        myPrint("DB", "... Nope.. No change to hideRowXValue_JRF(%s)" %(NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()]))
 
         class MyRefreshRunnable(Runnable):
 
@@ -5905,6 +5995,8 @@ Visit: %s (Author's site)
 
                     md = NAB.moneydanceContext
 
+                    BlinkSwingTimer.stopAllBlinkers()
+
                     baseCurr = NAB.moneydanceContext.getCurrentAccountBook().getCurrencies().getBaseType()
                     altFG = md.getUI().colors.tertiaryTextFG
 
@@ -5955,6 +6047,10 @@ Visit: %s (Author's site)
                                     NAB.simulateTotal_label.setForeground(md.getUI().colors.budgetHealthyColor)
                                 else:
                                     NAB.simulateTotal_label.setForeground(md.getUI().colors.positiveBalFG)
+
+                            if NAB.savedBlinkTable[i]:
+                                BlinkSwingTimer(1200, [NAB.simulateTotal_label], flipColor=(MD_REF.getUI().getColors().defaultTextForeground)).start()
+
 
                 except InterruptedException:
                     myPrint("DB","@@ SimulateTotalForRowSwingWorker InterruptedException - aborting...")
@@ -6018,10 +6114,12 @@ Visit: %s (Author's site)
                                    NAB.savedIncomeExpenseDateRange,
                                    NAB.savedCustomDatesTable,
                                    NAB.savedRowSeparatorTable,
+                                   NAB.savedBlinkTable,
                                    NAB.savedAutoSumAccounts,
                                    NAB.savedIncludeInactive,
                                    NAB.savedShowWarningsTable,
                                    NAB.savedHideRowWhenXXXTable,
+                                   NAB.savedHideRowXValueTable,
                                    NAB.savedWidgetName,
                                    NAB.savedDisableCurrencyFormatting,
                                    NAB.savedCurrencyTable
@@ -6070,21 +6168,20 @@ Visit: %s (Author's site)
                         hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NEVER
                         if event.getSource().getName().lower() == "hideRowWhenAlways_JRB".lower() and event.getSource().isSelected():
                             hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_ALWAYS
-                        elif event.getSource().getName().lower() == "hideRowWhenZero_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_ZERO
-                        elif event.getSource().getName().lower() == "hideRowWhenNeg_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NEGATIVE
-                        elif event.getSource().getName().lower() == "hideRowWhenPos_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_POSITIVE
-                        elif event.getSource().getName().lower() == "hideRowWhenNotZero_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NOT_ZERO
+                        elif event.getSource().getName().lower() == "hideRowWhenZeroOrX_JRB".lower() and event.getSource().isSelected():
+                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X
+                        elif event.getSource().getName().lower() == "hideRowWhenLtEqZeroOrX_JRB".lower() and event.getSource().isSelected():
+                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X
+                        elif event.getSource().getName().lower() == "hideRowWhenGrEqZeroOrX_JRB".lower() and event.getSource().isSelected():
+                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X
+                        elif event.getSource().getName().lower() == "hideRowWhenNotZeroOrX_JRB".lower() and event.getSource().isSelected():
+                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X
 
                         if NAB.savedHideRowWhenXXXTable[NAB.getSelectedRowIndex()] != hideWhenCodeSelected:
                             myPrint("DB", ".. setting savedHideRowWhenXXXTable to: %s for row: %s" %(hideWhenCodeSelected, NAB.getSelectedRow()))
                             NAB.savedHideRowWhenXXXTable[NAB.getSelectedRowIndex()] = hideWhenCodeSelected
                             NAB.configSaved = False
                             NAB.simulateTotalForRow()
-
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("separatorSelector".lower()):
@@ -6101,6 +6198,16 @@ Visit: %s (Author's site)
                             myPrint("DB", ".. setting savedRowSeparatorTable to: %s for row: %s" %(rowSeparatorCodeSelected, NAB.getSelectedRow()))
                             NAB.savedRowSeparatorTable[NAB.getSelectedRowIndex()] = rowSeparatorCodeSelected
                             NAB.configSaved = False
+
+                # ######################################################################################################
+                if event.getActionCommand().lower().startswith("Blink".lower()):
+                    if event.getSource().getName().lower() == "blinkRow_CB".lower():
+                        if NAB.savedBlinkTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                            myPrint("DB", ".. setting savedBlinkTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                            NAB.savedBlinkTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                            NAB.configSaved = False
+                            NAB.simulateTotalForRow()
+                            NAB.jlst.repaint()
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Filter Out Zeros Inactive".lower()):
@@ -6226,7 +6333,7 @@ Visit: %s (Author's site)
                     if event.getSource().getName().lower() == "rowSelected_COMBO".lower():
                         myPrint("DB", ".. setting selected row to configure to: %s" %(event.getSource().getSelectedIndex()+1))
 
-                        NAB.storeWidgetNameForSelectedRow()
+                        NAB.storeJTextFieldsForSelectedRow()
                         NAB.rebuildFrameComponents(selectRowIndex=event.getSource().getSelectedIndex())
 
                 # ######################################################################################################
@@ -6251,6 +6358,7 @@ Visit: %s (Author's site)
                         NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex(),   NAB.incomeExpenseDateRangeDefault())
                         NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex(),         NAB.customDatesDefault())
                         NAB.savedRowSeparatorTable.insert(NAB.getSelectedRowIndex(),        NAB.rowSeparatorDefault())
+                        NAB.savedBlinkTable.insert(NAB.getSelectedRowIndex(),               NAB.blinkDefault())
                         NAB.savedAutoSumAccounts.insert(NAB.getSelectedRowIndex(),          NAB.autoSumDefault())
                         NAB.savedWidgetName.insert(NAB.getSelectedRowIndex(),               NAB.widgetRowDefault())
                         NAB.savedCurrencyTable.insert(NAB.getSelectedRowIndex(),            NAB.currencyDefault())
@@ -6258,6 +6366,7 @@ Visit: %s (Author's site)
                         NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex(),          NAB.includeInactiveDefault())
                         NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex(),        NAB.showWarningsDefault())
                         NAB.savedHideRowWhenXXXTable.insert(NAB.getSelectedRowIndex(),      NAB.hideRowWhenXXXDefault())
+                        NAB.savedHideRowXValueTable.insert(NAB.getSelectedRowIndex(),       NAB.hideRowXValueDefault())
 
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex())
                         NAB.configSaved = False
@@ -6271,6 +6380,7 @@ Visit: %s (Author's site)
                         NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex()+1,     NAB.incomeExpenseDateRangeDefault())
                         NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex()+1,           NAB.customDatesDefault())
                         NAB.savedRowSeparatorTable.insert(NAB.getSelectedRowIndex()+1,          NAB.rowSeparatorDefault())
+                        NAB.savedBlinkTable.insert(NAB.getSelectedRowIndex()+1,                 NAB.blinkDefault())
                         NAB.savedAutoSumAccounts.insert(NAB.getSelectedRowIndex()+1,            NAB.autoSumDefault())
                         NAB.savedWidgetName.insert(NAB.getSelectedRowIndex()+1,                 NAB.widgetRowDefault())
                         NAB.savedCurrencyTable.insert(NAB.getSelectedRowIndex()+1,              NAB.currencyDefault())
@@ -6278,6 +6388,7 @@ Visit: %s (Author's site)
                         NAB.savedIncludeInactive.insert(NAB.getSelectedRowIndex()+1,            NAB.includeInactiveDefault())
                         NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex()+1,          NAB.showWarningsDefault())
                         NAB.savedHideRowWhenXXXTable.insert(NAB.getSelectedRowIndex()+1,        NAB.hideRowWhenXXXDefault())
+                        NAB.savedHideRowXValueTable.insert(NAB.getSelectedRowIndex()+1,         NAB.hideRowXValueDefault())
 
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex()+1)
                         NAB.configSaved = False
@@ -6341,7 +6452,7 @@ Visit: %s (Author's site)
                 if event.getActionCommand().lower().startswith("save"):
 
                     # Buttons auto-save themselves
-                    NAB.storeWidgetNameForSelectedRow()
+                    NAB.storeJTextFieldsForSelectedRow()
                     NAB.storeCurrentJListSelected()
 
                     if NAB.savedWidgetName[NAB.getSelectedRowIndex()].strip() == "":
@@ -6405,15 +6516,6 @@ Visit: %s (Author's site)
                     NAB.jlst.repaint()
                     NAB.configSaved = False
                     myPrint("B", "User has changed 'Use Indian number format' to: %s" %(NAB.savedUseIndianNumberFormat))
-
-                # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Blink displayed Auto-Hide rows".lower()):
-                    NAB.savedBlinkAutoHideRows = not NAB.savedBlinkAutoHideRows
-                    NAB.menuItemBlinkAutoHideRows.setSelected(NAB.savedBlinkAutoHideRows)
-                    NAB.simulateTotalForRow()
-                    NAB.jlst.repaint()
-                    NAB.configSaved = False
-                    myPrint("B", "User has changed 'Blink displayed Auto-Hide rows' to: %s" %(NAB.savedBlinkAutoHideRows))
 
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("Hide Decimal places".lower()):
@@ -6531,7 +6633,7 @@ Visit: %s (Author's site)
 
                 self.mdImages = NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getImages()
 
-                super(DefaultListCellRenderer, self).__init__()                                                         # noqa
+                super(self.__class__, self).__init__()
 
             def setNullEntryLabel(self, nullEntryLabel):self.nullEntryLabel = nullEntryLabel
             def setNullEntryColor(self, nullEntryColor): self.nullEntryColor = nullEntryColor
@@ -6553,14 +6655,14 @@ Visit: %s (Author's site)
                 return Dimension(500 if self.fillAllSpace else 50, self.preferredHeight)
 
             def setBounds(self, coord_x, coord_y, coord_w, coord_h):
-                super(NetAccountBalancesExtension.MyJListRenderer, self).setBounds(coord_x, coord_y, coord_w, coord_h)  # noqa
+                super(self.__class__, self).setBounds(coord_x, coord_y, coord_w, coord_h)
                 self.coord_w = coord_w
                 self.coord_h = coord_h
 
             def updateUI(self):
                 self.defaultFont = None
                 self.smallFont = None
-                super(NetAccountBalancesExtension.MyJListRenderer, self).updateUI()                                     # noqa
+                super(self.__class__, self).updateUI()
 
             def setFillAllSpace(self, fillAllSpace):                self.fillAllSpace = fillAllSpace
             def setPaintIcons(self, paintIcons):                    self.paintIcons = paintIcons
@@ -6572,7 +6674,7 @@ Visit: %s (Author's site)
             def setAcctDepthIncrement(self, acctDepthIncrement):    self.acctDepthIncrement = acctDepthIncrement
 
             def getListCellRendererComponent(self, thelist, value, index, isSelected, cellHasFocus):
-                c = super(NetAccountBalancesExtension.MyJListRenderer, self).getListCellRendererComponent(thelist, value, index, isSelected, cellHasFocus)     # noqa
+                c = super(self.__class__, self).getListCellRendererComponent(thelist, value, index, isSelected, cellHasFocus)
 
                 md = NetAccountBalancesExtension.getNAB().moneydanceContext
                 baseCurr = md.getCurrentAccountBook().getCurrencies().getBaseType()
@@ -6802,8 +6904,10 @@ Visit: %s (Author's site)
                         GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB        = [self.incomeExpenseDateRangeDefault()]     # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_customDatesTable_NAB              = [self.customDatesDefault()]                # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_rowSeparatorTable_NAB             = [self.rowSeparatorDefault()]               # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_blinkTable_NAB                    = [self.blinkDefault()]                      # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_showWarningsTable_NAB             = [self.showWarningsDefault()]               # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB           = [self.hideRowWhenXXXDefault()]             # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_hideRowXValueTable_NAB            = [self.hideRowXValueDefault()]              # Loading will overwrite if saved, else pre-load defaults
 
                         GlobalVars.extn_param_NEW_autoSumDefault_NAB                = self.autoSumDefault()                      # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_disableWidgetTitle_NAB            = self.disableWidgetTitleDefault()           # Loading will overwrite if saved, else pre-load defaults
@@ -6811,7 +6915,6 @@ Visit: %s (Author's site)
                         GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB       = self.treatSecZeroBalInactiveDefault()      # Loading will overwrite if saved, else pre-load defaults
 
                         GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB         = self.useIndianNumberFormatDefault()        # Loading will overwrite if saved, else pre-load defaults
-                        GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB             = self.blinkAutoHideRowsDefault()            # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_hideDecimals_NAB                  = self.hideDecimalsDefault()                 # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB        = self.displayVisualUnderDotsDefault()       # Loading will overwrite if saved, else pre-load defaults
 
@@ -6836,8 +6939,10 @@ Visit: %s (Author's site)
                             GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = [self.incomeExpenseDateRangeDefault()]     # Did not exist previously
                             GlobalVars.extn_param_NEW_customDatesTable_NAB          = [self.customDatesDefault()]                # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = [self.rowSeparatorDefault()]               # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_blinkTable_NAB                = [self.blinkDefault()]                      # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_showWarningsTable_NAB         = [self.showWarningsDefault()]               # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = [self.hideRowWhenXXXDefault()]             # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = [self.hideRowXValueDefault()]              # Loading will overwrite if saved, else pre-load defaults
 
                             GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                      # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = self.disableWidgetTitleDefault()           # Loading will overwrite if saved, else pre-load defaults
@@ -6845,7 +6950,6 @@ Visit: %s (Author's site)
                             GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = self.treatSecZeroBalInactiveDefault()      # Loading will overwrite if saved, else pre-load defaults
 
                             GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = self.useIndianNumberFormatDefault()        # Loading will overwrite if saved, else pre-load defaults
-                            GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB         = self.blinkAutoHideRowsDefault()            # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_hideDecimals_NAB              = self.hideDecimalsDefault()                 # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = self.displayVisualUnderDotsDefault()       # Loading will overwrite if saved, else pre-load defaults
 
@@ -6865,12 +6969,14 @@ Visit: %s (Author's site)
                         self.savedIncomeExpenseDateRange    = GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB
                         self.savedCustomDatesTable          = GlobalVars.extn_param_NEW_customDatesTable_NAB
                         self.savedRowSeparatorTable         = GlobalVars.extn_param_NEW_rowSeparatorTable_NAB
+                        self.savedBlinkTable                = GlobalVars.extn_param_NEW_blinkTable_NAB
                         self.savedIncludeInactive           = GlobalVars.extn_param_NEW_includeInactive_NAB
                         self.savedAutoSumAccounts           = GlobalVars.extn_param_NEW_autoSumAccounts_NAB
                         self.savedWidgetName                = GlobalVars.extn_param_NEW_widget_display_name_NAB
                         self.savedCurrencyTable             = GlobalVars.extn_param_NEW_currency_NAB
                         self.savedDisableCurrencyFormatting = GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB
                         self.savedHideRowWhenXXXTable       = GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB
+                        self.savedHideRowXValueTable        = GlobalVars.extn_param_NEW_hideRowXValueTable_NAB
                         self.savedShowWarningsTable         = GlobalVars.extn_param_NEW_showWarningsTable_NAB
 
                         self.savedAutoSumDefault            = GlobalVars.extn_param_NEW_autoSumDefault_NAB
@@ -6879,7 +6985,6 @@ Visit: %s (Author's site)
                         self.savedTreatSecZeroBalInactive   = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
 
                         self.savedUseIndianNumberFormat     = GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB
-                        self.savedBlinkAutoHideRows         = GlobalVars.extn_param_NEW_blinkAutoHideRows_NAB
                         self.savedHideDecimals              = GlobalVars.extn_param_NEW_hideDecimals_NAB
                         self.savedDisplayVisualUnderDots    = GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB
 
@@ -7013,12 +7118,6 @@ Visit: %s (Author's site)
             NAB.menuItemUseIndianNumberFormat.setSelected(NAB.savedUseIndianNumberFormat)
             menuO.add(NAB.menuItemUseIndianNumberFormat)
 
-            NAB.menuItemBlinkAutoHideRows = MyJCheckBoxMenuItem("Blink displayed Auto-Hide rows")
-            NAB.menuItemBlinkAutoHideRows.addActionListener(NAB.saveActionListener)
-            NAB.menuItemBlinkAutoHideRows.setToolTipText("Enable the blinking of Auto-Hidden rows that appear")
-            NAB.menuItemBlinkAutoHideRows.setSelected(NAB.savedBlinkAutoHideRows)
-            menuO.add(NAB.menuItemBlinkAutoHideRows)
-
             NAB.menuItemHideDecimals = MyJCheckBoxMenuItem("Hide Decimal places")
             NAB.menuItemHideDecimals.addActionListener(NAB.saveActionListener)
             NAB.menuItemHideDecimals.setToolTipText("Enable the hiding of all decimal places (i.e. 1.99 will show as 1)")
@@ -7106,7 +7205,6 @@ Visit: %s (Author's site)
             NAB.menuItemShowDashesInsteadOfZeros.setSelected(NAB.savedShowDashesInsteadOfZeros)
             NAB.menuItemTreatSecZeroBalInactive.setSelected(NAB.savedTreatSecZeroBalInactive)
             NAB.menuItemUseIndianNumberFormat.setSelected(NAB.savedUseIndianNumberFormat)
-            NAB.menuItemBlinkAutoHideRows.setSelected(NAB.savedBlinkAutoHideRows)
             NAB.menuItemHideDecimals.setSelected(NAB.savedHideDecimals)
             NAB.menuDisplayVisualUnderDots.setSelected(NAB.savedDisplayVisualUnderDots)
 
@@ -7160,11 +7258,12 @@ Visit: %s (Author's site)
                     class MyDefaultListSelectionModel(DefaultListSelectionModel):  # build_main_frame() only runs once, so this is fine to do here...
                         # Change the selector - so not to deselect items when selecting others...
                         def __init__(self):
-                            super(DefaultListSelectionModel, self).__init__()                                           # noqa
+                            super(self.__class__, self).__init__()
 
                         def setSelectionInterval(self, start, end):
                             if (start != end):
-                                super(MyDefaultListSelectionModel, self).setSelectionInterval(start, end)               # noqa
+                                # super(MyDefaultListSelectionModel, self).setSelectionInterval(start, end)               # noqa
+                                super(self.__class__, self).setSelectionInterval(start, end)
                             elif self.isSelectedIndex(start):
                                 self.removeSelectionInterval(start, end)
                             else:
@@ -7172,7 +7271,7 @@ Visit: %s (Author's site)
 
                     class MyJList(JList, ListSelectionListener):
                         def __init__(self):
-                            super(JList, self).__init__([])                                                             # noqa
+                            super(self.__class__, self).__init__([])
                             self.originalListObjects = []
                             self.listOfSelectedObjects = []
                             self.savedListeners = []
@@ -7292,13 +7391,28 @@ Visit: %s (Author's site)
 
                     class RowComboListRenderer(DefaultListCellRenderer):
                         def __init__(self):
-                            super(DefaultListCellRenderer, self).__init__()                                             # noqa
+                            super(self.__class__, self).__init__()
 
                         def getListCellRendererComponent(self, _list, value, index, isSelected, cellHasFocus):
-                            c = super(RowComboListRenderer, self).getListCellRendererComponent(_list, value, index, isSelected, cellHasFocus)    # noqa
-                            if isinstance(value, basestring):
-                                c.setForeground(getColorRed() if ("*" in value or "~" in value) else self.getForeground())
-                            if not Platform.isWindows(): c.setOpaque(False)
+                            c = super(self.__class__, self).getListCellRendererComponent(_list, value, index, isSelected, cellHasFocus)
+
+                            md = NetAccountBalancesExtension.getNAB().moneydanceContext
+                            bg = (md.getUI().colors.sidebarSelectedBG if isSelected else md.getUI().colors.defaultBackground)
+
+                            if isSelected:
+                                fg = md.getUI().colors.sidebarSelectedFG
+                                altFG = md.getUI().colors.sidebarSelectedFG                                             # noqa
+                            else:
+                                fg = md.getUI().colors.defaultTextForeground
+                                altFG = md.getUI().colors.tertiaryTextFG                                                # noqa
+
+                            if isinstance(value, basestring) and ("*" in value or "~" in value):
+                                fg = getColorRed()
+
+                            c.setBackground(bg)
+                            c.setForeground(fg)
+                            # if Platform.isMac(): c.setOpaque(False)
+                            if isMDThemeVAQua(): c.setOpaque(False)
                             return c
 
                     NAB.rowSelected_COMBO.setRenderer(RowComboListRenderer())
@@ -7409,7 +7523,7 @@ Visit: %s (Author's site)
                     NAB.widgetNameField_JTF = MyJTextField(NAB.savedWidgetName[0])
                     NAB.widgetNameField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setName("widgetNameField_JTF")
-                    NAB.widgetNameField_JTF.addFocusListener(NAB.MyWidgetNameFocusAdapter())
+                    NAB.widgetNameField_JTF.addFocusListener(NAB.MyJFieldFocusAdapter())
                     controlPnl.add(NAB.widgetNameField_JTF, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
@@ -7500,71 +7614,108 @@ Visit: %s (Author's site)
                     pady = 5
 
                     # --
-                    onCol += 1
                     hideWhenSelector_pnl = MyJPanel(GridBagLayout())
 
-                    hideWhenSelector_lbl = MyJLabel(wrap_HTML_small("", "Hide row:", MD_REF.getUI().getColors().defaultTextForeground))
+                    hideWhenSelector_lbl = MyJLabel("Hide row:")
                     hideWhenSelector_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "hideWhenSelector_lbl")
                     hideWhenSelector_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(hideWhenSelector_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
 
-                    NAB.hideRowWhenNever_JRB = MyJRadioButton(wrap_HTML_small("", "Never", MD_REF.getUI().getColors().defaultTextForeground))
+                    # NAB.hideRowWhenNever_JRB = MyJRadioButton(wrap_HTML_small("", "Never", MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.hideRowWhenNever_JRB = MyJRadioButton("Never")
                     NAB.hideRowWhenNever_JRB.setName("hideRowWhenNever_JRB")
 
-                    NAB.hideRowWhenAlways_JRB = MyJRadioButton(wrap_HTML_small("", "Always", MD_REF.getUI().getColors().defaultTextForeground))
+                    # NAB.hideRowWhenAlways_JRB = MyJRadioButton(wrap_HTML_small("", "Always", MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.hideRowWhenAlways_JRB = MyJRadioButton("Always")
                     NAB.hideRowWhenAlways_JRB.setName("hideRowWhenAlways_JRB")
 
-                    NAB.hideRowWhenZero_JRB = MyJRadioButton(wrap_HTML_small("", "Zero", MD_REF.getUI().getColors().defaultTextForeground))
-                    NAB.hideRowWhenZero_JRB.setName("hideRowWhenZero_JRB")
+                    # NAB.hideRowWhenZeroOrX_JRB = MyJRadioButton(wrap_HTML_small("", "=x", MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.hideRowWhenZeroOrX_JRB = MyJRadioButton("=X")
+                    NAB.hideRowWhenZeroOrX_JRB.setName("hideRowWhenZeroOrX_JRB")
 
-                    NAB.hideRowWhenNeg_JRB = MyJRadioButton(wrap_HTML_small("", "Negative<=0", MD_REF.getUI().getColors().defaultTextForeground))
-                    NAB.hideRowWhenNeg_JRB.setName("hideRowWhenNeg_JRB")
+                    # NAB.hideRowWhenLtEqZeroOrX_JRB = MyJRadioButton(wrap_HTML_small("", "<=x", MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.hideRowWhenLtEqZeroOrX_JRB = MyJRadioButton("<=X")
+                    NAB.hideRowWhenLtEqZeroOrX_JRB.setName("hideRowWhenLtEqZeroOrX_JRB")
 
-                    NAB.hideRowWhenPos_JRB = MyJRadioButton(wrap_HTML_small("", "Positive>=0", MD_REF.getUI().getColors().defaultTextForeground))
-                    NAB.hideRowWhenPos_JRB.setName("hideRowWhenPos_JRB")
+                    # NAB.hideRowWhenGrEqZeroOrX_JRB = MyJRadioButton(wrap_HTML_small("", ">=x", MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.hideRowWhenGrEqZeroOrX_JRB = MyJRadioButton(">=X")
+                    NAB.hideRowWhenGrEqZeroOrX_JRB.setName("hideRowWhenGrEqZeroOrX_JRB")
 
-                    NAB.hideRowWhenNotZero_JRB = MyJRadioButton(wrap_HTML_small("", "Not zero", MD_REF.getUI().getColors().defaultTextForeground))
-                    NAB.hideRowWhenNotZero_JRB.setName("hideRowWhenNotZero_JRB")
+                    # NAB.hideRowWhenNotZeroOrX_JRB = MyJRadioButton(wrap_HTML_small("", "Not x", MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.hideRowWhenNotZeroOrX_JRB = MyJRadioButton("Not X")
+                    NAB.hideRowWhenNotZeroOrX_JRB.setName("hideRowWhenNotZeroOrX_JRB")
 
                     hideWhenButtonGroup = ButtonGroup()
 
                     onHideWhenRow = 0
                     onHideWhenCol = 0
 
-                    hideWhenSelector_pnl.add(hideWhenSelector_lbl, GridC.getc(onHideWhenCol, onHideWhenRow))
-                    onHideWhenCol += 1
-
-                    for jrb in [NAB.hideRowWhenNever_JRB, NAB.hideRowWhenAlways_JRB, NAB.hideRowWhenZero_JRB, NAB.hideRowWhenNeg_JRB, NAB.hideRowWhenPos_JRB, NAB.hideRowWhenNotZero_JRB]:
+                    for jrb in [NAB.hideRowWhenNever_JRB, NAB.hideRowWhenAlways_JRB, NAB.hideRowWhenZeroOrX_JRB, NAB.hideRowWhenLtEqZeroOrX_JRB, NAB.hideRowWhenGrEqZeroOrX_JRB, NAB.hideRowWhenNotZeroOrX_JRB]:
                         hideWhenButtonGroup.add(jrb)
                         jrb.setActionCommand(jrb.getName())
                         jrb.putClientProperty("%s.id" %(NAB.myModuleID), jrb.getName())
                         jrb.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                        jrb.setToolTipText("Allows hiding of this row. Options: Never, Always(disabled), When balance is ...: zero, negative(<=0), positive(>=0)")
+                        jrb.setToolTipText("Allows hiding of this row. Options: Never, Always(disabled), When balance is ...: =x, <=x, >=x)")
                         jrb.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                         jrb.addActionListener(NAB.saveActionListener)
-                        if jrb is NAB.hideRowWhenNotZero_JRB: continue  # disable this option
+                        if jrb is NAB.hideRowWhenNotZeroOrX_JRB: continue  # disable this option
                         hideWhenSelector_pnl.add(jrb, GridC.getc(onHideWhenCol, onHideWhenRow).leftInset(0).rightInset(5))
                         onHideWhenCol += 1
 
+                    # --------------------------------------------------------------------------------------------------
+
+                    hideXValue_lbl = MyJLabel("X=")
+                    hideXValue_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "hideXValue_lbl")
+                    hideXValue_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    hideWhenSelector_pnl.add(hideXValue_lbl, GridC.getc(onHideWhenCol, onHideWhenRow).leftInset(5))
+                    onHideWhenCol += 1
+
+                    NAB.hideRowXValue_JRF = MyJRateField(NAB.decimal)
+                    if isinstance(NAB.hideRowXValue_JRF, (MyJRateField, JRateField, JTextField)): pass
+                    NAB.hideRowXValue_JRF.putClientProperty("%s.id" %(NAB.myModuleID), "hideRowXValue_JRF")
+                    NAB.hideRowXValue_JRF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.hideRowXValue_JRF.setName("hideRowXValue_JRF")
+                    NAB.hideRowXValue_JRF.setToolTipText("Enter the 'X' value to be used when using the hide row when option(s). Default is zero. ")
+                    NAB.hideRowXValue_JRF.setShortRatesEnabled(True)
+                    NAB.hideRowXValue_JRF.addFocusListener(NAB.MyJFieldFocusAdapter())
+                    hideWhenSelector_pnl.add(NAB.hideRowXValue_JRF, GridC.getc(onHideWhenCol, onHideWhenRow))
+                    onHideWhenCol += 1
+
                     controlPnl.add(hideWhenSelector_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(2))
                     onCol += 2
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 0
 
-                    # --
+                    rowFormatting_lbl = MyJLabel("Row formatting:")
+                    rowFormatting_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "rowFormatting_lbl")
+                    rowFormatting_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(rowFormatting_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
+
                     separatorSelector_pnl = MyJPanel(GridBagLayout())
 
-                    separatorSelector_lbl = MyJLabel(wrap_HTML_small("", "Row Separator:", MD_REF.getUI().getColors().defaultTextForeground))
+                    # separatorSelector_lbl = MyJLabel(wrap_HTML_small("", "Separator:", _smallColor=MD_REF.getUI().getColors().defaultTextForeground))
+                    separatorSelector_lbl = MyJLabel("Separator:")
                     separatorSelector_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "separatorSelector_lbl")
                     separatorSelector_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
-                    NAB.separatorSelectorNone_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_CROSS, MD_REF.getUI().getColors().defaultTextForeground))
+                    # NAB.separatorSelectorNone_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_CROSS, MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.separatorSelectorNone_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_CROSS)
+                    NAB.separatorSelectorNone_JRB = MyJRadioButton("None")
                     NAB.separatorSelectorNone_JRB.setName("separatorSelectorNone_JRB")
 
-                    NAB.separatorSelectorAbove_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_UP_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
+                    # NAB.separatorSelectorAbove_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_UP_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.separatorSelectorAbove_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_UP_ARROW)
                     NAB.separatorSelectorAbove_JRB.setName("separatorSelectorAbove_JRB")
 
-                    NAB.separatorSelectorBelow_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_DOWN_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
+                    # NAB.separatorSelectorBelow_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_DOWN_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.separatorSelectorBelow_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_DOWN_ARROW)
                     NAB.separatorSelectorBelow_JRB.setName("separatorSelectorBelow_JRB")
 
-                    NAB.separatorSelectorBoth_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_UP_ARROW + GlobalVars.Strings.UNICODE_DOWN_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
+                    # NAB.separatorSelectorBoth_JRB = MyJRadioButton(wrap_HTML_small("", GlobalVars.Strings.UNICODE_UP_ARROW + GlobalVars.Strings.UNICODE_DOWN_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
+                    NAB.separatorSelectorBoth_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_UP_ARROW + GlobalVars.Strings.UNICODE_DOWN_ARROW)
                     NAB.separatorSelectorBoth_JRB.setName("separatorSelectorBoth_JRB")
 
                     separatorButtonGroup = ButtonGroup()
@@ -7588,6 +7739,16 @@ Visit: %s (Author's site)
                         onSepCol += 1
 
                     controlPnl.add(separatorSelector_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller+2).rightInset(colRightInset).fillx().pady(pady).filly().west())
+                    onCol += 1
+
+                    NAB.blinkRow_CB = MyJCheckBox("Blink", True)
+                    NAB.blinkRow_CB.putClientProperty("%s.id" %(NAB.myModuleID), "blinkRow_CB")
+                    NAB.blinkRow_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.blinkRow_CB.setName("blinkRow_CB")
+                    NAB.blinkRow_CB.setToolTipText("When enabled, the calculated balance will blink (when this row is visible)")
+                    NAB.blinkRow_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.blinkRow_CB.addActionListener(NAB.saveActionListener)
+                    controlPnl.add(NAB.blinkRow_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
                     onCol += 1
 
                     onRow += 1
@@ -8051,10 +8212,10 @@ Visit: %s (Author's site)
                     myPrint("DB","COMMAND: %s received... Detected Row Parameter: %s" %(appEvent, requestedRow))
 
                     if self.configPanelOpen:
-                        self.storeWidgetNameForSelectedRow()
-                        myPrint("DB","..Saving Widget name last edited on GUI before any switch of row...")
+                        self.storeJTextFieldsForSelectedRow()
+                        myPrint("DB","..Saving JTF/JRFs (Widget name, XValue) last edited on GUI before any switch of row...")
                     else:
-                        myPrint("DB","..Skipping save of Widget name as GUI has never been opened...")
+                        myPrint("DB","..Skipping save of JTF/JRFs (Widget name, XValue) as GUI has never been opened...")
 
                     self.switchFromHomeScreen = True
                     self.setSelectedRowIndex(int(requestedRow)-1)
@@ -8797,7 +8958,7 @@ Visit: %s (Author's site)
                 self.lastRefreshTimeDelayMs = 10000
                 self.lastRefreshTriggerWasAccountModified = False
 
-                super(JPanel, self).__init__()                                                                          # noqa
+                super(self.__class__, self).__init__()
 
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
@@ -9023,39 +9184,45 @@ Visit: %s (Author's site)
                             for i in range(0,len(self.netAmountTable)):
 
                                 onRow = i + 1
-                                blinkCandidate = False
 
                                 if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
                                     myPrint("DB", "** Skipping disabled row %s" %(onRow))
                                     hiddenRows = True
                                     continue
 
-                                skippingRow = False
-                                if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ZERO:
-                                    if self.netAmountTable[i][_valIdx] == 0:
-                                        myPrint("DB", "** Hiding/skipping zero balance row %s" %(onRow))
-                                        skippingRow = True
-                                    else: blinkCandidate = True
-                                if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE:
-                                    if self.netAmountTable[i][_valIdx] <= 0:
-                                        myPrint("DB", "** Hiding/skipping negative balance row %s" %(onRow))
-                                        skippingRow = True
-                                    else: blinkCandidate = True
-                                if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_POSITIVE:
-                                    if self.netAmountTable[i][_valIdx] >= 0:
-                                        myPrint("DB", "** Hiding/skipping positive balance row %s" %(onRow))
-                                        skippingRow = True
-                                    else: blinkCandidate = True
-                                if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO:
-                                    if self.netAmountTable[i][_valIdx] != 0:
-                                        myPrint("DB", "** Hiding/skipping non zero balance row %s" %(onRow))
-                                        skippingRow = True
-                                    else: blinkCandidate = True
+                                if self.netAmountTable[i][_valIdx] is not None:
+                                    skippingRow = False
+                                    netAmtDbl_toCompare = self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx])
+                                    if NAB.savedHideDecimals and NAB.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ALWAYS:
+                                        # only compare against truncated values if the XValue was a whole number, otherwise assume precision required....
+                                        if float(int(NAB.savedHideRowXValueTable[i])) == NAB.savedHideRowXValueTable[i]:
+                                            netAmtDbl_toCompare = float(int(netAmtDbl_toCompare))  # Truncate the calculated value
+                                            myPrint("DB", ":: Row: %s Decimals hidden... Will compare truncated calculated balance (original: %s, truncated: %s) against XValue: %s"
+                                                    %(onRow, self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx]), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
+                                        else:
+                                            myPrint("DB", ":: Row: %s Decimals hidden... BUT will NOT truncate calculated balance (%s) as XValue (%s) requested decimal precision"
+                                                    %(onRow, self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx]), NAB.savedHideRowXValueTable[i]))
+                                    if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
+                                        if netAmtDbl_toCompare == NAB.savedHideRowXValueTable[i]:
+                                            myPrint("DB", "** Hiding/skipping (x=)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
+                                            skippingRow = True
+                                    if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X:
+                                        if netAmtDbl_toCompare <= NAB.savedHideRowXValueTable[i]:
+                                            myPrint("DB", "** Hiding/skipping <=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
+                                            skippingRow = True
+                                    if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X:
+                                        if netAmtDbl_toCompare >= NAB.savedHideRowXValueTable[i]:
+                                            myPrint("DB", "** Hiding/skipping >=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
+                                            skippingRow = True
+                                    if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X:
+                                        if netAmtDbl_toCompare != NAB.savedHideRowXValueTable[i]:
+                                            myPrint("DB", "** Hiding/skipping !=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
+                                            skippingRow = True
 
-                                if skippingRow:
-                                    if NAB.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_NEVER: self.addRowSeparator()
-                                    hiddenRows = True
-                                    continue
+                                    if skippingRow:
+                                        if NAB.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_NEVER: self.addRowSeparator()
+                                        hiddenRows = True
+                                        continue
 
                                 if NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_ABOVE or NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BOTH:
                                     self.addRowSeparator()
@@ -9101,7 +9268,7 @@ Visit: %s (Author's site)
                                 nameLabel.addLinkListener(self.callingClass)
                                 netTotalLbl.addLinkListener(self.callingClass)
 
-                                if blinkCandidate and NAB.savedBlinkAutoHideRows: blinkers.append(netTotalLbl)
+                                if NAB.savedBlinkTable[i]: blinkers.append(netTotalLbl)
 
                                 if NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BELOW or NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BOTH:
                                     self.addRowSeparator()
@@ -9283,7 +9450,7 @@ Visit: %s (Author's site)
 
             def updateUI(self):
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
-                super(MyHomePageView.ViewPanel, self).updateUI()                                                        # noqa
+                super(self.__class__, self).updateUI()
                 # self.refresh()
 
         # Sets the view as active or inactive. When not active, a view should not have any registered listeners
