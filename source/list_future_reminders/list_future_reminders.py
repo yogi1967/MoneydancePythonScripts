@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1018)
+# list_future_reminders.py (build: 1019)
 
 ###############################################################################
 # MIT License
@@ -60,6 +60,7 @@
 # build: 1018 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1018 - Common code
 # build: 1018 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
+# build: 1019 - For Kevin Stembridge: added CMD-K to skip the next occurrence of all reminders...
 
 # Displays Moneydance future reminders
 
@@ -71,7 +72,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1018"
+version_build = "1019"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -385,6 +386,7 @@ else:
     # Other used by this program
     GlobalVars.saveStatusLabel = None
     GlobalVars.md_dateFormat = None
+    GlobalVars.MAX_END_DATE = 20991231
 
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
@@ -3468,12 +3470,12 @@ Visit: %s (Author's site)
                         for freq in range(0, len(rem.getRepeatWeeklyDays())):
                             if len(remfreq) > 0: remfreq += " & "
                             if weekly == Reminder.WEEKLY_EVERY:                remfreq += 'WEEKLY_EVERY'
-                            if weekly == Reminder.WEEKLY_EVERY_FIFTH:            remfreq += 'WEEKLY_EVERY_FIFTH'
-                            if weekly == Reminder.WEEKLY_EVERY_FIRST:            remfreq += 'WEEKLY_EVERY_FIRST'
-                            if weekly == Reminder.WEEKLY_EVERY_FOURTH:            remfreq += 'WEEKLY_EVERY_FOURTH'
-                            if weekly == Reminder.WEEKLY_EVERY_LAST:            remfreq += 'WEEKLY_EVERY_LAST'
-                            if weekly == Reminder.WEEKLY_EVERY_SECOND:            remfreq += 'WEEKLY_EVERY_SECOND'
-                            if weekly == Reminder.WEEKLY_EVERY_THIRD:            remfreq += 'WEEKLY_EVERY_THIRD'
+                            if weekly == Reminder.WEEKLY_EVERY_FIFTH:          remfreq += 'WEEKLY_EVERY_FIFTH'
+                            if weekly == Reminder.WEEKLY_EVERY_FIRST:          remfreq += 'WEEKLY_EVERY_FIRST'
+                            if weekly == Reminder.WEEKLY_EVERY_FOURTH:         remfreq += 'WEEKLY_EVERY_FOURTH'
+                            if weekly == Reminder.WEEKLY_EVERY_LAST:           remfreq += 'WEEKLY_EVERY_LAST'
+                            if weekly == Reminder.WEEKLY_EVERY_SECOND:         remfreq += 'WEEKLY_EVERY_SECOND'
+                            if weekly == Reminder.WEEKLY_EVERY_THIRD:          remfreq += 'WEEKLY_EVERY_THIRD'
 
                             if rem.getRepeatWeeklyDays()[freq] == 1: remfreq += '(on Sunday)'
                             if rem.getRepeatWeeklyDays()[freq] == 2: remfreq += '(on Monday)'
@@ -3489,8 +3491,8 @@ Visit: %s (Author's site)
                     if len(rem.getRepeatMonthly()) > 0 and rem.getRepeatMonthly()[0] > 0:
                         for freq in range(0, len(rem.getRepeatMonthly())):
                             if len(remfreq) > 0: remfreq += " & "
-                            if monthly == Reminder.MONTHLY_EVERY:                 remfreq += 'MONTHLY_EVERY'
-                            if monthly == Reminder.MONTHLY_EVERY_FOURTH:         remfreq += 'MONTHLY_EVERY_FOURTH'
+                            if monthly == Reminder.MONTHLY_EVERY:               remfreq += 'MONTHLY_EVERY'
+                            if monthly == Reminder.MONTHLY_EVERY_FOURTH:        remfreq += 'MONTHLY_EVERY_FOURTH'
                             if monthly == Reminder.MONTHLY_EVERY_OTHER:         remfreq += 'MONTHLY_EVERY_OTHER'
                             if monthly == Reminder.MONTHLY_EVERY_SIXTH:         remfreq += 'MONTHLY_EVERY_SIXTH'
                             if monthly == Reminder.MONTHLY_EVERY_THIRD:         remfreq += 'MONTHLY_EVERY_THIRD'
@@ -3500,7 +3502,7 @@ Visit: %s (Author's site)
                                 remfreq += '(on LAST_DAY_OF_MONTH)'
                             else:
                                 if 4 <= theday <= 20 or 24 <= theday <= 30: suffix = "th"
-                                else:                                        suffix = ["st", "nd", "rd"][theday % 10 - 1]
+                                else: suffix = ["st", "nd", "rd"][theday % 10 - 1]
 
                                 remfreq += '(on ' + str(theday) + suffix + ')'
 
@@ -3511,19 +3513,21 @@ Visit: %s (Author's site)
                         remfreq += 'YEARLY'
                         countfreqs += 1
 
-                    if len(remfreq) < 1 or countfreqs == 0:         remfreq = '!ERROR! NO ACTUAL FREQUENCY OPTIONS SET PROPERLY ' + remfreq
-                    if countfreqs > 1: remfreq = "**MULTI** " + remfreq													# noqa
+                    if len(remfreq) < 1 or countfreqs == 0:
+                        remfreq = '!ERROR! NO ACTUAL FREQUENCY OPTIONS SET PROPERLY ' + remfreq
+
+                    if countfreqs > 1:
+                        remfreq = "**MULTI** " + remfreq													            # noqa
 
                     todayInt = DateUtil.getStrippedDateInt()
                     lastdate = rem.getLastDateInt()
 
                     if lastdate < 1:  # Detect if an enddate is set
-                        stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR),20991231)
-                        nextDate = rem.getNextOccurance(stopDate)  # Use cutoff  far into the future
-
+                        stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR), GlobalVars.MAX_END_DATE)
                     else:
-                        stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR),lastdate)
-                        nextDate = rem.getNextOccurance(stopDate)  # Stop at enddate
+                        stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR), lastdate)
+
+                    nextDate = rem.getNextOccurance(stopDate)
 
                     if nextDate < 1:
                         continue
@@ -3540,7 +3544,7 @@ Visit: %s (Author's site)
                             myPopupInformationBox(list_future_reminders_frame_,"ERROR - Loop detected..?! Will exit (review console log)",theMessageType=JOptionPane.ERROR_MESSAGE)
                             raise Exception("Loop detected..? Aborting.... Reminder %s" %(rem))
 
-                        calcNext = myGetNextOccurance(rem,nextDate, stopDate)
+                        calcNext = myGetNextOccurance(rem, nextDate, stopDate)
 
                         if calcNext < 1:
                             break
@@ -3981,6 +3985,51 @@ Visit: %s (Author's site)
                     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
                     terminate_script()
 
+            class SkipReminders(AbstractAction):
+
+                # noinspection PyMethodMayBeStatic
+                # noinspection PyUnusedLocal
+                def actionPerformed(self, event):
+                    myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+                    if not myPopupAskQuestion(list_future_reminders_frame_, theTitle="SKIP ALL REMINDERS", theQuestion="Skip the next occurrence of ALL reminders?", theMessageType=JOptionPane.WARNING_MESSAGE):
+                        return
+
+                    skippedReminders = 0
+                    _msgPad = 100
+                    _msg = pad("Please wait:", _msgPad, padChar=".")
+                    pleaseWait = MyPopUpDialogBox(list_future_reminders_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
+                    pleaseWait.go()
+
+                    myPrint("B", "User has requested to skip next occurrence of ALL reminders...")
+                    rems = MD_REF.getCurrentAccountBook().getReminders().getAllReminders()
+                    for r in rems:
+                        _msg = pad("Please wait: On reminder '%s'" %(r.getDescription()), _msgPad, padChar=".")
+                        pleaseWait.updateMessages(newTitle=_msg, newStatus=_msg)
+
+                        todayInt = DateUtil.getStrippedDateInt()
+                        lastdate = r.getLastDateInt()
+
+                        if lastdate < 1:
+                            stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR), GlobalVars.MAX_END_DATE)
+                        else:
+                            stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, daysToLookForward_LFR), lastdate)
+
+                        nextDate = r.getNextOccurance(stopDate)
+                        if nextDate < 1:
+                            myPrint("B", "... not skipping reminder %s, as nextdate calculated as: %s" %(r, nextDate))
+                            continue
+
+                        myPrint("B", "... skipping reminder %s, setting acknowledged date to %s" %(r, nextDate))
+                        r.setAcknowledgedInt(nextDate)
+                        r.syncItem()
+                        skippedReminders += 1
+
+                    pleaseWait.updateMessages(newTitle="SKIP ALL REMINDERS", newStatus="FINISHED Skipping reminders:", newMessage="%s reminders skipped..." %(skippedReminders))
+
+                    myPrint("B", ">> FINISHED skipping the next occurrence of ALL reminders...");
+                    RefreshMenuAction().refresh()
+
+
             class PrintJTable(AbstractAction):
                 def __init__(self, _frame, _table, _title):
                     self._frame = _frame
@@ -3991,8 +4040,7 @@ Visit: %s (Author's site)
                     printJTable(_theFrame=self._frame, _theJTable=self._table, _theTitle=self._title)
 
             class ExtractMenuAction():
-                def __init__(self):
-                    pass
+                def __init__(self): pass
 
                 # noinspection PyMethodMayBeStatic
                 def extract_or_close(self):
@@ -4003,8 +4051,7 @@ Visit: %s (Author's site)
 
 
             class RefreshMenuAction():
-                def __init__(self):
-                    pass
+                def __init__(self): pass
 
                 # noinspection PyMethodMayBeStatic
                 def refresh(self):
@@ -4289,11 +4336,13 @@ Visit: %s (Author's site)
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut), "close-window")
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, shortcut), "close-window")
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
+                    list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_K, shortcut),  "skip-reminders")
 
                     if lAllowEscapeExitApp_SWSS:
                         list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
 
                     list_future_reminders_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
+                    list_future_reminders_frame_.getRootPane().getActionMap().put("skip-reminders", SkipReminders())
 
 
                     if Platform.isOSX():
@@ -4379,7 +4428,8 @@ Visit: %s (Author's site)
 
                 GlobalVars.saveJTable.getTableHeader().setReorderingAllowed(True)
                 GlobalVars.saveJTable.getTableHeader().setDefaultRenderer(DefaultTableHeaderCellRenderer())
-                GlobalVars.saveJTable.selectionMode = ListSelectionModel.SINGLE_SELECTION
+                GlobalVars.saveJTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+                # GlobalVars.saveJTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
                 fontSize = GlobalVars.saveJTable.getFont().getSize()+5
                 GlobalVars.saveJTable.setRowHeight(fontSize)
