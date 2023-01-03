@@ -247,6 +247,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - Toggle investment securities with zero shares status to active/inactive
 
     - MENU: Accounts & Categories tools
+        - FIX - Add alternative account numbers for 'Accounts and bank/account number' report (above)"
         - FIX - Inactivate all Categories with Zero Balance
         - FIX - Edit an Account's shouldBeIncludedInNetWorth() setting
         - FIX - FORCE change an Account's Type (use with care. Does not update any transactions) (set_account_type.py)

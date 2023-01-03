@@ -145,6 +145,7 @@
 # build: 1056 - Eliminated Advanced Mode... Now all updates within Update Mode..
 # build: 1056 - Tweaks for .getAbsolutePath() vs .getCanonicalPath() and Dropbox updated Dropbox location on MacOS
 # build: 1056 - Accepted Pull Request from xx whereby Edit Security Decimals Places was changed to allow 16dpc. NOTE: 922.3372036854775807 is the max shares number MD can hold at 16dpc
+# build: 1056 - Added 'FIX: Add alternative account numbers for 'Accounts and bank/account number' report (above)' feature
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -3297,6 +3298,13 @@ Visit: %s (Author's site)
 
     def wrap_HTML_italics(_textToWrap):
         return "<html><i>%s</i></html>" %(html_strip_chars(_textToWrap))
+
+    def wrap_HTML_multi_color(_bigText, _morebigText, _secondaryColor=None):
+        if _secondaryColor is None: _secondaryColor = GlobalVars.CONTEXT.getUI().colors.tertiaryTextFG
+        _secondaryColorHex = AwtUtil.hexStringForColor(_secondaryColor)
+        _htmlBigText = html_strip_chars(_bigText)
+        _htmlMoreBigText = html_strip_chars(_morebigText)
+        return "<html>%s<font color=#%s>%s</font></html>" %(_htmlBigText, _secondaryColorHex, _htmlMoreBigText)
 
     class MoneybotURLDebug:
         saveState = None
@@ -15022,9 +15030,91 @@ now after saving the file, restart Moneydance
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def reportAccountNumbers():
-        _THIS_METHOD_NAME = "Report of Accounts and bank/account number information"
+    def reportAccountNumbers(lEditAlternativeAccountNumbers=False):
+
+        if lEditAlternativeAccountNumbers:
+            _THIS_METHOD_NAME = "Add alternative account numbers"
+        else:
+            _THIS_METHOD_NAME = "Report of Accounts and bank/account number information"
+
         TOOLBOX_IGNORE = "<toolbox ignore>"
+        ALTERNATIVE_ACCT_PARAM = "toolbox_alternative_bank_account_number"
+
+        if lEditAlternativeAccountNumbers:
+            if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Proceed and edit alternative account numbers?"):
+                return
+
+            includedAccountTypes = [Account.AccountType.BANK,                                                           # noqa
+                                    Account.AccountType.CREDIT_CARD,                                                    # noqa
+                                    Account.AccountType.INVESTMENT,                                                     # noqa
+                                    Account.AccountType.ASSET,                                                          # noqa
+                                    Account.AccountType.LIABILITY,                                                      # noqa
+                                    Account.AccountType.LOAN                                                            # noqa
+                                    ]
+
+            class StoreAltAccountList():
+                def __init__(self, obj): self.obj = obj
+
+                def getAlternativeAccount(self): return self.obj.getParameter(ALTERNATIVE_ACCT_PARAM, "")
+
+                def __str__(self):
+                    # return "%s : %s %s" %(self.obj.getAccountType(), self.obj.getFullAccountName(), "" if StringUtils.isBlank(self.getAlternativeAccount()) else "(alt: %s)" %(self.getAlternativeAccount()))
+
+                    bigText = "%s : %s" %(self.obj.getAccountType(), self.obj.getFullAccountName())
+                    moreBigText = "%s" %("" if StringUtils.isBlank(self.getAlternativeAccount()) else " (alt: %s)" %(self.getAlternativeAccount()))
+
+                    return wrap_HTML_multi_color(bigText, moreBigText, _secondaryColor=getColorRed())
+
+                def __repr__(self): return self.__str__()
+                def toString(self): return self.__str__()
+
+            allAccounts = [StoreAltAccountList(acct) for acct in AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccount().getBook(), AcctFilter.ALL_ACCOUNTS_FILTER) if acct.getAccountType() in includedAccountTypes]
+            allAccounts = sorted(allAccounts, key=lambda sort_x: (sort_x.obj.getAccountType(), sort_x.obj.getFullAccountName().upper()))
+
+            while True:
+
+                selectedAcct = JOptionPane.showInputDialog(toolbox_frame_,
+                                                           "Select Account to edit the alternative account number",
+                                                           _THIS_METHOD_NAME.upper(),
+                                                           JOptionPane.INFORMATION_MESSAGE,
+                                                           getMDIcon(lAlwaysGetIcon=True),
+                                                           allAccounts,
+                                                           None)
+                if not selectedAcct: break
+
+                selectedAcct = selectedAcct.obj                                                                         # noqa
+                if isinstance(selectedAcct, Account): pass
+
+                currentAlternative = selectedAcct.getParameter(ALTERNATIVE_ACCT_PARAM, "")
+
+                newAlternative = myPopupAskForInput(toolbox_frame_,
+                                                          theTitle=_THIS_METHOD_NAME,
+                                                          theFieldLabel="ALTERNATIVE NUMBER:",
+                                                          theFieldDescription="Enter an alternative account number (blank will remove)",
+                                                          defaultValue=currentAlternative)
+
+                if newAlternative is None: continue
+
+
+                if selectedAcct.getAccountType() == Account.AccountType.CREDIT_CARD:                                    # noqa
+                    md_accountNumber = selectedAcct.getCardNumber()
+                elif selectedAcct.getAccountType() == Account.AccountType.INVESTMENT:                                   # noqa
+                    md_accountNumber = selectedAcct.getInvestAccountNumber()
+                else:
+                    md_accountNumber = selectedAcct.getBankAccountNumber()      # Not all account Types have account numbers!
+
+
+                newAlternative = newAlternative.strip()
+                selectedAcct.setParameter(ALTERNATIVE_ACCT_PARAM, None if StringUtils.isBlank(newAlternative) else newAlternative)
+                txt = "Account: '%s' Alt Acct Number set to: '%s' (MD ref: '%s')" %(selectedAcct.getAccountName(), newAlternative, md_accountNumber)
+                selectedAcct.syncItem()
+                setDisplayStatus(txt, "B"); myPrint("B", txt)
+                myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.INFORMATION_MESSAGE)
+                logToolboxUpdates("reportAccountNumbers", txt)
+                continue
+
+            return
+
 
         input_includeBankAccounts = JCheckBox("include account type: Bank?",                                            GlobalVars.saveSettings_reportAccountNumbers.get("input_includeBankAccounts",       True))
         input_includeCCAccounts = JCheckBox("include account type: Credit Card?",                                       GlobalVars.saveSettings_reportAccountNumbers.get("input_includeCCAccounts",         True))
@@ -15044,6 +15134,9 @@ now after saving the file, restart Moneydance
         input_includeCCExpiryDates = JCheckBox("include Credit Card expiry dates?",                                     GlobalVars.saveSettings_reportAccountNumbers.get("input_includeCCExpiryDates",      False))
         input_includeFileOpenDetails = JCheckBox("include Moneydance 'Master' password and confidential file details?", GlobalVars.saveSettings_reportAccountNumbers.get("input_includeFileOpenDetails",    False))
 
+        lbl_secretText = JLabel("Enter secret text to include on this report (will not get saved anywhere):")
+        input_includeSecretText = JTextField(GlobalVars.saveSettings_reportAccountNumbers.get("input_includeSecretText", ""))
+
         allAccountTypes = [input_includeBankAccounts, input_includeCCAccounts, input_includeInvestmentAccounts, input_includeAssetAccounts, input_includeLiabilityAccounts, input_includeLoanAccounts]
 
         userFilters = JPanel(GridLayout(0, 1))
@@ -15062,6 +15155,9 @@ now after saving the file, restart Moneydance
         userFilters.add(input_includeToolboxIgnore)
         userFilters.add(input_includeCCExpiryDates)
         userFilters.add(input_includeFileOpenDetails)
+        userFilters.add(JLabel("---"))
+        userFilters.add(lbl_secretText)
+        userFilters.add(input_includeSecretText)
 
         while True:
             options = ["EXIT", "REPORT"]
@@ -15181,6 +15277,10 @@ now after saving the file, restart Moneydance
                 else:
                     accountNumberTxt = acct.getBankAccountNumber()      # Not all account Types have account numbers!
 
+                alt_account = acct.getParameter(ALTERNATIVE_ACCT_PARAM, "")
+                if not StringUtils.isBlank(alt_account):
+                    accountNumberTxt += " (alt: '%s')" %(alt_account)
+
                 # noinspection PyUnresolvedReferences
                 if acct.getAccountType() == Account.AccountType.INVESTMENT:
                     bankNameTxt = acct.getInstitutionName()
@@ -15294,6 +15394,15 @@ now after saving the file, restart Moneydance
             output += "- Syncing: %s - Sync password: %s\n" %(syncMethodTxt, MD_syn)
             output += "- Secret internal KEY used for dataset encryption seed: %s\n" %(datasetKey)
 
+
+        secretTxt = input_includeSecretText.getText()
+        if not StringUtils.isBlank(secretTxt):
+            output += "\n\n" \
+                      "************************************************%s\n" %("*" * (len(secretTxt)+1))
+            output += "**** User entered secret text for this report: '%s'\n" %(secretTxt)
+            output += "************************************************%s\n\n" %("*" * (len(secretTxt)+1))
+        del secretTxt
+
         output += "\n<END>"
 
         GlobalVars.saveSettings_reportAccountNumbers["input_includeBankAccounts"]           = input_includeBankAccounts.isSelected()
@@ -15312,6 +15421,7 @@ now after saving the file, restart Moneydance
         GlobalVars.saveSettings_reportAccountNumbers["input_includeToolboxIgnore"]          = input_includeToolboxIgnore.isSelected()
         GlobalVars.saveSettings_reportAccountNumbers["input_includeCCExpiryDates"]          = input_includeCCExpiryDates.isSelected()
         GlobalVars.saveSettings_reportAccountNumbers["input_includeFileOpenDetails"]        = input_includeFileOpenDetails.isSelected()
+        GlobalVars.saveSettings_reportAccountNumbers["input_includeSecretText"]             = input_includeSecretText.getText()
 
         QuickJFrame(_THIS_METHOD_NAME.upper(), output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
 
@@ -27622,6 +27732,9 @@ now after saving the file, restart Moneydance
                     user_inactivate_zero_bal_cats = MenuJRadioButton("FIX: Make Zero Balance Categories Inactive", False, updateMenu=True)
                     user_inactivate_zero_bal_cats.setToolTipText("This will allow you Inactivate all Categories with Zero Balances (you will see the report first). THIS CHANGES DATA!")
 
+                    user_add_alternative_bank_number = MenuJRadioButton("FIX: Add alternative account numbers for 'Accounts and bank/account number' report (above)", False, updateMenu=True)
+                    user_add_alternative_bank_number.setToolTipText("Enter alternative account number(s) to print in the 'Accounts and bank/account number' report above. THIS CHANGES DATA!")
+
                     user_reportAccountNumbers = MenuJRadioButton("DIAG: Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
                     user_reportAccountNumbers.setToolTipText("This produces a report of bank accounts along with account & sort numbers etc... ")
 
@@ -27655,7 +27768,7 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_view_shouldBeIncludedInNetWorth_settings)
 
                     if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
-                        rows += 10
+                        rows += 11
                         userFilters.add(JLabel(" "))
                         userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
@@ -27663,6 +27776,7 @@ now after saving the file, restart Moneydance
                             rows += 1
                             userFilters.add(ToolboxMode.getMenuLabel())
 
+                        userFilters.add(user_add_alternative_bank_number)
                         userFilters.add(user_inactivate_zero_bal_cats)
                         userFilters.add(user_edit_shouldBeIncludedInNetWorth_settings)
                         userFilters.add(user_force_change_an_accounts_type)
@@ -27704,6 +27818,7 @@ now after saving the file, restart Moneydance
                         if user_view_check_number_settings.isSelected():                        view_check_num_settings()
                         if user_view_zero_bal_cats.isSelected():                                zero_bal_categories(False)
                         if user_inactivate_zero_bal_cats.isSelected():                          zero_bal_categories(True)
+                        if user_add_alternative_bank_number.isSelected():                       reportAccountNumbers(lEditAlternativeAccountNumbers=True)
                         if user_reportAccountNumbers.isSelected():                              reportAccountNumbers()
                         if user_view_shouldBeIncludedInNetWorth_settings.isSelected():          view_shouldBeIncludedInNetWorth_settings()
                         if user_edit_shouldBeIncludedInNetWorth_settings.isSelected():          edit_shouldBeIncludedInNetWorth_settings()

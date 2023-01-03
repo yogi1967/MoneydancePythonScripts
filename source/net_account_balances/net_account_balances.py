@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1018 - Dec 2022 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1019 - Jan 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -95,7 +95,10 @@
 # build: 1017 - Added underline 'dots' to match the other Summary Screen visual laf... Also option to enable / disable...
 # build: 1017 - Reengineered the row popup selector to fix background issues...
 # build: 1017 - Added option for autohide row when value is not x (rather than zero); change blink to per row...
-# build: 1018 - Change blink to per row...
+# build: 1018 - Change blink to per row... Added rounding(towards X) when auto-hiding rows with hide decimals enabled...
+# build: 1018 - Added Avg / by: value - when set, you can produce an average using custom divisor...
+# build: 1019 - Tweaks / fixes to auto-hide when average; location of average maths; fixed switchFromHomeScreen bug-ette;
+# build: 1019 - roundTowards when hiding decimals
 
 # todo add as of balance date option (for non i/e with custom dates) - perhaps??
 
@@ -105,7 +108,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1018"
+version_build = "1019"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -453,6 +456,7 @@ else:
     GlobalVars.extn_param_NEW_blinkTable_NAB                = None
     GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = None
     GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = None
+    GlobalVars.extn_param_NEW_displayAverageTable_NAB       = None
 
     GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = None
     GlobalVars.extn_param_NEW_autoSumDefault_NAB            = None
@@ -3074,6 +3078,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_showWarningsTable_NAB") is not None:            GlobalVars.extn_param_NEW_showWarningsTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_showWarningsTable_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowWhenXXXTable_NAB") is not None:          GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowWhenXXXTable_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowXValueTable_NAB") is not None:           GlobalVars.extn_param_NEW_hideRowXValueTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_hideRowXValueTable_NAB")
+        if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_displayAverageTable_NAB") is not None:          GlobalVars.extn_param_NEW_displayAverageTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_displayAverageTable_NAB")
 
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_autoSumDefault_NAB") is not None:               GlobalVars.extn_param_NEW_autoSumDefault_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_autoSumDefault_NAB")
         if GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_disableWidgetTitle_NAB") is not None:           GlobalVars.extn_param_NEW_disableWidgetTitle_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_disableWidgetTitle_NAB")
@@ -3126,6 +3131,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_showWarningsTable_NAB"]            = GlobalVars.extn_param_NEW_showWarningsTable_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_hideRowWhenXXXTable_NAB"]          = GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_hideRowXValueTable_NAB"]           = GlobalVars.extn_param_NEW_hideRowXValueTable_NAB
+        GlobalVars.parametersLoadedFromFile["extn_param_NEW_displayAverageTable_NAB"]          = GlobalVars.extn_param_NEW_displayAverageTable_NAB
 
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_autoSumDefault_NAB"]               = GlobalVars.extn_param_NEW_autoSumDefault_NAB
         GlobalVars.parametersLoadedFromFile["extn_param_NEW_disableWidgetTitle_NAB"]           = GlobalVars.extn_param_NEW_disableWidgetTitle_NAB
@@ -3211,6 +3217,15 @@ Visit: %s (Author's site)
 
         myPrint("DB", "... finished calling the codeblock via method reported above...")
 
+    def roundTowards(value, target):
+        assert (isinstance(value, float)), "ERROR - roundTowards() must be supplied a double/float value! >> received: %s(%s)" %(value, type(value))
+        roundedValue = value
+        if value < target:
+            roundedValue = Math.ceil(value)
+        elif value > target:
+            roundedValue = Math.floor(value)
+        return roundedValue
+
     # com.infinitekind.moneydance.model.CurrencyType.formatSemiFancy(long, char) : String
     def formatSemiFancy(ct, amt, decimalChar, indianFormat=False):
         # type: (CurrencyType, long, basestring, bool) -> basestring
@@ -3219,8 +3234,8 @@ Visit: %s (Author's site)
         return formatFancy(ct, amt, decimalChar, True, False, indianFormat=indianFormat)
 
     # com.infinitekind.moneydance.model.CurrencyType.formatFancy(long, char, boolean) : String
-    def formatFancy(ct, amt, decimalChar, includeDecimals=True, fancy=True, indianFormat=False):
-        # type: (CurrencyType, long, basestring, bool, bool, bool) -> basestring
+    def formatFancy(ct, amt, decimalChar, includeDecimals=True, fancy=True, indianFormat=False, roundingTarget=0.0):
+        # type: (CurrencyType, long, basestring, bool, bool, bool, float) -> basestring
         """Replicates MD API .formatFancy() / .formatSemiFancy(), but can override for Indian Number format"""
 
         # Disabled the standard as .formatSemiFancy() has no option to deselect decimal places!! :-(
@@ -3231,6 +3246,13 @@ Visit: %s (Author's site)
         # decStr = "."; comma = GlobalVars.Strings.UNICODE_THIN_SPACE
         decStr = "." if (decimalChar == ".") else ","
         comma = "," if (decimalChar == ".") else "."
+
+        # Do something special for round towards target (not zero)....
+        if not includeDecimals and roundingTarget != 0.0:
+            origAmt = ct.getDoubleValue(amt)
+            roundedAmt = roundTowards(origAmt, roundingTarget)
+            amt = ct.getLongValue(roundedAmt)
+            # myPrint("B", "@@ Special formatting rounding towards zero triggered.... Original: %s, Target: %s, Rounded: %s" %(origAmt, roundingTarget, roundedAmt));
 
         sb = invokeMethodByReflection(ct, "formatBasic", [Long.TYPE, Character.TYPE, Boolean.TYPE], [Long(amt), Character(decimalChar), includeDecimals])
         decPlace = sb.lastIndexOf(decStr)
@@ -3525,10 +3547,41 @@ Visit: %s (Author's site)
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
-    class MyJRateField(JRateField):
+    class MyJRateFieldXValue(JRateField):
 
         def __init__(self, *args, **kwargs):
             super(self.__class__, self).__init__(*args, **kwargs)
+            self.setShortRatesEnabled(True)
+            self.setDefaultValue(0.0)
+            self.setAllowBlank(False)
+
+        def updateUI(self):
+            super(self.__class__, self).updateUI()
+            setJComponentStandardUIDefaults(self)
+
+    class MyJRateFieldAverage(JRateField):
+
+        def __init__(self, *args, **kwargs):
+            super(self.__class__, self).__init__(*args, **kwargs)
+            self._defaultValue = 1.0
+            self.setShortRatesEnabled(True)
+            self.setDefaultValue(self._defaultValue)
+            self.setAllowBlank(False)
+
+        def getDefaultValue(self): return self._defaultValue
+
+        def notAllowed(self): return 0.0
+
+        def getValue(self):
+            val = super(self.__class__, self).getValue()
+            if val is None or val == self.notAllowed():
+                val = self.getDefaultValue()
+            return val
+
+        def setValue(self, val):
+            if val is None or val == self.notAllowed():
+                val = self.getDefaultValue()
+            super(self.__class__, self).setValue(val)
 
         def updateUI(self):
             super(self.__class__, self).updateUI()
@@ -4377,6 +4430,7 @@ Visit: %s (Author's site)
             self.savedShowWarningsTable         = None
             self.savedHideRowWhenXXXTable       = None
             self.savedHideRowXValueTable        = None
+            self.savedDisplayAverageTable       = None
 
             self.savedAutoSumDefault            = None
             self.savedDisableWidgetTitle        = None
@@ -4425,6 +4479,7 @@ Visit: %s (Author's site)
             self.hideRowWhenGrEqZeroOrX_JRB         = None
             self.hideRowWhenNotZeroOrX_JRB          = None
             self.hideRowXValue_JRF                  = None
+            self.displayAverage_JRF                 = None
             self.blinkRow_CB                        = None
             self.filterOutZeroBalAccts_INACTIVE_CB  = None
             self.filterOutZeroBalAccts_ACTIVE_CB    = None
@@ -4653,6 +4708,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_showWarningsTable_NAB         = NAB.savedShowWarningsTable
             GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = NAB.savedHideRowWhenXXXTable
             GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = NAB.savedHideRowXValueTable
+            GlobalVars.extn_param_NEW_displayAverageTable_NAB       = NAB.savedDisplayAverageTable
 
             GlobalVars.extn_param_NEW_autoSumDefault_NAB            = NAB.savedAutoSumDefault
             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = NAB.savedDisableWidgetTitle
@@ -4942,6 +4998,7 @@ Visit: %s (Author's site)
         def disableRowDefault(self):                return False
         def hideRowWhenXXXDefault(self):            return GlobalVars.HIDE_ROW_WHEN_NEVER
         def hideRowXValueDefault(self):             return 0.0
+        def displayAverageDefault(self):            return 1.0
         def disableWidgetTitleDefault(self):        return False
         def showDashesInsteadOfZerosDefault(self):  return False
         def treatSecZeroBalInactiveDefault(self):   return False
@@ -5000,6 +5057,11 @@ Visit: %s (Author's site)
                 myPrint("B", "New parameter savedHideRowXValueTable detected, pre-populating with %s (= Default row not hidden x value = 0)" %(self.savedHideRowXValueTable))
 
             # New parameter - pre-populate with default
+            if self.savedDisplayAverageTable == [self.displayAverageDefault()] and len(self.savedDisplayAverageTable) != self.getNumberOfRows():
+                self.savedDisplayAverageTable = [self.displayAverageDefault() for i in range(0,self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
+                myPrint("B", "New parameter savedDisplayAverageTable detected, pre-populating with %s (= 1.0 = don't display average)" %(self.savedDisplayAverageTable))
+
+            # New parameter - pre-populate with default
             if self.savedRowSeparatorTable == [self.rowSeparatorDefault()] and len(self.savedRowSeparatorTable) != self.getNumberOfRows():
                 self.savedRowSeparatorTable = [self.rowSeparatorDefault() for i in range(0,self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedRowSeparatorTable detected, pre-populating with %s (= Default no row separators)" %(self.savedRowSeparatorTable))
@@ -5037,6 +5099,8 @@ Visit: %s (Author's site)
                 self.resetParameters(13)
             elif self.savedHideRowXValueTable is None or not isinstance(self.savedHideRowXValueTable, list) or len(self.savedHideRowXValueTable) < 1:
                 self.resetParameters(15)
+            elif self.savedDisplayAverageTable is None or not isinstance(self.savedDisplayAverageTable, list) or len(self.savedDisplayAverageTable) < 1:
+                self.resetParameters(16)
             elif self.savedAutoSumDefault is None or not isinstance(self.savedAutoSumDefault, bool):
                 self.resetParameters(17)
             elif self.savedShowDashesInsteadOfZeros is None or not isinstance(self.savedShowDashesInsteadOfZeros, bool):
@@ -5079,6 +5143,8 @@ Visit: %s (Author's site)
                 self.resetParameters(55)
             elif len(self.savedHideRowXValueTable) != self.getNumberOfRows():
                 self.resetParameters(57)
+            elif len(self.savedDisplayAverageTable) != self.getNumberOfRows():
+                self.resetParameters(59)
             else:
                 for i in range(0, self.getNumberOfRows()):
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
@@ -5125,6 +5191,9 @@ Visit: %s (Author's site)
                     if self.savedHideRowXValueTable[i] is None or not isinstance(self.savedHideRowXValueTable[i], float):
                         myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedHideRowXValueTable", i))
                         self.savedHideRowXValueTable[i] = self.hideRowXValueDefault()
+                    if self.savedDisplayAverageTable[i] is None or not isinstance(self.savedDisplayAverageTable[i], float) or self.savedDisplayAverageTable[i] == 0.0:
+                        myPrint("B","Resetting parameter '%s' on RowIdx: %s" %("savedHideRowXValueTable", i))
+                        self.savedDisplayAverageTable[i] = self.displayAverageDefault()
 
         def resetParameters(self, iError=None, lJustRowSettings=False):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -5150,6 +5219,7 @@ Visit: %s (Author's site)
             self.savedShowWarningsTable             = [self.showWarningsDefault()]
             self.savedHideRowWhenXXXTable           = [self.hideRowWhenXXXDefault()]
             self.savedHideRowXValueTable            = [self.hideRowXValueDefault()]
+            self.savedDisplayAverageTable           = [self.displayAverageDefault()]
 
             if not lJustRowSettings:
                 self.savedAutoSumDefault            = self.autoSumDefault()
@@ -5373,6 +5443,9 @@ Visit: %s (Author's site)
             myPrint("DB", "about to set hideRowXValue_JRF..")
             self.hideRowXValue_JRF.setValue(self.savedHideRowXValueTable[selectRowIndex])
 
+            myPrint("DB", "about to set displayAverage_JRF..")
+            self.displayAverage_JRF.setValue(self.savedDisplayAverageTable[selectRowIndex])
+
             myPrint("DB", "about to set widget name..")
             self.widgetNameField_JTF.setText(self.savedWidgetName[selectRowIndex])
 
@@ -5450,6 +5523,8 @@ Visit: %s (Author's site)
             myPrint("DB",".....hideRowWhenGrEqZeroOrX_JRB: %s"              %(self.hideRowWhenGrEqZeroOrX_JRB.isSelected()))
             myPrint("DB",".....hideRowWhenNotZeroOrX_JRB: %s"               %(self.hideRowWhenNotZeroOrX_JRB.isSelected()))
             myPrint("DB",".....hideRowXValue_JRF: %s"                       %(self.hideRowXValue_JRF.getValue()))
+            myPrint("DB",".....savedDisplayAverageTable: %s"                %(self.savedDisplayAverageTable[selectRowIndex]))
+            myPrint("DB",".....displayAverage_JRF: %s"                      %(self.displayAverage_JRF.getValue()))
             myPrint("DB",".....savedBlinkTable: %s"                         %(self.savedBlinkTable[selectRowIndex]))
             myPrint("DB",".....blinkRow_CB: %s"                             %(self.blinkRow_CB.isSelected()))
             myPrint("DB",".....filterOutZeroBalAccts_INACTIVE_CB: %s"       %(self.filterOutZeroBalAccts_INACTIVE_CB.isSelected()))
@@ -5498,6 +5573,13 @@ Visit: %s (Author's site)
                 if self.savedHideRowXValueTable[self.getSelectedRowIndex()] != jrfValue:
                     myPrint("DB", "..... saving hide row's X-Value....")
                     self.savedHideRowXValueTable[self.getSelectedRowIndex()] = jrfValue
+                    self.configSaved = False
+
+                jrfValue = self.displayAverage_JRF.getValue()
+                myPrint("DB", ".. selectedRowIndex(): %s was: '%s', will set to: '%s'" %(self.getSelectedRowIndex(), self.savedDisplayAverageTable[self.getSelectedRowIndex()], jrfValue))
+                if self.savedDisplayAverageTable[self.getSelectedRowIndex()] != jrfValue:
+                    myPrint("DB", "..... saving display average value....")
+                    self.savedDisplayAverageTable[self.getSelectedRowIndex()] = jrfValue
                     self.configSaved = False
 
         def storeCurrentJListSelected(self):
@@ -5693,6 +5775,7 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedShowWarningsTable",60)),        NAB.savedShowWarningsTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedHideRowWhenXXXTable",60)),      NAB.savedHideRowWhenXXXTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedHideRowXValueTable",60)),       NAB.savedHideRowXValueTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedDisplayAverageTable",60)),      NAB.savedDisplayAverageTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncomeExpenseDateRange",60)),   NAB.savedIncomeExpenseDateRange[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedCustomDatesTable",60)),         NAB.savedCustomDatesTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedRowSeparatorTable",60)),        NAB.savedRowSeparatorTable[iRowIdx])
@@ -5795,6 +5878,7 @@ Visit: %s (Author's site)
                     comp.revalidate()
                     comp.repaint()
 
+                NAB.switchFromHomeScreen = False
                 myPrint("DB", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
             # noinspection PyMethodMayBeStatic
@@ -5912,15 +5996,29 @@ Visit: %s (Author's site)
                     else:
                         myPrint("DB", "... Nope.. No change to widgetNameField_JTF")
 
+                lShoudSimulate = False
                 if event.getSource().getName().lower() == "hideRowXValue_JRF".lower():
                     jrfValue = event.getSource().getValue()
                     if NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()] != jrfValue:
                         myPrint("DB", "... Yup - Setting hideRowXValue_JRF to: %s (was: %s" %(jrfValue, NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()]))
                         NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()] = jrfValue
                         NAB.configSaved = False
-                        # event.getSource().setValue(jrfValue)    # Only in case user entered negative value
+                        lShoudSimulate = True
                     else:
                         myPrint("DB", "... Nope.. No change to hideRowXValue_JRF(%s)" %(NAB.savedHideRowXValueTable[NAB.getSelectedRowIndex()]))
+
+                if event.getSource().getName().lower() == "displayAverage_JRF".lower():
+                    jrfValue = event.getSource().getValue()
+                    if NAB.savedDisplayAverageTable[NAB.getSelectedRowIndex()] != jrfValue:
+                        myPrint("DB", "... Yup - Setting displayAverage_JRF to: %s (was: %s" %(jrfValue, NAB.savedDisplayAverageTable[NAB.getSelectedRowIndex()]))
+                        NAB.savedDisplayAverageTable[NAB.getSelectedRowIndex()] = jrfValue
+                        NAB.configSaved = False
+                        lShoudSimulate = True
+                    else:
+                        myPrint("DB", "... Nope.. No change to displayAverage_JRF(%s)" %(NAB.savedDisplayAverageTable[NAB.getSelectedRowIndex()]))
+
+                if lShoudSimulate: NAB.simulateTotalForRow()
+
 
         class MyRefreshRunnable(Runnable):
 
@@ -6027,20 +6125,35 @@ Visit: %s (Author's site)
 
                         i = NAB.getSelectedRowIndex()
 
+                        lUseAverage = (NAB.savedDisplayAverageTable[i] != 1.0)
+                        balanceOrAverage = totalBalanceTable[i][_valIdx]
+
                         if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
                             NAB.simulateTotal_label.setText(GlobalVars.WIDGET_ROW_DISABLED)
-                        elif totalBalanceTable[i][_valIdx] is None:
+                        elif balanceOrAverage is None:
                             NAB.simulateTotal_label.setText(GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower())
                         else:
                             showCurrText = ""
                             if totalBalanceTable[i][_curIdx] is not baseCurr: showCurrText = " (%s)" %(totalBalanceTable[i][_curIdx].getIDString())
 
-                            theFormattedValue = formatFancy(totalBalanceTable[i][_curIdx], totalBalanceTable[i][_valIdx], NAB.decimal, fancy=(not NAB.savedDisableCurrencyFormatting[i]), indianFormat=NAB.savedUseIndianNumberFormat, includeDecimals=(not NAB.savedHideDecimals))
+                            showAverageText = ""
+                            if lUseAverage:
+                                showAverageText = " (avg)"
+                                balanceOrAverage = totalBalanceTable[i][_curIdx].getLongValue(totalBalanceTable[i][_curIdx].getDoubleValue(balanceOrAverage) / NAB.savedDisplayAverageTable[i])
+                                myPrint("DB", ":: Row: %s using average / by: %s" %(i+1, NAB.savedDisplayAverageTable[i]))
 
-                            resultTxt = wrap_HTML_small(theFormattedValue, showCurrText, altFG)
+                            theFormattedValue = formatFancy(totalBalanceTable[i][_curIdx],
+                                                            balanceOrAverage,
+                                                            NAB.decimal,
+                                                            fancy=(not NAB.savedDisableCurrencyFormatting[i]),
+                                                            indianFormat=NAB.savedUseIndianNumberFormat,
+                                                            includeDecimals=(not NAB.savedHideDecimals),
+                                                            roundingTarget=(0.0 if (not NAB.savedHideDecimals) else NAB.savedHideRowXValueTable[i]))
+
+                            resultTxt = wrap_HTML_small(theFormattedValue, showCurrText + showAverageText, altFG)
                             NAB.simulateTotal_label.setText(resultTxt)
 
-                            if totalBalanceTable[i][_valIdx] < 0:
+                            if balanceOrAverage < 0:
                                 NAB.simulateTotal_label.setForeground(md.getUI().colors.negativeBalFG)
                             else:
                                 if "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
@@ -6120,6 +6233,7 @@ Visit: %s (Author's site)
                                    NAB.savedShowWarningsTable,
                                    NAB.savedHideRowWhenXXXTable,
                                    NAB.savedHideRowXValueTable,
+                                   NAB.savedDisplayAverageTable,
                                    NAB.savedWidgetName,
                                    NAB.savedDisableCurrencyFormatting,
                                    NAB.savedCurrencyTable
@@ -6367,6 +6481,7 @@ Visit: %s (Author's site)
                         NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex(),        NAB.showWarningsDefault())
                         NAB.savedHideRowWhenXXXTable.insert(NAB.getSelectedRowIndex(),      NAB.hideRowWhenXXXDefault())
                         NAB.savedHideRowXValueTable.insert(NAB.getSelectedRowIndex(),       NAB.hideRowXValueDefault())
+                        NAB.savedDisplayAverageTable.insert(NAB.getSelectedRowIndex(),      NAB.displayAverageDefault())
 
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex())
                         NAB.configSaved = False
@@ -6389,6 +6504,7 @@ Visit: %s (Author's site)
                         NAB.savedShowWarningsTable.insert(NAB.getSelectedRowIndex()+1,          NAB.showWarningsDefault())
                         NAB.savedHideRowWhenXXXTable.insert(NAB.getSelectedRowIndex()+1,        NAB.hideRowWhenXXXDefault())
                         NAB.savedHideRowXValueTable.insert(NAB.getSelectedRowIndex()+1,         NAB.hideRowXValueDefault())
+                        NAB.savedDisplayAverageTable.insert(NAB.getSelectedRowIndex()+1,        NAB.displayAverageDefault())
 
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex()+1)
                         NAB.configSaved = False
@@ -6908,6 +7024,7 @@ Visit: %s (Author's site)
                         GlobalVars.extn_param_NEW_showWarningsTable_NAB             = [self.showWarningsDefault()]               # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB           = [self.hideRowWhenXXXDefault()]             # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_hideRowXValueTable_NAB            = [self.hideRowXValueDefault()]              # Loading will overwrite if saved, else pre-load defaults
+                        GlobalVars.extn_param_NEW_displayAverageTable_NAB           = [self.displayAverageDefault()]             # Loading will overwrite if saved, else pre-load defaults
 
                         GlobalVars.extn_param_NEW_autoSumDefault_NAB                = self.autoSumDefault()                      # Loading will overwrite if saved, else pre-load defaults
                         GlobalVars.extn_param_NEW_disableWidgetTitle_NAB            = self.disableWidgetTitleDefault()           # Loading will overwrite if saved, else pre-load defaults
@@ -6943,6 +7060,7 @@ Visit: %s (Author's site)
                             GlobalVars.extn_param_NEW_showWarningsTable_NAB         = [self.showWarningsDefault()]               # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = [self.hideRowWhenXXXDefault()]             # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = [self.hideRowXValueDefault()]              # Loading will overwrite if saved, else pre-load defaults
+                            GlobalVars.extn_param_NEW_displayAverageTable_NAB       = [self.displayAverageDefault()]              # Loading will overwrite if saved, else pre-load defaults
 
                             GlobalVars.extn_param_NEW_autoSumDefault_NAB            = self.autoSumDefault()                      # Loading will overwrite if saved, else pre-load defaults
                             GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = self.disableWidgetTitleDefault()           # Loading will overwrite if saved, else pre-load defaults
@@ -6977,6 +7095,7 @@ Visit: %s (Author's site)
                         self.savedDisableCurrencyFormatting = GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB
                         self.savedHideRowWhenXXXTable       = GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB
                         self.savedHideRowXValueTable        = GlobalVars.extn_param_NEW_hideRowXValueTable_NAB
+                        self.savedDisplayAverageTable       = GlobalVars.extn_param_NEW_displayAverageTable_NAB
                         self.savedShowWarningsTable         = GlobalVars.extn_param_NEW_showWarningsTable_NAB
 
                         self.savedAutoSumDefault            = GlobalVars.extn_param_NEW_autoSumDefault_NAB
@@ -7520,10 +7639,12 @@ Visit: %s (Author's site)
                     controlPnl.add(rowNameLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset).topInset(topInset))
                     onCol += 1
 
+                    focusAdapterOnJTFs = NAB.MyJFieldFocusAdapter()
+
                     NAB.widgetNameField_JTF = MyJTextField(NAB.savedWidgetName[0])
                     NAB.widgetNameField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setName("widgetNameField_JTF")
-                    NAB.widgetNameField_JTF.addFocusListener(NAB.MyJFieldFocusAdapter())
+                    NAB.widgetNameField_JTF.addFocusListener(focusAdapterOnJTFs)
                     controlPnl.add(NAB.widgetNameField_JTF, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
@@ -7671,14 +7792,13 @@ Visit: %s (Author's site)
                     hideWhenSelector_pnl.add(hideXValue_lbl, GridC.getc(onHideWhenCol, onHideWhenRow).leftInset(5))
                     onHideWhenCol += 1
 
-                    NAB.hideRowXValue_JRF = MyJRateField(NAB.decimal)
-                    if isinstance(NAB.hideRowXValue_JRF, (MyJRateField, JRateField, JTextField)): pass
+                    NAB.hideRowXValue_JRF = MyJRateFieldXValue(NAB.decimal)
+                    if isinstance(NAB.hideRowXValue_JRF, (MyJRateFieldXValue, JRateField, JTextField)): pass
                     NAB.hideRowXValue_JRF.putClientProperty("%s.id" %(NAB.myModuleID), "hideRowXValue_JRF")
                     NAB.hideRowXValue_JRF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.hideRowXValue_JRF.setName("hideRowXValue_JRF")
                     NAB.hideRowXValue_JRF.setToolTipText("Enter the 'X' value to be used when using the hide row when option(s). Default is zero. ")
-                    NAB.hideRowXValue_JRF.setShortRatesEnabled(True)
-                    NAB.hideRowXValue_JRF.addFocusListener(NAB.MyJFieldFocusAdapter())
+                    NAB.hideRowXValue_JRF.addFocusListener(focusAdapterOnJTFs)
                     hideWhenSelector_pnl.add(NAB.hideRowXValue_JRF, GridC.getc(onHideWhenCol, onHideWhenRow))
                     onHideWhenCol += 1
 
@@ -7751,6 +7871,28 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.blinkRow_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
                     onCol += 1
 
+                    onAverageRow = 0
+                    onAverageCol = 0
+                    displayAverage_pnl = MyJPanel(GridBagLayout())
+                    displayAverage_lbl = MyJLabel("Avg/by:")
+                    displayAverage_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "displayAverage_lbl")
+                    displayAverage_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    displayAverage_pnl.add(displayAverage_lbl, GridC.getc(onAverageCol, onAverageRow))
+                    onAverageCol += 1
+
+                    NAB.displayAverage_JRF = MyJRateFieldAverage(NAB.decimal)
+                    if isinstance(NAB.displayAverage_JRF, (MyJRateFieldAverage, JRateField, JTextField)): pass
+                    NAB.displayAverage_JRF.putClientProperty("%s.id" %(NAB.myModuleID), "displayAverage_JRF")
+                    NAB.displayAverage_JRF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.displayAverage_JRF.setName("displayAverage_JRF")
+                    NAB.displayAverage_JRF.setToolTipText("Set the  % by x value to display average instead of balance (default 1.0)")
+                    NAB.displayAverage_JRF.addFocusListener(focusAdapterOnJTFs)
+                    displayAverage_pnl.add(NAB.displayAverage_JRF, GridC.getc(onAverageCol, onAverageRow).leftInset(5))
+                    onAverageCol += 1
+
+                    # controlPnl.add(displayAverage_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
+                    controlPnl.add(displayAverage_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller))
+                    onCol += 1
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -8213,9 +8355,9 @@ Visit: %s (Author's site)
 
                     if self.configPanelOpen:
                         self.storeJTextFieldsForSelectedRow()
-                        myPrint("DB","..Saving JTF/JRFs (Widget name, XValue) last edited on GUI before any switch of row...")
+                        myPrint("DB","..Storing JTF/JRFs (Widget name, XValue) last edited on GUI before any switch of row...")
                     else:
-                        myPrint("DB","..Skipping save of JTF/JRFs (Widget name, XValue) as GUI has never been opened...")
+                        myPrint("DB","..Skipping store of JTF/JRFs (Widget name, XValue) as GUI is not open...")
 
                     self.switchFromHomeScreen = True
                     self.setSelectedRowIndex(int(requestedRow)-1)
@@ -9190,30 +9332,48 @@ Visit: %s (Author's site)
                                     hiddenRows = True
                                     continue
 
-                                if self.netAmountTable[i][_valIdx] is not None:
+                                lUseAverage = (NAB.savedDisplayAverageTable[i] != 1.0)
+                                balanceOrAverage = self.netAmountTable[i][_valIdx]
+
+                                if balanceOrAverage is not None:
                                     skippingRow = False
-                                    netAmtDbl_toCompare = self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx])
-                                    if NAB.savedHideDecimals and NAB.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ALWAYS:
-                                        # only compare against truncated values if the XValue was a whole number, otherwise assume precision required....
-                                        if float(int(NAB.savedHideRowXValueTable[i])) == NAB.savedHideRowXValueTable[i]:
-                                            netAmtDbl_toCompare = float(int(netAmtDbl_toCompare))  # Truncate the calculated value
-                                            myPrint("DB", ":: Row: %s Decimals hidden... Will compare truncated calculated balance (original: %s, truncated: %s) against XValue: %s"
-                                                    %(onRow, self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx]), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
-                                        else:
-                                            myPrint("DB", ":: Row: %s Decimals hidden... BUT will NOT truncate calculated balance (%s) as XValue (%s) requested decimal precision"
-                                                    %(onRow, self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx]), NAB.savedHideRowXValueTable[i]))
+
+                                    if lUseAverage:
+                                        balanceOrAverage = self.netAmountTable[i][_curIdx].getLongValue(self.netAmountTable[i][_curIdx].getDoubleValue(balanceOrAverage) / NAB.savedDisplayAverageTable[i])
+                                        myPrint("DB", ":: Row: %s - converted calculated balance of: %s into average (/by: %s) of: %s"
+                                                %(onRow, self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx]), NAB.savedDisplayAverageTable[i], self.netAmountTable[i][_curIdx].getDoubleValue(balanceOrAverage)))
+
+                                    netAmtDbl_toCompare = self.netAmountTable[i][_curIdx].getDoubleValue(balanceOrAverage)
+
                                     if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
+
+                                        if NAB.savedHideDecimals:
+                                            if float(int(netAmtDbl_toCompare)) == netAmtDbl_toCompare:
+                                                myPrint("DB", ":: Row: %s Decimals hidden... NOTE: calculated balance (%s) is already a whole number so no rounding... NOTE: XValue (%s)"
+                                                        %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
+                                            elif float(int(NAB.savedHideRowXValueTable[i])) != NAB.savedHideRowXValueTable[i]:
+                                                myPrint("DB", ":: Row: %s Decimals hidden... BUT will NOT round calculated balance (%s) as XValue (%s) demands decimal precision"
+                                                        %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
+                                            else:
+                                                netAmtDbl_toCompare = roundTowards(netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i])
+
+                                                myPrint("DB", ":: Row: %s Decimals hidden... Will compare rounded(towards X) calculated balance (original: %s, rounded: %s) against XValue: %s"
+                                                        %(onRow, self.netAmountTable[i][_curIdx].getDoubleValue(balanceOrAverage), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
+
                                         if netAmtDbl_toCompare == NAB.savedHideRowXValueTable[i]:
                                             myPrint("DB", "** Hiding/skipping (x=)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
                                             skippingRow = True
+
                                     if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X:
                                         if netAmtDbl_toCompare <= NAB.savedHideRowXValueTable[i]:
                                             myPrint("DB", "** Hiding/skipping <=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
                                             skippingRow = True
+
                                     if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X:
                                         if netAmtDbl_toCompare >= NAB.savedHideRowXValueTable[i]:
                                             myPrint("DB", "** Hiding/skipping >=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
                                             skippingRow = True
+
                                     if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X:
                                         if netAmtDbl_toCompare != NAB.savedHideRowXValueTable[i]:
                                             myPrint("DB", "** Hiding/skipping !=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
@@ -9231,23 +9391,32 @@ Visit: %s (Author's site)
                                 if self.netAmountTable[i][_curIdx] is not baseCurr:
                                     showCurrText = " (%s)" %(self.netAmountTable[i][_curIdx].getIDString())
 
-                                rowText = wrap_HTML_small(NAB.savedWidgetName[i], self.netAmountTable[i][_secLabelTextIdx]+showCurrText, altFG)
+                                showAverageText = ""
+                                if lUseAverage: myPrint("DB", ":: Row: %s using average / by: %s" %(onRow, NAB.savedDisplayAverageTable[i]))
+                                if lUseAverage: showAverageText = " (Avg/by: %s)" %(NAB.savedDisplayAverageTable[i])
+
+                                rowText = wrap_HTML_small(NAB.savedWidgetName[i], self.netAmountTable[i][_secLabelTextIdx] + showCurrText + showAverageText, altFG)
 
                                 nameLabel = SpecialJLinkLabel(rowText, "showConfig?%s" %(str(onRow)), JLabel.LEFT)
 
-                                if self.netAmountTable[i][_valIdx] is None:
+                                if balanceOrAverage is None:
                                     netTotalLbl = JLinkLabel(GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(), "showConfig?%s" %(str(onRow)), JLabel.RIGHT)
                                     netTotalLbl.setFont((md.getUI().getFonts()).mono)                                   # noqa
-                                else:
-                                    # theFormattedValue = (self.netAmountTable[i][_curIdx].formatFancy(self.netAmountTable[i][_valIdx], NAB.decimal) if (not NAB.savedDisableCurrencyFormatting[i])
-                                    #                      else self.netAmountTable[i][_curIdx].formatSemiFancy(self.netAmountTable[i][_valIdx], NAB.decimal))
 
-                                    theFormattedValue = formatFancy(self.netAmountTable[i][_curIdx], self.netAmountTable[i][_valIdx], NAB.decimal, fancy=(not NAB.savedDisableCurrencyFormatting[i]), indianFormat=NAB.savedUseIndianNumberFormat, includeDecimals=(not NAB.savedHideDecimals))
+                                else:
+
+                                    theFormattedValue = formatFancy(self.netAmountTable[i][_curIdx],
+                                                                    balanceOrAverage,
+                                                                    NAB.decimal,
+                                                                    fancy=(not NAB.savedDisableCurrencyFormatting[i]),
+                                                                    indianFormat=NAB.savedUseIndianNumberFormat,
+                                                                    includeDecimals=(not NAB.savedHideDecimals),
+                                                                    roundingTarget=(0.0 if (not NAB.savedHideDecimals) else NAB.savedHideRowXValueTable[i]))
 
                                     netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT)
                                     netTotalLbl.setFont((md.getUI().getFonts()).mono)                                   # noqa
 
-                                    if self.netAmountTable[i][_valIdx] < 0:
+                                    if balanceOrAverage < 0:
                                         netTotalLbl.setForeground(md.getUI().colors.negativeBalFG)                      # noqa
                                     else:
                                         if "default" == ThemeInfo.themeForID(md.getUI(), md.getUI().getPreferences().getSetting("gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
