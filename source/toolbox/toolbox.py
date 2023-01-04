@@ -146,6 +146,7 @@
 # build: 1056 - Tweaks for .getAbsolutePath() vs .getCanonicalPath() and Dropbox updated Dropbox location on MacOS
 # build: 1056 - Accepted Pull Request from xx whereby Edit Security Decimals Places was changed to allow 16dpc. NOTE: 922.3372036854775807 is the max shares number MD can hold at 16dpc
 # build: 1056 - Added 'FIX: Add alternative account numbers for 'Accounts and bank/account number' report (above)' feature
+# build: 1056 - Added 'lBypassAllBackupsAndDisclaimers_TB' feature....
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -550,6 +551,7 @@ else:
     GlobalVars.mainPnl_preview_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_debug_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_syncing_lbl = JLabel("", JLabel.CENTER)
+    GlobalVars.mainPnl_backupWarningsDisabled_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_toolboxUnlocked_lbl = JLabel("", JLabel.CENTER)
     GlobalVars.mainPnl_memory_lbl = JLabel("", JLabel.CENTER)
 
@@ -581,6 +583,7 @@ else:
     GlobalVars.lCopyAllToClipBoard_TB = False      
     GlobalVars.lIgnoreOutdatedExtensions_TB = False
     GlobalVars.lAutoPruneInternalBackups_TB = True 
+    GlobalVars.lBypassAllBackupsAndDisclaimers_TB = False
     GlobalVars.TOOLBOX_STOP_NOW = False
 
     GlobalVars.saveSettings_reportAccountNumbers = {}
@@ -987,21 +990,6 @@ Visit: %s (Author's site)
             result+=ch
         return result
 
-    def doesUserAcceptDisclaimer(theParent, theTitle, disclaimerQuestion):
-        disclaimer = myPopupAskForInput(theParent,
-                                        theTitle,
-                                        "DISCLAIMER:",
-                                        "%s Type 'IAGREE' to continue.." %(disclaimerQuestion),
-                                        "NO",
-                                        False,
-                                        JOptionPane.ERROR_MESSAGE)
-        agreed = (disclaimer == "IAGREE")
-        if agreed:
-            myPrint("B", "%s: User AGREED to disclaimer question: '%s'" %(theTitle, disclaimerQuestion))
-        else:
-            myPrint("B", "%s: User DECLINED disclaimer question: '%s' - no action/changes made" %(theTitle, disclaimerQuestion))
-        return agreed
-
     def myPopupAskBackup(theParent=None, theMessage="What no message?!", lReturnTheTruth=False):
 
         _options=["STOP", "PROCEED WITHOUT BACKUP", "DO BACKUP NOW"]
@@ -1027,35 +1015,6 @@ Visit: %s (Author's site)
                 return True
 
         return False
-
-    def confirm_backup_confirm_disclaimer(theFrame, theTitleToDisplay, theAction):
-
-        if not myPopupAskQuestion(theFrame,
-                                  theTitle=theTitleToDisplay,
-                                  theQuestion=theAction,
-                                  theOptionType=JOptionPane.YES_NO_OPTION,
-                                  theMessageType=JOptionPane.ERROR_MESSAGE):
-
-            txt = "'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction)
-            setDisplayStatus(txt, "R"); myPrint("B", txt)
-            myPopupInformationBox(theFrame,"User did not agree to proceed - no changes made...","NO UPDATE",JOptionPane.ERROR_MESSAGE)
-            return False
-
-        if not myPopupAskBackup(theFrame, "Would you like to perform a backup before %s" %(theTitleToDisplay)):
-            txt = "'%s' - User chose to exit without the fix/update...."%(theTitleToDisplay)
-            setDisplayStatus(txt, "R")
-            myPrint("B","'%s' User aborted at the backup prompt to '%s' - no changes made" %(theTitleToDisplay, theAction))
-            myPopupInformationBox(theFrame,"User aborted at the backup prompt - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
-            return False
-
-        if not doesUserAcceptDisclaimer(theFrame, theTitleToDisplay, theAction):
-            setDisplayStatus("'%s' - User declined the disclaimer - no changes made...." %(theTitleToDisplay), "R")
-            myPrint("B","'%s' User did not say accept Disclaimer to '%s' - no changes made" %(theTitleToDisplay, theAction))
-            myPopupInformationBox(theFrame,"User did not accept Disclaimer - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
-            return False
-
-        myPrint("B","'%s' - User has been offered opportunity to create a backup and they accepted the DISCLAIMER on Action: %s - PROCEEDING" %(theTitleToDisplay, theAction))
-        return True
 
     # Copied MD_REF.getUI().askQuestion
     def myPopupAskQuestion(theParent=None,
@@ -2528,52 +2487,6 @@ Visit: %s (Author's site)
                 SetupMDColors.FOREGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultBackground
                 SetupMDColors.BACKGROUND_REVERSED = GlobalVars.CONTEXT.getUI().colors.defaultTextForeground
 
-    class ToolboxMode:
-
-        DEFAULT_TEXT = "Update Mode"
-        DEFAULT_CMD = "update_mode"
-        DEFAULT_MENU_LBL = JLabel("       ** to activate.. EXIT, click '%s' on menu bar **" %(DEFAULT_TEXT))
-        DEFAULT_MENU_READONLY_TXT_LBL = JLabel("---------- READONLY FUNCTIONS ----------")
-        DEFAULT_MENU_UPDATE_TXT_LBL = JLabel("----------- UPDATE FUNCTIONS -----------")
-        DEFAULT_MENU_LBL.setForeground(getColorRed())
-        DEFAULT_KEY = KeyEvent.VK_M
-        DEFAULT_KEY_CMD = "m"
-        UPDATE_MODE = False
-        STATUS_LABEL = JLabel("", JLabel.CENTER)
-        JCB = JCheckBox(DEFAULT_TEXT, UPDATE_MODE)
-        JCB.setActionCommand(DEFAULT_CMD)
-
-        def __init__(self): raise Exception("ERROR - Should not create instance of this class!")
-
-        @staticmethod
-        def getJCheckBox(): return ToolboxMode.JCB
-
-        @staticmethod
-        def getStatusLabel(): return ToolboxMode.STATUS_LABEL
-
-        @staticmethod
-        def getMenuLabel(): return ToolboxMode.DEFAULT_MENU_LBL
-
-        @staticmethod
-        def isUpdateMode(): return ToolboxMode.UPDATE_MODE
-
-        @staticmethod
-        def setUpdateMode(newMode):
-            ToolboxMode.UPDATE_MODE = newMode
-            ToolboxMode.getJCheckBox().setSelected(newMode)
-            ToolboxMode.getJCheckBox().setForeground(getColorRed() if newMode else MD_REF.getUI().getColors().defaultTextForeground)
-            ToolboxMode.STATUS_LABEL.setText("<%s>" %(ToolboxMode.DEFAULT_TEXT.upper()) if newMode else "")
-            ToolboxMode.STATUS_LABEL.setForeground(getColorRed())
-
-        @staticmethod
-        def addActionListener(*args, **kwargs): ToolboxMode.getJCheckBox().addActionListener(*args, **kwargs)
-
-        @staticmethod
-        def setForeground(*args, **kwargs): ToolboxMode.getJCheckBox().setForeground(*args, **kwargs)
-
-        @staticmethod
-        def setBackground(*args, **kwargs): ToolboxMode.getJCheckBox().setBackground(*args, **kwargs)
-
     global ManuallyCloseAndReloadDataset            # Declare it for QuickJFrame/IDE, but not present in common code. Other code will ignore it
 
     class GetFirstMainFrame:
@@ -2775,7 +2688,7 @@ Visit: %s (Author's site)
                     theJText.setEditable(False)
                     theJText.setLineWrap(self.callingClass.lWrapText)
                     theJText.setWrapStyleWord(False)
-                    theJText.setFont( getMonoFont() )
+                    theJText.setFont(getMonoFont())
 
                     jInternalFrame.getRootPane().getActionMap().put("close-window", self.callingClass.CloseAction(jInternalFrame))
                     jInternalFrame.getRootPane().getActionMap().put("search-window", SearchAction(jInternalFrame,theJText))
@@ -2960,9 +2873,9 @@ Visit: %s (Author's site)
             _label3.setForeground(getColorBlue())
             aboutPanel.add(_label3)
 
-            displayString=scriptExit
+            displayString = scriptExit
             displayJText = JTextArea(displayString)
-            displayJText.setFont( getMonoFont() )
+            displayJText.setFont(getMonoFont())
             displayJText.setEditable(False)
             displayJText.setLineWrap(False)
             displayJText.setWrapStyleWord(False)
@@ -3199,6 +3112,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB") is not None: GlobalVars.lCopyAllToClipBoard_TB = GlobalVars.parametersLoadedFromFile.get("lCopyAllToClipBoard_TB")
         if GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB") is not None: GlobalVars.lIgnoreOutdatedExtensions_TB = GlobalVars.parametersLoadedFromFile.get("lIgnoreOutdatedExtensions_TB")
         if GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB") is not None: GlobalVars.lAutoPruneInternalBackups_TB = GlobalVars.parametersLoadedFromFile.get("lAutoPruneInternalBackups_TB")
+        if GlobalVars.parametersLoadedFromFile.get("lBypassAllBackupsAndDisclaimers_TB") is not None: GlobalVars.lBypassAllBackupsAndDisclaimers_TB = GlobalVars.parametersLoadedFromFile.get("lBypassAllBackupsAndDisclaimers_TB")
 
         # No longer needed as button will be ever-present...
         if GlobalVars.parametersLoadedFromFile.get("lGeekOutModeEnabled_TB") is not None: GlobalVars.parametersLoadedFromFile.pop("lGeekOutModeEnabled_TB")
@@ -3220,6 +3134,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["lCopyAllToClipBoard_TB"] = GlobalVars.lCopyAllToClipBoard_TB
         GlobalVars.parametersLoadedFromFile["lIgnoreOutdatedExtensions_TB"] = GlobalVars.lIgnoreOutdatedExtensions_TB
         GlobalVars.parametersLoadedFromFile["lAutoPruneInternalBackups_TB"] = GlobalVars.lAutoPruneInternalBackups_TB
+        GlobalVars.parametersLoadedFromFile["lBypassAllBackupsAndDisclaimers_TB"] = GlobalVars.lBypassAllBackupsAndDisclaimers_TB
 
         myPrint("DB","variables dumped from memory back into GlobalVars.parametersLoadedFromFile{}.....")
 
@@ -3289,6 +3204,103 @@ Visit: %s (Author's site)
 
     # Prevent usage later on... We use MD_REF
     if "moneydance" in globals(): del moneydance
+
+    class ToolboxMode:
+        DEFAULT_TEXT = "Update Mode"
+        DEFAULT_CMD = "update_mode"
+        DEFAULT_MENU_LBL = JLabel("       ** to activate.. EXIT, click '%s' on menu bar **" %(DEFAULT_TEXT))
+        DEFAULT_MENU_READONLY_TXT_LBL = JLabel("---------- READONLY FUNCTIONS ----------")
+        DEFAULT_MENU_UPDATE_TXT_LBL = JLabel("----------- UPDATE FUNCTIONS -----------")
+        DEFAULT_MENU_LBL.setForeground(getColorRed())
+        DEFAULT_KEY = KeyEvent.VK_M
+        DEFAULT_KEY_CMD = "m"
+        UPDATE_MODE = False
+        STATUS_LABEL = JLabel("", JLabel.CENTER)
+        JCB = JCheckBox(DEFAULT_TEXT, UPDATE_MODE)
+        JCB.setActionCommand(DEFAULT_CMD)
+
+        def __init__(self): raise Exception("ERROR - Should not create instance of this class!")
+
+        @staticmethod
+        def getJCheckBox(): return ToolboxMode.JCB
+
+        @staticmethod
+        def getStatusLabel(): return ToolboxMode.STATUS_LABEL
+
+        @staticmethod
+        def getMenuLabel(): return ToolboxMode.DEFAULT_MENU_LBL
+
+        @staticmethod
+        def isUpdateMode(): return ToolboxMode.UPDATE_MODE
+
+        @staticmethod
+        def setUpdateMode(newMode):
+            ToolboxMode.UPDATE_MODE = newMode
+            ToolboxMode.getJCheckBox().setSelected(newMode)
+            ToolboxMode.getJCheckBox().setForeground(getColorRed() if newMode else MD_REF.getUI().getColors().defaultTextForeground)
+            ToolboxMode.STATUS_LABEL.setText("<%s>" %(ToolboxMode.DEFAULT_TEXT.upper()) if newMode else "")
+            ToolboxMode.STATUS_LABEL.setForeground(getColorRed())
+
+        @staticmethod
+        def addActionListener(*args, **kwargs): ToolboxMode.getJCheckBox().addActionListener(*args, **kwargs)
+
+        @staticmethod
+        def setForeground(*args, **kwargs): ToolboxMode.getJCheckBox().setForeground(*args, **kwargs)
+
+        @staticmethod
+        def setBackground(*args, **kwargs): ToolboxMode.getJCheckBox().setBackground(*args, **kwargs)
+
+
+    def doesUserAcceptDisclaimer(theParent, theTitle, disclaimerQuestion):
+        if not GlobalVars.lBypassAllBackupsAndDisclaimers_TB:
+            disclaimer = myPopupAskForInput(theParent,
+                                            theTitle,
+                                            "DISCLAIMER:",
+                                            "%s Type 'IAGREE' to continue.." %(disclaimerQuestion),
+                                            "NO",
+                                            False,
+                                            JOptionPane.ERROR_MESSAGE)
+            agreed = (disclaimer == "IAGREE")
+            if agreed:
+                myPrint("B", "%s: User AGREED to disclaimer question: '%s'" %(theTitle, disclaimerQuestion))
+            else:
+                myPrint("B", "%s: User DECLINED disclaimer question: '%s' - no action/changes made" %(theTitle, disclaimerQuestion))
+            return agreed
+
+        myPrint("B", "%s: User has DISABLED Backup and Disclaimer warnings: Implicit agreement with disclaimer question: '%s'" %(theTitle, disclaimerQuestion))
+        return True
+
+    def confirm_backup_confirm_disclaimer(theFrame, theTitleToDisplay, theAction):
+
+        if not myPopupAskQuestion(theFrame,
+                                  theTitle=theTitleToDisplay,
+                                  theQuestion=theAction,
+                                  theOptionType=JOptionPane.YES_NO_OPTION,
+                                  theMessageType=JOptionPane.ERROR_MESSAGE):
+
+            txt = "'%s' User did not say yes to '%s' - no changes made" %(theTitleToDisplay, theAction)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            myPopupInformationBox(theFrame,"User did not agree to proceed - no changes made...","NO UPDATE",JOptionPane.ERROR_MESSAGE)
+            return False
+
+        if not GlobalVars.lBypassAllBackupsAndDisclaimers_TB:
+            if not myPopupAskBackup(theFrame, "Would you like to perform a backup before %s" %(theTitleToDisplay)):
+                txt = "'%s' - User chose to exit without the fix/update...."%(theTitleToDisplay)
+                setDisplayStatus(txt, "R")
+                myPrint("B","'%s' User aborted at the backup prompt to '%s' - no changes made" %(theTitleToDisplay, theAction))
+                myPopupInformationBox(theFrame,"User aborted at the backup prompt - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
+                return False
+
+            if not doesUserAcceptDisclaimer(theFrame, theTitleToDisplay, theAction):
+                setDisplayStatus("'%s' - User declined the disclaimer - no changes made...." %(theTitleToDisplay), "R")
+                myPrint("B","'%s' User did not say accept Disclaimer to '%s' - no changes made" %(theTitleToDisplay, theAction))
+                myPopupInformationBox(theFrame,"User did not accept Disclaimer - no changes made...","DISCLAIMER",JOptionPane.ERROR_MESSAGE)
+                return False
+
+            myPrint("B","'%s' - User has been offered opportunity to create a backup and they accepted the DISCLAIMER on Action: %s - PROCEEDING" %(theTitleToDisplay, theAction))
+        else:
+            myPrint("B","'%s' - User has DISABLED Backup and Disclaimer warnings: PROCEEDING with %s" %(theTitleToDisplay, theAction))
+        return True
 
     def html_strip_chars(_textToStrip):
         _textToStrip = _textToStrip.replace("  ","&nbsp;&nbsp;")
@@ -15135,34 +15147,47 @@ now after saving the file, restart Moneydance
         input_includeFileOpenDetails = JCheckBox("include Moneydance 'Master' password and confidential file details?", GlobalVars.saveSettings_reportAccountNumbers.get("input_includeFileOpenDetails",    False))
 
         lbl_secretText = JLabel("Enter secret text to include on this report (will not get saved anywhere):")
-        input_includeSecretText = JTextField(GlobalVars.saveSettings_reportAccountNumbers.get("input_includeSecretText", ""))
+        input_includeSecretText = JTextArea(GlobalVars.saveSettings_reportAccountNumbers.get("input_includeSecretText", ""), 7, 0)
+        # input_includeSecretText = JTextArea(GlobalVars.saveSettings_reportAccountNumbers.get("input_includeSecretText", ""))
+        input_includeSecretText.setEditable(True)
+        input_includeSecretText.setLineWrap(True)
+        input_includeSecretText.setWrapStyleWord(False)
+        input_includeSecretText.setOpaque(True)
 
         allAccountTypes = [input_includeBankAccounts, input_includeCCAccounts, input_includeInvestmentAccounts, input_includeAssetAccounts, input_includeLiabilityAccounts, input_includeLoanAccounts]
 
-        userFilters = JPanel(GridLayout(0, 1))
+        userFilters = JPanel(GridBagLayout())
 
-        userFilters.add(JLabel("Select account types to include:"))
-        for comp in allAccountTypes: userFilters.add(comp)
-        userFilters.add(JLabel(""))
-        userFilters.add(JLabel("Select report options:"))
-        userFilters.add(input_includeBalance)
-        userFilters.add(input_includeZeroBalance)
-        userFilters.add(input_showZeroBalanceAsBlank)
-        userFilters.add(input_includeWhenDetailsMissing)
-        userFilters.add(input_includeHiddenHomePage)
-        userFilters.add(input_includeInactive)
-        userFilters.add(input_includeComments)
-        userFilters.add(input_includeToolboxIgnore)
-        userFilters.add(input_includeCCExpiryDates)
-        userFilters.add(input_includeFileOpenDetails)
-        userFilters.add(JLabel("---"))
-        userFilters.add(lbl_secretText)
-        userFilters.add(input_includeSecretText)
+        onCol = 0
+        onRow = 0
+        li = ri = 5
+        userFilters.add(JLabel("Select account types to include:"), GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west()); onRow += 1
+        for comp in allAccountTypes:
+            userFilters.add(comp, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                                   onRow += 1
+        userFilters.add(JLabel(""), GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                                 onRow += 1
+        userFilters.add(JLabel("Select report options:"), GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());           onRow += 1
+        userFilters.add(input_includeBalance, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                       onRow += 1
+        userFilters.add(input_includeZeroBalance, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                   onRow += 1
+        userFilters.add(input_showZeroBalanceAsBlank, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());               onRow += 1
+        userFilters.add(input_includeWhenDetailsMissing, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());            onRow += 1
+        userFilters.add(input_includeHiddenHomePage, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                onRow += 1
+        userFilters.add(input_includeInactive, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                      onRow += 1
+        userFilters.add(input_includeComments, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                      onRow += 1
+        userFilters.add(input_includeToolboxIgnore, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                 onRow += 1
+        userFilters.add(input_includeCCExpiryDates, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                 onRow += 1
+        userFilters.add(input_includeFileOpenDetails, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());               onRow += 1
+        userFilters.add(JLabel("---"), GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                              onRow += 1
+        userFilters.add(lbl_secretText, GridC.getc(onCol, onRow).wx(0.1).wy(0.1).leftInset(li).rightInset(ri).west());                             onRow += 1
+
+        userFilters.add(input_includeSecretText, GridC.getc(onCol, onRow).wx(0.1).wy(0.0005).leftInset(li).rightInset(ri).west().fillboth());                      onRow += 1
+
+        rowHeight = 24
 
         while True:
             options = ["EXIT", "REPORT"]
+            jsp = MyJScrollPaneForJOptionPane(userFilters, 750, (rowHeight * (onRow+7)))
             userAction = (JOptionPane.showOptionDialog(toolbox_frame_,
-                                                       userFilters,
+                                                       jsp,
                                                        _THIS_METHOD_NAME.upper(),
                                                        JOptionPane.OK_CANCEL_OPTION,
                                                        JOptionPane.QUESTION_MESSAGE,
@@ -15398,9 +15423,10 @@ now after saving the file, restart Moneydance
         secretTxt = input_includeSecretText.getText()
         if not StringUtils.isBlank(secretTxt):
             output += "\n\n" \
-                      "************************************************%s\n" %("*" * (len(secretTxt)+1))
-            output += "**** User entered secret text for this report: '%s'\n" %(secretTxt)
-            output += "************************************************%s\n\n" %("*" * (len(secretTxt)+1))
+                      "**********************************\n"
+            output += "SECRET TEXT:\n" \
+                      "%s\n" %(secretTxt)
+            output += "**********************************\n"
         del secretTxt
 
         output += "\n<END>"
@@ -28767,6 +28793,35 @@ now after saving the file, restart Moneydance
                         prune_internal_backups()
 
                 # ##########################################################################################################
+                if event.getActionCommand().lower() == "Disable Backup & Disclaimer warnings".lower():
+
+                    if not GlobalVars.lBypassAllBackupsAndDisclaimers_TB:
+                        if not myPopupAskQuestion(toolbox_frame_,
+                                                  "DISABLE BACKUP & DISCLAIMER WARNINGS",
+                                                  "Disable all Backup & Disclaimer warnings?",
+                                                  JOptionPane.YES_NO_OPTION,
+                                                  JOptionPane.WARNING_MESSAGE):
+                            txt = "BACKUP & DISCLAIMER WARNINGS STILL ENABLED - NO CHANGE"
+                            setDisplayStatus(txt, "B")
+                            event.getSource().setSelected(False)
+                            return
+                        else:
+                            txt = "BACKUP & DISCLAIMER WARNINGS DISABLED"
+                            setDisplayStatus(txt, "R")
+                            myPrint("B", "@@ %s @@" %(txt))
+                            logToolboxUpdates("DoTheMenu", txt)
+
+                    else:
+                        txt = "BACKUP & DISCLAIMER WARNINGS ENABLED"
+                        setDisplayStatus(txt, "B")
+                        myPrint("B", "@@ %s @@" %(txt))
+                        myPrint("B", "User asked to enable Backup & Disclaimer warnings.....")
+                        logToolboxUpdates("DoTheMenu", txt)
+
+                    GlobalVars.lBypassAllBackupsAndDisclaimers_TB = not GlobalVars.lBypassAllBackupsAndDisclaimers_TB
+                    GlobalVars.mainPnl_backupWarningsDisabled_lbl.setText("<BACKUP/DISCLAIMERS OFF>" if GlobalVars.lBypassAllBackupsAndDisclaimers_TB else "")
+
+                # ##########################################################################################################
                 if event.getActionCommand().lower() == "Debug".lower():
                     if debug:
                         txt = "Script Debug mode disabled"
@@ -28821,9 +28876,10 @@ now after saving the file, restart Moneydance
 
                 # ##########################################################################################################
                 # Save parameters now...
-                if (event.getActionCommand() == "Copy all Output to Clipboard"
-                        or event.getActionCommand() == "Debug"
-                        or event.getActionCommand() == "Auto Prune Internal Backups"):
+                if (event.getActionCommand().lower() == "Copy all Output to Clipboard".lower()
+                        or event.getActionCommand().lower() == "Debug".lower()
+                        or event.getActionCommand().lower() == "Auto Prune Internal Backups".lower()
+                        or event.getActionCommand().lower() == "Disable Backup & Disclaimer warnings".lower()):
 
                     try:
                         save_StuWareSoftSystems_parameters_to_file()
@@ -29227,6 +29283,12 @@ now after saving the file, restart Moneydance
             menuItemP.setSelected(GlobalVars.lAutoPruneInternalBackups_TB)
             menu1.add(menuItemP)
 
+            menuItemW = JCheckBoxMenuItem("Disable Backup & Disclaimer warnings")
+            menuItemW.addActionListener(doTheMenu)
+            menuItemW.setToolTipText("Disables all Toolbox's warnings about backups and disclaimers")
+            menuItemW.setSelected(GlobalVars.lBypassAllBackupsAndDisclaimers_TB)
+            menu1.add(menuItemW)
+
             menuItemF = JMenuItem("Find/Search")
             menuItemF.setMnemonic(KeyEvent.VK_F)
             menuItemF.setToolTipText("Finds text within the main display window..")
@@ -29344,6 +29406,11 @@ now after saving the file, restart Moneydance
             GlobalVars.mainPnl_debug_lbl.setText("<DEBUG ON>" if debug else "")
             GlobalVars.mainPnl_debug_lbl.setForeground(getColorRed())
             bottomPanel.add(GlobalVars.mainPnl_debug_lbl, GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
+            bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
+
+            GlobalVars.mainPnl_backupWarningsDisabled_lbl.setText("<BACKUP/DISCLAIMERS OFF>" if GlobalVars.lBypassAllBackupsAndDisclaimers_TB else "")
+            GlobalVars.mainPnl_backupWarningsDisabled_lbl.setForeground(getColorRed())
+            bottomPanel.add(GlobalVars.mainPnl_backupWarningsDisabled_lbl, GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
             bottomPanel.add(Box.createHorizontalStrut(20), GridC.getc(pnl_x, pnl_y).fillx()); pnl_x += 1
 
             GlobalVars.mainPnl_preview_lbl.setText("<PREVIEW BUILD>" if isPreviewBuild() else "")
@@ -29642,6 +29709,9 @@ Script/extension is analysing your moneydance & system settings....
                 def run(self):                                                                                          # noqa
                     myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
                     myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
+
+                    if GlobalVars.lBypassAllBackupsAndDisclaimers_TB:
+                        myPrint("B", "@@ User has previously DISABLED all warnings regarding backups and disclaimers @@".upper())
 
                     theDisplay = DiagnosticDisplay()
                     theDisplay.openDisplay()

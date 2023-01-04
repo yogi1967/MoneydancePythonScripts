@@ -298,4 +298,7 @@ Menu - Auto Prune of Internal Backup files
     >> Toolbox makes extra backups of config.dict, ./safe/settings and custom_theme.properties. This setting auto-prunes
        keeping at least 5 copies of each and / or 5 days
 
+Menu - Disable Backup & Disclaimer warnings
+    >> DISABLES all Toolbox's warnings about performing backups and disclaimer warnings - DISABLE AT YOUR OWN RISK!!!!!!
+
 Thanks for reading.....

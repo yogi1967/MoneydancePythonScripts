@@ -15,10 +15,10 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "import_hargreaves_lansdown_files")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "import_hargreaves_lansdown_files" "fix_downloaded_transactions")
 RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "accounts_categories_mega_search_window")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
-PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth")
+PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth" "fix_downloaded_transactions")
 BUNDLE_OWN_JAVA_LIST=("test")
 
 if [ "$1" = "" ]; then
