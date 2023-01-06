@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1019)
+# list_future_reminders.py (build: 1019) - Jan 2023
 
 ###############################################################################
 # MIT License
@@ -60,7 +60,7 @@
 # build: 1018 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1018 - Common code
 # build: 1018 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
-# build: 1019 - For Kevin Stembridge: added CMD-K to skip the next occurrence of all reminders...
+# build: 1019 - For Kevin Stembridge: added CMD-K to skip the next occurrence of all reminders...; Tweak common code...
 
 # Displays Moneydance future reminders
 
