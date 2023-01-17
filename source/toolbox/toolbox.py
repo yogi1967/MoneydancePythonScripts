@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1056 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1057 - November 2020 thru 2022 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -148,6 +148,7 @@
 # build: 1056 - Added 'FIX: Add alternative account numbers for 'Accounts and bank/account number' report (above)' feature
 # build: 1056 - Added 'lBypassAllBackupsAndDisclaimers_TB' feature....
 # build: 1056 - Added launch check for base CurrencyType relative rate != 1.0; fixed diagnose/repair currency option to fix != 1.0 (properly)
+# build: 1057 - Changed errortrap in force disconnect md+ connection....
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -169,7 +170,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1056"
+version_build = "1057"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -12892,8 +12893,9 @@ Visit: %s (Author's site)
                 plaidConnection.updateAccountList()
                 txt = "Plaid - called update account list..."
                 output += "%s\n" %(txt); myPrint("B", txt)
-            except Exception as e:
-                txt = "Unable to refresh accounts list after removing token(s). Error was: %s" %(e)
+            except:
+                e, exc_value, exc_traceback = sys.exc_info()                                                            # noqa
+                txt = "Unable to refresh accounts list after removing token(s)! Error was: '%s'" %(e)
                 output += "%s\n" %(txt); myPrint("B", txt)
                 dump_sys_error_to_md_console_and_errorlog()
 
