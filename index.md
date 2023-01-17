@@ -88,10 +88,10 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1055 - 22nd November 2022) (update logfile; sidebar feature; improved launch code;Toggle active/inactive investment securities; diagnostics: show md+ last digits using Plaid .getMask())
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1056 - 17th January 2023) (update logfile; sidebar feature; improved launch code;Toggle active/inactive investment securities; diagnostics: show md+ last digits using Plaid .getMask())
 - <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1025 - 22nd November 2022) (Tweaks/fixes; Add date range selector/filter to extract_investment_registers; SG2020 cost_basis conversion fix)
 - <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1018 - 22nd November 2022) (Added right-click popup to allow deletion of Reminder...; Search field now grabs focus too..)
-- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1016 - 22nd November 2022) (fix startup GUI hang; support Indian numbering system; row separators; allow auto hiding of rows)
+- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1019 - 17th January 2023) (row separators; formatting; average calculations; hide decimals; auto-hide rows)
 
 ### Signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - may be newer than appear (or not available) in Moneydance's Extensions menu)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and prior signed builds
@@ -145,4 +145,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 24th November 2022)_
+_(site last updated 17th January 2023)_
