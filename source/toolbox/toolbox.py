@@ -149,6 +149,7 @@
 # build: 1056 - Added 'lBypassAllBackupsAndDisclaimers_TB' feature....
 # build: 1056 - Added launch check for base CurrencyType relative rate != 1.0; fixed diagnose/repair currency option to fix != 1.0 (properly)
 # build: 1057 - Changed errortrap in force disconnect md+ connection....
+# build: 1057 - Bold'ified [sic] blinking cells...
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -6526,7 +6527,7 @@ Visit: %s (Author's site)
 
         iCountFound = 0
         for sec in securities:
-            if sec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                       # noqa
+            if sec.getCurrencyType() != CurrencyType.Type.SECURITY: continue                                            # noqa
             for key in sec.getParameterKeys():
 
                 if key.startswith(PARAM_CURRID):
@@ -26870,7 +26871,7 @@ now after saving the file, restart Moneydance
                         myPrint("DB", ">> ERROR stopping blinker: id: %s" %(blinker.uuid))
                 del BlinkSwingTimer.ALL_BLINKERS[:]
 
-        def __init__(self, timeMS, swComponents, flipColor=None):
+        def __init__(self, timeMS, swComponents, flipColor=None, flipBold=False):
             with BlinkSwingTimer.blinker_LOCK:
                 self.uuid = UUID.randomUUID().toString()
                 self.isForeground = True
@@ -26883,9 +26884,13 @@ now after saving the file, restart Moneydance
 
                 self.swComponents = []
                 for swComponent in swComponents:
+                    font = swComponent.getFont()
                     self.swComponents.append([swComponent,
                                               swComponent.getForeground(),
-                                              swComponent.getBackground() if (flipColor is None) else flipColor])
+                                              swComponent.getBackground() if (flipColor is None) else flipColor,
+                                              font.deriveFont(font.getStyle() | Font.BOLD) if (flipBold) else font,
+                                              font.deriveFont(font.getStyle() & ~Font.BOLD) if (flipBold) else font
+                                              ])
                 super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
                 self.addActionListener(self)
                 BlinkSwingTimer.ALL_BLINKERS.append(self)
@@ -26907,8 +26912,10 @@ now after saving the file, restart Moneydance
                         swComponent = self.swComponents[i][0]
                         fg = self.swComponents[i][1]
                         bg = self.swComponents[i][2]
-
+                        boldON = self.swComponents[i][3]
+                        boldOFF = self.swComponents[i][4]
                         swComponent.setForeground(fg if self.isForeground else bg)
+                        swComponent.setFont(boldON if self.isForeground else boldOFF)
 
                     self.countBlinkLoops += 1
                     self.isForeground = not self.isForeground
