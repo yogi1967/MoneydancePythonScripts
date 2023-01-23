@@ -20086,7 +20086,7 @@ now after saving the file, restart Moneydance
             output +=   "Performing analysis and validation of potential 'duplicate' Securities.\n\n" \
                         "The following data can be edited in MD Menu > Tools>Securities (** except 'Decimal Places' where you will need to use Toolbox to edit)\n\n" \
                         "The check / validation rules are:\n" \
-                        "- Find potential 'duplicates' where Securities' 'Ticker' Symbols are the same; then Duplicate Security's...:\n" \
+                        "- Find potential 'duplicates' where Securities' 'Ticker' Symbols are the same/match (cannot be blank); then Duplicate Security's...:\n" \
                         "... ID must be short and DIFFERENT (so you can identify them in this process). Examples: use '^APPL1', '^APPL2', '^APPL3'.. to merge 3 Apple Stocks\n" \
                         "....(^^Close this window and use Tools>Securities>EDIT and change the Security ID for each duplicate and then re-run this function again)\n" \
                         "...'Currency' must match\n" \

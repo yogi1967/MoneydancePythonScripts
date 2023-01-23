@@ -101,8 +101,17 @@
 # build: 1019 - roundTowards() when hiding decimals; tweak common code
 # build: 1020 - Bold'ified [sic] blinking cells...
 
-# todo - Fix display bug when opening a new MD account window where NAB will disappear from the first window's home screen.. Caused as .view is being rebuilt by the order in which MD is sending commands...
-# todo add as of balance date option (for non i/e with custom dates) - perhaps??
+# NOTE: There is a display bug / design fault when opening a new MD HomeScreen (so you have multiple running) whereby
+#       the custom_balances widget will disappear from the previous home screen.. This is because MD's 'internal' home
+#       screen widgets are NEW instances per home screen. I.e. Each RootAccountDetailPanel (instance) creates new
+#       ViewFactory() instance(s) which calls .reloadViews() which creates/adds NEW instances of all internalViews,
+#       but then adds a reference to the same/original external view(s).
+#       I.e. external views are single instance, whereas internal views are multi instances...
+#       Swing objects cannot exist in two places, hence the last place wins and previous locations disappear...
+#       NOTE: This issue affects all extension / external views...
+
+# todo - Fix the display bug that causes multi-instance(s) of home screen to cause disappearing widgets - see note above
+# todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -9621,6 +9630,10 @@ Visit: %s (Author's site)
                 return
 
             self.i_am_active = active
+            #
+            # if active:
+            #     homePage = SwingUtilities.getWindowAncestor(self.view);
+            #     myPrint("B", "@@@@ %s %s" %(classPrinter("HomePage:", homePage), homePage));
 
             if (self.view is not None):
                 if (active):
