@@ -26854,6 +26854,10 @@ now after saving the file, restart Moneydance
         _bg.clearSelection()
         return _bg
 
+    def isSwingComponentInvalid(swComponent):
+        return (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
+                or SwingUtilities.getWindowAncestor(swComponent) is None)
+
     class BlinkSwingTimer(SwingTimer, ActionListener):
         ALL_BLINKERS = []
         blinker_LOCK = threading.Lock()
@@ -26901,8 +26905,7 @@ now after saving the file, restart Moneydance
                 with BlinkSwingTimer.blinker_LOCK:
                     for i in range(0, len(self.swComponents)):
                         swComponent = self.swComponents[i][0]
-                        if (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
-                                or SwingUtilities.getWindowAncestor(swComponent) is None):
+                        if isSwingComponentInvalid(swComponent):
                             myPrint("DB", ">>> Shutting down blinker (id: %s) as component index: %s no longer available" %(self.uuid, i))
                             self.stop()
                             BlinkSwingTimer.ALL_BLINKERS.remove(self)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1019) - Jan 2023
+# list_future_reminders.py (build: 1020) - Jan 2023
 
 ###############################################################################
 # MIT License
@@ -61,6 +61,7 @@
 # build: 1018 - Common code
 # build: 1018 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
 # build: 1019 - For Kevin Stembridge: added CMD-K to skip the next occurrence of all reminders...; Tweak common code...
+# build: 1020 - Tweaked init message with time
 
 # Displays Moneydance future reminders
 
@@ -72,7 +73,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1019"
+version_build = "1020"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

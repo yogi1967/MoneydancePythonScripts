@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# categories_super_window.py build: 1006 - Jan 2023 - Stuart Beesley StuWareSoftSystems
+# categories_super_window.py build: 1007 - Jan 2023 - Stuart Beesley StuWareSoftSystems
 # >> Renamed to: accounts_categories_mega_search_window.py build: 1003 - April 2022 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
@@ -39,6 +39,7 @@
 # build: 1005 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
 # build: 1005 - Added CMD-T to allow toggle of active/inactive account status (useful for Security Accounts)
 # build: 1006 - Tweak common code
+# build: 1007 - Tweak init with time
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -48,7 +49,7 @@
 
 # SET THESE LINES
 myModuleID = u"accounts_categories_mega_search_window"
-version_build = "1006"
+version_build = "1007"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1026 - Jan 2023 - Stuart Beesley
+# extract_data.py - build: 1027 - Jan 2023 - Stuart Beesley
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -103,6 +103,7 @@
 # build: 1025 - Add date range selector/filter to extract_investment_registers
 # build: 1025 - Fix SG2020 cost_basis conversion back to back on certain non-base security situations (it assumed the cost basis was base)
 # build: 1026 - Tweak common code
+# build: 1027 - Tweak init message with time
 
 # todo - consider creating a Yahoo Finance portfolio upload format
 
@@ -112,7 +113,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1026"
+version_build = "1027"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
