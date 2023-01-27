@@ -101,17 +101,18 @@
 # build: 1019 - roundTowards() when hiding decimals; tweak common code
 # build: 1020 - Bold'ified [sic] blinking cells...
 # build: 1020 - MAJOR 'upgrade' to (re)code to cope with multiple home screens (that caused 'disappearing' widgets)
-#              There is a design fault when opening a new MD HomeScreen (so you have multiple running) whereby
-#              the custom_balances widget would disappear from the previous home screen.. This was because MD's 'internal' home
-#              screen widgets are NEW instances per home screen. I.e. Each RootAccountDetailPanel (instance) creates new
-#              ViewFactory() instance(s) which calls .reloadViews() which creates/adds NEW instances of all 'internal' views,
-#              but for extensions it ONLY adds a reference to the same/original 'external' view(s).
-#              I.e. extension's external view(s) are single instance, whereas internal views are multi instances...
-#              Swing objects cannot exist in two places, hence the last place wins and previous locations disappear...
-#              NOTE: This issue affects all extension / external views...
-#              This code-fix deals with this issue by generating a new panel on every call of .getGUIView() and maintains
-#              internal knowledge of its views with special code to detect whether they are still alive/valid.
-#              When the view(s) are refreshed the code iterates all known views and simply builds a new view from the same data.
+#               There is a design fault when opening a new MD HomeScreen (so you have multiple running) whereby
+#               the custom_balances widget would disappear from the previous home screen.. This was because MD's 'internal' home
+#               screen widgets are NEW instances per home screen. I.e. Each RootAccountDetailPanel (instance) creates new
+#               ViewFactory() instance(s) which calls .reloadViews() which creates/adds NEW instances of all 'internal' views,
+#               but for extensions it ONLY adds a reference to the same/original 'external' view(s).
+#               I.e. extension's external view(s) are single instance, whereas internal views are multi instances...
+#               Swing objects cannot exist in two places, hence the last place wins and previous locations disappear...
+#               NOTE: This issue affects all extension / external views...
+#               This code-fix deals with this issue by generating a new panel on every call of .getGUIView() and maintains
+#               internal knowledge of its views with special code to detect whether they are still alive/valid.
+#               When the view(s) are refreshed the code iterates all known views and simply builds a new view from the same data.
+# build: 1020 - Changed refresh time delay to 3 seconds (was 10 seconds)....
 
 # todo investigate double preferences updated messages..?
 
@@ -4346,6 +4347,7 @@ Visit: %s (Author's site)
                                               font.deriveFont(font.getStyle() & ~Font.BOLD) if (flipBold) else font
                                               ])
                 super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
+                if self.getInitialDelay() > 0: self.setInitialDelay(int(self.getInitialDelay()/2))
                 self.addActionListener(self)
                 BlinkSwingTimer.ALL_BLINKERS.append(self)
                 myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
@@ -5719,7 +5721,6 @@ Visit: %s (Author's site)
                     NAB = NetAccountBalancesExtension.getNAB()
 
                     self.get()  # wait for process to finish
-
                     NAB.searchFiltersUpdated()
                     # NAB.jlst.repaint()
 
@@ -8600,7 +8601,7 @@ Visit: %s (Author's site)
             self.myModuleID = myModuleID
 
             self.refresher = None
-            self.lastRefreshTimeDelayMs = 10000
+            self.lastRefreshTimeDelayMs = 3000      # was originally 10000
             self.lastRefreshTriggerWasAccountModified = False
 
             self.is_unloaded = False
@@ -9208,7 +9209,6 @@ Visit: %s (Author's site)
                         myPrint("DB", ".. >> Back from my sleep.... Now will reallyRefresh....!")
 
                     self.netAmountTable = self.callingClass.getBalancesBuildView(self)
-
                     if self.netAmountTable is not None and len(self.netAmountTable) > 0:
                         result = True
 

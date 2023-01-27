@@ -26854,8 +26854,11 @@ now after saving the file, restart Moneydance
         _bg.clearSelection()
         return _bg
 
+    def isSwingComponentValid(swComponent): return not isSwingComponentInvalid(swComponent)
+
     def isSwingComponentInvalid(swComponent):
-        return (not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
+        return (swComponent is None
+                or not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
                 or SwingUtilities.getWindowAncestor(swComponent) is None)
 
     class BlinkSwingTimer(SwingTimer, ActionListener):
@@ -26896,6 +26899,7 @@ now after saving the file, restart Moneydance
                                               font.deriveFont(font.getStyle() & ~Font.BOLD) if (flipBold) else font
                                               ])
                 super(self.__class__, self).__init__(max(timeMS, 1200), None)   # Less than 1000ms will prevent whole application from closing when requested...
+                if self.getInitialDelay() > 0: self.setInitialDelay(int(self.getInitialDelay()/2))
                 self.addActionListener(self)
                 BlinkSwingTimer.ALL_BLINKERS.append(self)
                 myPrint("DB", "Blinker initiated - id: %s; with %s components" %(self.uuid, len(swComponents)))
