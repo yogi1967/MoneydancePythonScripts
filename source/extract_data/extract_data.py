@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1027 - Jan 2023 - Stuart Beesley
+# extract_data.py - build: 1028 - Jan 2023 - Stuart Beesley
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -104,6 +104,7 @@
 # build: 1025 - Fix SG2020 cost_basis conversion back to back on certain non-base security situations (it assumed the cost basis was base)
 # build: 1026 - Tweak common code
 # build: 1027 - Tweak init message with time
+# build: 1028 - Added fields to extract investment transactions extract... SecurityID and [optional] security account information (e.g. type, apr, subtype etc)
 
 # todo - consider creating a Yahoo Finance portfolio upload format
 
@@ -113,7 +114,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1027"
+version_build = "1028"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -394,6 +395,7 @@ else:
     import subprocess
     from com.moneydance.apps.md.controller import Util
     from com.moneydance.apps.md.view.gui import ConsoleWindow, DateRangeChooser
+    from com.infinitekind.moneydance.model import SecurityType
 
     # from stockglance2020 and extract_reminders_csv
     from java.awt.event import AdjustmentListener
@@ -446,7 +448,7 @@ else:
 
     # from extract_investment_transactions_csv
     global lIncludeOpeningBalances, lAdjustForSplits
-    global lExtractAttachments_EIT, lOmitLOTDataFromExtract_EIT
+    global lExtractAttachments_EIT, lOmitLOTDataFromExtract_EIT, lExtractExtraSecurityAcctInfo
     global lFilterDateRange_EIT, filterDateStart_EIT, filterDateEnd_EIT
 
     # from stockglance2020
@@ -527,6 +529,7 @@ else:
     lAdjustForSplits = True                                                                                             # noqa
     lExtractAttachments_EIT = False                                                                                     # noqa
     lOmitLOTDataFromExtract_EIT = False                                                                                 # noqa
+    lExtractExtraSecurityAcctInfo = False                                                                               # noqa
     lFilterDateRange_EIT = False                                                                                        # noqa
     filterDateStart_EIT = 0                                                                                             # noqa
     filterDateEnd_EIT = 0                                                                                               # noqa
@@ -3034,25 +3037,6 @@ Visit: %s (Author's site)
 
     def isAlertControllerEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_ALERTCONTROLLER_BUILD)
 
-    def shutdownMDPlusPoller():
-        if isMDPlusEnabledBuild():
-            myPrint("DB", "Shutting down the MD+ poller")
-            plusPoller = MD_REF.getUI().getPlusController()
-            if plusPoller is not None:
-                invokeMethodByReflection(plusPoller, "shutdown", None)
-                setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
-            # NOTE: MDPlus.licenseCache should be reset too, but it's a 'private static final' field....
-            #       hence restart MD if changing (importing/zapping) the license object
-            myPrint("DB", "... MD+ poller shutdown...")
-
-    def shutdownMDAlertController():
-        if isAlertControllerEnabledBuild():
-            myPrint("DB", "Shutting down the Alert Controller")
-            alertController = MD_REF.getUI().getAlertController()
-            if alertController is not None:
-                invokeMethodByReflection(alertController, "shutdown", None)
-                setFieldByReflection(MD_REF.getUI(), "alertController", None)
-
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3082,7 +3066,7 @@ Visit: %s (Author's site)
         global lAllCategories_EAR, categoriesFilter_EAR
 
         # extract_investment_transactions_csv
-        global lIncludeOpeningBalances, lAdjustForSplits, lExtractAttachments_EIT, lOmitLOTDataFromExtract_EIT
+        global lIncludeOpeningBalances, lAdjustForSplits, lExtractAttachments_EIT, lOmitLOTDataFromExtract_EIT, lExtractExtraSecurityAcctInfo
         global lFilterDateRange_EIT, filterDateStart_EIT, filterDateEnd_EIT
 
         # extract_currency_history_csv
@@ -3157,6 +3141,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("lAdjustForSplits") is not None: lAdjustForSplits = GlobalVars.parametersLoadedFromFile.get("lAdjustForSplits")
         if GlobalVars.parametersLoadedFromFile.get("lExtractAttachments_EIT") is not None: lExtractAttachments_EIT = GlobalVars.parametersLoadedFromFile.get("lExtractAttachments_EIT")                                                                                  # noqa
         if GlobalVars.parametersLoadedFromFile.get("lOmitLOTDataFromExtract_EIT") is not None: lOmitLOTDataFromExtract_EIT = GlobalVars.parametersLoadedFromFile.get("lOmitLOTDataFromExtract_EIT")                                                                                  # noqa
+        if GlobalVars.parametersLoadedFromFile.get("lExtractExtraSecurityAcctInfo") is not None: lExtractExtraSecurityAcctInfo = GlobalVars.parametersLoadedFromFile.get("lExtractExtraSecurityAcctInfo")                                                                                  # noqa
         if GlobalVars.parametersLoadedFromFile.get("lFilterDateRange_EIT") is not None: lFilterDateRange_EIT = GlobalVars.parametersLoadedFromFile.get("lFilterDateRange_EIT")                                                                                  # noqa
         if GlobalVars.parametersLoadedFromFile.get("filterDateStart_EIT") is not None: filterDateStart_EIT = GlobalVars.parametersLoadedFromFile.get("filterDateStart_EIT")                                                                                  # noqa
         if GlobalVars.parametersLoadedFromFile.get("filterDateEnd_EIT") is not None: filterDateEnd_EIT = GlobalVars.parametersLoadedFromFile.get("filterDateEnd_EIT")                                                                                  # noqa
@@ -3237,6 +3222,7 @@ Visit: %s (Author's site)
         # extract_investment_transactions_csv
         GlobalVars.parametersLoadedFromFile["lExtractAttachments_EIT"] = lExtractAttachments_EIT
         GlobalVars.parametersLoadedFromFile["lOmitLOTDataFromExtract_EIT"] = lOmitLOTDataFromExtract_EIT
+        GlobalVars.parametersLoadedFromFile["lExtractExtraSecurityAcctInfo"] = lExtractExtraSecurityAcctInfo
         GlobalVars.parametersLoadedFromFile["lFilterDateRange_EIT"] = lFilterDateRange_EIT
         GlobalVars.parametersLoadedFromFile["filterDateStart_EIT"] = filterDateStart_EIT
         GlobalVars.parametersLoadedFromFile["filterDateEnd_EIT"] = filterDateEnd_EIT
@@ -4342,6 +4328,10 @@ Visit: %s (Author's site)
                 user_lOmitLOTDataFromExtract_EIT = JCheckBox("", lOmitLOTDataFromExtract_EIT)
                 user_lOmitLOTDataFromExtract_EIT.setName("user_lOmitLOTDataFromExtract_EIT")
 
+                labelExtractExtraSecurityAcctInfo = JLabel("Extract extra security account info")
+                user_lExtractExtraSecurityAcctInfo = JCheckBox("", lExtractExtraSecurityAcctInfo)
+                user_lExtractExtraSecurityAcctInfo.setName("user_lExtractExtraSecurityAcctInfo")
+
                 labelAttachments = JLabel("Extract & Download Attachments?")
                 user_selectExtractAttachments = JCheckBox("", lExtractAttachments_EIT)
                 user_selectExtractAttachments.setName("user_selectExtractAttachments")
@@ -4395,6 +4385,8 @@ Visit: %s (Author's site)
                 userFilters.add(user_selectAdjustSplits)
                 userFilters.add(labelOmitLOTDataFromExtract_EIT)
                 userFilters.add(user_lOmitLOTDataFromExtract_EIT)
+                userFilters.add(labelExtractExtraSecurityAcctInfo)
+                userFilters.add(user_lExtractExtraSecurityAcctInfo)
                 userFilters.add(labelAttachments)
                 userFilters.add(user_selectExtractAttachments)
                 userFilters.add(label9)
@@ -4442,6 +4434,7 @@ Visit: %s (Author's site)
                             "Incl Open Bals:", user_selectOpeningBalances.isSelected(),
                             "Adj Splits:", user_selectAdjustSplits.isSelected(),
                             "OmitLOTData:", user_lOmitLOTDataFromExtract_EIT.isSelected(),
+                            "ExtraXtraSecAcctInfo:", user_lExtractExtraSecurityAcctInfo.isSelected(),
                             "DownldAttachments:", user_selectExtractAttachments.isSelected(),
                             "User Date Format:", user_dateformat.getSelectedItem(),
                             "Strip ASCII:", user_selectStripASCII.isSelected(),
@@ -4485,6 +4478,7 @@ Visit: %s (Author's site)
                     lIncludeOpeningBalances = user_selectOpeningBalances.isSelected()
                     lAdjustForSplits = user_selectAdjustSplits.isSelected()
                     lOmitLOTDataFromExtract_EIT = user_lOmitLOTDataFromExtract_EIT.isSelected()
+                    lExtractExtraSecurityAcctInfo = user_lExtractExtraSecurityAcctInfo.isSelected()
                     lExtractAttachments_EIT = user_selectExtractAttachments.isSelected()
 
                     if user_dateformat.getSelectedItem() == "dd/mm/yyyy": userdateformat = "%d/%m/%Y"
@@ -4567,6 +4561,11 @@ Visit: %s (Author's site)
                         myPrint("B", "Script will OMIT Buy/Sell LOT matching data from extract file...")
                     else:
                         myPrint("B", "Buy/Sell LOT matching data will be included in the extract file...")
+
+                    if lExtractExtraSecurityAcctInfo:
+                        myPrint("B", "Script will extract any extra security account information...")
+                    else:
+                        myPrint("B", "Any existing extra security account information will NOT be included in the extract file...")
 
                     myPrint("B", "user date format....:", userdateformat)
 
@@ -9341,44 +9340,63 @@ Visit: %s (Author's site)
                                 return True
                             # enddef
 
-
+                        
                         _COLUMN = 0
                         _HEADING = 1
-                        dataKeys = {
-                            "_ACCOUNT":             [0, "Account"],
-                            "_DATE":                [1, "Date"],
-                            "_TAXDATE":             [2, "TaxDate"],
-                            "_CURR":                [3, "Currency"],
-                            "_SECURITY":            [4, "Security"],
-                            "_TICKER":              [5, "SecurityTicker"],
-                            "_SECCURR":             [6, "SecurityCurrency"],
-                            "_AVGCOST":             [7, "AverageCostControl"],
-                            "_ACTION":              [8, "Action"],
-                            "_TT":                  [9, "ActionType"],
-                            "_CHEQUE":              [10, "Cheque"],
-                            "_DESC":                [11, "Description"],
-                            "_MEMO":                [12, "Memo"],
-                            "_CLEARED":             [13, "Cleared"],
-                            "_TRANSFER":            [14, "Transfer"],
-                            "_CAT":                 [15, "Category"],
-                            "_SHARES":              [16, "Shares"],
-                            "_PRICE":               [17, "Price"],
-                            "_AMOUNT":              [18, "Amount"],
-                            "_FEE":                 [19, "Fee"],
-                            "_FEECAT":              [20, "FeeCategory"],
-                            "_TXNNETAMOUNT":        [21, "TransactionNetAmount"],
-                            "_CASHIMPACT":          [22, "CashImpact"],
-                            "_SHRSAFTERSPLIT":      [23, "CalculateSharesAfterSplit"],
-                            "_PRICEAFTERSPLIT":     [24, "CalculatePriceAfterSplit"],
-                            "_HASATTACHMENTS":      [25, "HasAttachments"],
-                            "_LOTS":                [26, "Lot Data"],
-                            "_ACCTCASHBAL":         [27, "AccountCashBalance"],
-                            "_SECSHRHOLDING":       [28, "SecurityShareHolding"],
-                            "_ATTACHMENTLINK":      [29, "AttachmentLink"],
-                            "_ATTACHMENTLINKREL":   [30, "AttachmentLinkRelative"],
-                            "_KEY":                 [31, "Key"],
-                            "_END":                 [32, "_END"]
-                        }
+
+                        dki = 0
+                        dataKeys = {}                                                                                   # noqa
+                        dataKeys["_ACCOUNT"]             = [dki, "Account"];                   dki += 1
+                        dataKeys["_DATE"]                = [dki, "Date"];                      dki += 1
+                        dataKeys["_TAXDATE"]             = [dki, "TaxDate"];                   dki += 1
+                        dataKeys["_CURR"]                = [dki, "Currency"];                  dki += 1
+                        dataKeys["_SECURITY"]            = [dki, "Security"];                  dki += 1
+                        dataKeys["_SECURITYID"]          = [dki, "SecurityID"];                dki += 1
+                        dataKeys["_TICKER"]              = [dki, "SecurityTicker"];            dki += 1
+                        dataKeys["_SECCURR"]             = [dki, "SecurityCurrency"];          dki += 1
+                        dataKeys["_AVGCOST"]             = [dki, "AverageCostControl"];        dki += 1
+
+                        if lExtractExtraSecurityAcctInfo:
+                            dataKeys["_SECINFO_TYPE"]              = [dki, "Sec_Type"];                     dki += 1
+                            dataKeys["_SECINFO_SUBTYPE"]           = [dki, "Sec_SubType"];                  dki += 1
+                            dataKeys["_SECINFO_STK_DIV"]           = [dki, "Sec_Stock_Div"];                dki += 1
+                            dataKeys["_SECINFO_CD_APR"]            = [dki, "Sec_CD_APR"];                   dki += 1
+                            dataKeys["_SECINFO_CD_COMPOUNDING"]    = [dki, "Sec_CD_Compounding"];           dki += 1
+                            dataKeys["_SECINFO_CD_YEARS"]          = [dki, "Sec_CD_Years"];                 dki += 1
+                            dataKeys["_SECINFO_BOND_TYPE"]         = [dki, "Sec_Bond_Type"];                dki += 1
+                            dataKeys["_SECINFO_BOND_FACEVALUE"]    = [dki, "Sec_Bond_FaceValue"];           dki += 1
+                            dataKeys["_SECINFO_BOND_MATURITYDATE"] = [dki, "Sec_Bond_MaturityDate"];        dki += 1
+                            dataKeys["_SECINFO_BOND_APR"]          = [dki, "Sec_Bond_APR"];                 dki += 1
+                            dataKeys["_SECINFO_STKOPT_CALLPUT"]    = [dki, "Sec_StockOpt_CallPut"];         dki += 1
+                            dataKeys["_SECINFO_STKOPT_STKPRICE"]   = [dki, "Sec_StockOpt_StockPrice"];      dki += 1
+                            dataKeys["_SECINFO_STKOPT_EXPRICE"]    = [dki, "Sec_StockOpt_ExercisePrice"];   dki += 1
+                            dataKeys["_SECINFO_STKOPT_EXMONTH"]    = [dki, "Sec_StockOpt_ExerciseMonth"];   dki += 1
+
+                        dataKeys["_ACTION"]              = [dki, "Action"];                    dki += 1
+                        dataKeys["_TT"]                  = [dki, "ActionType"];                dki += 1
+                        dataKeys["_CHEQUE"]              = [dki, "Cheque"];                    dki += 1
+                        dataKeys["_DESC"]                = [dki, "Description"];               dki += 1
+                        dataKeys["_MEMO"]                = [dki, "Memo"];                      dki += 1
+                        dataKeys["_CLEARED"]             = [dki, "Cleared"];                   dki += 1
+                        dataKeys["_TRANSFER"]            = [dki, "Transfer"];                  dki += 1
+                        dataKeys["_CAT"]                 = [dki, "Category"];                  dki += 1
+                        dataKeys["_SHARES"]              = [dki, "Shares"];                    dki += 1
+                        dataKeys["_PRICE"]               = [dki, "Price"];                     dki += 1
+                        dataKeys["_AMOUNT"]              = [dki, "Amount"];                    dki += 1
+                        dataKeys["_FEE"]                 = [dki, "Fee"];                       dki += 1
+                        dataKeys["_FEECAT"]              = [dki, "FeeCategory"];               dki += 1
+                        dataKeys["_TXNNETAMOUNT"]        = [dki, "TransactionNetAmount"];      dki += 1
+                        dataKeys["_CASHIMPACT"]          = [dki, "CashImpact"];                dki += 1
+                        dataKeys["_SHRSAFTERSPLIT"]      = [dki, "CalculateSharesAfterSplit"]; dki += 1
+                        dataKeys["_PRICEAFTERSPLIT"]     = [dki, "CalculatePriceAfterSplit"];  dki += 1
+                        dataKeys["_HASATTACHMENTS"]      = [dki, "HasAttachments"];            dki += 1
+                        dataKeys["_LOTS"]                = [dki, "Lot Data"];                  dki += 1
+                        dataKeys["_ACCTCASHBAL"]         = [dki, "AccountCashBalance"];        dki += 1
+                        dataKeys["_SECSHRHOLDING"]       = [dki, "SecurityShareHolding"];      dki += 1
+                        dataKeys["_ATTACHMENTLINK"]      = [dki, "AttachmentLink"];            dki += 1
+                        dataKeys["_ATTACHMENTLINKREL"]   = [dki, "AttachmentLinkRelative"];    dki += 1
+                        dataKeys["_KEY"]                 = [dki, "Key"];                       dki += 1
+                        dataKeys["_END"]                 = [dki, "_END"];                      dki += 1
 
                         transactionTable = []
 
@@ -9519,17 +9537,75 @@ Visit: %s (Author's site)
                             if txn.getTaxDateInt() != txn.getDateInt():
                                 _row[dataKeys["_TAXDATE"][_COLUMN]] = txn.getTaxDateInt()
 
+                            if lExtractExtraSecurityAcctInfo:
+                                _row[dataKeys["_SECINFO_TYPE"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_SUBTYPE"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_STK_DIV"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_CD_APR"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_CD_COMPOUNDING"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_CD_YEARS"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_BOND_TYPE"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_BOND_FACEVALUE"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_BOND_MATURITYDATE"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_BOND_APR"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_STKOPT_CALLPUT"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_STKOPT_STKPRICE"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_STKOPT_EXPRICE"][_COLUMN]] = ""
+                                _row[dataKeys["_SECINFO_STKOPT_EXMONTH"][_COLUMN]] = ""
 
                             if securityTxn:
                                 _row[dataKeys["_SECURITY"][_COLUMN]] = safeStr(securityCurr.getName())
+                                _row[dataKeys["_SECURITYID"][_COLUMN]] = safeStr(securityCurr.getIDString())
                                 _row[dataKeys["_SECCURR"][_COLUMN]] = safeStr(securityCurr.getRelativeCurrency().getIDString())
                                 _row[dataKeys["_TICKER"][_COLUMN]] = safeStr(securityCurr.getTickerSymbol())
                                 _row[dataKeys["_SHARES"][_COLUMN]] = securityCurr.getDoubleValue(securityTxn.getValue())
                                 _row[dataKeys["_PRICE"][_COLUMN]] = acctCurr.getDoubleValue(securityTxn.getAmount())
                                 _row[dataKeys["_AVGCOST"][_COLUMN]] = securityAcct.getUsesAverageCost()
                                 _row[dataKeys["_SECSHRHOLDING"][_COLUMN]] = securityCurr.formatSemiFancy(securityAcct.getBalance(),GlobalVars.decimalCharSep)
+
+                                if lExtractExtraSecurityAcctInfo:
+                                    try:
+                                        _row[dataKeys["_SECINFO_TYPE"][_COLUMN]] = unicode(securityAcct.getSecurityType())
+                                        _row[dataKeys["_SECINFO_SUBTYPE"][_COLUMN]] = securityAcct.getSecuritySubType()
+
+                                        if securityAcct.getSecurityType() == SecurityType.STOCK:
+                                            _row[dataKeys["_SECINFO_STK_DIV"][_COLUMN]] = "" if (securityAcct.getDividend() == 0) else acctCurr.format(securityAcct.getDividend(), GlobalVars.decimalCharSep)
+
+                                        if securityAcct.getSecurityType() == SecurityType.MUTUAL: pass
+
+                                        if securityAcct.getSecurityType() == SecurityType.CD:
+                                            _row[dataKeys["_SECINFO_CD_APR"][_COLUMN]] = "" if (securityAcct.getAPR() == 0.0) else securityAcct.getAPR()
+                                            _row[dataKeys["_SECINFO_CD_COMPOUNDING"][_COLUMN]] = unicode(securityAcct.getCompounding())
+
+                                            numYearsChoice = ["0.5"]
+                                            for iYears in range(1, 51): numYearsChoice.append(str(iYears))
+                                            _row[dataKeys["_SECINFO_CD_YEARS"][_COLUMN]] = numYearsChoice[-1] if (len(numYearsChoice) < securityAcct.getNumYears()) else numYearsChoice[securityAcct.getNumYears()]
+
+                                        if securityAcct.getSecurityType() == SecurityType.BOND:
+                                            bondTypes = [MD_REF.getUI().getStr("gov_bond"), MD_REF.getUI().getStr("mun_bond"), MD_REF.getUI().getStr("corp_bond"), MD_REF.getUI().getStr("zero_bond")]
+
+                                            _row[dataKeys["_SECINFO_BOND_TYPE"][_COLUMN]] = "ERROR" if (securityAcct.getBondType() > len(bondTypes)) else bondTypes[securityAcct.getBondType()]
+                                            _row[dataKeys["_SECINFO_BOND_FACEVALUE"][_COLUMN]] = "" if (securityAcct.getFaceValue() == 0) else acctCurr.format(securityAcct.getFaceValue(), GlobalVars.decimalCharSep)
+                                            _row[dataKeys["_SECINFO_BOND_APR"][_COLUMN]] = "" if (securityAcct.getAPR() == 0.0) else securityAcct.getAPR()
+
+                                            if (securityAcct.getMaturity() != 0 and securityAcct.getMaturity() != 39600000):
+                                                _row[dataKeys["_SECINFO_BOND_MATURITYDATE"][_COLUMN]] = DateUtil.convertLongDateToInt(securityAcct.getMaturity())
+
+                                        if securityAcct.getSecurityType() == SecurityType.OPTION:
+                                            _row[dataKeys["_SECINFO_STKOPT_CALLPUT"][_COLUMN]] = "Put" if securityAcct.getPut() else "Call"
+                                            _row[dataKeys["_SECINFO_STKOPT_STKPRICE"][_COLUMN]] = "" if (securityAcct.getOptionPrice() == 0.0) else securityAcct.getOptionPrice()
+                                            _row[dataKeys["_SECINFO_STKOPT_EXPRICE"][_COLUMN]] = "" if (securityAcct.getStrikePrice()) == 0 else acctCurr.format(securityAcct.getStrikePrice(), GlobalVars.decimalCharSep)
+
+                                            monthOptions = [MD_REF.getUI().getStr("january"), MD_REF.getUI().getStr("february"), MD_REF.getUI().getStr("march"), MD_REF.getUI().getStr("april"), MD_REF.getUI().getStr("may"), MD_REF.getUI().getStr("june"), MD_REF.getUI().getStr("july"), MD_REF.getUI().getStr("august"), MD_REF.getUI().getStr("september"), MD_REF.getUI().getStr("october"), MD_REF.getUI().getStr("november"), MD_REF.getUI().getStr("december")]
+                                            _row[dataKeys["_SECINFO_STKOPT_EXMONTH"][_COLUMN]] = "ERROR" if (securityAcct.getMonth() > len(monthOptions)) else monthOptions[securityAcct.getMonth()]
+
+                                        if securityAcct.getSecurityType() == SecurityType.OTHER: pass
+
+                                    except: pass
+
                             else:
                                 _row[dataKeys["_SECURITY"][_COLUMN]] = ""
+                                _row[dataKeys["_SECURITYID"][_COLUMN]] = ""
                                 _row[dataKeys["_SECCURR"][_COLUMN]] = ""
                                 _row[dataKeys["_TICKER"][_COLUMN]] = ""
                                 _row[dataKeys["_SHARES"][_COLUMN]] = 0
@@ -9742,7 +9818,7 @@ Visit: %s (Author's site)
                                     iCount += 1
                                     continue
 
-                                for _i in range(0,len(attachmentFileList)):
+                                for _i in range(0, len(attachmentFileList)):
                                     rowCopy = deepcopy(masterRowCopy)  # Otherwise passes by references and future changes affect the original(s)
 
                                     if _i > 0:  # If not on first record, update the key...
@@ -9935,6 +10011,7 @@ Visit: %s (Author's site)
                                         writer.writerow(["Adjust for Splits..........: %s" %(lAdjustForSplits)])
                                         writer.writerow(["Split Securities by Account: %s" %(userdateformat)])
                                         writer.writerow(["Omit LOT matching data.....: %s" %(lOmitLOTDataFromExtract_EIT)])
+                                        writer.writerow(["Extract extra Sec Acct Info: %s" %(lExtractExtraSecurityAcctInfo)])
                                         writer.writerow(["Download Attachments.......: %s" %(lExtractAttachments_EIT)])
 
                                 myPrint("B", "CSV file " + csvfilename + " created, records written, and file closed..")
