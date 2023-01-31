@@ -101,7 +101,7 @@
 # build: 1025 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1025 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
 # build: 1025 - Add date range selector/filter to extract_investment_registers
-# build: 1025 - Fix SG2020 cost_basis conversion back to back on certain non-base security situations (it assumed the cost basis was base)
+# build: 1025 - Fix SG2020 cost_basis conversion back to base on certain non-base security situations (it wrongly assumed the cost basis was always base)
 # build: 1026 - Tweak common code
 # build: 1027 - Tweak init message with time
 # build: 1028 - Added fields to extract investment transactions extract... SecurityID and [optional] security account information (e.g. type, apr, subtype etc)
@@ -5615,11 +5615,11 @@ Visit: %s (Author's site)
                                                     balanceBaseSplit = (0.0 if (qtySplit is None) else (curr.getDoubleValue(qtySplit) * price / exchangeRate))  # Value in Base Currency
 
                                                     # costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis) / exchangeRate, 2))
-                                                    costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis), 2));
+                                                    costBasisBase = (0.0 if (securityCostBasis is None) else round(self.currXrate.getDoubleValue(securityCostBasis), 2))
                                                     gainBase = round(balanceBase, 2) - costBasisBase
 
                                                     # costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]) / exchangeRate, 2)
-                                                    costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]), 2);
+                                                    costBasisBaseSplit = round(self.currXrate.getDoubleValue(split_acct_array[iSplitAcctArray][2]), 2)
                                                     gainBaseSplit = round(balanceBaseSplit, 2) - costBasisBaseSplit
 
                                                     if debug:
