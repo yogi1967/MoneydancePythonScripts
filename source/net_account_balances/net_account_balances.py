@@ -113,6 +113,7 @@
 #               internal knowledge of its views with special code to detect whether they are still alive/valid.
 #               When the view(s) are refreshed the code iterates all known views and simply builds a new view from the same data.
 # build: 1020 - Changed refresh time delay to 3 seconds (was 10 seconds)....
+# build: 1020 - Added capability for other extensions to request the last set of results using invoke "net_account_balances:customevent:returnLastResults"
 
 # todo investigate double preferences updated messages..?
 
@@ -2993,25 +2994,6 @@ Visit: %s (Author's site)
 
     def isAlertControllerEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_ALERTCONTROLLER_BUILD)
 
-    def shutdownMDPlusPoller():
-        if isMDPlusEnabledBuild():
-            myPrint("DB", "Shutting down the MD+ poller")
-            plusPoller = MD_REF.getUI().getPlusController()
-            if plusPoller is not None:
-                invokeMethodByReflection(plusPoller, "shutdown", None)
-                setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
-            # NOTE: MDPlus.licenseCache should be reset too, but it's a 'private static final' field....
-            #       hence restart MD if changing (importing/zapping) the license object
-            myPrint("DB", "... MD+ poller shutdown...")
-
-    def shutdownMDAlertController():
-        if isAlertControllerEnabledBuild():
-            myPrint("DB", "Shutting down the Alert Controller")
-            alertController = MD_REF.getUI().getAlertController()
-            if alertController is not None:
-                invokeMethodByReflection(alertController, "shutdown", None)
-                setFieldByReflection(MD_REF.getUI(), "alertController", None)
-
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -4536,6 +4518,8 @@ Visit: %s (Author's site)
             self.warning_label = None
 
             self.switchFromHomeScreen = False
+
+            self.rememberLastResultsTable = None
 
             self.swingWorkers_LOCK = threading.Lock()
             with self.swingWorkers_LOCK:
@@ -8335,6 +8319,8 @@ Visit: %s (Author's site)
 
             if appEvent == "md:file:closing" or appEvent == "md:file:closed":
 
+                self.rememberLastResultsTable = None
+
                 self.parametersLoaded = self.configPanelOpen = False
 
                 if self.theFrame is not None and self.theFrame.isVisible():
@@ -8400,7 +8386,6 @@ Visit: %s (Author's site)
 
                 myPrint("B", "... end of routines after receiving  'md:file:opened' command....")
 
-
             elif (appEvent.lower().startswith(("%s:customevent:showConfig" %(self.myModuleID)).lower())):
                 myPrint("DB", "%s Config screen requested - I might show it if conditions are appropriate" %(appEvent))
 
@@ -8440,6 +8425,27 @@ Visit: %s (Author's site)
             elif (appEvent.lower().startswith(("%s:customevent:showConsole" %(self.myModuleID)).lower())):
                 myPrint("B", "%s Save settings requested - Triggering Help>Show Console" %(appEvent))
                 SwingUtilities.invokeLater(ShowConsoleRunnable())
+
+            elif (appEvent.lower().startswith(("%s:customevent:returnLastResults" %(self.myModuleID)).lower())):
+                myPrint("B", "%s Return last results requested..." %(appEvent))
+
+                _return = None
+                try:
+                    if self.rememberLastResultsTable is not None and len(self.rememberLastResultsTable) > 0:
+                        # This builds a remembered table for other extensions to leverage....
+                        _return = []
+                        for i in range(0, len(self.rememberLastResultsTable)):
+                            _row = self.rememberLastResultsTable[i]
+                            _rowName = copy.copy(self.savedWidgetName[i])
+                            _curr = copy.copy(_row[0].getUUID())      # Remove any objects, store only text
+                            _val = copy.copy(_row[1])
+                            _txt = copy.copy(_row[2])
+                            _return.append([_rowName, _curr, _val, _txt])
+                except:
+                    myPrint("B", "ERROR building remembered results table... Will ignore and continue...")
+                    dump_sys_error_to_md_console_and_errorlog()
+
+                return _return
 
             elif (appEvent == "%s:customevent:close" %(self.myModuleID)):
                 if debug:
@@ -9181,12 +9187,12 @@ Visit: %s (Author's site)
                 self.pleaseWaitLabel = pleaseWaitLabel
                 self.callingClass = callingClass
                 self.netAmountTable = None
-
                 self.widgetOnPnlRow = 0
                 self.widgetSeparatorsUsed = []
 
-                with NetAccountBalancesExtension.getNAB().swingWorkers_LOCK:
-                    NetAccountBalancesExtension.getNAB().swingWorkers.append(self)
+                NAB = NetAccountBalancesExtension.getNAB()
+                with NAB.swingWorkers_LOCK:
+                    NAB.swingWorkers.append(self)
 
             def isBuildHomePageWidgetSwingWorker(self):         return True
             def isSimulateTotalForRowSwingWorker(self):         return False
@@ -9201,7 +9207,9 @@ Visit: %s (Author's site)
                 result = False
 
                 try:
+                    NAB = NetAccountBalancesExtension.getNAB()
                     HPV = MyHomePageView.getHPV()
+
                     if HPV.lastRefreshTriggerWasAccountModified:
                         myPrint("DB", "** BuildHomePageWidgetSwingWorker.doInBackground() will now sleep for %s seconds as last trigger for .reallyRefresh() was an Account Listener... (unless I get superceded and cancelled)"
                                 %(HPV.lastRefreshTimeDelayMs / 1000.0))
@@ -9209,6 +9217,9 @@ Visit: %s (Author's site)
                         myPrint("DB", ".. >> Back from my sleep.... Now will reallyRefresh....!")
 
                     self.netAmountTable = self.callingClass.getBalancesBuildView(self)
+
+                    NAB.rememberLastResultsTable = self.netAmountTable
+
                     if self.netAmountTable is not None and len(self.netAmountTable) > 0:
                         result = True
 
