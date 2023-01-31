@@ -149,7 +149,8 @@
 # build: 1056 - Added 'lBypassAllBackupsAndDisclaimers_TB' feature....
 # build: 1056 - Added launch check for base CurrencyType relative rate != 1.0; fixed diagnose/repair currency option to fix != 1.0 (properly)
 # build: 1057 - Changed errortrap in force disconnect md+ connection....
-# build: 1057 - Bold'ified [sic] blinking cells...
+# build: 1057 - Bold'ified [sic] blinking cells...; tweaked security account information output (curious view selected object)
+# build: 1057 - Added MacOSx Finder path for internal root folder (fake alias)....; launch check for non-hierarchical security txn(s)
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -504,7 +505,7 @@ else:
     from com.infinitekind.moneydance.model import ReportSpec, AddressBookEntry, OnlineService, MoneydanceSyncableItem
     from com.infinitekind.moneydance.model import OnlinePayeeList, OnlinePaymentList, InvestFields, AbstractTxn
     from com.infinitekind.moneydance.model import CurrencySnapshot, CurrencySplit, OnlineTxnList, CurrencyTable
-    from com.infinitekind.moneydance.model import TxnSet, InvestTxnType
+    from com.infinitekind.moneydance.model import TxnSet, InvestTxnType, SecurityType
 
     from com.infinitekind.moneydance.online import OnlineTxnMerger, OFXAuthInfo
 
@@ -3075,28 +3076,6 @@ Visit: %s (Author's site)
 
     def isAlertControllerEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_ALERTCONTROLLER_BUILD)       # 2022.3
 
-    def shutdownMDPlusPoller():
-        if isMDPlusEnabledBuild():
-            myPrint("DB", "Shutting down the MD+ poller")
-            plusPoller = MD_REF.getUI().getPlusController()
-            if plusPoller is not None:
-                invokeMethodByReflection(plusPoller, "shutdown", None)
-                setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
-
-            myPrint("DB", "... Clearing out the in-memory license cache...")
-            licenseCache = getFieldByReflection(MDPlus, "licenseCache")
-            if licenseCache is not None: licenseCache.clear()
-
-            myPrint("DB", "... MD+ poller shutdown...")
-
-    def shutdownMDAlertController():
-        if isAlertControllerEnabledBuild():
-            myPrint("DB", "Shutting down the Alert Controller")
-            alertController = MD_REF.getUI().getAlertController()
-            if alertController is not None:
-                invokeMethodByReflection(alertController, "shutdown", None)
-                setFieldByReflection(MD_REF.getUI(), "alertController", None)
-
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3254,6 +3233,27 @@ Visit: %s (Author's site)
         @staticmethod
         def setBackground(*args, **kwargs): ToolboxMode.getJCheckBox().setBackground(*args, **kwargs)
 
+    def shutdownMDPlusPoller():
+        if isMDPlusEnabledBuild():
+            myPrint("DB", "Shutting down the MD+ poller")
+            plusPoller = MD_REF.getUI().getPlusController()
+            if plusPoller is not None:
+                invokeMethodByReflection(plusPoller, "shutdown", None)
+                setFieldByReflection(MD_REF.getUI(), "plusPoller", None)
+
+            myPrint("DB", "... Clearing out the in-memory license cache...")
+            licenseCache = getFieldByReflection(MDPlus, "licenseCache")
+            if licenseCache is not None: licenseCache.clear()
+
+            myPrint("DB", "... MD+ poller shutdown...")
+
+    def shutdownMDAlertController():
+        if isAlertControllerEnabledBuild():
+            myPrint("DB", "Shutting down the Alert Controller")
+            alertController = MD_REF.getUI().getAlertController()
+            if alertController is not None:
+                invokeMethodByReflection(alertController, "shutdown", None)
+                setFieldByReflection(MD_REF.getUI(), "alertController", None)
 
     def doesUserAcceptDisclaimer(theParent, theTitle, disclaimerQuestion):
         if not GlobalVars.lBypassAllBackupsAndDisclaimers_TB:
@@ -5117,6 +5117,15 @@ Visit: %s (Author's site)
                     myPrint("B", "ERROR - COULD NOT CREATE ALIAS from old Dropbox folder '%s' to migrated folder: '%s'" %(oldDropboxPath, newDropboxPath))
         return True
 
+    def showMacAliasPath():
+        fRawPath = Common.getRootDirectory()
+        rawPath = fRawPath.getCanonicalPath()
+        checkForStr = u"/com.infinitekind.MoneydanceOSX/"
+        replaceWithStr = u"/Moneydance/"
+        if (Platform.isOSX() and fRawPath.exists() and fRawPath.isDirectory() and isinstance(rawPath, basestring) and checkForStr in rawPath):
+            return rawPath.replace(checkForStr, replaceWithStr)
+        return None
+
     def buildDiagText():
 
         textArray = []                                                                                                  # noqa
@@ -5243,6 +5252,10 @@ Visit: %s (Author's site)
         else:
             textArray.append(u"UNABLE TO DETERMINE Application's Install Directory! (are you running Moneydance by manually executing the .jar file?)")
 
+        x = Common.getRootDirectory().getCanonicalPath()
+        textArray.append(u"Internal 'root' directory:     '%s'" %(x))
+        if showMacAliasPath():
+            textArray.append(u">>Mac Finder path for path:    '%s'" %(showMacAliasPath()))
 
         lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
         if lDropbox:
@@ -14311,47 +14324,72 @@ Visit: %s (Author's site)
                                 if selectedObject.getInvestAccountNumber():
                                     output += "%s %s\n" % (pad("Investment Account Number:",50),          selectedObject.getInvestAccountNumber())
 
+                                if selectedObject.getAnnualFee() != 0:
+                                    output += "%s %s\n" % (pad("Annual Fee:",50),                         selectedObject.getAnnualFee())
+
                                 # noinspection PyUnresolvedReferences
                                 if selectedObject.getAccountType() == Account.AccountType.SECURITY:
+
+                                    pAcct = selectedObject.getParentAccount()
+                                    pAcctCurr = pAcct.getCurrencyType()
+
+                                    if selectedObject.getUsesAverageCost():
+                                        output += "%s %s\n" % (pad("Uses Average Cost:",50),                selectedObject.getUsesAverageCost())
+
                                     if selectedObject.getBroker():
                                         output += "%s %s\n" % (pad("Broker:",50),                           selectedObject.getBroker())
                                     if selectedObject.getBrokerPhone():
                                         output += "%s %s\n" % (pad("Broker Phone:",50),                     selectedObject.getBrokerPhone())
                                     if selectedObject.getInvstCommissionAcct():
                                         output += "%s %s\n" % (pad("Investment Commission Account",50),     selectedObject.getInvstCommissionAcct())
-                                    if selectedObject.getAnnualFee():
-                                        output += "%s %s\n" % (pad("Annual Fee:",50),                       selectedObject.getAnnualFee())
-                                    if selectedObject.getDividend():
-                                        output += "%s %s\n" % (pad("Dividend:",50),                         selectedObject.getDividend())
-                                    if selectedObject.getUsesAverageCost():
-                                        output += "%s %s\n" % (pad("Uses Average Cost:",50),                selectedObject.getUsesAverageCost())
+
                                     if selectedObject.getSecurityType():
-                                        output += "%s %s\n" % (pad("Security Type:",50),                    selectedObject.getSecurityType())
+                                        output += "%s %s\n" % (pad("Security Type:",50),                    unicode(selectedObject.getSecurityType()))
                                     if selectedObject.getSecuritySubType():
-                                        output += "%s %s\n" % (pad("`Security Sub Type`:",50),              selectedObject.getSecuritySubType())
-                                    if selectedObject.getBondType():
-                                        output += "%s %s\n" % (pad("Bond Type:",50),                        selectedObject.getBondType())
-                                    if selectedObject.getMaturity():
-                                        output += "%s %s\n" % (pad("Maturity:",50),                         selectedObject.getMaturity())
-                                    if selectedObject.getNumYears():
-                                        output += "%s %s\n" % (pad("Maturity Year (6=six Mnths):",50),      selectedObject.getNumYears())
-                                    if selectedObject.getCompounding():
-                                        output += "%s %s\n" % (pad("CD Compounding:",50),                   selectedObject.getCompounding())
-                                    if selectedObject.getOptionPrice():
-                                        output += "%s %s\n" % (pad("Option Price:",50),                     selectedObject.getOptionPrice())
-                                    if selectedObject.getMonth():
-                                        output += "%s %s\n" % (pad("Option Exercise Month (0-11 3rd Fri):",50),selectedObject.getMonth())
-                                    if selectedObject.getStrikePrice():
-                                        output += "%s %s\n" % (pad("Option Strike Price:",50),               selectedObject.getStrikePrice())
-                                    if selectedObject.getPut():
-                                        output += "%s %s\n" % (pad("Option Put(T), Call(F):",50),           selectedObject.getPut())
+                                        output += "%s %s\n" % (pad("Security Sub Type:",50),                selectedObject.getSecuritySubType())
+
+                                    if selectedObject.getSecurityType() == SecurityType.STOCK:
+                                        if selectedObject.getDividend() and selectedObject.getDividend() != 0:
+                                            output += "%s %s\n" % (pad("Dividend:",50),                     pAcctCurr.format(selectedObject.getDividend(), GlobalVars.decimalCharSep))
+
+                                    if selectedObject.getSecurityType() == SecurityType.MUTUAL: pass
+
+                                    if selectedObject.getSecurityType() == SecurityType.CD:
+                                        if selectedObject.getAPR() != 0.0:
+                                            output += "%s %s\n" % (pad("CD APR:",50),                       selectedObject.getAPR())
+                                        if selectedObject.getCompounding():
+                                            output += "%s %s\n" % (pad("CD Compounding:",50),               selectedObject.getCompounding())
+
+                                        numYearsChoice = ["0.5"]
+                                        for iYears in range(1, 51): numYearsChoice.append(str(iYears))
+                                        output += "%s %s\n" % (pad("Maturity Year (6=six Mnths):",50),      numYearsChoice[-1] if (len(numYearsChoice) < selectedObject.getNumYears()) else numYearsChoice[selectedObject.getNumYears()])
+
+                                    if selectedObject.getSecurityType() == SecurityType.BOND:
+                                        bondTypes = [MD_REF.getUI().getStr("gov_bond"), MD_REF.getUI().getStr("mun_bond"), MD_REF.getUI().getStr("corp_bond"), MD_REF.getUI().getStr("zero_bond")]
+                                        output += "%s %s\n" % (pad("Bond Type:",50),                        "ERROR" if (selectedObject.getBondType() > len(bondTypes)) else bondTypes[selectedObject.getBondType()])
+                                        if selectedObject.getFaceValue() != 0:
+                                            output += "%s %s\n" % (pad("Bond face value:",50),              pAcctCurr.format(selectedObject.getFaceValue(), GlobalVars.decimalCharSep))
+                                        if selectedObject.getAPR() != 0.0:
+                                            output += "%s %s\n" % (pad("Bond APR:",50),                     selectedObject.getAPR())
+                                        if (selectedObject.getMaturity() != 0 and selectedObject.getMaturity() != 39600000):
+                                            output += "%s %s\n" % (pad("Maturity:",50),                         DateUtil.convertLongDateToInt(selectedObject.getMaturity()))
+
+                                    if selectedObject.getSecurityType() == SecurityType.OPTION:
+                                        output += "%s %s\n" % (pad("Option Put/Call:",50),                  "Put" if (selectedObject.getPut()) else "Call")
+                                        if selectedObject.getOptionPrice() != 0.0:
+                                            output += "%s %s\n" % (pad("Option Price:",50),                 selectedObject.getOptionPrice())
+                                        if selectedObject.getStrikePrice() != 0:
+                                            output += "%s %s\n" % (pad("Option Strike Price:",50),          pAcctCurr.format(selectedObject.getStrikePrice(), GlobalVars.decimalCharSep))
+                                        monthOptions = [MD_REF.getUI().getStr("january"), MD_REF.getUI().getStr("february"), MD_REF.getUI().getStr("march"), MD_REF.getUI().getStr("april"), MD_REF.getUI().getStr("may"), MD_REF.getUI().getStr("june"), MD_REF.getUI().getStr("july"), MD_REF.getUI().getStr("august"), MD_REF.getUI().getStr("september"), MD_REF.getUI().getStr("october"), MD_REF.getUI().getStr("november"), MD_REF.getUI().getStr("december")]
+                                        output += "%s %s\n" % (pad("Option Exercise Month:",50),            "ERROR" if (selectedObject.getMonth() > len(monthOptions)) else monthOptions[selectedObject.getMonth()])
+
+                                    if selectedObject.getSecurityType() == SecurityType.OTHER: pass
+
                                     if selectedObject.getEscrow():
                                         output += "%s %s\n" % (pad("Escrow?:",50),                          selectedObject.getEscrow())
+
                                     if selectedObject.getExchange():
                                         output += "%s %s\n" % (pad("Trading Platform:",50),                 selectedObject.getExchange())
-                                    if selectedObject.getFaceValue():
-                                        output += "%s %s\n" % (pad("Bond face value:",50),                  selectedObject.getFaceValue())
-
                             except:
                                 output += dump_sys_error_to_md_console_and_errorlog( True )
 
@@ -21451,11 +21489,10 @@ now after saving the file, restart Moneydance
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def detect_non_hier_sec_acct_or_orphan_txns():
-
-        txnSet = MD_REF.getCurrentAccount().getBook().getTransactionSet()
+        if MD_REF.getCurrentAccountBook() is None: return 0
+        txnSet = MD_REF.getCurrentAccountBook().getTransactionSet()
         txns = txnSet.iterableTxns()
         fields = InvestFields()
-
         count_the_errors = 0
 
         for txn in txns:
@@ -29533,6 +29570,18 @@ now after saving the file, restart Moneydance
             ###################### PERFORM POST-LAUNCH VALIDATION(s) AND POPUP APPROPRIATE ALERTS ######################
             ### MAKE SURE THESE POPUPS ARE NOT MODAL AND THUS DO NOT BLOCK THE EDT!
             ############################################################################################################
+
+            if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+                statusTxt = "ERROR - Cross-linked (or Orphaned) security txn(s) detected.. Review Console!"
+                output = ">> Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)'..."
+                myPrint("B", statusTxt, output)
+                MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus=statusTxt,
+                                 theMessage=output,
+                                 theTitle="ERROR - Non-Hierarchical Security Acct Txns".upper(),
+                                 OKButtonText="ACKNOWLEDGE",
+                                 lAlertLevel=2,
+                                 lModal=False).go()
 
             # Check for accounts that have both OFX and MD+ configured.....
             if isMDPlusEnabledBuild():

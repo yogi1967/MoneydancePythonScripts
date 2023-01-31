@@ -9,6 +9,7 @@ import sys
 import datetime
 from java.lang import System, Runtime, Long, Runnable, Thread, InterruptedException
 from com.moneydance.util import Platform
+from com.moneydance.apps.md.controller import Common
 from java.io import File
 
 _THIS_IS_ = u"toolbox"
@@ -51,6 +52,15 @@ else:
     moneydance.getPreferences().setSetting(_TOOLBOX_PREFERENCES_ZAPPER, None)
     _specialPrint(u"############# FINISHED ZAPPING ########################")
 
+def showMacAliasPath():
+    fRawPath = Common.getRootDirectory()
+    rawPath = fRawPath.getCanonicalPath()
+    checkForStr = u"/com.infinitekind.MoneydanceOSX/"
+    replaceWithStr = u"/Moneydance/"
+    if (Platform.isOSX() and fRawPath.exists() and fRawPath.isDirectory() and isinstance(rawPath, basestring) and checkForStr in rawPath):
+        return rawPath.replace(checkForStr, replaceWithStr)
+    return None
+
 class QuickDiag(Runnable):
     def __init__(self, mdRef, _thisis):
         self.mdRef = mdRef
@@ -68,6 +78,9 @@ class QuickDiag(Runnable):
 
             msg += (u"MD CONSOLE FILE LOCATION:       %s\n" %(returnPathStrings(self.mdRef.getLogFile())))
             msg += (u"MD CONFIG/PREFERENCES LOCATION: %s\n" %(returnPathStrings(Common.getPreferencesFile())))
+
+            if showMacAliasPath():
+                msg += (u"... Mac Finder path for above:  '%s'\n" %(showMacAliasPath()))
 
             msg += u"-----\n"
             from com.moneydance.apps.md.controller.io import FileUtils
