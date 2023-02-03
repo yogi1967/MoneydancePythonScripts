@@ -254,6 +254,17 @@ else
     exit 7
   fi
 
+  echo "Zipping *.pyc stub files into mxt..."
+  if test -f "${EXTN_DIR}"/*.pyc; then
+    zip -j "${MXT}" "${EXTN_DIR}"/*.pyc
+    if [ $? -ne 0 ]; then
+      echo "*** zip *.pyc Failed??"
+      exit 8
+    fi
+  else
+    echo "No *.pyi stub file(s) to ZIP - skipping....."
+  fi
+
   echo "Zipping *.pyi stub files into mxt..."
   if test -f "${EXTN_DIR}"/*.pyi; then
     zip -j "${MXT}" "${EXTN_DIR}"/*.pyi
