@@ -16,6 +16,9 @@ Extensions have a file extension of *.mxt
 Scripts have a file extension of *.py
 If you downloaded a zip file (extension *.zip) then unzip first in a directory of your choice to get at the file(s)
 
+As of Feb 2023 there are also precompiled versions ($py.class files) included with a bootstrap loader for faster
+load times (avoids initial compile on launch). If it fails to load this, it just runs the script...
+
 Toolbox and net_account_balances are Extension format only - i.e. just the Toolbox.mxt file
 All the others have both Extension (*.mxt) and Script (*.py) formats
 

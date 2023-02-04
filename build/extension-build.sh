@@ -15,7 +15,7 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "import_hargreaves_lansdown_files" "fix_downloaded_transactions" "stutilities")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities")
 RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "accounts_categories_mega_search_window")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth" "fix_downloaded_transactions")
@@ -254,34 +254,48 @@ else
     exit 7
   fi
 
-  echo "Zipping *.pyc stub files into mxt..."
-  if test -f "${EXTN_DIR}"/*.pyc; then
-    zip -j "${MXT}" "${EXTN_DIR}"/*.pyc
+  if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}\$py.class" ]; then
+    echo "Compiling script into a \$py.class file..."
+    rm -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"
+    java -cp './Moneydance_jars/mdpython.jar' org.python.util.jython -c "import compileall; compileall.compile_file('${EXTN_DIR}/${EXTN_NAME}.py')"
     if [ $? -ne 0 ]; then
-      echo "*** zip *.pyc Failed??"
+      echo "*** compile of script into a jython \$py.class file failed??"
       exit 8
     fi
+    if ! test -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"; then
+      echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}\$py.class does not exist!"
+      exit 9
+    fi
   else
-    echo "No *.pyi stub file(s) to ZIP - skipping....."
+    echo "No need to recompile ${EXTN_DIR}/${EXTN_NAME}\$py.class"
   fi
 
-  echo "Zipping *.pyi stub files into mxt..."
-  if test -f "${EXTN_DIR}"/*.pyi; then
-    zip -j "${MXT}" "${EXTN_DIR}"/*.pyi
+  shopt -s nullglob
+  for f in "${EXTN_DIR}"/*.class; do
+    echo "Zipping $f class file into mxt..."
+    zip -j "${MXT}" "$f"
     if [ $? -ne 0 ]; then
-      echo "*** zip *.pyi Failed??"
-      exit 8
+      echo "*** zip $f class file Failed??"
+      exit 10
     fi
-  else
-    echo "No *.pyi stub file(s) to ZIP - skipping....."
-  fi
+  done
+
+  for f in "${EXTN_DIR}"/*.pyi; do
+    echo "Zipping *.pyi stub files into mxt..."
+    zip -j "${MXT}" "$f"
+    if [ $? -ne 0 ]; then
+      echo "*** zip $f stub file Failed??"
+      exit 12
+    fi
+  done
+  shopt -u nullglob
 
   echo "Zipping PREVIEW MARKER file into mxt..."
   if test -f "${EXTN_DIR}"/_PREVIEW_BUILD_; then
     zip -j "${MXT}" "${EXTN_DIR}"/_PREVIEW_BUILD_
     if [ $? -ne 0 ]; then
       echo "*** zip _PREVIEW_BUILD_ Failed??"
-      exit 8
+      exit 14
     fi
   else
     echo "No PREVIEW MARKER file to ZIP - skipping....."
@@ -295,7 +309,7 @@ else
     zip -j "${MXT}" "${EXTN_DIR}"/*.txt
     if [ $? -ne 0 ]; then
       echo "*** zip *.txt Failed??"
-      exit 8
+      exit 16
     fi
   fi
 
@@ -304,7 +318,7 @@ else
     zip -j "${MXT}" "./source/install-readme.txt"
     if [ $? -ne 0 ]; then
       echo "*** zip install-readme.txt Failed??"
-      exit 9
+      exit 18
     fi
   fi
 
@@ -312,14 +326,14 @@ else
   zip -j "${MXT}" "./source/${EXTN_NAME}/script_info.dict"
   if [ $? -ne 0 ]; then
     echo "*** zip script_info.dict Failed??"
-    exit 10
+    exit 20
   fi
 
   echo "Zipping meta_info.dict into mxt..."
   zip -m "${MXT}" "${FM_DIR}/meta_info.dict"
   if [ $? -ne 0 ]; then
     echo "*** zip meta_info.dict Failed??"
-    exit 11
+    exit 21
   fi
 
   if [ "${BUNDLE_JAVA}" = "YES" ]; then
@@ -328,13 +342,13 @@ else
     jar -v -u -f "${MXT}" -C "./java_code/src/" "${JAVA_PACKAGE_NAME}.java"
     if [ $? -ne 0 ]; then
       echo "*** jar utility failed bundling own Java source code..??"
-      exit 12
+      exit 23
     fi
 
     jar -v -u -f "${MXT}" -C "./java_code/compiled" "${JAVA_PACKAGE_NAME}.class"
     if [ $? -ne 0 ]; then
       echo "*** jar utility failed bundling own Java code/class file..??"
-      exit 12
+      exit 25
     fi
   fi
 
@@ -342,28 +356,28 @@ else
   cp "./moneydance-devkit-5.1 2/lib/extadmin.jar" .
   if [ $? -ne 0 ]; then
     echo "*** cp extadmin.jar Failed??"
-    exit 13
+    exit 27
   fi
 
   echo "copying moneydance-dev.jar..."
   cp "./moneydance-devkit-5.1 2/lib/moneydance-dev.jar" .
   if [ $? -ne 0 ]; then
     echo "*** cp moneydance-dev.jar Failed??"
-    exit 14
+    exit 29
   fi
 
   echo "copying priv_key..."
   cp "./moneydance-devkit-5.1 2/src/priv_key" .
   if [ $? -ne 0 ]; then
     echo "*** cp priv_key Failed??"
-    exit 15
+    exit 31
   fi
 
   echo "copying pub_key..."
   cp "./moneydance-devkit-5.1 2/src/pub_key" .
   if [ $? -ne 0 ]; then
     echo "*** cp pub_key Failed??"
-    exit 16
+    exit 33
   fi
 
   if [ "${EXTN_NAME}" = "toolbox" ]; then
@@ -371,7 +385,7 @@ else
     rm "${EXTN_DIR}"/ofx_*.py
     if [ $? -ne 0 ]; then
       echo "*** rm extra scripts ofx*.py failed??"
-      exit 5
+      exit 35
     fi
   fi
 
@@ -384,18 +398,18 @@ else
   if [ $? -ne 0 ]; then
     echo java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}"
     echo "*** Java self-signing of mxt package Failed??"
-    exit 17
+    exit 37
   fi
 
   if ! test -f "${sMXT}"; then
     echo "ERROR - self-signed ${sMXT} does not exist after java signing?"
-    exit 18
+    exit 39
   else
     echo "Adding comments to signed mxt..."
     zip -z "${sMXT}" <<<"${ZIP_COMMENT}"
     if [ $? -ne 0 ]; then
       echo "*** zip add comments to self-signed ${sMXT} Failed??"
-      exit 19
+      exit 41
     fi
   fi
 
@@ -418,7 +432,7 @@ else
   mv "${sMXT}" "${MXT}"
   if [ $? -ne 0 ]; then
     echo "*** mv of self-signed ${sMXT} to ${MXT} Failed??"
-    exit 20
+    exit 43
   fi
 
   if test -f "${MXT}"; then
@@ -430,7 +444,7 @@ else
   else
     echo "@@@@@@@@@@@@@@@@@"
     echo "PROBLEM CREATING ${MXT} ..."
-    exit 21
+    exit 45
   fi
 
   echo "Removing temporary build directories (com/...)... should be empty...."
@@ -452,7 +466,7 @@ echo "Creating zip file with ${ZIP_THIS}..."
 zip -j -z "${ZIP}" "${ZIP_THIS}" <<<"${ZIP_COMMENT}"
 if [ $? -ne 0 ]; then
   echo "*** final zip of package to ${ZIP} Failed??"
-  exit 22
+  exit 47
 fi
 
 if [ "${REALLY_EXTENSION}" = "NO" ]; then
@@ -461,23 +475,25 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
   zip -j -c "${ZIP}" "${EXTN_DIR}"/*.py <<<"${ZIP_COMMENT2}"
   if [ $? -ne 0 ]; then
     echo "*** final zip of ${EXTN_NAME} package *.py Failed??"
-    exit 23
+    exit 49
   fi
 
-  if test -f "${EXTN_DIR}"/*.pyi; then
-    echo "Adding *.pyi stub to zip file..."
-    zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
+  shopt -s nullglob
+  for f in "${EXTN_DIR}"/*.pyi; do
+    echo "Adding $f stub to zip file..."
+    zip -j "${ZIP}" "$f"
     if [ $? -ne 0 ]; then
-      echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
-      exit 24
+      echo "*** final zip of ${EXTN_NAME} package $f Failed??"
+      exit 51
     fi
-  fi
+  done
+  shopt -u nullglob
 
   echo "Adding *.pdf to zip file..."
   zip -j "${ZIP}" "${EXTN_DIR}"/*.pdf
   if [ $? -ne 0 ]; then
     echo "*** final zip of ${EXTN_NAME} package *.pdf Failed??"
-    exit 25
+    exit 53
   fi
 
 else
@@ -486,34 +502,38 @@ else
   zip -j -c "${ZIP}" "${MXT}" <<<"${ZIP_COMMENT}"
   if [ $? -ne 0 ]; then
     echo "*** final zip of mxt into zip package Failed??"
-    exit 26
+    exit 55
   fi
 
-  if test -f "${EXTN_DIR}"/*.pdf; then
-    echo "Adding *.pdf to zip file..."
-    zip -j "${ZIP}" "${EXTN_DIR}"/*.pdf
+  shopt -s nullglob
+  for f in "${EXTN_DIR}"/*.pdf; do
+    echo "Adding $f to zip file..."
+    zip -j "${ZIP}" "$f"
     if [ $? -ne 0 ]; then
-      echo "*** final zip of pdf into zip package Failed??"
-      exit 26
+      echo "*** final zip of $f into zip package Failed??"
+      exit 57
     fi
-  fi
+  done
+  shopt -u nullglob
 
   if [ "${RESTRICT_SCRIPT}" != "YES" ]; then
     echo "adding *.py file(s) into zip file..."
     zip -j "${ZIP}" "${EXTN_DIR}"/*.py
     if [ $? -ne 0 ]; then
       echo "*** final zip of *.py script(s) into zip package Failed??"
-      exit 27
+      exit 59
     fi
 
-    if test -f "${EXTN_DIR}"/*.pyi; then
-      echo "Adding *.pyi stub to zip file..."
-      zip -j "${ZIP}" "${EXTN_DIR}"/*.pyi
+    shopt -s nullglob
+    for f in "${EXTN_DIR}"/*.pyi; do
+      echo "Adding $f stub to zip file..."
+      zip -j "${ZIP}" "$f"
       if [ $? -ne 0 ]; then
-        echo "*** final zip of ${EXTN_NAME} package *.pyi Failed??"
-        exit 28
+        echo "*** final zip of ${EXTN_NAME} package $f Failed??"
+        exit 61
       fi
-    fi
+    done
+    shopt -u nullglob
 
   else
     echo "@@ Not including *.py file(s) for ${EXTN_NAME} package...."
@@ -524,7 +544,7 @@ else
     zip -j "${ZIP}" "${EXTN_DIR}"/*.dict
     if [ $? -ne 0 ]; then
       echo "*** final zip of *.dict script(s) into zip package Failed??"
-      exit 29
+      exit 63
     fi
   else
     echo "@@ Not including *.dict file(s) for ${EXTN_NAME} package...."
@@ -533,16 +553,16 @@ else
 fi
 
 if [ "${EXTN_NAME}" != "extension_tester" ]; then
-  if test -f "${EXTN_DIR}"/*.txt; then
-    echo "Adding *.txt files into zip file..."
-    zip -j "${ZIP}" "${EXTN_DIR}"/*.txt
+  shopt -s nullglob
+  for f in "${EXTN_DIR}"/*.txt; do
+    echo "Adding $f txt file into zip file..."
+    zip -j "${ZIP}" "$f"
     if [ $? -ne 0 ]; then
-      echo "*** final zip of *.txt file(s) into zip package Failed??"
-      exit 30
+      echo "*** final zip of $f txt file into zip package Failed??"
+      exit 65
     fi
-  else
-    echo "No help *.txt file(s) to ZIP - skipping....."
-  fi
+  done
+  shopt -u nullglob
 fi
 
 if test -f "${ZIP}"; then
@@ -554,7 +574,7 @@ if test -f "${ZIP}"; then
 else
   echo "@@@@@@@@@@@@@@@@@"
   echo "PROBLEM CREATING FINAL DISTRIBUTION ${ZIP} !"
-  exit 31
+  exit 67
 fi
 
 if [ "${EXTN_NAME}" = "useful_scripts" ]; then
@@ -577,6 +597,6 @@ if [ "${PUSHME}" = "YES" ]; then
   cp "${MXT}" "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/fmodules"
   if [ $? -ne 0 ]; then
     echo ">> ERROR Pushing MXT to fmodules folder!"
-    exit 40
+    exit 69
   fi
 fi

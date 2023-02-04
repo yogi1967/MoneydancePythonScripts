@@ -151,6 +151,7 @@
 # build: 1057 - Changed errortrap in force disconnect md+ connection....
 # build: 1057 - Bold'ified [sic] blinking cells...; tweaked security account information output (curious view selected object)
 # build: 1057 - Added MacOSx Finder path for internal root folder (fake alias)....; launch check for non-hierarchical security txn(s)
+# build: 1057 - Added bootstrap to execute compiled version of extension (faster to load)....
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -184,14 +185,25 @@ global toolbox_frame_
 # SET LINES ABOVE ^^^^
 
 # COPY >> START
+import __builtin__ as builtins
+
+def checkObjectInNameSpace(objectName):
+    """Checks globals() and builtins for the existence of the object name (used for StuWareSoftSystems' bootstrap)"""
+    if objectName is None or not isinstance(objectName, basestring) or objectName == u"": return False
+    if objectName in globals(): return True
+    return objectName in dir(builtins)
+
+
 global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter
 MD_REF = moneydance             # Make my own copy of reference as MD removes it once main thread ends.. Don't use/hold on to _data variable
 MD_REF_UI = moneydance_ui       # Necessary as calls to .getUI() will try to load UI if None - we don't want this....
-if MD_REF is None: raise Exception("CRITICAL ERROR - moneydance object/variable is None?")
-if u"moneydance_extension_loader" in globals():
+if MD_REF is None: raise Exception(u"CRITICAL ERROR - moneydance object/variable is None?")
+if checkObjectInNameSpace(u"moneydance_extension_loader"):
     MD_EXTENSION_LOADER = moneydance_extension_loader
 else:
     MD_EXTENSION_LOADER = None
+
+if (u"__file__" in globals() and __file__.startswith(u"bootstrapped_")): del __file__       # Prevent bootstrapped loader setting this....
 
 from java.lang import System, Runnable
 from javax.swing import JFrame, SwingUtilities, SwingWorker
@@ -311,7 +323,7 @@ elif not _I_CAN_RUN_AS_MONEYBOT_SCRIPT and u"__file__" in globals():
     try: MD_REF_UI.showInfoMessage(msg)
     except: raise Exception(msg)
 
-elif not _I_CAN_RUN_AS_MONEYBOT_SCRIPT and u"moneydance_extension_loader" not in globals():
+elif not _I_CAN_RUN_AS_MONEYBOT_SCRIPT and not checkObjectInNameSpace(u"moneydance_extension_loader"):
     msg = "%s: Error - moneydance_extension_loader seems to be missing? Must be on build: %s onwards. Now exiting script!\n" %(myModuleID, MIN_BUILD_REQD)
     print(msg); System.err.write(msg)
     try: MD_REF_UI.showInfoMessage(msg)
@@ -2298,9 +2310,9 @@ Visit: %s (Author's site)
 
             # IntelliJ doesnt like the use of 'print' (as it's a keyword)
             try:
-                if "MD_REF" in globals():
+                if checkObjectInNameSpace("MD_REF"):
                     usePrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
-                elif "moneydance" in globals():
+                elif checkObjectInNameSpace("moneydance"):
                     usePrintFontSize = eval("moneydance.getUI().getFonts().print.getSize()")
                 else:
                     usePrintFontSize = GlobalVars.defaultPrintFontSize  # Just in case cleanup_references() has tidied up once script ended
@@ -2599,6 +2611,7 @@ Visit: %s (Author's site)
                 except:
                     myPrint("B","Error. QuickJFrame dispose failed....?")
                     dump_sys_error_to_md_console_and_errorlog()
+
 
         class ToggleWrap(AbstractAction):
 
@@ -3184,9 +3197,6 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
-
-    # Prevent usage later on... We use MD_REF
-    if "moneydance" in globals(): del moneydance
 
     class ToolboxMode:
         DEFAULT_TEXT = "Update Mode"

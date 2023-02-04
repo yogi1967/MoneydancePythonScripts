@@ -7,6 +7,7 @@ import datetime
 from java.lang import System
 
 _THIS_IS_ = u"security_performance_graph"
+
 def _specialPrint(_what):
     dt = datetime.datetime.now().strftime(u"%Y/%m/%d-%H:%M:%S")
     print(_what)
