@@ -397,7 +397,6 @@ else:
 
     GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
-
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
@@ -7293,7 +7292,6 @@ Visit: %s (Author's site)
 
                                 myPrint("D","In ", inspect.currentframe().f_code.co_name, "()")
 
-                                # NOTE - You can add sep=; to beginning of file to tell Excel what delimiter you are using
                                 if not lSplitSecuritiesByAccount:
                                     rawDataTable = sorted(rawDataTable, key=lambda x: (x[1].upper()))
 
@@ -8492,7 +8490,6 @@ Visit: %s (Author's site)
 
                                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-                                # NOTE - You can add sep=; to beginning of file to tell Excel what delimiter you are using
                                 # noinspection PyUnreachableCode
                                 if False:
                                     csvlines = sorted(csvlines, key=lambda x: (str(x[1]).upper()))
@@ -9224,8 +9221,6 @@ Visit: %s (Author's site)
 
                                 for col in range(0, dataKeys["_ATTACHMENTLINK"][_COLUMN]):  # DO NOT MESS WITH ATTACHMENT LINK NAMES!!
                                     _theRow[col] = fixFormatsStr(_theRow[col])
-
-                            # NOTE - You can add sep= to beginning of file to tell Excel what delimiter you are using
 
                             # Write the csvlines to a file
                             myPrint("B", "Opening file and writing ", len(transactionTable), "records")
@@ -10300,8 +10295,6 @@ Visit: %s (Author's site)
                                 for col in range(0, dataKeys["_SECSHRHOLDING"][_COLUMN]):
                                     _theRow[col] = fixFormatsStr(_theRow[col])
 
-                            # NOTE - You can add sep=; to beginning of file to tell Excel what delimiter you are using
-
                             # Write the csvlines to a file
                             myPrint("B", "Opening file and writing ", len(transactionTable), "records")
 
@@ -10638,6 +10631,8 @@ Visit: %s (Author's site)
                         _COLUMN = 0
                         _HEADING = 1
 
+                        usedSecurityMasters = {}
+
                         dki = 0
                         dataKeys = {}                                                                                   # noqa
                         dataKeys["_ACCOUNT"]                   = [dki, "Account"];                      dki += 1
@@ -10646,6 +10641,7 @@ Visit: %s (Author's site)
                         dataKeys["_SECURITY"]                  = [dki, "Security"];                     dki += 1
                         dataKeys["_SECURITYID"]                = [dki, "SecurityID"];                   dki += 1
                         dataKeys["_TICKER"]                    = [dki, "SecurityTicker"];               dki += 1
+                        dataKeys["_SECMSTRUUID"]               = [dki, "SecurityMasterUUID"];           dki += 1
                         dataKeys["_AVGCOST"]                   = [dki, "AverageCostControl"];           dki += 1
 
                         dataKeys["_SECINFO_TYPE"]              = [dki, "Sec_Type"];                     dki += 1
@@ -10680,8 +10676,6 @@ Visit: %s (Author's site)
                         book = MD_REF.getCurrentAccountBook()
                         baseCurrency = MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
 
-
-                        iCount = 0
                         for sAcct in AccountUtil.allMatchesForSearch(book, MyAcctFilterESB(hideInactiveAccounts,
                                                                                            lAllAccounts,
                                                                                            filterForAccounts,
@@ -10693,7 +10687,7 @@ Visit: %s (Author's site)
                                                                                            filterForSecurity,
                                                                                            None)):
 
-                            if sAcct.getAccountType() is not Account.AccountType.SECURITY: raise Exception("LOGIC ERROR")    # noqa
+                            if sAcct.getAccountType() is not Account.AccountType.SECURITY: raise Exception("LOGIC ERROR")  # noqa
 
                             investAcct = sAcct.getParentAccount()
                             investAcctCurr = investAcct.getCurrencyType()
@@ -10702,21 +10696,30 @@ Visit: %s (Author's site)
                             securityCurr = securityAcct.getCurrencyType()  # the Security master record
                             del sAcct
 
-                            keyIndex = 0
                             _row = ([None] * dataKeys["_END"][0])  # Create a blank row to be populated below...
 
-                            acctKey = securityAcct.getUUID()
-                            _row[dataKeys["_KEY"][_COLUMN]] = acctKey + "-" + str(keyIndex).zfill(3)
+                            usedSecurityMasters[securityCurr] = True
+
+                            _row[dataKeys["_KEY"][_COLUMN]] = ""
 
                             _row[dataKeys["_ACCOUNT"][_COLUMN]] = investAcct.getFullAccountName()
                             _row[dataKeys["_ACCTCURR"][_COLUMN]] = investAcctCurr.getIDString()
                             _row[dataKeys["_BASECURR"][_COLUMN]] = baseCurrency.getIDString()
 
                             costBasis = InvestUtil.getCostBasis(securityAcct)
-                            costBasisBase = CurrencyUtil.convertValue(costBasis, securityAcct.getParentAccount().getCurrencyType(), baseCurrency)
+                            costBasisBase = CurrencyUtil.convertValue(costBasis, investAcctCurr, baseCurrency)
 
                             _row[dataKeys["_ACCTCOSTBASIS"][_COLUMN]] = investAcctCurr.getDoubleValue(costBasis)
                             _row[dataKeys["_BASECOSTBASIS"][_COLUMN]] = baseCurrency.getDoubleValue(costBasisBase)
+
+                            _row[dataKeys["_SECURITY"][_COLUMN]] = unicode(securityCurr.getName())
+                            _row[dataKeys["_SECURITYID"][_COLUMN]] = unicode(securityCurr.getIDString())
+                            _row[dataKeys["_SECMSTRUUID"][_COLUMN]] = securityCurr.getUUID()
+                            _row[dataKeys["_TICKER"][_COLUMN]] = unicode(securityCurr.getTickerSymbol())
+                            _row[dataKeys["_AVGCOST"][_COLUMN]] = securityAcct.getUsesAverageCost()
+                            _row[dataKeys["_SECSHRHOLDING"][_COLUMN]] = securityCurr.getDoubleValue(securityAcct.getBalance())
+
+                            _row[dataKeys["_SECRELCURR"][_COLUMN]] = unicode(securityCurr.getRelativeCurrency().getIDString())
 
                             _row[dataKeys["_CURRENTPRICE"][_COLUMN]] = (1.0 / securityCurr.getRelativeRate())
                             _row[dataKeys["_CURRENTPRICETOBASE"][_COLUMN]] = (1.0 / securityCurr.getBaseRate())     # same as .getRate(None)
@@ -10736,13 +10739,6 @@ Visit: %s (Author's site)
                             _row[dataKeys["_SECINFO_STKOPT_STKPRICE"][_COLUMN]] = ""
                             _row[dataKeys["_SECINFO_STKOPT_EXPRICE"][_COLUMN]] = ""
                             _row[dataKeys["_SECINFO_STKOPT_EXMONTH"][_COLUMN]] = ""
-
-                            _row[dataKeys["_SECURITY"][_COLUMN]] = safeStr(securityCurr.getName())
-                            _row[dataKeys["_SECURITYID"][_COLUMN]] = safeStr(securityCurr.getIDString())
-                            _row[dataKeys["_SECRELCURR"][_COLUMN]] = safeStr(securityCurr.getRelativeCurrency().getIDString())
-                            _row[dataKeys["_TICKER"][_COLUMN]] = safeStr(securityCurr.getTickerSymbol())
-                            _row[dataKeys["_AVGCOST"][_COLUMN]] = securityAcct.getUsesAverageCost()
-                            _row[dataKeys["_SECSHRHOLDING"][_COLUMN]] = securityCurr.getDoubleValue(securityAcct.getBalance())
 
                             _row[dataKeys["_SECINFO_TYPE"][_COLUMN]] = unicode(securityAcct.getSecurityType())
                             _row[dataKeys["_SECINFO_SUBTYPE"][_COLUMN]] = securityAcct.getSecuritySubType()
@@ -10782,7 +10778,31 @@ Visit: %s (Author's site)
 
                             myPrint("D", _row)
                             transactionTable.append(_row)
-                            iCount += 1
+
+                        # noinspection PyUnresolvedReferences
+                        unusedSecurityMasters = [secCurr for secCurr in MD_REF.getCurrentAccountBook().getCurrencies().getAllCurrencies()
+                                                 if (secCurr.getCurrencyType() is CurrencyType.Type.SECURITY and secCurr not in usedSecurityMasters)]
+
+                        if len(unusedSecurityMasters) > 0:
+                            myPrint("B", "Adding %s unused security master records....", len(unusedSecurityMasters))
+                            for secCurr in unusedSecurityMasters:
+
+                                _row = ([None] * dataKeys["_END"][0])  # Create a blank row to be populated below...
+                                _row[dataKeys["_KEY"][_COLUMN]] = ""
+                                _row[dataKeys["_ACCOUNT"][_COLUMN]] = "__SecurityMaster__"
+                                _row[dataKeys["_BASECURR"][_COLUMN]] = baseCurrency.getIDString()
+
+                                _row[dataKeys["_SECURITY"][_COLUMN]] = unicode(secCurr.getName())
+                                _row[dataKeys["_SECURITYID"][_COLUMN]] = unicode(secCurr.getIDString())
+                                _row[dataKeys["_SECRELCURR"][_COLUMN]] = unicode(secCurr.getRelativeCurrency().getIDString())
+                                _row[dataKeys["_SECMSTRUUID"][_COLUMN]] = secCurr.getUUID()
+                                _row[dataKeys["_TICKER"][_COLUMN]] = unicode(secCurr.getTickerSymbol())
+                                _row[dataKeys["_SECSHRHOLDING"][_COLUMN]] = 0.0
+                                _row[dataKeys["_CURRENTPRICE"][_COLUMN]] = (1.0 / secCurr.getRelativeRate())
+                                _row[dataKeys["_CURRENTPRICETOBASE"][_COLUMN]] = (1.0 / secCurr.getBaseRate())          # same as .getRate(None)
+
+                                myPrint("D", _row)
+                                transactionTable.append(_row)
 
                         myPrint("P","")
                         myPrint("B", "Security Balance(s) Records selected:", len(transactionTable))
@@ -10810,10 +10830,14 @@ Visit: %s (Author's site)
                             myPrint("P", "Now pre-processing the file to convert integer dates and strip non-ASCII if requested....")
                             for _theRow in transactionTable:
 
+                                mDate = _theRow[dataKeys["_SECINFO_BOND_MATURITYDATE"][_COLUMN]]
+                                if mDate is not None and mDate != "":
+                                    dateasdate = datetime.datetime.strptime(str(mDate), "%Y%m%d")                       # Convert to Date field
+                                    _dateoutput = dateasdate.strftime(userdateformat)
+                                    _theRow[dataKeys["_SECINFO_BOND_MATURITYDATE"][_COLUMN]] = _dateoutput
+
                                 for col in range(0, dataKeys["_SECINFO_STK_DIV"][_COLUMN]):
                                     _theRow[col] = fixFormatsStr(_theRow[col])
-
-                            # NOTE - You can add sep=; to beginning of file to tell Excel what delimiter you are using
 
                             # Write the csvlines to a file
                             myPrint("B", "Opening file and writing ", len(transactionTable), "records")
@@ -11074,8 +11098,6 @@ Visit: %s (Author's site)
                             _SYMB =4
                             _SNAPDATE = 8
 
-
-                            # NOTE - You can add sep=; to beginning of file to tell Excel what delimiter you are using
                             if True:
                                 theTable = sorted(theTable, key=lambda x: (safeStr(x[_CURRNAME]).upper(),x[_SNAPDATE]))
 
