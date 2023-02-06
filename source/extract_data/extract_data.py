@@ -443,7 +443,7 @@ else:
     # Saved to parameters file
 
     # Common
-    global __extract_data, extract_data_frame_, extract_filename
+    global __extract_data, extract_filename
     global lStripASCII, scriptpath, csvDelimiter, userdateformat, lWriteBOMToExportFile_SWSS
     global hideInactiveAccounts, hideHiddenAccounts, hideHiddenSecurities
     global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lAllCurrency, filterForCurrency

@@ -56,7 +56,7 @@ for BUNDLE_JAVA_CHECK in "${BUNDLE_OWN_JAVA_LIST[@]}"; do
   fi
 done
 
-echo "Module build for ${MODULE} running.... (Really an Extension=${REALLY_EXTENSION}, Bundle Own Java=${BUNDLE_JAVA})"
+echo "Module PUSH for ${MODULE} running.... (Really an Extension=${REALLY_EXTENSION}, Bundle Own Java=${BUNDLE_JAVA})"
 
 if ! test -d "${PUSHDIR}"; then
   echo "@@ ${PUSHDIR} directory missing? @@"

@@ -152,6 +152,7 @@
 # build: 1057 - Bold'ified [sic] blinking cells...; tweaked security account information output (curious view selected object)
 # build: 1057 - Added MacOSx Finder path for internal root folder (fake alias)....; launch check for non-hierarchical security txn(s)
 # build: 1057 - Added bootstrap to execute compiled version of extension (faster to load)....
+# build: 1057 - Added launch detection for potential duplicate securities....
 
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
@@ -539,8 +540,6 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    global toolbox_frame_
-
     GlobalVars.__TOOLBOX = None
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
@@ -26978,6 +26977,67 @@ now after saving the file, restart Moneydance
 
             except: pass
 
+    def detect_duplicate_securities():
+
+        try:
+            _startTimeMs = System.currentTimeMillis()
+
+            # noinspection PyUnresolvedReferences
+            allSecurities = [secCurr for secCurr in MD_REF.getCurrentAccountBook().getCurrencies().getAllCurrencies()
+                             if secCurr.getCurrencyType() is CurrencyType.Type.SECURITY]
+
+            foundSecIDs = {}
+            foundSecNames = {}
+            foundSecTickers = {}
+
+            for sec in allSecurities:
+                secID = sec.getIDString().lower().strip()
+                name = sec.getName().lower().strip()
+                ticker = sec.getTickerSymbol().lower().strip()
+                if secID != "": foundSecIDs[secID] = foundSecIDs.get(secID, []) + [sec]
+                if name != "": foundSecNames[name] = foundSecNames.get(name, []) + [sec]
+                if ticker != "": foundSecTickers[ticker] = foundSecTickers.get(ticker, []) + [sec]
+
+            securitiesInvolved = {}
+            duplicateSecurities = []
+            for what in sorted(foundSecIDs):
+                if len(foundSecIDs[what]) > 1:
+                    for sec in foundSecIDs[what]: securitiesInvolved[sec] = True
+                    duplicateSecurities.append(["ID:", foundSecIDs[what][0].getIDString(), foundSecIDs[what]])
+            for what in sorted(foundSecNames):
+                if len(foundSecNames[what]) > 1:
+                    for sec in foundSecNames[what]: securitiesInvolved[sec] = True
+                    duplicateSecurities.append(["Name:", foundSecNames[what][0].getName(), foundSecNames[what]])
+            for what in sorted(foundSecTickers):
+                if len(foundSecTickers[what]) > 1:
+                    for sec in foundSecTickers[what]: securitiesInvolved[sec] = True
+                    duplicateSecurities.append(["Ticker:", foundSecTickers[what][0].getTickerSymbol(), foundSecTickers[what]])
+
+            output = None
+            if len(duplicateSecurities) > 0:
+                output = "POTENTIAL DUPLICATE SECURITIES:\n" \
+                         "-------------------------------\n"
+                for dup in duplicateSecurities:
+                    secTxt = "["
+                    for sec in dup[2]: secTxt += "'%s'," %(sec.getName())
+                    secTxt += "]"
+                    output += "%s '%s' Found in (%s): %s\n" %(dup[0], dup[1], len(dup[2]), secTxt)  # Avoid IllegalArgument Exceptions....!
+
+                output += "\n" \
+                          "--- Unique list of Securities with potential duplicates:\n"
+                for sec in sorted(securitiesInvolved, key=lambda _x: (_x.getName().lower())):
+                    output += "%s(Ticker: %s, ID: %s)\n" %(sec.getName(), sec.getTickerSymbol(), sec.getIDString())
+                output += "\n<END>"
+
+                myPrint("DB", "detect_duplicate_securities() took %s seconds..." %((System.currentTimeMillis() - _startTimeMs) / 1000.0));
+        except:
+            myPrint("B", "@@ ERROR: .detect_duplicate_securities() has failed.... Ignoring (but please report to developer!)")
+            dump_sys_error_to_md_console_and_errorlog()
+            return 0, [], ""
+
+        return len(duplicateSecurities), duplicateSecurities, output
+
+
     class DiagnosticDisplay(PreferencesListener):
 
         def __init__(self):
@@ -29581,6 +29641,7 @@ now after saving the file, restart Moneydance
             ### MAKE SURE THESE POPUPS ARE NOT MODAL AND THUS DO NOT BLOCK THE EDT!
             ############################################################################################################
 
+            # Look for security txns not properly linked back to the parent investment account
             if detect_non_hier_sec_acct_or_orphan_txns() > 0:
                 statusTxt = "ERROR - Cross-linked (or Orphaned) security txn(s) detected.. Review Console!"
                 output = ">> Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)'..."
@@ -29592,6 +29653,20 @@ now after saving the file, restart Moneydance
                                  OKButtonText="ACKNOWLEDGE",
                                  lAlertLevel=2,
                                  lModal=False).go()
+
+            # Attempt duplicate security detection...
+            _countDuplicateSecurities, _duplicateSecurities, output = detect_duplicate_securities()
+            if _countDuplicateSecurities > 0:
+                statusTxt = "ALERT - Potential duplicate(d) securities found (in Tools>Securities)!"
+                myPrint("B", statusTxt, output)
+                MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus=statusTxt,
+                                 theMessage=output,
+                                 theTitle="ALERT - Potential Duplicate Securities Found".upper(),
+                                 OKButtonText="ACKNOWLEDGE",
+                                 lAlertLevel=1,
+                                 lModal=False).go()
+            del _countDuplicateSecurities, _duplicateSecurities, output
 
             # Check for accounts that have both OFX and MD+ configured.....
             if isMDPlusEnabledBuild():

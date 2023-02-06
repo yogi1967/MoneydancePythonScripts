@@ -254,20 +254,38 @@ else
     exit 7
   fi
 
+  #  CPython bytecode can be used to help scripts that fail with method too large....
+  if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}.pyc" ]; then
+    echo "Generating CPython bytecode into .pyc file..."
+    rm -f "${EXTN_DIR}/${EXTN_NAME}.pyc"
+    python2.7 -m py_compile "${EXTN_DIR}/${EXTN_NAME}.py"
+    if [ $? -ne 0 ]; then
+      echo "*** CPython 2.7 bytecode generation of .pyc file failed??"
+      exit 8
+    fi
+    if ! test -f "${EXTN_DIR}/${EXTN_NAME}.pyc"; then
+      echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}.pyc does not exist (after generation)!"
+      exit 8
+    fi
+  else
+    echo "No need to generate new CPython 2.7 bytecode .pyc file..."
+  fi
+
+  # Java compile into $py.class for faster launch time....
   if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}\$py.class" ]; then
     echo "Compiling script into a \$py.class file..."
     rm -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"
     java -cp './Moneydance_jars/mdpython.jar' org.python.util.jython -c "import compileall; compileall.compile_file('${EXTN_DIR}/${EXTN_NAME}.py')"
     if [ $? -ne 0 ]; then
       echo "*** compile of script into a jython \$py.class file failed??"
-      exit 8
+      exit 9
     fi
     if ! test -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"; then
-      echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}\$py.class does not exist!"
+      echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}\$py.class does not exist (after generation)!"
       exit 9
     fi
   else
-    echo "No need to recompile ${EXTN_DIR}/${EXTN_NAME}\$py.class"
+    echo "No need to recompile ${EXTN_DIR}/${EXTN_NAME}\$py.class file..."
   fi
 
   shopt -s nullglob
@@ -285,6 +303,15 @@ else
     zip -j "${MXT}" "$f"
     if [ $? -ne 0 ]; then
       echo "*** zip $f stub file Failed??"
+      exit 12
+    fi
+  done
+
+  for f in "${EXTN_DIR}"/*.pyc; do
+    echo "Zipping CPython bytecode *.pyc files into mxt..."
+    zip -j "${MXT}" "$f"
+    if [ $? -ne 0 ]; then
+      echo "*** zip CPython bytecode $f file Failed??"
       exit 12
     fi
   done
@@ -479,8 +506,8 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
   fi
 
   shopt -s nullglob
-  for f in "${EXTN_DIR}"/*.pyi; do
-    echo "Adding $f stub to zip file..."
+  for f in "${EXTN_DIR}"/*.pyc; do
+    echo "Adding CPython $f bytecode file to zip file..."
     zip -j "${ZIP}" "$f"
     if [ $? -ne 0 ]; then
       echo "*** final zip of ${EXTN_NAME} package $f Failed??"
@@ -516,24 +543,21 @@ else
   done
   shopt -u nullglob
 
+
   if [ "${RESTRICT_SCRIPT}" != "YES" ]; then
-    echo "adding *.py file(s) into zip file..."
-    zip -j "${ZIP}" "${EXTN_DIR}"/*.py
+    echo "adding main script .py file into zip file..."
+    zip -j "${ZIP}" "${EXTN_DIR}/${EXTN_NAME}.py"
     if [ $? -ne 0 ]; then
-      echo "*** final zip of *.py script(s) into zip package Failed??"
+      echo "*** final zip of main .py script into zip package FAILED??"
       exit 59
     fi
 
-    shopt -s nullglob
-    for f in "${EXTN_DIR}"/*.pyi; do
-      echo "Adding $f stub to zip file..."
-      zip -j "${ZIP}" "$f"
-      if [ $? -ne 0 ]; then
-        echo "*** final zip of ${EXTN_NAME} package $f Failed??"
-        exit 61
-      fi
-    done
-    shopt -u nullglob
+    echo "Adding CPython $f bytecode file to zip file..."
+    zip -j "${ZIP}" "${EXTN_DIR}/${EXTN_NAME}.pyc"
+    if [ $? -ne 0 ]; then
+      echo "*** final zip of main .pyc bytecode into zip package FAILED??"
+      exit 61
+    fi
 
   else
     echo "@@ Not including *.py file(s) for ${EXTN_NAME} package...."
