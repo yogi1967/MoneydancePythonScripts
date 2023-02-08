@@ -1,25 +1,24 @@
 ## Welcome to my site for Moneydance Extensions and Scripts written in Python
 
-
 _Author: Stuart Beesley - StuWareSoftSystems_
 
-_NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE! (but I do use all my scripts on my own live dataset...)_
+_NOTE: I AM JUST A USER - I HAVE NO AFFILIATION WITH MONEYDANCE! (I do use all my scripts on my own live dataset... ;-> )_
 
 **DISCLAIMER**: ALWAYS BACKUP YOUR DATA BEFORE MAKING ANY CHANGES - The author cannot accept any responsibility from the use of these scripts
 
 Moneydance allows you to run Python scripts and access its functions via their API.
 This allows you to perform all sorts of 'wonderful' things based on your own financial data.
 
-Python is actual Jython 2.7 and accesses the Moneydance Java codebase.
+Python version is actually Jython 2.7 and accesses the Moneydance Java codebase.
 
-My scripts and extensions are identical. The extension version(s) are simply a 'packaged' script version. 
-InfiniteKind (the creators of Moneydance) have now signed my Extensions.
+My scripts and extensions are identical(ish). The extension version(s) are simply a 'packaged' script version. 
+InfiniteKind (the creators of Moneydance) have signed my Extensions.
 NOTE: The signed versions hosted by IK/MD may be a few builds behind my latest versions.
 If you require a signed version, then download links are at the bottom of this page (these also appear in the Extensions>Manage Extensions menu))
 
 The Extensions will only run properly on Moneydance version 2021.1 (build 3056 onwards)...
 The minimum version to run as standalone scripts is 2019.4 (build 1904)...
-_(If you have installed the extension, but nothing happens, then check your MD version/build)_
+_(If you have installed the extension, but nothing happens when you click the menu, then check your MD version/build)_
 
 
 **NOTE: All extensions listed below (except marked with ^^) are listed within the Moneydance Manage Extensions menu - Check there first for updates**
@@ -56,6 +55,7 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 
 4) That's it.... Repeat these steps each time.
 
+_^^^Refer to "Script Notes:" at the bottom of this page for details on the new .pyc and $py.class files...._
 
 ### Extension ONLY format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
@@ -131,6 +131,20 @@ Method 2: Using Python and JPype (sets up the JVM as part of the script) - See f
 
 
 
+
+########################################################################################################################
+^^^Script Notes: *.pyc files are CPython byte code files generated from the .py script. These are "helpers" to the Jython
+interpreter. Within the .mxt file you may also find a *$py.class file. This is a compiled version of the script
+for faster launch times. Some of my scripts are large and these "helpers" prevent a "method too large" RuntimeException.
+You don't normally need to worry about all this, but if you want to run the .py script manually (e.g. in Moneybot),
+then please ensure the .pyc file is placed in the same location as the .py script you are running.
+
+As of Feb 2023 the precompiled versions (*$py.class files) are included with a bootstrap.py loader for faster
+load times (avoids initial compile on launch). If the bootstrap fails to load this, then it will just run the script...
+########################################################################################################################
+
+
+
 ### Source Code sites - you can freely read / review all my code
 <a href="https://github.com/yogi1967/MoneydancePythonScripts">**Author's code site**: https://github.com/yogi1967/MoneydancePythonScripts
 <BR><BR>
@@ -145,4 +159,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 17th January 2023)_
+_(site last updated 8th February 2023)_
