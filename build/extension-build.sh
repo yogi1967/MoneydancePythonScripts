@@ -272,6 +272,8 @@ else
   fi
 
   # Java compile into $py.class for faster launch time....
+  # Note: you can also add -Dpython.cpython2=python to the java command below so that compile_file auto runs the pyc file generation above
+  # (thus eliminate the above python2.7 -m py_compile command)
   if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}\$py.class" ]; then
     echo "Compiling script into a \$py.class file..."
     rm -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"
