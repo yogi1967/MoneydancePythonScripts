@@ -2935,7 +2935,6 @@ Visit: %s (Author's site)
         myPrint("DB","variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
         return
 
-    # Just grab debug etc... Nothing extra
     get_StuWareSoftSystems_parameters_from_file(myFile="%s_extension.dict" %(myModuleID))
 
     # clear up any old left-overs....
