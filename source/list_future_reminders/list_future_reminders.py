@@ -66,6 +66,7 @@
 
 # Displays Moneydance future reminders
 
+# todo - LFR - skip next occurrences for same day...: https://infinitekind.tenderapp.com/discussions/suggestions/15586-record-next-occurance
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################

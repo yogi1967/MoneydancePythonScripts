@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1020 - Jan 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1021 - Feb 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -115,6 +115,7 @@
 # build: 1020 - Changed refresh time delay to 3 seconds (was 10 seconds)....
 # build: 1020 - Added capability for other extensions to request the last set of results using invoke "net_account_balances:customevent:returnLastResults"
 # build: 1020 - Added bootstrap to execute compiled version of extension (faster to load)....
+# build: 1021 - ???
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -124,7 +125,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1020"
+version_build = "1021"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
