@@ -67,9 +67,9 @@
 # build: 1021 - Added right click, popup menu: Record all next occurrence(s) for same day/date.
 # build: 1021 - Fixed references to columns/rows mapping view to table model... ;->; Converted remaining globals...
 # build: 1021 - Save column order; Added skip all to right-click popup. Stop record next when not on the next occurrence...
+# build: 1021 - Save column sort and last viewed reminder too...
 
 # todo - save sort order too....
-# todo - LFR - skip next occurrences for same day...: https://infinitekind.tenderapp.com/discussions/suggestions/15586-record-next-occurance
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -364,18 +364,18 @@ else:
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
     import threading
-    from java.awt.event import MouseAdapter
+    from java.awt import Image
+    from java.awt.image import BufferedImage
+    from java.awt.event import FocusAdapter, MouseAdapter
     from java.util import Comparator
-    from javax.swing import SortOrder, ListSelectionModel, JPopupMenu
+    from javax.swing import SortOrder, ListSelectionModel, JPopupMenu, ImageIcon, RowFilter, RowSorter
     from javax.swing.table import DefaultTableCellRenderer, DefaultTableModel, TableRowSorter
     from javax.swing.border import CompoundBorder, MatteBorder
-    from javax.swing.event import TableColumnModelListener, ListSelectionListener, DocumentListener
+    from javax.swing.event import TableColumnModelListener, ListSelectionListener, DocumentListener, RowSorterEvent
     from java.lang import Number
     from com.infinitekind.util import StringUtils
     from com.moneydance.apps.md.controller import AppEventListener
     from com.moneydance.awt import QuickSearchField
-    from java.awt.event import FocusAdapter
-    from javax.swing import RowFilter
 
     # from com.moneydance.apps.md.view.gui import EditRemindersWindow
     from com.moneydance.apps.md.view.gui import LoanTxnReminderNotificationWindow
@@ -405,10 +405,15 @@ else:
 
     # Set programmatic defaults/parameters for filters HERE.... Saved Parameters will override these now
     # NOTE: You  can override in the pop-up screen
+    GlobalVars.save_columnSort_LFR = []
+    GlobalVars.save_lastViewedReminder_LFR = []
     GlobalVars.save_column_widths_LFR = []
     GlobalVars.save_column_order_LFR = []
     GlobalVars.daysToLookForward_LFR = 365
     GlobalVars.lAllowEscapeExitApp_SWSS = True
+
+    GlobalVars.smaller_ascendingSortIcon = None
+    GlobalVars.smaller_descendingSortIcon = None
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
     # COPY >> START
@@ -2915,6 +2920,8 @@ Visit: %s (Author's site)
 
         if GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS") is not None: GlobalVars.lAllowEscapeExitApp_SWSS = GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS")
 
+        if GlobalVars.parametersLoadedFromFile.get("save_columnSort_LFR") is not None: GlobalVars.save_columnSort_LFR = GlobalVars.parametersLoadedFromFile.get("save_columnSort_LFR")
+        if GlobalVars.parametersLoadedFromFile.get("save_lastViewedReminder_LFR") is not None: GlobalVars.save_lastViewedReminder_LFR = GlobalVars.parametersLoadedFromFile.get("save_lastViewedReminder_LFR")
         if GlobalVars.parametersLoadedFromFile.get("_column_widths_LFR") is not None: GlobalVars.save_column_widths_LFR = GlobalVars.parametersLoadedFromFile.get("_column_widths_LFR")
         if GlobalVars.parametersLoadedFromFile.get("save_column_order_LFR") is not None: GlobalVars.save_column_order_LFR = GlobalVars.parametersLoadedFromFile.get("save_column_order_LFR")
         if GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR") is not None: GlobalVars.daysToLookForward_LFR = GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR")
@@ -2935,6 +2942,8 @@ Visit: %s (Author's site)
 
         GlobalVars.parametersLoadedFromFile["__list_future_reminders"] = version_build
         GlobalVars.parametersLoadedFromFile["lAllowEscapeExitApp_SWSS"] = GlobalVars.lAllowEscapeExitApp_SWSS
+        GlobalVars.parametersLoadedFromFile["save_columnSort_LFR"] = GlobalVars.save_columnSort_LFR
+        GlobalVars.parametersLoadedFromFile["save_lastViewedReminder_LFR"] = GlobalVars.save_lastViewedReminder_LFR
         GlobalVars.parametersLoadedFromFile["_column_widths_LFR"] = GlobalVars.save_column_widths_LFR
         GlobalVars.parametersLoadedFromFile["save_column_order_LFR"] = GlobalVars.save_column_order_LFR
         GlobalVars.parametersLoadedFromFile["daysToLookForward_LFR"] = GlobalVars.daysToLookForward_LFR
@@ -3064,6 +3073,17 @@ Visit: %s (Author's site)
     else:
         myPrint("DB",".. Main App Already within the EDT so calling naked...")
         MainAppRunnable().run()
+
+    def scaleIcon(_icon):
+        scale = 0.7
+        bufferedImage = BufferedImage(_icon.getIconWidth(), _icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB)
+        g = bufferedImage.createGraphics()
+        _icon.paintIcon(None, g, 0, 0)
+        g.dispose()
+        return ImageIcon(bufferedImage.getScaledInstance(int(_icon.getIconWidth() * scale), int(_icon.getIconHeight() * scale), Image.SCALE_SMOOTH))
+
+    GlobalVars.smaller_ascendingSortIcon = scaleIcon(UIManager.getIcon("Table.ascendingSortIcon"))
+    GlobalVars.smaller_descendingSortIcon = scaleIcon(UIManager.getIcon("Table.descendingSortIcon"))
 
     def isPreviewBuild():
         if MD_EXTENSION_LOADER is not None:
@@ -3314,7 +3334,7 @@ Visit: %s (Author's site)
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("skip next occurrence of all reminders".lower()):
                 skipReminders()
-            myPrint("B", "****", event.getActionCommand().lower())
+
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("page setup".lower()):
                 pageSetup()
@@ -3361,6 +3381,8 @@ Visit: %s (Author's site)
             if event.getActionCommand().lower().startswith("reset".lower()):
                 GlobalVars.save_column_widths_LFR = []
                 GlobalVars.save_column_order_LFR = []
+                GlobalVars.save_columnSort_LFR = []
+                GlobalVars.save_lastViewedReminder_LFR = []
                 RefreshMenuAction().refresh()
 
             # ##########################################################################################################
@@ -3851,32 +3873,28 @@ Visit: %s (Author's site)
                 # * @return the sort icon, or null if the column is unsorted.
                 # */
                 def _getIcon(self, table, column):																		# noqa
-                    sortKey = self.getSortKey(table, column)
-                    if (sortKey is not None and table.convertColumnIndexToView(sortKey.getColumn()) == column):
-                        x = (sortKey.getSortOrder())
-                        if x == SortOrder.ASCENDING: return UIManager.getIcon("Table.ascendingSortIcon")
-                        elif x == SortOrder.DESCENDING: return UIManager.getIcon("Table.descendingSortIcon")
-                        elif x == SortOrder.UNSORTED: return UIManager.getIcon("Table.naturalSortIcon")
-                    return None
-
-                # enddef
-
-                # /**
-                # * returns the current sort key, or null if the column is unsorted.
-                # *
-                # * @param table the table
-                # * @param column the column index
-                # * @return the SortKey, or null if the column is unsorted
-                # */
-                # noinspection PyMethodMayBeStatic
-                # noinspection PyUnusedLocal
-                def getSortKey(self, table, column):																	# noqa
                     rowSorter = table.getRowSorter()
-                    if (rowSorter is None): return None
-                    sortedColumns = rowSorter.getSortKeys()
-                    if (sortedColumns.size() > 0): return sortedColumns.get(0)
-                    return None
+                    if rowSorter is not None:
+                        sortedColumns = rowSorter.getSortKeys()
+                        if sortedColumns.size() > 0:
+                            for _i in range(0, sortedColumns.size()):
+                                sortedColKey = sortedColumns.get(_i)
+                                # myPrint("B", "***", "want col:", column, "key idx:", _i, "key col:", sortedColKey.getColumn(), "conv key column:", table.convertColumnIndexToView(sortedColKey.getColumn()));
+                                if table.convertColumnIndexToView(sortedColKey.getColumn()) == column:
+                                    primary = _i == 0
+                                    if primary:
+                                        sortA = UIManager.getIcon("Table.ascendingSortIcon")
+                                        sortD = UIManager.getIcon("Table.descendingSortIcon")
+                                    else:
+                                        sortA = GlobalVars.smaller_ascendingSortIcon
+                                        sortD = GlobalVars.smaller_descendingSortIcon
+                                    sortN = UIManager.getIcon("Table.naturalSortIcon")
 
+                                    so = sortedColKey.getSortOrder()
+                                    if so == SortOrder.ASCENDING: return sortA
+                                    elif so == SortOrder.DESCENDING: return sortD
+                                    elif so == SortOrder.UNSORTED: return sortN
+                    return None
 
             GlobalVars.baseCurrency = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
 
@@ -4032,6 +4050,11 @@ Visit: %s (Author's site)
                                 GlobalVars.saveSelectedRowIndex = 0
                                 GlobalVars.saveLastReminderObj = None
                                 myPrint("DB","Reminder Obj UNSAVED:")
+
+                            if GlobalVars.saveLastReminderObj is not None and isinstance(GlobalVars.saveLastReminderObj, Reminder):
+                                GlobalVars.save_lastViewedReminder_LFR = [GlobalVars.saveLastReminderObj.getUUID(), getCurrentSelectedDateInt()]
+                            else:
+                                GlobalVars.save_lastViewedReminder_LFR = []
                         except:
                             myPrint("B","@@ Error managing internal selected objects list")
                             dump_sys_error_to_md_console_and_errorlog()
@@ -4186,7 +4209,21 @@ Visit: %s (Author's site)
 
                 def __init__(self, tableModel):
                     super(JTable, self).__init__(tableModel)
+
+                    # As the table is loaded above, then the view and model columns will match for now...
                     self.fixTheRowSorter()
+
+                def sorterChanged(self, sortEvent):
+                    if sortEvent.getType() == RowSorterEvent.Type.SORT_ORDER_CHANGED:                                   # noqa
+                        myPrint("DB", "SORT CHANGED!", sortEvent, sortEvent.getSource())
+                        sorter = sortEvent.getSource()
+                        sortKeys = sorter.getSortKeys()
+                        newKeys = []
+                        for sk in sortKeys:
+                            newKeys.append([sk.getColumn(), sk.getSortOrder().toString()])
+                        myPrint("DB", "Saving sort keys as: '%s' (was: '%s')" %(newKeys, GlobalVars.save_columnSort_LFR))
+                        GlobalVars.save_columnSort_LFR = newKeys
+
 
                 def convertModelColumnToViewColumntoView(self, modelColIndex):
                     for c in range(0, self.getColumnCount()):
@@ -4290,18 +4327,37 @@ Visit: %s (Author's site)
                 def fixTheRowSorter(self):  # by default everything gets converted to strings. We need to fix this and code for my string number formats
 
                     sorter = TableRowSorter()
-                    self.setRowSorter(sorter)
                     sorter.setModel(self.getModel())
                     for _i in range(0, self.getColumnCount()):
-                        if _i == 0:
+                        if _i == GlobalVars.tableHeaderRowList.index("THE_REMINDER_OBJECT"):
                             sorter.setComparator(_i, self.MyTextNumberComparator("%"))
-                        if _i == 4 or _i == 4:
+                        if _i == GlobalVars.tableHeaderRowList.index("Net Amount"):
                             sorter.setComparator(_i, self.MyTextNumberComparator("N"))
                         else:
                             sorter.setComparator(_i, self.MyTextNumberComparator("T"))
-                    self.getRowSorter().toggleSortOrder(1)
+
+                    try:
+                        if len(GlobalVars.save_columnSort_LFR) < 1:
+                            sorter.toggleSortOrder(1)
+                            myPrint("B", "Using default initial sort keys/order...")
+                        else:
+                            sortKeys = []
+                            for modelColumnIdx, sortTypeTxt in GlobalVars.save_columnSort_LFR:
+                                sortKeys.append(RowSorter.SortKey(modelColumnIdx, SortOrder.valueOf(sortTypeTxt)))          # noqa
+                            sorter.setSortKeys(sortKeys)
+                            myPrint("B", "Previous sort keys/order(s) restored:", GlobalVars.save_columnSort_LFR)
+                    except:
+                        myPrint("B", "Error restoring previously saved column sort keys/order! Will reset to default sort/order...")
+                        if debug: dump_sys_error_to_md_console_and_errorlog()
+                        GlobalVars.save_columnSort_LFR = []
+                        sorter.toggleSortOrder(1)
 
                     sorter.setRowFilter(GlobalVars.currentJTableSearchFilter)
+                    sorter.addRowSorterListener(self)
+                    self.setRowSorter(sorter)
+                    # myPrint("B", "***", sorter.getSortKeys(), len(sorter.getSortKeys()));
+                    # for x in sorter.getSortKeys(): myPrint("B", x, "col:", x.getColumn(), "so:", x.getSortOrder());
+
 
                 # make Banded rows
                 def prepareRenderer(self, renderer, _row, column):
@@ -4438,11 +4494,10 @@ Visit: %s (Author's site)
                         break
                     _i += 1
                 if lDefaultColumnOrder:
-                    myPrint("B", "... Columns appear to be in default order..... No reordering....")
+                    myPrint("B", "Columns appear to be in default order..... No reordering....")
                 else:
-                    myPrint("B", "... Reordered columns detected: Will reorder to '%s'" %(myDefaultOrder))
+                    myPrint("B", "Reordered columns detected: Will reorder to '%s'" %(myDefaultOrder))
                 ####
-
 
                 # allcols = col0 + col1 + col2 + col3 + col4 + col5 + col6 + col7 + col8 + col9 + col10 + col11 + col12 + col13 + col14 + col15 + col16 + col17
                 allcols = sum(myDefaultWidths)
@@ -4691,15 +4746,45 @@ Visit: %s (Author's site)
 
                     list_future_reminders_frame_.isActiveInMoneydance = True
 
-                    if True or Platform.isOSX():
-                        # list_future_reminders_frame_.setAlwaysOnTop(True)
-                        list_future_reminders_frame_.toFront()
-
-                myPrint("DB","Adding MyListSelectionListener() to JTable:")
-                GlobalVars.saveJTable.getSelectionModel().addListSelectionListener(MyListSelectionListener())
+                    # if True or Platform.isOSX():
+                    #     # list_future_reminders_frame_.setAlwaysOnTop(True)
+                    #     list_future_reminders_frame_.toFront()
 
                 list_future_reminders_frame_.setVisible(True)
                 list_future_reminders_frame_.toFront()
+
+
+                if (GlobalVars.save_lastViewedReminder_LFR is not None
+                        and isinstance(GlobalVars.save_lastViewedReminder_LFR, list)
+                        and len(GlobalVars.save_lastViewedReminder_LFR) == 2):
+                    selectedReminder = False
+                    reselectReminder = None
+                    reselectOccurrenceDateInt = -1
+                    try:
+                        reselectReminder = MD_REF.getCurrentAccountBook().getItemForID(GlobalVars.save_lastViewedReminder_LFR[0])
+                        reselectOccurrenceDateInt = GlobalVars.save_lastViewedReminder_LFR[1]
+                        jt = GlobalVars.saveJTable
+                        if reselectReminder and jt.getRowCount() > 0:
+                            myPrint("B", "Will attempt to preselect last selected reminder: '%s' - Reoccurrence date: %s" %(reselectReminder, convertStrippedIntDateFormattedText(reselectOccurrenceDateInt)))
+                            remIdx = GlobalVars.tableHeaderRowList.index("THE_REMINDER_OBJECT")
+                            dateIdx = jt.convertModelColumnToViewColumntoView(GlobalVars.tableHeaderRowList.index("Next Due"))
+                            for rowViewIdx in range(0, jt.getRowCount()):
+                                remAtRow = jt.getValueAt(rowViewIdx, remIdx)
+                                dateIntAtRow = jt.getValueAt(rowViewIdx, dateIdx)
+                                if remAtRow is reselectReminder and dateIntAtRow == reselectOccurrenceDateInt:
+                                    jt.setRowSelectionInterval(rowViewIdx, rowViewIdx)
+                                    jt.scrollRectToVisible(jt.getCellRect(jt.getSelectedRow(), 0, True))
+                                    myPrint("B", "Preselected row %s, reminder: '%s' - Reoccurrence date: %s" %(rowViewIdx + 1, remAtRow, convertStrippedIntDateFormattedText(reselectOccurrenceDateInt)))
+                                    selectedReminder = True
+                                    break
+                    except: pass
+
+                    if not selectedReminder:
+                        GlobalVars.save_lastViewedReminder_LFR = []
+                        myPrint("B", "Failed to pre-select previously selected row: '%s' - Reoccurrence date: %s" %(reselectReminder, convertStrippedIntDateFormattedText(reselectOccurrenceDateInt)))
+
+                myPrint("DB","Adding MyListSelectionListener() to JTable:")
+                GlobalVars.saveJTable.getSelectionModel().addListSelectionListener(MyListSelectionListener())
 
                 if ind == 0:
 
