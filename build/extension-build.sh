@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# todo - Make the compile script elements optional per extension...
+
 ###############################################################################
 # Author:   Stuart Beesley - StuWareSoftSystems 2021
 # Purpose:  Build shell script (Mac) to build Python Extensions for Moneydance
@@ -15,7 +17,8 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities" "pseudo_balances")
+PRECOMPILE_LIST=("toolbox" "extract_data" "list_future_reminders" "net_account_balances" "accounts_categories_mega_search_window" "security_performance_graph")
 RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "accounts_categories_mega_search_window")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
 PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth" "fix_downloaded_transactions")
@@ -60,6 +63,13 @@ RESTRICT_SCRIPT="NO"
 for RESTRICT_CHECK in "${RESTRICT_SCRIPT_LIST[@]}"; do
   if [ "${RESTRICT_CHECK}" = "${EXTN_NAME}" ]; then
     RESTRICT_SCRIPT="YES"
+  fi
+done
+
+COMPILE_SCRIPT="NO"
+for COMPILE_CHECK in "${PRECOMPILE_LIST[@]}"; do
+  if [ "${COMPILE_CHECK}" = "${EXTN_NAME}" ]; then
+    COMPILE_SCRIPT="YES"
   fi
 done
 
@@ -254,51 +264,70 @@ else
     exit 7
   fi
 
-  #  CPython bytecode can be used to help scripts that fail with method too large....
-  if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}.pyc" ]; then
-    echo "Generating CPython bytecode into .pyc file..."
-    rm -f "${EXTN_DIR}/${EXTN_NAME}.pyc"
-    python2.7 -m py_compile "${EXTN_DIR}/${EXTN_NAME}.py"
-    if [ $? -ne 0 ]; then
-      echo "*** CPython 2.7 bytecode generation of .pyc file failed??"
-      exit 8
-    fi
-    if ! test -f "${EXTN_DIR}/${EXTN_NAME}.pyc"; then
-      echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}.pyc does not exist (after generation)!"
-      exit 8
-    fi
-  else
-    echo "No need to generate new CPython 2.7 bytecode .pyc file..."
-  fi
+  if [ "${COMPILE_SCRIPT}" = "YES" ]; then
 
-  # Java compile into $py.class for faster launch time....
-  # Note: you can also add -Dpython.cpython2=python to the java command below so that compile_file auto runs the pyc file generation above
-  # (thus eliminate the above python2.7 -m py_compile command)
-  if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}\$py.class" ]; then
-    echo "Compiling script into a \$py.class file..."
-    rm -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"
-    java -cp './Moneydance_jars/mdpython.jar' org.python.util.jython -c "import compileall; compileall.compile_file('${EXTN_DIR}/${EXTN_NAME}.py')"
-    if [ $? -ne 0 ]; then
-      echo "*** compile of script into a jython \$py.class file failed??"
-      exit 9
+    #  CPython bytecode can be used to help scripts that fail with method too large....
+    if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}.pyc" ]; then
+      echo "Generating CPython bytecode into .pyc file..."
+      rm -f "${EXTN_DIR}/${EXTN_NAME}.pyc"
+      python2.7 -m py_compile "${EXTN_DIR}/${EXTN_NAME}.py"
+      if [ $? -ne 0 ]; then
+        echo "*** CPython 2.7 bytecode generation of .pyc file failed??"
+        exit 8
+      fi
+      if ! test -f "${EXTN_DIR}/${EXTN_NAME}.pyc"; then
+        echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}.pyc does not exist (after generation)!"
+        exit 8
+      fi
+    else
+      echo "No need to generate new CPython 2.7 bytecode .pyc file..."
     fi
-    if ! test -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"; then
-      echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}\$py.class does not exist (after generation)!"
-      exit 9
+
+    # Java compile into $py.class for faster launch time....
+    # Note: you can also add -Dpython.cpython2=python to the java command below so that compile_file auto runs the pyc file generation above
+    # (thus eliminate the above python2.7 -m py_compile command)
+    if [ "${EXTN_DIR}/${EXTN_NAME}.py" -nt "${EXTN_DIR}/${EXTN_NAME}\$py.class" ]; then
+      echo "Compiling script into a \$py.class file..."
+      rm -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"
+      java -cp './Moneydance_jars/mdpython.jar' org.python.util.jython -c "import compileall; compileall.compile_file('${EXTN_DIR}/${EXTN_NAME}.py')"
+      if [ $? -ne 0 ]; then
+        echo "*** compile of script into a jython \$py.class file failed??"
+        exit 9
+      fi
+      if ! test -f "${EXTN_DIR}/${EXTN_NAME}\$py.class"; then
+        echo "ERROR - ${EXTN_NAME}/${EXTN_NAME}\$py.class does not exist (after generation)!"
+        exit 9
+      fi
+    else
+      echo "No need to recompile ${EXTN_DIR}/${EXTN_NAME}\$py.class file..."
     fi
+
   else
-    echo "No need to recompile ${EXTN_DIR}/${EXTN_NAME}\$py.class file..."
+    echo "No pre-compilation for this extension....!"
+    rm "${EXTN_DIR}"/*.pyc
+    rm "${EXTN_DIR}"/*.class
   fi
 
   shopt -s nullglob
-  for f in "${EXTN_DIR}"/*.class; do
-    echo "Zipping $f class file into mxt..."
-    zip -j "${MXT}" "$f"
-    if [ $? -ne 0 ]; then
-      echo "*** zip $f class file Failed??"
-      exit 10
-    fi
-  done
+  if [ "${COMPILE_SCRIPT}" = "YES" ]; then
+    for f in "${EXTN_DIR}"/*.class; do
+      echo "Zipping $f class file into mxt..."
+      zip -j "${MXT}" "$f"
+      if [ $? -ne 0 ]; then
+        echo "*** zip $f class file Failed??"
+        exit 10
+      fi
+    done
+
+    for f in "${EXTN_DIR}"/*.pyc; do
+      echo "Zipping CPython bytecode *.pyc files into mxt..."
+      zip -j "${MXT}" "$f"
+      if [ $? -ne 0 ]; then
+        echo "*** zip CPython bytecode $f file Failed??"
+        exit 12
+      fi
+    done
+  fi
 
   for f in "${EXTN_DIR}"/*.pyi; do
     echo "Zipping *.pyi stub files into mxt..."
@@ -309,14 +338,6 @@ else
     fi
   done
 
-  for f in "${EXTN_DIR}"/*.pyc; do
-    echo "Zipping CPython bytecode *.pyc files into mxt..."
-    zip -j "${MXT}" "$f"
-    if [ $? -ne 0 ]; then
-      echo "*** zip CPython bytecode $f file Failed??"
-      exit 12
-    fi
-  done
   shopt -u nullglob
 
   echo "Zipping PREVIEW MARKER file into mxt..."
@@ -507,16 +528,18 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
     exit 49
   fi
 
-  shopt -s nullglob
-  for f in "${EXTN_DIR}"/*.pyc; do
-    echo "Adding CPython $f bytecode file to zip file..."
-    zip -j "${ZIP}" "$f"
-    if [ $? -ne 0 ]; then
-      echo "*** final zip of ${EXTN_NAME} package $f Failed??"
-      exit 51
-    fi
-  done
-  shopt -u nullglob
+  if [ "${COMPILE_SCRIPT}" = "YES" ]; then
+    shopt -s nullglob
+    for f in "${EXTN_DIR}"/*.pyc; do
+      echo "Adding CPython $f bytecode file to zip file..."
+      zip -j "${ZIP}" "$f"
+      if [ $? -ne 0 ]; then
+        echo "*** final zip of ${EXTN_NAME} package $f Failed??"
+        exit 51
+      fi
+    done
+    shopt -u nullglob
+  fi
 
   echo "Adding *.pdf to zip file..."
   zip -j "${ZIP}" "${EXTN_DIR}"/*.pdf
@@ -554,11 +577,13 @@ else
       exit 59
     fi
 
-    echo "Adding CPython $f bytecode file to zip file..."
-    zip -j "${ZIP}" "${EXTN_DIR}/${EXTN_NAME}.pyc"
-    if [ $? -ne 0 ]; then
-      echo "*** final zip of main .pyc bytecode into zip package FAILED??"
-      exit 61
+    if [ "${COMPILE_SCRIPT}" = "YES" ]; then
+      echo "Adding CPython $f bytecode file to zip file..."
+      zip -j "${ZIP}" "${EXTN_DIR}/${EXTN_NAME}.pyc"
+      if [ $? -ne 0 ]; then
+        echo "*** final zip of main .pyc bytecode into zip package FAILED??"
+        exit 61
+      fi
     fi
 
   else
