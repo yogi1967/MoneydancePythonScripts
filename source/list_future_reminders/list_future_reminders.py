@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1021) - Feb 2023
+# list_future_reminders.py (build: 1022) - March 2023
 # Displays Moneydance future dated / scheduled reminders (along with options to auto-record, delete etc)
 
 ###############################################################################
@@ -68,6 +68,7 @@
 # build: 1021 - Fixed references to columns/rows mapping view to table model... ;->; Converted remaining globals...
 # build: 1021 - Save column order; Added skip all to right-click popup. Stop record next when not on the next occurrence...
 # build: 1021 - Save column sort and last viewed reminder too...
+# build: 1022 - Added right click, popup menu: Record all next occurrence(s) for same month
 
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
@@ -77,7 +78,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1021"
+version_build = "1022"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -3158,29 +3159,36 @@ Visit: %s (Author's site)
         convertSelectedRowToModelIndex = jt.convertRowIndexToModel(GlobalVars.saveSelectedRowIndex)
         return jt.getModel().getValueAt(convertSelectedRowToModelIndex, GlobalVars.tableHeaderRowList.index("Next Due"))
 
-    def recordAllNextOccurrenceForSameDay():
+    def recordAllNextOccurrenceForSamePeriod(lDay=False, lMonth=False):
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+        if not lDay and not lMonth: raise Exception("LOGIC ERROR")
 
         saveSelectedRowAndObject()
 
         currentSelectedDate = getCurrentSelectedDateInt()
-
         r = GlobalVars.saveLastReminderObj
-        nextDateToUseInt = getReminderNextDate(r)
-        nextDateToUseLong = DateUtil.convertIntDateToLong(nextDateToUseInt)
+        firstDateToUse = lastDateToUse = nextDateToUseInt = getReminderNextDate(r)                                      # noqa
+
+        monthStr = "N/A"                                                                                                # noqa
+        if lMonth:
+            firstDateToUse = DateUtil.firstDayInMonth(firstDateToUse)
+            lastDateToUse = DateUtil.lastDayInMonth(firstDateToUse)
+            monthStr = str(firstDateToUse)[4:6]
 
         if nextDateToUseInt < 1:
             myPopupInformationBox(list_future_reminders_frame_,
-                                  "The next occurrence of reminder is non-existent or too far into the future (more than 5 years",
-                                  "RECORD ALL NEXT FOR DATE",
+                                  "The next occurrence of reminder is non-existent or too far into the future (more than 5 years)",
+                                  "RECORD ALL NEXT FOR DATE/MONTH",
                                   JOptionPane.WARNING_MESSAGE)
             return
+
         nextDateToUseTxt = convertStrippedIntDateFormattedText(nextDateToUseInt)
 
         if nextDateToUseInt != currentSelectedDate:
             myPopupInformationBox(list_future_reminders_frame_,
-                                  "Only select this option on the next / 1st occurrence of Reminder (which is: %s)" %(nextDateToUseTxt),
-                                  "RECORD ALL NEXT FOR DATE",
+                                  "Only select this option on the next / 1st occurrence of (an example) Reminder (which is: %s - or month: '%s')" %(nextDateToUseTxt, monthStr),
+                                  "RECORD ALL NEXT FOR DATE/MONTH",
                                   JOptionPane.WARNING_MESSAGE)
             return
 
@@ -3191,31 +3199,40 @@ Visit: %s (Author's site)
 
         for _r in rems:
             _nextDate = getReminderNextDate(_r)
-            if _nextDate == nextDateToUseInt:
+            if _nextDate >= firstDateToUse and _nextDate <= lastDateToUse:
                 remindersToRecord.append(_r)
-        if len(remindersToRecord) < 1: raise Exception("LOGIC ERROR: No reminders to record selected for date: %s" %(nextDateToUseTxt))
+        if len(remindersToRecord) < 1: raise Exception("LOGIC ERROR: No reminders to record selected for date: %s (or month: '%s')" %(nextDateToUseTxt, monthStr))
 
-        myPrint("DB", "recordAllNextOccurrenceForSameDay() - Date: %s, selected %s reminders...." %(nextDateToUseTxt, len(remindersToRecord)))
+        myPrint("DB", "recordAllNextOccurrenceForSamePeriod() - Date: %s, selected %s reminders...." %(nextDateToUseTxt, len(remindersToRecord)))
 
         if not myPopupAskQuestion(list_future_reminders_frame_,
                               "RECORD NEXT",
-                              "Record next occurrences on %s reminders for same date: %s ?" %(len(remindersToRecord), nextDateToUseTxt),
+                              "Record next occurrences on %s reminders for same date: %s (or month: '%s')?" %(len(remindersToRecord), nextDateToUseTxt, monthStr),
                               theMessageType=JOptionPane.WARNING_MESSAGE):
             return
 
-        myPrint("B", "recordAllNextOccurrenceForSameDay() - Date: %s, %s reminders will record next occurrence...." %(nextDateToUseTxt, len(remindersToRecord)))
+        myPrint("B", "recordAllNextOccurrenceForSamePeriod() - Date: %s (month: '%s'), %s reminders will record next occurrence...." %(nextDateToUseTxt, monthStr, len(remindersToRecord)))
 
         myPrint("DB", "... removing reminder listener (before mass change)...")
         MD_REF.getCurrentAccountBook().getReminders().removeReminderListener(GlobalVars.reminderListener)
 
         for remToRecord in remindersToRecord:
-            myPrint("B", "... recording reminder %s for date: %s" %(remToRecord, nextDateToUseTxt))
-            invokeMethodByReflection(reminderSet, "autoCommitReminder", [Date, Reminder, Boolean.TYPE], [nextDateToUseLong, remToRecord, True])
+            _commitDateLong = -1
+            if lDay:
+                _commitDateLong = DateUtil.convertIntDateToLong(nextDateToUseInt)
+                myPrint("B", "... recording reminder %s for date: %s" %(remToRecord, nextDateToUseTxt))
+            elif lMonth:
+                _commitDateInt = getReminderNextDate(remToRecord)
+                _commitDateTxt = convertStrippedIntDateFormattedText(_commitDateInt)
+                _commitDateLong = DateUtil.convertIntDateToLong(_commitDateInt)
+                myPrint("B", "... recording reminder %s for month: '%s' - date: %s" %(remToRecord, monthStr, _commitDateTxt))
+
+            invokeMethodByReflection(reminderSet, "autoCommitReminder", [Date, Reminder, Boolean.TYPE], [_commitDateLong, remToRecord, True])
 
         myPrint("DB", "... re-adding reminder listener (after mass change)...")
         MD_REF.getCurrentAccountBook().getReminders().addReminderListener(GlobalVars.reminderListener)
 
-        myPrint("B", ">> FINISHED recording next occurrence for date: %s on %s reminders >> triggering a table refresh...." %(nextDateToUseTxt, len(remindersToRecord)))
+        myPrint("B", ">> FINISHED recording next occurrence for date: %s  (month: '%s') on %s reminders >> triggering a table refresh...." %(nextDateToUseTxt, monthStr, len(remindersToRecord)))
         RefreshMenuAction().refresh()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -3328,7 +3345,11 @@ Visit: %s (Author's site)
 
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("record all next occurrence(s) for same day".lower()):
-                recordAllNextOccurrenceForSameDay()
+                recordAllNextOccurrenceForSamePeriod(lDay=True, lMonth=False)
+
+            # ##########################################################################################################
+            if event.getActionCommand().lower().startswith("record all next occurrence(s) for same month".lower()):
+                recordAllNextOccurrenceForSamePeriod(lDay=False, lMonth=True)
 
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("skip next occurrence of all reminders".lower()):
@@ -4688,6 +4709,10 @@ Visit: %s (Author's site)
                 popupMenu.add(menuItem)
 
                 menuItem = JMenuItem("Record all next occurrence(s) for same day")
+                menuItem.addActionListener(dtm)
+                popupMenu.add(menuItem)
+
+                menuItem = JMenuItem("Record all next occurrence(s) for same month")
                 menuItem.addActionListener(dtm)
                 popupMenu.add(menuItem)
 
