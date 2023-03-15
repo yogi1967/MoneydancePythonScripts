@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# todo - Make the compile script elements optional per extension...
-
 ###############################################################################
-# Author:   Stuart Beesley - StuWareSoftSystems 2021
+# Author:   Stuart Beesley - StuWareSoftSystems 2021-2023
 # Purpose:  Build shell script (Mac) to build Python Extensions for Moneydance
 #
 # NOTE: The Moneydance extension .mxt file is really just a zip / jar file.....
@@ -17,7 +15,7 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities" "pseudo_balances")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities")
 PRECOMPILE_LIST=("toolbox" "extract_data" "list_future_reminders" "net_account_balances" "security_performance_graph")
 RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "accounts_categories_mega_search_window")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")

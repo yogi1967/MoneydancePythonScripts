@@ -3162,7 +3162,8 @@ Visit: %s (Author's site)
     def recordAllNextOccurrenceForSamePeriod(lDay=False, lMonth=False):
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        if not lDay and not lMonth: raise Exception("LOGIC ERROR")
+        myPrint("DB", "recordAllNextOccurrenceForSamePeriod() - Parameter(s) selected: lDay=%s, lMonth=%s" %(lDay, lMonth))
+        if not lDay and not lMonth: raise Exception("LOGIC ERROR - select day or month parameter")
 
         saveSelectedRowAndObject()
 
@@ -3178,7 +3179,7 @@ Visit: %s (Author's site)
 
         if nextDateToUseInt < 1:
             myPopupInformationBox(list_future_reminders_frame_,
-                                  "The next occurrence of reminder is non-existent or too far into the future (more than 5 years)",
+                                  "The next occurrence of selected reminder is non-existent or too far into the future (more than 5 years)",
                                   "RECORD ALL NEXT FOR DATE/MONTH",
                                   JOptionPane.WARNING_MESSAGE)
             return
@@ -3186,10 +3187,11 @@ Visit: %s (Author's site)
         nextDateToUseTxt = convertStrippedIntDateFormattedText(nextDateToUseInt)
 
         if nextDateToUseInt != currentSelectedDate:
-            myPopupInformationBox(list_future_reminders_frame_,
-                                  "Only select this option on the next / 1st occurrence of (an example) Reminder (which is: %s - or month: '%s')" %(nextDateToUseTxt, monthStr),
-                                  "RECORD ALL NEXT FOR DATE/MONTH",
-                                  JOptionPane.WARNING_MESSAGE)
+            if lDay:
+                txt = "Only select this option on the next / 1st occurrence of a 'seed' Reminder (DATE: %s)" %(nextDateToUseTxt)
+            else:
+                txt = "Only select this option on the next / 1st occurrence of a 'seed' Reminder (MONTH: '%s')" %(monthStr)
+            myPopupInformationBox(list_future_reminders_frame_, txt, "RECORD ALL NEXT FOR DATE/MONTH", JOptionPane.WARNING_MESSAGE)
             return
 
         remindersToRecord = []
@@ -3203,12 +3205,13 @@ Visit: %s (Author's site)
                 remindersToRecord.append(_r)
         if len(remindersToRecord) < 1: raise Exception("LOGIC ERROR: No reminders to record selected for date: %s (or month: '%s')" %(nextDateToUseTxt, monthStr))
 
-        myPrint("DB", "recordAllNextOccurrenceForSamePeriod() - Date: %s, selected %s reminders...." %(nextDateToUseTxt, len(remindersToRecord)))
+        myPrint("DB", "recordAllNextOccurrenceForSamePeriod() - Date: %s (or month: '%s'), selected %s reminders...." %(nextDateToUseTxt, monthStr, len(remindersToRecord)))
 
-        if not myPopupAskQuestion(list_future_reminders_frame_,
-                              "RECORD NEXT",
-                              "Record next occurrences on %s reminders for same date: %s (or month: '%s')?" %(len(remindersToRecord), nextDateToUseTxt, monthStr),
-                              theMessageType=JOptionPane.WARNING_MESSAGE):
+        if lDay:
+            txt = "Record next occurrences on %s reminders for same DATE: %s?" %(len(remindersToRecord), nextDateToUseTxt)
+        else:
+            txt = "Record next occurrences on %s reminders for same MONTH: '%s'?" %(len(remindersToRecord), monthStr)
+        if not myPopupAskQuestion(list_future_reminders_frame_, "RECORD NEXT", txt, theMessageType=JOptionPane.WARNING_MESSAGE):
             return
 
         myPrint("B", "recordAllNextOccurrenceForSamePeriod() - Date: %s (month: '%s'), %s reminders will record next occurrence...." %(nextDateToUseTxt, monthStr, len(remindersToRecord)))
@@ -3216,23 +3219,38 @@ Visit: %s (Author's site)
         myPrint("DB", "... removing reminder listener (before mass change)...")
         MD_REF.getCurrentAccountBook().getReminders().removeReminderListener(GlobalVars.reminderListener)
 
-        for remToRecord in remindersToRecord:
-            _commitDateLong = -1
-            if lDay:
-                _commitDateLong = DateUtil.convertIntDateToLong(nextDateToUseInt)
-                myPrint("B", "... recording reminder %s for date: %s" %(remToRecord, nextDateToUseTxt))
-            elif lMonth:
-                _commitDateInt = getReminderNextDate(remToRecord)
-                _commitDateTxt = convertStrippedIntDateFormattedText(_commitDateInt)
-                _commitDateLong = DateUtil.convertIntDateToLong(_commitDateInt)
-                myPrint("B", "... recording reminder %s for month: '%s' - date: %s" %(remToRecord, monthStr, _commitDateTxt))
+        iTotalOccurrences = 0
 
-            invokeMethodByReflection(reminderSet, "autoCommitReminder", [Date, Reminder, Boolean.TYPE], [_commitDateLong, remToRecord, True])
+        for remToRecord in remindersToRecord:
+            iRepeatsForSameReminder = 1
+            while True:
+                _commitDateLong = -1
+                if lDay:
+                    _commitDateLong = DateUtil.convertIntDateToLong(nextDateToUseInt)
+                    myPrint("B", "... recording reminder %s for date: %s (occurrence: %s)" %(remToRecord, nextDateToUseTxt, iRepeatsForSameReminder))
+                elif lMonth:
+                    _commitDateInt = getReminderNextDate(remToRecord)
+                    if _commitDateInt < firstDateToUse or _commitDateInt > lastDateToUse:
+                        break
+                    _commitDateTxt = convertStrippedIntDateFormattedText(_commitDateInt)
+                    _commitDateLong = DateUtil.convertIntDateToLong(_commitDateInt)
+                    myPrint("B", "... recording reminder %s for month: '%s' - date: %s (occurrence: %s)" %(remToRecord, monthStr, _commitDateTxt, iRepeatsForSameReminder))
+                    if iRepeatsForSameReminder > 31:
+                        raise Exception("LOGIC ERROR (loop abort): More than 31 repeat occurrences triggered for reminder (date: %s): %s" %(_commitDateTxt, remToRecord))
+                invokeMethodByReflection(reminderSet, "autoCommitReminder", [Date, Reminder, Boolean.TYPE], [_commitDateLong, remToRecord, True])
+                iRepeatsForSameReminder += 1
+                iTotalOccurrences += 1
+                if lDay: break
 
         myPrint("DB", "... re-adding reminder listener (after mass change)...")
         MD_REF.getCurrentAccountBook().getReminders().addReminderListener(GlobalVars.reminderListener)
 
-        myPrint("B", ">> FINISHED recording next occurrence for date: %s  (month: '%s') on %s reminders >> triggering a table refresh...." %(nextDateToUseTxt, monthStr, len(remindersToRecord)))
+        if lDay:
+            txt = "FINISHED recording next occurrence(s) for DATE: %s on %s reminders (total occurrences: %s)" %(nextDateToUseTxt, len(remindersToRecord), iTotalOccurrences)
+        else:
+            txt = "FINISHED recording next occurrence(s) for MONTH: '%s' on %s reminders (total occurrences: %s)" %(monthStr, len(remindersToRecord), iTotalOccurrences)
+
+        myPrint("B", ">> %s >> triggering a table refresh...." %(txt))
         RefreshMenuAction().refresh()
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -3250,7 +3268,7 @@ Visit: %s (Author's site)
 
         if rdate <= 0:
             myPopupInformationBox(list_future_reminders_frame_,
-                                  "The next occurrence of reminder is non-existent or too far into the future (more than 5 years",
+                                  "The next occurrence of reminder is non-existent or too far into the future (more than 5 years)",
                                   "RECORD NEXT",
                                   JOptionPane.WARNING_MESSAGE)
 

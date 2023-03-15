@@ -1,5 +1,9 @@
 #!/bin/sh
 
+###############################################################################
+# Author:   Stuart Beesley - StuWareSoftSystems 2021-2023
+###############################################################################
+
 clear
 
 EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities")
