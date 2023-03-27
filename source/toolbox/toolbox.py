@@ -26438,7 +26438,6 @@ now after saving the file, restart Moneydance
         except:
             fail = True
             myPrint("DB","Failed to read/decrypt.. Will try unencrypted")
-            dump_sys_error_to_md_console_and_errorlog();
         try:
             if fail:
                 readLines = IOUtils.readlines((syncFolder.readUnencrypted(truncatedPath)))
@@ -26446,7 +26445,6 @@ now after saving the file, restart Moneydance
         except:
             fail = True
             myPrint("DB","Failed to read/unencrypted..")
-            dump_sys_error_to_md_console_and_errorlog();
 
         if fail:
             txt = "Sorry, I failed to read your file... Exiting..."
