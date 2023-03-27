@@ -153,7 +153,8 @@
 # build: 1057 - Added MacOSx Finder path for internal root folder (fake alias)....; launch check for non-hierarchical security txn(s)
 # build: 1057 - Added bootstrap to execute compiled version of extension (faster to load)....
 # build: 1057 - Added launch detection for potential duplicate securities....
-# build: 1058 - ???
+# build: 1058 - Support for MD2023.0(5000) Kotlin compiled version(s)....; Wrapped responses that now return okio.BufferedSource instead of java.io.InputStream
+#               Kotlin affected LocalStorage and getSyncFolder methods: extract_attachments, Shrink Dataset, Load (old) Pickle file, advanced_options_decrypt_file_from_sync...
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -545,7 +546,7 @@ else:
     GlobalVars.__TOOLBOX = None
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2022.6
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   4097
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
@@ -560,6 +561,7 @@ else:
     GlobalVars.MD_MDPLUS_TEST_UNIQUE_BANKING_SERVICES_BUILD = 4078          # 2022.4
     GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                     # 2022.3
     GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090                        # 2022.5
+    GlobalVars.MD_KOTLIN_COMPILED_BUILD = 5000                              # 2023.0
 
     GlobalVars.fixRCurrencyCheck = 0
     GlobalVars.globalSaveFI_data = None
@@ -1678,7 +1680,7 @@ Visit: %s (Author's site)
                 # OK, so perhaps from older version - encrypted, try to read
                 try:
                     local_storage = MD_REF.getCurrentAccountBook().getLocalStorage()
-                    istr = local_storage.openFileForReading(old_dict_filename)
+                    istr = convertBufferedSourceToInputStream(local_storage.openFileForReading(old_dict_filename))
                     load_file = FileUtil.wrap(istr)
                     # noinspection PyTypeChecker
                     GlobalVars.parametersLoadedFromFile = pickle.load(load_file)
@@ -3905,6 +3907,17 @@ Visit: %s (Author's site)
     def isMDPlusGetPlaidClientEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD)                        # 2022.5
 
     def isRRateCurrencyIssueFixedBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD)                                # 2021.2
+
+    def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)                                           # 2023.0(5000)
+
+    if isKotlinCompiledBuild():
+        from okio import BufferedSource
+        if debug: myPrint("B", "** Kotlin compiled build detected, new libraries enabled.....")
+
+    def convertBufferedSourceToInputStream(bufferedSource):
+        if isKotlinCompiledBuild() and isinstance(bufferedSource, BufferedSource):
+            return bufferedSource.inputStream()
+        return bufferedSource
 
     if isMDPlusEnabledBuild():
         from com.moneydance.apps.md.controller import MDPlus
@@ -18572,7 +18585,7 @@ now after saving the file, restart Moneydance
                         myPrint("P", "Exporting attachment [%s]" %(os.path.basename(outputPath)))
                         try:
                             outStream = FileOutputStream(File(outputPath))
-                            inStream = MD_REF.getCurrentAccount().getBook().getLocalStorage().openFileForReading(attachTag)
+                            inStream = convertBufferedSourceToInputStream(MD_REF.getCurrentAccount().getBook().getLocalStorage().openFileForReading(attachTag))
                             IOUtils.copyStream(inStream, outStream)
                             outStream.close()
                             inStream.close()
@@ -18580,8 +18593,9 @@ now after saving the file, restart Moneydance
                                                 "%s %s %s %s %s .%s\n"
                                                 %(pad(str(txn.getAccount().getAccountType()),15),pad(txn.getAccount().getAccountName(),30),convertStrippedIntDateFormattedText(txn.getDateInt()),rpad(txn.getValue()/100.0,10),pad(txn.getDescription(),20),outputPath[len(exportFolder):])])
                         except:
-                            myPrint("B","Error extracting file - will SKIP : %s" %(outputPath))
-                            textLog += ("Error extracting file - will SKIP : %s\n" %(outputPath))
+                            txt = "Error extracting file - will SKIP : %s" %(outputPath)
+                            myPrint("B", txt)
+                            textLog += ("%s\n" %(txt))
                             iSkip += 1
 
             textRecords = sorted(textRecords, key=lambda _sort: (_sort[0], _sort[1], _sort[2]))
@@ -25641,7 +25655,7 @@ now after saving the file, restart Moneydance
     def getModifiedDatesFomZip(_storage, _archiveFile):
         """Interrogates a zip archive, then processes all entries, and determines the oldest and newest modified dates"""
 
-        zip_in = ZipInputStream(_storage.openFileForReading(_archiveFile))  # type: ZipInputStream
+        zip_in = ZipInputStream(convertBufferedSourceToInputStream(_storage.openFileForReading(_archiveFile)))  # type: ZipInputStream
         oldestMInt = newestMInt = 0
         try:
             while True:
@@ -26335,7 +26349,7 @@ now after saving the file, restart Moneydance
 
     def advanced_options_decrypt_file_from_sync():
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-
+        
         _THIS_METHOD_NAME = "ADVANCED: EXTRACT/PEEK AT SYNC FILE"
 
         lFailTest = False
@@ -26346,8 +26360,7 @@ now after saving the file, restart Moneydance
         try:
             passphrase = MD_REF.getUI().getCurrentAccounts().getSyncEncryptionPassword()
             syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
-
-            encryptedTestBytes = IOUtils.readFully(syncFolder.readUnencrypted(KEY_TEST_FILE))
+            encryptedTestBytes = IOUtils.readFully(convertBufferedSourceToInputStream(syncFolder.readUnencrypted(KEY_TEST_FILE)))
             if encryptedTestBytes is None or len(encryptedTestBytes) <= 0:
                 myPrint("DB", "ERROR - The read of unencrypted data from Sync's 'key_test' returned None or zero bytes...")
                 lFailTest = True
@@ -26421,18 +26434,19 @@ now after saving the file, restart Moneydance
         fail = False
         readLines = None
         try:
-            readLines = IOUtils.readlines(syncFolder.readFile(truncatedPath))
+            readLines = IOUtils.readlines((syncFolder.readFile(truncatedPath)))
         except:
             fail = True
             myPrint("DB","Failed to read/decrypt.. Will try unencrypted")
-
+            dump_sys_error_to_md_console_and_errorlog();
         try:
             if fail:
-                readLines = IOUtils.readlines(syncFolder.readUnencrypted(truncatedPath))
+                readLines = IOUtils.readlines((syncFolder.readUnencrypted(truncatedPath)))
                 fail = False
         except:
             fail = True
             myPrint("DB","Failed to read/unencrypted..")
+            dump_sys_error_to_md_console_and_errorlog();
 
         if fail:
             txt = "Sorry, I failed to read your file... Exiting..."
