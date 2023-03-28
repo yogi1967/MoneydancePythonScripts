@@ -155,6 +155,7 @@
 # build: 1057 - Added launch detection for potential duplicate securities....
 # build: 1058 - Support for MD2023.0(5000) Kotlin compiled version(s)....; Wrapped responses that now return okio.BufferedSource instead of java.io.InputStream
 #               Kotlin affected LocalStorage and getSyncFolder methods: extract_attachments, Shrink Dataset, Load (old) Pickle file, advanced_options_decrypt_file_from_sync...
+#               More Kotlin fixes.... loadMDPreferences() to .readSet() call when using StringBuilder()...
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -3911,7 +3912,7 @@ Visit: %s (Author's site)
     def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)                                           # 2023.0(5000)
 
     if isKotlinCompiledBuild():
-        from okio import BufferedSource
+        from okio import BufferedSource, Buffer
         if debug: myPrint("B", "** Kotlin compiled build detected, new libraries enabled.....")
 
     def convertBufferedSourceToInputStream(bufferedSource):
@@ -6288,7 +6289,7 @@ Visit: %s (Author's site)
         try:
             keyFile = File(MD_REF.getCurrentAccount().getBook().getRootFolder(), "key")
             fin = FileInputStream(keyFile)
-            keyInfo.readSet(fin)
+            keyInfo.readSet(fin)    # todo - ???
             fin.close()
         except: pass
         return keyInfo
@@ -8779,7 +8780,10 @@ Visit: %s (Author's site)
 
         params = SyncRecord()
         try:
-            params.readSet(StringReader(colWidthPrefs))
+            if isKotlinCompiledBuild():
+                params.readSet(Buffer().writeUtf8(colWidthPrefs))
+            else:
+                params.readSet(StringReader(colWidthPrefs))
         except IOException:
             myPrint("B", "Error parsing register settings: " + colWidthPrefs + " key=" + preferencesKey)
             return None
