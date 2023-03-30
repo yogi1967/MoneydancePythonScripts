@@ -8,5 +8,5 @@
   "module_name" = "Extract Data"
   "module_desc" = "Extract data to screen/csv. Options: 'StockGlance2020' investments, Reminders, Account / Investment txns, Security Balances, Currency History; Attachments..."
   "mac_sandbox_friendly" = "true"
-  "news" = "???"
+  "news" = "MD2023 (Kotlin compiled version) fixes - especially for Start Balance and new Balance Adjustment....; also common code..."
 }
