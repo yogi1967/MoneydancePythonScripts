@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: March 2022)
+# Co-Author Stuart Beesley - StuWareSoftSystems - Feb 2021 (last updated: March 2023)
 # Original Author, thanks & credits to hleofxquotes for the original base script and valuable input and knowledge.
 
 # Shell script: launch-moneydance.sh
@@ -48,7 +48,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2022.5 (4091)"
+md_version=" 2023.0 (5005) KOTLIN COMPILED"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -68,6 +68,8 @@ md_version=" 2022.5 (4091)"
 # NOTE:   MD2022.3(4077) Java 18.0.1 on Mac
 # https://adoptium.net/temurin/releases/?version=18
 # https://gluonhq.com/products/javafx/
+
+# NOTE:   MD2023.0(5000) Was compiled with Kotlin and build with Gradle...
 
 # Edit the necessary install locations for JDK and JavaFX below
 # Edit the necessary settings and your folder locations below
