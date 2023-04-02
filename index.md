@@ -88,15 +88,15 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1057 - 16th February 2023) (NEW: Produce report of Accounts and bank/account number information'; Eliminated Advanced Mode; NEW bootstrap pre-compiled launcher!)
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1030 - 16th February 2023) (Tweaks/fixes; added fields - investment transactions; NEW: extract_security_balances; NEW bootstrap pre-compiled launcher!)
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1018 - 22nd November 2022) (Added right-click popup to allow deletion of Reminder...; Search field now grabs focus too..)
-- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1020 - 16th February 2023) (Bold'ified blinking cells; multiple HomeScreen views; NEW bootstrap pre-compiled launcher!)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1058 - 1st April 2023) (MD2023 support...)
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1031 - 1st April 2023) (MD2023 support...)
+- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1023 - 1st April 2022) (MD2023 support...)
+- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1021 - 1st April 2023) (MD2023 support...)
 
 ### Signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - may be newer than appear (or not available) in Moneydance's Extensions menu)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and prior signed builds
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1005 - 17th November 2022) (enable expand all, search collapsed; CMD-T; tweaks)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1002 - 17th November 2022) - (Initial preview release; plus tweaks)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1009 - 1st April 2023) (MD2023 support...)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1006 - 1st April 2023) - (MD2023 support...)
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
 <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
@@ -159,4 +159,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 17th February 2023)_
+_(site last updated 1st April 2023)_
