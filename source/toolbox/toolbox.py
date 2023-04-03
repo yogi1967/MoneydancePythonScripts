@@ -163,7 +163,7 @@
 #               Updated reset window data methods to account for new/enhanced filter keys ("custom_filter_int" and "last_custom_filter_int")
 #               MD2023 fixes to common code...
 #               Quick check for earlier MD2023 Sync issue repair flagged......
-# build: 1059 - MD2023.2(5007)
+# build: 1059 - MD2023.2(5007); Launch check for invalid 'processed.dct' file (I have seen this as a folder!?)....
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -29927,6 +29927,33 @@ now after saving the file, restart Moneydance
             except: pass
 
             checkForREADONLY()
+
+            # Check for incorrect / invalid processed.dct file (I have seen this appear as a folder!?)...
+            PROCESSED_FILES = "tiksync/processed.dct"
+            try:
+                _testOpen = MD_REF.getCurrentAccountBook().getLocalStorage().openFileForReading(PROCESSED_FILES)
+                _testOpen.close()
+                myPrint("DB", "Test opening internal '%s' file successful...!" %(PROCESSED_FILES))
+                del _testOpen
+            except:
+                e, exc_value, exc_traceback = sys.exc_info()                                                            # noqa
+                myPrint("B", "*** CRITICAL ERROR DETECTED. Could not open '%s'.. Error: '%s' >> QUIT MONEYDANCE AND RESOLVE PROBLEM" %(PROCESSED_FILES, e))
+                dump_sys_error_to_md_console_and_errorlog()
+                MyPopUpDialogBox(toolbox_frame_, "CRITICAL PROBLEM DETECTED",
+                                                 "Internal '%s' file could not be opened!\n" 
+                                                 "Error: '%s'\n"
+                                                 "Review console for more details....\n"
+                                                 "(Contact IK Support for help)\n"
+                                                 "PLEASE QUIT MONEYDANCE UNTIL THIS ISSUE IS FIXED!\n"
+                                                        %(PROCESSED_FILES, exc_value),
+                                                 theTitle="CRITICAL ERROR - INTERNAL FILE",
+                                                 OKButtonText="ACKNOWLEDGE",
+                                                 lAlertLevel=2,
+                                                 lModal=False).go()
+                disableToolboxButtons()
+            del PROCESSED_FILES
+
+
             MD_REF.getUI().setStatus("%s is loaded and running.." %(myModuleID.capitalize()), 0.0)
             ################################################################################################################
             ############# END OF OpenDisplay() #############################################################################
