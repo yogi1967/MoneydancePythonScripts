@@ -117,6 +117,7 @@
 # build: 1020 - Added bootstrap to execute compiled version of extension (faster to load)....
 # build: 1021 - MD2023 fixes to common code...
 # build: 1022 - More MD2023 fixes; launch - configuring StreamVector lefties/righties etc...
+#               Tweak isSwingComponentInvalid() to ignore .isValid()....
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -432,7 +433,6 @@ else:
     from java.awt.event import FocusAdapter, MouseListener, ActionListener
     from java.awt.geom import Path2D
 
-    from java.util import ArrayList, Vector
     from java.lang import ArrayIndexOutOfBoundsException, Integer, InterruptedException, Character
     from java.lang.ref import WeakReference
     from java.util import Comparator, Iterator, Collections, Iterator, UUID
@@ -4276,9 +4276,16 @@ Visit: %s (Author's site)
     def isSwingComponentValid(swComponent): return not isSwingComponentInvalid(swComponent)
 
     def isSwingComponentInvalid(swComponent):
+
+        if debug:
+            myPrint("B", "isSwingComponentInvalid(), swComponent is None: %s, !isVisible(): %s, !isValid(): %s, !isDisplayable(): %s, getWindowAncestor() is None: %s"
+                    % (swComponent is None, not swComponent.isVisible(), not swComponent.isValid(), not swComponent.isDisplayable(), SwingUtilities.getWindowAncestor(swComponent) is None))
+
+        # return (swComponent is None
+        #         or not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
+        #         or SwingUtilities.getWindowAncestor(swComponent) is None)
         return (swComponent is None
-                or not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
-                or SwingUtilities.getWindowAncestor(swComponent) is None)
+                or not swComponent.isVisible() or not swComponent.isDisplayable() or SwingUtilities.getWindowAncestor(swComponent) is None)
 
     class BlinkSwingTimer(SwingTimer, ActionListener):
         ALL_BLINKERS = []

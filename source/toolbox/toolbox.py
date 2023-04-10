@@ -164,6 +164,7 @@
 #               MD2023 fixes to common code...
 #               Quick check for earlier MD2023 Sync issue repair flagged......
 # build: 1059 - MD2023.2(5007); Launch check for invalid 'processed.dct' file (I have seen this as a folder!?)....
+#               Change isSwingComponentInvalid() not to check for .isValid()...
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -26946,9 +26947,16 @@ now after saving the file, restart Moneydance
     def isSwingComponentValid(swComponent): return not isSwingComponentInvalid(swComponent)
 
     def isSwingComponentInvalid(swComponent):
+
+        if debug:
+            myPrint("B", "isSwingComponentInvalid(), swComponent is None: %s, !isVisible(): %s, !isValid(): %s, !isDisplayable(): %s, getWindowAncestor() is None: %s"
+                    % (swComponent is None, not swComponent.isVisible(), not swComponent.isValid(), not swComponent.isDisplayable(), SwingUtilities.getWindowAncestor(swComponent) is None))
+
+        # return (swComponent is None
+        #         or not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
+        #         or SwingUtilities.getWindowAncestor(swComponent) is None)
         return (swComponent is None
-                or not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
-                or SwingUtilities.getWindowAncestor(swComponent) is None)
+                or not swComponent.isVisible() or not swComponent.isDisplayable() or SwingUtilities.getWindowAncestor(swComponent) is None)
 
     class BlinkSwingTimer(SwingTimer, ActionListener):
         ALL_BLINKERS = []
