@@ -10674,7 +10674,7 @@ Visit: %s (Author's site)
 
         scriptToRun = "ofx_populate_multiple_userids.py"
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute the script: %s?" %(scriptToRun)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute script: %s?" %(scriptToRun)):
             return False
 
         return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
@@ -10686,7 +10686,7 @@ Visit: %s (Author's site)
 
         scriptToRun = "ofx_create_new_usaa_bank_custom_profile.py"
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute the script: %s?" %(scriptToRun)):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute script: %s?" %(scriptToRun)):
             return False
 
         return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
