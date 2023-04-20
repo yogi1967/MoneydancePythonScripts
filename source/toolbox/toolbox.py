@@ -166,6 +166,9 @@
 # build: 1059 - MD2023.2(5007); Launch check for invalid 'processed.dct' file (I have seen this as a folder!?)....
 #               Change isSwingComponentInvalid() not to check for .isValid()...
 #               Fixed Windows, (hot) keystrokes to use CTRL when attached to Menus so they are consistant (also with MD)...
+#               Tweak to IAGREE message - wrap to next line...
+#               Fix CMD-M (CTRL-M) that didn't work on Windows.... (keystroke 'm' not passed to .getActionCommand())
+
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -3263,7 +3266,8 @@ Visit: %s (Author's site)
             disclaimer = myPopupAskForInput(theParent,
                                             theTitle,
                                             "DISCLAIMER:",
-                                            "%s Type 'IAGREE' to continue.." %(disclaimerQuestion),
+                                            # "%s Type 'IAGREE' to continue.." %(disclaimerQuestion),
+                                            "Type 'IAGREE' to continue..",
                                             "NO",
                                             False,
                                             JOptionPane.ERROR_MESSAGE)
@@ -28961,7 +28965,8 @@ now after saving the file, restart Moneydance
 
         class DoTheMenu(AbstractAction):
 
-            def __init__(self): pass
+            def __init__(self, specialCMD=False):
+                self.specialCMD = specialCMD
 
             def actionPerformed(self, event):
                 global debug        # Global must be here as we set this variable (i.e. do not create a local instance/copy)
@@ -29069,7 +29074,8 @@ now after saving the file, restart Moneydance
                     GlobalVars.lCopyAllToClipBoard_TB = not GlobalVars.lCopyAllToClipBoard_TB
 
                 # ##########################################################################################################
-                if event.getActionCommand() == ToolboxMode.DEFAULT_CMD or event.getActionCommand() == ToolboxMode.DEFAULT_KEY_CMD:
+                if ((event.getActionCommand() == ToolboxMode.DEFAULT_CMD or event.getActionCommand() == ToolboxMode.DEFAULT_KEY_CMD)
+                    or self.specialCMD):
                     if (not ToolboxMode.isUpdateMode() and
                             (GlobalVars.lBypassAllBackupsAndDisclaimers_TB or myPopupAskQuestion(toolbox_frame_,
                                           "ENABLE UPDATE MODE",
@@ -29181,7 +29187,7 @@ now after saving the file, restart Moneydance
             toolbox_frame_.getRootPane().getActionMap().put("display-help", DisplayHelp())
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(ToolboxMode.DEFAULT_KEY, shortcut), ToolboxMode.DEFAULT_CMD)
-            toolbox_frame_.getRootPane().getActionMap().put(ToolboxMode.DEFAULT_CMD, doTheMenu)
+            toolbox_frame_.getRootPane().getActionMap().put(ToolboxMode.DEFAULT_CMD, self.DoTheMenu(True))
 
             frame_width = min(GetFirstMainFrame.DEFAULT_MAX_WIDTH, min(screenSize.width-20, max(GetFirstMainFrame.DEFAULT_MAX_WIDTH, int(round(GetFirstMainFrame.getSize().width *.95,0)))))
             frame_height = min(screenSize.height-20, max(GetFirstMainFrame.DEFAULT_MAX_HEIGHT, int(round(GetFirstMainFrame.getSize().height *.95,0))))
