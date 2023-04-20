@@ -85,7 +85,7 @@ Features:
 ** Toolbox turns on all Moneydance's internal DEBUG messages at startup. This puts extra messages into the Console window
    This is a useful tip - i.e. have the console window open and you will get more information when running tasks (e.g. OFX)
 
-NOTE: Where CMD is specified, this may be CTRL (or ALT) in Windows / Linux
+NOTE: Where CMD is specified, this will be CTRL in Windows / Linux (or ALT if that does not work)...
 
 CMD-I           This  Help Instruction Information
 CMD-F           Search for text in display windows

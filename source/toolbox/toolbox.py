@@ -165,6 +165,7 @@
 #               Quick check for earlier MD2023 Sync issue repair flagged......
 # build: 1059 - MD2023.2(5007); Launch check for invalid 'processed.dct' file (I have seen this as a folder!?)....
 #               Change isSwingComponentInvalid() not to check for .isValid()...
+#               Fixed Windows, (hot) keystrokes to use CTRL when attached to Menus so they are consistant (also with MD)...
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -517,6 +518,7 @@ else:
             from com.moneydance.apps.md.controller.sync import ICloudContainer
     except: pass
 
+    from com.moneydance.apps.md.view.gui import MoneydanceGUI
     from com.moneydance.apps.md.view.gui.sync import SyncFolderUtil
     from com.moneydance.apps.md.controller import MDException, Util, AppEventListener, PreferencesListener
     from com.moneydance.apps.md.controller import ModuleLoader, ModuleMetaData, LocalStorageCipher, Common, BalanceType
@@ -29153,7 +29155,8 @@ now after saving the file, restart Moneydance
 
             doTheMenu = self.DoTheMenu()
 
-            shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+            # shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+            shortcut = MoneydanceGUI.ACCELERATOR_MASK
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, (shortcut | Event.SHIFT_MASK)), "unlock-window")   # So Plus on Mac...
             toolbox_frame_.getRootPane().getActionMap().put("unlock-window", self.UnlockAction(toolbox_frame_))
@@ -29466,8 +29469,8 @@ now after saving the file, restart Moneydance
             mainPnl.add(self.myScrollPane, GridC.getc(onCol, onRow).fillboth().colspan(colSpan).wx(99.0).wy(99.0))
 
             keyToUse = shortcut
-            if Platform.isWindows():
-                keyToUse = InputEvent.ALT_MASK
+            # if Platform.isWindows():
+            #     keyToUse = InputEvent.ALT_MASK
 
             if Platform.isOSX():
                 save_useScreenMenuBar= System.getProperty("apple.laf.useScreenMenuBar")
