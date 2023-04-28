@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated December 2022
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated April 2023
 Credit: Dan T Davis for his input, testing and suggestions to make a better product......
 
 >> Display Name changed to 'Custom Balances' (from 'Net Account Balances') Dec 2021.
@@ -6,13 +6,10 @@ Credit: Dan T Davis for his input, testing and suggestions to make a better prod
 Extension format only >> Minimum Moneydance version 2021.1 (build: 3056, ideally 3069 onwards)
 (If you have installed the extension, but nothing happens, then check your Moneydance version)
 
-This is a Python(Jython 2.7) Extension that runs inside of Moneydance via the Moneybot Python Interpreter
-It's a prototype to demonstrate the capabilities of Python. Yes - if you can do it in Java, you can do it in Python too!
-
 DISCLAIMER: THIS EXTENSION IS READONLY (IT DOES NOT CHANGE DATA) >> BUT YOU USE AT YOUR OWN RISK!
 
 PURPOSE:
-This extension creates a 'widget' that displays Totals for items you select on the Moneydance Summary Page (Home Page)
+This extension creates a 'widget' that calculates / displays totals on the Moneydance Summary Page (Home Page)
 
 - Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
   ... or Drag & drop .mxt onto left side bar, or Extensions, Manage Extensions, add from file to install.
@@ -22,7 +19,7 @@ This extension creates a 'widget' that displays Totals for items you select on t
 - The balances are totalled and displayed on the Summary Page widget, converted to the Currency you select to display
 
 - My original concept was to add balances to target zero. Thus a positive number is 'good', a negative is 'bad'
-- The idea was that you net cash and debt to get back to zero every month (but you can do so much more with this now)
+- The idea was that you net cash and debt to get back to zero every month (but you can do so much more than this now)
 
 - You could create a Net Worth Balance for example; or total particular securities, or total certain accounts...
 - Or total expenses by date - e.g. 'how much did I spend on fuel last month?'
@@ -44,6 +41,11 @@ This extension creates a 'widget' that displays Totals for items you select on t
 - Row separator: optionally put horizontal lines above / below rows to separate sections
 - Blink: Enables the blinking of the selected rows (when displayed / visible)
 - Avg/by: Changes the final displayed calculated balance into an average by dividing by the value set (DEFAULT 1.0)
+
+- Maths using another row: OPTIONAL. When set, then you can retrieve the result from another row and then apply maths
+                           to the result of the current row.. E.g. take this row and divide it by the result from row x
+                           and treat the result as a percent. For example, this could calculate the value of investments
+                           as a percentage of total networth...
 
 ** NOTE: When rows can be hidden, they may not display on the Summary screen widget. Click on the widget to config:
          - In the row selector:
@@ -125,16 +127,23 @@ This extension creates a 'widget' that displays Totals for items you select on t
 
 - ROW NAME Configuration Options:
   - You can embed the following text (lowercase) in the Row Name field to configure the row as follows:
-    <#bz>   = This presents the total that is zero as blank/empty
+    <#bz>   = Forces any total to be appear blank when zero
     <#brn>  = Forces row name to be blank/empty
-    <#jr>   = Right justifies the row name
-    <#jc>   = Center justifies the row name
-    <#cre>  = Changes the row name to appear in red colour
-    <#cbl>  = Changes the row name to appear in blue colour
-    <#cgr>  = Changes the row name to appear in light grey colour
-    <#bo>   = Changes the row name to appear in bold
-    <#it>   = Changes the row name to appear in italics
+    <#jr>   = Row name justify: right
+    <#jc>   = Row name justify: center
+    <#cre>  = Row name colour:  red
+    <#cbl>  = Row name colour:  blue
+    <#cgr>  = Row name colour:  light grey
+    <#fbo>  = Row name font:    bold
+    <#fun>  = Row name font:    underline
+    <#fit>  = Row name font:    italics
+
     <#html> = EXPERIMENTAL - USE WITH CARE: Takes your row name as html encoded text (do NOT wrap with <html> </html>)..
+              Common html tags are: for bold: <b>text</b>   italics: <i>text</i>   small text: <small>small text</small>
+                                        colors(hex) red: <font color=#bb0000>red text</font> 4a4a4a
+                                                    blue: #0000ff  default MD foreground color: #4a4a4a>
+   HTML EXAMPLE:
+   <b><font color=#0000ff>Expenses </font></b>Last month <small><u><font color=#bb0000>OVERDUE</font></u></small><#html>
 
 - Options Menu:
   - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
@@ -152,6 +161,15 @@ This extension creates a 'widget' that displays Totals for items you select on t
   - Debug: Generates program debug messages in Help>Console Window. DO NOT LEAVE THIS PERMANENTLY ON
 
 >> DON'T FORGET TO SAVE CHANGES <<
+
+OTHER:
+- In the config GUI, the keystroke combination CMD-SHIFT-B will create a backup of your config...
+                                               CMD-SHIFT-R will restore the last backup of your config...
+
+
+TECHNICAL NOTE:
+This is a Python(Jython 2.7) Extension that runs inside of Moneydance via the Python Interpreter
+It's a prototype to demonstrate the capabilities of Python. Yes - if you can do it in Java, you can do it in Python too!
 
 Thanks for reading..... ;->
 Get more Scripts/Extensions from: https://yogi1967.github.io/MoneydancePythonScripts/
