@@ -168,7 +168,7 @@
 #               Fixed Windows, (hot) keystrokes to use CTRL when attached to Menus so they are consistent (also with MD)...
 #               Tweak to IAGREE message - wrap to next line...
 #               Fix CMD-M (CTRL-M) that didn't work on Windows.... (keystroke 'm' not passed to .getActionCommand())
-
+#               Tweak startup check messages detect_non_hier_sec_acct_or_orphan_txns()....
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -4039,7 +4039,7 @@ Visit: %s (Author's site)
                 myPrint("DB", "** AppleScript: USER CANCELLED FILE SELECTION ** ")
                 return None
             if result != 0:
-                myPrint("B", "ERROR: AppleScript returned error:", result, err)
+                myPrint("DB", "ERROR: AppleScript returned error:", result, err)
                 return None
             _theFile = BufferedReader(InputStreamReader(process.getInputStream())).readLine()
             myPrint("DB", "AppleScript - User selected file:", _theFile, "Exists:", File(_theFile).exists())
@@ -21527,7 +21527,7 @@ now after saving the file, restart Moneydance
 
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    def detect_non_hier_sec_acct_or_orphan_txns():
+    def detect_non_hier_sec_acct_or_orphan_txns(startupCheck=False):
         if MD_REF.getCurrentAccountBook() is None: return 0
         txnSet = MD_REF.getCurrentAccountBook().getTransactionSet()
         txns = txnSet.iterableTxns()
@@ -21548,14 +21548,16 @@ now after saving the file, restart Moneydance
 
             if fields.hasSecurity and not acct.isAncestorOf(fields.security):
                 count_the_errors += 1
-                myPrint("B", "ERROR: Txn for Security %s found within Investment Account %s that is cross linked to another account (or Security is orphaned)!\n"
-                             "txn:\n%s\n" %(fields.security, acct, txn.getSyncInfo().toMultilineHumanReadableString()))
+                if debug or not startupCheck:
+                    myPrint("B", "ERROR: Txn for Security %s found within Investment Account %s that is cross linked to another account (or Security is orphaned)!\n"
+                                 "txn:\n%s\n" %(fields.security, acct, txn.getSyncInfo().toMultilineHumanReadableString()))
         del txnSet, txns
 
         if count_the_errors:
             myPrint("B", "ERROR: %s investment txn(s) with cross-linked securities detected" %(count_the_errors))
         else:
-            myPrint("DB", "NOTE: No investment txn(s) with cross-linked securities were detected - phew!")
+            if debug or startupCheck:
+                myPrint("B", "NOTE: No investment txn(s) with cross-linked securities were detected...")
 
         return count_the_errors
 
@@ -28975,19 +28977,19 @@ now after saving the file, restart Moneydance
                 myPrint("DB", "DoTheMenu() - Command: '%s'" %(event.getActionCommand()))
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "Page Setup":
+                if event.getActionCommand().lower() == "page_setup":
                     pageSetup()
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "Help":
+                if event.getActionCommand().lower() == "help":
                     DisplayHelp().actionPerformed(None)
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "About Toolbox":
+                if event.getActionCommand().lower() == "about_toolbox":
                     AboutThisScript(toolbox_frame_).go()
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "About Moneydance":
+                if event.getActionCommand().lower() == "about_moneydance":
                     # MD_REF.getUI().showAbout()
                     abtWin = AboutWindow(MD_REF.getUI(), toolbox_frame_)
 
@@ -28997,7 +28999,7 @@ now after saving the file, restart Moneydance
                     abtWin.setVisible(True)
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "Auto Prune Internal Backups":
+                if event.getActionCommand().lower() == "auto_prune_internal_backups":
 
                     if not GlobalVars.lAutoPruneInternalBackups_TB:
                         if not myPopupAskQuestion(toolbox_frame_,
@@ -29022,7 +29024,7 @@ now after saving the file, restart Moneydance
                         prune_internal_backups()
 
                 # ##########################################################################################################
-                if event.getActionCommand().lower() == "Disable Backup & Disclaimer warnings".lower():
+                if event.getActionCommand().lower() == "disable_backups_disclaimers":
 
                     if not GlobalVars.lBypassAllBackupsAndDisclaimers_TB:
                         if not myPopupAskQuestion(toolbox_frame_,
@@ -29051,7 +29053,7 @@ now after saving the file, restart Moneydance
                     GlobalVars.mainPnl_backupWarningsDisabled_lbl.setText("<BACKUP/DISCLAIMERS OFF>" if GlobalVars.lBypassAllBackupsAndDisclaimers_TB else "")
 
                 # ##########################################################################################################
-                if event.getActionCommand().lower() == "Debug".lower():
+                if event.getActionCommand().lower() == "debug":
                     if debug:
                         txt = "Script Debug mode disabled"
                         setDisplayStatus(txt, "DG")
@@ -29063,7 +29065,7 @@ now after saving the file, restart Moneydance
                     GlobalVars.mainPnl_debug_lbl.setText("<DEBUG ON>" if debug else "")
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "Copy all Output to Clipboard":
+                if event.getActionCommand().lower() == "copy_output_clipboard":
                     if GlobalVars.lCopyAllToClipBoard_TB:
                         txt = "Diagnostic outputs will NOT be copied to Clipboard"
                         setDisplayStatus(txt, "DG")
@@ -29075,7 +29077,7 @@ now after saving the file, restart Moneydance
 
                 # ##########################################################################################################
                 if ((event.getActionCommand() == ToolboxMode.DEFAULT_CMD or event.getActionCommand() == ToolboxMode.DEFAULT_KEY_CMD)
-                    or self.specialCMD):
+                        or self.specialCMD):
                     if (not ToolboxMode.isUpdateMode() and
                             (GlobalVars.lBypassAllBackupsAndDisclaimers_TB or myPopupAskQuestion(toolbox_frame_,
                                           "ENABLE UPDATE MODE",
@@ -29110,10 +29112,10 @@ now after saving the file, restart Moneydance
 
                 # ##########################################################################################################
                 # Save parameters now...
-                if (event.getActionCommand().lower() == "Copy all Output to Clipboard".lower()
-                        or event.getActionCommand().lower() == "Debug".lower()
-                        or event.getActionCommand().lower() == "Auto Prune Internal Backups".lower()
-                        or event.getActionCommand().lower() == "Disable Backup & Disclaimer warnings".lower()):
+                if (event.getActionCommand().lower() == "copy_output_clipboard"
+                        or event.getActionCommand().lower() == "debug"
+                        or event.getActionCommand().lower() == "auto_prune_internal_backups"
+                        or event.getActionCommand().lower() == "disable_backups_disclaimers"):
 
                     try:
                         save_StuWareSoftSystems_parameters_to_file()
@@ -29490,12 +29492,16 @@ now after saving the file, restart Moneydance
             SetupMDColors.updateUI()
 
             mb = JMenuBar()
-            menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
+            if Platform.isMac():
+                menu1 = JMenu("<html><b>TOOLBOX Options</b></html>")
+            else:
+                menu1 = JMenu("<html><b><u>T</u>OOLBOX Options</b></html>")     # html breaks the Mnemonic....
             # menu1 = JMenu("TOOLBOX Options")
             menu1.setMnemonic(KeyEvent.VK_T)
             menu1.setForeground(SetupMDColors.FOREGROUND_REVERSED); menu1.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
             menuItemD = JCheckBoxMenuItem("Debug")
+            menuItemD.setActionCommand("debug")
             menuItemD.setMnemonic(KeyEvent.VK_D)
             menuItemD.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_D, (keyToUse | Event.SHIFT_MASK)))
             menuItemD.addActionListener(doTheMenu)
@@ -29504,6 +29510,7 @@ now after saving the file, restart Moneydance
             menu1.add(menuItemD)
 
             menuItemC = JCheckBoxMenuItem("Copy all Output to Clipboard")
+            menuItemC.setActionCommand("copy_output_clipboard")
             menuItemC.setMnemonic(KeyEvent.VK_O)  # Can't think of a spare letter to use!!!!
             menuItemC.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, keyToUse))
             menuItemC.addActionListener(doTheMenu)
@@ -29512,6 +29519,7 @@ now after saving the file, restart Moneydance
             menu1.add(menuItemC)
 
             menuItemP = JCheckBoxMenuItem("Auto Prune Internal Backups")
+            menuItemP.setActionCommand("auto_prune_internal_backups")
             menuItemP.setMnemonic(KeyEvent.VK_B)
             menuItemP.addActionListener(doTheMenu)
             menuItemP.setToolTipText("Enables auto pruning of the internal backups that Toolbox makes of config.dict, custom_theme.properties, and ./safe/settings")
@@ -29519,24 +29527,28 @@ now after saving the file, restart Moneydance
             menu1.add(menuItemP)
 
             menuItemW = JCheckBoxMenuItem("Disable Backup & Disclaimer warnings")
+            menuItemW.setActionCommand("disable_backups_disclaimers")
             menuItemW.addActionListener(doTheMenu)
             menuItemW.setToolTipText("Disables all Toolbox's warnings about backups and disclaimers")
             menuItemW.setSelected(GlobalVars.lBypassAllBackupsAndDisclaimers_TB)
             menu1.add(menuItemW)
 
             menuItemF = JMenuItem("Find/Search")
+            menuItemF.setActionCommand("find_search")
             menuItemF.setMnemonic(KeyEvent.VK_F)
             menuItemF.setToolTipText("Finds text within the main display window..")
             menuItemF.addActionListener(mySearchAction)
             menu1.add(menuItemF)
 
             menuItemPS = JMenuItem("Page Setup")
+            menuItemPS.setActionCommand("page_setup")
             menuItemPS.setMnemonic(KeyEvent.VK_P)
             menuItemPS.setToolTipText("Printer Page Setup")
             menuItemPS.addActionListener(doTheMenu)
             menu1.add(menuItemPS)
 
             menuItem2 = JMenuItem("Exit")
+            menuItem2.setActionCommand("exit")
             menuItem2.setMnemonic(KeyEvent.VK_E)
             menuItem2.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, keyToUse))
             menuItem2.addActionListener(self.CloseAction(toolbox_frame_))
@@ -29545,12 +29557,16 @@ now after saving the file, restart Moneydance
 
             mb.add(menu1)
 
-            menuH = JMenu("<html><B>Help/About</b></html>")
+            if Platform.isMac():
+                menuH = JMenu("<html><B>Help/About/Info</b></html>")     # html breaks the Mnemonic....
+            else:
+                menuH = JMenu("<html><B>Help/About/<u>I</u>nfo</b></html>")     # html breaks the Mnemonic....
             # menuH = JMenu("HELP")
             menuH.setMnemonic(KeyEvent.VK_I)
             menuH.setForeground(SetupMDColors.FOREGROUND_REVERSED); menuH.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
-            menuItemH = JMenuItem("Help")
+            menuItemH = JMenuItem("Help/Info")
+            menuItemH.setActionCommand("help")
             menuItemH.setMnemonic(KeyEvent.VK_I)
             menuItemH.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I, keyToUse))
             menuItemH.setToolTipText("Display Help")
@@ -29558,12 +29574,14 @@ now after saving the file, restart Moneydance
             menuH.add(menuItemH)
 
             menuItemA = JMenuItem("About Toolbox")
+            menuItemA.setActionCommand("about_toolbox")
             menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setToolTipText("About...")
             menuItemA.addActionListener(doTheMenu)
             menuH.add(menuItemA)
 
             menuItemAMD = JMenuItem("About Moneydance")
+            menuItemAMD.setActionCommand("about_moneydance")
             menuItemAMD.setToolTipText("About...")
             menuItemAMD.addActionListener(doTheMenu)
             menuH.add(menuItemAMD)
@@ -29702,7 +29720,7 @@ now after saving the file, restart Moneydance
             ############################################################################################################
 
             # Look for security txns not properly linked back to the parent investment account
-            if detect_non_hier_sec_acct_or_orphan_txns() > 0:
+            if detect_non_hier_sec_acct_or_orphan_txns(startupCheck=True) > 0:
                 statusTxt = "ERROR - Cross-linked (or Orphaned) security txn(s) detected.. Review Console!"
                 output = ">> Run 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)'..."
                 myPrint("B", statusTxt, output)
