@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1023) - March 2023
+# list_future_reminders.py (build: 1024) - April 2023
 # Displays Moneydance future dated / scheduled reminders (along with options to auto-record, delete etc)
 
 ###############################################################################
@@ -70,6 +70,7 @@
 # build: 1021 - Save column sort and last viewed reminder too...
 # build: 1022 - Added right click, popup menu: Record all next occurrence(s) for same month
 # build: 1023 - MD2023 Fixes to common code
+# build: 1024 - Fix QuickSearch() field...
 
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
@@ -79,7 +80,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1023"
+version_build = "1024"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -367,7 +368,7 @@ else:
     import threading
     from java.awt import Image
     from java.awt.image import BufferedImage
-    from java.awt.event import FocusAdapter, MouseAdapter
+    from java.awt.event import FocusAdapter, MouseAdapter, KeyAdapter
     from java.util import Comparator
     from javax.swing import SortOrder, ListSelectionModel, JPopupMenu, ImageIcon, RowFilter, RowSorter
     from javax.swing.table import DefaultTableCellRenderer, DefaultTableModel, TableRowSorter
@@ -4431,21 +4432,34 @@ Visit: %s (Author's site)
                     if len(_searchFilter) < 1:
                         GlobalVars.currentJTableSearchFilter = None
                     else:
-                        GlobalVars.currentJTableSearchFilter = RowFilter.regexFilter("(?i)" + _searchFilter)            # noqa
+                        GlobalVars.currentJTableSearchFilter = RowFilter.regexFilter("(?i)" + _searchFilter)
+                    myPrint("DB", "... set/updated search filter to:", GlobalVars.currentJTableSearchFilter)
                     sorter = GlobalVars.saveJTable.getRowSorter()
-                    sorter.setRowFilter(GlobalVars.currentJTableSearchFilter)                                           # noqa
+                    sorter.setRowFilter(GlobalVars.currentJTableSearchFilter)
+                    GlobalVars.saveJTable.getModel().fireTableDataChanged()
 
-
-            # noinspection PyUnusedLocal
             class MyFocusAdapter(FocusAdapter):
                 def __init__(self, _searchField, _document):
                     self._searchField = _searchField
                     self._document = _document
+                # noinspection PyUnusedLocal
                 def focusGained(self, e): self._searchField.setCaretPosition(self._document.getLength())
+
+            class MyKeyAdapter(KeyAdapter):
+                def keyPressed(self, evt):
+                    if (evt.getKeyCode() == KeyEvent.VK_ENTER):
+                        evt.getSource().transferFocus()
+
+            class MyQuickSearchField(QuickSearchField):
+                def __init__(self, *args, **kwargs):
+                    super(self.__class__, self).__init__(*args, **kwargs)
+                    self.setFocusable(True)
+                    self.addKeyListener(MyKeyAdapter())
+
 
             GlobalVars.currentJTableSearchFilter = None
 
-            GlobalVars.mySearchField = QuickSearchField()
+            GlobalVars.mySearchField = MyQuickSearchField()
             GlobalVars.mySearchField.setPlaceholderText("Search reminders...")
             document = GlobalVars.mySearchField.getDocument()                                                           # noqa
             document.addDocumentListener(MyDocListener(GlobalVars.mySearchField))
