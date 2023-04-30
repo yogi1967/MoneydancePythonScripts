@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# categories_super_window.py build: 1009 - March 2023 - Stuart Beesley StuWareSoftSystems
+# categories_super_window.py build: 1010 - April 2023 - Stuart Beesley StuWareSoftSystems
 # >> Renamed to: accounts_categories_mega_search_window.py build: 1003 - April 2022 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
@@ -42,6 +42,7 @@
 # build: 1007 - Tweak init with time
 # build: 1008 - Added bootstrap to execute compiled version of extension (faster to load)....
 # build: 1009 - MD2023 fixes to common code...
+# build: 1010 - Tweak QuickSearch() field to allow escape
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -51,7 +52,7 @@
 
 # SET THESE LINES
 myModuleID = u"accounts_categories_mega_search_window"
-version_build = "1009"
+version_build = "1010"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -271,7 +272,6 @@ else:
     from java.awt.datatransfer import StringSelection
     from javax.swing.text import DefaultHighlighter
     from javax.swing.event import AncestorListener
-
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets, Point
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
@@ -343,7 +343,7 @@ else:
     from com.moneydance.awt import QuickSearchField
     from com.moneydance.apps.md.view.gui import COAWindow
     from javax.swing.event import DocumentListener
-    from java.awt.event import FocusAdapter
+    from java.awt.event import FocusAdapter, KeyAdapter
     from com.moneydance.awt import GridC
     from com.moneydance.apps.md.view.gui import MoneydanceGUI
     from java.awt import Event
@@ -2963,7 +2963,43 @@ Visit: %s (Author's site)
 
             def focusGained(self, e): self._searchField.setCaretPosition(self._document.getLength())
 
-        mySearchField = QuickSearchField()
+        class MyKeyAdapter(KeyAdapter):
+            def keyPressed(self, evt):
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER):
+                    evt.getSource().transferFocus()
+
+        class MyJTextFieldEscapeAction(AbstractAction):
+            def __init__(self): pass
+
+            def actionPerformed(self, evt):
+                myPrint("DB", "In MyJTextFieldEscapeAction:actionPerformed():", evt)
+                jtf = evt.getSource()
+                invokeMethodByReflection(jtf, "cancelEntry", None)
+                jtf.dispatchEvent(KeyEvent(SwingUtilities.getWindowAncestor(jtf),
+                                           KeyEvent.KEY_PRESSED,
+                                           System.currentTimeMillis(),
+                                           0,
+                                           KeyEvent.VK_ESCAPE,
+                                           Character.valueOf(" ")))
+
+        class MyQuickSearchField(QuickSearchField):
+            def __init__(self, *args, **kwargs):
+                super(self.__class__, self).__init__(*args, **kwargs)
+                self.setFocusable(True)
+                self.addKeyListener(MyKeyAdapter())
+
+            def setEscapeCancelsTextAndEscapesWindow(self, cancelsAndEscapes):
+                if cancelsAndEscapes:
+                    self.getInputMap(self.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "override_escape")
+                    self.getActionMap().put("override_escape", MyJTextFieldEscapeAction())
+                else:
+                    self.getInputMap(self.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), None)
+
+            def toString(self):
+                return self.getPlaceholderText() + " " + self.getText()
+
+        mySearchField = MyQuickSearchField()
+        mySearchField.setEscapeCancelsTextAndEscapesWindow(True)
 
         expandAllButton = JButton("Expand all")
         collapseAllButton = JButton("-")

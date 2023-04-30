@@ -32,6 +32,24 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 
 - You can change the name of each row, the balance type, and the currency to display. Also Active/Inactive items.
 
+- [OPTIONAL] You can enter a 'Group by ID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.')
+             When you enter 'Group by ID' filter text (next to the row selector), then this will filter rows from
+             appearing on the Summary / Home page widget.. For example, set a row with "123" and then filter "2", then
+             only the row(s) containing "2" will appear on the widget (this would include groups with id "123")
+             NOTE: You can filter multiple 'Group By IDs' by separating with ';'
+                   Enter '!' (not) to make the filter include rows that do NOT have the requested filters
+                   Enter '&' (and) to make the filter include rows where all the requested filters match
+                   Enter '|' (or)  to make the filter include rows where any of the requested filters match [DEFAULT]
+                                   NOTE: |(or) is default - will be the default anyway unless '!' or '&' used
+                   WARNING: Only enter 1 of '!|&' characters as only one search type can be used within a single filter.
+                   NOTE:    !(not) is always implicitly also &(and) - i.e. !1;2 (means not '1' and not '2')
+
+             EXAMPLES:
+                    - Filter: '1'      - only include rows where the groupid includes a '1'
+                    - Filter: '1;2;3'  - only include rows where the groupid includes a '1' or '2' or '3'
+                    - Filter: '!1;2;3' - only include rows where the groupid does NOT include a '1' or '2' or '3'
+                    - Filter: '&1;2;3' - only include rows where the groupid includes one '1' and '2' and '3'
+
 - Hide row when options: Never, Always(Disable), balance=X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
 ... You can set X to any value (positive or negative)
     NOTE: If you select Menu Option 'Hide Decimal Places', AND auto-hide row when balance=X,
@@ -165,7 +183,8 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 OTHER:
 - In the config GUI, the keystroke combination CMD-SHIFT-B will create a backup of your config...
                                                CMD-SHIFT-R will restore the last backup of your config...
-
+                                               CMD-I       will display this readme/help guide...
+                                               CMD-SHIFT-I will display some debugging information about the rows...
 
 TECHNICAL NOTE:
 This is a Python(Jython 2.7) Extension that runs inside of Moneydance via the Python Interpreter

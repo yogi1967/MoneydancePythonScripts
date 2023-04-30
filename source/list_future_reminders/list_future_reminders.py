@@ -4450,16 +4450,42 @@ Visit: %s (Author's site)
                     if (evt.getKeyCode() == KeyEvent.VK_ENTER):
                         evt.getSource().transferFocus()
 
+            class MyJTextFieldEscapeAction(AbstractAction):
+                def __init__(self): pass
+
+                def actionPerformed(self, evt):
+                    myPrint("DB", "In MyJTextFieldEscapeAction:actionPerformed():", evt)
+                    jtf = evt.getSource()
+                    invokeMethodByReflection(jtf, "cancelEntry", None)
+                    jtf.dispatchEvent(KeyEvent(SwingUtilities.getWindowAncestor(jtf),
+                                               KeyEvent.KEY_PRESSED,
+                                               System.currentTimeMillis(),
+                                               0,
+                                               KeyEvent.VK_ESCAPE,
+                                               Character.valueOf(" ")))
+
             class MyQuickSearchField(QuickSearchField):
                 def __init__(self, *args, **kwargs):
                     super(self.__class__, self).__init__(*args, **kwargs)
                     self.setFocusable(True)
                     self.addKeyListener(MyKeyAdapter())
 
+                def setEscapeCancelsTextAndEscapesWindow(self, cancelsAndEscapes):
+                    if cancelsAndEscapes:
+                        self.getInputMap(self.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "override_escape")
+                        self.getActionMap().put("override_escape", MyJTextFieldEscapeAction())
+                    else:
+                        self.getInputMap(self.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), None)
+
+                def toString(self):
+                    return self.getPlaceholderText() + " " + self.getText()
+
+
 
             GlobalVars.currentJTableSearchFilter = None
 
             GlobalVars.mySearchField = MyQuickSearchField()
+            GlobalVars.mySearchField.setEscapeCancelsTextAndEscapesWindow(True)
             GlobalVars.mySearchField.setPlaceholderText("Search reminders...")
             document = GlobalVars.mySearchField.getDocument()                                                           # noqa
             document.addDocumentListener(MyDocListener(GlobalVars.mySearchField))
