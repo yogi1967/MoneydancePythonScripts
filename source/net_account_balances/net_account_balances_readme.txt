@@ -32,11 +32,11 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 
 - You can change the name of each row, the balance type, and the currency to display. Also Active/Inactive items.
 
-- [OPTIONAL] You can enter a 'Group by ID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.')
-             When you enter 'Group by ID' filter text (next to the row selector), then this will filter rows from
+- [OPTIONAL] You can enter a 'Group ID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.')
+             When you enter 'Group ID' filter text (next to the row selector), then this will filter rows from
              appearing on the Summary / Home page widget.. For example, set a row with "123" and then filter "2", then
              only the row(s) containing "2" will appear on the widget (this would include groups with id "123")
-             NOTE: You can filter multiple 'Group By IDs' by separating with ';'
+             NOTE: You can filter multiple 'Group IDs' by separating with ';'
                    Enter '!' (not) to make the filter include rows that do NOT have the requested filters
                    Enter '&' (and) to make the filter include rows where all the requested filters match
                    Enter '|' (or)  to make the filter include rows where any of the requested filters match [DEFAULT]

@@ -125,6 +125,7 @@
 #               Added CMD-SHIFT-B and R to backup / restore config file
 # build: 1025 - Added UUID per row, ability to name a section against each row, and filter for that section...
 #               Changed parameter load/save routines to use getattr() setattr() etc (rather than hardcode the list)....
+#               Tweaked HideAction() to push a windowClosing event....
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -526,6 +527,7 @@ else:
 
     GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME          = "Custom Balances"
     GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED    = "<NOT CONFIGURED>"
+    GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER  = "<HIDDEN BY GROUPID FILTER>"
     GlobalVars.WIDGET_ROW_DISABLED                  = "** ROW HIDDEN/DISABLED **"
 
     GlobalVars.BALTYPE_BALANCE = 0
@@ -3666,15 +3668,15 @@ Visit: %s (Author's site)
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
-    class JTextFieldGroupByDocument(PlainDocument):
+    class JTextFieldGroupIDDocument(PlainDocument):
 
         def __init__(self):
             # https://docs.python.org/2/howto/regex.html
             # Only allow a-z, 0-9, '-', '_', '.'
-            self.FILTER_GROUPBY_ALPHA_NUM_REGEX = re.compile('[^a-z0-9._-]', (re.IGNORECASE | re.UNICODE | re.LOCALE))
+            self.FILTER_GROUPID_ALPHA_NUM_REGEX = re.compile('[^a-z0-9._-]', (re.IGNORECASE | re.UNICODE | re.LOCALE))
             super(self.__class__, self).__init__()
 
-        def characterCheck(self, checkString): return (self.FILTER_GROUPBY_ALPHA_NUM_REGEX.search(checkString) is None)
+        def characterCheck(self, checkString): return (self.FILTER_GROUPID_ALPHA_NUM_REGEX.search(checkString) is None)
 
         def insertString(self, theOffset, theStr, theAttr):
             if theStr is not None and self.characterCheck(theStr):
@@ -5322,12 +5324,18 @@ Visit: %s (Author's site)
 
                 myPrint("DB", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
-                myPrint("DB", "Setting MyJFrame to invisible....")
 
-                NetAccountBalancesExtension.getNAB().configPanelOpen = False
 
-                # Listeners are already on the Swing EDT
-                self.theFrame.setVisible(False)
+                myPrint("DB", "Pushing Window Closing event....");
+                self.theFrame.dispatchEvent(WindowEvent(self.theFrame, WindowEvent.WINDOW_CLOSING))
+
+                # myPrint("DB", "Setting MyJFrame to invisible....");
+                # NetAccountBalancesExtension.getNAB().configPanelOpen = False
+                #
+                # # Listeners are already on the Swing EDT
+                # self.theFrame.setVisible(False)
+
+
 
         class HelpAction(AbstractAction):
 
@@ -5500,7 +5508,7 @@ Visit: %s (Author's site)
                               %(pad(NAB.savedGroupIDTable[i], 6), rpad(str(i+1), 4) + currentRowMarker, rpad(str(otherRow), 5) + otherRowInvalidTxt, pad(NAB.savedUUIDTable[i], 36), NAB.savedWidgetName[i])
 
                 output += "\n" \
-                          "Group by filter: '%s'\n" %(NAB.savedFilterByGroupID)
+                          "GroupID filter: '%s'\n" %(NAB.savedFilterByGroupID)
 
                 QuickJFrame("INFO ON ROWS/OTHER ROWS/GROUP IDs/UUIDs", output, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
 
@@ -5784,7 +5792,7 @@ Visit: %s (Author's site)
                     if (operateOnAnotherRowParams[1] not in "+-/*"):                                            return False
             return True
 
-        def isRowFilteredOutByGroupBy(self, thisRowIdx):
+        def isRowFilteredOutByGroupID(self, thisRowIdx):
             FILTER_SPLIT_TOKEN = ";"
             FILTER_NOT_MARKER = "!"
             FILTER_AND_MARKER = "&"
@@ -5795,7 +5803,7 @@ Visit: %s (Author's site)
 
             # For speed, check if the filter is blank, and exit quickly....
             if filterString == "":
-                if debug: myPrint("B", "isRowFilteredOutByGroupBy(row: %s) >> NO GROUPBY FILTER APPLIED - will exit filter check...." %(thisRowIdx+1))
+                if debug: myPrint("B", "isRowFilteredOutByGroupID(row: %s) >> NO GROUPID FILTER APPLIED - will exit filter check...." %(thisRowIdx+1))
             else:
                 filterString = NAB.savedFilterByGroupID.lower()
 
@@ -5813,10 +5821,10 @@ Visit: %s (Author's site)
                     notFilter = False
                     filterString = filterString.replace(FILTER_AND_MARKER, "")
 
-                if debug: myPrint("B", "isRowFilteredOutByGroupBy(row: %s) Filter type: or: %s, not: %s, and: %s" %(thisRowIdx+1, orFilter, notFilter, andFilter))
+                if debug: myPrint("B", "isRowFilteredOutByGroupID(row: %s) Filter type: or: %s, not: %s, and: %s" %(thisRowIdx+1, orFilter, notFilter, andFilter))
 
                 filterTokens = filterString.split(FILTER_SPLIT_TOKEN)
-                groupByID = NAB.savedGroupIDTable[thisRowIdx].strip().lower()
+                groupID = NAB.savedGroupIDTable[thisRowIdx].strip().lower()
 
                 if ("".join(filterTokens)).strip() != "":       # Test for all tokens blank, if so, just ignore filter...
 
@@ -5830,7 +5838,7 @@ Visit: %s (Author's site)
 
                         countFilterTokens += 1
 
-                        if (filterToken in groupByID):
+                        if (filterToken in groupID):
                             if orFilter:
                                 countFilterTokens = -1
                                 countMatches += 1
@@ -5859,7 +5867,7 @@ Visit: %s (Author's site)
 
                     if countMatches < countFilterTokens: filteredOut = True
 
-                if debug: myPrint("B", "isRowFilteredOutByGroupBy(row: %s) filterTokens: '%s', groupbyid: '%s', isFilteredOut: %s" %(thisRowIdx+1, filterTokens, groupByID, filteredOut))
+                if debug: myPrint("B", "isRowFilteredOutByGroupID(row: %s) filterTokens: '%s', groupid: '%s', isFilteredOut: %s" %(thisRowIdx+1, filterTokens, groupID, filteredOut))
 
             return filteredOut
 
@@ -5877,8 +5885,8 @@ Visit: %s (Author's site)
             if (NAB.savedHideRowWhenXXXTable[thisRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
                 # myPrint("B", "...... confirmed this row not AUTOHIDE...");
 
-                # if (not NAB.isRowFilteredOutByGroupBy(thisRowIdx)):
-                #     # myPrint("B", "...... confirmed this row not filtered out by 'Group by'...");
+                # if (not NAB.isRowFilteredOutByGroupID(thisRowIdx)):
+                #     # myPrint("B", "...... confirmed this row not filtered out by 'Group ID'...");
 
                 if otherRow is not None:
                     # myPrint("B", "...... confirmed otherRow not None... (will cast to int)");
@@ -5894,8 +5902,8 @@ Visit: %s (Author's site)
                                     # myPrint("B", "...... confirmed savedOperateOnAnotherRowTable[otherRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None...");
                                     if (NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
                                         # myPrint("B", "...... confirmed NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS...");
-                                        if (not NAB.isRowFilteredOutByGroupBy(otherRowIdx)):
-                                            # myPrint("B", "...... confirmed 'other row' not filtered out by 'Group by'...");
+                                        if (not NAB.isRowFilteredOutByGroupID(otherRowIdx)):
+                                            # myPrint("B", "...... confirmed 'other row' not filtered out by 'Group ID'...");
                                             resultIdx = int(otherRowIdx)
                                             lOtherRowConfirmed = True
                                             # myPrint("B", "...... >>> SUCCESS! RESULT: resultIdx: %s" %(resultIdx))
@@ -6738,7 +6746,7 @@ Visit: %s (Author's site)
                 NAB.configPanelOpen = False
 
                 if self.theFrame.isVisible():
-                    myPrint("DB", ".. in windowClosing, but isVisible is True, let's trigger a widget refresh....")
+                    myPrint("DB", ".. in windowClosing, but isVisible is True, let's trigger a widget refresh....");
 
                     NAB.cancelSwingWorkers(lSimulates=True, lParallelRebuilds=True, lBuildHomePageWidgets=True)
 
@@ -6897,11 +6905,18 @@ Visit: %s (Author's site)
                         wrc = WidgetRowConfig(NAB.savedWidgetName[i], "")
                         if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
                             NAB.simulateTotal_label.setText(GlobalVars.WIDGET_ROW_DISABLED)
+
+                        elif balanceOrAverage is None and NAB.isRowFilteredOutByGroupID(i):
+                            NAB.simulateTotal_label.setText("  " if wrc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER.lower())
+                            NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
+
                         elif balanceOrAverage is None:
                             NAB.simulateTotal_label.setText("  " if wrc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower())
+
                         elif balanceObj.isUORError():
                             NAB.simulateTotal_label.setText(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower())
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
+
                         else:
                             showCurrText = ""
                             if balanceObj.getCurrencyType() is not baseCurr: showCurrText = " (%s)" %(balanceObj.getCurrencyType().getIDString())
@@ -8462,17 +8477,12 @@ Visit: %s (Author's site)
 
                     NAB.rowSelected_COMBO.setRenderer(RowComboListRenderer())
 
-                    # groupIDLabel = MyJLabel("GrpID:")
-                    # groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
-                    # groupBy_pnl.add(groupIDLabel, GridC.getc(onGroupByCol, onGroupByRow).east().leftInset(colLeftInset))
-                    # onGroupByCol += 1
-
                     NAB.filterByGroupID_JTF = MyJTextFieldFilter()
                     NAB.filterByGroupID_JTF.setEscapeCancelsTextAndEscapesWindow(False)
                     NAB.filterByGroupID_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setName("filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setToolTipText("Filter rows by 'GroupID' (free format text). Use ';' to separate multiple, '!' = NOT, '&' = AND. Refer CMD-I Help")
-                    NAB.filterByGroupID_JTF.setPlaceholderText("<Filter 'Group by ID'>")
+                    NAB.filterByGroupID_JTF.setPlaceholderText("Filter by GroupID....")
                     NAB.filterByGroupID_JTF.addFocusListener(NAB.saveFocusListener)
                     selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(1.0).fillboth())
                     onSelectCol += 1
@@ -8817,24 +8827,24 @@ Visit: %s (Author's site)
                     controlPnl.add(hideWhenSelector_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(2))
                     onCol += 2
 
-                    groupBy_pnl = MyJPanel(GridBagLayout())
-                    onGroupByRow = 0
-                    onGroupByCol = 0
+                    groupID_pnl = MyJPanel(GridBagLayout())
+                    onGroupIDRow = 0
+                    onGroupIDCol = 0
 
                     groupIDLabel = MyJLabel("GrpID:")
                     groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
-                    groupBy_pnl.add(groupIDLabel, GridC.getc(onGroupByCol, onGroupByRow).east().wx(0.1))
-                    onGroupByCol += 1
+                    groupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).east().wx(0.1))
+                    onGroupIDCol += 1
 
                     NAB.groupIDField_JTF = MyJTextField("not set")
-                    NAB.groupIDField_JTF.setDocument(JTextFieldGroupByDocument())
+                    NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
                     NAB.groupIDField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDField_JTF")
                     NAB.groupIDField_JTF.setName("groupIDField_JTF")
-                    NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'GroupBy ID' (free format text: 0-9, a-z, '_', '-') that can be used to filter out rows (refer CMD-I help)")
+                    NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'Group ID' (free format text: 0-9, a-z, '_', '-') that can be used to filter out rows (refer CMD-I help)")
                     NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
-                    groupBy_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupByCol, onGroupByRow).leftInset(colLeftInset).fillboth().wx(1.0).west())
+                    groupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(colLeftInset).fillboth().wx(1.0).west())
 
-                    controlPnl.add(groupBy_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillboth().pady(pady).west().rightInset(colRightInset))
+                    controlPnl.add(groupID_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillboth().pady(pady).west().rightInset(colRightInset))
                     onCol += 1
 
                     onRow += 1
@@ -9983,7 +9993,7 @@ Visit: %s (Author's site)
 
                     if justIndex is not None and iAccountLoop not in simulateRowIdxs: continue
                     if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
-                    if NAB.isRowFilteredOutByGroupBy(iAccountLoop): continue
+                    if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
                     myPrint("DB", "HomePageView: Finding selected accounts for row: %s" %(onRow))
                     # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
@@ -10027,7 +10037,7 @@ Visit: %s (Author's site)
 
                     if justIndex is not None and iAccountLoop not in simulateRowIdxs: continue
                     if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
-                    if NAB.isRowFilteredOutByGroupBy(iAccountLoop): continue
+                    if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
                     if not isIncomeExpenseAllDatesSelected(iAccountLoop):
                         myPrint("DB", "HomePageView: Income/Expense Date Range '%s' used on Row: %s (will gather child accounts (if AutoSum) and all related income/expense transactions). AutoSum = %s"
@@ -10502,8 +10512,8 @@ Visit: %s (Author's site)
                                         hiddenRows = True
                                         continue
 
-                                    if NAB.isRowFilteredOutByGroupBy(i):
-                                        myPrint("DB", "** Skipping filtered out 'Group By' row %s" %(onRow))
+                                    if NAB.isRowFilteredOutByGroupID(i):
+                                        myPrint("DB", "** Skipping filtered out 'Group ID' row %s" %(onRow))
                                         filteredRows = True
                                         continue
 
@@ -10686,10 +10696,10 @@ Visit: %s (Author's site)
                                     parallelText = "" if not NAB.parallelBalanceTableOperating else "*PARALLEL BAL CALCS* "
                                     hiddenRowsText = "" if not hiddenRows else "*HIDDEN ROW(s)* "
                                     filteredRowsText = "" if not filteredRows else "*FILTERED ROW(s)* "
-                                    filterGroupByText = "" if NAB.savedFilterByGroupID == "" else "*Filter: '%s'* " %(NAB.savedFilterByGroupID)
+                                    filterGroupIDText = "" if NAB.savedFilterByGroupID == "" else "*Filter: '%s'* " %(NAB.savedFilterByGroupID)
                                     combinedTxt = ""
                                     _countTxtAdded = 0
-                                    for _txt in [previewText, debugText, migratedText, warningCheckText, warningsTurnedOffText, parallelText, hiddenRowsText, filteredRowsText, filterGroupByText]:
+                                    for _txt in [previewText, debugText, migratedText, warningCheckText, warningsTurnedOffText, parallelText, hiddenRowsText, filteredRowsText, filterGroupIDText]:
                                         combinedTxt += _txt
                                         if _txt != "": _countTxtAdded += 1
                                         if _countTxtAdded >= 3:
