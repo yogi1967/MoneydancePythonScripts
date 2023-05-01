@@ -8468,7 +8468,7 @@ Visit: %s (Author's site)
                     # onGroupByCol += 1
 
                     NAB.filterByGroupID_JTF = MyJTextFieldFilter()
-                    NAB.filterByGroupID_JTF.setEscapeCancelsTextAndEscapesWindow(True)
+                    NAB.filterByGroupID_JTF.setEscapeCancelsTextAndEscapesWindow(False)
                     NAB.filterByGroupID_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setName("filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setToolTipText("Filter rows by 'GroupID' (free format text). Use ';' to separate multiple, '!' = NOT, '&' = AND. Refer CMD-I Help")
