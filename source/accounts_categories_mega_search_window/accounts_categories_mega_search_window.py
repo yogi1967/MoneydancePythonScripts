@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# categories_super_window.py build: 1010 - April 2023 - Stuart Beesley StuWareSoftSystems
+# categories_super_window.py build: 1010 - May 2023 - Stuart Beesley StuWareSoftSystems
 # >> Renamed to: accounts_categories_mega_search_window.py build: 1003 - April 2022 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
@@ -43,6 +43,8 @@
 # build: 1008 - Added bootstrap to execute compiled version of extension (faster to load)....
 # build: 1009 - MD2023 fixes to common code...
 # build: 1010 - Tweak QuickSearch() field to allow escape
+# build: 1010 - Common code tweaks...
+# build: 1010 - Add feature to allow search for parent and default account names using {pa:*} and {dc:*} patterns
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -285,6 +287,12 @@ else:
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
     from java.nio.charset import Charset
+
+    if int(MD_REF.getBuild()) >= 3067:
+        from com.moneydance.apps.md.view.gui.theme import ThemeInfo                                                     # noqa
+    else:
+        from com.moneydance.apps.md.view.gui.theme import Theme as ThemeInfo                                            # noqa
+
     if isinstance(None, (JDateField,CurrencyUtil,Reminder,ParentTxn,SplitTxn,TxnSearch, JComboBox, JCheckBox,
                          AccountBook, AccountBookWrapper, Long, Integer, Boolean,
                          JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
@@ -306,9 +314,6 @@ else:
     
 
     # SET THESE VARIABLES FOR ALL SCRIPTS ##################################################################################
-    global lAllowEscapeExitApp_SWSS
-    lAllowEscapeExitApp_SWSS = True                                                                                     # noqa
-
     if "GlobalVars" in globals():   # Prevent wiping if 'buddy' extension - like Toolbox - is running too...
         global GlobalVars
     else:
@@ -328,13 +333,14 @@ else:
             i_am_an_extension_so_run_headless = None
             parametersLoadedFromFile = {}
             thisScriptName = None
-            MD_MDPLUS_BUILD = 4040
-            MD_ALERTCONTROLLER_BUILD = 4077
+            MD_MDPLUS_BUILD = 4040                          # 2022.0
+            MD_ALERTCONTROLLER_BUILD = 4077                 # 2022.3
             def __init__(self): pass    # Leave empty
 
             class Strings:
                 def __init__(self): pass    # Leave empty
 
+    GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME = "gui.current_theme"
     GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -713,9 +719,12 @@ Visit: %s (Author's site)
     def isMDThemeVAQua():
         if Platform.isOSX():
             try:
-                currentTheme = MD_REF.getUI().getCurrentTheme()
-                if ".vaqua" in safeStr(currentTheme.getClass()).lower(): return True
-            except: pass
+                # currentTheme = MD_REF.getUI().getCurrentTheme()       # Not reset when changed in-session as it's a final variable!
+                # if ".vaqua" in safeStr(currentTheme.getClass()).lower(): return True
+                currentTheme = ThemeInfo.themeForID(MD_REF.getUI(), MD_REF.getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID))
+                if ".vaqua" in currentTheme.getClass().getName().lower(): return True                                   # noqa
+            except:
+                myPrint("B", "@@ Error in isMDThemeVAQua() - Alert author! Error:", sys.exc_info()[1])
         return False
 
     def isIntelX86_32bit():
@@ -2819,6 +2828,10 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
+
+    global lAllowEscapeExitApp_SWSS
+    lAllowEscapeExitApp_SWSS = True                                                                                     # noqa
+
     def load_StuWareSoftSystems_parameters_into_memory():
         global lAllowEscapeExitApp_SWSS
         if GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS") is not None: lAllowEscapeExitApp_SWSS = GlobalVars.parametersLoadedFromFile.get("lAllowEscapeExitApp_SWSS")
@@ -2887,7 +2900,6 @@ Visit: %s (Author's site)
             return False
 
         class MyAcctFilter(AcctFilter):
-
             def __init__(self, lCats=False, lAccounts=False, lRoot=False):
                 self.searchFilter = ""
                 self.lCats = lCats
@@ -2895,15 +2907,65 @@ Visit: %s (Author's site)
                 self.lRoot = lRoot
                 self.bypassFilter = False
 
-            def matches(self, acct):
-                if (acct is None): return False
+                self.FILTER_PARENT_ACCOUNT_PATTERN = "{pa:*}"
+                self.FILTER_DEFAULT_CATEGORY_PATTERN = "{dc:*}"
 
+            @staticmethod
+            def findPattern(pattern, inString):
+                patternFound = None
+                patternStart = pattern[:4]
+                patternEnd = pattern[-1:]
+                inStringLower = inString.lower()
+                startOfPattern = inStringLower.find(patternStart)
+                if startOfPattern >= 0:
+                    patternStartLen = len(patternStart)
+                    patternStartFound = inString[startOfPattern:startOfPattern+patternStartLen]
+                    startOfFoundString = startOfPattern + patternStartLen
+                    end = inStringLower.find(patternEnd, startOfFoundString)
+                    if end >= 0:
+                        patternEndFound = inString[end:end+len(patternEnd)]
+                        patternFound = inString[startOfFoundString:end]
+                        inString = inString.replace(patternStartFound + patternFound + patternEndFound, "").strip()
+                return patternFound, inString
+
+            def matches(self, acct):
+                if isinstance(acct, Account): pass
+                if (acct is None): return False
                 if not self.lCats and not self.lAccounts and not self.lRoot: return False
 
                 if not self.bypassFilter:
-                    if self.searchFilter != "":
-                        if self.searchFilter.strip().lower() not in acct.getAccountName().lower():
-                            return False
+                    searchTxt = self.searchFilter.strip().lower()
+                    if searchTxt != "":
+
+                        # myPrint("B", "search:", searchTxt);
+                        paMatchTxt, searchTxt = MyAcctFilter.findPattern(self.FILTER_PARENT_ACCOUNT_PATTERN, searchTxt)
+                        paMatch = paMatchTxt is not None
+                        # myPrint("B", paMatchTxt, searchTxt);
+
+                        dcMatchTxt, searchTxt = MyAcctFilter.findPattern(self.FILTER_DEFAULT_CATEGORY_PATTERN, searchTxt)
+                        dcMatch = dcMatchTxt is not None
+                        # myPrint("B", daMatchTxt, searchTxt);
+
+                        if paMatch:
+                            parentAcct = acct.getParentAccount()
+                            if parentAcct is None:
+                                return False
+                            parentAcctName = parentAcct.getAccountName().lower().strip()
+                            if paMatchTxt not in parentAcctName:
+                                return False
+
+                        if dcMatch:
+                            defaultCat = acct.getDefaultCategory()
+                            if defaultCat is None:
+                                return False
+                            defaultCatAcctName = defaultCat.getAccountName().lower().strip()
+                            if dcMatchTxt not in defaultCatAcctName:
+                                return False
+
+                        if searchTxt.strip() != "":
+                            acctName = acct.getAccountName().lower().strip()
+                            if searchTxt not in acctName:
+                                return False
 
                 if self.lRoot:
                     # noinspection PyUnresolvedReferences
@@ -2999,7 +3061,9 @@ Visit: %s (Author's site)
                 return self.getPlaceholderText() + " " + self.getText()
 
         mySearchField = MyQuickSearchField()
-        mySearchField.setEscapeCancelsTextAndEscapesWindow(True)
+
+        if lAllowEscapeExitApp_SWSS:
+            mySearchField.setEscapeCancelsTextAndEscapesWindow(True)
 
         expandAllButton = JButton("Expand all")
         collapseAllButton = JButton("-")

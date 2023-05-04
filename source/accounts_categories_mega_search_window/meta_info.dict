@@ -8,5 +8,5 @@
   "module_name" = "Accounts & Categories Mega Search Window"
   "module_desc" = "Clone of Tools>Accounts/Categories [combined] with Search capability"
   "mac_sandbox_friendly" = "true"
-  "news" = "MD2023 fixes to common code...."
+  "news" = "MD2023 fixes to common code....; embedded codes {pa:*} and {dc:*} search for parent account and default category"
 }
