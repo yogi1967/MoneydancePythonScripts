@@ -120,13 +120,13 @@
 #               Tweak isSwingComponentInvalid() to ignore .isValid()....
 #               Added config to allow row name to contain <xxx> configuration variables..... (also html)
 #               Switch html_strip_chars() to use StringEscapeUtils.escapeHtml4()
-# build: 1024 - Added ability to divide by another row and produce a percentage
+# build: 1024 - Added ability to divide by another row and produce a percentage - known as Use Other Row (UOR)
 #               Moved divide by maths into core calculation engine (rather than on display component(s))
 #               Added CMD-SHIFT-B and R to backup / restore config file
 # build: 1025 - Added UUID per row, ability to name a section against each row, and filter for that section...
 #               Changed parameter load/save routines to use getattr() setattr() etc (rather than hardcode the list)....
 #               Tweaked HideAction() to push a windowClosing event....
-# build: 1026 - ?
+# build: 1026 - also added in CMD-SHIFT-L and the lastResultsBalanceTable... Also used in the Row Selector updater...
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -3130,12 +3130,12 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
-    def padTruncateWithDots(theText, theLength, padChar=u" ", stripSpaces=True, pad=True):
+    def padTruncateWithDots(theText, theLength, padChar=u" ", stripSpaces=True, padString=True):
         if not isinstance(theText, basestring): theText = safeStr(theText)
         if theLength < 1: return ""
         if stripSpaces: theText = theText.strip()
         dotChop = min(3, theLength) if (len(theText) > theLength) else 0
-        if pad:
+        if padString:
             theText = (theText[:theLength-dotChop] + ("." * dotChop)).ljust(theLength, padChar)
         else:
             theText = (theText[:theLength-dotChop] + ("." * dotChop))
@@ -3638,6 +3638,7 @@ Visit: %s (Author's site)
     class MyJLabel(JLabel):
 
         def __init__(self, *args, **kwargs):
+            self.maxWidth = -1
             self.hasMDHeaderBorder = False
             super(self.__class__, self).__init__(*args, **kwargs)
 
@@ -3651,15 +3652,22 @@ Visit: %s (Author's site)
             self.hasMDHeaderBorder = True
             self.setBorder(BorderFactory.createLineBorder(GlobalVars.CONTEXT.getUI().getColors().headerBorder))
 
+        # Avoid the dreaded issue when Blinking changes the width...
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
+
     class MyJComboBox(JComboBox, MouseListener):
 
         def __init__(self, *args, **kwargs):
+            self.maxWidth = -1
             super(self.__class__, self).__init__(*args, **kwargs)
             self.setFocusable(True)
             self.addMouseListener(self)
             for component in self.getComponents():
                 component.addMouseListener(self)
-            # this.comboBox.getEditor().getEditorComponent().addMouseListener(mouseListener);
 
         def updateUI(self):
             super(self.__class__, self).updateUI()
@@ -3674,6 +3682,12 @@ Visit: %s (Author's site)
         def mouseEntered(self, e): pass
         def mouseExited(self, e): pass
 
+        # Avoid the dreaded issue when Blinking changes the width...
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     class MyJButton(JButton):
 
@@ -3705,6 +3719,7 @@ Visit: %s (Author's site)
     class MyJTextField(JTextField):
 
         def __init__(self, *args, **kwargs):
+            self.maxWidth = -1
             self.fm = None
             self.minColWidth = kwargs.pop("minColWidth", None)
             super(self.__class__, self).__init__(*args, **kwargs)
@@ -3722,11 +3737,16 @@ Visit: %s (Author's site)
                 f = self.getFont()
                 if (f is not None):
                     self.fm = self.getFontMetrics(f)
-
             strWidth = 35 if self.fm is None else self.fm.stringWidth("W" * self.minColWidth)
             dim.width = Math.max(dim.width, strWidth)
             return dim
 
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     class JTextFieldGroupIDDocument(PlainDocument):
 
@@ -3734,6 +3754,7 @@ Visit: %s (Author's site)
             # https://docs.python.org/2/howto/regex.html
             # Only allow a-z, 0-9, '-', '_', '.'
             self.FILTER_GROUPID_ALPHA_NUM_REGEX = re.compile('[^a-z0-9;:%._-]', (re.IGNORECASE | re.UNICODE | re.LOCALE))
+            self.maxWidth = -1
             super(self.__class__, self).__init__()
 
         def characterCheck(self, checkString): return (self.FILTER_GROUPID_ALPHA_NUM_REGEX.search(checkString) is None)
@@ -3741,6 +3762,13 @@ Visit: %s (Author's site)
         def insertString(self, theOffset, theStr, theAttr):
             if theStr is not None and self.characterCheck(theStr):
                 super(self.__class__, self).insertString(theOffset, theStr, theAttr)
+
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     class MyJTextFieldEscapeAction(AbstractAction):
         def __init__(self): pass
@@ -3756,12 +3784,28 @@ Visit: %s (Author's site)
                                        KeyEvent.VK_ESCAPE,
                                        Character.valueOf(" ")))
 
+
+    # Fix jittery bug with QuickSearch when typing and VAQua...
+    class MyQuickFieldDocumentListener(DocumentListener):
+        def __init__(self, source): self.source = source
+
+        def insertUpdate(self, evt):
+            self.source.repaint()
+
+        def removeUpdate(self, evt):
+            self.source.repaint()
+
+        def changedUpdate(self, evt):
+            self.source.repaint()
+
     class MyJTextFieldFilter(QuickSearchField):
 
         def __init__(self, *args, **kwargs):
+            self.maxWidth = -1
             super(self.__class__, self).__init__(*args, **kwargs)
             self.setFocusable(True)
             self.addKeyListener(MyKeyAdapter())
+            self.getDocument().addDocumentListener(MyQuickFieldDocumentListener(self))
 
         def setEscapeCancelsTextAndEscapesWindow(self, cancelsAndEscapes):
             if cancelsAndEscapes:
@@ -3779,10 +3823,17 @@ Visit: %s (Author's site)
             self.setOuterBackground(GlobalVars.CONTEXT.getUI().getColors().headerBG)
             self.setForeground(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
 
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     class MyJRateFieldXValue(JRateField):
 
         def __init__(self, *args, **kwargs):
+            self.maxWidth = -1
             super(self.__class__, self).__init__(*args, **kwargs)
             self.setFocusable(True)
             self.setShortRatesEnabled(True)
@@ -3794,10 +3845,17 @@ Visit: %s (Author's site)
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     class JTextFieldIntDocument(PlainDocument):
 
         def __init__(self):
+            self.maxWidth = -1
             super(self.__class__, self).__init__()
 
         def insertString(self, theOffset, theStr, theAttr):
@@ -3814,6 +3872,13 @@ Visit: %s (Author's site)
                 if newString[:1] == "-": newString = newString[1:]
                 if newString == "" or newString.isnumeric():
                     super(self.__class__, self).insertString(theOffset, theStr, theAttr)
+
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     class MyJTextFieldAsIntOtherRow(JTextField, FocusListener):
         def __init__(self, NABRef, cols, decimal):
@@ -3914,6 +3979,7 @@ Visit: %s (Author's site)
     class MyJRateFieldAverage(JRateField):
 
         def __init__(self, *args, **kwargs):
+            self.maxWidth = -1
             super(self.__class__, self).__init__(*args, **kwargs)
             self.setFocusable(True)
             self._defaultValue = 1.0
@@ -3940,6 +4006,13 @@ Visit: %s (Author's site)
         def updateUI(self):
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
+
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     class MyJCheckBox(JCheckBox):
 
@@ -4009,6 +4082,7 @@ Visit: %s (Author's site)
     class MyQuickSearchField(QuickSearchField):
 
         def __init__(self, *args, **kwargs):
+            self.maxWidth = -1
             super(self.__class__, self).__init__(*args, **kwargs)
 
         def setEscapeCancelsTextAndEscapesWindow(self, cancelsAndEscapes):
@@ -4023,6 +4097,13 @@ Visit: %s (Author's site)
             self.setBackground(GlobalVars.CONTEXT.getUI().getColors().defaultBackground)
             self.setOuterBackground(GlobalVars.CONTEXT.getUI().getColors().headerBG)
             self.setForeground(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
+
+        # Avoid width resizes changing the GUI back and forth....
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
     # ------------------------------------------------------------------------------------------------------------------
     # com.infinitekind.moneydance.model.AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR : Comparator
@@ -4738,7 +4819,22 @@ Visit: %s (Author's site)
 
     class CalculatedBalance:
         DEFAULT_WIDGET_ROW_UOR_ERROR = "<UOR ERROR>"
-        def __init__(self, rowName=None, currencyType=None, balance=None, extraRowTxt=None, UORError=False, uuid=None):
+
+        @staticmethod
+        def getBalanceObjectForUUID(rowDict, uuid):
+            for balObj in rowDict.values():
+                if balObj.getUUID() == uuid:
+                    return balObj
+            return None
+
+        @staticmethod
+        def getBalanceObjectForRowNumber(rowDict, rowNumber):
+            for balObj in rowDict.values():
+                if balObj.getRowNumber() == rowNumber:
+                    return balObj
+            return None
+
+        def __init__(self, rowName=None, currencyType=None, balance=None, extraRowTxt=None, UORError=False, uuid=None, rowNumber=-1):
             self.lastUpdated = -1L                          # type: long
             self.uuid = uuid                                # type: unicode
             self.rowName = rowName                          # type: unicode
@@ -4746,8 +4842,12 @@ Visit: %s (Author's site)
             self.balance = balance                          # type: long
             self.extraRowTxt = extraRowTxt                  # type: unicode
             self.UORError = UORError                        # type: bool
+            self.rowNumber = rowNumber                      # type: int            # Only set when needed - otherwise -1
             if self.UORError: self.setUORError(UORError)
             self.updateLastUpdated()
+
+        def setRowNumber(self, rowNumber): self.rowNumber = rowNumber
+        def getRowNumber(self): return self.rowNumber
         def updateLastUpdated(self): self.lastUpdated = System.currentTimeMillis()
         def getLastUpdated(self): return self.lastUpdated
         def getUUID(self): return self.uuid
@@ -4758,12 +4858,12 @@ Visit: %s (Author's site)
         def getExtraRowTxt(self): return self.extraRowTxt
         def isUORError(self): return self.UORError
         def cloneBalanceObject(self):
-            return CalculatedBalance(self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getUUID())
+            return CalculatedBalance(self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getUUID(), self.getRowNumber())
         def setUORError(self, lError):
             self.UORError = lError
             if self.isUORError(): self.setBalance(0)
-        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, extra row txt: '%s', isUORError: %s]"\
-                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError())
+        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s]"\
+                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber())
         def __repr__(self):     return self.__str__()
         def toString(self):     return self.__str__()
 
@@ -4821,7 +4921,7 @@ Visit: %s (Author's site)
             self.warningInParametersDetectedType = False
             self.warningInParametersDetectedInRow = None
             self.parallelBalanceTableOperating = False
-            self.temporaryBalanceTable = {}
+            self.lastResultsBalanceTable = {}
 
             self.parametersLoaded = False
             self.listenersActive = False
@@ -4935,8 +5035,6 @@ Visit: %s (Author's site)
             self.warning_label = None
 
             self.switchFromHomeScreen = False
-
-            self.rememberLastResultsTable = None
 
             self.swingWorkers_LOCK = threading.Lock()
             with self.swingWorkers_LOCK:
@@ -5551,7 +5649,9 @@ Visit: %s (Author's site)
 
         class ShowRowUUID(AbstractAction):
 
-            def __init__(self, theFrame): self.theFrame = theFrame
+            def __init__(self, theFrame, showLast=False):
+                self.theFrame = theFrame
+                self.showLast = showLast
 
             def actionPerformed(self, event):                                                                           # noqa
 
@@ -5561,44 +5661,56 @@ Visit: %s (Author's site)
                 NAB = NetAccountBalancesExtension.getNAB()
                 NAB.storeJTextFieldsForSelectedRow()
 
-                output = "%s%s %s%s %s%s %s %s %s\n" \
-                         "%s%s %s%s %s%s %s %s %s\n"\
-                         %(pad("", 1), pad("GroupID:", 8), rpad("row:", 4),  " ", rpad("othr:", 5), " ", pad("autohide:", 13), pad("uuid:", 36), "row name:",
-                           pad("", 1), pad("-", 8, "-"),   rpad("", 4, "-"), " ", rpad("", 5, "-"), " ", pad("", 13, "-"),     pad("", 36, "-"),  pad("", 20, "-"))
+                showLastTxt = ""
 
-                for i in range(0, NAB.getNumberOfRows()):
-                    currentRowMarker = "*" if i == NAB.getSelectedRowIndex() else " "
-                    otherRow = NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]
-                    if otherRow is None: otherRow = 0
-                    otherRowInvalidTxt = " "
-                    if otherRow != 0 and NAB.getOperateOnAnotherRowRowIdx(i) is None:
-                        otherRowInvalidTxt = "!"
-                    if otherRow == 0: otherRow = "n/a"
-                    filteredOutTxt = "-" if NAB.isRowFilteredOutByGroupID(i) else ""
-                    autohideTxt = ""
-                    if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
-                        autohideTxt = "<always hide>"
-                    elif NAB.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
-                        autohideTxt = "<auto hide>"
+                if self.showLast:
+                    showLastTxt = "@@ LAST RESULTS TABLE: "
+                    lastTable = NAB.sortLastResultsTableByRowNumberAsList(obtainLockFirst=True)
+                    output = "DUMP OF INTERNAL 'lastResultsBalanceTable'...:\n" \
+                             "----------------------------------------------\n\n"
+                    for balObj in lastTable:
+                        output += "%s\n" %(balObj.toString())
+                    output += "\n<END>"
+                else:
 
-                    output += "%s%s %s %s %s %s '%s'\n"\
-                              %(pad(filteredOutTxt, 1),
-                                pad(NAB.savedGroupIDTable[i], 8),
-                                rpad(str(i+1), 4) + currentRowMarker, rpad(str(otherRow), 5) + otherRowInvalidTxt,
-                                pad(autohideTxt, 13),
-                                pad(NAB.savedUUIDTable[i], 36),
-                                NAB.savedWidgetName[i])
+                    output = "%s%s %s%s %s%s %s %s %s\n" \
+                             "%s%s %s%s %s%s %s %s %s\n"\
+                             %(pad("", 1), pad("GroupID:", 8), rpad("row:", 4),  " ", rpad("othr:", 5), " ", pad("autohide:", 13), pad("uuid:", 36), "row name:",
+                               pad("", 1), pad("-", 8, "-"),   rpad("", 4, "-"), " ", rpad("", 5, "-"), " ", pad("", 13, "-"),     pad("", 36, "-"),  pad("", 20, "-"))
 
-                output += "\n" \
-                          "GroupID filter: '%s'\n" \
-                          "\n" \
-                          "Key:\n" \
-                          "- Filtered out by groupid and NOT visible\n" \
-                          "* Current selected row\n" \
-                          "! Invalid 'Use Other Row' reference\n" \
-                          "" %(NAB.savedFilterByGroupID)
+                    for i in range(0, NAB.getNumberOfRows()):
+                        currentRowMarker = "*" if i == NAB.getSelectedRowIndex() else " "
+                        otherRow = NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]
+                        if otherRow is None: otherRow = 0
+                        otherRowInvalidTxt = " "
+                        if otherRow != 0 and NAB.getOperateOnAnotherRowRowIdx(i) is None:
+                            otherRowInvalidTxt = "!"
+                        if otherRow == 0: otherRow = "n/a"
+                        filteredOutTxt = "-" if NAB.isRowFilteredOutByGroupID(i) else ""
+                        autohideTxt = ""
+                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
+                            autohideTxt = "<always hide>"
+                        elif NAB.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
+                            autohideTxt = "<auto hide>"
 
-                QuickJFrame("INFO ON ROWS/OTHER ROWS/GROUP IDs/UUIDs", output, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
+                        output += "%s%s %s %s %s %s '%s'\n"\
+                                  %(pad(filteredOutTxt, 1),
+                                    pad(NAB.savedGroupIDTable[i], 8),
+                                    rpad(str(i+1), 4) + currentRowMarker, rpad(str(otherRow), 5) + otherRowInvalidTxt,
+                                    pad(autohideTxt, 13),
+                                    pad(NAB.savedUUIDTable[i], 36),
+                                    NAB.savedWidgetName[i])
+
+                    output += "\n" \
+                              "GroupID filter: '%s'\n" \
+                              "\n" \
+                              "Key:\n" \
+                              "- Filtered out by groupid and NOT visible\n" \
+                              "* Current selected row\n" \
+                              "! Invalid 'Use Other Row' reference\n" \
+                              "" %(NAB.savedFilterByGroupID)
+
+                QuickJFrame("%sINFO ON ROWS/OTHER ROWS/GROUP IDs/UUIDs" %(showLastTxt), output, lWrapText=False, lAutoSize=True, lAlertLevel=(2 if self.showLast else 1)).show_the_frame()
 
         class StoreCurrencyAsText():
             """Stores a Currency Obj as just text components; prevents holding on to the object"""
@@ -6156,39 +6268,55 @@ Visit: %s (Author's site)
                         pass
             return False if wasDisabled is None else wasDisabled
 
+
+        def setTheRebuiltRowSelectorComboDataModel(self, rowItems, saveSelectedIdx, saveDisabledState):
+            myPrint("DB", "In .setTheRebuiltRowSelectorComboDataModel().. isEDT: %s" %(SwingUtilities.isEventDispatchThread()))
+            NAB = self
+            if not SwingUtilities.isEventDispatchThread():
+                myPrint("DB", "... offloading .setTheRebuiltRowSelectorComboDataModel() to the EDT....")
+                genericSwingEDTRunner(False, False, NAB.setTheRebuiltRowSelectorComboDataModel, rowItems, saveSelectedIdx, saveDisabledState)
+            else:
+                NAB.rowSelected_COMBO.setModel(DefaultComboBoxModel(rowItems))
+                NAB.rowSelected_COMBO.setSelectedIndex(saveSelectedIdx)
+                NAB.setDisableListeners(NAB.rowSelected_COMBO, saveDisabledState)
+                myPrint("DB", "... Finished rebuilding Row Selector JComboBox....")
+
         # Rebuild Select Row Dropdown
         def rebuildRowSelectorCombo(self, selectIdx=None, rebuildCompleteModel=True, doNow=True):
 
-            myPrint("DB", "In rebuildRowSelectorCombo(): ..about to set rowSelected_COMBO..: (selectIdx=%s, rebuildCompleteModel=%s, doNow=%s)"
-                    %(selectIdx, rebuildCompleteModel, doNow))
+            myPrint("DB", "In rebuildRowSelectorCombo(): isEDT: %s - about to set rowSelected_COMBO..: (selectIdx=%s, rebuildCompleteModel=%s, doNow=%s)"
+                    %(SwingUtilities.isEventDispatchThread(), selectIdx, rebuildCompleteModel, doNow))
 
             NAB = self
 
             if not doNow:
-                myPrint("DB", "Offloading .rebuildRowSelectorCombo() to run later on the EDT.....")
-                genericSwingEDTRunner(False, False, NAB.rebuildRowSelectorCombo, selectIdx, True, True)
+                myPrint("DB", "Offloading .rebuildRowSelectorCombo() to run later on a new Thread....")
+                # genericSwingEDTRunner(False, False, NAB.rebuildRowSelectorCombo, selectIdx, True, True)
+                genericThreadRunner(True, NAB.rebuildRowSelectorCombo, selectIdx, True, True)
                 return
 
             with NAB.NAB_ROW_COMBO_LOCK:
 
                 ALWAYS_HIDE_TXT = "<always hide>"
                 AUTO_HIDE_TXT = "<auto hide>"
-                FILTERED_TXT = "<FILTERED>"
+                AUTO_HIDE_LOOKUP_ERROR = "<!LOOKUP ERROR!>"
+                FILTERED_TXT = "<FILTERED OUT>"
                 HAS_GROUPID_TXT = "<groupid: {}>"
+                red = getColorRed()
 
                 if NAB.rowSelected_COMBO is None:
-                    myPrint("B", "rebuildRowSelectorCombo(): quitting as rowSelected_COMBO was None?")
+                    myPrint("DB", "rebuildRowSelectorCombo(): quitting as rowSelected_COMBO was None?")
                     return
 
                 saveDisabledState = NAB.setDisableListeners(NAB.rowSelected_COMBO, True)
                 saveSelectedIdx = NAB.rowSelected_COMBO.getSelectedIndex() if selectIdx is None else selectIdx
 
                 rowItems = []
-                smallColor = GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground
+                # smallColor = GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground
 
                 numRows = NAB.getNumberOfRows()
                 for i in range(0, numRows):
-
+                    onRow = i + 1
                     if numRows <= 9:
                         rjustpad = 1
                     elif numRows <= 99:
@@ -6196,34 +6324,58 @@ Visit: %s (Author's site)
                     else:
                         rjustpad = 3
 
-                    rowTxt = rpad(str(i+1), rjustpad, "0")
+                    rowTxt = rpad(str(onRow), rjustpad, "0")
+
+                    isFiltered = False
+                    isAutoHidden = False
 
                     if rebuildCompleteModel:
-                        thisRowAutoHideTxt = ""
-                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
-                            thisRowAutoHideTxt = " " + ALWAYS_HIDE_TXT
-                        elif NAB.savedHideRowWhenXXXTable[i] >= GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
-                            thisRowAutoHideTxt = " " + AUTO_HIDE_TXT
+
+                        thisRowAlwaysOrAutoHideTxt = ""
+                        if NAB.isThisRowAlwayHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
+                            isAutoHidden = True
+                            thisRowAlwaysOrAutoHideTxt = " "
+                            thisRowAlwaysOrAutoHideTxt += wrap_HTML_fontColor(red, ALWAYS_HIDE_TXT, addHTML=False)
+
+                        elif NAB.savedHideRowWhenXXXTable[i] > GlobalVars.HIDE_ROW_WHEN_ALWAYS:
+                            thisRowAlwaysOrAutoHideTxt = " "
+                            thisRowAlwaysOrAutoHideTxt += html_strip_chars(AUTO_HIDE_TXT)
+
+                            lastBalObj = CalculatedBalance.getBalanceObjectForRowNumber(NAB.lastResultsBalanceTable, onRow)
+                            if lastBalObj is None:
+                                isAutoHidden = True
+                                thisRowAlwaysOrAutoHideTxt = " "
+                                thisRowAlwaysOrAutoHideTxt += html_strip_chars(AUTO_HIDE_LOOKUP_ERROR)
+                                # raise Exception("LOGIC ERROR: could not find row %s in lastResultsBalanceTable" %(onRow))
+                            else:
+                                isAutoHidden = NAB.isThisRowAlwayHideOrAutoHidden(lastBalObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
+                                if isAutoHidden:
+                                    thisRowAlwaysOrAutoHideTxt = " "
+                                    thisRowAlwaysOrAutoHideTxt += wrap_HTML_fontColor(red, AUTO_HIDE_TXT, addHTML=False)
 
                         isFilteredTxt = ""
                         if NAB.savedFilterByGroupID != "" and NAB.isRowFilteredOutByGroupID(i):
-                            isFilteredTxt += " " + FILTERED_TXT
+                            isFiltered = True
+                            isFilteredTxt += " " + wrap_HTML_fontColor(red, FILTERED_TXT, addHTML=False)
 
                         hasGroupIDTxt = ""
                         if NAB.savedGroupIDTable[i] != "":
-                            hasGroupIDTxt += " " + HAS_GROUPID_TXT.replace("{}", padTruncateWithDots(NAB.savedGroupIDTable[i], 10, pad=False));
+                            groupIDTxt = HAS_GROUPID_TXT.replace("{}", padTruncateWithDots(NAB.savedGroupIDTable[i], 10, padString=False))
+                            hasGroupIDTxt += " " + html_strip_chars(groupIDTxt) if (not isFiltered) else wrap_HTML_fontColor(red, groupIDTxt, addHTML=False)
 
-                        thisRowItemTxt = wrap_HTML_BIG_small(rowTxt, thisRowAutoHideTxt + hasGroupIDTxt + isFilteredTxt, _smallBold=False, _smallColor=smallColor)
+                        buildRowHTML = rowTxt
+                        if (isFiltered or isAutoHidden): buildRowHTML = wrap_HTML_fontColor(red, buildRowHTML, stripChars=False, addHTML=False)
+
+                        buildRowHTML += wrap_HTML_small(thisRowAlwaysOrAutoHideTxt + hasGroupIDTxt + isFilteredTxt, stripChars=False, addHTML=False)
+                        thisRowItemTxt = wrap_HTML(buildRowHTML, stripChars=False)
+                        # thisRowItemTxt = wrap_HTML_BIG_small(rowTxt, thisRowAutoHideTxt + hasGroupIDTxt + isFilteredTxt, _smallBold=False, _smallColor=smallColor)
 
                     else:
                         thisRowItemTxt = wrap_HTML_BIG_small(rowTxt, "<awaiting row rebuild>" if debug else "")
 
                     rowItems.append(thisRowItemTxt)
 
-                NAB.rowSelected_COMBO.setModel(DefaultComboBoxModel(rowItems))
-                NAB.rowSelected_COMBO.setSelectedIndex(saveSelectedIdx)
-                NAB.setDisableListeners(NAB.rowSelected_COMBO, saveDisabledState)
-                myPrint("DB", "... Finished rebuilding Row Selector JComboBox....")
+                NAB.setTheRebuiltRowSelectorComboDataModel(rowItems, saveSelectedIdx, saveDisabledState)
 
 
         def rebuildFrameComponents(self, selectRowIndex=0):
@@ -6914,7 +7066,7 @@ Visit: %s (Author's site)
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
                 NAB = NetAccountBalancesExtension.getNAB()
-                NAB.clearTemporaryBalanceTable()
+                NAB.clearLastResultsBalanceTable()
 
                 NAB.configPanelOpen = False
 
@@ -7117,8 +7269,7 @@ Visit: %s (Author's site)
                                 BlinkSwingTimer(1200, [NAB.simulateTotal_label], flipColor=(MD_REF.getUI().getColors().defaultTextForeground), flipBold=True).start()
 
                         myPrint("DB", "... launching .rebuildRowSelectorCombo() called by end of SwingWorker..... Should jump over to the EDT (to run later...)")
-                        NAB.rebuildRowSelectorCombo(selectIdx=None, rebuildCompleteModel=True, doNow=False);
-                        "HERE";
+                        NAB.rebuildRowSelectorCombo(selectIdx=None, rebuildCompleteModel=True, doNow=False)
 
 
                 except InterruptedException:
@@ -8653,12 +8804,12 @@ Visit: %s (Author's site)
                                 fg = self.defaultFg
                                 altFG = self.altfFg                                                                     # noqa
 
-                            if isinstance(value, basestring):
-                                unescapedTxt = StringEscapeUtils.unescapeHtml4(value)
-                                matches = ["<FILTERED>"]
-                                if any([search in unescapedTxt for search in matches]):
-                                    fg = self.red
-                                    # c.setFont(c.getFont().deriveFont(Font.ITALIC))
+                            # if isinstance(value, basestring):
+                            #     unescapedTxt = StringEscapeUtils.unescapeHtml4(value)
+                            #     matches = ["<FILTERED OUT>"]
+                            #     if any([search in unescapedTxt for search in matches]):
+                            #         fg = self.red
+                            #         # c.setFont(c.getFont().deriveFont(Font.ITALIC))
 
                             c.setBackground(bg)
                             c.setForeground(fg)
@@ -8669,13 +8820,13 @@ Visit: %s (Author's site)
 
                     NAB.rowSelected_COMBO.setRenderer(RowComboListRenderer())
 
-                    NAB.filterByGroupID_JTF = MyJTextFieldFilter()
+                    NAB.filterByGroupID_JTF = MyJTextFieldFilter()      # todo - fix display corruption
                     NAB.filterByGroupID_JTF.setEscapeCancelsTextAndEscapesWindow(False)
                     NAB.filterByGroupID_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setName("filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setToolTipText("Filter rows by 'GroupID' (free format text). Use ';' to separate multiple, '!' = NOT, '&' = AND. Refer CMD-I Help")
                     NAB.filterByGroupID_JTF.setPlaceholderText("Filter by GroupID....")
-                    NAB.filterByGroupID_JTF.setForeground(getColorBlue());
+                    NAB.filterByGroupID_JTF.setForeground(getColorBlue())
                     NAB.filterByGroupID_JTF.addFocusListener(NAB.saveFocusListener)
                     selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(1.0).fillboth())
                     onSelectCol += 1
@@ -8801,9 +8952,11 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.widgetNameField_JTF, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
+                    # fixWeight = 0.0
                     NAB.simulateTotal_label = MyJLabel("<html><i>result here</i></html>",JLabel.CENTER)
                     NAB.simulateTotal_label.putClientProperty("%s.id" %(NAB.myModuleID), "simulateTotal_label")
                     NAB.simulateTotal_label.setMDHeaderBorder()
+                    # controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx().wx(fixWeight))
                     controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
@@ -9358,13 +9511,13 @@ Visit: %s (Author's site)
                     # masterPnl.setOpaque(True)
 
                     rootPane = JRootPane()
-                    masterPnl.add(rootPane, BorderLayout.CENTER);
+                    masterPnl.add(rootPane, BorderLayout.CENTER)
 
                     # masterPnl.putClientProperty("root", rootPane)
-                    NAB.createMenus();      # Now moved away from JFrame.setJMenuBar() to here...
-                    rootPane.setJMenuBar(NAB.mainMenuBar);
+                    NAB.createMenus()                              # Now moved away from JFrame.setJMenuBar() to here...
+                    rootPane.setJMenuBar(NAB.mainMenuBar)
                     rootPane.getContentPane().setOpaque(True)                                                           # noqa
-                    rootPane.getContentPane().setBackground(Color(237,237,237))
+                    rootPane.getContentPane().setBackground(Color(237,237,237))       # very light grey panel background
                     rootPane.getContentPane().add(mainPnl)
 
                     # -----------------------------------------------------------------------------------
@@ -9411,6 +9564,9 @@ Visit: %s (Author's site)
 
                     # NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_I, (shortcut | Event.SHIFT_MASK)), "show-uuid")
                     # NAB.theFrame.getRootPane().getActionMap().put("show-uuid", NAB.ShowRowUUID(NAB.theFrame))
+
+                    NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_L, (shortcut | Event.SHIFT_MASK)), "show-last-uuid")
+                    NAB.theFrame.getRootPane().getActionMap().put("show-last-uuid", NAB.ShowRowUUID(NAB.theFrame, showLast=True))
 
                     NAB.theFrame.addWindowListener(NAB.WindowListener(NAB.theFrame, NAB.myModuleID))
 
@@ -9549,11 +9705,119 @@ Visit: %s (Author's site)
                 myPrint("DB", "In UnloadUninstallSwingWorker()", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
-        def clearTemporaryBalanceTable(self, obtainLockFirst=True):
-            myPrint("DB", "In .clearTemporaryBalanceTable() - Wiping out NAB's temporary balance table (and associated references)....")
+        def sortLastResultsTableByRowNumberAsList(self, obtainLockFirst=True):
             NAB = self
             with (NAB.NAB_TEMP_BALANCE_TABLE_LOCK if (obtainLockFirst) else NoneLock()):
-                NAB.temporaryBalanceTable.clear()
+                return sorted([NAB.lastResultsBalanceTable[uuidKey] for uuidKey in NAB.lastResultsBalanceTable.keys()], key=lambda _balObj: (_balObj.getRowNumber()))
+
+        def validateLastResultsTable(self, obtainLockFirst=True):
+            myPrint("B", "In .validateLastResultsTable() - Validating lastResultsTable....")
+            NAB = self
+            with (NAB.NAB_TEMP_BALANCE_TABLE_LOCK if (obtainLockFirst) else NoneLock()):
+                valid = True
+                lastTable = NAB.sortLastResultsTableByRowNumberAsList(obtainLockFirst=False)
+                lastNumberRows = len(lastTable)
+                if lastNumberRows != NAB.getNumberOfRows():
+                    myPrint("B", "... ALERT: lastTable has %s rows, probably should have %s rows" %(lastNumberRows, NAB.getNumberOfRows()))
+                    valid = False
+                for i in range(0, lastNumberRows):
+                    onRow = i + 1
+                    balObj = lastTable[i]
+                    boRowNumber = balObj.getRowNumber()
+                    if boRowNumber <= 0 or boRowNumber != onRow:
+                        myPrint("B", "... ALERT: lastResultsBalanceTable row: %s, invalid balance object row number %s - Object: %s" %(onRow, boRowNumber, balObj.toString()))
+                        valid = False
+                        continue
+                    if lastNumberRows == NAB.getNumberOfRows():
+                        if balObj.getUUID() != NAB.savedUUIDTable[i]:
+                            myPrint("B", "... ALERT: lastResultsBalanceTable row: %s, uuids do not match lastResultsBalanceTable:'%s' vs savedUUIDTable:'%s'" %(onRow, balObj.getUUID(), NAB.savedUUIDTable[i]))
+                            valid = False
+                            continue
+                    elif lastNumberRows > NAB.getNumberOfRows():
+                        myPrint("B", "... ALERT: lastResultsBalanceTable row: %s exceeds rows in saved table - object must be invalid: %s" %(onRow, balObj.toString()))
+                        valid = False
+                        continue
+                    myPrint("B", "... CONFIRMED - row %s - uuid's match - Object: %s" %(onRow, balObj.toString()))
+
+                if valid:
+                    myPrint("B", "... Success - lastResultsBalanceTable matches savedUUIDTable!")
+                else:
+                    myPrint("B", "... FAILED - lastResultsBalanceTable does NOT match savedUUIDTable!")
+
+            return valid
+
+        def isThisRowAlwayHideOrAutoHidden(self, balanceObj, rowIdx, checkAlwaysHide=True, checkAutoHideWhen=True):
+            myPrint("DB", "In .isThisRowAlwayHideOrAutoHidden(%s, %s, %s, %s)" %(balanceObj, rowIdx, checkAlwaysHide, checkAutoHideWhen))
+
+            NAB = self
+            onRow = rowIdx + 1
+
+            isHiddenOrAutoHideWhen = False
+
+            if NAB.savedHideRowWhenXXXTable[rowIdx] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
+
+                if checkAlwaysHide:
+                    myPrint("DB", "** Skipping disabled row %s" %(onRow))
+                    isHiddenOrAutoHideWhen = True
+
+            else:
+
+                if balanceObj is None or balanceObj.getBalance() is None:
+                    myPrint("DB", "... balanceObj or .getBalance() is None.... skipping checks....")
+
+                else:
+
+                    if NAB.savedHideRowWhenXXXTable[rowIdx] > GlobalVars.HIDE_ROW_WHEN_ALWAYS:
+
+                        if checkAutoHideWhen:
+
+                            balanceOrAverage = balanceObj.getBalance()
+                            netAmtDbl_toCompare = balanceObj.getCurrencyType().getDoubleValue(balanceOrAverage)
+
+                            if NAB.savedHideRowWhenXXXTable[rowIdx] == GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
+
+                                if NAB.savedHideDecimals:
+                                    if float(int(netAmtDbl_toCompare)) == netAmtDbl_toCompare:
+                                        myPrint("DB", ":: Row: %s Decimals hidden... NOTE: calculated balance (%s) is already a whole number so no rounding... NOTE: XValue (%s)"
+                                                %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
+                                    elif float(int(NAB.savedHideRowXValueTable[rowIdx])) != NAB.savedHideRowXValueTable[rowIdx]:
+                                        myPrint("DB", ":: Row: %s Decimals hidden... BUT will NOT round calculated balance (%s) as XValue (%s) demands decimal precision"
+                                                %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
+                                    else:
+                                        netAmtDbl_toCompare = roundTowards(netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx])
+
+                                        myPrint("DB", ":: Row: %s Decimals hidden... Will compare rounded(towards X) calculated balance (original: %s, rounded: %s) against XValue: %s"
+                                                %(onRow, balanceObj.getCurrencyType().getDoubleValue(balanceOrAverage), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
+
+                                if netAmtDbl_toCompare == NAB.savedHideRowXValueTable[rowIdx]:
+                                    myPrint("DB", "** Hiding/skipping (x=)%s balance row %s" %(NAB.savedHideRowXValueTable[rowIdx], onRow))
+                                    isHiddenOrAutoHideWhen = True
+
+                            if NAB.savedHideRowWhenXXXTable[rowIdx] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X:
+                                if netAmtDbl_toCompare <= NAB.savedHideRowXValueTable[rowIdx]:
+                                    myPrint("DB", "** Hiding/skipping <=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[rowIdx], onRow))
+                                    isHiddenOrAutoHideWhen = True
+
+                            if NAB.savedHideRowWhenXXXTable[rowIdx] == GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X:
+                                if netAmtDbl_toCompare >= NAB.savedHideRowXValueTable[rowIdx]:
+                                    myPrint("DB", "** Hiding/skipping >=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[rowIdx], onRow))
+                                    isHiddenOrAutoHideWhen = True
+
+                            if NAB.savedHideRowWhenXXXTable[rowIdx] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X:
+                                if netAmtDbl_toCompare != NAB.savedHideRowXValueTable[rowIdx]:
+                                    myPrint("DB", "** Hiding/skipping !=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[rowIdx], onRow))
+                                    isHiddenOrAutoHideWhen = True
+
+            myPrint("DB", "... row %s is NOT auto hidden...." %(onRow))
+            return isHiddenOrAutoHideWhen
+
+
+        def clearLastResultsBalanceTable(self, obtainLockFirst=True):
+            myPrint("DB", "In .clearLastResultsBalanceTable() - Wiping out NAB's temporary balance table (and associated references)....")
+            NAB = self
+            with (NAB.NAB_TEMP_BALANCE_TABLE_LOCK if (obtainLockFirst) else NoneLock()):
+                if NAB.lastResultsBalanceTable is not None:
+                    NAB.lastResultsBalanceTable.clear()
 
         def handle_event(self, appEvent, lPassedFromInvoke=False):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -9569,7 +9833,7 @@ Visit: %s (Author's site)
 
             if appEvent == "md:file:closing" or appEvent == "md:file:closed":
 
-                self.rememberLastResultsTable = None
+                NAB.clearLastResultsBalanceTable()
 
                 self.parametersLoaded = self.configPanelOpen = False
 
@@ -9588,7 +9852,6 @@ Visit: %s (Author's site)
                     myPrint("DB", "Closing all resources and listeners being used by View(s)")
                     MyHomePageView.getHPV().cleanupAsBookClosing()
 
-                    NAB.clearTemporaryBalanceTable()
 
             elif (appEvent == "md:file:opening"):  # Precedes file opened
                 myPrint("DB", "%s Dataset is opening... Internal list of SwingWorkers as follows...:" %(appEvent))
@@ -9683,15 +9946,23 @@ Visit: %s (Author's site)
 
                 _return = None
                 try:
-                    if self.rememberLastResultsTable is not None and len(self.rememberLastResultsTable) > 0:
-                        # This builds a remembered table for other extensions to leverage....
-                        _return = []
-                        for i in range(0, len(self.rememberLastResultsTable)):
-                            balanceObj = self.rememberLastResultsTable[i]   # type: CalculatedBalance
-                            _return.append(balanceObj.cloneBalanceObject())
+                    with NAB.NAB_TEMP_BALANCE_TABLE_LOCK:
+                        if NAB.lastResultsBalanceTable is not None and len(NAB.lastResultsBalanceTable) > 0:
+                            # This builds a temporary non-referenced table for other extensions to leverage....
+                            _return = []
+
+                            if NAB.validateLastResultsTable(obtainLockFirst=False):
+                                lastTable = NAB.sortLastResultsTableByRowNumberAsList(obtainLockFirst=False)
+                                for balObj in lastTable:
+                                    _return.append(balObj.cloneBalanceObject())
+                            else:
+                                myPrint("B", "ERROR: There seems to be a problem with the lastResultsBalanceTable table.. Will NOT return results!")
+                                _return = None
+
                 except:
                     myPrint("B", "ERROR building remembered results table... Will ignore and continue...")
                     dump_sys_error_to_md_console_and_errorlog()
+                    _return = None
 
                 return _return
 
@@ -9756,22 +10027,34 @@ Visit: %s (Author's site)
             myPrint("DB", "... Completed unload routines...")
 
     class SpecialJLinkLabel(JLinkLabel):
-        def __init__(self, *args):
+        def __init__(self, *args, **kwargs):
+            wrc = kwargs.pop("wrc", None)               # type: WidgetRowConfig
+            self.maxWidth = -1
             super(self.__class__, self).__init__(*args)
-
             self.NAB = NetAccountBalancesExtension.getNAB()
             self.md = self.NAB.moneydanceContext
             self.fonts = self.md.getUI().getFonts()
             self.fonts.updateMetricsIfNecessary(self.getGraphics())
             self.maxBaseline = self.fonts.defaultMetrics.getMaxDescent()
             self.underlineStroke = BasicStroke(1.0, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0, [1.0, 6.0], 1.0 if (self.getHorizontalAlignment() == JLabel.LEFT) else 0.0)
+            self.underlineDots = self.NAB.savedDisplayVisualUnderDots
+            if wrc.isNoUnderlineDots(): self.underlineDots = False
+            if wrc.isForceUnderlineDots(): self.underlineDots = True
+
+        def setUnderlineDots(self, underlineDots): self.underlineDots = underlineDots
+
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            return dim
 
         def paintComponent(self, g2d):
             if isinstance(self, JLabel): pass                                                                           # trick IDE into type checking
             if isinstance(g2d, Graphics2D): pass                                                                        # trick IDE into type checking
 
             super(self.__class__, self).paintComponent(g2d)
-            if (not self.NAB.savedDisplayVisualUnderDots or g2d is None): return
+            if (not self.underlineDots or g2d is None): return
 
             # html_view = self.getClientProperty("html")
             # if html_view is None: return
@@ -9843,6 +10126,8 @@ Visit: %s (Author's site)
         WIDGET_ROW_BOLDROWNAME = "<#fbo>"
         WIDGET_ROW_ITALICSROWNAME = "<#fit>"
         WIDGET_ROW_UNDERLINESROWNAME = "<#fun>"
+        WIDGET_ROW_NO_UNDERLINE_DOTS = "<#nud>"
+        WIDGET_ROW_FORCE_UNDERLINE_DOTS = "<#fud>"
         WIDGET_ROW_HTMLROWNAME = "<#html>"
 
         def __init__(self, _rowText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True):
@@ -9854,6 +10139,8 @@ Visit: %s (Author's site)
             self.bold = False
             self.italics = False
             self.underline = False
+            self.forceUnderlineDots = False
+            self.noUnderlineDots = False
             self.html = False
             self.justification = JLabel.LEFT
 
@@ -9901,6 +10188,14 @@ Visit: %s (Author's site)
                 _rowText = ""
                 self.blankRow = True
 
+            if (WidgetRowConfig.WIDGET_ROW_NO_UNDERLINE_DOTS in _rowText):
+                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_NO_UNDERLINE_DOTS, "")
+                self.noUnderlineDots = True
+
+            if (WidgetRowConfig.WIDGET_ROW_FORCE_UNDERLINE_DOTS in _rowText):
+                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_FORCE_UNDERLINE_DOTS, "")
+                self.forceUnderlineDots = True
+
             self.newRowText = wrap_HTML_BIG_small(_rowText,
                                               _smallText,
                                               _smallColor=_smallColor,
@@ -9915,7 +10210,8 @@ Visit: %s (Author's site)
         def getNewRowText(self): return self.newRowText
         def getBlankZero(self): return self.blankZero
         def getJustification(self): return self.justification
-
+        def isNoUnderlineDots(self): return self.noUnderlineDots
+        def isForceUnderlineDots(self): return self.forceUnderlineDots
 
     class MyHomePageView(HomePageView, AccountListener, CurrencyListener):
 
@@ -10490,7 +10786,13 @@ Visit: %s (Author's site)
                                         %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
 
 
-                    _totalBalanceTable.append(CalculatedBalance(NAB.savedWidgetName[iAccountLoop], thisRowCurr, totalBalance, secLabelText, False, NAB.savedUUIDTable[iAccountLoop]))
+                    _totalBalanceTable.append(CalculatedBalance(rowName=NAB.savedWidgetName[iAccountLoop],
+                                                                currencyType=thisRowCurr,
+                                                                balance=totalBalance,
+                                                                extraRowTxt=secLabelText,
+                                                                UORError=False,
+                                                                uuid=NAB.savedUUIDTable[iAccountLoop],
+                                                                rowNumber=onRow))
 
 
                 del accountsToShow, totalBalance, incExpTxnTable, incExpAccountsList, simulateRowIdxs
@@ -10559,14 +10861,34 @@ Visit: %s (Author's site)
 
                 # Update NABs temporary balance table with results
                 with NAB.NAB_TEMP_BALANCE_TABLE_LOCK:
-                    if not lFromSimulate:  NAB.clearTemporaryBalanceTable(obtainLockFirst=False)
+                    if not lFromSimulate:  NAB.clearLastResultsBalanceTable(obtainLockFirst=False)
+                    observedUUIDKeys = {}
                     for i in range(0, len(_totalBalanceTable)):
+                        onRow = i + 1
                         balanceObj = _totalBalanceTable[i]      # type: CalculatedBalance
+                        observedUUIDKeys[balanceObj.getUUID()] = True
+                        lastResultsBalObj = NAB.lastResultsBalanceTable.get(balanceObj.getUUID(), None)     # type: CalculatedBalance
+                        if lFromSimulate:
+                            if lastResultsBalObj is None:
+                                if debug: myPrint("B", "@@ ALERT: uuid: %s not found in lastResultsTable for BalObj: %s (ignoring as I presume it a new row and will update below)..." %(balanceObj.getUUID(), balanceObj.toString()))
+                            else:
+                                lastResultsBalObj.setRowNumber(onRow)
                         if (not lFromSimulate or (balanceObj.getUUID() in simulateRowUUIDs)):
                             myPrint("DB", ".. Updating temporary balance table - uuid: '%s' with Balance: '%s'" %(balanceObj.getUUID(), balanceObj.toString()))
-                            NAB.temporaryBalanceTable[balanceObj.getUUID()] = balanceObj
+                            NAB.lastResultsBalanceTable[balanceObj.getUUID()] = balanceObj
                         else:
                             myPrint("DB", ".. Skipping updating of temporary balance table - uuid: '%s'" %(balanceObj.getUUID()))
+
+                    if lFromSimulate:
+                        uuidKeysToDelete = []
+                        for uuidKey in NAB.lastResultsBalanceTable.keys():
+                            if uuidKey not in observedUUIDKeys:
+                                uuidKeysToDelete.append(uuidKey)
+                        for uuidKey in uuidKeysToDelete:
+                            myPrint("B", ".. deleting (assumed) no longer needed row >> uuid: %s from lastResultsBalanceTable - was: " %(uuidKey), NAB.lastResultsBalanceTable[uuidKey].toString())
+                            NAB.lastResultsBalanceTable.pop(uuidKey)
+
+                    if debug: NAB.validateLastResultsTable(obtainLockFirst=False)
 
                 tookTime = System.currentTimeMillis() - startTime
                 myPrint("DB", "calculateBalances() STAGE6>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
@@ -10587,8 +10909,8 @@ Visit: %s (Author's site)
                         myPrint("DB", ".. Row: %s - DEBUG >> Calculated a total (potentially mixed currency) total of %s (%s)" %(i+1, result, balanceObj.toString()))
                     myPrint("DB", "----------------")
 
-                    for uuid in NAB.temporaryBalanceTable:
-                        balObj = NAB.temporaryBalanceTable[uuid]
+                    for uuid in NAB.lastResultsBalanceTable:
+                        balObj = NAB.lastResultsBalanceTable[uuid]
                         myPrint("DB", ".. uuid: %s - DEBUG >> Raw Temporary Balance Table contents: '%s'" %(balObj.getUUID(), balObj.toString()))
                     myPrint("DB", "----------------")
 
@@ -10606,10 +10928,12 @@ Visit: %s (Author's site)
 
             except AttributeError as e:
                 _totalBalanceTable = []
+                NAB.clearLastResultsBalanceTable(obtainLockFirst=False)
                 if not detectMDClosingError(e): raise
 
             except IllegalArgumentException:
                 _totalBalanceTable = []
+                NAB.clearLastResultsBalanceTable(obtainLockFirst=False)
                 myPrint("B", "@@ ERROR - Probably on a multi-byte character.....")
                 dump_sys_error_to_md_console_and_errorlog()
                 raise
@@ -10642,7 +10966,6 @@ Visit: %s (Author's site)
                 result = False
 
                 try:
-                    NAB = NetAccountBalancesExtension.getNAB()
                     HPV = MyHomePageView.getHPV()
 
                     if HPV.lastRefreshTriggerWasAccountModified:
@@ -10652,8 +10975,6 @@ Visit: %s (Author's site)
                         myPrint("DB", ".. >> Back from my sleep.... Now will reallyRefresh....!")
 
                     self.netAmountTable = self.callingClass.getBalancesBuildView(self)
-
-                    NAB.rememberLastResultsTable = self.netAmountTable
 
                     if self.netAmountTable is not None and len(self.netAmountTable) > 0:
                         result = True
@@ -10757,7 +11078,7 @@ Visit: %s (Author's site)
                                     onRow = i + 1
                                     balanceObj = self.netAmountTable[i]    # type: CalculatedBalance
 
-                                    if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
+                                    if NAB.isThisRowAlwayHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
                                         myPrint("DB", "** Skipping disabled row %s" %(onRow))
                                         hiddenRows = True
                                         continue
@@ -10768,58 +11089,14 @@ Visit: %s (Author's site)
                                         continue
 
                                     lUseAverage = (NAB.savedDisplayAverageTable[i] != 1.0)
-                                    # lUsesOtherRow = (NAB.getOperateOnAnotherRowRowIdx(i) is not None)
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                                     balanceOrAverage = balanceObj.getBalance()
 
-                                    if balanceOrAverage is not None:
-                                        skippingRow = False
-
-                                        # if lUseAverage:
-                                        #     balanceOrAverage = self.netAmountTable[i][_curIdx].getLongValue(self.netAmountTable[i][_curIdx].getDoubleValue(balanceOrAverage) / NAB.savedDisplayAverageTable[i])
-                                        #     myPrint("DB", ":: Row: %s - converted calculated balance of: %s into average (/by: %s) of: %s"
-                                        #             %(onRow, self.netAmountTable[i][_curIdx].getDoubleValue(self.netAmountTable[i][_valIdx]), NAB.savedDisplayAverageTable[i], self.netAmountTable[i][_curIdx].getDoubleValue(balanceOrAverage)))
-
-                                        netAmtDbl_toCompare = balanceObj.getCurrencyType().getDoubleValue(balanceOrAverage)
-
-                                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
-
-                                            if NAB.savedHideDecimals:
-                                                if float(int(netAmtDbl_toCompare)) == netAmtDbl_toCompare:
-                                                    myPrint("DB", ":: Row: %s Decimals hidden... NOTE: calculated balance (%s) is already a whole number so no rounding... NOTE: XValue (%s)"
-                                                            %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
-                                                elif float(int(NAB.savedHideRowXValueTable[i])) != NAB.savedHideRowXValueTable[i]:
-                                                    myPrint("DB", ":: Row: %s Decimals hidden... BUT will NOT round calculated balance (%s) as XValue (%s) demands decimal precision"
-                                                            %(onRow, netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
-                                                else:
-                                                    netAmtDbl_toCompare = roundTowards(netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i])
-
-                                                    myPrint("DB", ":: Row: %s Decimals hidden... Will compare rounded(towards X) calculated balance (original: %s, rounded: %s) against XValue: %s"
-                                                            %(onRow, balanceObj.getCurrencyType().getDoubleValue(balanceOrAverage), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[i]))
-
-                                            if netAmtDbl_toCompare == NAB.savedHideRowXValueTable[i]:
-                                                myPrint("DB", "** Hiding/skipping (x=)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
-                                                skippingRow = True
-
-                                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X:
-                                            if netAmtDbl_toCompare <= NAB.savedHideRowXValueTable[i]:
-                                                myPrint("DB", "** Hiding/skipping <=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
-                                                skippingRow = True
-
-                                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X:
-                                            if netAmtDbl_toCompare >= NAB.savedHideRowXValueTable[i]:
-                                                myPrint("DB", "** Hiding/skipping >=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
-                                                skippingRow = True
-
-                                        if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X:
-                                            if netAmtDbl_toCompare != NAB.savedHideRowXValueTable[i]:
-                                                myPrint("DB", "** Hiding/skipping !=(x)%s balance row %s" %(NAB.savedHideRowXValueTable[i], onRow))
-                                                skippingRow = True
-
-                                        if skippingRow:
-                                            if NAB.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_NEVER: self.addRowSeparator(_view)
-                                            hiddenRows = True
-                                            continue
+                                    skippingRow = NAB.isThisRowAlwayHideOrAutoHidden(balanceObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
+                                    if skippingRow:
+                                        if NAB.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_NEVER: self.addRowSeparator(_view)
+                                        hiddenRows = True
+                                        continue
 
                                     if NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_ABOVE or NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BOTH:
                                         self.addRowSeparator(_view)
@@ -10843,9 +11120,8 @@ Visit: %s (Author's site)
                                     uuidTxt = "" if not debug else " (uuid: %s)" %(NAB.savedUUIDTable[i])
 
                                     wrc = WidgetRowConfig(NAB.savedWidgetName[i], balanceObj.getExtraRowTxt() + showCurrText + showAverageText + showUsesOtherRowTxt + uuidTxt, altFG)
-                                    # rowText = wrap_HTML_BIG_small(NAB.savedWidgetName[i], self.netAmountTable[i][_secLabelTextIdx] + showCurrText + showAverageText, altFG)
 
-                                    nameLabel = SpecialJLinkLabel(wrc.getNewRowText(), "showConfig?%s" %(str(onRow)), wrc.getJustification())
+                                    nameLabel = SpecialJLinkLabel(wrc.getNewRowText(), "showConfig?%s" %(str(onRow)), wrc.getJustification(), wrc=wrc)
 
                                     if balanceOrAverage is None:
                                         netTotalLbl = JLinkLabel("  " if (wrc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
@@ -10879,7 +11155,7 @@ Visit: %s (Author's site)
                                                     and not NAB.savedDisableCurrencyFormatting[i]):
                                                 theFormattedValue += " %"
 
-                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT)
+                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT, wrc=wrc)
                                         netTotalLbl.setFont((md.getUI().getFonts()).mono)                               # noqa
 
                                         if balanceOrAverage < 0:
