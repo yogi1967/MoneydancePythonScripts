@@ -8820,7 +8820,7 @@ Visit: %s (Author's site)
 
                     NAB.rowSelected_COMBO.setRenderer(RowComboListRenderer())
 
-                    NAB.filterByGroupID_JTF = MyJTextFieldFilter()      # todo - fix display corruption
+                    NAB.filterByGroupID_JTF = MyJTextFieldFilter()
                     NAB.filterByGroupID_JTF.setEscapeCancelsTextAndEscapesWindow(False)
                     NAB.filterByGroupID_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setName("filterByGroupID_JTF")
@@ -10885,7 +10885,7 @@ Visit: %s (Author's site)
                             if uuidKey not in observedUUIDKeys:
                                 uuidKeysToDelete.append(uuidKey)
                         for uuidKey in uuidKeysToDelete:
-                            myPrint("B", ".. deleting (assumed) no longer needed row >> uuid: %s from lastResultsBalanceTable - was: " %(uuidKey), NAB.lastResultsBalanceTable[uuidKey].toString())
+                            myPrint("DB", ".. deleting (assumed) no longer needed row >> uuid: %s from lastResultsBalanceTable - was: " %(uuidKey), NAB.lastResultsBalanceTable[uuidKey].toString())
                             NAB.lastResultsBalanceTable.pop(uuidKey)
 
                     if debug: NAB.validateLastResultsTable(obtainLockFirst=False)
