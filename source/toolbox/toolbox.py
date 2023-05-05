@@ -169,6 +169,7 @@
 #               Tweak to IAGREE message - wrap to next line...
 #               Fix CMD-M (CTRL-M) that didn't work on Windows.... (keystroke 'm' not passed to .getActionCommand())
 #               Tweak startup check messages detect_non_hier_sec_acct_or_orphan_txns()....
+#               Common code tweaks...
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -427,6 +428,12 @@ else:
     from java.io import FileNotFoundException, FilenameFilter, File, FileInputStream, FileOutputStream, IOException, StringReader
     from java.io import BufferedReader, InputStreamReader
     from java.nio.charset import Charset
+
+    if int(MD_REF.getBuild()) >= 3067:
+        from com.moneydance.apps.md.view.gui.theme import ThemeInfo                                                     # noqa
+    else:
+        from com.moneydance.apps.md.view.gui.theme import Theme as ThemeInfo                                            # noqa
+
     if isinstance(None, (JDateField,CurrencyUtil,Reminder,ParentTxn,SplitTxn,TxnSearch, JComboBox, JCheckBox,
                          AccountBook, AccountBookWrapper, Long, Integer, Boolean,                          
                          JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
@@ -473,6 +480,7 @@ else:
             class Strings:
                 def __init__(self): pass    # Leave empty
 
+    GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME = "gui.current_theme"
     GlobalVars.thisScriptName = u"%s.py(Extension)" %(myModuleID)
 
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
@@ -508,12 +516,6 @@ else:
     from javax.crypto.spec import SecretKeySpec, OAEPParameterSpec, PSource
 
     from com.google.gson import Gson
-
-    # renamed in MD build 3067
-    if int(MD_REF.getBuild()) >= 3067:
-        from com.moneydance.apps.md.view.gui.theme import ThemeInfo                                                     # noqa
-    else:
-        from com.moneydance.apps.md.view.gui.theme import Theme as ThemeInfo                                            # noqa
 
     try:
         if Platform.isOSX() and int(MD_REF.getBuild()) >= 3088:
@@ -987,9 +989,12 @@ Visit: %s (Author's site)
     def isMDThemeVAQua():
         if Platform.isOSX():
             try:
-                currentTheme = MD_REF.getUI().getCurrentTheme()
-                if ".vaqua" in safeStr(currentTheme.getClass()).lower(): return True
-            except: pass
+                # currentTheme = MD_REF.getUI().getCurrentTheme()       # Not reset when changed in-session as it's a final variable!
+                # if ".vaqua" in safeStr(currentTheme.getClass()).lower(): return True
+                currentTheme = ThemeInfo.themeForID(MD_REF.getUI(), MD_REF.getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID))
+                if ".vaqua" in currentTheme.getClass().getName().lower(): return True                                   # noqa
+            except:
+                myPrint("B", "@@ Error in isMDThemeVAQua() - Alert author! Error:", sys.exc_info()[1])
         return False
 
     def isIntelX86_32bit():
@@ -5424,8 +5429,8 @@ Visit: %s (Author's site)
         y = u"(DARK THEME)" if (isMDThemeDark()) else u""
         z = u"(Mac Dark Mode detected)" if (Platform.isOSX() and isMacDarkModeDetected()) else u""
 
-        textArray.append(u"Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID), x, y, z))
-        myPrint("B", "Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID), x, y, z))
+        textArray.append(u"Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID), x, y, z))
+        myPrint("B", "Your selected Theme: %s (%s) %s %s" %(MD_REF.getUI().getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID), x, y, z))
 
         # noinspection PyUnresolvedReferences
         if not os.path.exists(ThemeInfo.customThemeFile.getCanonicalPath()):
@@ -5628,7 +5633,7 @@ Visit: %s (Author's site)
         textArray.append(u"Show All Accounts in Popup:          %s" %(MD_REF.getUI().getPreferences().getBoolSetting(u"gui.show_all_accts_in_popup", False)))
         textArray.append(u"Beep when Transactions Change:       %s" %(MD_REF.getUI().getPreferences().getBoolSetting(u"beep_on_transaction_change", True)))
         if float(MD_REF.getBuild()) < 3032:
-            textArray.append(u"Theme: %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)))
+            textArray.append(u"Theme: %s" %(MD_REF.getUI().getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)))
         textArray.append(u"Show Selection Details:              %s" %(MD_REF.getUI().getPreferences().getSetting(u"details_view_mode", u"inwindow")))
         textArray.append(u"Side Bar Balance Type:               %s" %(MD_REF.getUI().getPreferences().getSideBarBalanceType()))
         textArray.append(u"Date Format:                         %s" %(MD_REF.getUI().getPreferences().getSetting(u"date_format", None)))
@@ -5659,7 +5664,7 @@ Visit: %s (Author's site)
 
         if float(MD_REF.getBuild()) >= 3032:
             textArray.append(u"\n>> APPEARANCE")
-            textArray.append(u"Theme:                               %s" %(MD_REF.getUI().getPreferences().getSetting(u"gui.current_theme", ThemeInfo.DEFAULT_THEME_ID)))
+            textArray.append(u"Theme:                               %s" %(MD_REF.getUI().getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)))
             if (MD_REF.getUI().getPreferences().getSetting(u"main_font")) != u"null":
                 textArray.append(u"Font:                                %s" %(MD_REF.getUI().getPreferences().getSetting(u"main_font")))
             else:
@@ -8646,18 +8651,18 @@ Visit: %s (Author's site)
 
     def check_for_window_display_data(theKey, theValue):
 
-        if not isinstance(theValue, (str,unicode)):             return False
-        if theKey.startswith("gui.current_theme"):              return False
-        if theKey.startswith("gui.dashboard.item"):             return False
-        if theKey.startswith("gui.font_increment"):             return False
-        if theKey.startswith("gui.new_txn_on_record"):          return False
-        if theKey.startswith("gui.quickdecimal"):               return False
-        if theKey.startswith("gui.register_follows_txns"):      return False
-        if theKey.startswith("gui.show_all_accts_in_popup"):    return False
-        if theKey.startswith("gui.source_list_visible"):        return False
+        if not isinstance(theValue, (str,unicode)):                         return False
+        if theKey.startswith(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME):   return False
+        if theKey.startswith("gui.dashboard.item"):                         return False
+        if theKey.startswith("gui.font_increment"):                         return False
+        if theKey.startswith("gui.new_txn_on_record"):                      return False
+        if theKey.startswith("gui.quickdecimal"):                           return False
+        if theKey.startswith("gui.register_follows_txns"):                  return False
+        if theKey.startswith("gui.show_all_accts_in_popup"):                return False
+        if theKey.startswith("gui.source_list_visible"):                    return False
 
         # Preferences Home Screen options
-        if theKey.startswith("gui.home"):                       return False
+        if theKey.startswith("gui.home"):                                   return False
 
         if not (theKey.startswith("ext_mgmt_win")
                 or theKey.startswith("security_list")
