@@ -32,13 +32,22 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 
 LET'S GET STARTED:
 
-You start with a row that is <NOT CONFIGURED>. Give it a name - like My First Custom Balance
-Pick a couple of accounts you'd like to add up - maybe all your credit cards?
-Ok, if you are doing this, change the row name to Credit Card Debt.
-Note the long list below - find the credit cards you want to select and click each one. Hit Save All Settings.
-See the result on the summary page. You did note the installation bit, right? Putting the widget in place?
+Let's start with a row that is <NOT CONFIGURED>. Give it a name - like Credit Card Debt.
+Now select all your credit cards from the picklist. Click each one. Hit Save All Settings.
+See the result on the summary page.You did note the installation bit, right? Putting the widget in place?
 You should now have a row which says "Credit Card Debt.    $(not too much hopefully)"
-That's really about it.... But you can do so many things now!
+That's the basics of CB (to create custom calculations)... "Custom Balances"... But you can do so many things now!
+
+How about an account which has a minimum balance? New row - "Checking Account I keep too low" (minimum balance 100)
+Click that account to pick it, select "Hide Row" if >=X and set X to 100
+If it goes below 100, it will appear, and you can even make it blink.
+
+You can also monitor your spending. Gas spent this month? Create a row, find your gas category.
+Select "Month to date" in Inc/Exp Date Range. If you have multiple gas categories, you can select them all.
+Save and look.
+
+Now that you have an inkling of the custom balance power potential here, go explore.
+
 
 WARNINGS:
 
@@ -64,12 +73,13 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
 ** NOTE: When rows can be hidden, they may not display on the Summary screen widget. Click on the widget to config:
          - In the row selector:
-           ... rows coloured red are currently filtered out / hidden by a groupid filter
+           ... rows coloured red are currently filtered out / hidden by a groupid filter or AutoHide option
            ... row numbers are suffixed with codes:
-               <always hide>    Always hide row option is set
-               <auto hide>      An auto hide row rule is active. The row may (or may not) be currently hidden
+               <always hide>    Always hide row option is set (red = NOT active and hidden)
+               <auto hide>      An auto hide row rule is active. (red = ACTIVE, but hidden)
                <groupid: xxx>   A groupid value has been set on this row
                <FILTERED>       This row is currently NOT showing on the Summary Screen widget due to the active filter.
+                                NOTE: Filtered rows (red) are NOT active and hidden.
 
 - AutoSum:
   - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
@@ -110,26 +120,26 @@ USING CATEGORIES:
              Any row that uses NON "All Dates" will trigger this parallel balances sweep
 
   - I/E Date Range options:
-    Example: Given a today's date of 11th December 2021, the I/E Date Range filters will return the following:
-    DR_YEAR_TO_DATE                20210101 - 20211211
-    DR_FISCAL_YEAR_TO_DATE         20210406 - 20211211
-    DR_LAST_FISCAL_QUARTER         20210706 - 20211005
-    DR_QUARTER_TO_DATE             20211001 - 20211211
-    DR_MONTH_TO_DATE               20211201 - 20211211
-    DR_THIS_YEAR                   20210101 - 20211231 **future**
-    DR_THIS_FISCAL_YEAR            20210406 - 20220405 **future**
-    DR_THIS_QUARTER                20211001 - 20211231 **future**
-    DR_THIS_MONTH                  20211201 - 20211231 **future**
-    DR_THIS_WEEK                   20211205 - 20211211
-    DR_LAST_YEAR                   20200101 - 20201231
-    DR_LAST_FISCAL_YEAR            20200406 - 20210405
-    DR_LAST_QUARTER                20210701 - 20210930
-    DR_LAST_MONTH                  20211101 - 20211130
-    DR_LAST_WEEK                   20211128 - 20211204
-    DR_LAST_12_MONTHS              20201201 - 20211130
-    DR_LAST_365_DAYS               20201211 - 20211211
-    DR_LAST_30_DAYS                20211111 - 20211211
-    DR_LAST_1_DAY                  20211210 - 20211211
+    Example: Given a today's date of 11th December 2023, the I/E Date Range filters will return the following:
+    DR_YEAR_TO_DATE                20230101 - 20231211
+    DR_FISCAL_YEAR_TO_DATE         20230406 - 20231211
+    DR_LAST_FISCAL_QUARTER         20230706 - 20231005
+    DR_QUARTER_TO_DATE             20231001 - 20231211
+    DR_MONTH_TO_DATE               20231201 - 20231211
+    DR_THIS_YEAR                   20230101 - 20231231 **future**
+    DR_THIS_FISCAL_YEAR            20230406 - 20240405 **future**
+    DR_THIS_QUARTER                20231001 - 20231231 **future**
+    DR_THIS_MONTH                  20231201 - 20231231 **future**
+    DR_THIS_WEEK                   20231205 - 20231211
+    DR_LAST_YEAR                   20220101 - 20221231
+    DR_LAST_FISCAL_YEAR            20220406 - 20230405
+    DR_LAST_QUARTER                20230701 - 20230930
+    DR_LAST_MONTH                  20231101 - 20231130
+    DR_LAST_WEEK                   20231128 - 20231204
+    DR_LAST_12_MONTHS              20221201 - 20231130
+    DR_LAST_365_DAYS               20221211 - 20231211
+    DR_LAST_30_DAYS                20231111 - 20231211
+    DR_LAST_1_DAY                  20231210 - 20231211
     DR_ALL_DATES                   (returns all dates)
 
     NOTE: The above will interact with your Balance/Current Balance/Cleared setting for that row:
@@ -168,6 +178,7 @@ BACKUP/RESTORE
           CMD-SHIFT-R will restore the last backup of your config...
           CMD-I       will display this readme/help guide...
           CMD-SHIFT-I will display some debugging information about the rows...
+          CMD-SHIFT-L will display debugging information about the internal lastResultsTable (not for 'normal' users)...
 
 ROW NAME FORMATTING (OPTIONAL)
 
@@ -183,6 +194,8 @@ ROW NAME FORMATTING (OPTIONAL)
     <#fbo>  = Row name font:    bold
     <#fun>  = Row name font:    underline
     <#fit>  = Row name font:    italics
+    <#nud>  = No special underline dots...
+    <#fud>  = Force special underline dots...
 
     <#html> = EXPERIMENTAL - USE WITH CARE: Takes your row name as html encoded text (do NOT wrap with <html> </html>)..
               Common html tags are: for bold: <b>text</b>   italics: <i>text</i>   small text: <small>small text</small>
