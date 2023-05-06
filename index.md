@@ -60,7 +60,7 @@ _^^^Refer to "Script Notes:" at the bottom of this page for details on the new .
 ### Extension ONLY format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Update and Advanced mode(s). In the default Basic mode it's READONLY and VERY useful!
-NOTE: Also installs two new Extensions Menu options:
+NOTE: Also installs three new Extensions Menu options:
   - Move Investment Transactions: Allows you to move the txns you have selected in the visible Investment Register. 
   - Total Selected Transactions:  Will total up the txns you have selected in the visible register.
   - Zap md+ (default) memo fields: Will search for and zap md+ memo fields on downloaded txns when memo matches the downloaded data.
