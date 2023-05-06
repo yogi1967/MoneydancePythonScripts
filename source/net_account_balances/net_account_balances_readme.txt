@@ -78,7 +78,7 @@ EXAMINING THE CHOICES/CONFIGURATION:
                <always hide>    Always hide row option is set (red = NOT active and hidden)
                <auto hide>      An auto hide row rule is active. (red = ACTIVE, but hidden)
                <groupid: xxx>   A groupid value has been set on this row
-               <FILTERED>       This row is currently NOT showing on the Summary Screen widget due to the active filter.
+               <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
                                 NOTE: Filtered rows (red) are NOT active and hidden.
 
 - AutoSum:
@@ -184,7 +184,7 @@ ROW NAME FORMATTING (OPTIONAL)
 
 - ROW NAME Configuration Options:
   - You can embed the following text (lowercase) in the Row Name field to configure the row as follows:
-    <#bz>   = Forces any total to be appear blank when zero
+    <#bz>   = Forces any total to appear blank when zero
     <#brn>  = Forces row name to be blank/empty
     <#jr>   = Row name justify: right
     <#jc>   = Row name justify: center
@@ -196,6 +196,7 @@ ROW NAME FORMATTING (OPTIONAL)
     <#fit>  = Row name font:    italics
     <#nud>  = No special underline dots...
     <#fud>  = Force special underline dots...
+    NOTE: Underline dots will always be turned off if you justify center the text...
 
     <#html> = EXPERIMENTAL - USE WITH CARE: Takes your row name as html encoded text (do NOT wrap with <html> </html>)..
               Common html tags are: for bold: <b>text</b>   italics: <i>text</i>   small text: <small>small text</small>

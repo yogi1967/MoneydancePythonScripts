@@ -1729,7 +1729,7 @@ Visit: %s (Author's site)
         return text
 
     def getColorBlue():
-        if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
+        if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
     def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
@@ -3027,14 +3027,14 @@ Visit: %s (Author's site)
     def selectAllHomeScreens():
 
         try:
-            firstMF = MD_REF.getUI().firstMainFrame
-            secWindows = [secWin for secWin in MD_REF.getUI().getSecondaryWindows() if (isinstance(secWin, MainFrame) and secWin is not firstMF)]
+            firstMF = GlobalVars.CONTEXT.getUI().firstMainFrame
+            secWindows = [secWin for secWin in GlobalVars.CONTEXT.getUI().getSecondaryWindows() if (isinstance(secWin, MainFrame) and secWin is not firstMF)]
             secWindows.append(firstMF)
             for secWin in secWindows:
                 currentViewAccount = secWin.getSelectedAccount()
-                if currentViewAccount != MD_REF.getRootAccount():
+                if currentViewAccount != GlobalVars.CONTEXT.getRootAccount():
                     myPrint("DB","Switched to Home Page Summary Page (from: %s) - on main frame: %s" %(currentViewAccount, secWin))
-                    secWin.selectAccount(MD_REF.getRootAccount())
+                    secWin.selectAccount(GlobalVars.CONTEXT.getRootAccount())
         except:
             myPrint("B","@@ Error switching to Summary Page (Home Page)")
 
@@ -3789,13 +3789,13 @@ Visit: %s (Author's site)
     class MyQuickFieldDocumentListener(DocumentListener):
         def __init__(self, source): self.source = source
 
-        def insertUpdate(self, evt):
+        def insertUpdate(self, evt):                                                                                    # noqa
             self.source.repaint()
 
-        def removeUpdate(self, evt):
+        def removeUpdate(self, evt):                                                                                    # noqa
             self.source.repaint()
 
-        def changedUpdate(self, evt):
+        def changedUpdate(self, evt):                                                                                   # noqa
             self.source.repaint()
 
     class MyJTextFieldFilter(QuickSearchField):
@@ -3821,7 +3821,8 @@ Visit: %s (Author's site)
             super(self.__class__, self).updateUI()
             self.setBackground(GlobalVars.CONTEXT.getUI().getColors().defaultBackground)
             self.setOuterBackground(GlobalVars.CONTEXT.getUI().getColors().headerBG)
-            self.setForeground(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
+            # self.setForeground(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
+            self.setForeground(GlobalVars.CONTEXT.getUI().getColors().reportBlueFG)
 
         # Avoid width resizes changing the GUI back and forth....
         def getPreferredSize(self):
@@ -3891,7 +3892,7 @@ Visit: %s (Author's site)
             self.allowBlank = True
             self.dec = decimal
             self.disabled = False
-            self.validCol = MD_REF.getUI().getColors().defaultTextForeground
+            self.validCol = GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground
             self.invalidCol = getColorRed()
             self.setDocument(JTextFieldIntDocument())
             self.setHorizontalAlignment(SwingConstants.LEFT)
@@ -5263,7 +5264,7 @@ Visit: %s (Author's site)
 
 
             if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
-            GlobalVars.parametersLoadedFromFile[GlobalVars.Strings.PARAMETER_FILEUUID] = MD_REF.getCurrentAccountBook().getLocalStorage().getString(GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID, None)
+            GlobalVars.parametersLoadedFromFile[GlobalVars.Strings.PARAMETER_FILEUUID] = GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage().getString(GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID, None)
 
             try:
                 # Preventing debug ON from being saved... Stops users leaving 'expensive' debug logging on
@@ -5535,8 +5536,8 @@ Visit: %s (Author's site)
 
                 config = "%s_extension.dict" %(NAB.myModuleID)
                 backup = "%s_extension.dict_backup" %(NAB.myModuleID)
-                configFile = File(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(), config)
-                backupFile = File(MD_REF.getCurrentAccountBook().getRootFolder().getAbsolutePath(), backup)
+                configFile = File(GlobalVars.CONTEXT.getCurrentAccountBook().getRootFolder().getAbsolutePath(), config)
+                backupFile = File(GlobalVars.CONTEXT.getCurrentAccountBook().getRootFolder().getAbsolutePath(), backup)
 
                 if self.performBackup:
                     if not configFile.exists():
@@ -5548,7 +5549,7 @@ Visit: %s (Author's site)
                                 Files.copy(configFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING)           # noqa
                                 myPrint("B", "Backup file created: '%s'" %(backupFile))
                                 myPopupInformationBox(self.theFrame, "Backup file created", theMessageType=JOptionPane.INFORMATION_MESSAGE)
-                                MD_REF.getPlatformHelper().openDirectory(backupFile)
+                                GlobalVars.CONTEXT.getPlatformHelper().openDirectory(backupFile)
                             except:
                                 myPrint("B", "WARNING: Backup from: '%s' to: '%s' failed" %(configFile, backupFile))
                                 dump_sys_error_to_md_console_and_errorlog()
@@ -5600,7 +5601,7 @@ Visit: %s (Author's site)
                                 myPopupInformationBox(self.theFrame, txt, theMessageType=JOptionPane.ERROR_MESSAGE)
                                 return
 
-                            thisDatasetFileUUID = MD_REF.getCurrentAccountBook().getLocalStorage().getString(GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID, None)
+                            thisDatasetFileUUID = GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage().getString(GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID, None)
                             myPrint("B", "Restore config, last saved file UUID:%s vs this dataset's file UUID: %s" %(lastSavedFileUUID, thisDatasetFileUUID))
 
                             if lastSavedFileUUID is not None and thisDatasetFileUUID != lastSavedFileUUID:
@@ -5612,7 +5613,7 @@ Visit: %s (Author's site)
                                 Files.copy(selectedBackupFile.toPath(), configFile.toPath(), StandardCopyOption.REPLACE_EXISTING)           # noqa
                                 myPrint("B", "Restored config file: '%s'" %(configFile))
                                 myPopupInformationBox(self.theFrame, "Config file restored (Extension will restart/reload)", theMessageType=JOptionPane.WARNING_MESSAGE)
-                                # MD_REF.getPlatformHelper().openDirectory(configFile)
+                                # GlobalVars.CONTEXT.getPlatformHelper().openDirectory(configFile)
 
                                 # def reloadWithNewParameters(NABRef):
                                 #     myPrint("B", "Forcing an Extension restart/reload procedure...")
@@ -7203,16 +7204,16 @@ Visit: %s (Author's site)
 
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
 
-                        wrc = WidgetRowConfig(NAB.savedWidgetName[i], "")
+                        tdfsc = TextDisplayForSwingConfig(NAB.savedWidgetName[i], "")
                         if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
                             NAB.simulateTotal_label.setText(GlobalVars.WIDGET_ROW_DISABLED)
 
                         elif balanceOrAverage is None and NAB.isRowFilteredOutByGroupID(i):
-                            NAB.simulateTotal_label.setText("  " if wrc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER.lower())
+                            NAB.simulateTotal_label.setText("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER.lower())
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
 
                         elif balanceOrAverage is None:
-                            NAB.simulateTotal_label.setText("  " if wrc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower())
+                            NAB.simulateTotal_label.setText("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower())
 
                         elif balanceObj.isUORError():
                             NAB.simulateTotal_label.setText(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower())
@@ -7237,7 +7238,7 @@ Visit: %s (Author's site)
                                     showUsesOtherRowTxt = " (uor: %s)" %(newTargetIdx+1)
 
 
-                            if (balanceOrAverage == 0 and wrc.getBlankZero()):
+                            if (balanceOrAverage == 0 and tdfsc.getBlankZero()):
                                 theFormattedValue = "  "
                             else:
                                 fancy = (not NAB.savedDisableCurrencyFormatting[i])
@@ -7266,7 +7267,7 @@ Visit: %s (Author's site)
                             NAB.simulateTotal_label.setText(resultTxt)
 
                             if NAB.savedBlinkTable[i]:
-                                BlinkSwingTimer(1200, [NAB.simulateTotal_label], flipColor=(MD_REF.getUI().getColors().defaultTextForeground), flipBold=True).start()
+                                BlinkSwingTimer(1200, [NAB.simulateTotal_label], flipColor=(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground), flipBold=True).start()
 
                         myPrint("DB", "... launching .rebuildRowSelectorCombo() called by end of SwingWorker..... Should jump over to the EDT (to run later...)")
                         NAB.rebuildRowSelectorCombo(selectIdx=None, rebuildCompleteModel=True, doNow=False)
@@ -8775,7 +8776,7 @@ Visit: %s (Author's site)
                     NAB.rowSelected_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBO")
                     NAB.rowSelected_COMBO.setToolTipText("Select the row you would like to configure")
                     NAB.rowSelected_COMBO.addActionListener(NAB.saveActionListener)
-                    # NAB.rowSelected_COMBO.setFont((MD_REF.getUI().getFonts()).mono);
+                    # NAB.rowSelected_COMBO.setFont((GlobalVars.CONTEXT.getUI().getFonts()).mono);
 
                     selectRow_pnl.add(NAB.rowSelected_COMBO, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).wx(0.1).west())
                     onSelectCol += 1
@@ -8826,7 +8827,6 @@ Visit: %s (Author's site)
                     NAB.filterByGroupID_JTF.setName("filterByGroupID_JTF")
                     NAB.filterByGroupID_JTF.setToolTipText("Filter rows by 'GroupID' (free format text). Use ';' to separate multiple, '!' = NOT, '&' = AND. Refer CMD-I Help")
                     NAB.filterByGroupID_JTF.setPlaceholderText("Filter by GroupID....")
-                    NAB.filterByGroupID_JTF.setForeground(getColorBlue())
                     NAB.filterByGroupID_JTF.addFocusListener(NAB.saveFocusListener)
                     selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(1.0).fillboth())
                     onSelectCol += 1
@@ -9049,27 +9049,21 @@ Visit: %s (Author's site)
                     controlPnl.add(hideWhenSelector_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    # NAB.hideRowWhenNever_JRB = MyJRadioButton(wrap_HTML_BIG_small("", "Never", MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.hideRowWhenNever_JRB = MyJRadioButton("Never")
                     NAB.hideRowWhenNever_JRB.setName("hideRowWhenNever_JRB")
 
-                    # NAB.hideRowWhenAlways_JRB = MyJRadioButton(wrap_HTML_BIG_small("", "Always", MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.hideRowWhenAlways_JRB = MyJRadioButton("Always")
                     NAB.hideRowWhenAlways_JRB.setName("hideRowWhenAlways_JRB")
 
-                    # NAB.hideRowWhenZeroOrX_JRB = MyJRadioButton(wrap_HTML_BIG_small("", "=x", MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.hideRowWhenZeroOrX_JRB = MyJRadioButton("=X")
                     NAB.hideRowWhenZeroOrX_JRB.setName("hideRowWhenZeroOrX_JRB")
 
-                    # NAB.hideRowWhenLtEqZeroOrX_JRB = MyJRadioButton(wrap_HTML_BIG_small("", "<=x", MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.hideRowWhenLtEqZeroOrX_JRB = MyJRadioButton("<=X")
                     NAB.hideRowWhenLtEqZeroOrX_JRB.setName("hideRowWhenLtEqZeroOrX_JRB")
 
-                    # NAB.hideRowWhenGrEqZeroOrX_JRB = MyJRadioButton(wrap_HTML_BIG_small("", ">=x", MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.hideRowWhenGrEqZeroOrX_JRB = MyJRadioButton(">=X")
                     NAB.hideRowWhenGrEqZeroOrX_JRB.setName("hideRowWhenGrEqZeroOrX_JRB")
 
-                    # NAB.hideRowWhenNotZeroOrX_JRB = MyJRadioButton(wrap_HTML_BIG_small("", "Not x", MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.hideRowWhenNotZeroOrX_JRB = MyJRadioButton("Not X")
                     NAB.hideRowWhenNotZeroOrX_JRB.setName("hideRowWhenNotZeroOrX_JRB")
 
@@ -9143,25 +9137,20 @@ Visit: %s (Author's site)
 
                     separatorSelector_pnl = MyJPanel(GridBagLayout())
 
-                    # separatorSelector_lbl = MyJLabel(wrap_HTML_BIG_small("", "Separator:", _smallColor=MD_REF.getUI().getColors().defaultTextForeground))
                     separatorSelector_lbl = MyJLabel("Separator:")
                     separatorSelector_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "separatorSelector_lbl")
                     separatorSelector_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
-                    # NAB.separatorSelectorNone_JRB = MyJRadioButton(wrap_HTML_BIG_small("", GlobalVars.Strings.UNICODE_CROSS, MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.separatorSelectorNone_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_CROSS)
                     NAB.separatorSelectorNone_JRB = MyJRadioButton("None")
                     NAB.separatorSelectorNone_JRB.setName("separatorSelectorNone_JRB")
 
-                    # NAB.separatorSelectorAbove_JRB = MyJRadioButton(wrap_HTML_BIG_small("", GlobalVars.Strings.UNICODE_UP_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.separatorSelectorAbove_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_UP_ARROW)
                     NAB.separatorSelectorAbove_JRB.setName("separatorSelectorAbove_JRB")
 
-                    # NAB.separatorSelectorBelow_JRB = MyJRadioButton(wrap_HTML_BIG_small("", GlobalVars.Strings.UNICODE_DOWN_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.separatorSelectorBelow_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_DOWN_ARROW)
                     NAB.separatorSelectorBelow_JRB.setName("separatorSelectorBelow_JRB")
 
-                    # NAB.separatorSelectorBoth_JRB = MyJRadioButton(wrap_HTML_BIG_small("", GlobalVars.Strings.UNICODE_UP_ARROW + GlobalVars.Strings.UNICODE_DOWN_ARROW, MD_REF.getUI().getColors().defaultTextForeground))
                     NAB.separatorSelectorBoth_JRB = MyJRadioButton(GlobalVars.Strings.UNICODE_UP_ARROW + GlobalVars.Strings.UNICODE_DOWN_ARROW)
                     NAB.separatorSelectorBoth_JRB.setName("separatorSelectorBoth_JRB")
 
@@ -9663,7 +9652,7 @@ Visit: %s (Author's site)
 
                 myPrint("DB", "SPECIAL: post-calling setDefaultFonts()")
 
-                try: GlobalVars.defaultPrintFontSize = eval("MD_REF.getUI().getFonts().print.getSize()")
+                try: GlobalVars.defaultPrintFontSize = eval("GlobalVars.CONTEXT.getUI().getFonts().print.getSize()")
                 except: GlobalVars.defaultPrintFontSize = 12
 
                 myPrint("DB", "SPECIAL: pre-calling build_main_frame()")
@@ -10028,7 +10017,7 @@ Visit: %s (Author's site)
 
     class SpecialJLinkLabel(JLinkLabel):
         def __init__(self, *args, **kwargs):
-            wrc = kwargs.pop("wrc", None)               # type: WidgetRowConfig
+            tdfsc = kwargs.pop("tdfsc", None)               # type: TextDisplayForSwingConfig
             self.maxWidth = -1
             super(self.__class__, self).__init__(*args)
             self.NAB = NetAccountBalancesExtension.getNAB()
@@ -10038,8 +10027,8 @@ Visit: %s (Author's site)
             self.maxBaseline = self.fonts.defaultMetrics.getMaxDescent()
             self.underlineStroke = BasicStroke(1.0, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0, [1.0, 6.0], 1.0 if (self.getHorizontalAlignment() == JLabel.LEFT) else 0.0)
             self.underlineDots = self.NAB.savedDisplayVisualUnderDots
-            if wrc.isNoUnderlineDots(): self.underlineDots = False
-            if wrc.isForceUnderlineDots(): self.underlineDots = True
+            if tdfsc.isNoUnderlineDots(): self.underlineDots = False
+            if tdfsc.isForceUnderlineDots(): self.underlineDots = True
 
         def setUnderlineDots(self, underlineDots): self.underlineDots = underlineDots
 
@@ -10114,7 +10103,7 @@ Visit: %s (Author's site)
             g2d.draw(line)
 
 
-    class WidgetRowConfig:
+    class TextDisplayForSwingConfig:
         WIDGET_ROW_BLANKZERO = "<#bz>"
         WIDGET_ROW_BLANKROWNAME = "<#brn>"
         WIDGET_ROW_RIGHTROWNAME = "<#jr>"
@@ -10132,7 +10121,7 @@ Visit: %s (Author's site)
 
         def __init__(self, _rowText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True):
             self.originalRowText = _rowText
-            self.newRowText = None
+            self.swingComponentText = None
             self.color = None
             self.blankRow = False
             self.blankZero = False
@@ -10144,70 +10133,76 @@ Visit: %s (Author's site)
             self.html = False
             self.justification = JLabel.LEFT
 
-            if (WidgetRowConfig.WIDGET_ROW_BLUEROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_BLUEROWNAME, "")
+            if (self.__class__.WIDGET_ROW_BLUEROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BLUEROWNAME, "")
                 self.color = getColorBlue()
 
-            if (WidgetRowConfig.WIDGET_ROW_REDROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_REDROWNAME, "")
+            if (self.__class__.WIDGET_ROW_REDROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_REDROWNAME, "")
                 self.color = getColorRed()
 
-            if (WidgetRowConfig.WIDGET_ROW_LIGHTGREYROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_LIGHTGREYROWNAME, "")
-                self.color = MD_REF.getUI().getColors().tertiaryTextFG
+            if (self.__class__.WIDGET_ROW_LIGHTGREYROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_LIGHTGREYROWNAME, "")
+                self.color = GlobalVars.CONTEXT.getUI().getColors().tertiaryTextFG
 
-            if (WidgetRowConfig.WIDGET_ROW_BOLDROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_BOLDROWNAME, "")
+            if (self.__class__.WIDGET_ROW_BOLDROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BOLDROWNAME, "")
                 self.bold = True
 
-            if (WidgetRowConfig.WIDGET_ROW_ITALICSROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_ITALICSROWNAME, "")
+            if (self.__class__.WIDGET_ROW_ITALICSROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_ITALICSROWNAME, "")
                 self.italics = True
 
-            if (WidgetRowConfig.WIDGET_ROW_UNDERLINESROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_UNDERLINESROWNAME, "")
+            if (self.__class__.WIDGET_ROW_UNDERLINESROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_UNDERLINESROWNAME, "")
                 self.underline = True
 
-            if (WidgetRowConfig.WIDGET_ROW_HTMLROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_HTMLROWNAME, "")
+            if (self.__class__.WIDGET_ROW_HTMLROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_HTMLROWNAME, "")
                 self.html = True
 
-            if (WidgetRowConfig.WIDGET_ROW_BLANKZERO in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_BLANKZERO, "")
+            if (self.__class__.WIDGET_ROW_BLANKZERO in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BLANKZERO, "")
                 self.blankZero = True
 
-            if (WidgetRowConfig.WIDGET_ROW_RIGHTROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_RIGHTROWNAME, "")
+            if (self.__class__.WIDGET_ROW_RIGHTROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_RIGHTROWNAME, "")
                 self.justification = JLabel.RIGHT
 
-            if (WidgetRowConfig.WIDGET_ROW_CENTERROWNAME in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_CENTERROWNAME, "")
+            if (self.__class__.WIDGET_ROW_CENTERROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_CENTERROWNAME, "")
                 self.justification = JLabel.CENTER
 
-            if (WidgetRowConfig.WIDGET_ROW_BLANKROWNAME in _rowText):
+            if (self.__class__.WIDGET_ROW_BLANKROWNAME in _rowText):
                 _rowText = ""
                 self.blankRow = True
 
-            if (WidgetRowConfig.WIDGET_ROW_NO_UNDERLINE_DOTS in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_NO_UNDERLINE_DOTS, "")
+            if (self.__class__.WIDGET_ROW_NO_UNDERLINE_DOTS in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_NO_UNDERLINE_DOTS, "")
                 self.noUnderlineDots = True
+                self.forceUnderlineDots = False
 
-            if (WidgetRowConfig.WIDGET_ROW_FORCE_UNDERLINE_DOTS in _rowText):
-                _rowText = _rowText.replace(WidgetRowConfig.WIDGET_ROW_FORCE_UNDERLINE_DOTS, "")
+            if (self.__class__.WIDGET_ROW_FORCE_UNDERLINE_DOTS in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_FORCE_UNDERLINE_DOTS, "")
                 self.forceUnderlineDots = True
+                self.noUnderlineDots = False
 
-            self.newRowText = wrap_HTML_BIG_small(_rowText,
-                                              _smallText,
-                                              _smallColor=_smallColor,
-                                              stripBigChars=stripBigChars,
-                                              stripSmallChars=stripSmallChars,
-                                              _bigColor=self.color,
-                                              _italics=self.italics,
-                                              _bold=self.bold,
-                                              _underline=self.underline,
-                                              _html=self.html)
+            if self.getJustification() == JLabel.CENTER:
+                self.noUnderlineDots = True         # These don't work properly when centered....
+                self.forceUnderlineDots = False
 
-        def getNewRowText(self): return self.newRowText
+            self.swingComponentText = wrap_HTML_BIG_small(_rowText,
+                                                          _smallText,
+                                                          _smallColor=_smallColor,
+                                                          stripBigChars=stripBigChars,
+                                                          stripSmallChars=stripSmallChars,
+                                                          _bigColor=self.color,
+                                                          _italics=self.italics,
+                                                          _bold=self.bold,
+                                                          _underline=self.underline,
+                                                          _html=self.html)
+
+        def getSwingComponentText(self): return self.swingComponentText
         def getBlankZero(self): return self.blankZero
         def getJustification(self): return self.justification
         def isNoUnderlineDots(self): return self.noUnderlineDots
@@ -11119,26 +11114,27 @@ Visit: %s (Author's site)
 
                                     uuidTxt = "" if not debug else " (uuid: %s)" %(NAB.savedUUIDTable[i])
 
-                                    wrc = WidgetRowConfig(NAB.savedWidgetName[i], balanceObj.getExtraRowTxt() + showCurrText + showAverageText + showUsesOtherRowTxt + uuidTxt, altFG)
-
-                                    nameLabel = SpecialJLinkLabel(wrc.getNewRowText(), "showConfig?%s" %(str(onRow)), wrc.getJustification(), wrc=wrc)
+                                    tdfsc = TextDisplayForSwingConfig(NAB.savedWidgetName[i], balanceObj.getExtraRowTxt() + showCurrText + showAverageText + showUsesOtherRowTxt + uuidTxt, altFG)
+                                    nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc)
 
                                     if balanceOrAverage is None:
-                                        netTotalLbl = JLinkLabel("  " if (wrc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
-                                                                 "showConfig?%s" %(str(onRow)),
-                                                                 JLabel.RIGHT)
+                                        netTotalLbl = SpecialJLinkLabel("" if (tdfsc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
+                                                                        "showConfig?%s" %(str(onRow)),
+                                                                        JLabel.RIGHT,
+                                                                        tdfsc=tdfsc)
                                         netTotalLbl.setFont((md.getUI().getFonts()).mono)                               # noqa
 
                                     elif balanceObj.isUORError():
-                                        netTotalLbl = JLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower(),
-                                                                 "showConfig?%s" %(str(onRow)),
-                                                                 JLabel.RIGHT)
+                                        netTotalLbl = SpecialJLinkLabel(CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR.lower(),
+                                                                        "showConfig?%s" %(str(onRow)),
+                                                                        JLabel.RIGHT,
+                                                                        tdfsc=tdfsc)
                                         netTotalLbl.setFont((md.getUI().getFonts()).mono)                               # noqa
                                         netTotalLbl.setForeground(md.getUI().getColors().errorMessageForeground)        # noqa
 
                                     else:
 
-                                        if (balanceOrAverage == 0 and wrc.getBlankZero()):
+                                        if (balanceOrAverage == 0 and tdfsc.getBlankZero()):
                                             theFormattedValue = "  "
                                         else:
                                             fancy = (not NAB.savedDisableCurrencyFormatting[i])
@@ -11155,7 +11151,7 @@ Visit: %s (Author's site)
                                                     and not NAB.savedDisableCurrencyFormatting[i]):
                                                 theFormattedValue += " %"
 
-                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT, wrc=wrc)
+                                        netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT, tdfsc=tdfsc)
                                         netTotalLbl.setFont((md.getUI().getFonts()).mono)                               # noqa
 
                                         if balanceOrAverage < 0:
@@ -11306,7 +11302,7 @@ Visit: %s (Author's site)
                             parent.validate()
                             parent = parent.getParent()
 
-                    if len(blinkers) > 0: BlinkSwingTimer(1200, blinkers, flipColor=(MD_REF.getUI().getColors().defaultTextForeground), flipBold=True).start()
+                    if len(blinkers) > 0: BlinkSwingTimer(1200, blinkers, flipColor=(GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground), flipBold=True).start()
 
         class ViewPanel(JPanel, JLinkListener, MouseListener):
 
