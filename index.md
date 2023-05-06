@@ -63,12 +63,15 @@ NOTE: Toolbox has the ability to update your dataset/settings in Update and Adva
 NOTE: Also installs two new Extensions Menu options:
   - Move Investment Transactions: Allows you to move the txns you have selected in the visible Investment Register. 
   - Total Selected Transactions:  Will total up the txns you have selected in the visible register.
+  - Zap md+ (default) memo fields: Will search for and zap md+ memo fields on downloaded txns when memo matches the downloaded data.
 
     <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)
 
 
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Custom Balances(Net Account Balances)**: Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Now multi-row, display currency, and you can select Accounts/Categories/Securities per row.
 NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView (Summary Page) widget
+
+    <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/net_account_balances/net_account_balances_readme.txt">(View the Custom Balances HELPFILE)
 
 
 ### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
