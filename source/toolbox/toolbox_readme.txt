@@ -93,9 +93,10 @@ CMD-O           Copy all outputs to Clipboard
 CMD-SHIFT-U     Examine an object's raw data - enter the Object's UUID
 CMD-SHIFT-+     Unlock Toolbox (Contact Author for password and usage) - (Might be CMD-SHIFT-= on some keyboards)
 
-Toolbox also installs two new Extensions Menu options (which allow the user to select register transactions before running):
+Toolbox also installs three new Extensions Menu options (first two: select register transactions before running):
     - Toolbox: Move Investment Transactions
     - Toolbox: Total Selected Transactions
+    - Toolbox: Zap md+ (default) memo fields
 
 TOOLBAR / MENU BAR Contains the following:
     - Toolbox Options menu
