@@ -170,6 +170,7 @@
 #               Fix CMD-M (CTRL-M) that didn't work on Windows.... (keystroke 'm' not passed to .getActionCommand())
 #               Tweak startup check messages detect_non_hier_sec_acct_or_orphan_txns()....
 #               Common code tweaks...
+#               Added 'toolbox_zap_mdplus_default_memo_fields' menu option
 
 # todo - CMD-P select the pickle file to load/view/edit etc.....
 # todo - Clone Dataset - stage-2 - date and keep some data/balances (what about Loan/Liability/Investment accounts... (Fake cat for cash)?
@@ -1806,7 +1807,7 @@ Visit: %s (Author's site)
         return text
 
     def getColorBlue():
-        if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
+        if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
     def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)

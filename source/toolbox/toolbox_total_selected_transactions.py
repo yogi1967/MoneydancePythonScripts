@@ -1542,7 +1542,7 @@ Visit: %s (Author's site)
         return text
 
     def getColorBlue():
-        if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
+        if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
     def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
@@ -2894,10 +2894,9 @@ Visit: %s (Author's site)
             raise QuickAbortThisScriptException
 
         lDetectedBuddyRunning = False
-        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions"]:
+        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions", u"toolbox_zap_mdplus_default_memo_fields"]:
             if getMyJFrame(checkFr) is not None:
                 lDetectedBuddyRunning = True
-
 
         class MainAppRunnable(Runnable):
             def __init__(self): pass
