@@ -1536,7 +1536,7 @@ Visit: %s (Author's site)
         return text
 
     def getColorBlue():
-        if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
+        if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
     def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
@@ -3044,11 +3044,25 @@ Visit: %s (Author's site)
                                            KeyEvent.VK_ESCAPE,
                                            Character.valueOf(" ")))
 
+        # Fix jittery bug with QuickSearch when typing and VAQua...
+        class MyQuickFieldDocumentListener(DocumentListener):
+            def __init__(self, source): self.source = source
+
+            def insertUpdate(self, evt):
+                self.source.repaint()
+
+            def removeUpdate(self, evt):
+                self.source.repaint()
+
+            def changedUpdate(self, evt):
+                self.source.repaint()
+
         class MyQuickSearchField(QuickSearchField):
             def __init__(self, *args, **kwargs):
                 super(self.__class__, self).__init__(*args, **kwargs)
                 self.setFocusable(True)
                 self.addKeyListener(MyKeyAdapter())
+                self.getDocument().addDocumentListener(MyQuickFieldDocumentListener(self))
 
             def setEscapeCancelsTextAndEscapesWindow(self, cancelsAndEscapes):
                 if cancelsAndEscapes:
@@ -3059,6 +3073,10 @@ Visit: %s (Author's site)
 
             def toString(self):
                 return self.getPlaceholderText() + " " + self.getText()
+
+            def updateUI(self):
+                super(self.__class__, self).updateUI()
+                self.setForeground(GlobalVars.CONTEXT.getUI().getColors().reportBlueFG)
 
         mySearchField = MyQuickSearchField()
 

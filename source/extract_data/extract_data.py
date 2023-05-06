@@ -1763,7 +1763,7 @@ Visit: %s (Author's site)
         return text
 
     def getColorBlue():
-        if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
+        if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
     def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)

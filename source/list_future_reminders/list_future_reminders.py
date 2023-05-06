@@ -1603,7 +1603,7 @@ Visit: %s (Author's site)
         return text
 
     def getColorBlue():
-        if not isMDThemeDark() and not isMacDarkModeDetected(): return(Color.BLUE)
+        if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
         return (MD_REF.getUI().getColors().defaultTextForeground)
 
     def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
@@ -4448,6 +4448,7 @@ Visit: %s (Author's site)
                     sorter = GlobalVars.saveJTable.getRowSorter()
                     sorter.setRowFilter(GlobalVars.currentJTableSearchFilter)
                     GlobalVars.saveJTable.getModel().fireTableDataChanged()
+                    self._theSearchField.repaint()
 
             class MyFocusAdapter(FocusAdapter):
                 def __init__(self, _searchField, _document):
@@ -4491,6 +4492,9 @@ Visit: %s (Author's site)
                 def toString(self):
                     return self.getPlaceholderText() + " " + self.getText()
 
+                def updateUI(self):
+                    super(self.__class__, self).updateUI()
+                    self.setForeground(GlobalVars.CONTEXT.getUI().getColors().reportBlueFG)
 
 
             GlobalVars.currentJTableSearchFilter = None
