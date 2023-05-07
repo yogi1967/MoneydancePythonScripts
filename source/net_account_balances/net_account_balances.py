@@ -1729,8 +1729,9 @@ Visit: %s (Author's site)
         return text
 
     def getColorBlue():
-        if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
-        return (MD_REF.getUI().getColors().defaultTextForeground)
+        # if not isMDThemeDark() and not isMacDarkModeDetected(): return(MD_REF.getUI().getColors().reportBlueFG)
+        # return (MD_REF.getUI().getColors().defaultTextForeground)
+        return MD_REF.getUI().getColors().reportBlueFG
 
     def getColorRed(): return (MD_REF.getUI().getColors().errorMessageForeground)
 
@@ -6303,6 +6304,9 @@ Visit: %s (Author's site)
                 AUTO_HIDE_LOOKUP_ERROR = "<!LOOKUP ERROR!>"
                 FILTERED_TXT = "<FILTERED OUT>"
                 HAS_GROUPID_TXT = "<groupid: {}>"
+                DEFAULT_START_SMALL_LEN = 56
+                DEFAULT_START_BIG_LEN = 3
+
                 red = getColorRed()
 
                 if NAB.rowSelected_COMBO is None:
@@ -6313,7 +6317,6 @@ Visit: %s (Author's site)
                 saveSelectedIdx = NAB.rowSelected_COMBO.getSelectedIndex() if selectIdx is None else selectIdx
 
                 rowItems = []
-                # smallColor = GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground
 
                 numRows = NAB.getNumberOfRows()
                 for i in range(0, numRows):
@@ -6333,7 +6336,7 @@ Visit: %s (Author's site)
                     if rebuildCompleteModel:
 
                         thisRowAlwaysOrAutoHideTxt = ""
-                        if NAB.isThisRowAlwayHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
+                        if NAB.isThisRowAlwaysHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
                             isAutoHidden = True
                             thisRowAlwaysOrAutoHideTxt = " "
                             thisRowAlwaysOrAutoHideTxt += wrap_HTML_fontColor(red, ALWAYS_HIDE_TXT, addHTML=False)
@@ -6349,7 +6352,7 @@ Visit: %s (Author's site)
                                 thisRowAlwaysOrAutoHideTxt += html_strip_chars(AUTO_HIDE_LOOKUP_ERROR)
                                 # raise Exception("LOGIC ERROR: could not find row %s in lastResultsBalanceTable" %(onRow))
                             else:
-                                isAutoHidden = NAB.isThisRowAlwayHideOrAutoHidden(lastBalObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
+                                isAutoHidden = NAB.isThisRowAlwaysHideOrAutoHidden(lastBalObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
                                 if isAutoHidden:
                                     thisRowAlwaysOrAutoHideTxt = " "
                                     thisRowAlwaysOrAutoHideTxt += wrap_HTML_fontColor(red, AUTO_HIDE_TXT, addHTML=False)
@@ -6369,9 +6372,9 @@ Visit: %s (Author's site)
 
                         buildRowHTML += wrap_HTML_small(thisRowAlwaysOrAutoHideTxt + hasGroupIDTxt + isFilteredTxt, stripChars=False, addHTML=False)
                         thisRowItemTxt = wrap_HTML(buildRowHTML, stripChars=False)
-                        # thisRowItemTxt = wrap_HTML_BIG_small(rowTxt, thisRowAutoHideTxt + hasGroupIDTxt + isFilteredTxt, _smallBold=False, _smallColor=smallColor)
 
                     else:
+                        # thisRowItemTxt = wrap_HTML_BIG_small(pad(rowTxt, DEFAULT_START_BIG_LEN), pad("<awaiting row rebuild>", DEFAULT_START_SMALL_LEN) if debug else pad("", DEFAULT_START_SMALL_LEN))
                         thisRowItemTxt = wrap_HTML_BIG_small(rowTxt, "<awaiting row rebuild>" if debug else "")
 
                     rowItems.append(thisRowItemTxt)
@@ -7208,6 +7211,7 @@ Visit: %s (Author's site)
                         if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
                             NAB.simulateTotal_label.setText(GlobalVars.WIDGET_ROW_DISABLED)
 
+                        # NOTE: Leave "  " to avoid the row height collapsing.....
                         elif balanceOrAverage is None and NAB.isRowFilteredOutByGroupID(i):
                             NAB.simulateTotal_label.setText("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER.lower())
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
@@ -9735,8 +9739,8 @@ Visit: %s (Author's site)
 
             return valid
 
-        def isThisRowAlwayHideOrAutoHidden(self, balanceObj, rowIdx, checkAlwaysHide=True, checkAutoHideWhen=True):
-            myPrint("DB", "In .isThisRowAlwayHideOrAutoHidden(%s, %s, %s, %s)" %(balanceObj, rowIdx, checkAlwaysHide, checkAutoHideWhen))
+        def isThisRowAlwaysHideOrAutoHidden(self, balanceObj, rowIdx, checkAlwaysHide=True, checkAutoHideWhen=True):
+            myPrint("DB", "In .isThisRowAlwaysHideOrAutoHidden(%s, %s, %s, %s)" %(balanceObj, rowIdx, checkAlwaysHide, checkAutoHideWhen))
 
             NAB = self
             onRow = rowIdx + 1
@@ -10019,6 +10023,7 @@ Visit: %s (Author's site)
         def __init__(self, *args, **kwargs):
             tdfsc = kwargs.pop("tdfsc", None)               # type: TextDisplayForSwingConfig
             self.maxWidth = -1
+            self.maxHeight = -1
             super(self.__class__, self).__init__(*args)
             self.NAB = NetAccountBalancesExtension.getNAB()
             self.md = self.NAB.moneydanceContext
@@ -10036,6 +10041,8 @@ Visit: %s (Author's site)
             dim = super(self.__class__, self).getPreferredSize()
             self.maxWidth = Math.max(self.maxWidth, dim.width)
             dim.width = self.maxWidth
+            self.maxHeight = Math.max(self.maxHeight, dim.height)
+            dim.height = self.maxHeight
             return dim
 
         def paintComponent(self, g2d):
@@ -10131,6 +10138,7 @@ Visit: %s (Author's site)
             self.forceUnderlineDots = False
             self.noUnderlineDots = False
             self.html = False
+            self.disableBlinkOnValue = False
             self.justification = JLabel.LEFT
 
             if (self.__class__.WIDGET_ROW_BLUEROWNAME in _rowText):
@@ -10191,6 +10199,8 @@ Visit: %s (Author's site)
                 self.noUnderlineDots = True         # These don't work properly when centered....
                 self.forceUnderlineDots = False
 
+            if self.blankZero: self.disableBlinkOnValue = True
+
             self.swingComponentText = wrap_HTML_BIG_small(_rowText,
                                                           _smallText,
                                                           _smallColor=_smallColor,
@@ -10207,6 +10217,7 @@ Visit: %s (Author's site)
         def getJustification(self): return self.justification
         def isNoUnderlineDots(self): return self.noUnderlineDots
         def isForceUnderlineDots(self): return self.forceUnderlineDots
+        def getDisableBlinkonValue(self): return self.disableBlinkOnValue
 
     class MyHomePageView(HomePageView, AccountListener, CurrencyListener):
 
@@ -11048,8 +11059,6 @@ Visit: %s (Author's site)
 
                                 baseCurr = md.getCurrentAccountBook().getCurrencies().getBaseType()
 
-                                # _curIdx = 0; _valIdx = 1; _secLabelTextIdx = 2
-
                                 hiddenRows = False
                                 filteredRows = False
 
@@ -11073,7 +11082,7 @@ Visit: %s (Author's site)
                                     onRow = i + 1
                                     balanceObj = self.netAmountTable[i]    # type: CalculatedBalance
 
-                                    if NAB.isThisRowAlwayHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
+                                    if NAB.isThisRowAlwaysHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
                                         myPrint("DB", "** Skipping disabled row %s" %(onRow))
                                         hiddenRows = True
                                         continue
@@ -11087,7 +11096,7 @@ Visit: %s (Author's site)
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                                     balanceOrAverage = balanceObj.getBalance()
 
-                                    skippingRow = NAB.isThisRowAlwayHideOrAutoHidden(balanceObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
+                                    skippingRow = NAB.isThisRowAlwaysHideOrAutoHidden(balanceObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
                                     if skippingRow:
                                         if NAB.savedRowSeparatorTable[i] > GlobalVars.ROW_SEPARATOR_NEVER: self.addRowSeparator(_view)
                                         hiddenRows = True
@@ -11117,8 +11126,9 @@ Visit: %s (Author's site)
                                     tdfsc = TextDisplayForSwingConfig(NAB.savedWidgetName[i], balanceObj.getExtraRowTxt() + showCurrText + showAverageText + showUsesOtherRowTxt + uuidTxt, altFG)
                                     nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc)
 
+                                    # NOTE: Leave "  " to avoid the row height collapsing.....
                                     if balanceOrAverage is None:
-                                        netTotalLbl = SpecialJLinkLabel("" if (tdfsc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
+                                        netTotalLbl = SpecialJLinkLabel(" " if (tdfsc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
                                                                         "showConfig?%s" %(str(onRow)),
                                                                         JLabel.RIGHT,
                                                                         tdfsc=tdfsc)
@@ -11134,6 +11144,7 @@ Visit: %s (Author's site)
 
                                     else:
 
+                                        # NOTE: Leave "  " to avoid the row height collapsing.....
                                         if (balanceOrAverage == 0 and tdfsc.getBlankZero()):
                                             theFormattedValue = "  "
                                         else:
@@ -11168,6 +11179,7 @@ Visit: %s (Author's site)
                                     nameLabel.setDrawUnderline(False)
                                     netTotalLbl.setDrawUnderline(False)
 
+                                    # _view.listPanel.add(Box.createVerticalStrut(23), GridC.getc().xy(0, self.widgetOnPnlRow))
                                     _view.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).fillboth().pady(2))
                                     _view.listPanel.add(netTotalLbl, GridC.getc().xy(1, self.widgetOnPnlRow).fillboth().pady(2))
                                     self.widgetOnPnlRow += 1
@@ -11175,7 +11187,7 @@ Visit: %s (Author's site)
                                     nameLabel.addLinkListener(_view)
                                     netTotalLbl.addLinkListener(_view)
 
-                                    if NAB.savedBlinkTable[i]: thisViewsBlinkers.append(netTotalLbl)
+                                    if NAB.savedBlinkTable[i] and not tdfsc.getDisableBlinkonValue(): thisViewsBlinkers.append(netTotalLbl)
 
                                     if NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BELOW or NAB.savedRowSeparatorTable[i] == GlobalVars.ROW_SEPARATOR_BOTH:
                                         self.addRowSeparator(_view)
