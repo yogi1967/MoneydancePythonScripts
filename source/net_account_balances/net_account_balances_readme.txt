@@ -236,7 +236,6 @@ NOTE: This is free text, so the numbers are examples. A groupid of "Debt;CCList;
 
 
 TECHNICAL/HISTORICAL NOTES:
-
 - My original concept was to add balances to target zero. Thus a positive number is 'good', a negative is 'bad'
 - The idea was that you net cash and debt to get back to zero every month (but you can do so much more than this now)!
 
@@ -247,6 +246,8 @@ Extension format only >> Minimum Moneydance version 2021.1 (build: 3056, ideally
 
 This is a Python(Jython 2.7) Extension that runs inside of Moneydance via the Python Interpreter
 It's a prototype to demonstrate the capabilities of Python. Yes - if you can do it in Java, you can do it in Python too!
+
+DEVELOPERS: You can actually grab the results of the calculations from other extensions.. Contact me for details...
 
 Thanks for reading..... ;->
 Get more Scripts/Extensions from: https://yogi1967.github.io/MoneydancePythonScripts/
