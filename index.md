@@ -148,8 +148,10 @@ load times (avoids initial compile on launch). If the bootstrap fails to load th
 
 
 ########################################################################################################################
+
 DEVELOPERS - There is a mini api inside the Custom Balances extension whereby you can retrieve the results of the calculations by row
 to use in your own extensions. Contact me for details...
+
 ########################################################################################################################
 
 
