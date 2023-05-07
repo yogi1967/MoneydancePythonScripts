@@ -2926,6 +2926,18 @@ Visit: %s (Author's site)
         return True
 
 
+    def padTruncateWithDots(theText, theLength, padChar=u" ", stripSpaces=True, padString=True):
+        if not isinstance(theText, basestring): theText = safeStr(theText)
+        if theLength < 1: return ""
+        if stripSpaces: theText = theText.strip()
+        dotChop = min(3, theLength) if (len(theText) > theLength) else 0
+        if padString:
+            theText = (theText[:theLength-dotChop] + ("." * dotChop)).ljust(theLength, padChar)
+        else:
+            theText = (theText[:theLength-dotChop] + ("." * dotChop))
+        return theText
+
+
     MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
 
     ####################################################################################################################
@@ -3000,12 +3012,14 @@ Visit: %s (Author's site)
         if isinstance(book, AccountBook): pass
         ct = book.getCurrencies()
 
+        __THIS_METHOD_NAME = "Zap md+ (default) memo fields:"
+
         myPrint("B", ">> '%s' feature activated...." %(myModuleID))
 
         _msgPad = 100
         diag = MyPopUpDialogBox(toolbox_zap_mdplus_default_memo_fields_frame_,
                                       "Please wait: processing..",
-                                      theTitle="ZAP MD+ (DEFAULT) MEMO FIELDS:",
+                                      theTitle=__THIS_METHOD_NAME.upper(),
                                       lModal=False,
                                       OKButtonText="WAIT")
         diag.go()
@@ -3023,6 +3037,10 @@ Visit: %s (Author's site)
 
             txnsWithMemos = []
             accountsInvolved = {}
+
+            outputTxt = "Transactions where the Memo field matches the md+ downloaded Memo field:\n" \
+                        "------------------------------------------------------------------------\n\n" \
+                        "CANDIDATES TO ZAP THE VISIBLE MEMO FIELD:\n\n"
 
             for acct in allActiveAccounts:
                 if isinstance(acct, Account): pass
@@ -3042,6 +3060,10 @@ Visit: %s (Author's site)
                 for txn in txns:
                     if not isinstance(txn, ParentTxn): continue
                     if not txn.wasDownloaded(): continue
+
+                    fiid = txn.getFIID()
+                    if fiid is None: continue
+                    if "mdplus:" not in fiid: continue
 
                     olMemo = txn.getParameter(ORIG_MEMO_TAG, "").strip().lower()
                     if olMemo is "": continue
@@ -3071,21 +3093,89 @@ Visit: %s (Author's site)
             MD_REF.getUI().setStatus(_txt, 0)
             raise QuickAbortThisScriptException
 
-        myPrint("B", "Found %s accounts with %s memo txns that need zapping..." %(len(accountsInvolved), len(txnsWithMemos)))
-        if not myPopupAskQuestion(toolbox_zap_mdplus_default_memo_fields_frame_,
-                                  "Zap md+ default memo fields",
-                                  "Zap %s md+ txn default memo fields (over %s accounts) - PROCEED?" %(len(txnsWithMemos), len(accountsInvolved))):
-            myPrint("B", "USER ABORTED")
+        txnsWithMemos = sorted(txnsWithMemos, key=lambda sort_x: (sort_x.getParentTxn().getAccount().getAccountType(),
+                                                                  sort_x.getParentTxn().getAccount().getAccountName().lower(),
+                                                                  sort_x.getParentTxn().getDateInt(),
+                                                                  sort_x.getParentTxn().getValue()))
+
+        OUTPUT_DESC_LENGTH = 100
+        OUTPUT_MEMO_LENGTH = 100
+
+        outputTxt += "%s %s %s %s %s %s %s\n" \
+                     "%s %s %s %s %s %s %s\n" \
+                  %(pad("Account Type:", 20),
+                    pad("Account Name:", 30),
+                    pad("Currency:", 10),
+                    pad("Txn Date:", 10),
+                    pad("Txn Description:", OUTPUT_DESC_LENGTH),
+                    pad("Txn Memo:", OUTPUT_MEMO_LENGTH),
+                    rpad("Txn Value:",15),
+                    pad("", 20, padChar="-"),
+                    pad("", 30, padChar="-"),
+                    pad("", 10, padChar="-"),
+                    pad("", 10, padChar="-"),
+                    pad("", OUTPUT_DESC_LENGTH, padChar="-"),
+                    pad("", OUTPUT_MEMO_LENGTH, padChar="-"),
+                    rpad("",15, padChar="-"))
+
+        for txn in txnsWithMemos:
+            if isinstance(txn, ParentTxn): pass
+            pTxn = txn.getParentTxn()
+            pAcct = pTxn.getAccount()
+            pAcctCurr = pAcct.getCurrencyType()
+            outputTxt += "%s %s %s %s %s %s %s\n" \
+                      %(pad(pAcct.getAccountType(), 20),
+                        padTruncateWithDots(pAcct.getAccountName(), 30),
+                        padTruncateWithDots(pAcctCurr.getIDString(), 10),
+                        pad(convertStrippedIntDateFormattedText(pTxn.getDateInt()), 10),
+                        padTruncateWithDots(pTxn.getDescription(), OUTPUT_DESC_LENGTH),
+                        padTruncateWithDots(pTxn.getMemo(), OUTPUT_MEMO_LENGTH),
+                        rpad(pAcctCurr.formatFancy(pTxn.getValue(), MD_decimal),15))
+
+        msgTxt = "Found %s accounts with %s (default) memo field md+ txns that can be zapped..." %(len(accountsInvolved), len(txnsWithMemos))
+
+        outputTxt += "\n" \
+                     "%s\n" %(msgTxt)
+
+        outputTxt += "\n<END>"
+
+        msgTxt = "Found %s accounts with %s (default) memo field txns that can be zapped..." %(len(accountsInvolved), len(txnsWithMemos))
+        myPrint("B", msgTxt)
+
+        # jif = QuickJFrame((__THIS_METHOD_NAME + " candidates").upper(),
+        #                   outputTxt,
+        #                   copyToClipboard=True,
+        #                   lWrapText=False,
+        #                   lAutoSize=True).show_the_frame()
+        #
+
+        ask = MyPopUpDialogBox(toolbox_zap_mdplus_default_memo_fields_frame_,
+                               theStatus=msgTxt,
+                               theMessage=outputTxt,
+                               theTitle=__THIS_METHOD_NAME.upper(),
+                               lAlertLevel=1,
+                               lCancelButton=True,
+                               OKButtonText="ZAP THESE MEMO FIELDS?")
+        if not ask.go():
+            _txt = "%s: no changes made" %(__THIS_METHOD_NAME)
+            myPrint("B", _txt)
+            myPopupInformationBox(toolbox_zap_mdplus_default_memo_fields_frame_, _txt, __THIS_METHOD_NAME.upper())
             raise QuickAbortThisScriptException
+
+        # if not myPopupAskQuestion(toolbox_zap_mdplus_default_memo_fields_frame_,
+        #                           "Zap md+ default memo fields",
+        #                           "Zap %s md+ txn default memo fields (over %s accounts) - PROCEED?" %(len(txnsWithMemos), len(accountsInvolved))):
+        #     myPrint("B", "USER ABORTED")
+        #     raise QuickAbortThisScriptException
 
         try:
 
-            myPrint("B", "PROCEEDING TO ZAP md+ Memo fields...")
+            myPrint("B", "PROCEEDING TO ZAP md+ (default) Memo fields...")
 
             _msgPad = 100
             diag = MyPopUpDialogBox(toolbox_zap_mdplus_default_memo_fields_frame_,
                                           "Please wait: processing..",
-                                          theTitle="Zapping md+ memo fields....",
+                                          theTitle="Zapping md+ (default) memo fields....",
                                           lModal=False,
                                           OKButtonText="WAIT")
             diag.go()
@@ -3123,10 +3213,10 @@ Visit: %s (Author's site)
 
         finally: diag.kill()
 
-        popupTxt = "Zapped memo field on %s txns (involving %s accts)%s" %(len(txnsWithMemos), len(accountsInvolved), " (undo enabled)" if (undo) else "")
+        popupTxt = "Zapped (default) memo field on %s md+ txns (involving %s accts)%s" %(len(txnsWithMemos), len(accountsInvolved), " (undo enabled)" if (undo) else "")
         _txt = "@@ %s: %s @@" %(myModuleID, popupTxt)
         myPrint("B", _txt)
-        myPopupInformationBox(toolbox_zap_mdplus_default_memo_fields_frame_, popupTxt, "Zapping of md+ memo fields complete", JOptionPane.INFORMATION_MESSAGE)
+        myPopupInformationBox(toolbox_zap_mdplus_default_memo_fields_frame_, popupTxt, "Zapping of md+ (default) memo fields complete", JOptionPane.INFORMATION_MESSAGE)
         MD_REF.getUI().setStatus(_txt, 0)
 
         myPrint("B","FINISHED....")
