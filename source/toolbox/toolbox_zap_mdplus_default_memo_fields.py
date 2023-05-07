@@ -3042,6 +3042,8 @@ Visit: %s (Author's site)
                         "------------------------------------------------------------------------\n\n" \
                         "CANDIDATES TO ZAP THE VISIBLE MEMO FIELD:\n\n"
 
+            iCountPotentialDescMemoSwaps = 0
+
             for acct in allActiveAccounts:
                 if isinstance(acct, Account): pass
                 if acct.getAccountType() not in [Account.AccountType.BANK, Account.AccountType.CREDIT_CARD]:            # noqa
@@ -3101,12 +3103,13 @@ Visit: %s (Author's site)
         OUTPUT_DESC_LENGTH = 100
         OUTPUT_MEMO_LENGTH = 100
 
-        outputTxt += "%s %s %s %s %s %s %s\n" \
-                     "%s %s %s %s %s %s %s\n" \
+        outputTxt += "%s %s %s %s %s%s %s %s\n" \
+                     "%s %s %s %s %s%s %s %s\n" \
                   %(pad("Account Type:", 20),
                     pad("Account Name:", 30),
                     pad("Currency:", 10),
                     pad("Txn Date:", 10),
+                    pad("", 3),
                     pad("Txn Description:", OUTPUT_DESC_LENGTH),
                     pad("Txn Memo:", OUTPUT_MEMO_LENGTH),
                     rpad("Txn Value:",15),
@@ -3114,33 +3117,44 @@ Visit: %s (Author's site)
                     pad("", 30, padChar="-"),
                     pad("", 10, padChar="-"),
                     pad("", 10, padChar="-"),
+                    pad("", 3),
                     pad("", OUTPUT_DESC_LENGTH, padChar="-"),
                     pad("", OUTPUT_MEMO_LENGTH, padChar="-"),
                     rpad("",15, padChar="-"))
 
         for txn in txnsWithMemos:
+            lPotentialDescMemoSwap = False
             if isinstance(txn, ParentTxn): pass
             pTxn = txn.getParentTxn()
             pAcct = pTxn.getAccount()
             pAcctCurr = pAcct.getCurrencyType()
-            outputTxt += "%s %s %s %s %s %s %s\n" \
+
+            # if pTxn.getDescription().strip() in pTxn.getMemo():
+            #     lPotentialDescMemoSwap = True
+            #     iCountPotentialDescMemoSwaps += 1
+
+            outputTxt += "%s %s %s %s %s%s %s %s\n" \
                       %(pad(pAcct.getAccountType(), 20),
                         padTruncateWithDots(pAcct.getAccountName(), 30),
                         padTruncateWithDots(pAcctCurr.getIDString(), 10),
                         pad(convertStrippedIntDateFormattedText(pTxn.getDateInt()), 10),
+                        pad("**", 3) if lPotentialDescMemoSwap else pad("", 3),
                         padTruncateWithDots(pTxn.getDescription(), OUTPUT_DESC_LENGTH),
                         padTruncateWithDots(pTxn.getMemo(), OUTPUT_MEMO_LENGTH),
                         rpad(pAcctCurr.formatFancy(pTxn.getValue(), MD_decimal),15))
 
         msgTxt = "Found %s accounts with %s (default) memo field md+ txns that can be zapped..." %(len(accountsInvolved), len(txnsWithMemos))
+        myPrint("B", msgTxt)
 
         outputTxt += "\n" \
                      "%s\n" %(msgTxt)
 
-        outputTxt += "\n<END>"
+        # if iCountPotentialDescMemoSwaps > 0:
+        #     msgTxt2 = "ALSO FOUND: %s txns where the Memo and Description fields can be swapped first (to retain most information)\n" %(iCountPotentialDescMemoSwaps)
+        #     outputTxt += "\n" \
+        #                  "KEY: **%s\n" %(msgTxt2)
 
-        msgTxt = "Found %s accounts with %s (default) memo field txns that can be zapped..." %(len(accountsInvolved), len(txnsWithMemos))
-        myPrint("B", msgTxt)
+        outputTxt += "\n<END>"
 
         # jif = QuickJFrame((__THIS_METHOD_NAME + " candidates").upper(),
         #                   outputTxt,
