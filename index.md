@@ -136,6 +136,7 @@ Method 2: Using Python and JPype (sets up the JVM as part of the script) - See f
 
 
 ########################################################################################################################
+
 ^^^Script Notes: *.pyc files are CPython byte code files generated from the .py script. These are "helpers" to the Jython
 interpreter. Within the .mxt file you may also find a *$py.class file. This is a compiled version of the script
 for faster launch times. Some of my scripts are large and these "helpers" prevent a "method too large" RuntimeException.
@@ -144,6 +145,7 @@ then please ensure the .pyc file is placed in the same location as the .py scrip
 
 As of Feb 2023 the precompiled versions (*$py.class files) are included with a bootstrap.py loader for faster
 load times (avoids initial compile on launch). If the bootstrap fails to load this, then it will just run the script...
+
 ########################################################################################################################
 
 
