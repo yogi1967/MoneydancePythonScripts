@@ -15,7 +15,7 @@ echo
 PUSHDIR="../MoneydanceOpen"
 SOURCEDIR="../My Python Scripts"
 
-if ! test -f "./build/extension-build.sh"; then
+if ! test -f "./build-scripts/extension-build.sh"; then
     echo "@@ PLEASE RUN FROM THE PROJECT's ROOT directory! @@"
     exit 1
 fi

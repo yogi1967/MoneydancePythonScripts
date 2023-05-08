@@ -19,7 +19,7 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-if ! test -f "./build/extension-build.sh"; then
+if ! test -f "./build-scripts/extension-build.sh"; then
   echo "@@ PLEASE RUN FROM THE PROJECT ROOT directory! @@"
   exit 1
 fi
@@ -27,7 +27,7 @@ fi
 if [ "$1" = "" ]; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
-  echo "Usage ./build/extension-push.sh module_name"
+  echo "Usage ./build-scripts/extension-push.sh module_name"
   echo "Module name must be one of:" "${MODULE_LIST[@]}"
   exit 2
 fi

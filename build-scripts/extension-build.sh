@@ -25,7 +25,7 @@ BUNDLE_OWN_JAVA_LIST=("test")
 if [ "$1" = "" ]; then
   echo "@@@ NO PARAMETERS SUPPLIED."
   echo "Run from project root"
-  echo "Usage ./build/extension-build.sh module_name"
+  echo "Usage ./build-scripts/extension-build.sh module_name"
   echo "Module name must be one of:" "${EXTN_LIST[@]}"
   exit 1
 fi
@@ -38,7 +38,7 @@ else
   echo "@@@ NO PUSH TO fmodules folder [default]"
 fi
 
-if ! test -f "./build/extension-build.sh"; then
+if ! test -f "./build-scripts/extension-build.sh"; then
   echo "@@ PLEASE RUN FROM THE PROJECT's ROOT directory! @@"
   exit 1
 fi
@@ -162,7 +162,7 @@ if ! test -f "./moneydance-devkit-5.1 2/lib/moneydance-dev.jar"; then
 fi
 
 if ! test -f "./user/extension_keyfile."; then
-  echo "@@@ ERROR - my key file (./build/extension_keyfile) does not exist!"
+  echo "@@@ ERROR - my key file (./user/extension_keyfile) does not exist!"
   exit 2
 fi
 
