@@ -146,7 +146,7 @@ else
   fi
 fi
 
-if ! test -f "./moneydance-devkit-5.1 2/src/priv_key"; then
+if ! test -f "./user/priv_key"; then
   echo "ERROR - Your private key from ant genkeys does not exist!"
   exit 1
 fi
@@ -161,7 +161,7 @@ if ! test -f "./moneydance-devkit-5.1 2/lib/moneydance-dev.jar"; then
   exit 1
 fi
 
-if ! test -f "./build/extension_keyfile."; then
+if ! test -f "./user/extension_keyfile."; then
   echo "@@@ ERROR - my key file (./build/extension_keyfile) does not exist!"
   exit 2
 fi
@@ -415,14 +415,14 @@ else
   fi
 
   echo "copying priv_key..."
-  cp "./moneydance-devkit-5.1 2/src/priv_key" .
+  cp "./user/priv_key" .
   if [ $? -ne 0 ]; then
     echo "*** cp priv_key Failed??"
     exit 31
   fi
 
   echo "copying pub_key..."
-  cp "./moneydance-devkit-5.1 2/src/pub_key" .
+  cp "./user/pub_key" .
   if [ $? -ne 0 ]; then
     echo "*** cp pub_key Failed??"
     exit 33
@@ -442,7 +442,7 @@ else
   rm -f "./${sMXT}"
 
   echo "Executing java mxt signing routines..."
-  java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}" <./build/extension_keyfile.
+  java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}" <./user/extension_keyfile.
   if [ $? -ne 0 ]; then
     echo java -cp extadmin.jar:moneydance-dev.jar com.moneydance.admin.KeyAdmin signextjar priv_key private_key_id "${EXTN_NAME}" "${MXT}"
     echo "*** Java self-signing of mxt package Failed??"

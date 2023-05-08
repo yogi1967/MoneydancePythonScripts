@@ -158,6 +158,8 @@ fi
 rm -f "${PUSHDIR}/${MODULE}"/*.docx
 rm -f "${PUSHDIR}/${MODULE}"/*.mxt
 rm -f "${PUSHDIR}/${MODULE}"/*.pyi
+rm -f "${PUSHDIR}/${MODULE}"/*.pyc
+rm -f "${PUSHDIR}/${MODULE}/${MODULE}\$py.class"
 rm -f "${PUSHDIR}/${MODULE}"/function_thread_map.txt
 rm -f "${PUSHDIR}/${MODULE}"/_PREVIEW_BUILD_
 
