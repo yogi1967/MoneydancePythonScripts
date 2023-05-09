@@ -58,7 +58,7 @@ Click a link below to download a ZIP file. The ZIP file contains both the Extens
 _^^^Refer to "Script Notes:" at the bottom of this page for details on the new .pyc and $py.class files...._
 
 ### Extension ONLY format (contains only *.mxt file) - Very latest PREVIEW (unsigned) build
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/toolbox.zip">**Toolbox**: View Moneydance settings, diagnostics, fix issues, change settings and much more...
 NOTE: Toolbox has the ability to update your dataset/settings in Update and Advanced mode(s). In the default Basic mode it's READONLY and VERY useful!
 NOTE: Also installs three new Extensions Menu options:
   - Move Investment Transactions: Allows you to move the txns you have selected in the visible Investment Register. 
@@ -68,27 +68,27 @@ NOTE: Also installs three new Extensions Menu options:
     <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)
 
 
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/net_account_balances.zip">**Custom Balances(Net Account Balances)**: Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Now multi-row, display currency, and you can select Accounts/Categories/Securities per row.
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/net_account_balances.zip">**Custom Balances(Net Account Balances)**: Puts a small 'widget' on the Summary Page (Home Page). Displays the total of selected account balances. Now multi-row, display currency, and you can select Accounts/Categories/Securities per row.
 NOTE: It's also a demo of how to create a true runtime Python extension and a HomePageView (Summary Page) widget
 
     <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/net_account_balances/net_account_balances_readme.txt">(View the Custom Balances HELPFILE)
 
 
 ### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of various extracts in one, including: 
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of various extracts in one, including: 
     - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
     - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
     - extract_currency_history_csv          Extract currency history to csv
     - extract_investment_transactions_csv   Extract investment transactions to csv
     - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/accounts_categories_mega_search_window.zip">**^^Accounts & Categories Mega Search Window**: Clones MD Menu> Tools>Accounts/Categories (combined) and adds a Quick Search box/capability.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/accounts_categories_mega_search_window.zip">**^^Accounts & Categories Mega Search Window**: Clones MD Menu> Tools>Accounts/Categories (combined) and adds a Quick Search box/capability.
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/list_future_reminders.zip">**List Future Reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/list_future_reminders.zip">**List Future Reminders**: Lists your future dated reminders to screen, and allows you to select how far forward to look.
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/security_performance_graph.zip">**Security Performance Graph**: Graphs selected securities, calculating relative price performance as a percentage. Popup table and other useful info too.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/security_performance_graph.zip">**Security Performance Graph**: Graphs selected securities, calculating relative price performance as a percentage. Popup table and other useful info too.
 
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
 - <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1058 - 1st April 2023) (MD2023 support...)
@@ -102,7 +102,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1006 - 1st April 2023) - (MD2023 support...)
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
-<a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
+<a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
   - calculate_moneydance_objs_and_datasetsize.py: Analyse your Moneydance dataset, report on objects, internal file size(s), and list other known datasets...
   - extract_all_attachments.py: extract all your attachments out of Moneydance to a folder of your choice
   - orphan_attachments.py: scans your attachments and detects if any are orphaned (and other related errors)
@@ -171,4 +171,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 1st April 2023)_
+_(site last updated 9th May 2023)_
