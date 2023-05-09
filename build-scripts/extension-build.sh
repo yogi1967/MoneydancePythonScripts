@@ -15,11 +15,11 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo
 echo
 
-EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "my_networth" "test" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities")
+EXTN_LIST=("toolbox" "extract_data" "useful_scripts" "list_future_reminders" "net_account_balances" "extension_tester" "accounts_categories_mega_search_window" "security_performance_graph" "stutilities")
 PRECOMPILE_LIST=("toolbox" "extract_data" "list_future_reminders" "net_account_balances" "security_performance_graph")
 RESTRICT_SCRIPT_LIST=("toolbox" "net_account_balances" "accounts_categories_mega_search_window")
 NOT_REALLY_EXTENSION_LIST=("useful_scripts")
-PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester" "my_networth" "fix_downloaded_transactions")
+PUBLISH_ALL_FILES_IN_ZIP_TOO_LIST=("extension_tester")
 BUNDLE_OWN_JAVA_LIST=("test")
 
 if [ "$1" = "" ]; then
@@ -94,8 +94,9 @@ done
 
 echo "Module build for ${EXTN_NAME} running.... Restrict Script Publication=${RESTRICT_SCRIPT}... Bundle Own Java=${BUNDLE_JAVA}... (Really an Extension=${REALLY_EXTENSION})... Publish all files=${PUBLISH_ALL_FILES}"
 
+DIST_DIR="./dist"
 sMXT="s-${EXTN_NAME}.mxt"
-ZIP="./${EXTN_NAME}.zip"
+ZIP="./${DIST_DIR}/${EXTN_NAME}.zip"
 EXTN_DIR="./source/${EXTN_NAME}"
 USEFUL_SCRIPTS_DIR="./source/useful_scripts"
 MXT="${EXTN_DIR}/${EXTN_NAME}.mxt"
@@ -220,7 +221,6 @@ if [ "${BUNDLE_JAVA}" = "YES" ]; then
   fi
 
 fi
-
 
 ############## START OF EXTENSION BUILD ################################################################################
 rm -f "${MXT}"
@@ -483,15 +483,22 @@ else
     exit 43
   fi
 
-  if test -f "${MXT}"; then
+  echo "Checking that the distribution dir '${DIST_DIR}' exists..."
+  mkdir -v -p "${DIST_DIR}"
+  rm -f "${DIST_DIR}/${EXTN_NAME}.mxt"
+
+  echo "Moving the signed MXT to the distribution dir..."
+  mv "${MXT}" "${DIST_DIR}"
+
+  if test -f "${DIST_DIR}/${EXTN_NAME}.mxt"; then
     echo "Listing signed mxt contents..."
-    ls -l "${MXT}"
-    unzip -l "${MXT}"
+    ls -l "${DIST_DIR}/${EXTN_NAME}.mxt"
+    unzip -l "${DIST_DIR}/${EXTN_NAME}.mxt"
     echo ===================
-    echo "FILE ${MXT} has been built..."
+    echo "FILE ${DIST_DIR}/${EXTN_NAME}.mxt has been built..."
   else
     echo "@@@@@@@@@@@@@@@@@"
-    echo "PROBLEM CREATING ${MXT} ..."
+    echo "PROBLEM CREATING ${DIST_DIR}/${EXTN_NAME}.mxt ..."
     exit 45
   fi
 
@@ -549,7 +556,7 @@ if [ "${REALLY_EXTENSION}" = "NO" ]; then
 else
 
   echo "Adding signed mxt file into zip file..."
-  zip -j -c "${ZIP}" "${MXT}" <<<"${ZIP_COMMENT}"
+  zip -j -c "${ZIP}" "${DIST_DIR}/${EXTN_NAME}.mxt" <<<"${ZIP_COMMENT}"
   if [ $? -ne 0 ]; then
     echo "*** final zip of mxt into zip package Failed??"
     exit 55
@@ -566,13 +573,24 @@ else
   done
   shopt -u nullglob
 
-
   if [ "${RESTRICT_SCRIPT}" != "YES" ]; then
-    echo "adding main script .py file into zip file..."
-    zip -j "${ZIP}" "${EXTN_DIR}/${EXTN_NAME}.py"
-    if [ $? -ne 0 ]; then
-      echo "*** final zip of main .py script into zip package FAILED??"
-      exit 59
+
+    if [ "${EXTN_NAME}" = "extension_tester" ]; then
+      echo "adding all .py script file(s) into zip file..."
+      zip -j "${ZIP}" "${EXTN_DIR}"/*.py
+      if [ $? -ne 0 ]; then
+        echo "*** final zip of all .py script file(s) into zip package FAILED??"
+        exit 58
+      fi
+
+    else
+
+      echo "adding main script .py file into zip file..."
+      zip -j "${ZIP}" "${EXTN_DIR}/${EXTN_NAME}.py"
+      if [ $? -ne 0 ]; then
+        echo "*** final zip of main .py script into zip package FAILED??"
+        exit 59
+      fi
     fi
 
     if [ "${COMPILE_SCRIPT}" = "YES" ]; then
@@ -614,36 +632,40 @@ if [ "${EXTN_NAME}" != "extension_tester" ]; then
   shopt -u nullglob
 fi
 
-if test -f "${ZIP}"; then
-  echo "Listing zip file contents..."
-  ls -l "${ZIP}"
-  unzip -l "${ZIP}"
-  echo ===================
-  echo "DISTRIBUTION FILE ${ZIP} has been built..."
+if [ "${EXTN_NAME}" = "stutilities" ]; then
+  rm "${ZIP}"
 else
-  echo "@@@@@@@@@@@@@@@@@"
-  echo "PROBLEM CREATING FINAL DISTRIBUTION ${ZIP} !"
-  exit 67
+  if test -f "${ZIP}"; then
+    echo "Listing zip file contents..."
+    ls -l "${ZIP}"
+    unzip -l "${ZIP}"
+    echo ===================
+    echo "DISTRIBUTION FILE ${ZIP} has been built..."
+  else
+    echo "@@@@@@@@@@@@@@@@@"
+    echo "PROBLEM CREATING FINAL DISTRIBUTION ${ZIP} !"
+    exit 67
+  fi
 fi
 
-if [ "${EXTN_NAME}" = "useful_scripts" ]; then
-
-  if [ "${USEFUL_SCRIPTS_DIR}/"ofx_populate_multiple_userids.py -nt ./source/toolbox/toolbox.mxt ]; then
-    echo "@@@ WARNING >> Detected that ofx_populate_multiple_userids.py is newer than toolbox.mxt! Please rebuild toolbox..."
-    read -p "Press any key to continue..."
-  fi
-
-  if [ "${USEFUL_SCRIPTS_DIR}/"ofx_create_new_usaa_bank_custom_profile.py -nt ./source/toolbox/toolbox.mxt ]; then
-    echo "@@@ WARNING >> Detected that ofx_create_new_usaa_bank_custom_profile.py is newer than toolbox.mxt! Please rebuild toolbox..."
-    read -p "Press any key to continue..."
-  fi
-
-fi
+#if [ "${EXTN_NAME}" = "useful_scripts" ]; then
+#
+#  if [ "${USEFUL_SCRIPTS_DIR}/"ofx_populate_multiple_userids.py -nt ./source/toolbox/toolbox.mxt ]; then
+#    echo "@@@ WARNING >> Detected that ofx_populate_multiple_userids.py is newer than toolbox.mxt! Please rebuild toolbox..."
+#    read -p "Press any key to continue..."
+#  fi
+#
+#  if [ "${USEFUL_SCRIPTS_DIR}/"ofx_create_new_usaa_bank_custom_profile.py -nt ./source/toolbox/toolbox.mxt ]; then
+#    echo "@@@ WARNING >> Detected that ofx_create_new_usaa_bank_custom_profile.py is newer than toolbox.mxt! Please rebuild toolbox..."
+#    read -p "Press any key to continue..."
+#  fi
+#
+#fi
 
 if [ "${PUSHME}" = "YES" ]; then
   echo "@@ Pushing MXT over to fmodules directory..."
   my_user_path=~
-  cp "${MXT}" "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/fmodules"
+  cp "${DIST_DIR}/${EXTN_NAME}.mxt" "${my_user_path}/Library/Containers/com.infinitekind.MoneydanceOSX/Data/Library/Application Support/Moneydance/fmodules"
   if [ $? -ne 0 ]; then
     echo ">> ERROR Pushing MXT to fmodules folder!"
     exit 69
