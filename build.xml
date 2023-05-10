@@ -1,0 +1,728 @@
+<!--
+build file for ant
+http://jakarta.apache.org/ant/index.html
+
+###############################################################################
+# Author:   Stuart Beesley - StuWareSoftSystems 2021-2023
+###############################################################################
+-->
+
+<project name="my_python_scripts" default="all_python" basedir=".">
+  <property name="version"  value="1.0"/>
+  <property name="user-config-dir" value="./user"/>
+  <property file="${user-config-dir}/${os.name}.properties"/>   <!-- Os specific properties - normally empty -->
+  <property file="${user-config-dir}/user.properties"/>         <!-- Remember: Properties are immutable. Whoever sets first, wins -->
+
+  <!-- If you set 'dont_sign_java' then java built mxts won't be signed; python extensions are always signed -->
+  <!--  <property name="dont_sign_java" value="true"/>                -->
+
+  <property name="java-src" value="./java_code/src"/>
+  <property name="python-src" value="./source"/>
+  <property name="dist"  value="./dist"/>
+  <property name="build" value="./build"/>
+  <property name="lib" value="./lib"/>
+  <property name="extprivkeyfilename" value="priv_key"/>
+  <property name="extpubkeyfilename" value="pub_key"/>
+  <property name="extprivkeyfile" value="${user-config-dir}/${extprivkeyfilename}"/>
+  <property name="extpubkeyfile" value="${user-config-dir}/${extpubkeyfilename}"/>
+  <property name="privkeyid" value="99"/>
+  <property name="keypass" value=""/>
+
+  <property name="build.sysclasspath" value="ignore" /> <!-- suppress "includeantruntime not set" messages from ant -->
+  <property name="build.compiler"  value="modern"/>
+  <property name="build.compiler.fulldepend"  value="true"/>
+  <property name="install"  value="${user.home}/.moneydance/fmodules"/>   <!-- copies the .mxt to the Moneydance application folder -->
+
+  <property name="debug"  value="on"/>
+  <property name="optimize"  value="off"/>
+  <property name="javac-target" value="1.8"/>
+  <property name="javac-source" value="1.8" />
+  <property name="bootclasspath"  value="${lib}/jdk_1.8_rt.jar"/>
+
+  <property name="useful-scripts-dir"  value="${python-src}/useful_scripts"/>
+
+  <property name="python-executable" value="python2.7"/>  <!-- Need to use correct version if running ANT on Windows and Linux etc -->
+
+  <path id="classpath">
+    <pathelement path="${lib}/extadmin.jar"/>
+    <pathelement path="${lib}/moneydance-dev.jar"/>
+    <pathelement path="${lib}/moneydance-private.jar"/>   <!-- If you absolutely MUST use something that isn't in the exposed MD API then put a moneydance.jar file from Moneydance 2015 or higher here.  But, please don't. -->
+
+    <pathelement path="${lib}/mdadmin.jar"/>              <!-- Since mdadmin has a StringUtils, it needs to come after moneydance.jar -->
+    <pathelement path="${lib}/jfreechart-1.0.13.jar"/>
+    <pathelement path="${lib}/jcommon-1.0.16.jar"/>
+    <pathelement path="${lib}/gson-2.8.7.jar"/>
+    <pathelement path="${lib}/mdpython.jar"/>             <!-- Used for Python pre-compile -->
+  </path>
+
+  <target name="all_python"
+          description="build all python extensions"
+          depends="init,toolbox,extract_data,list_future_reminders,net_account_balances,extension_tester,accounts_categories_mega_search_window,security_performance_graph,stutilities,useful_scripts"/>
+
+  <target name="push_all_python"
+          description="push all python extensions to the IK Open site"
+          depends="init,push_toolbox,push_extract_data,push_list_future_reminders,push_net_account_balances,push_extension_tester,push_accounts_categories_mega_search_window,push_security_performance_graph,push_stutilities,push_useful_scripts"/>
+
+  <target name="all_java"
+          description="build all java extensions"
+          depends="therearenojavaextnsyet"/>
+
+  <target name="init">
+  <echo level="info" message="ANT Build Running.... Executing INIT" />
+  <echo level="verbose" message="OS Name is:         ${os.name}" />
+  <echo level="verbose" message="OS Architecture is: ${os.arch}" />
+  <echo level="verbose" message="OS Version is:      ${os.version}" />
+
+  <property name="dist-tmp-dir"  value="${dist}/tmp"/>
+  <property name="push-dir"  value="../MoneydanceOpen/python_scripts"/>
+
+  <fail message="Critical files are missing (check ${extprivkeyfile} and ${extpubkeyfile}) Perhaps run 'ant genkeys'?">
+    <condition>
+        <not>
+            <resourcecount count="2">
+                <fileset id="fs" dir="${user-config-dir}"
+                         includes="${extprivkeyfilename},${extpubkeyfilename}"/>
+            </resourcecount>
+        </not>
+    </condition>
+  </fail>
+
+  <mkdir dir="${dist}"/>
+  <mkdir dir="${build}"/>
+
+    <!--
+    Generic macro for building a specific feature (aka an extension).
+    -->
+    <macrodef name="build-java-mxt" description="macro to build java-based mxt extension files">
+      <attribute name="feature"/> <!-- name of the mxt file -->
+      <attribute name="javac-target" />
+      <attribute name="javac-source" />
+      <sequential>
+        <delete file="${dist}/@{feature}.mxt" />
+        <!--
+          since there isn't separate build directories for each feature,
+          delete anything that wasn't from this feature already
+        -->
+        <delete includeemptydirs="true">
+          <fileset dir="${build}">
+            <include name="**" />
+            <exclude name="com/moneydance/modules/features/@{feature}/**"/>
+          </fileset>
+        </delete>
+        <!-- copy all non java files for this feature -->
+        <copy preservelastmodified="true"
+              todir="${build}">
+          <fileset dir="${java-src}">
+            <include name="com/moneydance/modules/features/@{feature}/**" />
+            <include name="license.txt" />
+            <exclude name="**/*.java" /><!-- exclude source files -->
+            <exclude name="**/contact.*" />
+          </fileset>
+        </copy>
+        <!-- move license and contact to root of mxt -->
+        <copy preservelastmodified="true"
+              todir="${build}">
+          <fileset dir="${java-src}/com/moneydance/modules/features/@{feature}">
+            <include name="contact.*" />
+          </fileset>
+        </copy>
+        <javac target="@{javac-target}" bootclasspath="${bootclasspath}" source="@{javac-source}" srcdir="${java-src}" debug="${debug}" optimize="${optimize}"
+          classpathref="classpath"  destdir="${build}"
+          includes="com/moneydance/modules/features/@{feature}/**"
+          includeAntRuntime="false" />
+        <jar destfile="${dist}/@{feature}.mxt">
+          <fileset dir="${build}" includes="**" />
+        </jar>
+      	<!-- delegating signing to another target to allow bypass when in eclipse -->
+      	<antcall target="sign" inheritall="true" inheritrefs="true">
+      	  <param name="feature" value="@{feature}" />
+      	</antcall>
+      </sequential>
+    </macrodef>
+
+
+    <!--    Generic macro for building a specific python extension ('feature') -->
+    <macrodef name="build-python-mxt"
+              description="macro to build python-based mxt extension files">
+      <attribute name="feature"/> <!-- name of the mxt file -->
+      <attribute name="precompile-python" default="precompile_python_false"/>
+      <attribute name="is-stuwaresoftsystems-extension" default="is_stuwaresoftsystems_extension_false"/>
+      <attribute name="include-dict-files-in-zip" default="include_dict_files_in_zip_false"/>
+      <attribute name="include-py-files-in-zip" default="include_py_files_in_zip_false"/>
+      <attribute name="create-zip-bundle-too" default="create_zip_bundle_too_false"/>
+
+      <sequential>
+        <echo level="info" message="BUILD of '@{feature}' Python extension started..." />
+
+        <antcall target="reset-tmp-dir" inheritall="true" inheritrefs="true"/>
+
+        <antcall target="copy-ofx-py-files-to-toolbox" inheritall="true" inheritrefs="true">
+          <param name="feature" value="@{feature}" />
+        </antcall>
+
+      	<antcall target="cleanup-compiled-python-files" inheritall="true" inheritrefs="true">
+      	  <param name="feature" value="@{feature}" />
+      	</antcall>
+
+      	<antcall target="pre-compile-python" inheritall="true" inheritrefs="true">
+      	  <param name="feature" value="@{feature}" />
+      	  <param name="precompile_python" value="@{precompile-python}" />
+      	</antcall>
+
+      	<antcall target="package-python-mxt" inheritall="true" inheritrefs="true">
+      	  <param name="feature" value="@{feature}" />
+      	</antcall>
+
+      	<antcall target="create-python-mxt-zip" inheritall="true" inheritrefs="true">
+      	  <param name="feature" value="@{feature}" />
+      	  <param name="precompile_python" value="@{precompile-python}" />
+      	  <param name="include_py_files_in_zip" value="@{include-py-files-in-zip}" />
+      	  <param name="include_dict_files_in_zip" value="@{include-dict-files-in-zip}" />
+      	  <param name="is_stuwaresoftsystems_extension" value="@{is-stuwaresoftsystems-extension}" />
+      	  <param name="create_zip_bundle_too" value="@{create-zip-bundle-too}" />
+      	</antcall>
+
+        <antcall target="delete-ofx-py-files-from-toolbox" inheritall="true" inheritrefs="true">
+          <param name="feature" value="@{feature}" />
+        </antcall>
+
+        <delete deleteonexit="true" dir="${dist-tmp-dir}"/>
+
+        <echo level="info" message="BUILD of '@{feature}' Python extension COMPLETED" />
+
+      </sequential>
+    </macrodef>
+
+    <!--    Generic macro for pushing a specific python extension ('feature') -->
+    <macrodef name="push-python-mxt"
+              description="macro to push python-based mxt extension files over to IK Open site">
+      <attribute name="feature"/> <!-- name of the mxt file -->
+
+      <sequential>
+        <echo level="info" message="PUSH of '@{feature}' Python extension started..." />
+
+        <!-- Empty the directory first       -->
+        <delete includeemptydirs="true">
+          <fileset dir="${push-dir}/@{feature}" includes="**/*"/>
+        </delete>
+
+        <antcall target="copy-ofx-py-files-to-toolbox" inheritall="true" inheritrefs="true">
+          <param name="feature" value="@{feature}" />
+        </antcall>
+
+        <copy preservelastmodified="true"
+              todir="${push-dir}/@{feature}">
+          <fileset dir="${python-src}/@{feature}">
+            <include name="*.py" />
+            <include name="*.txt" />
+            <include name="*.dict" />
+            <include name="*.pdf" />
+          </fileset>
+        </copy>
+
+        <copy preservelastmodified="true"
+                todir="${push-dir}/@{feature}">
+          <fileset dir="${python-src}">
+             <include name="install-readme.txt" />
+          </fileset>
+        </copy>
+
+        <antcall target="delete-ofx-py-files-from-toolbox" inheritall="true" inheritrefs="true">
+          <param name="feature" value="@{feature}" />
+        </antcall>
+
+        <echo level="info" message="PUSH of '@{feature}' Python extension COMPLETED" />
+
+      </sequential>
+    </macrodef>
+
+
+    <macrodef name="listzipcontents">
+      <attribute name="file"/>
+
+      <sequential>
+        <echo level="info" message="ZIP CONTENTS of: @{file}"/>
+        <echo level="info" message="---------[zip contents start]---------------"/>
+        <local name="tmp_zip_contents"/>
+        <zipfileset src="@{file}" id="content"/>
+        <pathconvert property="tmp_zip_contents" pathsep="${line.separator}">
+          <zipfileset refid="content"/>
+          <map from="@{file}:" to=""/>
+        </pathconvert>
+
+        <echo level="info" message="${tmp_zip_contents}.....:"/>
+        <echo level="info" message="---------[end zip contents]---------------"/>
+
+      </sequential>
+    </macrodef>
+
+
+    <!-- DON'T CHANGE THESE! They are truth test values for later usage... -->
+    <property name="precompile_python_true" value="true"/>
+    <property name="is_stuwaresoftsystems_extension_true" value="true"/>
+    <property name="include_dict_files_in_zip_true" value="true"/>
+    <property name="include_py_files_in_zip_true" value="true"/>
+    <property name="create_zip_bundle_too_true" value="true"/>
+    <property name="toolbox" value="true"/>
+
+
+  <property name="init-has-executed" value="true"/>
+  </target>
+
+  <target name="clean" depends="init" description="remove built artifacts">
+    <delete dir="${dist}" />
+    <delete dir="${build}" />
+  </target>
+
+  <target name="sign" description="sign the mxt" unless="dont_sign_java">
+  	<fail unless="feature" message="Please specify property feature" />
+    <java newenvironment="true"
+      classpathref="classpath"
+      classname="com.moneydance.admin.KeyAdmin"
+      fork="true">
+      <sysproperty key="moneydance_key_pass" value="${keypass}"/>
+      <arg value="signextjar"/>
+      <arg value="${extprivkeyfile}"/>
+      <arg value="${privkeyid}"/>
+      <arg value="${feature}"/>
+      <arg line="${dist}/${feature}.mxt"/>
+    </java>
+    <move file="./s-${feature}.mxt" tofile="${dist}/${feature}.mxt"/>
+    <copy file="${dist}/${feature}.mxt" tofile="${install}/${feature}.mxt" verbose="true" failonerror="false" />
+  </target>
+
+
+
+  <target name="cleanup-compiled-python-files"
+          description="remove pre-existing .pyc and .class files"
+          >
+    <fail unless="feature" message="Please specify the extension ID in the 'feature' parameter" />
+
+    <delete file="${python-src}/${feature}/${feature}.pyc" verbose="false" failonerror="false" />
+    <delete file="${python-src}/${feature}/${feature}$py.class" verbose="false" failonerror="false" />
+  </target>
+
+
+  <!-- Not normally needed unless a) you have the 'Method too large problem', or b) You want to launch pre-compiled code for faster startup... -->
+  <target name="pre-compile-python"
+          description="pre-compile python to generate both pyc and .class files"
+          if="${precompile_python}"
+          depends="cleanup-compiled-python-files">
+
+    <fail unless="feature" message="Please specify the extension ID in the 'feature' parameter" />
+    <fail unless="python-executable" message="Please specify the 'python-executable' name as a parameter" />
+
+    <echo level="info" message="PRE-COMPILING Jython to create CPython bytecode .pyc file" />
+
+    <!--
+    #  CPython bytecode can be used to help scripts that fail with method too large....
+    -->
+    <exec executable="${python-executable}"
+      resolveexecutable="true"
+      failonerror="true"
+      failifexecutionfails="true"
+      searchpath="true"
+      >
+      <arg value="-m"/>
+      <arg value="py_compile"/>
+      <arg value="${python-src}/${feature}/${feature}.py"/>
+    </exec>
+
+
+    <!--
+    # Java compile into $py.class for faster launch time....
+    # Note: you can also add -Dpython.cpython2=python to the java command below so that compile_file auto runs the pyc file generation above
+    # (thus eliminate the above python2.7 -m py_compile command)
+    -->
+    <echo level="info" message="COMPILING Jython script to create java $py.class file" />
+    <java newenvironment="true"
+      failonerror="true"
+      classpathref="classpath"
+      classname="org.python.util.jython"
+      fork="true">
+      <arg value="-c"/>
+      <arg value="import compileall; compileall.compile_file('${python-src}/${feature}/${feature}.py')"/>
+    </java>
+
+    <echo level="info" message="COMPILATION routines COMPLETED" />
+
+  </target>
+
+
+  <target name="package-python-mxt"
+          description="package python files into an extension mxt file">
+    <fail unless="feature" message="Please specify the extension ID in the 'feature' parameter" />
+    <echo level="info" message="Packaging python files into an extension mxt file" />
+
+    <fail message="Critical files are missing (check meta_info.dict, script_info.dict, ${feature}.py)">
+      <condition>
+          <not>
+              <resourcecount count="3">
+                  <fileset id="fs" dir="${python-src}/${feature}/"
+                           includes="meta_info.dict,script_info.dict,${feature}.py"/>
+              </resourcecount>
+          </not>
+      </condition>
+    </fail>
+
+    <antcall target="reset-tmp-dir" inheritall="true" inheritrefs="true"/>
+
+    <copy failonerror="true" preservelastmodified="true" todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}/${feature}">
+        <exclude name="${feature}_version_requirements.dict"/>
+        <exclude name="*.pyi"/>
+        <exclude name="*.mxt"/>
+      </fileset>
+    </copy>
+
+    <antcall target="copy-install-readme" inheritall="true" inheritrefs="true"/>
+
+    <java newenvironment="true"
+          classpathref="classpath"
+          classname="com.moneydance.admin.PythonExtensionPackager"
+          fork="true">
+      <sysproperty key="moneydance_key_pass" value="${keypass}"/>
+      <arg value="${extprivkeyfile}"/>
+      <arg value="${privkeyid}"/>
+      <arg value="${feature}"/>
+      <arg value="${dist-tmp-dir}"/>
+      <arg value="${dist}"/>
+    </java>
+
+    <antcall target="reset-tmp-dir" inheritall="true" inheritrefs="true"/>
+
+    <copy file="${dist}/${feature}.mxt" tofile="${install}/${feature}.mxt" verbose="true" failonerror="false" />
+
+    <listzipcontents file="${dist}/${feature}.mxt"/>
+
+    <echo level="info" message="Packaging python files into an extension mxt file - COMPLETED" />
+  </target>
+
+  <target name="copy-install-readme">
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+      <copy preservelastmodified="true"
+            todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}">
+         <include name="install-readme.txt" />
+      </fileset>
+    </copy>
+  </target>
+
+
+  <target name="copy-include-dict-files"
+          if="${include_dict_files_in_zip}">
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+    <copy preservelastmodified="true"
+          todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}/${feature}">
+         <include name="*.dict" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="copy-include-master-py-files"
+          if="${include_py_files_in_zip}"
+          >
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+    <copy preservelastmodified="true"
+          todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}/${feature}">
+         <include name="${feature}.py" />
+         <include name="${feature}.pyc" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="copy-include-all-py-files"
+          if="${include_py_files_in_zip}"
+          unless="${is_stuwaresoftsystems_extension}"
+          >
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+    <copy preservelastmodified="true"
+          todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}/${feature}">
+         <include name="*.py" />
+         <include name="*.pyc" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="delete-ofx-py-files-from-toolbox"
+          if="${feature}">
+    <fail unless="feature" message="Please specify the extension ID in the 'feature' parameter" />
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+    <delete>
+      <fileset dir="${python-src}/${feature}" includes="ofx_*.py"/>
+    </delete>
+  </target>
+
+  <target name="copy-ofx-py-files-to-toolbox"
+          if="${feature}">
+    <fail unless="feature" message="Please specify the extension ID in the 'feature' parameter" />
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+    <copy preservelastmodified="true"
+          failonerror="true"
+          todir="${python-src}/${feature}">
+      <fileset dir="${useful-scripts-dir}">
+         <include name="ofx_*.py" />
+      </fileset>
+    </copy>
+  </target>
+
+  <!-- Make an empty temporary directory (nukes anything there already) -->
+  <target name="reset-tmp-dir" depends="init">
+    <fail unless="dist-tmp-dir" message="Please ensure the 'dist-tmp-dir' property is set!" />
+    <delete dir="${dist-tmp-dir}"/>
+    <mkdir dir="${dist-tmp-dir}"/>
+  </target>
+
+  <target name="create-python-mxt-zip"
+          description="create zip file containing the python mxt, helpfiles, readme etc..."
+          if="${create_zip_bundle_too}"
+          >
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+    <fail unless="feature" message="Please specify the extension ID in the 'feature' parameter" />
+
+    <echo level="info" message="Creating ZIP containing the Python mxt, helpfiles, readme etc..." />
+
+    <delete file="${dist}/${feature}.zip" verbose="false" />
+
+    <copy todir="${dist-tmp-dir}">
+      <fileset dir="${dist}">
+         <include name="${feature}.mxt" />
+      </fileset>
+    </copy>
+
+    <copy preservelastmodified="true"
+          todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}/${feature}">
+         <include name="*.txt" />
+         <include name="*.pdf" />
+      </fileset>
+    </copy>
+
+    <antcall target="copy-include-master-py-files" inheritall="true" inheritrefs="true"/>
+    <antcall target="copy-include-all-py-files" inheritall="true" inheritrefs="true"/>
+    <antcall target="copy-include-dict-files" inheritall="true" inheritrefs="true"/>
+    <antcall target="copy-install-readme" inheritall="true" inheritrefs="true"/>
+
+    <zip
+         comment="${feature}: Python(Jython 2.7) extension for Moneydance. See any included readme file(s)"
+         destfile="${dist}/${feature}.zip">
+      <fileset dir="${dist-tmp-dir}" includes="**" />
+    </zip>
+
+    <listzipcontents file="${dist}/${feature}.zip"/>
+
+<!--    <delete file="${python-src}/${feature}/${feature}.pyc" verbose="false" failonerror="false" />-->
+<!--    <delete file="${python-src}/${feature}/${feature}$py.class" verbose="false" failonerror="false" />-->
+
+  <echo level="info" message="ZIP containing the Python mxt etc COMPLETED" />
+
+  </target>
+
+
+  <target name="just-zip-python-contents"
+          description="creates a zip file containing a bundle of standalone python scripts and resources (no mxt) etc..."
+          >
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+    <fail unless="feature" message="Please specify the extension ID in the 'feature' parameter" />
+
+    <echo level="info" message="Creating ZIP containing bundle of standalone Python scripts..." />
+
+    <delete file="${dist}/${feature}.zip" verbose="false" />
+
+    <antcall target="reset-tmp-dir" inheritall="true" inheritrefs="true"/>
+
+    <copy preservelastmodified="true"
+          todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}/${feature}">
+         <include name="*.py" />
+         <include name="*.pyc" />
+         <include name="*.txt" />
+         <include name="*.pdf" />
+      </fileset>
+    </copy>
+
+    <copy preservelastmodified="true"
+          todir="${dist-tmp-dir}">
+      <fileset dir="${python-src}">
+         <include name="install-readme.txt" />
+      </fileset>
+    </copy>
+
+    <zip
+         comment="${feature}: Python(Jython 2.7) standalone scripts for Moneydance. See any included readme file(s)"
+         destfile="${dist}/${feature}.zip">
+      <fileset dir="${dist-tmp-dir}" includes="**" />
+    </zip>
+
+    <listzipcontents file="${dist}/${feature}.zip"/>
+
+    <delete deleteonexit="true" dir="${dist-tmp-dir}"/>
+
+  <echo level="info" message="ZIP containing standalone Python scripts etc COMPLETED" />
+
+  </target>
+
+
+
+  <target name="genkeys"
+          description="generate new private and public keyfiles for sigining mxt extension files">
+    <!-- The dir= ensures the new key files are put in the user config folder -->
+    <java
+      failonerror="true"
+      fork="true"
+      classpathref="classpath"
+      classname="com.moneydance.admin.KeyAdmin">
+      <arg value="genkey"/>
+      <arg value="${extprivkeyfile}"/>
+      <arg value="${extpubkeyfile}"/>
+    </java>
+<!--      dir="${user-config-dir}"-->
+  </target>
+
+  <target name="therearenojavaextnsyet" depends="init" description="build the therearenojavaextnsyet.mxt">
+    <echo level="verbose" message="DUMMY TARGET - NO JAVA TARGETS DEFINED YET!!!" />
+    <build-java-mxt feature="therearenojavaextnsyet" javac-source="${javac-source}" javac-target="${javac-source}" />
+  </target>
+
+
+
+  <!-- In the targets for each extension below, set the parameters/attributes to _true or _false   -->
+
+  <target name="toolbox" depends="init" description="Build 'Toolbox' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+
+    <build-python-mxt
+            feature="toolbox"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_true"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_false"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+    />
+
+  </target>
+
+  <target name="push_toolbox" depends="init" description="Push 'Toolbox' Python(Jython2.7) Extension to IK Open Site">
+    <push-python-mxt feature="toolbox" />
+    <delete file="${push-dir}/toolbox/toolbox_version_requirements.dict" verbose="false" failonerror="false" />
+  </target>
+
+  <target name="extract_data" depends="init" description="Build 'Extract Data' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="extract_data"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_true"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_true"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+    />
+  </target>
+
+  <target name="push_extract_data" depends="init" description="Push 'Extract Data' Python(Jython2.7) Extension to IK Open Site">
+    <push-python-mxt feature="extract_data" />
+  </target>
+
+  <target name="list_future_reminders" depends="init" description="Build 'List Future Reminders' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="list_future_reminders"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_true"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_true"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+    />
+  </target>
+
+  <target name="push_list_future_reminders" depends="init" description="Push 'List Future Reminders' Python(Jython2.7) Extension to IK Open Site">
+    <push-python-mxt feature="list_future_reminders" />
+  </target>
+
+  <target name="net_account_balances" depends="init" description="Build 'Custom Balances' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="net_account_balances"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_true"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_false"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+    />
+  </target>
+
+  <target name="push_net_account_balances" depends="init" description="Push 'Custom Balances' Python(Jython2.7) Extension to IK Open Site">
+    <push-python-mxt feature="net_account_balances" />
+  </target>
+
+  <target name="security_performance_graph" depends="init" description="Build 'Security Performance Graph' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="security_performance_graph"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_true"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_true"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+    />
+  </target>
+
+  <target name="push_security_performance_graph" depends="init" description="Push 'Security Performance Graph' Python(Jython2.7) Extension to IK Open Site">
+    <push-python-mxt feature="security_performance_graph" />
+  </target>
+
+  <target name="accounts_categories_mega_search_window" depends="init" description="Build 'Accounts Categories Mega Search Window' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="accounts_categories_mega_search_window"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_false"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_false"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+    />
+  </target>
+
+  <target name="push_accounts_categories_mega_search_window" depends="init" description="Push 'Accounts Categories Mega Search Window' Python(Jython2.7) Extension to IK Open Site">
+    <push-python-mxt feature="accounts_categories_mega_search_window" />
+  </target>
+
+  <target name="stutilities" depends="init" description="Build (PRIVATE) 'StUtilities' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="stutilities"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_false"
+            create-zip-bundle-too="create_zip_bundle_too_false"
+            include-py-files-in-zip="include_py_files_in_zip_false"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+    />
+  </target>
+
+  <target name="push_stutilities" depends="init" description="Push 'StUtilities' Python(Jython2.7) Extension to IK Open Site">
+<!--    <push-python-mxt feature="stutilities" />-->
+  </target>
+
+  <target name="useful_scripts" depends="init" description="Build 'useful_scripts' collection of Python(Jython2.7) scripts (by Stuart Beesley StuWareSoftSystems)">
+    <antcall target="just-zip-python-contents" inheritall="true" inheritrefs="true">
+      <param name="feature" value="useful_scripts" />
+    </antcall>
+  </target>
+
+  <target name="push_useful_scripts" depends="init" description="Push 'Useful Scripts' Python(Jython2.7) scripts bundle to IK Open Site">
+    <push-python-mxt feature="useful_scripts" />
+  </target>
+
+  <target name="extension_tester" depends="init" description="Build DEMO 'Extension Tester' Python(Jython2.7) Extension (by InfiniteKind and Stuart Beesley)">
+    <build-python-mxt
+            feature="extension_tester"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_false"
+            precompile-python="precompile_python_false"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_true"
+            include-dict-files-in-zip="include_dict_files_in_zip_true"
+    />
+  </target>
+
+  <target name="push_extension_tester" depends="init" description="Push 'Extension Tester' Python(Jython2.7) DEMO Extension to IK Open Site">
+    <push-python-mxt feature="extension_tester" />
+    <delete file="${push-dir}/extension_tester/install-readme.txt" verbose="false" failonerror="false" />
+  </target>
+
+</project>
