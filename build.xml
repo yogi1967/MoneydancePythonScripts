@@ -7,7 +7,7 @@ http://jakarta.apache.org/ant/index.html
 ###############################################################################
 -->
 
-<project name="my_python_scripts" default="all_python" basedir=".">
+<project name="my_python_scripts" default="build_all_python" basedir=".">
   <property name="version"  value="1.0"/>
   <property name="user-config-dir" value="./user"/>
   <property file="${user-config-dir}/${os.name}.properties"/>   <!-- Os specific properties - normally empty -->
@@ -55,15 +55,15 @@ http://jakarta.apache.org/ant/index.html
     <pathelement path="${lib}/mdpython.jar"/>             <!-- Used for Python pre-compile -->
   </path>
 
-  <target name="all_python"
+  <target name="build_all_python"
           description="build all python extensions"
           depends="init,toolbox,extract_data,list_future_reminders,net_account_balances,extension_tester,accounts_categories_mega_search_window,security_performance_graph,stutilities,useful_scripts"/>
 
   <target name="push_all_python"
           description="push all python extensions to the IK Open site"
-          depends="init,push_toolbox,push_extract_data,push_list_future_reminders,push_net_account_balances,push_extension_tester,push_accounts_categories_mega_search_window,push_security_performance_graph,push_stutilities,push_useful_scripts"/>
+          depends="init,build_all_python,push_toolbox,push_extract_data,push_list_future_reminders,push_net_account_balances,push_extension_tester,push_accounts_categories_mega_search_window,push_security_performance_graph,push_stutilities,push_useful_scripts"/>
 
-  <target name="all_java"
+  <target name="build_all_java"
           description="build all java extensions"
           depends="therearenojavaextnsyet"/>
 
@@ -604,7 +604,7 @@ http://jakarta.apache.org/ant/index.html
 
   </target>
 
-  <target name="push_toolbox" depends="init" description="Push 'Toolbox' Python(Jython2.7) Extension to IK Open Site">
+  <target name="push_toolbox" depends="init,toolbox" description="Push 'Toolbox' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt feature="toolbox" />
     <delete file="${push-dir}/toolbox/toolbox_version_requirements.dict" verbose="false" failonerror="false" />
   </target>
@@ -620,7 +620,7 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
-  <target name="push_extract_data" depends="init" description="Push 'Extract Data' Python(Jython2.7) Extension to IK Open Site">
+  <target name="push_extract_data" depends="init,extract_data" description="Push 'Extract Data' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt feature="extract_data" />
   </target>
 
@@ -635,7 +635,7 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
-  <target name="push_list_future_reminders" depends="init" description="Push 'List Future Reminders' Python(Jython2.7) Extension to IK Open Site">
+  <target name="push_list_future_reminders" depends="init,list_future_reminders" description="Push 'List Future Reminders' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt feature="list_future_reminders" />
   </target>
 
@@ -650,7 +650,7 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
-  <target name="push_net_account_balances" depends="init" description="Push 'Custom Balances' Python(Jython2.7) Extension to IK Open Site">
+  <target name="push_net_account_balances" depends="init,net_account_balances" description="Push 'Custom Balances' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt feature="net_account_balances" />
   </target>
 
@@ -665,7 +665,7 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
-  <target name="push_security_performance_graph" depends="init" description="Push 'Security Performance Graph' Python(Jython2.7) Extension to IK Open Site">
+  <target name="push_security_performance_graph" depends="init,security_performance_graph" description="Push 'Security Performance Graph' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt feature="security_performance_graph" />
   </target>
 
@@ -680,7 +680,7 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
-  <target name="push_accounts_categories_mega_search_window" depends="init" description="Push 'Accounts Categories Mega Search Window' Python(Jython2.7) Extension to IK Open Site">
+  <target name="push_accounts_categories_mega_search_window" depends="init,accounts_categories_mega_search_window" description="Push 'Accounts Categories Mega Search Window' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt feature="accounts_categories_mega_search_window" />
   </target>
 
@@ -695,7 +695,7 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
-  <target name="push_stutilities" depends="init" description="Push 'StUtilities' Python(Jython2.7) Extension to IK Open Site">
+  <target name="push_stutilities" depends="init,stutilities" description="Push 'StUtilities' Python(Jython2.7) Extension to IK Open Site">
 <!--    <push-python-mxt feature="stutilities" />-->
   </target>
 
@@ -705,7 +705,7 @@ http://jakarta.apache.org/ant/index.html
     </antcall>
   </target>
 
-  <target name="push_useful_scripts" depends="init" description="Push 'Useful Scripts' Python(Jython2.7) scripts bundle to IK Open Site">
+  <target name="push_useful_scripts" depends="init,useful_scripts" description="Push 'Useful Scripts' Python(Jython2.7) scripts bundle to IK Open Site">
     <push-python-mxt feature="useful_scripts" />
   </target>
 
@@ -720,7 +720,7 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
-  <target name="push_extension_tester" depends="init" description="Push 'Extension Tester' Python(Jython2.7) DEMO Extension to IK Open Site">
+  <target name="push_extension_tester" depends="init,extension_tester" description="Push 'Extension Tester' Python(Jython2.7) DEMO Extension to IK Open Site">
     <push-python-mxt feature="extension_tester" />
     <delete file="${push-dir}/extension_tester/install-readme.txt" verbose="false" failonerror="false" />
   </target>
