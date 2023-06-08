@@ -130,6 +130,10 @@
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
+# todo add colors to value using html codes
+# todo add print option
+# todo ability to control decimal point? Perhaps per row, not global?
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -10107,7 +10111,6 @@ Visit: %s (Author's site)
             g2d.setStroke(self.underlineStroke)
             g2d.draw(line)
 
-
     class TextDisplayForSwingConfig:
         WIDGET_ROW_BLANKZERO = "<#bz>"
         WIDGET_ROW_BLANKROWNAME = "<#brn>"
@@ -11424,10 +11427,12 @@ Visit: %s (Author's site)
                 myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
                 super(self.__class__, self).updateUI()
 
+
+
+
         # Sets the view as active or inactive. When not active, a view should not have any registered listeners
         # with other parts of the program. This will be called when an view is added to the home page,
         # or the home page is refreshed after not being visible for a while.
-
 
         def setActive(self, active):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -11466,8 +11471,6 @@ Visit: %s (Author's site)
                 self.refresher.enqueueRefresh()
             else:
                 myPrint("DB", "... refresher is None - just returning without refresh...")
-
-
 
         def reallyRefresh(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -11557,7 +11560,6 @@ Visit: %s (Author's site)
                 sw = self.BuildHomePageWidgetSwingWorker(pleaseWaitLabel, self)
                 sw.execute()
 
-
         # Called when the view should clean up everything. For example, this is called when a file is closed and the GUI
         #  is reset. The view should disconnect from any resources that are associated with the currently opened data file.
         def reset(self):
@@ -11565,7 +11567,6 @@ Visit: %s (Author's site)
             myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
             myPrint("DB", ".... .reset() (as of build 1020) doing nothing")
-
 
         def unload(self):   # This is my own method (not overridden from HomePageView)
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
