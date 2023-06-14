@@ -1,7 +1,8 @@
 #!/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_zap_mdplus_default_memo_fields.py build: 1000 - May 2023 - Stuart Beesley StuWareSoftSystems
+# toolbox_zap_mdplus_ofx_default_memo_fields.py build: 1001 - June 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -29,8 +30,9 @@
 # Called by the Toolbox extension
 
 # build: 1000 - Initial Release.
+# build: 1001 - Renamed to toolbox_zap_mdplus_ofx_default_memo_fields.py - now fixes OFX too...
 
-# Iterates last two months downloaded transactions across Bank, Credit Card, Investment accounts and zaps the Memo field
+# Iterates last four years' downloaded transactions across Bank, Credit Card, Investment accounts and zaps the Memo field
 # if it exactly matches the hidden downloaded memo field contents...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -38,8 +40,8 @@
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
 # SET THESE LINES
-myModuleID = u"toolbox_zap_mdplus_default_memo_fields"
-version_build = "1000"
+myModuleID = u"toolbox_zap_mdplus_ofx_default_memo_fields"
+version_build = "1001"
 MIN_BUILD_REQD = 4040                 # 2022.2 MD+ builds
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -47,7 +49,7 @@ if u"debug" in globals():
     global debug
 else:
     debug = False
-global toolbox_zap_mdplus_default_memo_fields_frame_
+global toolbox_zap_mdplus_ofx_default_memo_fields_frame_
 # SET LINES ABOVE ^^^^
 
 # COPY >> START
@@ -155,10 +157,10 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and (isinstance(toolbox_zap_mdplus_default_memo_fields_frame_, MyJFrame)                 # EDIT THIS
-                 or type(toolbox_zap_mdplus_default_memo_fields_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
-            and toolbox_zap_mdplus_default_memo_fields_frame_.isActiveInMoneydance):                 # EDIT THIS
-        frameToResurrect = toolbox_zap_mdplus_default_memo_fields_frame_                             # EDIT THIS
+            and (isinstance(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, MyJFrame)                 # EDIT THIS
+                 or type(toolbox_zap_mdplus_ofx_default_memo_fields_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
+            and toolbox_zap_mdplus_ofx_default_memo_fields_frame_.isActiveInMoneydance):                 # EDIT THIS
+        frameToResurrect = toolbox_zap_mdplus_ofx_default_memo_fields_frame_                             # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
@@ -241,6 +243,7 @@ else:
     from com.infinitekind.moneydance.model import *
     from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType, CurrencyUtil
     from com.infinitekind.moneydance.model import Account, Reminder, ParentTxn, SplitTxn, TxnSearch, InvestUtil, TxnUtil
+    from com.infinitekind.moneydance.model import AbstractTxn
 
     from com.moneydance.apps.md.controller import AccountBookWrapper
     from com.infinitekind.moneydance.model import AccountBook
@@ -2948,7 +2951,7 @@ Visit: %s (Author's site)
             raise QuickAbortThisScriptException
 
         lDetectedBuddyRunning = False
-        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions", u"toolbox_zap_mdplus_default_memo_fields"]:
+        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions", u"toolbox_zap_mdplus_ofx_default_memo_fields"]:
             if getMyJFrame(checkFr) is not None:
                 lDetectedBuddyRunning = True
 
@@ -2956,20 +2959,20 @@ Visit: %s (Author's site)
             def __init__(self): pass
 
             def run(self):                                                                                              # noqa
-                global toolbox_zap_mdplus_default_memo_fields_frame_    # global as defined here
+                global toolbox_zap_mdplus_ofx_default_memo_fields_frame_    # global as defined here
 
                 myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
                 myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-                toolbox_zap_mdplus_default_memo_fields_frame_ = MyJFrame()
-                toolbox_zap_mdplus_default_memo_fields_frame_.setName(u"%s_main" %(myModuleID))
+                toolbox_zap_mdplus_ofx_default_memo_fields_frame_ = MyJFrame()
+                toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setName(u"%s_main" %(myModuleID))
                 if (not Platform.isMac()):
                     MD_REF.getUI().getImages()
-                    toolbox_zap_mdplus_default_memo_fields_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
-                toolbox_zap_mdplus_default_memo_fields_frame_.setVisible(False)
-                toolbox_zap_mdplus_default_memo_fields_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+                    toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
+                toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setVisible(False)
+                toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
 
-                myPrint("DB","Main JFrame %s for application created.." %(toolbox_zap_mdplus_default_memo_fields_frame_.getName()))
+                myPrint("DB","Main JFrame %s for application created.." %(toolbox_zap_mdplus_ofx_default_memo_fields_frame_.getName()))
 
         if not SwingUtilities.isEventDispatchThread():
             myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")
@@ -2988,7 +2991,7 @@ Visit: %s (Author's site)
         elif lDetectedBuddyRunning:
             # This (hopefully) means it's been called from the extensions menu as a 'buddy' extension to Toolbox. Both running will overwrite common variables
             msg = "Sorry. Only one of the Toolbox Extension menu scripts can run at once.. Shutting all down. Please try again"
-            myPopupInformationBox(toolbox_zap_mdplus_default_memo_fields_frame_, msg, "ALERT: Toolbox is running", JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, msg, "ALERT: Toolbox is running", JOptionPane.WARNING_MESSAGE)
             myPrint("B", msg)
             destroyOldFrames(u"toolbox")
             raise QuickAbortThisScriptException
@@ -3012,12 +3015,12 @@ Visit: %s (Author's site)
         if isinstance(book, AccountBook): pass
         ct = book.getCurrencies()
 
-        __THIS_METHOD_NAME = "Zap md+ (default) memo fields:"
+        __THIS_METHOD_NAME = "Zap ofx/md+ (default) memo fields:"
 
         myPrint("B", ">> '%s' feature activated...." %(myModuleID))
 
         _msgPad = 100
-        diag = MyPopUpDialogBox(toolbox_zap_mdplus_default_memo_fields_frame_,
+        diag = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
                                       "Please wait: processing..",
                                       theTitle=__THIS_METHOD_NAME.upper(),
                                       lModal=False,
@@ -3025,22 +3028,34 @@ Visit: %s (Author's site)
         diag.go()
 
         try:
-            ORIG_MEMO_TAG = OnlineTxnMerger.ORIG_MEMO_TAG
 
-            lookbackMonths = 36
+            LS_LOOKBACK_KEY = "toolbox_zap_mdplus_ofx_default_memo_fields_lookback_months"
+            localStorage = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
+            lookbackMonths = localStorage.getInt(LS_LOOKBACK_KEY, 300)
+
+            ORIG_MEMO_TAG = OnlineTxnMerger.ORIG_MEMO_TAG
+            OL_MATCH_STATUS_TAG = AbstractTxn.TAG_IS_NEW_TXN
+
             startDate = DateUtil.incrementDate(DateUtil.convertDateToInt(DateUtil.firstDayInMonth(DateUtil.getStrippedDateObj())), 0, -lookbackMonths, 0)
             endDate = DateUtil.getStrippedDateInt()
             dateRange = DateRange(Integer(startDate), Integer(endDate))
-            myPrint("DB", "Start: %s(%s), End: %s(%s), Date Range: '%s'" %(startDate, type(startDate), endDate, type(endDate), dateRange))
+
+            dateTxt = "%s Date range: Start: %s, End: %s (%s months)" %(__THIS_METHOD_NAME,
+                                                                        convertStrippedIntDateFormattedText(startDate),
+                                                                        convertStrippedIntDateFormattedText(endDate),
+                                                                        lookbackMonths)
+            myPrint("B", dateTxt)
 
             allActiveAccounts = sorted(AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), AcctFilter.ACTIVE_ACCOUNTS_FILTER), key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().lower()))
 
             txnsWithMemos = []
             accountsInvolved = {}
 
-            outputTxt = "Transactions where the Memo field matches the md+ downloaded Memo field:\n" \
-                        "------------------------------------------------------------------------\n\n" \
+            outputTxt = "Transactions where the Memo field matches the ofx/md+ downloaded Memo field:\n" \
+                        "----------------------------------------------------------------------------\n\n" \
                         "CANDIDATES TO ZAP THE VISIBLE MEMO FIELD:\n\n"
+
+            outputTxt += "%s\n\n" %(dateTxt)
 
             iCountPotentialDescMemoSwaps = 0
 
@@ -3065,19 +3080,37 @@ Visit: %s (Author's site)
 
                     fiid = txn.getFIID()
                     if fiid is None: continue
-                    if "mdplus:" not in fiid: continue
+
+                    isOFX = "ofx:" in fiid
+                    isMDP = "mdplus:" in fiid
+                    if not isOFX and not isMDP: continue
+
+                    # Ignore non-cleared txns and NEW'ly (downloaded) txns...
+                    if txn.getClearedStatus() != AbstractTxn.ClearedStatus.CLEARED: continue                            # noqa
+                    if txn.getBooleanParameter(OL_MATCH_STATUS_TAG, False): continue
 
                     olMemo = txn.getParameter(ORIG_MEMO_TAG, "").strip().lower()
                     if olMemo == "": continue
 
                     txnMemo = txn.getMemo().strip().lower()
+                    txnDesc = txn.getDescription().strip().lower() if isOFX else ""
+
+                    olTypeTxt = "OFX" if isOFX else "MD+"
+
+                    # The fix is slightly different for MD+ and OFX. With MD+ the Memo is usually 'junk' / irrelevent
+                    # .. but for OFX, only remove Memo if identical to Description...
 
                     if txnMemo != olMemo:
-                        myPrint("DB", "... ignoring memo(s) as olMemo:'%s' != txnMemo:'%s'..." %(olMemo, txnMemo))
+                        myPrint("DB", "... ignoring %s memo(s) as olMemo:'%s' != txnMemo:'%s'..." %(olTypeTxt, olMemo, txnMemo))
                         continue
 
-                    myPrint("DB", "... Found txn dated: %s Desc: '%s' amount: %s with matching memo(s): '%s'..."
-                            %(txn.getDateInt(), txn.getDescription(), txn.getValue(), txnMemo))
+                    if isOFX:
+                        if txnDesc == "" or txnDesc != txnMemo:
+                            myPrint("DB", "...... ignoring %s memo(s) as txnMemo:'%s' != txnDesc:'%s'..." %(olTypeTxt, txnMemo, txnDesc))
+                            continue
+
+                    myPrint("DB", "... Found %s txn dated: %s Desc: '%s' amount: %s with matching memo(s): '%s'..."
+                            %(olTypeTxt, txn.getDateInt(), txn.getDescription(), txn.getValue(), txnMemo))
 
                     txnsWithMemos.append(txn)
                     accountsInvolved[acct] = 1
@@ -3088,10 +3121,10 @@ Visit: %s (Author's site)
         finally: diag.kill()
 
         if len(txnsWithMemos) < 1:
-            popupTxt = "Did not find any txns with default md+ memo fields to zap... quitting..."
+            popupTxt = "Did not find any txns with default ofx/md+ memo fields to zap... quitting..."
             _txt = "@@ %s: %s @@" %(myModuleID, popupTxt)
             myPrint("B", _txt)
-            myPopupInformationBox(toolbox_zap_mdplus_default_memo_fields_frame_, popupTxt, "Zap md+ Memo fields", JOptionPane.INFORMATION_MESSAGE)
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, popupTxt, "Zap ofx/md+ Memo fields", JOptionPane.INFORMATION_MESSAGE)
             MD_REF.getUI().setStatus(_txt, 0)
             raise QuickAbortThisScriptException
 
@@ -3103,9 +3136,10 @@ Visit: %s (Author's site)
         OUTPUT_DESC_LENGTH = 60
         OUTPUT_MEMO_LENGTH = 100
 
-        outputTxt += "%s %s %s %s %s%s %s %s\n" \
-                     "%s %s %s %s %s%s %s %s\n" \
-                  %(pad("Account Type:", 13),
+        outputTxt += "%s %s %s %s %s %s%s %s %s\n" \
+                     "%s %s %s %s %s %s%s %s %s\n" \
+                  %(pad("ol:", 3),
+                    pad("Account Type:", 13),
                     pad("Account Name:", 26),
                     pad("Curr:", 5),
                     pad("Txn Date:", 10),
@@ -3113,6 +3147,7 @@ Visit: %s (Author's site)
                     pad("Txn Description:", OUTPUT_DESC_LENGTH),
                     pad("Txn Memo:", OUTPUT_MEMO_LENGTH),
                     rpad("Txn Value:",15),
+                    pad("", 3, padChar="-"),
                     pad("", 13, padChar="-"),
                     pad("", 26, padChar="-"),
                     pad("", 5, padChar="-"),
@@ -3123,8 +3158,16 @@ Visit: %s (Author's site)
                     rpad("",15, padChar="-"))
 
         for txn in txnsWithMemos:
-            lPotentialDescMemoSwap = False
             if isinstance(txn, ParentTxn): pass
+
+            lPotentialDescMemoSwap = False
+
+            fiid = txn.getFIID()
+            isOFX = "ofx:" in fiid
+            isMDP = "mdplus:" in fiid
+            if not isOFX and not isMDP: raise Exception("LOGIC ERROR! not ofx and not md+ !?")
+            olTypeTxt = "OFX" if isOFX else "MD+"
+
             pTxn = txn.getParentTxn()
             pAcct = pTxn.getAccount()
             pAcctCurr = pAcct.getCurrencyType()
@@ -3133,8 +3176,9 @@ Visit: %s (Author's site)
             #     lPotentialDescMemoSwap = True
             #     iCountPotentialDescMemoSwaps += 1
 
-            outputTxt += "%s %s %s %s %s%s %s %s\n" \
-                      %(pad(pAcct.getAccountType(), 13),
+            outputTxt += "%s %s %s %s %s %s%s %s %s\n" \
+                      %(pad(olTypeTxt, 3),
+                        pad(pAcct.getAccountType(), 13),
                         padTruncateWithDots(pAcct.getAccountName(), 26),
                         padTruncateWithDots(pAcctCurr.getIDString(), 5),
                         pad(convertStrippedIntDateFormattedText(pTxn.getDateInt()), 10),
@@ -3143,7 +3187,7 @@ Visit: %s (Author's site)
                         padTruncateWithDots(pTxn.getMemo(), OUTPUT_MEMO_LENGTH),
                         rpad(pAcctCurr.formatFancy(pTxn.getValue(), MD_decimal),15))
 
-        msgTxt = "Found %s accounts with %s (default) memo field md+ txns that can be zapped..." %(len(accountsInvolved), len(txnsWithMemos))
+        msgTxt = "Found %s accounts with %s ofx/md+ txns where (default) memo field(s) can be blanked out..." %(len(accountsInvolved), len(txnsWithMemos))
         myPrint("B", msgTxt)
 
         outputTxt += "\n" \
@@ -3163,7 +3207,7 @@ Visit: %s (Author's site)
         #                   lAutoSize=True).show_the_frame()
         #
 
-        ask = MyPopUpDialogBox(toolbox_zap_mdplus_default_memo_fields_frame_,
+        ask = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
                                theStatus=msgTxt,
                                theMessage=outputTxt,
                                theTitle=__THIS_METHOD_NAME.upper(),
@@ -3173,23 +3217,23 @@ Visit: %s (Author's site)
         if not ask.go():
             _txt = "%s: no changes made" %(__THIS_METHOD_NAME)
             myPrint("B", _txt)
-            myPopupInformationBox(toolbox_zap_mdplus_default_memo_fields_frame_, _txt, __THIS_METHOD_NAME.upper())
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, _txt, __THIS_METHOD_NAME.upper())
             raise QuickAbortThisScriptException
 
-        # if not myPopupAskQuestion(toolbox_zap_mdplus_default_memo_fields_frame_,
-        #                           "Zap md+ default memo fields",
-        #                           "Zap %s md+ txn default memo fields (over %s accounts) - PROCEED?" %(len(txnsWithMemos), len(accountsInvolved))):
+        # if not myPopupAskQuestion(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
+        #                           "Zap ofx/md+ default memo fields",
+        #                           "Zap %s ofx/md+ txn default memo fields (over %s accounts) - PROCEED?" %(len(txnsWithMemos), len(accountsInvolved))):
         #     myPrint("B", "USER ABORTED")
         #     raise QuickAbortThisScriptException
 
         try:
 
-            myPrint("B", "PROCEEDING TO ZAP md+ (default) Memo fields...")
+            myPrint("B", "PROCEEDING TO ZAP ofx/md+ (default) Memo fields...")
 
             _msgPad = 100
-            diag = MyPopUpDialogBox(toolbox_zap_mdplus_default_memo_fields_frame_,
+            diag = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
                                           "Please wait: processing..",
-                                          theTitle="Zapping md+ (default) memo fields....",
+                                          theTitle="Zapping ofx/md+ (default) memo fields....",
                                           lModal=False,
                                           OKButtonText="WAIT")
             diag.go()
@@ -3227,10 +3271,13 @@ Visit: %s (Author's site)
 
         finally: diag.kill()
 
-        popupTxt = "Zapped (default) memo field on %s md+ txns (involving %s accts)%s" %(len(txnsWithMemos), len(accountsInvolved), " (undo enabled)" if (undo) else "")
+        if len(txnsWithMemos) > 0:
+            localStorage.put(LS_LOOKBACK_KEY, 36)
+
+        popupTxt = "Zapped (default) memo field on %s ofx/md+ txns (involving %s accts)%s" %(len(txnsWithMemos), len(accountsInvolved), " (undo enabled)" if (undo) else "")
         _txt = "@@ %s: %s @@" %(myModuleID, popupTxt)
         myPrint("B", _txt)
-        myPopupInformationBox(toolbox_zap_mdplus_default_memo_fields_frame_, popupTxt, "Zapping of md+ (default) memo fields complete", JOptionPane.INFORMATION_MESSAGE)
+        myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, popupTxt, "Zapping of ofx/md+ (default) memo fields complete", JOptionPane.INFORMATION_MESSAGE)
         MD_REF.getUI().setStatus(_txt, 0)
 
         myPrint("B","FINISHED....")
