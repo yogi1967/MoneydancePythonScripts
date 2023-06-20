@@ -30,7 +30,7 @@
 # Parameter: datasetname          will open the specified dataset - specify the full path wrapped in "quotes"
 # Parameter: pythonscriptname.py  adds script to a list of scripts to execute (but this seems to then be ignored)
 # Parameter: importfilename       executes file import (mutually exclusive to datasetname option)
-# Parameter: '-invoke_and_quit=x' will pass along a string that you can to invoke an 'fmodule' (extension) and quit (not showing UI)
+# Parameter: '-invoke_and_quit=x' will pass along a string that you can use to invoke an 'fmodule' (extension) and quit (not showing UI)
 #                                 executes Main.showURL(invokeAndQuitURI)
 #                                 e.g. 'moneydance:fmodule:test:test:customevent:magic'
 #                                 (e.g. my own extension with an id of test defines it's own command called 'test:customevent:magic'
