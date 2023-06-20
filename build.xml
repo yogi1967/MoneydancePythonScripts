@@ -41,6 +41,9 @@ http://jakarta.apache.org/ant/index.html
 
   <property name="useful-scripts-dir"  value="${python-src}/useful_scripts"/>
 
+  <property name="OWN_JAVA_JAR" value="stuwaresoftsystems_commoncode.jar"/>
+  <property name="OWN_JAVA_PACKAGE_NAME" value="StuWareSoftSystems_CommonCode"/>
+
   <property name="python-executable" value="python2.7"/>  <!-- Need to use correct version if running ANT on Windows and Linux etc -->
 
   <path id="classpath">
@@ -150,6 +153,7 @@ http://jakarta.apache.org/ant/index.html
       <attribute name="include-dict-files-in-zip" default="include_dict_files_in_zip_false"/>
       <attribute name="include-py-files-in-zip" default="include_py_files_in_zip_false"/>
       <attribute name="create-zip-bundle-too" default="create_zip_bundle_too_false"/>
+      <attribute name="bundle-own-java-too" default="bundle_own_java_too_false"/>
 
       <sequential>
         <echo level="info" message="BUILD of '@{feature}' Python extension started..." />
@@ -167,6 +171,11 @@ http://jakarta.apache.org/ant/index.html
       	<antcall target="pre-compile-python" inheritall="true" inheritrefs="true">
       	  <param name="feature" value="@{feature}" />
       	  <param name="precompile_python" value="@{precompile-python}" />
+      	</antcall>
+
+      	<antcall target="bundle-own-java" inheritall="true" inheritrefs="true">
+      	  <param name="feature" value="@{feature}" />
+      	  <param name="bundle_own_java" value="@{bundle-own-java-too}" />
       	</antcall>
 
       	<antcall target="package-python-mxt" inheritall="true" inheritrefs="true">
@@ -197,6 +206,7 @@ http://jakarta.apache.org/ant/index.html
     <macrodef name="push-python-mxt"
               description="macro to push python-based mxt extension files over to IK Open site">
       <attribute name="feature"/> <!-- name of the mxt file -->
+      <attribute name="bundle-java" default="NOT SET"/>
 
       <sequential>
         <echo level="info" message="PUSH of '@{feature}' Python extension started..." />
@@ -217,6 +227,7 @@ http://jakarta.apache.org/ant/index.html
             <include name="*.txt" />
             <include name="*.dict" />
             <include name="*.pdf" />
+            <include name="*.png" />
           </fileset>
         </copy>
 
@@ -224,6 +235,13 @@ http://jakarta.apache.org/ant/index.html
                 todir="${push-dir}/@{feature}">
           <fileset dir="${python-src}">
              <include name="install-readme.txt" />
+          </fileset>
+        </copy>
+
+        <copy preservelastmodified="true"
+                todir="${push-dir}/@{feature}">
+          <fileset dir="${java-src}">
+             <include name="@{bundle-java}.java" />
           </fileset>
         </copy>
 
@@ -263,6 +281,7 @@ http://jakarta.apache.org/ant/index.html
     <property name="include_dict_files_in_zip_true" value="true"/>
     <property name="include_py_files_in_zip_true" value="true"/>
     <property name="create_zip_bundle_too_true" value="true"/>
+    <property name="bundle_own_java_too_true" value="true"/>
     <property name="toolbox" value="true"/>
 
 
@@ -395,8 +414,41 @@ http://jakarta.apache.org/ant/index.html
 
     <listzipcontents file="${dist}/${feature}.mxt"/>
 
+    <delete>
+      <fileset dir="${python-src}/${feature}" includes="${OWN_JAVA_PACKAGE_NAME}**"/>
+    </delete>
+
     <echo level="info" message="Packaging python files into an extension mxt file - COMPLETED" />
   </target>
+
+  <target name="bundle-own-java"
+          if="${bundle_own_java}">
+    <fail unless="init-has-executed" message="Please do not call this target directly!" />
+
+    <echo level="info" message="Compiling own (bundled) jar file with common code..." />
+
+    <javac target="${javac-target}" bootclasspath="${bootclasspath}" source="${javac-source}" srcdir="${java-src}" debug="${debug}" optimize="${optimize}"
+      classpathref="classpath"  destdir="${build}"
+      includeAntRuntime="false" />
+
+    <echo level="info" message="Building own (bundled) jar file containing common code..." />
+
+    <jar destfile="${build}/${OWN_JAVA_JAR}">
+        <fileset dir="${build}"
+                 includes="${OWN_JAVA_PACKAGE_NAME}**"/>
+        <fileset dir="${java-src}"
+                 includes="${OWN_JAVA_PACKAGE_NAME}**"/>
+    </jar>
+
+    <copy preservelastmodified="true"
+          todir="${python-src}/${feature}">
+      <fileset dir="${build}">
+         <include name="${OWN_JAVA_PACKAGE_NAME}**" />
+      </fileset>
+    </copy>
+
+  </target>
+
 
   <target name="copy-install-readme">
     <fail unless="init-has-executed" message="Please do not call this target directly!" />
@@ -600,12 +652,14 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_false"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
 
   </target>
 
   <target name="push_toolbox" depends="init,toolbox" description="Push 'Toolbox' Python(Jython2.7) Extension to IK Open Site">
-    <push-python-mxt feature="toolbox" />
+    <push-python-mxt
+            feature="toolbox" />
     <delete file="${push-dir}/toolbox/toolbox_version_requirements.dict" verbose="false" failonerror="false" />
   </target>
 
@@ -617,11 +671,13 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_true"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
   </target>
 
   <target name="push_extract_data" depends="init,extract_data" description="Push 'Extract Data' Python(Jython2.7) Extension to IK Open Site">
-    <push-python-mxt feature="extract_data" />
+    <push-python-mxt
+            feature="extract_data" />
   </target>
 
   <target name="list_future_reminders" depends="init" description="Build 'List Future Reminders' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
@@ -632,11 +688,13 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_true"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
   </target>
 
   <target name="push_list_future_reminders" depends="init,list_future_reminders" description="Push 'List Future Reminders' Python(Jython2.7) Extension to IK Open Site">
-    <push-python-mxt feature="list_future_reminders" />
+    <push-python-mxt
+            feature="list_future_reminders" />
   </target>
 
   <target name="net_account_balances" depends="init" description="Build 'Custom Balances' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
@@ -647,11 +705,15 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_false"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_true"
     />
   </target>
 
   <target name="push_net_account_balances" depends="init,net_account_balances" description="Push 'Custom Balances' Python(Jython2.7) Extension to IK Open Site">
-    <push-python-mxt feature="net_account_balances" />
+    <push-python-mxt
+            feature="net_account_balances"
+            bundle-java="${OWN_JAVA_PACKAGE_NAME}"
+    />
   </target>
 
   <target name="security_performance_graph" depends="init" description="Build 'Security Performance Graph' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
@@ -662,11 +724,13 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_true"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
   </target>
 
   <target name="push_security_performance_graph" depends="init,security_performance_graph" description="Push 'Security Performance Graph' Python(Jython2.7) Extension to IK Open Site">
-    <push-python-mxt feature="security_performance_graph" />
+    <push-python-mxt
+            feature="security_performance_graph" />
   </target>
 
   <target name="accounts_categories_mega_search_window" depends="init" description="Build 'Accounts Categories Mega Search Window' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
@@ -677,11 +741,13 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_false"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
   </target>
 
   <target name="push_accounts_categories_mega_search_window" depends="init,accounts_categories_mega_search_window" description="Push 'Accounts Categories Mega Search Window' Python(Jython2.7) Extension to IK Open Site">
-    <push-python-mxt feature="accounts_categories_mega_search_window" />
+    <push-python-mxt
+            feature="accounts_categories_mega_search_window" />
   </target>
 
   <target name="stutilities" depends="init" description="Build (PRIVATE) 'StUtilities' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
@@ -692,6 +758,7 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_false"
             include-py-files-in-zip="include_py_files_in_zip_false"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
   </target>
 
@@ -706,7 +773,8 @@ http://jakarta.apache.org/ant/index.html
   </target>
 
   <target name="push_useful_scripts" depends="init,useful_scripts" description="Push 'Useful Scripts' Python(Jython2.7) scripts bundle to IK Open Site">
-    <push-python-mxt feature="useful_scripts" />
+    <push-python-mxt
+            feature="useful_scripts" />
   </target>
 
   <target name="extension_tester" depends="init" description="Build DEMO 'Extension Tester' Python(Jython2.7) Extension (by InfiniteKind and Stuart Beesley)">
@@ -717,11 +785,13 @@ http://jakarta.apache.org/ant/index.html
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_true"
             include-dict-files-in-zip="include_dict_files_in_zip_true"
+            bundle-own-java-too="bundle_own_java_too_false"
     />
   </target>
 
   <target name="push_extension_tester" depends="init,extension_tester" description="Push 'Extension Tester' Python(Jython2.7) DEMO Extension to IK Open Site">
-    <push-python-mxt feature="extension_tester" />
+    <push-python-mxt
+            feature="extension_tester" />
     <delete file="${push-dir}/extension_tester/install-readme.txt" verbose="false" failonerror="false" />
   </target>
 
