@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1028 - June 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1029 - June 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -131,7 +131,8 @@
 # build: 1027 - Changed hiding of decimals/no hiding of decimals on row...
 #               Tweaked popup help/info screen dimensions...
 #               Added Print widget option... Also now bundle own java class to support .print() etc...
-# build: 1028 - contains 1027 sent for sigining...
+# build: 1028 - contains 1027 sent for signing...
+# build: 1029 - Added Page Setup to menu...
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -141,7 +142,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1028"
+version_build = "1029"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -4830,13 +4831,10 @@ Visit: %s (Author's site)
 
     def isSwingComponentInvalid(swComponent):
 
-        if debug:
-            myPrint("B", "isSwingComponentInvalid(), swComponent is None: %s, !isVisible(): %s, !isValid(): %s, !isDisplayable(): %s, getWindowAncestor() is None: %s"
-                    % (swComponent is None, not swComponent.isVisible(), not swComponent.isValid(), not swComponent.isDisplayable(), SwingUtilities.getWindowAncestor(swComponent) is None))
+        # if debug:
+        #     myPrint("B", "isSwingComponentInvalid(), swComponent is None: %s, !isVisible(): %s, !isValid(): %s, !isDisplayable(): %s, getWindowAncestor() is None: %s"
+        #             % (swComponent is None, not swComponent.isVisible(), not swComponent.isValid(), not swComponent.isDisplayable(), SwingUtilities.getWindowAncestor(swComponent) is None))
 
-        # return (swComponent is None
-        #         or not swComponent.isVisible() or not swComponent.isValid() or not swComponent.isDisplayable()
-        #         or SwingUtilities.getWindowAncestor(swComponent) is None)
         return (swComponent is None
                 or not swComponent.isVisible() or not swComponent.isDisplayable() or SwingUtilities.getWindowAncestor(swComponent) is None)
 
@@ -8011,6 +8009,11 @@ Visit: %s (Author's site)
                     NAB.jlst.clearSelection()
 
                 # ######################################################################################################
+                if event.getActionCommand().lower().startswith("page setup"):
+                    myPrint("DB", "... performing printer page setup routines")
+                    pageSetup()
+
+                # ######################################################################################################
                 if event.getActionCommand().lower().startswith("store"):
                     myPrint("DB", "...storing account list selection into memory...")
                     NAB.migratedParameters = False
@@ -8646,6 +8649,11 @@ Visit: %s (Author's site)
             NAB.menuItemShowPrintIcon.addActionListener(NAB.saveActionListener)
             NAB.menuItemShowPrintIcon.setToolTipText("Enables / shows the print icon on the home screen widget...")
             menuO.add(NAB.menuItemShowPrintIcon)
+
+            menuItemPS = MyJMenuItem("Page Setup")
+            menuItemPS.setToolTipText("Printer Page Setup....")
+            menuItemPS.addActionListener(NAB.saveActionListener)
+            menuO.add(menuItemPS)
 
             menuItemBackup = MyJMenuItem("Backup Config")
             menuItemBackup.setMnemonic(KeyEvent.VK_B)
