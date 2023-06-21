@@ -91,13 +91,13 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1058 - 1st April 2023) (MD2023 support...)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1059 - 20th June 2023) (MD2023 support...; tweaks / fixes)
 - <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1031 - 1st April 2023) (MD2023 support...)
 - <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1023 - 1st April 2022) (MD2023 support...)
-- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1021 - 1st April 2023) (MD2023 support...)
+- <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1028 - 20th June 2023) (MD2023 support...; New row formatting options (inc. html); Print widget feature)
 
 ### Signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - may be newer than appear (or not available) in Moneydance's Extensions menu)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and prior signed builds
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and previously official (IK) signed builds
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1009 - 1st April 2023) (MD2023 support...)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1006 - 1st April 2023) - (MD2023 support...)
 
@@ -143,6 +143,9 @@ for faster launch times. Some of my scripts are large and these "helpers" preven
 You don't normally need to worry about all this, but if you want to run the .py script manually (e.g. in Moneybot),
 then please ensure the .pyc file is placed in the same location as the .py script you are running.
 
+You may also find a 'StuWareSoftSystems_CommonCode.java' file along with similar named .class files. These are where I 
+have bundled a java class file to deal with .print() type java methods which Jython cannot handle due to name conflicts.
+
 As of Feb 2023 the precompiled versions (*$py.class files) are included with a bootstrap.py loader for faster
 load times (avoids initial compile on launch). If the bootstrap fails to load this, then it will just run the script...
 
@@ -171,4 +174,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 9th May 2023)_
+_(site last updated 21st June 2023)_
