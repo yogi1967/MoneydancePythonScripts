@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1024) - April 2023
+# list_future_reminders.py (build: 1026) - April 2023
 # Displays Moneydance future dated / scheduled reminders (along with options to auto-record, delete etc)
 
 ###############################################################################
@@ -72,6 +72,7 @@
 # build: 1023 - MD2023 Fixes to common code
 # build: 1024 - Fix QuickSearch() field...
 # build: 1024 - Common code tweaks...
+# build: 1026 - Added 'Extract Reminders' feature to Menu and CMD-E keystroke...
 
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
@@ -81,7 +82,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1024"
+version_build = "1026"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -421,6 +422,13 @@ else:
     GlobalVars.save_column_order_LFR = []
     GlobalVars.daysToLookForward_LFR = 365
     GlobalVars.lAllowEscapeExitApp_SWSS = True
+    GlobalVars.extractPath_LFR = ""
+
+    # These come from extract_data extension
+    GlobalVars.lStripASCII = False
+    GlobalVars.csvDelimiter = ","
+    GlobalVars.userdateformat = "%Y/%m/%d"
+    GlobalVars.lWriteBOMToExportFile_SWSS = True
 
     GlobalVars.smaller_ascendingSortIcon = None
     GlobalVars.smaller_descendingSortIcon = None
@@ -2916,6 +2924,18 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("save_column_order_LFR") is not None: GlobalVars.save_column_order_LFR = GlobalVars.parametersLoadedFromFile.get("save_column_order_LFR")
         if GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR") is not None: GlobalVars.daysToLookForward_LFR = GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR")
 
+        # These are also loaded for extract - configure via extract_data extension...
+        if GlobalVars.parametersLoadedFromFile.get("lStripASCII") is not None: GlobalVars.lStripASCII = GlobalVars.parametersLoadedFromFile.get("lStripASCII")
+        if GlobalVars.parametersLoadedFromFile.get("csvDelimiter") is not None: GlobalVars.csvDelimiter = GlobalVars.parametersLoadedFromFile.get("csvDelimiter")
+        if GlobalVars.parametersLoadedFromFile.get("userdateformat") is not None: GlobalVars.userdateformat = GlobalVars.parametersLoadedFromFile.get("userdateformat")
+        if GlobalVars.parametersLoadedFromFile.get("lWriteBOMToExportFile_SWSS") is not None: GlobalVars.lWriteBOMToExportFile_SWSS = GlobalVars.parametersLoadedFromFile.get("lWriteBOMToExportFile_SWSS")                                                                                  # noqa
+
+        if GlobalVars.parametersLoadedFromFile.get("extractPath_LFR") is not None:
+            GlobalVars.extractPath_LFR = GlobalVars.parametersLoadedFromFile.get("extractPath_LFR")
+            if not os.path.isdir(os.path.dirname(GlobalVars.extractPath_LFR)):
+                myPrint("B","@@ Warning: loaded parameter 'extractPath_LFR' does not appear to be a valid directory:", GlobalVars.extractPath_LFR, "will ignore")
+                GlobalVars.extractPath_LFR = ""
+
         myPrint("DB","parametersLoadedFromFile{} set into memory (as variables).....")
 
         return
@@ -2937,6 +2957,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["_column_widths_LFR"] = GlobalVars.save_column_widths_LFR
         GlobalVars.parametersLoadedFromFile["save_column_order_LFR"] = GlobalVars.save_column_order_LFR
         GlobalVars.parametersLoadedFromFile["daysToLookForward_LFR"] = GlobalVars.daysToLookForward_LFR
+        GlobalVars.parametersLoadedFromFile["extractPath_LFR"] = GlobalVars.extractPath_LFR
 
         myPrint("DB","variables dumped from memory back into parametersLoadedFromFile{}.....")
 
@@ -3326,6 +3347,159 @@ Visit: %s (Author's site)
         myPrint("B", ">> FINISHED skipping the next occurrence of ALL reminders - refreshing the table...")
         RefreshMenuAction().refresh()
 
+
+    class ExtractReminders(AbstractAction, Runnable):
+        def __init__(self, fromHotKey=False): self.fromHotKey = fromHotKey
+        def actionPerformed(self, event): self.go()                                                                     # noqa
+        def go(self): SwingUtilities.invokeLater(self)
+        def run(self):
+            myPrint("DB", "@@ EXTRACT REMINDERS requested.... (from Menu: %s, from HotKey: %s)" %(not self.fromHotKey, self.fromHotKey))
+            userSelectedPath = specifyExtractFileName(GlobalVars.extractPath_LFR, alwaysAsk=(not self.fromHotKey))
+            if userSelectedPath is None or userSelectedPath == "":
+                myPrint("B", "No (valid) extract path selected... Aborting extract!")
+                return
+            GlobalVars.extractPath_LFR = userSelectedPath
+            myPrint("B", "Extracting to path:", GlobalVars.extractPath_LFR)
+
+            myPrint("B", "\n"
+                         "Pre-saved file writer parameters (change using 'Extract Data' extension):\n"
+                         "... Insert Byte Order Mark (BOM) at beginning of file (Mac/UTF8):  %s\n"
+                         "... CSV field delimiter:                                          '%s'\n"
+                         "... Date format:                                                  '%s'\n"
+                         "... Strip out high byte characters (i.e. keep ASCII only):         %s\n"
+                         "" %(GlobalVars.lWriteBOMToExportFile_SWSS, GlobalVars.csvDelimiter, GlobalVars.userdateformat, GlobalVars.lStripASCII))
+
+            autoMode = self.fromHotKey
+            if autoMode: pass
+
+            # Create table...
+            tableModel = GlobalVars.saveJTable.getModel()
+            if isinstance(tableModel, DefaultTableModel): pass
+
+            if tableModel.getColumnCount() < 1 or tableModel.getRowCount() < 1:
+                txt = "ALERT: Your table seems to contain no data - no extract created"
+                myPopupInformationBox(list_future_reminders_frame_, txt, "EXTRACT REMINDERS", theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
+
+            extractTable = []
+
+            row = []
+            for i in range(1, tableModel.getColumnCount()):                 # Skip the Reminder Object itself....
+                row.append(tableModel.getColumnName(i))
+            extractTable.append(row)
+
+            for iRow in range(0, tableModel.getRowCount()):
+                row = []
+                for iCol in range(1, tableModel.getColumnCount()):          # Skip the Reminder Object itself....
+                    row.append(tableModel.getValueAt(iRow, iCol))
+                extractTable.append(row)
+
+            myPrint("B", "Extract table will contain rows: %s, cols: %s" %(len(extractTable), len(extractTable[0])))
+            if debug:
+                myPrint("B", "Extract table contains:\n", extractTable)
+
+            try:
+                if self.exportDataToFile(extractTable):
+                    myPopupInformationBox(list_future_reminders_frame_, "Extract created", "EXTRACT REMINDERS", theMessageType=JOptionPane.INFORMATION_MESSAGE)
+                    try:
+                        helper = MD_REF.getPlatformHelper()
+                        helper.openDirectory(File(GlobalVars.extractPath_LFR))
+                    except: pass
+            except:
+                myPopupInformationBox(list_future_reminders_frame_, "ERROR WHILST CREATING EXPORT! (Review Console)", "EXTRACT REMINDERS", theMessageType=JOptionPane.ERROR_MESSAGE)
+                dump_sys_error_to_md_console_and_errorlog()
+
+        def convertIntDateFormattedString(self, dateInt, formatStr):
+            if dateInt == 0 or dateInt == 19700101: return ""
+            dateasdate = datetime.datetime.strptime(str(dateInt), "%Y%m%d")  # Convert to Date field
+            return dateasdate.strftime(formatStr)
+
+        def exportDataToFile(self, extractedTable):
+            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+            # extractedTable = extractedTable(csvlines, key=lambda x: (str(x[1]).upper()))
+
+            # Write the csvlines to a file
+            myPrint("B", "Opening file and writing ", len(extractedTable), "records")
+            try:
+                # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
+                with open(GlobalVars.extractPath_LFR, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
+                    if GlobalVars.lWriteBOMToExportFile_SWSS:
+                        csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
+
+                    writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=fix_delimiter(GlobalVars.csvDelimiter))
+
+                    if GlobalVars.csvDelimiter != ",":
+                        writer.writerow(["sep=",""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+
+                    for iRow in range(0, len(extractedTable)):
+                        # Write the table, but swap in the raw numbers (rather than formatted number strings)
+                        try:
+                            if iRow == 0:
+                                writer.writerow(extractedTable[iRow])
+                            else:
+                                row = []
+                                for iCol in range(0, len(extractedTable[iRow])):
+                                    colData = extractedTable[iRow][iCol]
+                                    if isinstance(colData, int) and (len(str(colData)) == 8):
+                                        writeColData = self.convertIntDateFormattedString(colData, GlobalVars.userdateformat)
+                                    elif isinstance(colData, (float, int)):
+                                        writeColData = self.fixFormatsStr(colData, True)
+                                    else:
+                                        writeColData = self.fixFormatsStr(colData, False)
+                                    row.append(writeColData)
+
+                                row.append("")
+                                writer.writerow(row)
+                        except:
+                            txt = "ERROR writing to CSV file (review console)"
+                            myPrint("B", txt)
+                            myPopupInformationBox(list_future_reminders_frame_, txt, "EXTRACT REMINDERS", theMessageType=JOptionPane.ERROR_MESSAGE)
+                            dump_sys_error_to_md_console_and_errorlog()
+                            raise Exception("Aborting")
+
+                myPrint("B", "CSV file '%s' created, records written, and file closed.." %(GlobalVars.extractPath_LFR))
+                return True
+
+            except IOError, e:
+                myPrint("B", "Oh no - File IO Error!", e)
+                myPrint("B", "Path:", extractedTable)
+                myPrint("B", "!!! ERROR - No file written! (was file open, permissions etc?)".upper())
+                dump_sys_error_to_md_console_and_errorlog()
+                myPopupInformationBox(list_future_reminders_frame_, "Sorry - error writing to export file!", "EXTRACT REMINDERS", theMessageType=JOptionPane.ERROR_MESSAGE)
+                return False
+
+        def fixFormatsStr(self, theString, lNumber, sFormat=""):
+            if isinstance(theString, (int, float)):
+                lNumber = True
+
+            if lNumber is None: lNumber = False
+            if theString is None: theString = ""
+
+            if sFormat == "%" and theString != "":
+                theString = "{:.1%}".format(theString)
+                return theString
+
+            if lNumber: return str(theString)
+
+            theString = theString.strip()  # remove leading and trailing spaces
+
+            theString = theString.replace("\n", "*")  # remove newlines within fields to keep csv format happy
+            theString = theString.replace("\t", "*")  # remove tabs within fields to keep csv format happy
+
+            if GlobalVars.lStripASCII:
+                all_ASCII = ''.join(char for char in theString if ord(char) < 128)  # Eliminate non ASCII printable Chars too....
+            else:
+                all_ASCII = theString
+            return all_ASCII
+
+
+
+
+
+
+
+
     class DoTheMenu(AbstractAction):
 
         def __init__(self): pass
@@ -3362,6 +3536,10 @@ Visit: %s (Author's site)
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("skip next occurrence of all reminders".lower()):
                 skipReminders()
+
+            # ##########################################################################################################
+            if event.getActionCommand().lower().startswith("extract reminders".lower()):
+                ExtractReminders(fromHotKey=False).go()
 
             # ##########################################################################################################
             if event.getActionCommand().lower().startswith("page setup".lower()):
@@ -3604,6 +3782,69 @@ Visit: %s (Author's site)
                     if (theRem.occursOnDate(cal)):
                         return DateUtil.convertCalToInt(cal)
                     cal.add(Calendar.DAY_OF_MONTH, 1)
+
+            def specifyExtractFileName(initialPath="", alwaysAsk=True):
+
+                defaultExtractFilename = "extract_future_reminders.csv"
+
+                if initialPath is None: initialPath = ""
+
+                ask = True
+                if not alwaysAsk and initialPath != "": ask = False
+
+                if initialPath == "":  # No parameter saved / loaded from disk
+                    initialPath = os.path.join(get_home_dir(), defaultExtractFilename)
+
+                myPrint("DB", "Initial/Default file export output path is....:", initialPath)
+
+                extractFolder = os.path.dirname(initialPath)
+                extractFilename = os.path.basename(initialPath)
+
+                theTitle = "Select/Create CSV file for extract (CANCEL ABORTS)"
+
+                if not ask:
+                    myPrint("B", "AUTO MODE: Will attempt extract to file:", initialPath)
+                    selectedPath = initialPath
+                else:
+                    selectedPath = getFileFromFileChooser(list_future_reminders_frame_,   # Parent frame or None
+                                                           extractFolder,          # Starting path
+                                                           extractFilename,        # Default Filename
+                                                           theTitle,               # Title
+                                                           False,                  # Multi-file selection mode
+                                                           False,                  # True for Open/Load, False for Save
+                                                           True,                   # True = Files, else Dirs
+                                                           None,                   # Load/Save button text, None for defaults
+                                                           "csv",                  # File filter - Example: "txt" or "qif"
+                                                           lAllowTraversePackages=False,
+                                                           lForceJFC=False,
+                                                           lForceFD=False,
+                                                           lAllowNewFolderButton=True,
+                                                           lAllowOptionsButton=True)
+
+                if selectedPath is None or selectedPath == "":
+                    txt = "User chose to cancel or no file selected >>  So no Extract will be performed... "
+                    myPrint("B", txt); myPopupInformationBox(list_future_reminders_frame_, txt, "FILE EXPORT")
+                    return ""
+                elif safeStr(selectedPath).endswith(".moneydance") or ".moneydance" in os.path.dirname(selectedPath):
+                    myPrint("B", "User selected file:", selectedPath)
+                    txt = "Sorry - User chose to use .moneydance in path - NOT ALLOWED >> NO Extract will be performed..."
+                    myPrint("B", txt); myPopupInformationBox(list_future_reminders_frame_, txt, "FILE EXPORT")
+                    return ""
+
+                if not check_file_writable(selectedPath):
+                    txt = "Sorry - You do not have permissions to create this file: %s" %(selectedPath)
+                    myPrint("B", txt); myPopupInformationBox(list_future_reminders_frame_, txt, "FILE EXPORT")
+                    return ""
+
+                if os.path.exists(selectedPath) and os.path.isfile(selectedPath):
+                    myPrint("DB", "WARNING: file exists,but assuming user said OK to overwrite..:", selectedPath)
+
+                if GlobalVars.lStripASCII:
+                    myPrint("B", "Will extract data to file: %s (NOTE: Should drop non utf8 characters...)" %(selectedPath))
+                else:
+                    myPrint("B", "Will extract data to file: %s" %(selectedPath))
+
+                return selectedPath
 
             def build_the_data_file(ind):
                 myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", " - ind:", ind)
@@ -4617,11 +4858,14 @@ Visit: %s (Author's site)
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut),  "print-me")
                     list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_K, shortcut),  "skip-reminders")
 
+                    list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_E, shortcut),  "extract-reminders")
+
                     if GlobalVars.lAllowEscapeExitApp_SWSS:
                         list_future_reminders_frame_.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close-window")
 
                     list_future_reminders_frame_.getRootPane().getActionMap().put("close-window", CloseAction())
                     list_future_reminders_frame_.getRootPane().getActionMap().put("skip-reminders", SkipReminders())
+                    list_future_reminders_frame_.getRootPane().getActionMap().put("extract-reminders", ExtractReminders(fromHotKey=True))
 
 
                     if Platform.isOSX():
@@ -4658,6 +4902,11 @@ Visit: %s (Author's site)
 
                     menuItem = JMenuItem("Change look forward days")
                     menuItem.setToolTipText("Change the days to look forward")
+                    menuItem.addActionListener(dtm)
+                    menuO.add(menuItem)
+
+                    menuItem = JMenuItem("Extract Reminders")
+                    menuItem.setToolTipText("Extracts Reminders to CSV file")
                     menuItem.addActionListener(dtm)
                     menuO.add(menuItem)
 
