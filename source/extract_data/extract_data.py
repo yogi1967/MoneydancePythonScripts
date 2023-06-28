@@ -9,13 +9,13 @@
 # extract_currency_history_csv.py
 # extract_account_registers_csv.py
 # extract_investment_transactions_csv.py
-# #########################################################################################################################
+# ######################################################################################################################
 # YES - there is code inefficiency and duplication here.. It was a toss up between speed of consolidating the scripts,
-# or spending a lot of time refining and probably introducing code errors..... This will be refined over time. You will also
-# see the evolution of my coding from the first script I created to the most recent (clearly exposed when consolidated). I make no
-# apologies for this, all the functions work well.  You will certainly see an over use of Globals.
-# Over time, I will enhance the code as I rework functions......
-# #########################################################################################################################
+# or spending a lot of time refining and probably introducing code errors..... This will be refined over time. You will
+# also see the evolution of my coding from the first script I created to the most recent (clearly exposed when
+# consolidated). I make no apologies for this, all the functions work well.  You will certainly see an over use of
+# Globals. Over time, I will enhance the code as I rework functions......
+# ######################################################################################################################
 
 # MIT License
 #
@@ -5610,14 +5610,24 @@ Visit: %s (Author's site)
                         GlobalVars.AUTO_EXTRACT_MODE = False
                         msgTxt = "@@ AUTO EXTRACT MODE DISABLED - No auto extracts found/enabled @@"
                         myPrint("B", msgTxt)
-                        # myPopupInformationBox(extract_data_frame_, msgTxt, "EXTRACT DATA", theMessageType=JOptionPane.WARNING_MESSAGE)
+                        MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
+                                         theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting 'auto extract')",
+                                         theTitle="EXTRACT_DATA: AUTO_MODE",
+                                         lModal=False).go()
 
-                    if GlobalVars.scriptpath is None or GlobalVars.scriptpath == "" or not os.path.isdir(GlobalVars.scriptpath):
+                    elif GlobalVars.scriptpath is None or GlobalVars.scriptpath == "" or not os.path.isdir(GlobalVars.scriptpath):
                         GlobalVars.AUTO_EXTRACT_MODE = False
-                        msgTxt = "@@ AUTO EXTRACT MODE DISABLED: Pre-saved path appears invalid @@"
+                        msgTxt = "@@ AUTO EXTRACT MODE DISABLED: Pre-saved extract folder appears invalid @@"
                         myPrint("B", "%s: '%s'" %(msgTxt, GlobalVars.scriptpath))
-                        # myPopupInformationBox(extract_data_frame_, msgTxt, "EXTRACT DATA", theMessageType=JOptionPane.WARNING_MESSAGE)
+                        MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
+                                         theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting the folder to save extracts)\n"
+                                                            "Invalid extract folder:\n"
+                                                            "'%s'" %(GlobalVars.scriptpath),
+                                         theTitle="EXTRACT_DATA: AUTO_MODE",
+                                         lModal=False).go()
+
                     else:
+
                         for checkFileName in [GlobalVars.defaultFileName_SG2020, GlobalVars.defaultFileName_ERTC,
                                               GlobalVars.defaultFileName_EAR, GlobalVars.defaultFileName_EIT,
                                               GlobalVars.defaultFileName_ECH, GlobalVars.defaultFileName_ESB]:
@@ -5626,9 +5636,14 @@ Visit: %s (Author's site)
                                 myPrint("B", "AUTO EXTRACT: CONFIRMED >> Path: '%s' writable... (exists/overwrite: %s)" %(checkPath, os.path.exists(checkPath)))
                             else:
                                 GlobalVars.AUTO_EXTRACT_MODE = False
-                                msgTxt = "@@ AUTO EXTRACT MODE DISABLED: Default extract name invalid (review console) @@"
+                                msgTxt = "@@ AUTO EXTRACT MODE DISABLED: Default extract path invalid (review console) @@"
                                 myPrint("B", "%s: '%s'" %(msgTxt, checkPath))
-                                # myPopupInformationBox(extract_data_frame_, msgTxt, "EXTRACT DATA", theMessageType=JOptionPane.WARNING_MESSAGE)
+                                MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
+                                                 theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting the directory to save extracts)\n"
+                                                            "Invalid path:\n"
+                                                            "'%s'" %(checkPath),
+                                                 theTitle="EXTRACT_DATA: AUTO_MODE",
+                                                 lModal=False).go()
                                 break
 
                     if not GlobalVars.AUTO_EXTRACT_MODE:
@@ -9056,7 +9071,7 @@ Visit: %s (Author's site)
                                                                 _row[dataKeys["_FOREIGNTOTALAMOUNT"][_COLUMN]] = openBal
                                                                 _row[dataKeys["_FOREIGNSPLITAMOUNT"][_COLUMN]] = openBal
 
-                                                            myPrint("D", _THIS_EXTRACT_NAME + _row)
+                                                            myPrint("D", _THIS_EXTRACT_NAME, _row)
                                                             transactionTable.append(_row)
                                                             del openBal
 
@@ -9083,7 +9098,7 @@ Visit: %s (Author's site)
                                                             _row[dataKeys["_FOREIGNSPLITAMOUNT"][_COLUMN]] = adjBal
 
 
-                                                        myPrint("D", _THIS_EXTRACT_NAME + _row)
+                                                        myPrint("D", _THIS_EXTRACT_NAME, _row)
                                                         transactionTable.append(_row)
                                                         del adjBal
 
@@ -10920,7 +10935,7 @@ Visit: %s (Author's site)
                                                                 writer.writerow( theTable[i] )
                                                             except:
                                                                 myPrint("B", _THIS_EXTRACT_NAME + "Error writing row %s to file... Older Jython version?" %i)
-                                                                myPrint("B", _THIS_EXTRACT_NAME + "Row: ",theTable[i])
+                                                                myPrint("B", _THIS_EXTRACT_NAME + "Row: ", theTable[i])
                                                                 myPrint("B", _THIS_EXTRACT_NAME + "Will attempt coding back to str()..... Let's see if this fails?!")
                                                                 for _col in range(0, len(theTable[i])):
                                                                     theTable[i][_col] = fix_delimiter(theTable[i][_col])
