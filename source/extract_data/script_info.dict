@@ -2,8 +2,15 @@
   "actions" = (
     {
       "type" = "menu"
-      "script_file" = "extract_data_bootstrap.py"
+      "script_file" = "extract_data_bootstrap1.py"
+      "parameter" = "parameter1"
       "name" = "Extract Data"
+    }
+    {
+      "type" = "menu"
+      "script_file" = "extract_data_bootstrap2.py"
+      "parameter" = "parameter2"
+      "name" = "Extract Data: auto extract mode"
     }
     {
       "type" = "initializer"

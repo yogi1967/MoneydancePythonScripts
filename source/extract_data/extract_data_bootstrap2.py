@@ -4,7 +4,7 @@
 ########################################################################################################################
 ## bootstrap.py: Execute a compiled script if possible (faster load times) #############################################
 ########################################################################################################################
-# Author: Stuart Beesley Feb 2023 - StuWareSoftSystems
+# Author: Stuart Beesley June 2023 - StuWareSoftSystems
 # Purpose: a) load compiled version for faster launch time, b) avoid "method too large" RuntimeException (.pyc helper)
 #
 # NOTES: There are various ways to load/run/execute a script.... Some as follows:
@@ -62,6 +62,7 @@ from java.lang import System, RuntimeException                                  
 global moneydance, moneydance_ui, moneydance_extension_parameter, moneydance_extension_loader
 
 _THIS_IS_ = u"extract_data"
+moneydance_extension_parameter = u"menu2_auto"                                                                          # noqa
 
 def _specialPrint(_what):
     dt = datetime.datetime.now().strftime(u"%Y/%m/%d-%H:%M:%S")
