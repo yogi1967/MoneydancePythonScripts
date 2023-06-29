@@ -113,6 +113,7 @@
 #               Fix common code for MD2023...
 # build: 1032 - Common code tweaks; Changed Cleared status for Reconciling from 'x' to 'r' via .getStatusCharRevised(txn)
 # build: 1033 - MAJOR UPDATE. NEW Auto Extract Mode (and Extensions Menu option). Allows Multi-extracts in one go; All extracts now via SwingWorker...
+# build: 1033 - Added extract future reminders option...
 
 # todo - extract all json, trunk, attachments?
 
@@ -493,7 +494,7 @@ else:
     global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
 
     # from extract_reminders_csv
-    global _column_widths_ERTC
+    global _column_widths_ERTC, lExtractFutureRemindersToo_ERTC
 
     # from extract_currency_history
     global lSimplify_ECH, userdateStart_ECH, userdateEnd_ECH, hideHiddenCurrencies_ECH
@@ -585,6 +586,7 @@ else:
 
     # from extract_reminders_csv
     _column_widths_ERTC = []                                                                                          	# noqa
+    lExtractFutureRemindersToo_ERTC = False                                                                             # noqa
 
     # extract_currency_history
     lSimplify_ECH = False                                                                                               # noqa
@@ -602,6 +604,7 @@ else:
     # Common - converted from globals
     GlobalVars.sdf = None
     GlobalVars.csvfilename = None
+    GlobalVars.csvfilename_future = None
     GlobalVars.scriptpath = ""
 
     # StockGlance2020 - converted from globals
@@ -610,6 +613,9 @@ else:
 
     # from extract_reminders_csv - converted from globals
     GlobalVars.csvlines_reminders = None
+    GlobalVars.csvlines_reminders_future = None
+    GlobalVars.tableHeaderRowList_reminders_future = None
+    GlobalVars.daysToLookForward_LFR = 365
 
     # >>> END THIS SCRIPT'S GLOBALS ############################################################################################
 
@@ -3122,7 +3128,7 @@ Visit: %s (Author's site)
         global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
 
         # extract_reminders_csv
-        global _column_widths_ERTC
+        global _column_widths_ERTC, lExtractFutureRemindersToo_ERTC
 
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
@@ -3222,6 +3228,8 @@ Visit: %s (Author's site)
 
         # extract_reminders_csv
         if GlobalVars.parametersLoadedFromFile.get("_column_widths_ERTC") is not None: _column_widths_ERTC = GlobalVars.parametersLoadedFromFile.get("_column_widths_ERTC")
+        if GlobalVars.parametersLoadedFromFile.get("lExtractFutureRemindersToo_ERTC") is not None: lExtractFutureRemindersToo_ERTC = GlobalVars.parametersLoadedFromFile.get("lExtractFutureRemindersToo_ERTC")
+        if GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR") is not None: GlobalVars.daysToLookForward_LFR = GlobalVars.parametersLoadedFromFile.get("daysToLookForward_LFR")
 
         if GlobalVars.parametersLoadedFromFile.get("scriptpath") is not None:
             GlobalVars.scriptpath = GlobalVars.parametersLoadedFromFile.get("scriptpath")
@@ -3318,6 +3326,8 @@ Visit: %s (Author's site)
 
         # extract_reminders_csv
         GlobalVars.parametersLoadedFromFile["_column_widths_ERTC"] = _column_widths_ERTC
+        GlobalVars.parametersLoadedFromFile["lExtractFutureRemindersToo_ERTC"] = lExtractFutureRemindersToo_ERTC
+        GlobalVars.parametersLoadedFromFile["daysToLookForward_LFR"] = GlobalVars.daysToLookForward_LFR
 
         if GlobalVars.scriptpath != "" and os.path.isdir(GlobalVars.scriptpath):
             GlobalVars.parametersLoadedFromFile["scriptpath"] = GlobalVars.scriptpath
@@ -3963,7 +3973,10 @@ Visit: %s (Author's site)
         myPrint("B","---------------------------------------------------------------------------------------")
         myPrint("B","Parameters: Extract Reminders:")
         myPrint("B", "  User date format.....................:", userdateformat)
-        myPrint("B", "  Auto Extract.........................:", autoExtract_ERTC)
+        myPrint("B", "  Calc. Future Reminders (Extract only):", lExtractFutureRemindersToo_ERTC)
+        myPrint("B", "  Future Reminders: Look Forward Days..:", GlobalVars.daysToLookForward_LFR)
+        myPrint("B", "  Auto Extract.........................:", autoExtract_ERTC,
+                "Cutoff: '%s'"%(convertStrippedIntDateFormattedText(DateUtil.incrementDate(DateUtil.getStrippedDateInt(), 0, 0, GlobalVars.daysToLookForward_LFR))))
         myPrint("B","---------------------------------------------------------------------------------------")
 
     def setupExtractRemindersParameters():
@@ -3983,7 +3996,7 @@ Visit: %s (Author's site)
         global hideInactiveAccounts, hideHiddenAccounts, hideHiddenSecurities
         global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lAllCurrency, filterForCurrency
         global whichDefaultExtractToRun_SWSS
-        global _column_widths_ERTC
+        global _column_widths_ERTC, lExtractFutureRemindersToo_ERTC
 
         global autoExtract_ERTC
 
@@ -3997,6 +4010,13 @@ Visit: %s (Author's site)
         elif userdateformat == "%m/%d/%Y": user_dateformat.setSelectedItem("mm/dd/yyyy")
         elif userdateformat == "%Y%m%d": user_dateformat.setSelectedItem("yyyymmdd")
         else: user_dateformat.setSelectedItem("yyyy/mm/dd")
+
+        labelEFR = JLabel("Calculate Future Reminders too (Extract Only)?")
+        user_selectEFR = JCheckBox("", lExtractFutureRemindersToo_ERTC)
+
+        labelDaysLookForward = JLabel("Future Reminders days to look forward?")
+        user_daysLookForward = JTextField(3)
+        user_daysLookForward.setText(str(GlobalVars.daysToLookForward_LFR))
 
         labelRC = JLabel("Reset Column Widths to Defaults?")
         user_selectResetColumns = JCheckBox("", False)
@@ -4024,6 +4044,10 @@ Visit: %s (Author's site)
         userFilters = JPanel(GridLayout(0, 2))
         userFilters.add(label1)
         userFilters.add(user_dateformat)
+        userFilters.add(labelEFR)
+        userFilters.add(user_selectEFR)
+        userFilters.add(labelDaysLookForward)
+        userFilters.add(user_daysLookForward)
         userFilters.add(labelRC)
         userFilters.add(user_selectResetColumns)
         userFilters.add(label2)
@@ -4074,17 +4098,28 @@ Visit: %s (Author's site)
             elif user_dateformat.getSelectedItem() == "yyyy/mm/dd": userdateformat = "%Y/%m/%d"
             elif user_dateformat.getSelectedItem() == "yyyymmdd": userdateformat = "%Y%m%d"
             else:
-                # PROBLEM /  default
-                userdateformat = "%Y/%m/%d"
+                userdateformat = "%Y/%m/%d"  # PROBLEM / default
+
+            if user_selectEFR.isSelected():
+                myPrint("DB", "User asked calculate and extract Future Reminders too....")
+                lExtractFutureRemindersToo_ERTC = user_selectEFR.isSelected()
+
+            days = user_daysLookForward.getText()
+            if StringUtils.isEmpty(days): days = "0"
+
+            if StringUtils.isInteger(days) and int(days) > 0 and int(days) <= 365:
+                GlobalVars.daysToLookForward_LFR = int(days)
+                myPrint("DB", "Future Reminders - Days to look forward changed set at: %s" %(GlobalVars.daysToLookForward_LFR))
+            else:
+                GlobalVars.daysToLookForward_LFR = 365
+                myPrint("DB", "Future Reminders - Look forward days invalid (should be 1 to 365 days) - defaulting to 365....")
 
             if user_selectResetColumns.isSelected():
-                myPrint("B","User asked to reset columns.... Resetting Now....")
+                myPrint("B", "User asked to reset columns.... Resetting Now....")
                 _column_widths_ERTC = []  # This will invalidate them
 
             lStripASCII = user_selectStripASCII.isSelected()
-
             csvDelimiter = validateCSVFileDelimiter(user_selectDELIMITER.getSelectedItem())
-
             lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
             lWriteParametersToExportFile_SWSS = user_ExportParameters.isSelected()
             autoExtract_ERTC = user_AutoExtract.isSelected()
@@ -5546,7 +5581,7 @@ Visit: %s (Author's site)
             global maxDecimalPlacesRounding_SG2020, lUseCurrentPrice_SG2020
 
             # extract_reminders_csv
-            global _column_widths_ERTC
+            global _column_widths_ERTC, lExtractFutureRemindersToo_ERTC
 
 
             myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
@@ -5577,6 +5612,7 @@ Visit: %s (Author's site)
             try:
 
                 GlobalVars.csvfilename = None
+                GlobalVars.csvfilename_future = None
                 GlobalVars.decimalCharSep = MD_REF.getPreferences().getDecimalChar()
                 csvDelimiter = validateCSVFileDelimiter(csvDelimiter)   # Get initial default delimiter (NOTE: Parameters already preloaded at this point)
                 myPrint("DB", "MD's Decimal point: '%s', CSV Delimiter set to: '%s'" %(GlobalVars.decimalCharSep, csvDelimiter))
@@ -5588,14 +5624,12 @@ Visit: %s (Author's site)
 
                 GlobalVars.AUTO_MESSAGES = []
 
-                # NOTE: I am not going to worry about the Swing EDT until we get to the true GUI elements... The next sections are quick
-                # and simple JOptionPane's and should not be problematic.
-
                 #######################
                 # Validate auto extract
 
                 GlobalVars.defaultFileName_SG2020 = "stockglance2020_extract_stock_balances"
                 GlobalVars.defaultFileName_ERTC = "extract_reminders"
+                GlobalVars.defaultFileName_future_ERTC = "extract_future_reminders"
                 GlobalVars.defaultFileName_EAR = "extract_account_registers"
                 GlobalVars.defaultFileName_EIT = "extract_investment_transactions"
                 GlobalVars.defaultFileName_ECH = "extract_currency_history"
@@ -5629,6 +5663,7 @@ Visit: %s (Author's site)
                     else:
 
                         for checkFileName in [GlobalVars.defaultFileName_SG2020, GlobalVars.defaultFileName_ERTC,
+                                              GlobalVars.defaultFileName_future_ERTC,
                                               GlobalVars.defaultFileName_EAR, GlobalVars.defaultFileName_EIT,
                                               GlobalVars.defaultFileName_ECH, GlobalVars.defaultFileName_ESB]:
                             checkPath = os.path.join(GlobalVars.scriptpath, checkFileName + ".csv")
@@ -5736,6 +5771,7 @@ Visit: %s (Author's site)
 
                 # Now get the extract filename
                 GlobalVars.csvfilename = None
+                GlobalVars.csvfilename_future = None
 
                 if GlobalVars.EXTRACT_DATA:
                     listCommonExtractParameters()
@@ -5747,18 +5783,21 @@ Visit: %s (Author's site)
 
                     if GlobalVars.EXTRACT_DATA:
 
+                        name_addition = "" + currentDateTimeMarker() + ".csv"
                         if lExtractAccountTxns:
-                            extract_filename = GlobalVars.defaultFileName_EAR + currentDateTimeMarker() + ".csv"
+                            extract_filename = GlobalVars.defaultFileName_EAR + name_addition
                         elif lExtractInvestmentTxns:
-                            extract_filename = GlobalVars.defaultFileName_EIT + currentDateTimeMarker() + ".csv"
+                            extract_filename = GlobalVars.defaultFileName_EIT + name_addition
                         elif lExtractSecurityBalances:
-                            extract_filename = GlobalVars.defaultFileName_ESB + currentDateTimeMarker() + ".csv"
+                            extract_filename = GlobalVars.defaultFileName_ESB + name_addition
                         elif lExtractCurrencyHistory:
-                            extract_filename = GlobalVars.defaultFileName_ECH + currentDateTimeMarker() + ".csv"
+                            extract_filename = GlobalVars.defaultFileName_ECH + name_addition
                         elif lExtractStockGlance2020:
-                            extract_filename = GlobalVars.defaultFileName_SG2020 + currentDateTimeMarker() + ".csv"
+                            extract_filename = GlobalVars.defaultFileName_SG2020 + name_addition
                         elif lExtractReminders:
-                            extract_filename = GlobalVars.defaultFileName_ERTC + currentDateTimeMarker() + ".csv"
+                            extract_filename = GlobalVars.defaultFileName_ERTC + name_addition
+                        else:
+                            raise Exception("@@ ERROR - Invalid extract detected....?!")
 
                         def grabTheFile():
                             global attachmentDir, relativePath, lExtractAttachments_EAR, lExtractAttachments_EIT
@@ -5771,6 +5810,7 @@ Visit: %s (Author's site)
                             myPrint("DB", "Default file extract output path is....:", GlobalVars.scriptpath)
 
                             GlobalVars.csvfilename = ""
+                            GlobalVars.csvfilename_future = ""
 
                             if (lExtractAccountTxns and lExtractAttachments_EAR) or (lExtractInvestmentTxns and lExtractAttachments_EIT):
                                 theTitle = "Select/Create CSV file for extract - MUST BE A UNIQUE NAME (CANCEL=NO EXTRACT)"
@@ -5795,6 +5835,7 @@ Visit: %s (Author's site)
                             if (GlobalVars.csvfilename is None) or GlobalVars.csvfilename == "":
                                 GlobalVars.EXTRACT_DATA = False
                                 GlobalVars.csvfilename = None
+                                GlobalVars.csvfilename_future = None
                                 _txt = "User chose to cancel or no file selected >>  So no Extract will be performed... "
                                 myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
                             elif safeStr(GlobalVars.csvfilename).endswith(".moneydance"):
@@ -5803,12 +5844,14 @@ Visit: %s (Author's site)
                                 myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
                                 GlobalVars.EXTRACT_DATA = False
                                 GlobalVars.csvfilename = None
+                                GlobalVars.csvfilename_future = None
                             elif ".moneydance" in os.path.dirname(GlobalVars.csvfilename):
                                 myPrint("B", "User selected file: %s" %(GlobalVars.csvfilename))
                                 _txt = "Sorry - User chose to save file in .moneydance location. NOT Good practice so I will not allow it!... So no Extract will be performed..."
                                 myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
                                 GlobalVars.EXTRACT_DATA = False
                                 GlobalVars.csvfilename = None
+                                GlobalVars.csvfilename_future = None
                             else:
                                 if GlobalVars.EXTRACT_DATA: relativePath = os.path.splitext(os.path.basename(GlobalVars.csvfilename))[0]
                                 GlobalVars.scriptpath = os.path.dirname(GlobalVars.csvfilename)
@@ -5816,6 +5859,7 @@ Visit: %s (Author's site)
                             if GlobalVars.EXTRACT_DATA:
                                 if os.path.exists(GlobalVars.csvfilename) and os.path.isfile(GlobalVars.csvfilename):
                                     myPrint("DB", "WARNING: file exists,but assuming user said OK to overwrite..")
+
 
                             if GlobalVars.EXTRACT_DATA:
                                 if check_file_writable(GlobalVars.csvfilename):
@@ -5828,6 +5872,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
                                     GlobalVars.csvfilename = ""
+                                    GlobalVars.csvfilename_future = ""
                                     GlobalVars.EXTRACT_DATA = False
                                     return
 
@@ -5855,6 +5900,15 @@ Visit: %s (Author's site)
                                         GlobalVars.EXTRACT_DATA = False
                                         return
 
+                                if lExtractFutureRemindersToo_ERTC and GlobalVars.csvfilename is not None and GlobalVars.csvfilename != "":
+                                    dn = os.path.dirname(GlobalVars.csvfilename)
+                                    full_fn = os.path.basename(GlobalVars.csvfilename)
+                                    fn, extn = os.path.splitext(full_fn)
+                                    if GlobalVars.csvfilename_future.endswith(name_addition):
+                                        GlobalVars.csvfilename_future =  os.path.join(dn, fn.replace(name_addition, "_future_reminders" + name_addition) + extn)
+                                    else:
+                                        GlobalVars.csvfilename_future =  os.path.join(dn, fn + "_future_reminders" + extn)
+                                    myPrint("B", "Future Reminders path set to:", GlobalVars.csvfilename_future)
                             return
 
                         grabTheFile()
@@ -5868,6 +5922,10 @@ Visit: %s (Author's site)
                 # ############################
                 # START OF MAIN CODE EXECUTION
                 # ############################
+
+                if lExtractReminders and GlobalVars.DISPLAY_DATA and lExtractFutureRemindersToo_ERTC:
+                    txt = "@@ Calculation of Future Reminders IGNORED - Extract only option @@"
+                    myPrint("B", txt)
 
                 if not GlobalVars.DISPLAY_DATA and not GlobalVars.EXTRACT_DATA:
                     txt = "@@ No extract filename selected - aborting @@"
@@ -6089,7 +6147,7 @@ Visit: %s (Author's site)
                                                 GlobalVars.AUTO_MESSAGES.append(_THIS_EXTRACT_NAME + _msgTxt)
                                                 myPrint("B", _THIS_EXTRACT_NAME + _msgTxt)
                                                 if not GlobalVars.AUTO_EXTRACT_MODE:
-                                                    genericSwingEDTRunner(False, False, myPopupInformationBox, None, _msgTxt, "StockGlance2020", JOptionPane.WARNING_MESSAGE)
+                                                    genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTxt, "StockGlance2020", JOptionPane.WARNING_MESSAGE)
                                                 return None
 
                                             self.totalBalance = 0.0
@@ -7609,7 +7667,7 @@ Visit: %s (Author's site)
 
                                             # The 'You have no securities' message already pops up earlier....
                                             # if not GlobalVars.AUTO_EXTRACT_MODE:
-                                            #     genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
+                                            #     genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
     
                                         # delete references to large objects
                                         del GlobalVars.rawDataTable_sg2020, GlobalVars.rawFooterTable_sg2020
@@ -7626,7 +7684,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
-                                        genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractStockGlance2020 ####
 
@@ -7641,6 +7699,7 @@ Visit: %s (Author's site)
                                 self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
                                 if GlobalVars.AUTO_EXTRACT_MODE:
                                     GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_ERTC + ".csv")
+                                    GlobalVars.csvfilename_future = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_future_ERTC + ".csv")
 
                                 def do_extract_reminders():
                                     global lDidIUseAttachmentDir
@@ -7652,7 +7711,7 @@ Visit: %s (Author's site)
                                     global hideInactiveAccounts, hideHiddenAccounts, hideHiddenSecurities
                                     global lAllSecurity, filterForSecurity, lAllAccounts, filterForAccounts, lAllCurrency, filterForCurrency
                                     global whichDefaultExtractToRun_SWSS
-                                    global _column_widths_ERTC
+                                    global _column_widths_ERTC, lExtractFutureRemindersToo_ERTC
 
                                     def terminate_script():
                                         myPrint("DB", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
@@ -7714,6 +7773,118 @@ Visit: %s (Author's site)
                                             myPrint("D", _THIS_EXTRACT_NAME + "Exiting ", inspect.currentframe().f_code.co_name, "()")
                                             return
 
+                                    def convertIntDateFormattedString(dateInt, formatStr):
+                                        if dateInt == 0 or dateInt == 19700101: return ""
+                                        dateasdate = datetime.datetime.strptime(str(dateInt), "%Y%m%d")  # Convert to Date field
+                                        return dateasdate.strftime(formatStr)
+
+                                    def myGetNextOccurance(theRem, startDate, maximumDate):
+                                        cal = Calendar.getInstance()
+                                        ackPlusOne = theRem.getDateAcknowledgedInt()
+                                        if ackPlusOne > 0:
+                                            ackPlusOne = DateUtil.incrementDate(ackPlusOne, 0, 0, 1)
+                                        DateUtil.setCalendarDate(cal, Math.max(startDate, ackPlusOne))
+                                        while True:
+                                            intDate = DateUtil.convertCalToInt(cal)
+                                            if (intDate > maximumDate or (theRem.getLastDateInt() > 0 and intDate > theRem.getLastDateInt())):	# noqa
+                                                return 0
+                                            if (theRem.occursOnDate(cal)):
+                                                return DateUtil.convertCalToInt(cal)
+                                            cal.add(Calendar.DAY_OF_MONTH, 1)
+
+                                    # Copied from list_future_reminders.py script....
+                                    def build_future_reminders_table(reminderTable):
+
+                                        FUTURE_MAX_END_DATE = 20991231
+
+                                        baseCurr = MD_REF.getCurrentAccount().getBook().getCurrencies().getBaseType()
+
+                                        # Future Reminders Table
+                                        GlobalVars.tableHeaderRowList_reminders_future = [
+                                            "Next Due",
+                                            "Account Name",
+                                            "Reminder Description",
+                                            "Reminder Memo",
+                                            "Net Amount",
+                                            "Categories(amounts)"
+                                        ]
+                                        GlobalVars.csvlines_reminders_future = []
+                                        GlobalVars.csvlines_reminders_future.append(GlobalVars.tableHeaderRowList_reminders_future)
+
+                                        for index in range(0, int(reminderTable.size())):
+                                            rem = reminderTable[index]  # Get the reminder
+
+                                            remtype = rem.getReminderType()  # NOTE or TRANSACTION
+                                            desc = rem.getDescription().replace(",", " ")
+                                            memo = rem.getMemo().replace(",", " ").strip()
+                                            memo = memo.replace("\n", "*").strip()
+
+                                            todayInt = DateUtil.getStrippedDateInt()
+                                            lastdate = rem.getLastDateInt()
+
+                                            if lastdate < 1:  # Detect if an enddate is set
+                                                stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, GlobalVars.daysToLookForward_LFR), FUTURE_MAX_END_DATE)
+                                            else:
+                                                stopDate = min(DateUtil.incrementDate(todayInt, 0, 0, GlobalVars.daysToLookForward_LFR), lastdate)
+
+                                            nextDate = rem.getNextOccurance(stopDate)
+                                            if nextDate < 1: continue
+
+                                            loopDetector = 0
+
+                                            while True:
+
+                                                loopDetector += 1
+                                                if loopDetector > 10000:
+                                                    raise Exception("Loop detected..? Aborting.... Reminder:", rem)
+
+                                                calcNext = myGetNextOccurance(rem, nextDate, stopDate)
+
+                                                if calcNext < 1: break
+
+                                                remdate = calcNext
+
+                                                nextDate = DateUtil.incrementDate(calcNext, 0, 0, 1)
+
+                                                lastack = rem.getDateAcknowledgedInt()
+                                                if lastack == 0 or lastack == 19700101: lastack = ''											# noqa
+
+                                                if str(remtype) == 'NOTE':
+                                                    csvline = []
+
+                                                    # csvline.append(rem)
+
+                                                    csvline.append(remdate)
+                                                    csvline.append("")
+                                                    csvline.append(desc)
+                                                    csvline.append(memo)
+                                                    csvline.append("")
+                                                    csvline.append("")
+                                                    GlobalVars.csvlines_reminders_future.append(csvline)
+
+                                                elif str(remtype) == 'TRANSACTION':
+                                                    txnparent = rem.getTransaction()
+                                                    amount = baseCurr.getDoubleValue(txnparent.getValue())
+                                                    stripacct = txnparent.getAccount().getFullAccountName().strip()
+
+                                                    catsAmounts = ""
+                                                    for iRemSplit in range(0, txnparent.getOtherTxnCount()):
+                                                        remSplit = txnparent.getOtherTxn(iRemSplit)
+                                                        stripCat = remSplit.getAccount().getFullAccountName().strip()
+                                                        splitValue = baseCurrency.getDoubleValue(remSplit.getValue()) * -1
+                                                        catsAmounts += "{%s;%s}" %(stripCat, splitValue)
+
+                                                    csvline = []
+                                                    csvline.append(remdate)
+                                                    csvline.append(stripacct)
+                                                    csvline.append(desc)
+                                                    csvline.append(memo)
+                                                    csvline.append((amount))
+                                                    csvline.append(catsAmounts)
+                                                    GlobalVars.csvlines_reminders_future.append(csvline)
+
+                                            index += 1
+
                                     def build_the_data_file(ind):
                                         global userdateformat, csvheaderline, baseCurrency, headerFormats, ExtractDetails_Count
 
@@ -7733,7 +7904,7 @@ Visit: %s (Author's site)
                                             return False
 
                                         myPrint("B", _THIS_EXTRACT_NAME + "Success: read: %s reminders" %(rems.size()))
-                                        print
+
                                         csvheaderline = [
                                             "Number#",
                                             "NextDue",
@@ -7776,7 +7947,7 @@ Visit: %s (Author's site)
                                                          ]
 
                                         # Read each reminder and create a csv line for each in the GlobalVars.csvlines_reminders array
-                                        GlobalVars.csvlines_reminders = []  # Set up an empty array
+                                        GlobalVars.csvlines_reminders = []
 
                                         for index in range(0, int(rems.size())):
                                             rem = rems[index]  # Get the reminder
@@ -7928,6 +8099,9 @@ Visit: %s (Author's site)
                                                     GlobalVars.csvlines_reminders.append(csvline)
 
                                             index += 1
+
+                                        if GlobalVars.EXTRACT_DATA and ind == 0 and lExtractFutureRemindersToo_ERTC:
+                                            build_future_reminders_table(rems)
 
                                         if GlobalVars.DISPLAY_DATA:
                                             myPrint("DB", "Launching ReminderTable() via (and waiting on) the EDT.....")
@@ -8394,7 +8568,7 @@ Visit: %s (Author's site)
 
                                     def ReminderTable(tabledata, ind):
                                         global scrollpane, table, row, ReminderTable_Count, csvheaderline
-                                        global _column_widths_ERTC
+                                        global _column_widths_ERTC, lExtractFutureRemindersToo_ERTC
 
                                         ReminderTable_Count += 1
                                         myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()", ind, "  - On iteration/call: ", ReminderTable_Count)
@@ -8658,13 +8832,13 @@ Visit: %s (Author's site)
                                                 if False:
                                                     GlobalVars.csvlines_reminders = sorted(GlobalVars.csvlines_reminders, key=lambda x: (str(x[1]).upper()))
 
-                                                GlobalVars.csvlines_reminders.insert(0,csvheaderline)  # Insert Column Headings at top of list. A bit rough and ready, not great coding, but a short list...!
+                                                GlobalVars.csvlines_reminders.insert(0, csvheaderline)  # Insert Column Headings at top of list. A bit rough and ready, not great coding, but a short list...!
 
                                                 myPrint("B", _THIS_EXTRACT_NAME + "Opening file and writing %s records" %(len(GlobalVars.csvlines_reminders)))
 
                                                 try:
                                                     # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
-                                                    with open(GlobalVars.csvfilename,"wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
+                                                    with open(GlobalVars.csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
 
                                                         if lWriteBOMToExportFile_SWSS:
                                                             csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
@@ -8743,6 +8917,60 @@ Visit: %s (Author's site)
                                                     myPrint("B", _msgTxt)
                                                     raise
 
+                                            def ExtractDataToFile_Future_Reminders():
+                                                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+                                                myPrint("B", _THIS_EXTRACT_NAME + "(Future Reminders) Opening file and writing %s records" %(len(GlobalVars.csvlines_reminders_future)))
+
+                                                try:
+                                                    # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
+                                                    with open(GlobalVars.csvfilename_future, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
+                                                        if lWriteBOMToExportFile_SWSS:
+                                                            csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
+
+                                                        writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=fix_delimiter(csvDelimiter))
+
+                                                        if csvDelimiter != ",":
+                                                            writer.writerow(["sep=",""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+
+                                                        for iRow in range(0, len(GlobalVars.csvlines_reminders_future)):
+                                                            # Write the table, but swap in the raw numbers (rather than formatted number strings)
+                                                            try:
+                                                                if iRow == 0:
+                                                                    writer.writerow(GlobalVars.csvlines_reminders_future[iRow])
+                                                                else:
+                                                                    future_row = []
+                                                                    for iCol in range(0, len(GlobalVars.csvlines_reminders_future[iRow])):
+                                                                        colData = GlobalVars.csvlines_reminders_future[iRow][iCol]
+                                                                        if isinstance(colData, int) and (len(str(colData)) == 8):
+                                                                            writeColData = convertIntDateFormattedString(colData, userdateformat)
+                                                                        elif isinstance(colData, (float, int)):
+                                                                            writeColData = fixFormatsStr(colData, True)
+                                                                        else:
+                                                                            writeColData = fixFormatsStr(colData, False)
+                                                                        future_row.append(writeColData)
+
+                                                                    future_row.append("")
+                                                                    writer.writerow(future_row)
+                                                            except:
+                                                                _msgTxt = _THIS_EXTRACT_NAME + "(Future Reminders) @@ ERROR writing to CSV on row %s. Please review console" %(iRow)
+                                                                GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                                                myPrint("B", _msgTxt)
+                                                                myPrint("B", GlobalVars.csvlines_reminders[iRow])
+                                                                raise
+
+                                                    _msgTxt = _THIS_EXTRACT_NAME + "(Future Reminders) CSV file: '%s' created (%s records)" %(GlobalVars.csvfilename_future, len(GlobalVars.csvlines_reminders_future))
+                                                    myPrint("B", _msgTxt)
+                                                    GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                                    GlobalVars.countFilesCreated += 1
+
+                                                except:
+                                                    e, exc_value, exc_traceback = sys.exc_info()                                # noqa
+                                                    _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename_future)
+                                                    GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                                    myPrint("B", _msgTxt)
+                                                    raise
+
                                             def fixFormatsStr(theString, lNumber, sFormat=""):
                                                 if isinstance(theString, (int,float)):
                                                     lNumber = True
@@ -8776,12 +9004,22 @@ Visit: %s (Author's site)
                                                 _msgTextx = _THIS_EXTRACT_NAME + "ERROR Creating extract (review console for error messages)...."
                                                 GlobalVars.AUTO_MESSAGES.append(_msgTextx)
 
+                                            if lExtractFutureRemindersToo_ERTC:
+                                                ExtractDataToFile_Future_Reminders()
+
+                                                if not GlobalVars.lGlobalErrorDetected:
+                                                    _msgTextx = "Extract file CREATED"
+                                                    myPrint("B", _msgTextx)
+                                                else:
+                                                    _msgTextx = _THIS_EXTRACT_NAME + "(Future Reminders) ERROR Creating extract (review console for error messages)...."
+                                                    GlobalVars.AUTO_MESSAGES.append(_msgTextx)
+
                                     else:
                                         _msgTextx ="@@ You have no reminders to display or extract! @@"
                                         GlobalVars.AUTO_MESSAGES.append(_THIS_EXTRACT_NAME + _msgTextx)
                                         myPrint("B", _THIS_EXTRACT_NAME + _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
-                                            genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _msgTextx, "Extract Reminders", JOptionPane.WARNING_MESSAGE)
+                                            genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, "Extract Reminders", JOptionPane.WARNING_MESSAGE)
 
                                         _msgTextx = _THIS_EXTRACT_NAME + "@@ No records selected and no extract file created @@"
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
@@ -8802,7 +9040,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
-                                        genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractReminders ####
 
@@ -9462,7 +9700,7 @@ Visit: %s (Author's site)
 
                                         try:
                                             # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
-                                            with open(GlobalVars.csvfilename,"wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary just use "w" and newline='' in PY3.0
+                                            with open(GlobalVars.csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary just use "w" and newline='' in PY3.0
 
                                                 if lWriteBOMToExportFile_SWSS:
                                                     csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
@@ -9631,7 +9869,7 @@ Visit: %s (Author's site)
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
                                         myPrint("B", _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
-                                            genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
+                                            genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
 
                                     # Clean up...
                                     if not lDidIUseAttachmentDir and attachmentDir:
@@ -9658,7 +9896,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
-                                        genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractAccountTxns ####
 
@@ -9812,7 +10050,7 @@ Visit: %s (Author's site)
                                                         myPrint("B", _THIS_EXTRACT_NAME, repr(securityCurr))
                                                         # noinspection PyUnresolvedReferences
                                                         if not GlobalVars.AUTO_EXTRACT_MODE:
-                                                            genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _msgTxt, "LOGIC ERROR", JOptionPane.ERROR_MESSAGE)
+                                                            genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTxt, "LOGIC ERROR", JOptionPane.ERROR_MESSAGE)
                                                         # noinspection PyUnresolvedReferences
                                                         raise Exception(_THIS_EXTRACT_NAME + "LOGIC Error - Security's currency: "
                                                                         + securityCurr.getRelativeCurrency().getIDString().upper().strip()              # noqa
@@ -10528,7 +10766,7 @@ Visit: %s (Author's site)
                                     if lExtractAttachments_EIT:
                                         transactionTable = sorted(transactionTable, key=lambda x: (x[dataKeys["_ACCOUNT"][_COLUMN]],
                                                                                                    x[dataKeys["_DATE"][_COLUMN]],
-                                                                                                   x[dataKeys["_KEY"][_COLUMN]]) );
+                                                                                                   x[dataKeys["_KEY"][_COLUMN]]))
                                     else:
                                         transactionTable = sorted(transactionTable, key=lambda x: (x[dataKeys["_ACCOUNT"][_COLUMN]],
                                                                                                    x[dataKeys["_DATE"][_COLUMN]]))
@@ -10568,7 +10806,7 @@ Visit: %s (Author's site)
 
                                         try:
                                             # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
-                                            with open(GlobalVars.csvfilename,"wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
+                                            with open(GlobalVars.csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
 
                                                 if lWriteBOMToExportFile_SWSS:
                                                     csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
@@ -10741,7 +10979,7 @@ Visit: %s (Author's site)
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
                                         myPrint("B", _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
-                                            genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
+                                            genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
 
                                     # Clean up...
                                     if not lDidIUseAttachmentDir and attachmentDir:
@@ -10768,7 +11006,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
-                                        genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractInvestmentTxns ####
 
@@ -10815,7 +11053,7 @@ Visit: %s (Author's site)
                                     def list_currency_rate_history():
                                         global hideHiddenCurrencies_ECH, lSimplify_ECH, userdateStart_ECH, userdateEnd_ECH
 
-                                        curr_table=[]
+                                        curr_table = []
 
                                         currencies = MD_REF.getCurrentAccountBook().getCurrencies()
                                         baseCurr = currencies.getBaseType()
@@ -10917,8 +11155,8 @@ Visit: %s (Author's site)
 
                                         try:
                                             # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
-                                            # with open(GlobalVars.csvfilename,"wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
-                                            with open(GlobalVars.csvfilename,"wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
+                                            # with open(GlobalVars.csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
+                                            with open(GlobalVars.csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; just use "w" and newline='' in PY3.0
 
                                                 if lWriteBOMToExportFile_SWSS:
                                                     csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
@@ -11037,6 +11275,7 @@ Visit: %s (Author's site)
                                     else:
                                         _msgTextx = _THIS_EXTRACT_NAME + "ERROR Creating extract (review console for error messages)...."
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
+                                    del currencyTable
 
                                 try:
                                     do_extract_currency_history()
@@ -11050,7 +11289,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
-                                        genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractCurrencyHistory ####
 
@@ -11379,7 +11618,7 @@ Visit: %s (Author's site)
 
                                         try:
                                             # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
-                                            with open(GlobalVars.csvfilename,"wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
+                                            with open(GlobalVars.csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
 
                                                 if lWriteBOMToExportFile_SWSS:
                                                     csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
@@ -11482,7 +11721,7 @@ Visit: %s (Author's site)
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
                                         myPrint("B", _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
-                                            genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
+                                            genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
 
                                     # delete references to large objects
                                     del transactionTable
@@ -11499,7 +11738,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
-                                        genericSwingEDTRunner(False, False, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractSecurityBalances ####
 
@@ -11601,4 +11840,4 @@ Visit: %s (Author's site)
 
 "here:";
 # todo - review all exceptions; final tests...
-# todo - add new extracts... also future reminders...
+# todo - add new extracts...
