@@ -113,9 +113,9 @@
 #               Fix common code for MD2023...
 # build: 1032 - Common code tweaks; Changed Cleared status for Reconciling from 'x' to 'r' via .getStatusCharRevised(txn)
 # build: 1033 - MAJOR UPDATE. NEW Auto Extract Mode (and Extensions Menu option). Allows Multi-extracts in one go; All extracts now via SwingWorker...
-# build: 1033 - Added extract future reminders option...
+# build: 1033 - Added extract future reminders option...; Added extract Trunk
 
-# todo - extract all json, trunk, attachments?
+# todo - extract all json, attachments?
 
 # todo - StockGlance2020 asof balance date...
 # todo - extract budget data?
@@ -471,7 +471,7 @@ else:
     global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
     # all
-    global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB
+    global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK
 
     # from extract_account_registers_csv
     global lIncludeSubAccounts_EAR
@@ -600,6 +600,7 @@ else:
     autoExtract_EIT = False                                                                                             # noqa
     autoExtract_ECH = False                                                                                             # noqa
     autoExtract_ESB = False                                                                                             # noqa
+    autoExtract_ETRUNK = False                                                                                          # noqa
 
     # Common - converted from globals
     GlobalVars.sdf = None
@@ -3102,7 +3103,7 @@ Visit: %s (Author's site)
         global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
         # all
-        global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB
+        global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK
 
         # extract_account_registers_csv
         global lIncludeOpeningBalances_EAR, lIncludeBalanceAdjustments_EAR
@@ -3178,6 +3179,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_EIT") is not None: autoExtract_EIT = GlobalVars.parametersLoadedFromFile.get("autoExtract_EIT")                                                            # noqa
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ECH") is not None: autoExtract_ECH = GlobalVars.parametersLoadedFromFile.get("autoExtract_ECH")                                                            # noqa
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ESB") is not None: autoExtract_ESB = GlobalVars.parametersLoadedFromFile.get("autoExtract_ESB")                                                            # noqa
+        if GlobalVars.parametersLoadedFromFile.get("autoExtract_ETRUNK") is not None: autoExtract_ETRUNK = GlobalVars.parametersLoadedFromFile.get("autoExtract_ETRUNK")                                                            # noqa
 
         # extract_account_registers_csv
         if GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR") is not None: lIncludeSubAccounts_EAR = GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR")
@@ -3276,6 +3278,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["autoExtract_EIT"] = autoExtract_EIT
         GlobalVars.parametersLoadedFromFile["autoExtract_ECH"] = autoExtract_ECH
         GlobalVars.parametersLoadedFromFile["autoExtract_ESB"] = autoExtract_ESB
+        GlobalVars.parametersLoadedFromFile["autoExtract_ETRUNK"] = autoExtract_ETRUNK
 
         # extract_account_registers_csv
         GlobalVars.parametersLoadedFromFile["lIncludeSubAccounts_EAR"] = lIncludeSubAccounts_EAR
@@ -3607,6 +3610,7 @@ Visit: %s (Author's site)
         user_investment_txns = JRadioButton("Investment transactions - extract to csv (attachments optional)", False)
         user_security_balances = JRadioButton("Security Balances - extract to csv", False)
         user_price_history = JRadioButton("Currency price history - extract to csv (simple or detailed formats)", False)
+        user_extract_trunk = JRadioButton("Decrypt & extract raw Trunk file", False)
         user_AccountNumbers = JRadioButton("Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
 
         bg = ButtonGroup()
@@ -3616,6 +3620,7 @@ Visit: %s (Author's site)
         bg.add(user_investment_txns)
         bg.add(user_security_balances)
         bg.add(user_price_history)
+        bg.add(user_extract_trunk)
         bg.add(user_AccountNumbers)
         bg.clearSelection()
 
@@ -3626,6 +3631,7 @@ Visit: %s (Author's site)
             elif defaultSelection == "_EIT": user_investment_txns.setSelected(True)
             elif defaultSelection == "_ESB": user_security_balances.setSelected(True)
             elif defaultSelection == "_ECH": user_price_history.setSelected(True)
+            elif defaultSelection == "_ETRUNK": user_extract_trunk.setSelected(True)
 
         _userFilters.add(user_stockglance2020)
         _userFilters.add(user_reminders)
@@ -3633,9 +3639,10 @@ Visit: %s (Author's site)
         _userFilters.add(user_investment_txns)
         _userFilters.add(user_security_balances)
         _userFilters.add(user_price_history)
+        _userFilters.add(user_extract_trunk)
         _userFilters.add(user_AccountNumbers)
 
-        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = False
+        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = _lExtractTrunk = False
 
         while True:
             _options = ["EXIT", "PROCEED"]
@@ -3648,22 +3655,22 @@ Visit: %s (Author's site)
                                                         _options,
                                                         _options[0]))
             if _userAction != 1:
-                myPrint("B","User chose to exit....")
+                myPrint("B", "User chose to exit....")
                 _exit = True
                 break
 
             if user_stockglance2020.isSelected():
-                myPrint("B","StockGlance2020 investment extract option has been chosen")
+                myPrint("B", "StockGlance2020 investment extract option has been chosen")
                 _lExtractStockGlance2020 = True
                 break
 
             if user_reminders.isSelected():
-                myPrint("B","Reminders display / extract option has been chosen")
+                myPrint("B", "Reminders display / extract option has been chosen")
                 _lExtractReminders = True
                 break
 
             if user_account_txns.isSelected():
-                myPrint("B","Account Transactions extract option has been chosen")
+                myPrint("B", "Account Transactions extract option has been chosen")
                 _lExtractAccountTxns = True
                 break
 
@@ -3673,17 +3680,22 @@ Visit: %s (Author's site)
                 break
 
             if user_security_balances.isSelected():
-                myPrint("B","Security Balances extract option has been chosen")
+                myPrint("B", "Security Balances extract option has been chosen")
                 _lExtractSecurityBalances = True
                 break
 
             if user_price_history.isSelected():
-                myPrint("B","Currency Price History extract option has been chosen")
+                myPrint("B", "Currency Price History extract option has been chosen")
                 _lExtractCurrencyHistory = True
                 break
 
+            if user_extract_trunk.isSelected():
+                myPrint("B", "Decrypt & extract raw Trunk file option has been chosen")
+                _lExtractTrunk  = True
+                break
+
             if user_AccountNumbers.isSelected():
-                myPrint("B","Produce report of Accounts and bank/account number information (Useful for legacy / Will making) - has been chosen")
+                myPrint("B", "Produce report of Accounts and bank/account number information (Useful for legacy / Will making) - has been chosen")
                 myPopupInformationBox(extract_data_frame_, "PLEASE USE Toolbox Extension >> 'MENU: Account & Category Tools' to produce the Account Numbers report", "USE TOOLBOX", theMessageType=JOptionPane.WARNING_MESSAGE)
                 continue
 
@@ -3695,9 +3707,10 @@ Visit: %s (Author's site)
         elif user_investment_txns.isSelected():     newDefault = "_EIT"
         elif user_security_balances.isSelected():   newDefault = "_ESB"
         elif user_price_history.isSelected():       newDefault = "_ECH"
+        elif user_extract_trunk.isSelected():       newDefault = "_ETRUNK"
         else:                                       newDefault = None
 
-        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractCurrencyHistory
+        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractCurrencyHistory, _lExtractTrunk
 
     def validateCSVFileDelimiter(requestedDelimiter=None):
         decimalStrings = [".", ","]
@@ -5114,7 +5127,7 @@ Visit: %s (Author's site)
 
         global autoExtract_ECH
 
-        dateStrings=["dd/mm/yyyy", "mm/dd/yyyy", "yyyy/mm/dd", "yyyymmdd"]
+        dateStrings = ["dd/mm/yyyy", "mm/dd/yyyy", "yyyy/mm/dd", "yyyymmdd"]
         # 1=dd/mm/yyyy, 2=mm/dd/yyyy, 3=yyyy/mm/dd, 4=yyyymmdd
         label1 = JLabel("Select Output Date Format (default yyyy/mm/dd):")
         user_dateformat = JComboBox(dateStrings)
@@ -5429,6 +5442,57 @@ Visit: %s (Author's site)
 
         return _exit
 
+    def listExtractTrunkParameters():
+        myPrint("B","---------------------------------------------------------------------------------------")
+        myPrint("B","Parameters: Decrypt & extract raw Trunk file:")
+        myPrint("B", "  Auto Extract.........................:", autoExtract_ETRUNK)
+        myPrint("B","---------------------------------------------------------------------------------------")
+
+    def setupExtractTrunkParameters():
+        # ##############################################
+        # EXTRACT_TRUNK PARAMETER SCREEN
+        # ##############################################
+
+        global debug
+        global autoExtract_ETRUNK
+
+        labelAutoExtract = JLabel("Enable Auto Extract?")
+        user_AutoExtract = JCheckBox("", autoExtract_ETRUNK)
+
+        labelDEBUG = JLabel("Turn DEBUG Verbose messages on?")
+        user_selectDEBUG = JCheckBox("", debug)
+
+        userFilters = JPanel(GridLayout(0, 2))
+        userFilters.add(labelAutoExtract)
+        userFilters.add(user_AutoExtract)
+        userFilters.add(labelDEBUG)
+        userFilters.add(user_selectDEBUG)
+
+        _exit = False
+
+        options = ["ABORT", "DECRYPT & EXTRACT TRUNK"]
+        userAction = (JOptionPane.showOptionDialog(extract_data_frame_, userFilters, "DECRYPT & EXTRACT raw Trunk file: Set Script Parameters....",
+                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                   JOptionPane.QUESTION_MESSAGE,
+                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                   options, options[1]))
+        if userAction == 1:
+            myPrint("DB", "Extract chosen")
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = True
+        else:
+            myPrint("B", "User Cancelled Parameter selection.. Will abort..")
+            _exit = True
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = False
+
+        if not _exit:
+            autoExtract_ETRUNK = user_AutoExtract.isSelected()
+            debug = user_selectDEBUG.isSelected()
+            listExtractTrunkParameters()
+
+        return _exit
+
     class StoreDateInt:
         def __init__(self, dateInt, dateFormat):
             self.dateInt        = dateInt
@@ -5555,7 +5619,7 @@ Visit: %s (Author's site)
             global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
             # all
-            global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB
+            global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK
 
             # extract_account_registers_csv
             global lIncludeOpeningBalances_EAR, lIncludeBalanceAdjustments_EAR
@@ -5634,10 +5698,11 @@ Visit: %s (Author's site)
                 GlobalVars.defaultFileName_EIT = "extract_investment_transactions"
                 GlobalVars.defaultFileName_ECH = "extract_currency_history"
                 GlobalVars.defaultFileName_ESB = "extract_security_balances"
+                GlobalVars.defaultFileName_ETRUNK = "extract_trunk"
 
                 if GlobalVars.AUTO_EXTRACT_MODE:
                     iCountAutos = 0
-                    for checkAutoExtract in [autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB]:
+                    for checkAutoExtract in [autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK]:
                         if checkAutoExtract: iCountAutos += 1
 
                     if iCountAutos < 1:
@@ -5666,7 +5731,8 @@ Visit: %s (Author's site)
                                               GlobalVars.defaultFileName_future_ERTC,
                                               GlobalVars.defaultFileName_EAR, GlobalVars.defaultFileName_EIT,
                                               GlobalVars.defaultFileName_ECH, GlobalVars.defaultFileName_ESB]:
-                            checkPath = os.path.join(GlobalVars.scriptpath, checkFileName + ".csv")
+                            chkExtnType = ".csv" if "trunk".lower() not in checkFileName.lower() else "."
+                            checkPath = os.path.join(GlobalVars.scriptpath, checkFileName + chkExtnType)
                             if check_file_writable(checkPath):
                                 myPrint("B", "AUTO EXTRACT: CONFIRMED >> Path: '%s' writable... (exists/overwrite: %s)" %(checkPath, os.path.exists(checkPath)))
                             else:
@@ -5696,6 +5762,7 @@ Visit: %s (Author's site)
                     lExtractInvestmentTxns = autoExtract_EIT
                     lExtractSecurityBalances = autoExtract_ESB
                     lExtractCurrencyHistory = autoExtract_ECH
+                    lExtractTrunk = autoExtract_ETRUNK
                     GlobalVars.DISPLAY_DATA = False
                     GlobalVars.EXTRACT_DATA = True
 
@@ -5706,7 +5773,8 @@ Visit: %s (Author's site)
                                  "     Investment Transactions.: %s\n"
                                  "     Security Balances.......: %s\n"
                                  "     Currency History........: %s\n"
-                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH))
+                                 "     Decrypt & Extract Trunk.: %s\n"
+                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH, autoExtract_ETRUNK))
 
                     if lExtractAttachments_EAR or lExtractAttachments_EIT:
                         if lExtractAttachments_EAR:
@@ -5728,9 +5796,10 @@ Visit: %s (Author's site)
                     if lExtractInvestmentTxns:      listExtractInvestmentAccountParameters()
                     if lExtractCurrencyHistory:     listExtractCurrencyHistoryParameters()
                     if lExtractSecurityBalances:    listExtractSecurityBalancesParameters()
+                    if lExtractTrunk:               listExtractTrunkParameters()
 
                 else:
-                    exitScript, whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountTxns, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractCurrencyHistory \
+                    exitScript, whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountTxns, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractCurrencyHistory, lExtractTrunk \
                         = getExtractChoice(whichDefaultExtractToRun_SWSS)
 
                 if exitScript:
@@ -5757,6 +5826,9 @@ Visit: %s (Author's site)
 
                     elif lExtractReminders:
                         exitScript = setupExtractRemindersParameters()
+
+                    elif lExtractTrunk:
+                        exitScript = setupExtractTrunkParameters()
 
                     else:
                         msgTxt = "ERROR - Failed to detect correct parameter screen - will exit"
@@ -5796,6 +5868,9 @@ Visit: %s (Author's site)
                             extract_filename = GlobalVars.defaultFileName_SG2020 + name_addition
                         elif lExtractReminders:
                             extract_filename = GlobalVars.defaultFileName_ERTC + name_addition
+                        elif lExtractTrunk:
+                            name_addition = "" + currentDateTimeMarker() + "."
+                            extract_filename = GlobalVars.defaultFileName_ETRUNK + name_addition
                         else:
                             raise Exception("@@ ERROR - Invalid extract detected....?!")
 
@@ -5817,6 +5892,7 @@ Visit: %s (Author's site)
                             else:
                                 theTitle = "Select/Create CSV file for extract (CANCEL=NO EXTRACT)"
 
+                            extnType = "csv" if not lExtractTrunk else ""
                             GlobalVars.csvfilename = getFileFromFileChooser(extract_data_frame_,   # Parent frame or None
                                                                 GlobalVars.scriptpath,             # Starting path
                                                                 extract_filename,       # Default Filename
@@ -5825,7 +5901,7 @@ Visit: %s (Author's site)
                                                                 False,                  # True for Open/Load, False for Save
                                                                 True,                   # True = Files, else Dirs
                                                                 None,                   # Load/Save button text, None for defaults
-                                                                "csv",                  # File filter (non Mac only). Example: "txt" or "qif"
+                                                                extnType,               # File filter (non Mac only). Example: "txt" or "qif"
                                                                 lAllowTraversePackages=True,
                                                                 lForceJFC=False,
                                                                 lForceFD=True,
@@ -11741,6 +11817,79 @@ Visit: %s (Author's site)
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractSecurityBalances ####
+
+
+                            if lExtractTrunk:
+                                # ####################################################
+                                # EXTRACT_TRUNK_FILE EXECUTION
+                                # ####################################################
+
+                                _THIS_EXTRACT_NAME = pad("EXTRACT: Trunk file:", 34)
+                                GlobalVars.lGlobalErrorDetected = False
+
+                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+
+                                if GlobalVars.AUTO_EXTRACT_MODE:
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_ETRUNK + ".")
+
+                                def do_extract_trunk():
+
+                                    def ExtractDataToFile():
+                                        myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
+
+                                        try:
+                                            localStorage = MD_REF.getCurrentAccountBook().getLocalStorage()
+                                            trunkName = "tiksync/trunk"     # Syncer.TRUNK_FILE_NAME
+                                            if not localStorage.exists(trunkName):
+                                                raise Exception(_THIS_EXTRACT_NAME + "@@ ERROR - could not locate Trunk: '%s'" %(trunkName))
+
+                                            myPrint("B", "Located Trunk file at:", trunkName)
+                                            myPrint("B", "Saving txns, saving Trunk file...")
+                                            MD_REF.saveCurrentAccount()
+                                            MD_REF.getCurrentAccountBook().saveTrunkFile()
+
+                                            fout = FileOutputStream(File(GlobalVars.csvfilename))
+                                            localStorage.readFile(trunkName, fout)
+                                            fout.close()
+
+
+                                            _msgTxt = _THIS_EXTRACT_NAME + "Trunk file decrypted and extracted to disk: '%s'" %(GlobalVars.csvfilename)
+                                            myPrint("B", _msgTxt)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            GlobalVars.countFilesCreated += 1
+
+                                        except:
+                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            myPrint("B", _msgTxt)
+                                            raise
+
+                                    ExtractDataToFile()
+
+                                    if not GlobalVars.lGlobalErrorDetected:
+                                        sTxt = "Extract file CREATED:"
+                                        mTxt = "Raw Trunk file has been decrypted and extracted"
+                                        myPrint("B", _THIS_EXTRACT_NAME + "%s\n%s" %(sTxt, mTxt))
+                                    else:
+                                        _msgTextx = _THIS_EXTRACT_NAME + "ERROR Creating extract (review console for error messages)...."
+                                        GlobalVars.AUTO_MESSAGES.append(_msgTextx)
+
+                                try:
+                                    do_extract_trunk()
+                                except:
+                                    GlobalVars.lGlobalErrorDetected = True
+
+                                if GlobalVars.lGlobalErrorDetected:
+                                    GlobalVars.countErrorsDuringExtract += 1
+                                    _txt = _THIS_EXTRACT_NAME + "@@ ERROR: do_extract_trunk() has failed (review console)!"
+                                    GlobalVars.AUTO_MESSAGES.append(_txt)
+                                    myPrint("B", _txt)
+                                    dump_sys_error_to_md_console_and_errorlog()
+                                    if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        return False
+                            #### ENDIF lExtractTrunk ####
 
 
                             GlobalVars.lGlobalErrorDetected = False
