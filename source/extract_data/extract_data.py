@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1033 - June 2023 - Stuart Beesley
+# extract_data.py - build: 1034 - June 2023 - Stuart Beesley
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -113,9 +113,7 @@
 #               Fix common code for MD2023...
 # build: 1032 - Common code tweaks; Changed Cleared status for Reconciling from 'x' to 'r' via .getStatusCharRevised(txn)
 # build: 1033 - MAJOR UPDATE. NEW Auto Extract Mode (and Extensions Menu option). Allows Multi-extracts in one go; All extracts now via SwingWorker...
-# build: 1033 - Added extract future reminders option...; Added extract Trunk
-
-# todo - extract all json, attachments?
+# build: 1034 - Added extract future reminders option...; Added extract Trunk; Added extract attachments...
 
 # todo - StockGlance2020 asof balance date...
 # todo - extract budget data?
@@ -127,7 +125,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1033"
+version_build = "1034"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -324,7 +322,7 @@ else:
     from com.moneydance.awt import JTextPanel, GridC, JDateField
     from com.moneydance.apps.md.view.gui import MDImages
 
-    from com.infinitekind.util import DateUtil, CustomDateFormat, StringUtils
+    from com.infinitekind.util import DateUtil, CustomDateFormat, StringUtils, IOUtils
 
     from com.infinitekind.moneydance.model import *
     from com.infinitekind.moneydance.model import AccountUtil, AcctFilter, CurrencyType, CurrencyUtil
@@ -351,7 +349,7 @@ else:
     from java.awt import Color, Dimension, FileDialog, FlowLayout, Toolkit, Font, GridBagLayout, GridLayout
     from java.awt import BorderLayout, Dialog, Insets, Point
     from java.awt.event import KeyEvent, WindowAdapter, InputEvent
-    from java.util import Date, Locale
+    from java.util import Date, Locale, UUID
 
     from java.text import DecimalFormat, SimpleDateFormat, MessageFormat
     from java.util import Calendar, ArrayList
@@ -471,7 +469,7 @@ else:
     global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
     # all
-    global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK
+    global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH
 
     # from extract_account_registers_csv
     global lIncludeSubAccounts_EAR
@@ -601,12 +599,14 @@ else:
     autoExtract_ECH = False                                                                                             # noqa
     autoExtract_ESB = False                                                                                             # noqa
     autoExtract_ETRUNK = False                                                                                          # noqa
+    autoExtract_EATTACH = False                                                                                         # noqa
 
     # Common - converted from globals
     GlobalVars.sdf = None
     GlobalVars.csvfilename = None
     GlobalVars.csvfilename_future = None
     GlobalVars.scriptpath = ""
+    GlobalVars.extractFolderName = None
 
     # StockGlance2020 - converted from globals
     GlobalVars.rawDataTable_sg2020 = None
@@ -3103,7 +3103,7 @@ Visit: %s (Author's site)
         global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
         # all
-        global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK
+        global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH
 
         # extract_account_registers_csv
         global lIncludeOpeningBalances_EAR, lIncludeBalanceAdjustments_EAR
@@ -3180,6 +3180,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ECH") is not None: autoExtract_ECH = GlobalVars.parametersLoadedFromFile.get("autoExtract_ECH")                                                            # noqa
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ESB") is not None: autoExtract_ESB = GlobalVars.parametersLoadedFromFile.get("autoExtract_ESB")                                                            # noqa
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ETRUNK") is not None: autoExtract_ETRUNK = GlobalVars.parametersLoadedFromFile.get("autoExtract_ETRUNK")                                                            # noqa
+        if GlobalVars.parametersLoadedFromFile.get("autoExtract_EATTACH") is not None: autoExtract_EATTACH = GlobalVars.parametersLoadedFromFile.get("autoExtract_EATTACH")                                                            # noqa
 
         # extract_account_registers_csv
         if GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR") is not None: lIncludeSubAccounts_EAR = GlobalVars.parametersLoadedFromFile.get("lIncludeSubAccounts_EAR")
@@ -3279,6 +3280,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["autoExtract_ECH"] = autoExtract_ECH
         GlobalVars.parametersLoadedFromFile["autoExtract_ESB"] = autoExtract_ESB
         GlobalVars.parametersLoadedFromFile["autoExtract_ETRUNK"] = autoExtract_ETRUNK
+        GlobalVars.parametersLoadedFromFile["autoExtract_EATTACH"] = autoExtract_EATTACH
 
         # extract_account_registers_csv
         GlobalVars.parametersLoadedFromFile["lIncludeSubAccounts_EAR"] = lIncludeSubAccounts_EAR
@@ -3377,6 +3379,15 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
 
     def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)                                           # 2023.0(5000)
+
+    if isKotlinCompiledBuild():
+        from okio import BufferedSource, Buffer, Okio                                                                   # noqa
+        if debug: myPrint("B", "** Kotlin compiled build detected, new libraries enabled.....")
+
+    def convertBufferedSourceToInputStream(bufferedSource):
+        if isKotlinCompiledBuild() and isinstance(bufferedSource, BufferedSource):
+            return bufferedSource.inputStream()
+        return bufferedSource
 
     def getUnadjustedStartBalance(theAccount):
         if isKotlinCompiledBuild(): return theAccount.getUnadjustedStartBalance()
@@ -3611,6 +3622,7 @@ Visit: %s (Author's site)
         user_security_balances = JRadioButton("Security Balances - extract to csv", False)
         user_price_history = JRadioButton("Currency price history - extract to csv (simple or detailed formats)", False)
         user_extract_trunk = JRadioButton("Decrypt & extract raw Trunk file", False)
+        user_extract_attachments = JRadioButton("Attachments - extract to disk", False)
         user_AccountNumbers = JRadioButton("Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
 
         bg = ButtonGroup()
@@ -3621,6 +3633,7 @@ Visit: %s (Author's site)
         bg.add(user_security_balances)
         bg.add(user_price_history)
         bg.add(user_extract_trunk)
+        bg.add(user_extract_attachments)
         bg.add(user_AccountNumbers)
         bg.clearSelection()
 
@@ -3632,6 +3645,7 @@ Visit: %s (Author's site)
             elif defaultSelection == "_ESB": user_security_balances.setSelected(True)
             elif defaultSelection == "_ECH": user_price_history.setSelected(True)
             elif defaultSelection == "_ETRUNK": user_extract_trunk.setSelected(True)
+            elif defaultSelection == "_EATTACH": user_extract_attachments.setSelected(True)
 
         _userFilters.add(user_stockglance2020)
         _userFilters.add(user_reminders)
@@ -3640,9 +3654,10 @@ Visit: %s (Author's site)
         _userFilters.add(user_security_balances)
         _userFilters.add(user_price_history)
         _userFilters.add(user_extract_trunk)
+        _userFilters.add(user_extract_attachments)
         _userFilters.add(user_AccountNumbers)
 
-        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = _lExtractTrunk = False
+        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = _lExtractTrunk = _lExtractAttachments = False
 
         while True:
             _options = ["EXIT", "PROCEED"]
@@ -3694,6 +3709,11 @@ Visit: %s (Author's site)
                 _lExtractTrunk  = True
                 break
 
+            if user_extract_attachments.isSelected():
+                myPrint("B", "Attachments extract option has been chosen")
+                _lExtractAttachments  = True
+                break
+
             if user_AccountNumbers.isSelected():
                 myPrint("B", "Produce report of Accounts and bank/account number information (Useful for legacy / Will making) - has been chosen")
                 myPopupInformationBox(extract_data_frame_, "PLEASE USE Toolbox Extension >> 'MENU: Account & Category Tools' to produce the Account Numbers report", "USE TOOLBOX", theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -3708,9 +3728,10 @@ Visit: %s (Author's site)
         elif user_security_balances.isSelected():   newDefault = "_ESB"
         elif user_price_history.isSelected():       newDefault = "_ECH"
         elif user_extract_trunk.isSelected():       newDefault = "_ETRUNK"
+        elif user_extract_attachments.isSelected(): newDefault = "_EATTACH"
         else:                                       newDefault = None
 
-        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractCurrencyHistory, _lExtractTrunk
+        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractCurrencyHistory, _lExtractTrunk, _lExtractAttachments
 
     def validateCSVFileDelimiter(requestedDelimiter=None):
         decimalStrings = [".", ","]
@@ -5493,6 +5514,57 @@ Visit: %s (Author's site)
 
         return _exit
 
+    def listExtractAttachmentsParameters():
+        myPrint("B","---------------------------------------------------------------------------------------")
+        myPrint("B","Parameters: Extract Attachments:")
+        myPrint("B", "  Auto Extract.........................:", autoExtract_EATTACH)
+        myPrint("B","---------------------------------------------------------------------------------------")
+
+    def setupExtractAttachmentsParameters():
+        # ##############################################
+        # EXTRACT_ATTACHMENTS PARAMETER SCREEN
+        # ##############################################
+
+        global debug
+        global autoExtract_EATTACH
+
+        labelAutoExtract = JLabel("Enable Auto Extract?")
+        user_AutoExtract = JCheckBox("", autoExtract_EATTACH)
+
+        labelDEBUG = JLabel("Turn DEBUG Verbose messages on?")
+        user_selectDEBUG = JCheckBox("", debug)
+
+        userFilters = JPanel(GridLayout(0, 2))
+        userFilters.add(labelAutoExtract)
+        userFilters.add(user_AutoExtract)
+        userFilters.add(labelDEBUG)
+        userFilters.add(user_selectDEBUG)
+
+        _exit = False
+
+        options = ["ABORT", "EXTRACT ATTACHMENTS"]
+        userAction = (JOptionPane.showOptionDialog(extract_data_frame_, userFilters, "Extract Attachments: Set Script Parameters....",
+                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                   JOptionPane.QUESTION_MESSAGE,
+                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                   options, options[1]))
+        if userAction == 1:
+            myPrint("DB", "Extract chosen")
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = True
+        else:
+            myPrint("B", "User Cancelled Parameter selection.. Will abort..")
+            _exit = True
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = False
+
+        if not _exit:
+            autoExtract_EATTACH = user_AutoExtract.isSelected()
+            debug = user_selectDEBUG.isSelected()
+            listExtractAttachmentsParameters()
+
+        return _exit
+
     class StoreDateInt:
         def __init__(self, dateInt, dateFormat):
             self.dateInt        = dateInt
@@ -5619,7 +5691,7 @@ Visit: %s (Author's site)
             global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
             # all
-            global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK
+            global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH
 
             # extract_account_registers_csv
             global lIncludeOpeningBalances_EAR, lIncludeBalanceAdjustments_EAR
@@ -5699,10 +5771,11 @@ Visit: %s (Author's site)
                 GlobalVars.defaultFileName_ECH = "extract_currency_history"
                 GlobalVars.defaultFileName_ESB = "extract_security_balances"
                 GlobalVars.defaultFileName_ETRUNK = "extract_trunk"
+                GlobalVars.defaultFileName_EATTACH = "extract_attachments"
 
                 if GlobalVars.AUTO_EXTRACT_MODE:
                     iCountAutos = 0
-                    for checkAutoExtract in [autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK]:
+                    for checkAutoExtract in [autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH]:
                         if checkAutoExtract: iCountAutos += 1
 
                     if iCountAutos < 1:
@@ -5763,6 +5836,7 @@ Visit: %s (Author's site)
                     lExtractSecurityBalances = autoExtract_ESB
                     lExtractCurrencyHistory = autoExtract_ECH
                     lExtractTrunk = autoExtract_ETRUNK
+                    lExtractAttachments = autoExtract_EATTACH
                     GlobalVars.DISPLAY_DATA = False
                     GlobalVars.EXTRACT_DATA = True
 
@@ -5774,7 +5848,8 @@ Visit: %s (Author's site)
                                  "     Security Balances.......: %s\n"
                                  "     Currency History........: %s\n"
                                  "     Decrypt & Extract Trunk.: %s\n"
-                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH, autoExtract_ETRUNK))
+                                 "     Attachments.............: %s\n"
+                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH, autoExtract_ETRUNK, autoExtract_EATTACH))
 
                     if lExtractAttachments_EAR or lExtractAttachments_EIT:
                         if lExtractAttachments_EAR:
@@ -5797,9 +5872,10 @@ Visit: %s (Author's site)
                     if lExtractCurrencyHistory:     listExtractCurrencyHistoryParameters()
                     if lExtractSecurityBalances:    listExtractSecurityBalancesParameters()
                     if lExtractTrunk:               listExtractTrunkParameters()
+                    if lExtractAttachments:         listExtractAttachmentsParameters()
 
                 else:
-                    exitScript, whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountTxns, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractCurrencyHistory, lExtractTrunk \
+                    exitScript, whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountTxns, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractCurrencyHistory, lExtractTrunk, lExtractAttachments \
                         = getExtractChoice(whichDefaultExtractToRun_SWSS)
 
                 if exitScript:
@@ -5829,6 +5905,9 @@ Visit: %s (Author's site)
 
                     elif lExtractTrunk:
                         exitScript = setupExtractTrunkParameters()
+
+                    elif lExtractAttachments:
+                        exitScript = setupExtractAttachmentsParameters()
 
                     else:
                         msgTxt = "ERROR - Failed to detect correct parameter screen - will exit"
@@ -5871,123 +5950,185 @@ Visit: %s (Author's site)
                         elif lExtractTrunk:
                             name_addition = "" + currentDateTimeMarker() + "."
                             extract_filename = GlobalVars.defaultFileName_ETRUNK + name_addition
+                        elif lExtractAttachments:
+                            name_addition = "" + "_" + UUID.randomUUID().toString() + currentDateTimeMarker()
+                            extract_filename = GlobalVars.defaultFileName_EATTACH + name_addition
+
                         else:
                             raise Exception("@@ ERROR - Invalid extract detected....?!")
 
-                        def grabTheFile():
-                            global attachmentDir, relativePath, lExtractAttachments_EAR, lExtractAttachments_EIT
+                        if lExtractAttachments:
 
-                            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+                            def grabTheFolderForAttachmentsExtract():
+                                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-                            if GlobalVars.scriptpath == "" or GlobalVars.scriptpath is None:  # No parameter saved / loaded from disk
-                                GlobalVars.scriptpath = get_home_dir()
+                                if GlobalVars.scriptpath == "" or GlobalVars.scriptpath is None:  # No parameter saved / loaded from disk
+                                    GlobalVars.scriptpath = get_home_dir()
 
-                            myPrint("DB", "Default file extract output path is....:", GlobalVars.scriptpath)
+                                myPrint("DB", "Default file extract output path is....:", GlobalVars.scriptpath)
 
-                            GlobalVars.csvfilename = ""
-                            GlobalVars.csvfilename_future = ""
+                                GlobalVars.extractFolderName = ""
 
-                            if (lExtractAccountTxns and lExtractAttachments_EAR) or (lExtractInvestmentTxns and lExtractAttachments_EIT):
-                                theTitle = "Select/Create CSV file for extract - MUST BE A UNIQUE NAME (CANCEL=NO EXTRACT)"
-                            else:
-                                theTitle = "Select/Create CSV file for extract (CANCEL=NO EXTRACT)"
+                                theTitle = "Select Folder for extract (CANCEL=NO EXTRACT)"
 
-                            extnType = "csv" if not lExtractTrunk else ""
-                            GlobalVars.csvfilename = getFileFromFileChooser(extract_data_frame_,   # Parent frame or None
-                                                                GlobalVars.scriptpath,             # Starting path
-                                                                extract_filename,       # Default Filename
-                                                                theTitle,               # Title
-                                                                False,                  # Multi-file selection mode
-                                                                False,                  # True for Open/Load, False for Save
-                                                                True,                   # True = Files, else Dirs
-                                                                None,                   # Load/Save button text, None for defaults
-                                                                extnType,               # File filter (non Mac only). Example: "txt" or "qif"
-                                                                lAllowTraversePackages=True,
-                                                                lForceJFC=False,
-                                                                lForceFD=True,
-                                                                lAllowNewFolderButton=True,
-                                                                lAllowOptionsButton=True)
+                                GlobalVars.extractFolderName = getFileFromFileChooser(extract_data_frame_,      # Parent frame or None
+                                                                    GlobalVars.scriptpath,                      # Starting path
+                                                                    None,                                       # Default Filename
+                                                                    theTitle,                                   # Title
+                                                                    False,                                      # Multi-file selection mode
+                                                                    True,                                       # True for Open/Load, False for Save
+                                                                    False,                                      # True = Files, else Dirs
+                                                                    "EXTRACT ATTACHMENTS",                      # Load/Save button text, None for defaults
+                                                                    None,                                       # File filter (non Mac only). Example: "txt" or "qif"
+                                                                    lAllowTraversePackages=True,
+                                                                    lForceJFC=False,
+                                                                    lForceFD=False,
+                                                                    lAllowNewFolderButton=True,
+                                                                    lAllowOptionsButton=True)
 
-                            if (GlobalVars.csvfilename is None) or GlobalVars.csvfilename == "":
-                                GlobalVars.EXTRACT_DATA = False
-                                GlobalVars.csvfilename = None
-                                GlobalVars.csvfilename_future = None
-                                _txt = "User chose to cancel or no file selected >>  So no Extract will be performed... "
-                                myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
-                            elif safeStr(GlobalVars.csvfilename).endswith(".moneydance"):
-                                myPrint("B", "User selected file:", GlobalVars.csvfilename)
-                                _txt = "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed..."
-                                myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
-                                GlobalVars.EXTRACT_DATA = False
-                                GlobalVars.csvfilename = None
-                                GlobalVars.csvfilename_future = None
-                            elif ".moneydance" in os.path.dirname(GlobalVars.csvfilename):
-                                myPrint("B", "User selected file: %s" %(GlobalVars.csvfilename))
-                                _txt = "Sorry - User chose to save file in .moneydance location. NOT Good practice so I will not allow it!... So no Extract will be performed..."
-                                myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
-                                GlobalVars.EXTRACT_DATA = False
-                                GlobalVars.csvfilename = None
-                                GlobalVars.csvfilename_future = None
-                            else:
-                                if GlobalVars.EXTRACT_DATA: relativePath = os.path.splitext(os.path.basename(GlobalVars.csvfilename))[0]
-                                GlobalVars.scriptpath = os.path.dirname(GlobalVars.csvfilename)
-
-                            if GlobalVars.EXTRACT_DATA:
-                                if os.path.exists(GlobalVars.csvfilename) and os.path.isfile(GlobalVars.csvfilename):
-                                    myPrint("DB", "WARNING: file exists,but assuming user said OK to overwrite..")
-
-
-                            if GlobalVars.EXTRACT_DATA:
-                                if check_file_writable(GlobalVars.csvfilename):
-                                    if lStripASCII:
-                                        myPrint("B", "Will extract data to file: %s (NOTE: Should drop non utf8 characters...)" %(GlobalVars.csvfilename))
-                                    else:
-                                        myPrint("B", "Will extract data to file: %s" %(GlobalVars.csvfilename))
-                                else:
-                                    _txt = "Sorry - I just checked and you do not have permissions to create this file: %s" %(GlobalVars.csvfilename)
+                                if (GlobalVars.extractFolderName is None) or GlobalVars.extractFolderName == "":
+                                    GlobalVars.EXTRACT_DATA = False
+                                    GlobalVars.extractFolderName = None
+                                    _txt = "User chose to cancel or no folder selected >>  So no Extract will be performed... "
                                     myPrint("B", _txt)
                                     myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
-                                    GlobalVars.csvfilename = ""
-                                    GlobalVars.csvfilename_future = ""
+                                    return
+
+                                if not os.path.exists(GlobalVars.extractFolderName) or not os.path.isdir(GlobalVars.extractFolderName):
+                                    _txt = "Error: Folder does not exist?"
+                                    myPrint("B", _txt)
+                                    myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
+                                    GlobalVars.extractFolderName = ""
                                     GlobalVars.EXTRACT_DATA = False
                                     return
 
-                                attachmentDir = None
+                                GlobalVars.scriptpath = GlobalVars.extractFolderName
+
+                                GlobalVars.extractFolderName = os.path.join(GlobalVars.extractFolderName, extract_filename)
+                                if os.path.exists(GlobalVars.extractFolderName):
+                                    raise Exception("ERROR: Folder '%s' already exists?" %(GlobalVars.extractFolderName))
+
+                                myPrint("B", "Folder that will be created is:", GlobalVars.extractFolderName)
+
+                            grabTheFolderForAttachmentsExtract()
+                            GlobalVars.csvfilename = GlobalVars.extractFolderName   # Just populate with something
+
+                        else:
+
+                            def grabTheFile():
+                                global attachmentDir, relativePath, lExtractAttachments_EAR, lExtractAttachments_EIT
+
+                                myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+
+                                if GlobalVars.scriptpath == "" or GlobalVars.scriptpath is None:  # No parameter saved / loaded from disk
+                                    GlobalVars.scriptpath = get_home_dir()
+
+                                myPrint("DB", "Default file extract output path is....:", GlobalVars.scriptpath)
+
+                                GlobalVars.csvfilename = ""
+                                GlobalVars.csvfilename_future = ""
+
                                 if (lExtractAccountTxns and lExtractAttachments_EAR) or (lExtractInvestmentTxns and lExtractAttachments_EIT):
-                                    attachmentDir = os.path.splitext(GlobalVars.csvfilename )[0]
+                                    theTitle = "Select/Create CSV file for extract - MUST BE A UNIQUE NAME (CANCEL=NO EXTRACT)"
+                                else:
+                                    theTitle = "Select/Create CSV file for extract (CANCEL=NO EXTRACT)"
 
-                                    if os.path.exists(attachmentDir):
-                                        _txt = "ERROR: Attachment Directory MUST NOT PRE-EXIST: '%s'" %(attachmentDir)
-                                        myPrint("B", _txt)
-                                        myPopupInformationBox(extract_data_frame_, _txt, "ATTACHMENT DIRECTORY", theMessageType=JOptionPane.ERROR_MESSAGE)
-                                        GlobalVars.csvfilename = ""
-                                        GlobalVars.EXTRACT_DATA = False
-                                        return
+                                extnType = "csv" if not lExtractTrunk else "";
+                                GlobalVars.csvfilename = getFileFromFileChooser(extract_data_frame_,    # Parent frame or None
+                                                                    GlobalVars.scriptpath,              # Starting path
+                                                                    extract_filename,                   # Default Filename
+                                                                    theTitle,                           # Title
+                                                                    False,                              # Multi-file selection mode
+                                                                    False,                              # True for Open/Load, False for Save
+                                                                    True,                               # True = Files, else Dirs
+                                                                    None,                               # Load/Save button text, None for defaults
+                                                                    extnType,                           # File filter (non Mac only). Example: "txt" or "qif"
+                                                                    lAllowTraversePackages=True,
+                                                                    lForceJFC=False,
+                                                                    lForceFD=True,
+                                                                    lAllowNewFolderButton=True,
+                                                                    lAllowOptionsButton=True)
 
-                                    try:
-                                        os.mkdir(attachmentDir)
-                                        _txt = "CREATED attachment directory: '%s'" %(attachmentDir)
-                                        myPrint("B", _txt)
-                                    except:
-                                        _txt = "@@ FAILED to create Attachment Directory: '%s' @@" %(attachmentDir)
-                                        myPrint("B", _txt)
-                                        myPopupInformationBox(extract_data_frame_, _txt, "ATTACHMENT DIRECTORY", theMessageType=JOptionPane.ERROR_MESSAGE)
-                                        GlobalVars.csvfilename = ""
-                                        GlobalVars.EXTRACT_DATA = False
-                                        return
+                                if (GlobalVars.csvfilename is None) or GlobalVars.csvfilename == "":
+                                    GlobalVars.EXTRACT_DATA = False
+                                    GlobalVars.csvfilename = None
+                                    GlobalVars.csvfilename_future = None
+                                    _txt = "User chose to cancel or no file selected >>  So no Extract will be performed... "
+                                    myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
+                                elif safeStr(GlobalVars.csvfilename).endswith(".moneydance"):
+                                    myPrint("B", "User selected file:", GlobalVars.csvfilename)
+                                    _txt = "Sorry - User chose to use .moneydance extension - I will not allow it!... So no Extract will be performed..."
+                                    myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
+                                    GlobalVars.EXTRACT_DATA = False
+                                    GlobalVars.csvfilename = None
+                                    GlobalVars.csvfilename_future = None
+                                elif ".moneydance" in os.path.dirname(GlobalVars.csvfilename):
+                                    myPrint("B", "User selected file: %s" %(GlobalVars.csvfilename))
+                                    _txt = "Sorry - User chose to save file in .moneydance location. NOT Good practice so I will not allow it!... So no Extract will be performed..."
+                                    myPrint("B", _txt); myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
+                                    GlobalVars.EXTRACT_DATA = False
+                                    GlobalVars.csvfilename = None
+                                    GlobalVars.csvfilename_future = None
+                                else:
+                                    if GlobalVars.EXTRACT_DATA: relativePath = os.path.splitext(os.path.basename(GlobalVars.csvfilename))[0]
+                                    GlobalVars.scriptpath = os.path.dirname(GlobalVars.csvfilename)
 
-                                if lExtractFutureRemindersToo_ERTC and GlobalVars.csvfilename is not None and GlobalVars.csvfilename != "":
-                                    dn = os.path.dirname(GlobalVars.csvfilename)
-                                    full_fn = os.path.basename(GlobalVars.csvfilename)
-                                    fn, extn = os.path.splitext(full_fn)
-                                    if GlobalVars.csvfilename_future.endswith(name_addition):
-                                        GlobalVars.csvfilename_future =  os.path.join(dn, fn.replace(name_addition, "_future_reminders" + name_addition) + extn)
+                                if GlobalVars.EXTRACT_DATA:
+                                    if os.path.exists(GlobalVars.csvfilename) and os.path.isfile(GlobalVars.csvfilename):
+                                        myPrint("DB", "WARNING: file exists,but assuming user said OK to overwrite..")
+
+
+                                if GlobalVars.EXTRACT_DATA:
+                                    if check_file_writable(GlobalVars.csvfilename):
+                                        if lStripASCII:
+                                            myPrint("B", "Will extract data to file: %s (NOTE: Should drop non utf8 characters...)" %(GlobalVars.csvfilename))
+                                        else:
+                                            myPrint("B", "Will extract data to file: %s" %(GlobalVars.csvfilename))
                                     else:
-                                        GlobalVars.csvfilename_future =  os.path.join(dn, fn + "_future_reminders" + extn)
-                                    myPrint("B", "Future Reminders path set to:", GlobalVars.csvfilename_future)
-                            return
+                                        _txt = "Sorry - I just checked and you do not have permissions to create this file: %s" %(GlobalVars.csvfilename)
+                                        myPrint("B", _txt)
+                                        myPopupInformationBox(extract_data_frame_, _txt, "FILE EXTRACT")
+                                        GlobalVars.csvfilename = ""
+                                        GlobalVars.csvfilename_future = ""
+                                        GlobalVars.EXTRACT_DATA = False
+                                        return
 
-                        grabTheFile()
+                                    attachmentDir = None
+                                    if (lExtractAccountTxns and lExtractAttachments_EAR) or (lExtractInvestmentTxns and lExtractAttachments_EIT):
+                                        attachmentDir = os.path.splitext(GlobalVars.csvfilename )[0]
+
+                                        if os.path.exists(attachmentDir):
+                                            _txt = "ERROR: Attachment Directory MUST NOT PRE-EXIST: '%s'" %(attachmentDir)
+                                            myPrint("B", _txt)
+                                            myPopupInformationBox(extract_data_frame_, _txt, "ATTACHMENT DIRECTORY", theMessageType=JOptionPane.ERROR_MESSAGE)
+                                            GlobalVars.csvfilename = ""
+                                            GlobalVars.EXTRACT_DATA = False
+                                            return
+
+                                        try:
+                                            os.mkdir(attachmentDir)
+                                            _txt = "CREATED attachment directory: '%s'" %(attachmentDir)
+                                            myPrint("B", _txt)
+                                        except:
+                                            _txt = "@@ FAILED to create Attachment Directory: '%s' @@" %(attachmentDir)
+                                            myPrint("B", _txt)
+                                            myPopupInformationBox(extract_data_frame_, _txt, "ATTACHMENT DIRECTORY", theMessageType=JOptionPane.ERROR_MESSAGE)
+                                            GlobalVars.csvfilename = ""
+                                            GlobalVars.EXTRACT_DATA = False
+                                            return
+
+                                    if lExtractFutureRemindersToo_ERTC and GlobalVars.csvfilename is not None and GlobalVars.csvfilename != "":
+                                        dn = os.path.dirname(GlobalVars.csvfilename)
+                                        full_fn = os.path.basename(GlobalVars.csvfilename)
+                                        fn, extn = os.path.splitext(full_fn)
+                                        if GlobalVars.csvfilename_future.endswith(name_addition):
+                                            GlobalVars.csvfilename_future =  os.path.join(dn, fn.replace(name_addition, "_future_reminders" + name_addition) + extn)
+                                        else:
+                                            GlobalVars.csvfilename_future =  os.path.join(dn, fn + "_future_reminders" + extn)
+                                        myPrint("B", "Future Reminders path set to:", GlobalVars.csvfilename_future)
+                                return
+
+                            grabTheFile()
 
                     if GlobalVars.csvfilename is None or GlobalVars.csvfilename == "":
                         GlobalVars.EXTRACT_DATA = False
@@ -6022,16 +6163,37 @@ Visit: %s (Author's site)
 
                 class DoExtractsSwingWorker(SwingWorker):
 
+                    pleaseWaitDiag = None       # Single Instance class - so not too worried about multiple access etc
+
+                    @staticmethod
+                    def getPleaseWait():
+                        # type: () -> MyPopUpDialogBox
+                        return DoExtractsSwingWorker.pleaseWaitDiag
+
+                    @staticmethod
+                    def setPleaseWait(pleaseWaitDiag):
+                        # type: (MyPopUpDialogBox) -> None
+                        DoExtractsSwingWorker.pleaseWaitDiag = pleaseWaitDiag
+
+                    @staticmethod
+                    def killPleaseWait():
+                        # type: () -> None
+                        pwd = DoExtractsSwingWorker.getPleaseWait()
+                        if pwd is not None:
+                            pwd.kill()
+                            DoExtractsSwingWorker.setPleaseWait(None)
+
                     def __init__(self, pleaseWaitDiag):
-                        self.pwd = pleaseWaitDiag
+                        self.setPleaseWait(pleaseWaitDiag)
 
                     def process(self, chunks):              # This executes on the EDT
                         if isinstance(chunks, list): pass
-                        if self.pwd is not None:
+                        pwd = self.getPleaseWait()
+                        if pwd is not None:
                             if not self.isDone() and not self.isCancelled():
                                 for pMsg in chunks:
                                     _msgTxt = pad("PLEASE WAIT - PROCESSING: %s" %(pMsg), 100, padChar=".")
-                                    self.pwd.updateMessages(newTitle=_msgTxt, newStatus=_msgTxt)
+                                    pwd.updateMessages(newTitle=_msgTxt, newStatus=_msgTxt)
 
                     def doInBackground(self):
                         myPrint("DB", "In DoExtractsSwingWorker()", inspect.currentframe().f_code.co_name, "()")
@@ -6223,6 +6385,7 @@ Visit: %s (Author's site)
                                                 GlobalVars.AUTO_MESSAGES.append(_THIS_EXTRACT_NAME + _msgTxt)
                                                 myPrint("B", _THIS_EXTRACT_NAME + _msgTxt)
                                                 if not GlobalVars.AUTO_EXTRACT_MODE:
+                                                    DoExtractsSwingWorker.killPleaseWait()
                                                     genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTxt, "StockGlance2020", JOptionPane.WARNING_MESSAGE)
                                                 return None
 
@@ -7743,6 +7906,7 @@ Visit: %s (Author's site)
 
                                             # The 'You have no securities' message already pops up earlier....
                                             # if not GlobalVars.AUTO_EXTRACT_MODE:
+                                            #     DoExtractsSwingWorker.killPleaseWait()
                                             #     genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
     
                                         # delete references to large objects
@@ -7760,6 +7924,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractStockGlance2020 ####
@@ -9095,6 +9260,7 @@ Visit: %s (Author's site)
                                         GlobalVars.AUTO_MESSAGES.append(_THIS_EXTRACT_NAME + _msgTextx)
                                         myPrint("B", _THIS_EXTRACT_NAME + _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
+                                            DoExtractsSwingWorker.killPleaseWait()
                                             genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, "Extract Reminders", JOptionPane.WARNING_MESSAGE)
 
                                         _msgTextx = _THIS_EXTRACT_NAME + "@@ No records selected and no extract file created @@"
@@ -9116,6 +9282,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractReminders ####
@@ -9739,7 +9906,6 @@ Visit: %s (Author's site)
                                                                                                x[dataKeys["_SPLITIDX"][_COLUMN]]) )
                                     ###########################################################################################################
 
-
                                     def ExtractDataToFile():
                                         global csvDelimiter
                                         global transactionTable, userdateformat
@@ -9945,6 +10111,7 @@ Visit: %s (Author's site)
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
                                         myPrint("B", _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
+                                            DoExtractsSwingWorker.killPleaseWait()
                                             genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
 
                                     # Clean up...
@@ -9972,6 +10139,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractAccountTxns ####
@@ -10126,6 +10294,7 @@ Visit: %s (Author's site)
                                                         myPrint("B", _THIS_EXTRACT_NAME, repr(securityCurr))
                                                         # noinspection PyUnresolvedReferences
                                                         if not GlobalVars.AUTO_EXTRACT_MODE:
+                                                            DoExtractsSwingWorker.killPleaseWait()
                                                             genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTxt, "LOGIC ERROR", JOptionPane.ERROR_MESSAGE)
                                                         # noinspection PyUnresolvedReferences
                                                         raise Exception(_THIS_EXTRACT_NAME + "LOGIC Error - Security's currency: "
@@ -11055,6 +11224,7 @@ Visit: %s (Author's site)
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
                                         myPrint("B", _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
+                                            DoExtractsSwingWorker.killPleaseWait()
                                             genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
 
                                     # Clean up...
@@ -11082,6 +11252,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractInvestmentTxns ####
@@ -11365,6 +11536,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractCurrencyHistory ####
@@ -11797,6 +11969,7 @@ Visit: %s (Author's site)
                                         GlobalVars.AUTO_MESSAGES.append(_msgTextx)
                                         myPrint("B", _msgTextx)
                                         if not GlobalVars.AUTO_EXTRACT_MODE:
+                                            DoExtractsSwingWorker.killPleaseWait()
                                             genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
 
                                     # delete references to large objects
@@ -11814,6 +11987,7 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractSecurityBalances ####
@@ -11887,9 +12061,136 @@ Visit: %s (Author's site)
                                     myPrint("B", _txt)
                                     dump_sys_error_to_md_console_and_errorlog()
                                     if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractTrunk ####
+
+                            if lExtractAttachments:
+                                # ####################################################
+                                # EXTRACT_ATTACHMENTS EXECUTION
+                                # ####################################################
+
+                                _THIS_EXTRACT_NAME = pad("EXTRACT: Attachments:", 34)
+                                GlobalVars.lGlobalErrorDetected = False
+
+                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+
+                                if GlobalVars.AUTO_EXTRACT_MODE:
+                                    _name_addition = "" + "_" + UUID.randomUUID().toString() + currentDateTimeMarker()
+                                    GlobalVars.extractFolderName = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_EATTACH + _name_addition)
+                                    GlobalVars.csvfilename = GlobalVars.extractFolderName   # Just populate with something
+
+                                def do_extract_attachments():
+
+                                    def ExtractDataToFile():
+                                        myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
+
+                                        try:
+                                            iSkip = 0
+                                            iCountAttachments = 0
+                                            attachmentsLog = "\n%s:\n" \
+                                                      " ===================\n\n" %(_THIS_EXTRACT_NAME)
+
+                                            attachmentsLog += "Base extract folder: %s%s\n\n" %(GlobalVars.extractFolderName, os.path.sep)
+                                            attachmentsExtractedTxt = []
+
+                                            File(GlobalVars.extractFolderName).mkdirs()
+                                            myPrint("B", _THIS_EXTRACT_NAME + "Extracting all attachments to:", GlobalVars.extractFolderName)
+
+                                            txnSet = MD_REF.getCurrentAccountBook().getTransactionSet()
+
+                                            for txn in txnSet:
+                                                for attachKey in txn.getAttachmentKeys():
+                                                    iCountAttachments += 1
+                                                    attachTag = txn.getAttachmentTag(attachKey)
+                                                    txnDate = txn.getDateInt()
+                                                    attachFile = File(attachTag).getName()
+                                                    attachFolder = os.path.join(GlobalVars.extractFolderName,
+                                                                                "ACCT-TYPE-%s" %(txn.getAccount().getAccountType()),
+                                                                                "ACCT-%s" %(txn.getAccount().getAccountName()))
+                                                    File(attachFolder).mkdirs()
+                                                    outputPath = os.path.join(attachFolder, "{:04d}-{:02d}-{:02d}-{}-{}".format(txnDate / 10000, (txnDate / 100) % 100,
+                                                                                                                                txnDate % 100, str(iCountAttachments).zfill(5),
+                                                                                                                                attachFile))
+                                                    if os.path.exists(outputPath):
+                                                        iSkip += 1
+                                                        myPrint("B", "Error - path: %s already exists... SKIPPING THIS ONE!" %(outputPath))
+                                                        attachmentsLog += ("Error - path: %s already exists... SKIPPING THIS ONE!\n" %(outputPath))
+                                                    else:
+                                                        myPrint("DB", "Exporting attachment [%s]" %(os.path.basename(outputPath)))
+                                                        try:
+                                                            outStream = FileOutputStream(File(outputPath))
+                                                            inStream = convertBufferedSourceToInputStream(MD_REF.getCurrentAccountBook().getLocalStorage().openFileForReading(attachTag))
+                                                            IOUtils.copyStream(inStream, outStream)
+                                                            outStream.close()
+                                                            inStream.close()
+                                                            attachmentsExtractedTxt.append([txn.getAccount().getAccountType(), txn.getAccount().getAccountName(), txn.getDateInt(),
+                                                                                "%s %s %s %s %s .%s\n"
+                                                                                %(pad(str(txn.getAccount().getAccountType()), 15),
+                                                                                  pad(txn.getAccount().getAccountName(), 30),
+                                                                                  convertStrippedIntDateFormattedText(txn.getDateInt()),
+                                                                                  rpad(txn.getValue() / 100.0, 10),
+                                                                                  pad(txn.getDescription(), 20),
+                                                                                  outputPath[len(GlobalVars.extractFolderName):])])
+                                                        except:
+                                                            _msgTxt = "Error extracting file - will SKIP : %s" %(outputPath)
+                                                            myPrint("B", _msgTxt)
+                                                            attachmentsLog += ("%s\n" %(_msgTxt))
+                                                            iSkip += 1
+                                            del txnSet
+
+                                            attachmentsExtractedTxt = sorted(attachmentsExtractedTxt, key=lambda _sort: (_sort[0], _sort[1], _sort[2]))
+                                            for r in attachmentsExtractedTxt: attachmentsLog += r[3]
+
+                                            if iSkip: attachmentsLog += "\nERRORS/SKIPPED: %s (review console log for details)\n" %(iSkip)
+
+                                            attachmentsLog += "\n<END>"
+
+                                            try:
+                                                log = open(os.path.join(GlobalVars.extractFolderName, "Extract_Attachments_LOG.txt"), "w")
+                                                log.write(attachmentsLog)
+                                                log.close()
+                                            except: pass
+
+                                            _msgTxt = _THIS_EXTRACT_NAME + "%s Attachments extracted to disk (%s skipped)" %(iCountAttachments, iSkip)
+                                            myPrint("B", _msgTxt)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            GlobalVars.countFilesCreated += 1
+
+                                        except:
+                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing attachments: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            myPrint("B", _msgTxt)
+                                            raise
+
+                                    ExtractDataToFile()
+
+                                    if not GlobalVars.lGlobalErrorDetected:
+                                        sTxt = "Extract of Attachments CREATED:"
+                                        mTxt = "Attachments have been decrypted and extracted"
+                                        myPrint("B", _THIS_EXTRACT_NAME + "%s\n%s" %(sTxt, mTxt))
+                                    else:
+                                        _msgTextx = _THIS_EXTRACT_NAME + "ERROR Creating extract (review console for error messages)...."
+                                        GlobalVars.AUTO_MESSAGES.append(_msgTextx)
+
+                                try:
+                                    do_extract_attachments()
+                                except:
+                                    GlobalVars.lGlobalErrorDetected = True
+
+                                if GlobalVars.lGlobalErrorDetected:
+                                    GlobalVars.countErrorsDuringExtract += 1
+                                    _txt = _THIS_EXTRACT_NAME + "@@ ERROR: do_extract_attachments() has failed (review console)!"
+                                    GlobalVars.AUTO_MESSAGES.append(_txt)
+                                    myPrint("B", _txt)
+                                    dump_sys_error_to_md_console_and_errorlog()
+                                    if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        return False
+                            #### ENDIF lExtractAttachments ####
 
 
                             GlobalVars.lGlobalErrorDetected = False
@@ -11912,7 +12213,7 @@ Visit: %s (Author's site)
                         self.get()     # wait for task to complete
                         myPrint("DB", "... after done:get()")
 
-                        if self.pwd is not None: self.pwd.kill()
+                        DoExtractsSwingWorker.killPleaseWait()
 
                         # EXTRACT(s) COMPLETED
                         if GlobalVars.EXTRACT_DATA:
@@ -11933,13 +12234,15 @@ Visit: %s (Author's site)
                             if lExtractInvestmentTxns:      msgs.append("Extract Investment Transactions    REQUESTED")
                             if lExtractCurrencyHistory:     msgs.append("Extract Currency History           REQUESTED")
                             if lExtractSecurityBalances:    msgs.append("Extract Security Balances          REQUESTED")
+                            if lExtractTrunk:               msgs.append("Extract raw Trunk file             REQUESTED")
+                            if lExtractAttachments:         msgs.append("Extract Attachments                REQUESTED")
 
                             msgs.append("")
                             msgs.extend(GlobalVars.AUTO_MESSAGES)
                             msgs.append("")
 
-                            msgs.append("Extract files created.........: %s" %(GlobalVars.countFilesCreated))
-                            msgs.append("Extract errors during extract.: %s" %(GlobalVars.countErrorsDuringExtract))
+                            msgs.append("Extract csv files / folders created..: %s" %(GlobalVars.countFilesCreated))
+                            msgs.append("Extract errors during extract........: %s" %(GlobalVars.countErrorsDuringExtract))
 
                             if GlobalVars.lGlobalErrorDetected or GlobalVars.countErrorsDuringExtract > 0:
                                 msgs.append("")
@@ -11986,7 +12289,3 @@ Visit: %s (Author's site)
 
 
     SwingUtilities.invokeLater(MainAppRunnable())
-
-"here:";
-# todo - review all exceptions; final tests...
-# todo - add new extracts...
