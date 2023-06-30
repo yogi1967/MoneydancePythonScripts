@@ -19,7 +19,9 @@
     {
       "type" = "method"
       "method" = "invoke"
-      "script_file" = "extract_data_invoke.py"
+      "script_file" = "extract_data_bootstrap3.py"
+      "parameter" = "parameter2"
+      "not_using_script_file" = "extract_data_invoke.py"
     }
     {
       "type" = "method"

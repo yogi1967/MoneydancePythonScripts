@@ -2,6 +2,8 @@
 # -*- coding: UTF-8 -*-
 
 # extract_data.py - build: 1034 - June 2023 - Stuart Beesley
+#                   You can auto invoke by launching MD with '-invoke=moneydance:fmodule:extract_data:autoextract'
+#                   NOTE: MD will auto-quit after using this...
 
 # Consolidation of prior scripts into one:
 # stockglance2020.py
@@ -114,6 +116,7 @@
 # build: 1032 - Common code tweaks; Changed Cleared status for Reconciling from 'x' to 'r' via .getStatusCharRevised(txn)
 # build: 1033 - MAJOR UPDATE. NEW Auto Extract Mode (and Extensions Menu option). Allows Multi-extracts in one go; All extracts now via SwingWorker...
 # build: 1034 - Added extract future reminders option...; Added extract Trunk; Added extract attachments...
+# build: 1034 - You can call extension and auto-extract by launching MD with '-invoke=moneydance:fmodule:extract_data:autoextract' parameter
 
 # todo - StockGlance2020 asof balance date...
 # todo - extract budget data?
@@ -3371,7 +3374,7 @@ Visit: %s (Author's site)
     # .moneydance_invoke_called() is used via the _invoke.py script as defined in script_info.dict. Not used for runtime extensions
     def moneydance_invoke_called(theCommand):
         # ... modify as required to handle .showURL() events sent to this extension/script...
-        myPrint("B","INVOKE - Received extension command: '%s'" %(theCommand))
+        myPrint("B", "INVOKE - Received extension command: '%s'" %(theCommand))
 
     GlobalVars.defaultPrintLandscape = True
     # END ALL CODE COPY HERE ###############################################################################################
@@ -5671,9 +5674,12 @@ Visit: %s (Author's site)
     else:
         MD_EXTENSION_PARAMETER = None
 
-    GlobalVars.AUTO_EXTRACT_MODE = (MD_EXTENSION_PARAMETER == "menu2_auto")
-
+    GlobalVars.AUTO_EXTRACT_MODE = (MD_EXTENSION_PARAMETER == "menu2_auto" or MD_EXTENSION_PARAMETER == "invoke_auto")
     myPrint("B", "Auto Extract Mode: %s (Menu/Parameter detected was: '%s')" %(GlobalVars.AUTO_EXTRACT_MODE, MD_EXTENSION_PARAMETER))
+
+    GlobalVars.AUTO_INVOKE_CALLED = (MD_EXTENSION_PARAMETER == "invoke_auto")
+    if GlobalVars.AUTO_INVOKE_CALLED:
+        myPrint("B", "AUTO INVOKE CALLED: %s (Menu/Parameter detected was: '%s')" %(GlobalVars.AUTO_INVOKE_CALLED, MD_EXTENSION_PARAMETER))
     ####################################################################################################################
 
 
@@ -12228,6 +12234,10 @@ Visit: %s (Author's site)
                                 msgs.append("SINGLE DATA FILE EXTRACT MODE ENABLED")
                             msgs.append("")
 
+                            if GlobalVars.AUTO_INVOKE_CALLED:
+                                msgs.append("AUTO INVOKE CALLED >> WILL TRIGGER SHUTDOWN...")
+                                msgs.append("")
+
                             if lExtractStockGlance2020:     msgs.append("Extract StockGlance2020            REQUESTED")
                             if lExtractReminders:           msgs.append("Extract Reminders                  REQUESTED")
                             if lExtractAccountTxns:         msgs.append("Extract Account Registers          REQUESTED")
@@ -12264,6 +12274,12 @@ Visit: %s (Author's site)
                                 except: pass
 
                             cleanup_actions(extract_data_frame_)
+
+                        if GlobalVars.AUTO_INVOKE_CALLED:
+                            myPrint("B", "@@ COMPLETED - Triggering shutdown @@")
+                            MD_REF.saveCurrentAccount()
+                            # genericThreadRunner(True, MD_REF.shutdown)
+                            genericThreadRunner(True, MD_REF.getUI().shutdownApp, False)
 
                 _msgPad = 100
                 _msg = pad("PLEASE WAIT: Extracting Data", _msgPad, padChar=".")
