@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_zap_mdplus_ofx_default_memo_fields.py build: 1001 - June 2023 - Stuart Beesley StuWareSoftSystems
+# toolbox_zap_mdplus_ofx_qif_default_memo_fields.py build: 1002 - June 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -31,25 +31,27 @@
 
 # build: 1000 - Initial Release.
 # build: 1001 - Renamed to toolbox_zap_mdplus_ofx_default_memo_fields.py - now fixes OFX too...
+# build: 1002 - Added LocalStorage preferences, popup config, manual download imports, extra Memo options with popup GUI
+# build: 1002 - Renamed to toolbox_zap_mdplus_ofx_qif_default_memo_fields.py - now includes QIF too...
 
-# Iterates last four years' downloaded transactions across Bank, Credit Card, Investment accounts and zaps the Memo field
-# if it exactly matches the hidden downloaded memo field contents...
+# Iterates previous x month's md+/ofx/qif transactions across Bank, Credit Card, Investment accounts and zaps the Memo field
+# where it matches certain rules...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
 # SET THESE LINES
-myModuleID = u"toolbox_zap_mdplus_ofx_default_memo_fields"
-version_build = "1001"
+myModuleID = u"toolbox_zap_mdplus_ofx_qif_default_memo_fields"
+version_build = "1002"
 MIN_BUILD_REQD = 4040                 # 2022.2 MD+ builds
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
 if u"debug" in globals():
     global debug
 else:
-    debug = False
-global toolbox_zap_mdplus_ofx_default_memo_fields_frame_
+    debug = True;
+global toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_
 # SET LINES ABOVE ^^^^
 
 # COPY >> START
@@ -157,10 +159,10 @@ frameToResurrect = None
 try:
     # So we check own namespace first for same frame variable...
     if (u"%s_frame_"%myModuleID in globals()
-            and (isinstance(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, MyJFrame)                 # EDIT THIS
-                 or type(toolbox_zap_mdplus_ofx_default_memo_fields_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
-            and toolbox_zap_mdplus_ofx_default_memo_fields_frame_.isActiveInMoneydance):                 # EDIT THIS
-        frameToResurrect = toolbox_zap_mdplus_ofx_default_memo_fields_frame_                             # EDIT THIS
+            and (isinstance(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, MyJFrame)                 # EDIT THIS
+                 or type(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_).__name__ == u"MyCOAWindow")  # EDIT THIS
+            and toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_.isActiveInMoneydance):                 # EDIT THIS
+        frameToResurrect = toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_                             # EDIT THIS
     else:
         # Now check all frames in the JVM...
         getFr = getMyJFrame( myModuleID )
@@ -335,10 +337,13 @@ else:
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##########################################################################
 
     # >>> THIS SCRIPT'S IMPORTS ########################################################################################
-    from java.lang import Long
+    from java.lang import Long, StringBuilder
+    from com.moneydance.awt import AwtUtil
+    from com.infinitekind.tiksync import SyncRecord
     from com.infinitekind.moneydance.online import OnlineTxnMerger
     from com.infinitekind.moneydance.model import DateRange
     from com.moneydance.apps.md.view.gui import MDUndoManager
+    from org.apache.commons.lang3 import StringEscapeUtils
     # >>> END THIS SCRIPT'S IMPORTS ####################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ########################################################################################
@@ -2940,6 +2945,105 @@ Visit: %s (Author's site)
             theText = (theText[:theLength-dotChop] + ("." * dotChop))
         return theText
 
+    class JTextFieldIntDocument(PlainDocument):
+
+        def __init__(self):
+            super(self.__class__, self).__init__()
+
+        def insertString(self, theOffset, theStr, theAttr):
+            if theStr is not None:
+                theStr = theStr.replace(" ", "")
+                currentBufferLength = self.getLength()
+                currentBufferContent = self.getText(0, currentBufferLength)
+
+                if (currentBufferLength == 0):
+                    newString = theStr
+                else:
+                    newString = StringBuilder(currentBufferContent).insert(theOffset, theStr).toString()
+
+                if newString[:1] == "-": newString = newString[1:]
+                if newString == "" or newString.isnumeric():
+                    super(self.__class__, self).insertString(theOffset, theStr, theAttr)
+
+    def html_strip_chars(_textToStrip):
+        _textToStrip = StringEscapeUtils.escapeHtml4(_textToStrip)
+        _textToStrip = _textToStrip.replace("  ","&nbsp;&nbsp;")
+        return _textToStrip
+
+    def wrap_HTML_wrapper(wrapperCharacter, _textToWrap, stripChars=True, addHTML=True):
+        newText = "<%s>%s</%s>" %(wrapperCharacter, _textToWrap if not stripChars else html_strip_chars(_textToWrap), wrapperCharacter)
+        if addHTML: newText = wrap_HTML(newText, stripChars=False)
+        return newText
+
+    def wrap_HTML_fontColor(_fontColorHexOrColor, _textToWrap, stripChars=True, addHTML=True):
+        wrapperCharacter = "font"
+        if isinstance(_fontColorHexOrColor, Color):
+            _fontColorHexOrColor = AwtUtil.hexStringForColor(_fontColorHexOrColor)
+        elif (isinstance(_fontColorHexOrColor, basestring)
+                and (_fontColorHexOrColor.startswith("#") and len(_fontColorHexOrColor) == 7)):
+            pass
+        else: raise Exception("Invalid hex color specified!", _fontColorHexOrColor)
+
+        newText = "<%s color=#%s>%s</%s>" %(wrapperCharacter, _fontColorHexOrColor, _textToWrap if not stripChars else html_strip_chars(_textToWrap), wrapperCharacter)
+        if addHTML: newText = wrap_HTML(newText, stripChars=False)
+        return newText
+
+    def wrap_HTML(_textToWrap, stripChars=True):
+        return wrap_HTML_wrapper("html", _textToWrap, stripChars, addHTML=False)
+
+    def wrap_HTML_bold(_textToWrap, stripChars=True, addHTML=True):
+        return wrap_HTML_wrapper("b", _textToWrap, stripChars, addHTML)
+
+    def wrap_HTML_underline(_textToWrap, stripChars=True, addHTML=True):
+        return wrap_HTML_wrapper("u", _textToWrap, stripChars, addHTML)
+
+    def wrap_HTML_small(_textToWrap, stripChars=True, addHTML=True):
+        return wrap_HTML_wrapper("small", _textToWrap, stripChars, addHTML)
+
+    def wrap_HTML_italics(_textToWrap, stripChars=True, addHTML=True):
+        return wrap_HTML_wrapper("i", _textToWrap, stripChars, addHTML)
+
+    def wrap_HTML_BIG_small(_bigText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True, _bigColor=None, _italics=False, _bold=False, _underline=False, _html=False, _smallItalics=False, _smallBold=False, _smallUnderline=False):
+        if _html:
+            htmlBigText = _bigText
+        else:
+            strippedBigText = html_strip_chars(_bigText) if stripBigChars else _bigText
+            if _bigColor is not None:
+                htmlBigText = wrap_HTML_fontColor(_bigColor, strippedBigText, stripChars=False, addHTML=False)
+            else:
+                htmlBigText = strippedBigText
+
+            if (_bold): htmlBigText = wrap_HTML_bold(htmlBigText, stripChars=False, addHTML=False)
+            if (_italics): htmlBigText = wrap_HTML_italics(htmlBigText, stripChars=False, addHTML=False)
+            if (_underline): htmlBigText = wrap_HTML_underline(htmlBigText, stripChars=False, addHTML=False)
+
+        if _smallColor is None: _smallColor = GlobalVars.CONTEXT.getUI().getColors().tertiaryTextFG
+        _htmlSmallText = html_strip_chars(_smallText) if stripSmallChars else _smallText
+        convertedSmallText = wrap_HTML_fontColor(_smallColor, _htmlSmallText, stripChars=False, addHTML=False)
+        convertedSmallText = wrap_HTML_small(convertedSmallText, stripChars=False, addHTML=False)
+        if (_smallBold): convertedSmallText = wrap_HTML_bold(convertedSmallText, stripChars=False, addHTML=False)
+        if (_smallItalics): convertedSmallText = wrap_HTML_italics(convertedSmallText, stripChars=False, addHTML=False)
+        if (_smallUnderline): convertedSmallText = wrap_HTML_underline(convertedSmallText, stripChars=False, addHTML=False)
+        return wrap_HTML("%s%s" %(htmlBigText, convertedSmallText), stripChars=False)
+
+
+    GlobalVars.EXTN_PREF_KEY = "stuwaresoftsystems" + "." + myModuleID
+
+    def getExtensionPreferences():
+        # type: () -> SyncRecord
+        _extnPrefs =  GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage().getSubset(GlobalVars.EXTN_PREF_KEY)
+        myPrint("DB", "Retrieved Extn Preferences from LocalStorage:", _extnPrefs)
+        return _extnPrefs
+
+    def saveExtensionPreferences(newExtnPrefs):
+        # type: (SyncRecord) -> None
+        if not isinstance(newExtnPrefs, SyncRecord):
+            raise Exception("ERROR: 'newExtnPrefs' is not a SyncRecord (given: '%s')" %(type(newExtnPrefs)))
+        _localStorage = GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage()
+        _localStorage.put(GlobalVars.EXTN_PREF_KEY, newExtnPrefs)
+        myPrint("DB", "Stored Extn Preferences into LocalStorage:", newExtnPrefs)
+
+    def getOlMemo(_txn): return txn.getParameter(ORIG_MEMO_TAG, "")
 
     MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
 
@@ -2951,35 +3055,18 @@ Visit: %s (Author's site)
             raise QuickAbortThisScriptException
 
         lDetectedBuddyRunning = False
-        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions", u"toolbox_zap_mdplus_ofx_default_memo_fields"]:
+        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions", u"toolbox_zap_mdplus_ofx_qif_default_memo_fields"]:
             if getMyJFrame(checkFr) is not None:
                 lDetectedBuddyRunning = True
 
-        class MainAppRunnable(Runnable):
-            def __init__(self): pass
-
-            def run(self):                                                                                              # noqa
-                global toolbox_zap_mdplus_ofx_default_memo_fields_frame_    # global as defined here
-
-                myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
-                myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
-
-                toolbox_zap_mdplus_ofx_default_memo_fields_frame_ = MyJFrame()
-                toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setName(u"%s_main" %(myModuleID))
-                if (not Platform.isMac()):
-                    MD_REF.getUI().getImages()
-                    toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
-                toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setVisible(False)
-                toolbox_zap_mdplus_ofx_default_memo_fields_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
-
-                myPrint("DB","Main JFrame %s for application created.." %(toolbox_zap_mdplus_ofx_default_memo_fields_frame_.getName()))
-
-        if not SwingUtilities.isEventDispatchThread():
-            myPrint("DB",".. Main App Not running within the EDT so calling via MainAppRunnable()...")
-            SwingUtilities.invokeAndWait(MainAppRunnable())
-        else:
-            myPrint("DB",".. Main App Already within the EDT so calling naked...")
-            MainAppRunnable().run()
+        toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_ = MyJFrame()
+        toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_.setName(u"%s_main" %(myModuleID))
+        if (not Platform.isMac()):
+            MD_REF.getUI().getImages()
+            toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
+        toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_.setVisible(False)
+        toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+        myPrint("DB","Main JFrame %s for application created.." %(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_.getName()))
 
         lRunningFromToolboxOverride = False
 
@@ -2991,7 +3078,7 @@ Visit: %s (Author's site)
         elif lDetectedBuddyRunning:
             # This (hopefully) means it's been called from the extensions menu as a 'buddy' extension to Toolbox. Both running will overwrite common variables
             msg = "Sorry. Only one of the Toolbox Extension menu scripts can run at once.. Shutting all down. Please try again"
-            myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, msg, "ALERT: Toolbox is running", JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, msg, "ALERT: Toolbox is running", JOptionPane.WARNING_MESSAGE)
             myPrint("B", msg)
             destroyOldFrames(u"toolbox")
             raise QuickAbortThisScriptException
@@ -3011,30 +3098,357 @@ Visit: %s (Author's site)
         MD_comma = "," if (MD_decimal == ".") else "."
 
         book = MD_REF.getCurrentAccountBook()
+        if book is None:
+            myPrint("B","@@@ ERROR: There appears to be no dataset open?! @@")
+            raise QuickAbortThisScriptException
+
         base = book.getCurrencies().getBaseType()
         if isinstance(book, AccountBook): pass
         ct = book.getCurrencies()
 
-        __THIS_METHOD_NAME = "Zap ofx/md+ (default) memo fields:"
+        extnPrefs = getExtensionPreferences()
+
+        __THIS_METHOD_NAME = "Zap (or swap) md+/ofx/qif memo fields:"
 
         myPrint("B", ">> '%s' feature activated...." %(myModuleID))
 
+        # Remove old key....
+        OLD_LS_LOOKBACK_KEY = "toolbox_zap_mdplus_ofx_default_memo_fields_lookback_months"
+        MD_REF.getCurrentAccountBook().getLocalStorage().put(OLD_LS_LOOKBACK_KEY, None)
+
+        GlobalVars.EXTN_PREF_KEY_SELECTED_ACCOUNT = "selected_account"
+        GlobalVars.EXTN_PREF_KEY_LOOKBACK_MONTHS = "lookback_months"
+        GlobalVars.EXTN_PREF_KEY_INCLUDE_MDP = "include_mdp"
+        GlobalVars.EXTN_PREF_KEY_INCLUDE_OFX = "include_ofx"
+        GlobalVars.EXTN_PREF_KEY_INCLUDE_IMPORTED_OFX = "include_imported_ofx"
+        GlobalVars.EXTN_PREF_KEY_INCLUDE_DOWNLOADED_QIF = "include_downloaded_qif"
+        GlobalVars.EXTN_PREF_KEY_INCLUDE_NON_DOWNLOADED_QIF = "include_non_downloaded_qif"
+        GlobalVars.EXTN_PREF_KEY_INCLUDE_UNRECONCILED = "include_unreconciled"
+        GlobalVars.EXTN_PREF_KEY_INCLUDE_UNCONFIRMED = "include_unconfirmed"
+        GlobalVars.EXTN_PREF_KEY_OFX_QIF_DONT_COMPARE_WITH_DESC = "ofx_qif_dont_compare_with_desc"
+        GlobalVars.EXTN_PREF_KEY_WIPE_MEMO_WHEN_SUBSET_DESC = "wipe_memo_when_subset_desc"
+        GlobalVars.EXTN_PREF_KEY_SWAP_MEMO_DESC_WHEN_SUBSET = "swap_memo_desc_when_subset"
+        GlobalVars.EXTN_PREF_KEY_OFX_QIF_DONT_CHECK_ORIGINAL_MEMO = "ofx_qif_dont_check_original_memo"
+        GlobalVars.EXTN_PREF_KEY_DEBUG = "debug"
+
+        def setExtnParam_selected_account(prefs, selectedAcct):
+            # type: (SyncRecord, Account) -> None
+            uuid = "all" if (selectedAcct is None or not isinstance(selectedAcct, Account)) else selectedAcct.getUUID()
+            prefs.put(GlobalVars.EXTN_PREF_KEY_SELECTED_ACCOUNT, uuid)
+
+        def getExtnParam_selected_account():
+            # type: () -> Account
+            sAcctUUID = extnPrefs.getStr(GlobalVars.EXTN_PREF_KEY_SELECTED_ACCOUNT, "all")
+            return MD_REF.getCurrentAccountBook().getAccountByUUID(sAcctUUID)
+
+        def getExtnParam_selected_account_text():
+            # type: () -> str
+            sAcct =  getExtnParam_selected_account()
+            return "ALL ACCOUNTS SELECTED" if sAcct is None else sAcct.getFullAccountName()
+
+        def getExtnParam_lookbackMonths(): return extnPrefs.getInt(GlobalVars.EXTN_PREF_KEY_LOOKBACK_MONTHS, 300)       # default: 12 months * 25 years
+        def getExtnParam_include_mdp(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_MDP, False)
+        def getExtnParam_include_ofx(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_OFX, False)
+        def getExtnParam_imported_ofx(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_IMPORTED_OFX, False)
+        def getExtnParam_downloaded_qif(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_DOWNLOADED_QIF, False)
+        def getExtnParam_non_downloaded_qif(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_NON_DOWNLOADED_QIF, False)
+        def getExtnParam_include_unreconciled(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_UNRECONCILED, False)
+        def getExtnParam_include_unconfirmed(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_UNCONFIRMED, False)
+        def getExtnParam_ofx_qif_dont_compare_with_desc(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_OFX_QIF_DONT_COMPARE_WITH_DESC, False)
+        def getExtnParam_wipe_memo_when_subset_desc(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_WIPE_MEMO_WHEN_SUBSET_DESC, False)
+        def getExtnParam_swap_memo_desc_when_subset(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_SWAP_MEMO_DESC_WHEN_SUBSET, False)
+        def getExtnParam_ofx_qif_dont_check_original_memo(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_OFX_QIF_DONT_CHECK_ORIGINAL_MEMO, False)
+        def getExtnParam_DEBUG(): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_DEBUG, debug)
+
+
+        _allActiveAccounts = sorted(AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), AcctFilter.ACTIVE_ACCOUNTS_FILTER), key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().lower()))
+        allActiveAccounts = [acct for acct in _allActiveAccounts if acct.getAccountType() in [Account.AccountType.BANK, Account.AccountType.CREDIT_CARD, Account.AccountType.INVESTMENT]]   # noqa
+        del _allActiveAccounts
+
+        if len(allActiveAccounts) < 1:
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, "You have no active Bank, Credit Card, Investment accounts!?", theTitle=__THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.WARNING_MESSAGE)
+            raise QuickAbortThisScriptException
+
+        class StoreAccount:
+            def __init__(self, _acct):
+                if isinstance(_acct, Account): pass
+                self.acct = _acct
+
+            def getAccount(self): return self.acct
+
+            def __str__(self):
+                _acct = self.getAccount()
+                if _acct is None:
+                    acctStr = "ALL active bank, credit card, investment accts"
+                else:
+                    acctStr = "%s : %s" %(_acct.getAccountType(), _acct.getFullAccountName())
+                return acctStr
+            def __repr__(self):         return self.__str__()
+            def toString(self):         return self.__str__()
+
+        acctsForSelector = [StoreAccount(acct) for acct in allActiveAccounts]
+        acctsForSelector.insert(0, StoreAccount(None))
+
+        # Popup Parameters ###########################################
+
+        label_selectAccount = JLabel("Select single account (or all)")
+        user_acctSelector = JComboBox(acctsForSelector)
+        previousSelectedAccount = getExtnParam_selected_account()
+        for storeAccount in acctsForSelector:
+            if storeAccount.getAccount() == previousSelectedAccount:
+                user_acctSelector.setSelectedItem(storeAccount)
+
+        label_lookbackMonths = JLabel("How many months to look back")
+        user_lookbackMonths = JTextField(6)
+        user_lookbackMonths.setDocument(JTextFieldIntDocument())
+        user_lookbackMonths.setText(str(getExtnParam_lookbackMonths()))
+
+        label_include_unreconciled = JLabel("Include unreconciled transactions (else only reconciled)")
+        user_include_unreconciled = JCheckBox("", getExtnParam_include_unreconciled())
+
+        label_include_unconfirmed = JLabel("Include unconfirmed transactions (only applies where 'downloaded')")
+        user_include_unconfirmed = JCheckBox("(check bypassed on 'QIF-')", getExtnParam_include_unconfirmed())
+
+        label_include_mdp = JLabel("Include md+ downloaded txns >> ALWAYS wipe md+ memo fields")
+        user_include_mdp = JCheckBox("'MD+'", getExtnParam_include_mdp())
+        user_include_mdp.setForeground(getColorBlue())
+
+        label_include_ofx = JLabel("Include ofx downloaded memo fields")
+        user_include_ofx = JCheckBox("'OFX+'", getExtnParam_include_ofx())
+        user_include_ofx.setForeground(getColorBlue())
+
+        label_include_imported_ofx = JLabel("Include file imported ofx memo fields")
+        user_include_imported_ofx = JCheckBox("'OFX-'", getExtnParam_imported_ofx())
+        user_include_imported_ofx.setForeground(getColorBlue())
+
+        label_include_downloaded_qif = JLabel("Include downloaded / file imported QIF memo fields")
+        user_include_downloaded_qif = JCheckBox("'QIF+'", getExtnParam_downloaded_qif())
+        user_include_downloaded_qif.setForeground(getColorBlue())
+
+        label_include_non_downloaded_qif = JLabel("Include NON downloaded / file imported QIF memo fields")
+        user_include_non_downloaded_qif = JCheckBox("'QIF-'", getExtnParam_non_downloaded_qif())
+        user_include_non_downloaded_qif.setForeground(getColorBlue())
+
+        label_ofx_qif_dont_check_original_memo = JLabel("Don't check / compare the original downloaded memo first")
+        user_ofx_qif_dont_check_original_memo = JCheckBox("(i.e. include manually edited memos; check bypassed on 'QIF-')", getExtnParam_ofx_qif_dont_check_original_memo())
+        user_ofx_qif_dont_check_original_memo.setForeground(getColorRed())
+
+        label_ofx_qif_dont_compare_with_desc = JLabel("Don't compare memo to description (just wipe)")
+        user_ofx_qif_dont_compare_with_desc = JCheckBox("(i.e. wipe any memos that matches all other rules)", getExtnParam_ofx_qif_dont_compare_with_desc())
+        user_ofx_qif_dont_compare_with_desc.setForeground(getColorRed())
+
+        label_wipe_memo_when_subset_desc = JLabel("Wipe unchanged memo that's a subset of description")
+        user_wipe_memo_when_subset_desc = JCheckBox("", getExtnParam_wipe_memo_when_subset_desc())
+
+        label_getExtnParam_swap_memo_desc_when_subset = JLabel("Swap memo into description when subset")
+        user_getExtnParam_swap_memo_desc_when_subset = JCheckBox("", getExtnParam_swap_memo_desc_when_subset())
+
+        label_DEBUG = JLabel("Enable DEBUG messages")
+        user_DEBUG = JCheckBox("", getExtnParam_DEBUG())
+
+        userFilters = JPanel(GridLayout(0, 2))
+
+        userFilters.add(JLabel(wrap_HTML_underline("Common options...:")))
+        userFilters.add(JLabel(""))
+        userFilters.add(label_selectAccount)
+        userFilters.add(user_acctSelector)
+        userFilters.add(label_lookbackMonths)
+        userFilters.add(user_lookbackMonths)
+        userFilters.add(label_include_unreconciled)
+        userFilters.add(user_include_unreconciled)
+        userFilters.add(label_include_unconfirmed)
+        userFilters.add(user_include_unconfirmed)
+
+        userFilters.add(JLabel(""))
+        userFilters.add(JLabel(""))
+
+        userFilters.add(JLabel(wrap_HTML_underline("MD+ options...:")))
+        userFilters.add(JLabel(""))
+        userFilters.add(label_include_mdp)
+        userFilters.add(user_include_mdp)
+
+        warnTxt = "NOTE: With md+ txns, this utility only/always wipes unchanged memo field(s)<br>" \
+                  "... no other checks or changes (as per below) take place...."
+        warnLbl = JLabel(wrap_HTML_italics(wrap_HTML_small(warnTxt, stripChars=False, addHTML=False), stripChars=False, addHTML=True))
+        warnLbl.setForeground(getColorBlue())
+        userFilters.add(warnLbl)
+        userFilters.add(JLabel(""))
+
+        userFilters.add(JLabel(""))
+        userFilters.add(JLabel(""))
+
+        userFilters.add(JLabel(wrap_HTML_underline("OFX / QIF options...:")))
+        userFilters.add(JLabel(""))
+        userFilters.add(label_include_ofx)
+        userFilters.add(user_include_ofx)
+        userFilters.add(label_include_imported_ofx)
+        userFilters.add(user_include_imported_ofx)
+        userFilters.add(label_include_downloaded_qif)
+        userFilters.add(user_include_downloaded_qif)
+        userFilters.add(label_include_non_downloaded_qif)
+        userFilters.add(user_include_non_downloaded_qif)
+        userFilters.add(label_ofx_qif_dont_check_original_memo)
+        userFilters.add(user_ofx_qif_dont_check_original_memo)
+        userFilters.add(label_ofx_qif_dont_compare_with_desc)
+        userFilters.add(user_ofx_qif_dont_compare_with_desc)
+        userFilters.add(label_wipe_memo_when_subset_desc)
+        userFilters.add(user_wipe_memo_when_subset_desc)
+        userFilters.add(label_getExtnParam_swap_memo_desc_when_subset)
+        userFilters.add(user_getExtnParam_swap_memo_desc_when_subset)
+
+        warnTxt = "NOTE: On 'QIF-' txns there is no check as to whether the Memo field has been edited!"
+        warnLbl = JLabel(wrap_HTML_italics(wrap_HTML_small(warnTxt, stripChars=False, addHTML=False), stripChars=False, addHTML=True))
+        warnLbl.setForeground(getColorBlue())
+        userFilters.add(warnLbl)
+        userFilters.add(JLabel(""))
+
+        userFilters.add(JLabel(""))
+        userFilters.add(JLabel(""))
+
+        userFilters.add(JLabel(wrap_HTML_underline("Advanced options:")))
+        userFilters.add(JLabel(""))
+        userFilters.add(label_DEBUG)
+        userFilters.add(user_DEBUG)
+
+        options = ["Abort", "ANALYSE"]
+        userAction = (JOptionPane.showOptionDialog(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_,
+                                                   userFilters,
+                                                   __THIS_METHOD_NAME,
+                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                   JOptionPane.QUESTION_MESSAGE,
+                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                   options,
+                                                   options[1]))
+        if userAction != 1:
+            myPrint("DB", "User exited - no action taken")
+            raise QuickAbortThisScriptException
+
+        del acctsForSelector
+        userSelectedObj = user_acctSelector.getSelectedItem()
+        if isinstance(userSelectedObj, StoreAccount): pass
+        if userSelectedObj is None:
+            userSelectedAcct = None
+        else:
+            userSelectedAcct = userSelectedObj.getAccount()
+        setExtnParam_selected_account(extnPrefs, userSelectedAcct)
+        myPrint("DB", "Selected Account:", getExtnParam_selected_account_text())
+
+        months = user_lookbackMonths.getText()
+        if StringUtils.isEmpty(months): months = "-1"
+        if StringUtils.isInteger(months) and int(months) > 0 and int(months) <= 600:
+            months = int(months)
+            myPrint("DB", "Months to look back set at: %s" %(months))
+        else:
+            months = 300
+            myPrint("DB", "Look back months invalid (should be 1 to 600 months) - defaulting to 300....")
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_LOOKBACK_MONTHS, months)
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_UNRECONCILED, user_include_unreconciled.isSelected())
+        myPrint("DB", "Include unreconciled transactions (else only reconciled):", getExtnParam_include_unreconciled())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_UNCONFIRMED, user_include_unconfirmed.isSelected())
+        myPrint("DB", "Include unconfirmed transactions (else only confirmed):", getExtnParam_include_unconfirmed(), "(check bypassed on 'QIF-')")
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_MDP, user_include_mdp.isSelected())
+        myPrint("DB", "Include MD+ downloaded txns (and always wipe memo field):", getExtnParam_include_mdp())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_OFX, user_include_ofx.isSelected())
+        myPrint("DB", "Include Downloaded OFX txns:", getExtnParam_include_ofx())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_IMPORTED_OFX, user_include_imported_ofx.isSelected())
+        myPrint("DB", "Include file imported OFX txns:", getExtnParam_imported_ofx())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_DOWNLOADED_QIF, user_include_downloaded_qif.isSelected())
+        myPrint("DB", "Include downloaded / file imported QIF txns:", getExtnParam_downloaded_qif())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_NON_DOWNLOADED_QIF, user_include_non_downloaded_qif.isSelected())
+        myPrint("DB", "Include NON downloaded / file imported QIF txns:", getExtnParam_non_downloaded_qif())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_OFX_QIF_DONT_CHECK_ORIGINAL_MEMO, user_ofx_qif_dont_check_original_memo.isSelected())
+        myPrint("DB", "Don't check / compare the original downloaded memo first:", getExtnParam_ofx_qif_dont_check_original_memo(), "(i.e. include manually edited memos; check bypassed on 'QIF-')")
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_OFX_QIF_DONT_COMPARE_WITH_DESC, user_ofx_qif_dont_compare_with_desc.isSelected())
+        myPrint("DB", "Don't compare memo to description (just wipe):", getExtnParam_ofx_qif_dont_compare_with_desc(), "(i.e. wipe any memos that matches all other rules)")
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_WIPE_MEMO_WHEN_SUBSET_DESC, user_wipe_memo_when_subset_desc.isSelected())
+        myPrint("DB", "Wipe unchanged memo that is a subset of description:", getExtnParam_wipe_memo_when_subset_desc())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_SWAP_MEMO_DESC_WHEN_SUBSET, user_getExtnParam_swap_memo_desc_when_subset.isSelected())
+        myPrint("DB", "Swap Memo into Description when subset:", getExtnParam_swap_memo_desc_when_subset())
+
+        extnPrefs.put(GlobalVars.EXTN_PREF_KEY_DEBUG, user_DEBUG.isSelected())
+        debug = getExtnParam_DEBUG()
+        myPrint("DB", "@@ DEBUG IS ON @@")
+        ############################################
+
+        myPrint("DB", "Saving Extension's parameters...")
+        saveExtensionPreferences(extnPrefs)
+
+        if (not getExtnParam_include_mdp() and not getExtnParam_include_ofx() and not getExtnParam_imported_ofx()
+                and not getExtnParam_downloaded_qif() and not getExtnParam_non_downloaded_qif()):
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, "NOTHING TO DO!?", theTitle=__THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.INFORMATION_MESSAGE)
+            raise QuickAbortThisScriptException
+
+        class StoreTxn:
+            def __init__(self, _isMDP, _isOFX, _isImportedOFX, _isDownloadedQIF, _isNonDownloadedQIF, _txn):
+                if not isinstance(_txn, ParentTxn): raise Exception("ERROR: StoreTxn requires a ParentTxn: was passed: '%s'" %(_txn))
+                self.isMDP = _isMDP
+                self.isOFX = _isOFX
+                self.isImportedOFX = _isImportedOFX
+                self.isDownloadedQIF = _isDownloadedQIF
+                self.isNonDownloadedQIF = _isNonDownloadedQIF
+                self.txn = _txn                                                                                         # type: ParentTxn
+                self.newDesc = None
+                self.newMemo = None
+                self.olTypeText = self.deriveOlTypeTxt()
+
+            def getOlType(self): return self.olTypeText
+
+            def deriveOlTypeTxt(self):
+                if self.isMDP:
+                    txt = "MD+"
+                elif self.isOFX:
+                    txt = "OFX+"
+                elif self.isImportedOFX:
+                    txt = "OFX-"
+                elif self.isDownloadedQIF:
+                    txt = "QIF+"
+                elif self.isNonDownloadedQIF:
+                    txt = "QIF-"
+                else:
+                    txt = "<??>"
+                return txt
+
+            def willZapMemo(self): return self.getNewMemo() is not None
+            def willSwapDesc(self): return self.getNewDesc() is not None
+
+            def getTxn(self): return self.txn
+            def getNewMemo(self): return self.newMemo
+            def getNewDesc(self): return self.newDesc
+            def __str__(self):          return self.getTxn().toString()
+            def __repr__(self):         return self.__str__()
+            def toString(self):         return self.__str__()
+
+        MD_decimal = MD_REF.getPreferences().getDecimalChar()
+
         _msgPad = 100
-        diag = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
-                                      "Please wait: processing..",
-                                      theTitle=__THIS_METHOD_NAME.upper(),
+        msg = pad(__THIS_METHOD_NAME.upper() + " Please wait: processing..", _msgPad, padChar=".")
+        pleaseWait = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_,
+                                      theStatus=msg,
+                                      theTitle=msg.upper(),
                                       lModal=False,
                                       OKButtonText="WAIT")
-        diag.go()
+        pleaseWait.go()
 
         try:
 
-            LS_LOOKBACK_KEY = "toolbox_zap_mdplus_ofx_default_memo_fields_lookback_months"
-            localStorage = MD_REF.getUI().getCurrentAccounts().getBook().getLocalStorage()
-            lookbackMonths = localStorage.getInt(LS_LOOKBACK_KEY, 300)
+            lookbackMonths = getExtnParam_lookbackMonths()
 
             ORIG_MEMO_TAG = OnlineTxnMerger.ORIG_MEMO_TAG
             OL_MATCH_STATUS_TAG = AbstractTxn.TAG_IS_NEW_TXN
+            ORIG_TXN_DATA = getFieldByReflection(AbstractTxn, "ORIG_TXN_TAG")
+            QIF_NON_DOWNLOADED_IMPORT = "qif.orig-txn"     # txn.getParameter("qif.orig-txn", "")
+            OFX_IMPORT_TAG_MARKER = "<STMTTRN>"
 
             startDate = DateUtil.incrementDate(DateUtil.convertDateToInt(DateUtil.firstDayInMonth(DateUtil.getStrippedDateObj())), 0, -lookbackMonths, 0)
             endDate = DateUtil.getStrippedDateInt()
@@ -3046,26 +3460,30 @@ Visit: %s (Author's site)
                                                                         lookbackMonths)
             myPrint("B", dateTxt)
 
-            allActiveAccounts = sorted(AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), AcctFilter.ACTIVE_ACCOUNTS_FILTER), key=lambda sort_x: (sort_x.getAccountType(), sort_x.getFullAccountName().lower()))
-
             txnsWithMemos = []
             accountsInvolved = {}
 
-            outputTxt = "Transactions where the Memo field matches the ofx/md+ downloaded Memo field:\n" \
-                        "----------------------------------------------------------------------------\n\n" \
-                        "CANDIDATES TO ZAP THE VISIBLE MEMO FIELD:\n\n"
+            outputTxt = "Transactions where md+/ofx/qif txns' memo field matches the rules chosen:\n" \
+                        "-------------------------------------------------------------------------\n\n" \
+                        "CANDIDATES TO ZAP (OR SWAP) MEMO FIELD:\n\n"
 
             outputTxt += "%s\n\n" %(dateTxt)
 
             iCountPotentialDescMemoSwaps = 0
 
+            targetAccount = getExtnParam_selected_account()
+
             for acct in allActiveAccounts:
                 if isinstance(acct, Account): pass
+
                 if acct.getAccountType() not in [Account.AccountType.BANK, Account.AccountType.CREDIT_CARD, Account.AccountType.INVESTMENT]:    # noqa
-                    continue
+                    raise Exception("LOGIC ERROR: Found account type: '%s'" %(acct.getAccountType()))
+
+                if targetAccount is not None:
+                    if acct != targetAccount: continue
 
                 msg = pad("Please wait: Account: '%s'" %(acct), _msgPad, padChar=".")
-                diag.updateMessages(newTitle=msg, newStatus=msg)
+                pleaseWait.updateMessages(newTitle=msg, newStatus=msg)
 
                 myPrint("DB", "Account: '%s' (%s)" %(acct, acct.getAccountType()))
 
@@ -3081,64 +3499,134 @@ Visit: %s (Author's site)
                     fiid = txn.getFIID()
                     if fiid is None: continue
 
-                    isOFX = "ofx:" in fiid
-                    isMDP = "mdplus:" in fiid
-                    if not isOFX and not isMDP: continue
-
-                    # Ignore non-cleared txns and NEW'ly (downloaded) txns...
-                    if txn.getClearedStatus() != AbstractTxn.ClearedStatus.CLEARED: continue                            # noqa
-                    if txn.getBooleanParameter(OL_MATCH_STATUS_TAG, False): continue
-
-                    olMemo = txn.getParameter(ORIG_MEMO_TAG, "").strip().lower()
-                    if olMemo == "": continue
-
                     txnMemo = txn.getMemo().strip().lower()
-                    txnDesc = txn.getDescription().strip().lower() if isOFX else ""
+                    if txnMemo == "": continue
 
-                    olTypeTxt = "OFX" if isOFX else "MD+"
+                    isMDP = "mdplus:" in fiid
+                    isOFX = "ofx:" in fiid
+                    isImportedOFX = False
+                    isDownloadedQIF = "qif" in fiid
+                    isNonDownloadedQIF = txn.getParameter(QIF_NON_DOWNLOADED_IMPORT, "") != ""
 
-                    # The fix is slightly different for MD+ and OFX. With MD+ the Memo is usually 'junk' / irrelevent
-                    # .. but for OFX, only remove Memo if identical to Description...
+                    if not isMDP and not isOFX and not isDownloadedQIF and not isNonDownloadedQIF:
+                        isImportedOFX = OFX_IMPORT_TAG_MARKER in txn.getParameter(ORIG_TXN_DATA, "").upper()
 
-                    if txnMemo != olMemo:
-                        myPrint("DB", "... ignoring %s memo(s) as olMemo:'%s' != txnMemo:'%s'..." %(olTypeTxt, olMemo, txnMemo))
+                    i = 0
+                    for check in [isMDP, isOFX, isImportedOFX, isDownloadedQIF, isNonDownloadedQIF]:
+                        i += (1 if (check) else 0)
+
+                    if i > 1:
+                        raise Exception("LOGIC ERROR: Seem to have detected multiple OL types (%s)? "
+                                        "isMDP: %s, isOFX: %s, isImportedOFX: %s, isDownloadedQIF: %s, isNonDownloadedQIF: %s"
+                                        %(i,
+                                          isMDP, isOFX, isImportedOFX, isDownloadedQIF, isNonDownloadedQIF))
+                    elif i < 1:
                         continue
 
-                    if isOFX:
-                        if txnDesc == "" or txnDesc != txnMemo:
-                            myPrint("DB", "...... ignoring %s memo(s) as txnMemo:'%s' != txnDesc:'%s'..." %(olTypeTxt, txnMemo, txnDesc))
+                    if isMDP and not getExtnParam_include_mdp(): continue
+                    if isOFX and not getExtnParam_include_ofx(): continue
+                    if isImportedOFX and not getExtnParam_imported_ofx(): continue
+                    if isDownloadedQIF and not getExtnParam_downloaded_qif(): continue
+                    if isNonDownloadedQIF and not getExtnParam_non_downloaded_qif(): continue
+
+                    storeTxn = StoreTxn(isMDP, isOFX, isImportedOFX, isDownloadedQIF, isNonDownloadedQIF, txn)
+                    olTypeTxt = storeTxn.getOlType()
+
+                    # Ignore un-reconciled txns...
+                    if (not getExtnParam_include_unreconciled()
+                            and txn.getClearedStatus() != AbstractTxn.ClearedStatus.CLEARED):                           # noqa
+                        continue
+
+                    # Ignore non-cleared txns... (manual QIF files do not have this setting)....
+                    if not isNonDownloadedQIF:
+                        if (not getExtnParam_include_unconfirmed()
+                                and txn.getBooleanParameter(OL_MATCH_STATUS_TAG, False)):
                             continue
 
-                    myPrint("DB", "... Found %s txn dated: %s Desc: '%s' amount: %s with matching memo(s): '%s'..."
-                            %(olTypeTxt, txn.getDateInt(), txn.getDescription(), txn.getValue(), txnMemo))
+                    # The fix is slightly different for MD+, OFX and QIF. With MD+ the Memo is usually 'junk' / irrelevant
+                    # .. but for OFX, only remove Memo if identical to Description... QIF depends if downloaded or manual...
 
-                    txnsWithMemos.append(txn)
+                    olMemo = getOlMemo(txn).strip().lower()
+
+                    mustCheckAgainstOlMemo = True
+                    if not isMDP:
+                        if isNonDownloadedQIF or getExtnParam_ofx_qif_dont_check_original_memo():
+                            mustCheckAgainstOlMemo = False
+
+                    if mustCheckAgainstOlMemo:
+                        if olMemo == "":
+                            myPrint("DB", "... ignoring %s memo(s) as (mustCheck) olMemo:'%s' is blank (txnMemo: '%s')'..." %(olTypeTxt, olMemo, txnMemo))
+                            continue
+
+                        if txnMemo != olMemo:
+                            myPrint("DB", "... ignoring %s memo(s) as (mustCheck) olMemo:'%s' != txnMemo:'%s'..." %(olTypeTxt, olMemo, txnMemo))
+                            continue
+
+                    wipeMemo = False
+                    swapMemoDesc = False
+
+                    if isMDP:
+                        wipeMemo = True
+                    else:
+                        if getExtnParam_ofx_qif_dont_compare_with_desc():
+                            wipeMemo = True
+
+                        txnDesc = txn.getDescription().strip().lower()
+                        if txnDesc == "" and txnMemo != "":
+                            swapMemoDesc = True
+                            wipeMemo = True
+                        elif txnDesc != "" and txnDesc == txnMemo:
+                            wipeMemo = True
+                        elif getExtnParam_wipe_memo_when_subset_desc() and txnMemo in txnDesc:
+                            wipeMemo = True
+                        elif getExtnParam_swap_memo_desc_when_subset() and txnDesc in txnMemo:
+                            swapMemoDesc = True
+                            wipeMemo = True
+
+                        if not wipeMemo and not swapMemoDesc:
+                            myPrint("DB", "... ignoring %s memo(s) - matching rule failed - txnMemo:'%s', txnDesc:'%s'..." %(olTypeTxt, txnMemo, txnDesc))
+                            continue
+
+                    if wipeMemo: storeTxn.newMemo = ""
+                    if swapMemoDesc: storeTxn.newDesc = txn.getMemo()
+
+                    myPrint("DB", "... Found %s txn dated: %s Desc: '%s' amount: %s (with memo rule match: wipeMemo: %s, swapDesc: %s) txnMemo: '%s', olMemo: '%s'..."
+                            %(olTypeTxt,
+                              convertStrippedIntDateFormattedText(txn.getDateInt()),
+                              txn.getDescription(),
+                              txn.getAccount().getCurrencyType().formatFancy(txn.getValue(), MD_decimal),
+                              wipeMemo, swapMemoDesc,
+                              txn.getMemo(),
+                              getOlMemo(txn)))
+
+                    txnsWithMemos.append(storeTxn)
                     accountsInvolved[acct] = 1
-
 
         except: raise
 
-        finally: diag.kill()
+        finally: pleaseWait.kill()
+
+        del allActiveAccounts
 
         if len(txnsWithMemos) < 1:
-            popupTxt = "Did not find any txns with default ofx/md+ memo fields to zap... quitting..."
+            popupTxt = "Did not find any md+/ofx/qif txns memo fields (matching rules) to zap/swap... quitting..."
             _txt = "@@ %s: %s @@" %(myModuleID, popupTxt)
             myPrint("B", _txt)
-            myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, popupTxt, "Zap ofx/md+ Memo fields", JOptionPane.INFORMATION_MESSAGE)
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, popupTxt, theTitle=__THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.INFORMATION_MESSAGE)
             MD_REF.getUI().setStatus(_txt, 0)
             raise QuickAbortThisScriptException
 
-        txnsWithMemos = sorted(txnsWithMemos, key=lambda sort_x: (sort_x.getParentTxn().getAccount().getAccountType(),
-                                                                  sort_x.getParentTxn().getAccount().getAccountName().lower(),
-                                                                  sort_x.getParentTxn().getDateInt(),
-                                                                  sort_x.getParentTxn().getValue()))
+        txnsWithMemos = sorted(txnsWithMemos, key=lambda sort_x: (sort_x.getTxn().getAccount().getAccountType(),
+                                                                  sort_x.getTxn().getAccount().getAccountName().lower(),
+                                                                  sort_x.getTxn().getDateInt(),
+                                                                  sort_x.getTxn().getValue()))
 
         OUTPUT_DESC_LENGTH = 60
         OUTPUT_MEMO_LENGTH = 100
 
-        outputTxt += "%s %s %s %s %s %s%s %s %s\n" \
-                     "%s %s %s %s %s %s%s %s %s\n" \
-                  %(pad("ol:", 3),
+        outputTxt += "%s %s %s %s %s %s%s %s %s %s\n" \
+                     "%s %s %s %s %s %s%s %s %s %s\n" \
+                  %(pad("ol:", 4),
                     pad("Account Type:", 13),
                     pad("Account Name:", 26),
                     pad("Curr:", 5),
@@ -3146,7 +3634,8 @@ Visit: %s (Author's site)
                     pad("", 3),
                     pad("Txn Description:", OUTPUT_DESC_LENGTH),
                     pad("Txn Memo:", OUTPUT_MEMO_LENGTH),
-                    rpad("Txn Value:",15),
+                    rpad("Txn Value:", 15),
+                    pad("Ol Memo:", OUTPUT_MEMO_LENGTH),
                     pad("", 3, padChar="-"),
                     pad("", 13, padChar="-"),
                     pad("", 26, padChar="-"),
@@ -3155,111 +3644,122 @@ Visit: %s (Author's site)
                     pad("", 3),
                     pad("", OUTPUT_DESC_LENGTH, padChar="-"),
                     pad("", OUTPUT_MEMO_LENGTH, padChar="-"),
-                    rpad("",15, padChar="-"))
+                    rpad("",15, padChar="-"),
+                    pad("", OUTPUT_MEMO_LENGTH, padChar="-"))
 
-        for txn in txnsWithMemos:
+        for storedTxn in txnsWithMemos:
+            txn = storedTxn.getTxn()
             if isinstance(txn, ParentTxn): pass
-
-            lPotentialDescMemoSwap = False
-
-            fiid = txn.getFIID()
-            isOFX = "ofx:" in fiid
-            isMDP = "mdplus:" in fiid
-            if not isOFX and not isMDP: raise Exception("LOGIC ERROR! not ofx and not md+ !?")
-            olTypeTxt = "OFX" if isOFX else "MD+"
 
             pTxn = txn.getParentTxn()
             pAcct = pTxn.getAccount()
             pAcctCurr = pAcct.getCurrencyType()
 
-            # if pTxn.getDescription().strip() in pTxn.getMemo():
-            #     lPotentialDescMemoSwap = True
-            #     iCountPotentialDescMemoSwaps += 1
+            if storedTxn.willSwapDesc():
+                iCountPotentialDescMemoSwaps += 1
 
-            outputTxt += "%s %s %s %s %s %s%s %s %s\n" \
-                      %(pad(olTypeTxt, 3),
+            outputTxt += "%s %s %s %s %s %s%s %s %s %s\n" \
+                      %(pad(storedTxn.getOlType(), 4),
                         pad(pAcct.getAccountType(), 13),
                         padTruncateWithDots(pAcct.getAccountName(), 26),
                         padTruncateWithDots(pAcctCurr.getIDString(), 5),
                         pad(convertStrippedIntDateFormattedText(pTxn.getDateInt()), 10),
-                        pad("**", 3) if lPotentialDescMemoSwap else pad("", 3),
+                        pad("**", 3) if storedTxn.willSwapDesc() else pad("", 3),
                         padTruncateWithDots(pTxn.getDescription(), OUTPUT_DESC_LENGTH),
                         padTruncateWithDots(pTxn.getMemo(), OUTPUT_MEMO_LENGTH),
-                        rpad(pAcctCurr.formatFancy(pTxn.getValue(), MD_decimal),15))
+                        rpad(pAcctCurr.formatFancy(pTxn.getValue(), MD_decimal),15),
+                        padTruncateWithDots(getOlMemo(pTxn), OUTPUT_MEMO_LENGTH)
+                        )
 
-        msgTxt = "Found %s accounts with %s ofx/md+ txns where (default) memo field(s) can be blanked out..." %(len(accountsInvolved), len(txnsWithMemos))
+        msgTxt = "Found %s accounts with %s md+/ofx/qif txns where memo field(s) can be zapped (or swapped)..." %(len(accountsInvolved), len(txnsWithMemos))
         myPrint("B", msgTxt)
 
         outputTxt += "\n" \
                      "%s\n" %(msgTxt)
 
-        # if iCountPotentialDescMemoSwaps > 0:
-        #     msgTxt2 = "ALSO FOUND: %s txns where the Memo and Description fields can be swapped first (to retain most information)\n" %(iCountPotentialDescMemoSwaps)
-        #     outputTxt += "\n" \
-        #                  "KEY: **%s\n" %(msgTxt2)
+        if iCountPotentialDescMemoSwaps > 0:
+            msgTxt2 = "FOUND: %s txns where the Memo and Description fields can be swapped first (to retain maximum information)\n" %(iCountPotentialDescMemoSwaps)
+            outputTxt += "\n" \
+                         "KEY: ** %s\n" %(msgTxt2)
+
+
+        undo = book.getUndoManager()
+        if isinstance(undo, MDUndoManager): pass
+
+        if undo:
+            outputTxt += "\n*** If you proceed, MD's Edit>UNDO manager will be enabled and available to you ***\n\n"
+        else:
+            outputTxt += "\n*** If you proceed, MD's Edit>UNDO manager is NOT available (Consider Backup first) ***\n\n"
+
+        outputTxt += "\n\nParameters:\n"
+        outputTxt += "  - Selected Account:                                                              %s\n" %(getExtnParam_selected_account_text())
+        outputTxt += "  - Include unreconciled transactions (else only reconciled):                      %s\n" %(getExtnParam_include_unreconciled())
+        outputTxt += "  - Include unconfirmed transactions (else only confirmed) (bypassed on 'QIF-'):   %s\n" %(getExtnParam_include_unconfirmed())
+        outputTxt += "  - Include MD+ downloaded txns (and always wipe memo field):     (MD+)            %s\n" %(getExtnParam_include_mdp())
+        outputTxt += "  - Include Downloaded OFX txns                                   (OFX+):          %s\n" %(getExtnParam_include_ofx())
+        outputTxt += "  - Include file imported OFX txns:                               (OFX-)           %s\n" %(getExtnParam_imported_ofx())
+        outputTxt += "  - Include downloaded / file imported QIF txns:                  (QIF+)           %s\n" %(getExtnParam_downloaded_qif())
+        outputTxt += "  - Include NON downloaded / file imported QIF txns:              (QIF-)           %s\n" %(getExtnParam_non_downloaded_qif())
+        outputTxt += "  - Don't check / compare the original downloaded memo first (bypassed on 'QIF-'): %s\n" %(getExtnParam_ofx_qif_dont_check_original_memo())
+        outputTxt += "  - Don't compare memo to description (just wipe) (after matching all other rules):%s\n" %(getExtnParam_ofx_qif_dont_compare_with_desc())
+        outputTxt += "  - Wipe unchanged memo that is a subset of description:                           %s\n" %(getExtnParam_wipe_memo_when_subset_desc())
+        outputTxt += "  - Swap Memo into Description when subset:                                        %s\n" %(getExtnParam_swap_memo_desc_when_subset())
+        outputTxt += "\n"
 
         outputTxt += "\n<END>"
 
-        # jif = QuickJFrame((__THIS_METHOD_NAME + " candidates").upper(),
-        #                   outputTxt,
-        #                   copyToClipboard=True,
-        #                   lWrapText=False,
-        #                   lAutoSize=True).show_the_frame()
-        #
-
-        ask = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
+        ask = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_,
                                theStatus=msgTxt,
                                theMessage=outputTxt,
                                theTitle=__THIS_METHOD_NAME.upper(),
                                lAlertLevel=1,
                                lCancelButton=True,
-                               OKButtonText="ZAP THESE MEMO FIELDS?")
+                               OKButtonText="ZAP/SWAP MEMOs?")
         if not ask.go():
             _txt = "%s: no changes made" %(__THIS_METHOD_NAME)
             myPrint("B", _txt)
-            myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, _txt, __THIS_METHOD_NAME.upper())
+            myPopupInformationBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, _txt, __THIS_METHOD_NAME.upper())
             raise QuickAbortThisScriptException
-
-        # if not myPopupAskQuestion(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
-        #                           "Zap ofx/md+ default memo fields",
-        #                           "Zap %s ofx/md+ txn default memo fields (over %s accounts) - PROCEED?" %(len(txnsWithMemos), len(accountsInvolved))):
-        #     myPrint("B", "USER ABORTED")
-        #     raise QuickAbortThisScriptException
 
         try:
 
-            myPrint("B", "PROCEEDING TO ZAP ofx/md+ (default) Memo fields...")
+            myPrint("B", "PROCEEDING TO %s..." %(__THIS_METHOD_NAME))
 
             _msgPad = 100
-            diag = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_,
-                                          "Please wait: processing..",
-                                          theTitle="Zapping ofx/md+ (default) memo fields....",
+            msg = pad("Zapping (or swapping) md+/ofx/qif memo field(s).... PLEASE WAIT...", _msgPad, padChar=".")
+            pleaseWait = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_,
+                                          msg,
+                                          theTitle=msg.upper(),
                                           lModal=False,
                                           OKButtonText="WAIT")
-            diag.go()
+            pleaseWait.go()
 
             MD_REF.saveCurrentAccount()
             txnsToModify = []
             txnsOriginals = []
 
-            undo = book.getUndoManager()
-            if isinstance(undo, MDUndoManager): pass
-
             myPrint("B", "UNDO Manager %s enabled...." %("is" if undo else "NOT"))
 
-            for txn in txnsWithMemos:
+            for storedTxn in txnsWithMemos:
+                txn = storedTxn.getTxn()
                 if undo:
-                    newTxn = txn.getParentTxn().duplicate()
+                    newTxn = txn.duplicate()
                     newTxn.setEditingMode()
-                    newTxn.setMemo("")
-                    txnsOriginals.append(txn.getParentTxn().duplicate())
+                    if storedTxn.willSwapDesc():
+                        newTxn.setDescription(storedTxn.getNewDesc())
+                    if storedTxn.willZapMemo():
+                        newTxn.setMemo(storedTxn.getNewMemo())
+                    txnsOriginals.append(txn.duplicate())
                     txnsToModify.append(newTxn)
                 else:
                     txn.setEditingMode()
-                    txn.setMemo("")
+                    if storedTxn.willSwapDesc():
+                        txn.setDescription(storedTxn.getNewDesc())
+                    if storedTxn.willZapMemo():
+                        txn.setMemo(storedTxn.getNewMemo())
                     txnsToModify.append(txn)
 
-            myPrint("B", "En-mass marking the %s selected txns" %(len(txnsToModify)))
+            myPrint("B", "En-mass marking the %s changed txns" %(len(txnsToModify)))
             if undo:
                 undo.modifyItems(txnsOriginals, txnsToModify)
             else:
@@ -3269,15 +3769,15 @@ Visit: %s (Author's site)
 
         except: raise
 
-        finally: diag.kill()
+        finally: pleaseWait.kill()
 
-        if len(txnsWithMemos) > 0:
-            localStorage.put(LS_LOOKBACK_KEY, 36)
-
-        popupTxt = "Zapped (default) memo field on %s ofx/md+ txns (involving %s accts)%s" %(len(txnsWithMemos), len(accountsInvolved), " (undo enabled)" if (undo) else "")
+        sMsg = "Zapping (or swapping) memo field(s) COMPLETED"
+        mMsg = "%s md+/ofx/qif txns (involving %s accts)\n" \
+               "%s" %(len(txnsWithMemos), len(accountsInvolved), "(undo enabled)" if (undo) else "")
+        MyPopUpDialogBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, theStatus=sMsg, theMessage=mMsg, theTitle=__THIS_METHOD_NAME.upper()).go()
+        popupTxt = "Zapped (or swapped) memo field(s) on %s md+/ofx/qif txns (involving %s accts)%s" %(len(txnsWithMemos), len(accountsInvolved), " (undo enabled)" if (undo) else "")
         _txt = "@@ %s: %s @@" %(myModuleID, popupTxt)
         myPrint("B", _txt)
-        myPopupInformationBox(toolbox_zap_mdplus_ofx_default_memo_fields_frame_, popupTxt, "Zapping of ofx/md+ (default) memo fields complete", JOptionPane.INFORMATION_MESSAGE)
         MD_REF.getUI().setStatus(_txt, 0)
 
         myPrint("B","FINISHED....")

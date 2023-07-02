@@ -176,7 +176,8 @@
 #               Fix to missing class reference in 'buddy' toolbox_move_merge_investment_txns.py script....
 #               Added "Remove (hidden) downloaded OFX/MD+ data from Transactions within an Account" feature
 #               Renamed script to toolbox_zap_mdplus_ofx_default_memo_fields.py. Now fixes OFX too...
-# build: 1060 - ???
+# build: 1060 - Enhanced buddy 'toolbox_zap_mdplus_ofx_default_memo_fields' script
+# build: 1060 - Renamed script to 'toolbox_zap_mdplus_ofx_qif_default_memo_fields' script
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 

@@ -8,5 +8,5 @@
   "module_name" = "Toolbox"
   "module_desc" = "Infinite Kind support tool: Displays Moneydance settings, diagnoses issues, run fixes, and much more....."
   "mac_sandbox_friendly" = "false"
-  "news" = "Technical fixes for MD2023(5000) KOTLIN compiled build(s)..."
+  "news" = "Technical fixes for MD2023(5000) KOTLIN compiled build(s)...; Enhanced 'Toolbox: Zap md+/ofx/qif (default) memo fields' menu"
 }

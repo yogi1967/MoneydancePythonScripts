@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_move_merge_investment_txns.py build: 1008 - May 2023 - Stuart Beesley StuWareSoftSystems
+# toolbox_move_merge_investment_txns.py build: 1009 - June 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -39,6 +39,7 @@
 # build: 1006 - Common code tweaks
 # build: 1007 - Fix missing reference to CurrencyTable class
 # build: 1008 - Tweak pre-selected txns detection routing for Bank Register 'issue'. Also copy latest detect_non_hier_sec_acct_or_orphan_txns()
+# build: 1009 - Renamed buddy app to: toolbox_zap_mdplus_ofx_qif_default_memo_fields
 
 # Allows the user to select investment transactions and then move them between accounts:
 # Can be called from the Extensions Menu (with/without txns selected); or from Toolbox menu
@@ -49,7 +50,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox_move_merge_investment_txns"
-version_build = "1008"
+version_build = "1009"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -3050,7 +3051,7 @@ Visit: %s (Author's site)
             raise QuickAbortThisScriptException
 
         lDetectedBuddyRunning = False
-        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions", u"toolbox_zap_mdplus_ofx_default_memo_fields"]:
+        for checkFr in [u"toolbox", u"toolbox_move_merge_investment_txns", u"toolbox_total_selected_transactions", u"toolbox_zap_mdplus_ofx_qif_default_memo_fields"]:
             if getMyJFrame(checkFr) is not None:
                 lDetectedBuddyRunning = True
 
