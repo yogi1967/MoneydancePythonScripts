@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_zap_mdplus_ofx_qif_default_memo_fields.py build: 1002 - June 2023 - Stuart Beesley StuWareSoftSystems
+# toolbox_zap_mdplus_ofx_qif_default_memo_fields.py build: 1002 - July 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -347,7 +347,6 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ####################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ########################################################################################
-    GlobalVars.extn_param_shownHelpFile_MIT = None
     GlobalVars.MD_KOTLIN_COMPILED_BUILD = 5000                                  # 2023.0 - Introduced Balance Adjustment
     # >>> END THIS SCRIPT'S GLOBALS ####################################################################################
 
@@ -2829,8 +2828,6 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         # >>> THESE ARE THIS SCRIPT's PARAMETERS TO LOAD
-        if GlobalVars.parametersLoadedFromFile.get("extn_param_shownHelpFile_MIT") is not None:
-            pass
 
         myPrint("DB","parametersLoadedFromFile{} set into memory (as variables).....:", GlobalVars.parametersLoadedFromFile)
         return
@@ -3183,7 +3180,7 @@ Visit: %s (Author's site)
                 myPrint("B","@@ Error loading contents from /%s_readme.txt" %(myModuleID))
 
         if not getExtnParam_shown_helpfile():
-            QuickJFrame("%s: Help / guide (FIRST EXECUTION OF UTILITY)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, screenLocation=Point(10,10),lAutoSize=True).show_the_frame()
+            QuickJFrame("%s: Help / guide (FIRST EXECUTION OF UTILITY)" %(myModuleID), GlobalVars.helpFileData, lWrapText=False, lAutoSize=True).show_the_frame()
             extnPrefs.put(GlobalVars.EXTN_PREF_KEY_SHOWN_HELPFILE, True)
             saveExtensionPreferences(extnPrefs)
             raise QuickAbortThisScriptException
@@ -3596,6 +3593,7 @@ Visit: %s (Author's site)
             outputTxt += "%s\n\n" %(dateTxt)
 
             iCountPotentialDescMemoSwaps = 0
+            iCountBlankDescSwapsWarning = 0
 
             targetAccount = getExtnParam_selected_account()
 
@@ -3721,9 +3719,12 @@ Visit: %s (Author's site)
                             zapMemo = True
                         elif txnDesc == "" and txnMemo != "":
                             if getExtnParam_swap_memo_desc_when_subset(getExtnParam_selected_account()):
-                                swapMemoDesc = True
-                                zapMemo = True
                                 storeTxn.setSwapMarker("^^")
+                            else:
+                                storeTxn.setSwapMarker("##")
+                                iCountBlankDescSwapsWarning += 1
+                            swapMemoDesc = True
+                            zapMemo = True
                         elif txnMemo in txnDesc and len(txnMemo) < len(txnDesc):
                             if getExtnParam_zap_memo_when_subset_desc(getExtnParam_selected_account()):
                                 zapMemo = True
@@ -3869,8 +3870,13 @@ Visit: %s (Author's site)
         if iCountPotentialDescMemoSwaps > 0:
             outputTxt += "\nFOUND: %s txns where the Memo and Description fields can be swapped first (to retain maximum information)\n" %(iCountPotentialDescMemoSwaps)
 
+        if iCountBlankDescSwapsWarning > 0:
+            outputTxt += "\nALERT ** FOUND: %s txns where Memo can be swapped into Desc (as desc was blank) BUT THE SWAP SETTING WAS NOT TICKED... (to retain maximum information) **\n" %(iCountBlankDescSwapsWarning)
+
         outputTxt += "KEY: 'Ol Memo = the hidden original downloaded/imported memo data\n"
-        outputTxt += "     '^^' = Where memo can beswapped into description as description was blank\n"
+        outputTxt += "     '^^' = Where memo can be swapped into description as description was blank\n"
+        if iCountBlankDescSwapsWarning > 0:
+            outputTxt += "     '##' = Where memo can be swapped into description as description was blank (SAFETY SWAP >> 'Swap memo into description' setting NOT TICKED)\n"
         outputTxt += "     '><' = Where memo can be swapped into description as description was found inside (longer) memo\n"
         outputTxt += "     '~~' = Where memo can be zapped as memo was found inside (longer) description\n"
         outputTxt += "\n"
@@ -3887,8 +3893,8 @@ Visit: %s (Author's site)
         outputTxt += "  - Selected Account:                                                              %s\n" %(getExtnParam_selected_account_text())
         outputTxt += "  - Include unreconciled transactions (else only reconciled):                      %s\n" %(getExtnParam_include_unreconciled(getExtnParam_selected_account()))
         outputTxt += "  - Include unconfirmed transactions (else only confirmed) (bypassed on 'QIF-'):   %s\n" %(getExtnParam_include_unconfirmed(getExtnParam_selected_account()))
-        outputTxt += "  - Include MD+ downloaded txns (and always zap memo field):     (MD+)             %s\n" %(getExtnParam_include_mdp(getExtnParam_selected_account()))
-        outputTxt += "  - Include Downloaded OFX txns                                   (OFX+):          %s\n" %(getExtnParam_include_ofx(getExtnParam_selected_account()))
+        outputTxt += "  - Include MD+ downloaded txns (and always zap memo field):      (MD+)            %s\n" %(getExtnParam_include_mdp(getExtnParam_selected_account()))
+        outputTxt += "  - Include Downloaded OFX txns:                                  (OFX+)           %s\n" %(getExtnParam_include_ofx(getExtnParam_selected_account()))
         outputTxt += "  - Include file imported OFX txns:                               (OFX-)           %s\n" %(getExtnParam_imported_ofx(getExtnParam_selected_account()))
         outputTxt += "  - Include downloaded / file imported QIF txns:                  (QIF+)           %s\n" %(getExtnParam_downloaded_qif(getExtnParam_selected_account()))
         outputTxt += "  - Include NON downloaded / file imported QIF txns:              (QIF-)           %s\n" %(getExtnParam_non_downloaded_qif(getExtnParam_selected_account()))

@@ -177,7 +177,9 @@
 #               Added "Remove (hidden) downloaded OFX/MD+ data from Transactions within an Account" feature
 #               Renamed script to toolbox_zap_mdplus_ofx_default_memo_fields.py. Now fixes OFX too...
 # build: 1060 - Enhanced buddy 'toolbox_zap_mdplus_ofx_default_memo_fields' script
-# build: 1060 - Renamed script to 'toolbox_zap_mdplus_ofx_qif_default_memo_fields' script
+#               Renamed script to 'toolbox_zap_mdplus_ofx_qif_default_memo_fields' script
+#               Tweaked OFX_removeDownloadedDataFromTxns() to include QIF in the settings zap routines....
+#               Disbaled the createUSAAProfile() menu option (no longer needed)
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -10702,17 +10704,17 @@ Visit: %s (Author's site)
 
         return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
 
-    def createUSAAProfile():
-        myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
-
-        _THIS_METHOD_NAME = "Create USAA OFX Profile".upper()
-
-        scriptToRun = "ofx_create_new_usaa_bank_custom_profile.py"
-
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute script: %s?" %(scriptToRun)):
-            return False
-
-        return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
+    # def createUSAAProfile():
+    #     myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
+    #
+    #     _THIS_METHOD_NAME = "Create USAA OFX Profile".upper()
+    #
+    #     scriptToRun = "ofx_create_new_usaa_bank_custom_profile.py"
+    #
+    #     if not confirm_backup_confirm_disclaimer(toolbox_frame_,_THIS_METHOD_NAME,"Execute script: %s?" %(scriptToRun)):
+    #         return False
+    #
+    #     return scriptRunner(scriptToRun, _THIS_METHOD_NAME)
 
     class StoreAccountList():
         def __init__(self, obj):
@@ -10994,10 +10996,10 @@ Visit: %s (Author's site)
         myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
     def OFX_removeDownloadedDataFromTxns():
-        """Wipes OFX/MD+ hidden data from txns"""
+        """Wipes MD+/OFX/QIF hidden data from txns"""
         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()")
 
-        _THIS_METHOD_NAME = "OFX: Remove downloaded OFX/MD+ data from Txns".upper()
+        _THIS_METHOD_NAME = "OFX: Remove MD+/OFX(/QIF) data from downloaded Txns".upper()
 
         if MD_REF.getCurrentAccountBook() is None: return
         if not (ToolboxMode.isUpdateMode()): return
@@ -11006,7 +11008,7 @@ Visit: %s (Author's site)
         accountsListForOlTxns = sorted(accountsListForOlTxns, key=lambda sort_x: (sort_x.getFullAccountName().upper()))
 
         selectedAcct = JOptionPane.showInputDialog(toolbox_frame_,
-                                                   "Select Acct to remove (hidden) OFX/MD+ data:",
+                                                   "Select Acct to remove (hidden) MD+/OFX(/QIF) data:",
                                                    "Select ACCOUNT",
                                                    JOptionPane.INFORMATION_MESSAGE,
                                                    getMDIcon(lAlwaysGetIcon=True),
@@ -11020,8 +11022,8 @@ Visit: %s (Author's site)
 
         if isinstance(selectedAcct, Account): pass
 
-        options = ["Remove the hidden OFX/MD+ downloaded data within this Acct",
-                   "Disable (rename) the hidden OFX/MD+ downloaded data within this Acct"]
+        options = ["Remove the hidden MD+/OFX(/QIF) downloaded data within this Acct",
+                   "Disable (rename) the hidden MD+/OFX(/QIF) downloaded data within this Acct"]
 
         selectedRemoveDisableOption = JOptionPane.showInputDialog(toolbox_frame_,
                                                            "Select Remove or Disable option?",
@@ -11037,11 +11039,11 @@ Visit: %s (Author's site)
             myPopupInformationBox(toolbox_frame_, txt, theMessageType=JOptionPane.WARNING_MESSAGE)
             return
 
-        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Remove/disable hidden OFX/MD+ data from selected account?"):
+        if not confirm_backup_confirm_disclaimer(toolbox_frame_, _THIS_METHOD_NAME, "Remove/disable hidden MD+/OFX(/QIF) data from selected account?"):
             return
 
         pleaseWait = MyPopUpDialogBox(toolbox_frame_,
-                                      "Please wait: executing OFX/MD+ hidden data changes....",
+                                      "Please wait: executing MD+/OFX(/QIF) hidden data changes....",
                                       theTitle=_THIS_METHOD_NAME.upper(),
                                       lModal=False,
                                       OKButtonText="WAIT")
@@ -11064,6 +11066,8 @@ Visit: %s (Author's site)
             myPrint("B", "Removing 'OnlineTxnList' record...")
             olTxnRecord.deleteItem()
 
+        QIF_ORIG_DATA_KEY = "qif.orig-txn"
+
         if len(olTxns) > 0:
             myPrint("B", "Amending transactions......")
             for txn in olTxns:
@@ -11073,6 +11077,9 @@ Visit: %s (Author's site)
 
                 save_fiid = txn.getFIID()
                 txn.setFIID(None)
+
+                save_qif_data = txn.getParameter(QIF_ORIG_DATA_KEY, "")
+                save_qif_sn = txn.getParameter(AbstractTxn.TAG_QIF_IMPORT_SESSION, "")
 
                 saved_fitid_data = []
                 for pKey in list(txn.getParameterKeys()):
@@ -11084,11 +11091,24 @@ Visit: %s (Author's site)
                     txn.setParameter("DISABLED_" + AbstractTxn.TAG_FI_ID, save_fiid)
                     for fitidKey, fitidValue in saved_fitid_data:
                         txn.setParameter("DISABLED_" + fitidKey, fitidValue)
+
+                    # Now QIF data
+                    if save_qif_data != "":
+                        txn.setParameter("DISABLED_" + QIF_ORIG_DATA_KEY, save_qif_data)
+                        txn.setParameter(QIF_ORIG_DATA_KEY, None)
+
+                    if save_qif_sn != "":
+                        txn.setParameter("DISABLED_" + AbstractTxn.TAG_QIF_IMPORT_SESSION, save_qif_sn)
+                        txn.setParameter(AbstractTxn.TAG_QIF_IMPORT_SESSION, None)
                 else:
 
                     for pKey in list(txn.getParameterKeys()):
                         if (pKey.startswith("ol.")):
                             txn.setParameter(pKey, None)
+
+                    # Now QIF data
+                    txn.setParameter(QIF_ORIG_DATA_KEY, None)
+                    txn.setParameter(AbstractTxn.TAG_QIF_IMPORT_SESSION, None)
 
                 pTxn.syncItem()
 
@@ -27563,8 +27583,8 @@ now after saving the file, restart Moneydance
                     user_reset_OFXLastTxnUpdate_dates = MenuJRadioButton("Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD 2022.3(4074) onwards)", False, updateMenu=True, secondaryEnabled=(isMulti_OFXLastTxnUpdate_build()))
                     user_reset_OFXLastTxnUpdate_dates.setToolTipText("Allows you to reset ALL the last download txn dates used to set the start date for txn downloads (2022.3(4074) onwards) - THIS CHANGES DATA!")
 
-                    user_removeDownloadedDataFromTxns = MenuJRadioButton("Remove (hidden) downloaded OFX/MD+ data from Transactions within an Account", False, updateMenu=True)
-                    user_removeDownloadedDataFromTxns.setToolTipText("Will remove/disable hidden OFX/MD+ data from Transactions (useful to address as_of reconcile date issues) - THIS CHANGES DATA!")
+                    user_removeDownloadedDataFromTxns = MenuJRadioButton("Remove/disable (hidden) MD+/OFX(/QIF) data from downloaded Txns within an Account", False, updateMenu=True)
+                    user_removeDownloadedDataFromTxns.setToolTipText("Will remove/disable hidden MD+/OFX(/QIF) data from downloaded Transactions (useful to address as_of reconcile date issues) - THIS CHANGES DATA!")
 
                     user_deleteOFXBankingLogonProfile = MenuJRadioButton("Delete OFX Banking Service / Logon Profile (remove_one_service.py)", False, updateMenu=True)
                     user_deleteOFXBankingLogonProfile.setToolTipText("This will allow you to delete an Online Banking logon / service profile (service) from Moneydance. E.g. you will have to set this up again. THIS CHANGES DATA! (remove_one_service.py)")
@@ -27602,8 +27622,8 @@ now after saving the file, restart Moneydance
                     user_manuallyPrimeUSAARootUserIDClientIDs = MenuJRadioButton("USAA ONLY: (NEW METHOD) Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs", False, updateMenu=True)
                     user_manuallyPrimeUSAARootUserIDClientIDs.setToolTipText("USAA Only: Allows you to 'prime' / overwrite stored UserIDs/ClientUIDs for USSA")
 
-                    user_createUSAAProfile = MenuJRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False, updateMenu=True)
-                    user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
+                    # user_createUSAAProfile = MenuJRadioButton("USAA Only: (DEPRECATED METHOD) Executes the special script to create a working USAA OFX Profile", False, updateMenu=True)
+                    # user_createUSAAProfile.setToolTipText("Executes: ofx_create_new_usaa_bank_custom_profile.py - THIS CHANGES DATA!")
 
                     userFilters = JPanel(GridLayout(0, 1))
 
@@ -27653,10 +27673,10 @@ now after saving the file, restart Moneydance
                             userFilters.add(user_zapMDPlusProfile)
 
                     if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
-                        rows += 3
+                        rows += 2
                         userFilters.add(JLabel(" "))
                         userFilters.add(user_manuallyPrimeUSAARootUserIDClientIDs)
-                        userFilters.add(user_createUSAAProfile)
+                        # userFilters.add(user_createUSAAProfile)
 
                     bg = setupMenuRadioButtons(userFilters)
 
@@ -27694,7 +27714,7 @@ now after saving the file, restart Moneydance
                         if user_deleteOnlineTxns.isSelected():                          OFX_delete_saved_online_txns()
                         if user_deleteALLOnlineTxns.isSelected():                       OFX_delete_ALL_saved_online_txns()
                         if user_manuallyPrimeUSAARootUserIDClientIDs.isSelected():      manuallyPrimeUSAARootUserIDClientIDs()
-                        if user_createUSAAProfile.isSelected():                         createUSAAProfile()
+                        # if user_createUSAAProfile.isSelected():                         createUSAAProfile()
                         if user_updateOFXLastTxnUpdate.isSelected():                    OFX_update_OFXLastTxnUpdate()
                         if user_reset_OFXLastTxnUpdate_dates.isSelected():              OFX_reset_OFXLastTxnUpdate_dates()
                         if user_removeDownloadedDataFromTxns.isSelected():              OFX_removeDownloadedDataFromTxns()

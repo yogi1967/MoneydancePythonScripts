@@ -208,13 +208,13 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - Reset/Fix/Edit/Add CUSIP Banking Link. This is the link for downloaded securities.... (remove_ofx_security_bindings.py and change-security-cusip.py)
         - Update OFX Last Txn Update Date (Downloaded) field for an account (MD versions >= 2022 can now use Online menu, Setup Online Banking, Reset Sync Date)
         - Reset ALL OFX Last Txn Update Dates (default, OFX and MD+) (MD 2022.3(4074) onwards)
-        - Remove (hidden) downloaded OFX/MD+ data from Transactions within an Account (useful to address as_of reconcile date issues)
+        - Remove/disable (hidden) MD+/OFX(/QIF) data from downloaded Transactions within an Account (useful to address as_of reconcile date issues)
         - Delete OFX Banking Logon Profile / Service (these are logon profiles that allow you to connect to your bank) (remove_one_service.py)
         - Cleanup missing Online Banking Links (NOTE: This is always called when running 'Delete OFX Banking Logon Profile / Service' above
         - OFX Authentication Management (various functions to manage authentication, UserIDs, ClientUIDs)
             - SUBMENU: OFX Authentication Management
                 - Clear the Authentication Cache (Passwords) for One Service / Bank Profile
-                - ClOFX_view_reconcile_AsOf_Datesear ALL Authentication Cache (Passwords)
+                - Clear ALL Authentication Cache (Passwords)
                 - Edit/Setup (multiple) UserIDs / Passwords (executes a special script) (ofx_populate_multiple_userids.py)
                 - Edit stored authentication passwords linked to a working OFX Profile
                 - Manual Edit of stored Root UserIDs/ClientUIDs
@@ -227,7 +227,6 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - Import ('transplant') your Moneydance+ (Plaid) license (keys) from a file (exported by Toolbox) - MD Version 2022 onwards. USE WITH CARE.
         - ZAP Dataset's Moneydance+ (Plaid) settings - MD Version 2022 onwards. USE WITH CARE. WILL REQUIRE RE-REGISTRATION!
         - USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs
-        - USAA Only: Executes the special script to create a working USAA OFX Profile (ofx_create_new_usaa_bank_custom_profile.py)
 
     - MENU: Currency & Security tools:
         - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)

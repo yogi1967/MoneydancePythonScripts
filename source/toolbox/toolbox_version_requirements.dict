@@ -1,11 +1,11 @@
 {
-    "last_updated" = "20230627"
+    "last_updated" = "20230706"
     "disable_all" = "n"
     "builds" = (
                     {
                     "build" = "1060"
                     "disable" = "n"
-                    "news" = "???"
+                    "news" = "NEW: 'Toolbox: Zap md+/ofx/qif (default) memo fields' menu utility"
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2023.2"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "5007"
