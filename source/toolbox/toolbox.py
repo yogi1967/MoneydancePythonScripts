@@ -179,7 +179,9 @@
 # build: 1060 - Enhanced buddy 'toolbox_zap_mdplus_ofx_default_memo_fields' script
 #               Renamed script to 'toolbox_zap_mdplus_ofx_qif_default_memo_fields' script
 #               Tweaked OFX_removeDownloadedDataFromTxns() to include QIF in the settings zap routines....
-#               Disbaled the createUSAAProfile() menu option (no longer needed)
+#               Disabled the createUSAAProfile() menu option (no longer needed)
+#               MD2023.2(5008): Kotlin entire code set recompiled build >> tweaks/fixes...
+#               ... Tweaked ManuallyCloseAndReloadDataset() to cope with multi syncer threads...
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -577,7 +579,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.2
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5007
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5010
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -592,6 +594,7 @@ else:
     GlobalVars.MD_MULTI_OFX_TXN_DNLD_DATES_BUILD = 4074                     # 2022.3
     GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090                        # 2022.5
     GlobalVars.MD_KOTLIN_COMPILED_BUILD = 5000                              # 2023.0
+    GlobalVars.MD_KOTLIN_COMPILED_BUILD_ALL = 5008                          # 2023.2 (Entire codebase compiled in Kotlin)
 
     GlobalVars.fixRCurrencyCheck = 0
     GlobalVars.globalSaveFI_data = None
@@ -658,21 +661,21 @@ Thank you for using %s!
 The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
-Toolbox:                                View Moneydance settings, diagnostics, fix issues, change settings and much more
-                                        + Extension Menus: Total selected transactions & Move Investment Transactions
+Toolbox: View Moneydance settings, diagnostics, fix issues, change settings and much more
+         + Extension menus: Total selected txns; Move Investment Txns; Zap md+/ofx/qif (default) memo fields;
+
 Custom Balances (net_account_balances): Summary Page (HomePage) widget. Display the total of selected Account Balances
 
 Extension (.mxt) and Script (.py) Versions available:
-Extract Data:                           Extract various data to screen and/or csv.. Consolidation of:
-- stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv 
-- extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
-- extract_currency_history_csv          Extract currency history to csv
-- extract_investment_transactions_csv   Extract investment transactions to csv
-- extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
+Extract Data: Extract various data to screen /or csv.. (also auto-extract mode): Includes:
+    - StockGlance2020: Securities/stocks, total by security across investment accounts;
+    - Reminders; Account register transaction (attachments optional);
+    - Investment transactions (attachments optional); Security Balances; Currency price history;
+    - Decrypt / extract Raw trunk file; All attachments;
 
 List Future Reminders:                  View future reminders on screen. Allows you to set the days to look forward
-Accounts Categories Mega Search Window: Combines MD Menu> Tools>Accounts/Categories and adds Quick Search box/capability
 Security Performance Graph:             Graphs selected securities, calculating relative price performance as percentage
+Accounts Categories Mega Search Window: Combines MD Menu> Tools>Accounts/Categories and adds Quick Search box/capability
 
 A collection of useful ad-hoc scripts (zip file)
 useful_scripts:                         Just unzip and select the script you want for the task at hand...
@@ -3602,7 +3605,7 @@ Visit: %s (Author's site)
 
             if debug:
                 myPrint("B", "... pre-close getSyncer(): %s isRunningInBackground: %s isSyncing: %s" %(wr_oldSyncer.get(), wr_oldSyncer.get().isRunningInBackground(), wr_oldSyncer.get().isSyncing()))    # noqa
-                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName()]: myPrint("B", "... Current Syncer Threads...:", getJVMThreadInformation(t, True))
+                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName().lower()]: myPrint("B", "... Current Syncer Threads...:", getJVMThreadInformation(t, True))
 
             myPrint("DB", "... closing SyncManager / settings window etc..")
             if MD_REF.getUI().getSyncManager() is not None:
@@ -3637,29 +3640,51 @@ Visit: %s (Author's site)
             setFieldByReflection(MD_REF, "backgroundThread", None)   # com.moneydance.apps.md.controller.Main.backgroundThread : BackgroundOpsThread
 
             # Force kill all Syncer Threads. Should not need to do this, but something in MD can keep these alive. Syncer must NOT run after we move a dataset (for example)
-            wr_syncerThread = syncerThreadId = None
+            # .... MD2023.2(5008) changed to use multi-threaded Sync (for attachments)....
+            wr_syncerThreads = []
             if wr_oldSyncer.get() is not None:
-                wr_syncerThread = WeakReference(getFieldByReflection(wr_oldSyncer.get(), "syncThread"))
-                if wr_syncerThread.get() is not None:
-                    syncerThreadId = wr_syncerThread.get().getId()                                                      # noqa
+                try:
+                    sThread = getFieldByReflection(wr_oldSyncer.get(), "syncThread")
+                    if sThread is not None:
+                        wr_syncerThreads.append(WeakReference(sThread))
+                    del sThread
+                except:
+                    sTasks = getFieldByReflection(wr_oldSyncer.get(), "syncTasks")
+                    myPrint("DB", "Current book's Syncer: %s, 'syncTasks': %s" %(wr_oldSyncer.get(), sTasks))           # noqa
+                    if sTasks is not None and len(sTasks) > 0:
+                        for sTask in sTasks:
+                            wr_syncerThreads.append(WeakReference(sTask))
+                        del sTask
+                    del sTasks
 
-            if syncerThreadId is not None:
-                myPrint("DB", "Current book's Syncer: %s, SyncerThread: %s (id: %s)" %(wr_oldSyncer.get(), wr_syncerThread.get(), syncerThreadId))
-            else:
-                myPrint("DB", "Current book's Syncer's details not found....")
+            syncerThreadIds = []
+            for wr_sThread in wr_syncerThreads:
+                if wr_sThread.get() is not None:
+                    syncerThreadIds.append(wr_sThread.get().getId())                                                    # noqa
+                    myPrint("DB", "Current book's Syncer: %s, SyncerThread: %s (id: %s)" %(wr_oldSyncer.get(), wr_sThread.get(), wr_sThread.get().getId()))   # noqa
+
+            if len(syncerThreadIds) < 1:
+                myPrint("DB", "Current book's Syncer - no active threads found....")
 
             iSyncerChecks = 0
             if wr_oldSyncer.get() is not None:
                 myPrint("B", "... waiting for syncer background tasks to complete...")
                 while wr_oldSyncer.get().isRunningInBackground() or wr_oldSyncer.get().isSyncing():                     # noqa
 
-                    if wr_syncerThread.get() is None or not wr_syncerThread.get().isAlive():                            # noqa
-                        myPrint("B", "...... syncer's thread appears to have died already.... will proceed....")
+                    countAlive = 0
+                    for wr_sThread in wr_syncerThreads:
+                        if wr_sThread.get() is None or not wr_sThread.get().isAlive():                                  # noqa
+                            myPrint("B", "...... this syncer's thread appears to have died already.... checking any other threads....")
+                        else:
+                            countAlive += 1
+
+                    if countAlive < 1:
+                        myPrint("B", "...... this syncer's thread(s) appears to have all died already.... will proceed....")
                         break
 
                     iSyncerChecks += 1
                     if iSyncerChecks <= 16:
-                        myPrint("B", "...... syncer still running.... waiting....")
+                        myPrint("B", "...... syncer task(s) still running.... waiting....")
                         try:
                             Thread.sleep(250)
                             continue
@@ -3669,16 +3694,16 @@ Visit: %s (Author's site)
 
                 myPrint("B", "...... syncer appears to have finished (or I gave up waiting).....")
 
-            for t in [t for t in Thread.getAllStackTraces().keySet() if t.getName() == "TIKSync async thread"]:
-                if lKillAllSyncers or t.getId() == syncerThreadId:
+            for t in [t for t in Thread.getAllStackTraces().keySet() if "TIKSync async".lower() in t.getName().lower()]:
+                if lKillAllSyncers or t.getId() in syncerThreadIds:
                     myPrint("B", "... Force killing Syncer Thread:", t, t.getId())
                     try: t.stop()    # This is a deprecated method (and bad practice)....
                     except: myPrint("B", "...... Caught exception during stop() command.... Continuing...")
-            del wr_syncerThread, syncerThreadId
+            del wr_syncerThreads, syncerThreadIds
 
             if debug:
                 myPrint("B", "... after-kill syncer threads getSyncer(): %s isRunningInBackground: %s isSyncing: %s" %(wr_oldSyncer.get(), wr_oldSyncer.get().isRunningInBackground(), wr_oldSyncer.get().isSyncing()))    # noqa
-                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName()]: myPrint("B", "... Current Syncer Threads...:", getJVMThreadInformation(t, True))
+                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName().lower()]: myPrint("B", "... Current Syncer Threads...:", getJVMThreadInformation(t, True))
 
             myPrint("DB", "... setting Main's 'currentBook' to None...")
             setFieldByReflection(MD_REF, "currentBook", None)
@@ -3922,6 +3947,8 @@ Visit: %s (Author's site)
     def isRRateCurrencyIssueFixedBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_RRATE_ISSUE_FIXED_BUILD)                                # 2021.2
 
     def isKotlinCompiledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD)                                           # 2023.0(5000)
+
+    def isKotlinCompiledBuildAll(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_KOTLIN_COMPILED_BUILD_ALL)                                           # 2023.0(5000)
 
     if isKotlinCompiledBuild():
         from okio import BufferedSource, Buffer, Okio
@@ -25957,7 +25984,7 @@ now after saving the file, restart Moneydance
 
         DAYS_TO_KEEP = 30
 
-        SAVE_TRUNK = False
+        SAVE_TRUNK = True
 
         # Copied from com.infinitekind.tiksync.Syncer
         OUTGOING_PATH = "tiksync/out"
@@ -27470,10 +27497,19 @@ now after saving the file, restart Moneydance
                     book = MD_REF.getCurrentAccountBook()
                     syncer = book.getSyncer()
                     if syncer is not None:
-                        syncerThread = getFieldByReflection(syncer, "syncThread")
-                        syncerThreadId = syncerThread.getId() if (syncerThread) else None
-                        diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s\n" %(pad(syncerThread,40), rpad(syncerThreadId,4), syncer)
-                except: pass
+                        if not isKotlinCompiledBuildAll():
+                            syncerThread = getFieldByReflection(syncer, "syncThread")
+                            syncerThreadId = syncerThread.getId() if (syncerThread) else None
+                            diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s\n" %(pad(syncerThread,40), rpad(syncerThreadId,4), syncer)
+                        else:
+                            syncerTasks = getFieldByReflection(syncer, "syncTasks")
+                            for sTask in syncerTasks:
+                                syncerThreadId = sTask.getId()
+                                diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s\n" %(pad(sTask,40), rpad(syncerThreadId,4), syncer)
+                except:
+                    if debug:
+                        myPrint("B", "@@ ERROR: Failed to get syncThread / syncTasks?")
+                        dump_sys_error_to_md_console_and_errorlog()
 
                 diagTxt += "\n\nWindows:\n" \
                            " -------\n"

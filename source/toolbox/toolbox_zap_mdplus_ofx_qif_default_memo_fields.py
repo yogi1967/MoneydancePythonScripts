@@ -367,21 +367,21 @@ Thank you for using %s!
 The author has other useful Extensions / Moneybot Python scripts available...:
 
 Extension (.mxt) format only:
-Toolbox:                                View Moneydance settings, diagnostics, fix issues, change settings and much more
-                                        + Extension Menus: Total selected transactions & Move Investment Transactions
+Toolbox: View Moneydance settings, diagnostics, fix issues, change settings and much more
+         + Extension menus: Total selected txns; Move Investment Txns; Zap md+/ofx/qif (default) memo fields;
+
 Custom Balances (net_account_balances): Summary Page (HomePage) widget. Display the total of selected Account Balances
 
 Extension (.mxt) and Script (.py) Versions available:
-Extract Data:                           Extract various data to screen and/or csv.. Consolidation of:
-- stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv 
-- extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
-- extract_currency_history_csv          Extract currency history to csv
-- extract_investment_transactions_csv   Extract investment transactions to csv
-- extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
+Extract Data: Extract various data to screen /or csv.. (also auto-extract mode): Includes:
+    - StockGlance2020: Securities/stocks, total by security across investment accounts;
+    - Reminders; Account register transaction (attachments optional);
+    - Investment transactions (attachments optional); Security Balances; Currency price history;
+    - Decrypt / extract Raw trunk file; All attachments;
 
 List Future Reminders:                  View future reminders on screen. Allows you to set the days to look forward
-Accounts Categories Mega Search Window: Combines MD Menu> Tools>Accounts/Categories and adds Quick Search box/capability
 Security Performance Graph:             Graphs selected securities, calculating relative price performance as percentage
+Accounts Categories Mega Search Window: Combines MD Menu> Tools>Accounts/Categories and adds Quick Search box/capability
 
 A collection of useful ad-hoc scripts (zip file)
 useful_scripts:                         Just unzip and select the script you want for the task at hand...
@@ -3047,8 +3047,101 @@ Visit: %s (Author's site)
         _text = _text.replace("\t", "*")
         return _text
 
-    MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
+    GlobalVars.Strings.EXTENSION_QL_ID = "securityquoteload"
+    GlobalVars.Strings.EXTENSION_QER_ID = "yahooqt"
 
+    def isQER_running(): return find_feature_module(GlobalVars.Strings.EXTENSION_QER_ID)
+
+    def isQuoteLoader_running():
+        # type: () -> int
+        """Returns None if not detected/loaded, 0=Detected and NOT busy, 1=Detected but needs manual checks, 2=Detected and is BUSY, 3=Detected, but reflection failed"""
+
+        QL_ID_MIN_VER = 3047        # Mike Bray added special variables for Toolbox to check in QL build 3047
+
+        QL_NOTFOUND = None; QL_NOTBUSY = 0; QL_TOOOLD = 1; QL_BUSY = 2; QL_ERROR = 3                                    # noqa
+
+        foundQLfm = find_feature_module(GlobalVars.Strings.EXTENSION_QL_ID)
+        if foundQLfm is None:
+            myPrint("DB","QL NOT detected...")
+            return QL_NOTFOUND
+
+        if foundQLfm.getBuild() < QL_ID_MIN_VER:                                                                                        # noqa
+            myPrint("DB","QL(%s) detected... (but too old for agreed reflection checks) User to check manually" %(foundQLfm.getBuild()))  # noqa
+            return QL_TOOOLD
+
+        try:
+            myPrint("DB","Reflecting... Detecting QuoteLoader.....:")
+            ql_isGUIOpen = getFieldByReflection(foundQLfm, "isGUIOpen")
+            ql_isUpdating = getFieldByReflection(foundQLfm, "isUpdating")
+            ql_isQuotesRunning = getFieldByReflection(foundQLfm, "isQuotesRunning")
+
+            myPrint("DB","...QL isGUIOpen:       %s" %(ql_isGUIOpen))
+            myPrint("DB","...QL isUpdating:      %s" %(ql_isUpdating))
+            myPrint("DB","...QL isQuotesRunning: %s" %(ql_isQuotesRunning))
+
+            if ql_isGUIOpen or ql_isUpdating or ql_isQuotesRunning:
+                myPrint("DB",">> Detected QL appears to be BUSY...")
+                return QL_BUSY
+
+            myPrint("DB",">> QL was detected, but appears NOT busy")
+
+        except:
+            myPrint("DB","@@ QL detected but reflection check failed! (please contact Toolbox author)")
+            dump_sys_error_to_md_console_and_errorlog()
+            return QL_ERROR
+
+        return QL_NOTBUSY
+
+    def perform_qer_quote_loader_check(_frame, _txt, lDialogs=True):
+        # type: (JFrame, str, bool) -> int
+        """Checks for QER or QL extensions running, pops up a message if needed asking user to check. Response of True = SAFE"""
+
+        resultQER = isQER_running()
+
+        QL_NOTFOUND = None; QL_NOTBUSY = 0; QL_TOOOLD = 1; QL_BUSY = 2; QL_ERROR = 3                                    # noqa
+
+        # Returns None if not detected/loaded, 0=Detected and NOT busy, 1=Detected but needs manual checks, 2=Detected and is BUSY, 3=Detected, but reflection failed"""
+        resultQL = isQuoteLoader_running()
+
+        lSafeToProceed = True
+        if not resultQER and not resultQL:
+            txt = "Q&ER / QuoteLoader are not detected/running - proceeding...."
+            setDisplayStatus(txt, "B")
+            return lSafeToProceed
+
+        lSafeToProceed = False
+        if not lDialogs: return lSafeToProceed
+
+        QER_text = "Q&ER detected. " if (resultQER) else ""
+
+        QL_text = "QL detected" if (resultQL) else ""
+        if resultQL == QL_BUSY: QL_text += " and appears BUSY. "
+        else: QL_text += ". "
+
+        if not resultQER and resultQL == QL_BUSY:
+            txt = "Sorry: QL appears busy (try again later)"
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(_frame, txt, "Quote Loader detection", theMessageType=JOptionPane.WARNING_MESSAGE)
+            return lSafeToProceed
+
+        saveYES = UIManager.get("OptionPane.yesButtonText"); saveNO = UIManager.get("OptionPane.noButtonText")
+        UIManager.put("OptionPane.yesButtonText", "OK - CONTINUE"); UIManager.put("OptionPane.noButtonText", "STOP - I NEED TO CHECK")
+        ask = myPopupAskQuestion(_frame,"Q&ER / QUOTE LOADER DETECTION","%s%s Confirm that they're not updating before running '%s'?" %(QER_text, QL_text, _txt))
+        UIManager.put("OptionPane.yesButtonText", saveYES); UIManager.put("OptionPane.noButtonText", saveNO)
+
+        if not ask:
+            txt = "Q&ER / QuoteLoader loaded (or busy). Please verify they're not updating before running '%s' - no changes made" %(_txt)
+            setDisplayStatus(txt, "R")
+            return lSafeToProceed
+
+        txt = "User verified that Q&ER / QuoteLoader are not running - proceeding...."
+        setDisplayStatus(txt, "B")
+
+        lSafeToProceed = True
+        return lSafeToProceed
+
+
+    MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
     ####################################################################################################################
     try:
 
@@ -3114,11 +3207,18 @@ Visit: %s (Author's site)
 
         myPrint("B", ">> '%s' feature activated...." %(myModuleID))
 
+
+        if not perform_qer_quote_loader_check(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, __THIS_METHOD_NAME):
+            raise QuickAbortThisScriptException
+
+
         # Remove old key....
         OLD_LS_LOOKBACK_KEY = "toolbox_zap_mdplus_ofx_default_memo_fields_lookback_months"
         MD_REF.getCurrentAccountBook().getLocalStorage().put(OLD_LS_LOOKBACK_KEY, None)
 
         GlobalVars.UNSTICKY_SOME_KEYS_WHEN_ALL_ACCOUNTS = True
+
+        GlobalVars.DEFAULT_LOOKBACK_MONTHS = 36
 
         GlobalVars.EXTN_PREF_KEY_SELECTED_ACCOUNT = "selected_account"
         GlobalVars.EXTN_PREF_KEY_LOOKBACK_MONTHS = "lookback_months"
@@ -3156,7 +3256,7 @@ Visit: %s (Author's site)
                 rtnKey = _acct.getUUID()
             return "_" + rtnKey
 
-        def getExtnParam_lookbackMonths(_acct): return extnPrefs.getInt(GlobalVars.EXTN_PREF_KEY_LOOKBACK_MONTHS + getExtnParam_account_key(_acct), 300)       # default: 12 months * 25 years
+        def getExtnParam_lookbackMonths(_acct): return extnPrefs.getInt(GlobalVars.EXTN_PREF_KEY_LOOKBACK_MONTHS + getExtnParam_account_key(_acct), GlobalVars.DEFAULT_LOOKBACK_MONTHS)
         def getExtnParam_include_mdp(_acct): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_MDP + getExtnParam_account_key(_acct), False)
         def getExtnParam_include_ofx(_acct): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_OFX + getExtnParam_account_key(_acct), False)
         def getExtnParam_imported_ofx(_acct): return extnPrefs.getBoolean(GlobalVars.EXTN_PREF_KEY_INCLUDE_IMPORTED_OFX + getExtnParam_account_key(_acct), False)
@@ -3458,8 +3558,8 @@ Visit: %s (Author's site)
             months = int(months)
             myPrint("DB", "Months to look back set at: %s" %(months))
         else:
-            months = 300
-            myPrint("DB", "Look back months invalid (should be 1 to 600 months) - defaulting to 300....")
+            months = GlobalVars.DEFAULT_LOOKBACK_MONTHS
+            myPrint("DB", "Look back months invalid (should be 1 to 600 months) - defaulting to %s ...." %(GlobalVars.DEFAULT_LOOKBACK_MONTHS))
         extnPrefs.put(GlobalVars.EXTN_PREF_KEY_LOOKBACK_MONTHS + getExtnParam_account_key(getExtnParam_selected_account()), months)
 
         extnPrefs.put(GlobalVars.EXTN_PREF_KEY_INCLUDE_UNRECONCILED + getExtnParam_account_key(getExtnParam_selected_account()), user_include_unreconciled.isSelected())
@@ -3796,9 +3896,9 @@ Visit: %s (Author's site)
             OUTPUT_MEMO_LENGTH = max(OUTPUT_MEMO_LENGTH, len(pTxn.getMemo()))
             OUTPUT_OLMEMO_LENGTH = max(OUTPUT_OLMEMO_LENGTH, len(getOlMemo(pTxn)))
 
-        OUTPUT_DESC_LENGTH = min(OUTPUT_DESC_LENGTH, 60)
-        OUTPUT_MEMO_LENGTH = min(OUTPUT_DESC_LENGTH, 100)
-        OUTPUT_OLMEMO_LENGTH = min(OUTPUT_DESC_LENGTH, 100)
+        OUTPUT_DESC_LENGTH = min(OUTPUT_DESC_LENGTH, 250)
+        OUTPUT_MEMO_LENGTH = min(OUTPUT_MEMO_LENGTH, 250)
+        OUTPUT_OLMEMO_LENGTH = min(OUTPUT_OLMEMO_LENGTH, 250)
         #####################################################################################
 
         outputTxt += "%s %s %s %s %s %s %s%s %s %s\n" \
@@ -3908,14 +4008,14 @@ Visit: %s (Author's site)
 
         pleaseWait.kill()
 
-        ask = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_,
+        _ask = MyPopUpDialogBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_,
                                theStatus=msgTxt,
                                theMessage=outputTxt,
                                theTitle=__THIS_METHOD_NAME.upper(),
                                lAlertLevel=1,
                                lCancelButton=True,
                                OKButtonText="ZAP/SWAP MEMOs?")
-        if not ask.go():
+        if not _ask.go():
             _txt = "%s: no changes made" %(__THIS_METHOD_NAME)
             myPrint("B", _txt)
             myPopupInformationBox(toolbox_zap_mdplus_ofx_qif_default_memo_fields_frame_, _txt, __THIS_METHOD_NAME.upper())
@@ -3936,7 +4036,18 @@ Visit: %s (Author's site)
                                           OKButtonText="WAIT")
             pleaseWait.go()
 
+            # Pause the MD+ poller...
+            if isMDPlusEnabledBuild():
+                myPrint("B", "Pausing MD+")
+                plusPoller = MD_REF.getUI().getPlusController()
+                invokeMethodByReflection(plusPoller, "pausePolling", None)
+
+            myPrint("B", "Flushing memory (pre-update) and saving in memory dataset changes to disk (log files)....")
             MD_REF.saveCurrentAccount()
+
+            myPrint("B", "Pausing the MD Syncing engine....")
+            MD_REF.getCurrentAccountBook().pauseSyncing()
+
             txnsToModify = []
             txnsOriginals = []
 
@@ -3968,7 +4079,21 @@ Visit: %s (Author's site)
             else:
                 book.logModifiedItems(txnsToModify)
 
-            if not undo: MD_REF.saveCurrentAccount()
+            myPrint("B", "Resuming the MD Syncing engine....")
+            MD_REF.getCurrentAccountBook().resumeSyncing()
+
+            myPrint("B", "Flushing memory (post update) and saving in memory dataset changes to disk (log files)....")
+            MD_REF.saveCurrentAccount()
+
+            if len(txnsWithMemos) > 500:
+                myPrint("B", "Flushing dataset back to trunk file....")
+                MD_REF.getCurrentAccountBook().saveTrunkFile()
+
+            if isMDPlusEnabledBuild():
+                myPrint("B", "Un-pausing MD+")
+                plusPoller = MD_REF.getUI().getPlusController()
+                invokeMethodByReflection(plusPoller, "resumePolling", None)
+
 
         except: raise
 

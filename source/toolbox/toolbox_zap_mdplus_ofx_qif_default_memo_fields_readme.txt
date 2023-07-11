@@ -77,6 +77,7 @@ OFX/QIF:
         if 'QIF-' then bypass this check
         if setting 'Don't check / compare the original downloaded memo first' ticked then bypass this check
         if 'changed memo check' then skip record
+        if pass stage 1, then onto stage 2 below....
 
     Stage 2 - Zap/Swap check:
         Definition: setting = 'Zap unchanged memo when memo already within (longer) description'
@@ -86,11 +87,12 @@ OFX/QIF:
 
         if description is not blank and description matches memo then
                flag memo for ZAP
-        elseif description blank and memo not blank then if setting ticked then
+        elseif description blank and memo not blank then...
                flag for SWAP with description and flag memo for ZAP
+               NOTE: There will be a '##' marker if the 'swap' setting was not ticked
         elseif memo found in description and if memo shorter than txnDesc then if setting ticked then
                flag memo for ZAP
-        elseif description found in txnMemo and if description shorter than memo then if setting ticked then
+        elseif description found in txnMemo and if description shorter than memo then if 'swap' setting ticked then
                flag for SWAP with description and memo ZAP
 
         if nothing flagged, then skip record....
