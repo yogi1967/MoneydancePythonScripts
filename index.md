@@ -63,7 +63,7 @@ NOTE: Toolbox has the ability to update your dataset/settings in Update and Adva
 NOTE: Also installs three new Extensions Menu options:
   - Move Investment Transactions: Allows you to move the txns you have selected in the visible Investment Register. 
   - Total Selected Transactions:  Will total up the txns you have selected in the visible register.
-  - Zap md+ (default) memo fields: Will search for and zap md+ memo fields on downloaded txns when memo matches the downloaded data.
+  - Zap md+/ofx/qif (default) memo fields: Will search for and zap memo fields on downloaded txns when memo matches the downloaded data.
 
     <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/source/toolbox/toolbox_readme.txt">(View the Toolbox HELPFILE)
 
@@ -75,12 +75,11 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 
 ### Extension (and Scripts formats) (*.mxt and *.py format) - Very latest PREVIEW (unsigned) builds
--  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extract_data.zip">**Extract Data**: Extract data to screen/csv. Options include: Investments, Reminders, Account txns, Investment txns, Currency History; attachments. This is a consolidation of various extracts in one, including: 
-    - stockglance2020                       View summary of Securities/Stocks on screen, total by Security, export to csv
-    - extract_reminders_csv                 View reminders on screen, edit if required, extract all to csv
-    - extract_currency_history_csv          Extract currency history to csv
-    - extract_investment_transactions_csv   Extract investment transactions to csv
-    - extract_account_registers_csv         Extract Account Register(s) to csv along with any attachments
+-  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extract_data.zip">**Extract Data**: Extract Data: Extract various data to screen / or csv.. (also auto-extract mode): Includes: 
+    - StockGlance2020: Securities/stocks, total by security across investment accounts;
+    - Reminders; Account register transaction (attachments optional);
+    - Investment transactions (attachments optional); Security Balances; Currency price history;
+    - Decrypt / extract Raw trunk file; All attachments;
 
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/accounts_categories_mega_search_window.zip">**^^Accounts & Categories Mega Search Window**: Clones MD Menu> Tools>Accounts/Categories (combined) and adds a Quick Search box/capability.
 
@@ -174,4 +173,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
 
-_(site last updated 21st June 2023)_
+_(site last updated 11th July 2023)_
