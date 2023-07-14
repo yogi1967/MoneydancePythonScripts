@@ -675,6 +675,18 @@ http://jakarta.apache.org/ant/index.html
     />
   </target>
 
+  <target name="auto_extract_json" depends="init" description="Build 'Auto Extract JSON' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="auto_extract_json"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_false"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_true"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
+    />
+  </target>
+
   <target name="push_extract_data" depends="init,extract_data" description="Push 'Extract Data' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt
             feature="extract_data" />
