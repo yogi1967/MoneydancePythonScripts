@@ -60,7 +60,7 @@ Extract Data: Extract various data to screen /or csv.. (also auto-extract mode):
     - StockGlance2020: Securities/stocks, total by security across investment accounts;
     - Reminders; Account register transaction (attachments optional);
     - Investment transactions (attachments optional); Security Balances; Currency price history;
-    - Decrypt / extract Raw trunk file; All attachments;
+    - Decrypt / extract raw 'Trunk' file; Extract raw data as JSON file; All attachments;
 
 List Future Reminders:                  View future reminders on screen. Allows you to set the days to look forward
 Security Performance Graph:             Graphs selected securities, calculating relative price performance as percentage

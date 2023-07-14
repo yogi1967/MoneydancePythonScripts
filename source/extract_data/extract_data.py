@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1034 - June 2023 - Stuart Beesley
+# extract_data.py - build: 1035 - July 2023 - Stuart Beesley
 #                   You can auto invoke by launching MD with '-invoke=moneydance:fmodule:extract_data:autoextract'
 #                   NOTE: MD will auto-quit after using this...
 
@@ -117,6 +117,7 @@
 # build: 1033 - MAJOR UPDATE. NEW Auto Extract Mode (and Extensions Menu option). Allows Multi-extracts in one go; All extracts now via SwingWorker...
 # build: 1034 - Added extract future reminders option...; Added extract Trunk; Added extract attachments...
 # build: 1034 - You can call extension and auto-extract by launching MD with '-invoke=moneydance:fmodule:extract_data:autoextract' parameter
+# build: 1035 - Added extract raw data as JSON file option
 
 # todo - StockGlance2020 asof balance date...
 # todo - extract budget data?
@@ -128,7 +129,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1034"
+version_build = "1035"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -430,6 +431,9 @@ else:
     from com.moneydance.apps.md.view.gui import DateRangeChooser
     from com.infinitekind.moneydance.model import SecurityType, AbstractTxn                                             # noqa
 
+    # from extract raw JSON file
+    from com.moneydance.apps.md.view.gui import ExportWindow                                                            # noqa
+
     # from stockglance2020 and extract_reminders_csv
     from java.awt.event import AdjustmentListener
     from java.text import NumberFormat, SimpleDateFormat
@@ -472,7 +476,7 @@ else:
     global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
     # all
-    global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH
+    global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_JSON, autoExtract_EATTACH
 
     # from extract_account_registers_csv
     global lIncludeSubAccounts_EAR
@@ -602,6 +606,7 @@ else:
     autoExtract_ECH = False                                                                                             # noqa
     autoExtract_ESB = False                                                                                             # noqa
     autoExtract_ETRUNK = False                                                                                          # noqa
+    autoExtract_JSON = False                                                                                            # noqa
     autoExtract_EATTACH = False                                                                                         # noqa
 
     # Common - converted from globals
@@ -649,7 +654,7 @@ Extract Data: Extract various data to screen /or csv.. (also auto-extract mode):
     - StockGlance2020: Securities/stocks, total by security across investment accounts;
     - Reminders; Account register transaction (attachments optional);
     - Investment transactions (attachments optional); Security Balances; Currency price history;
-    - Decrypt / extract Raw trunk file; All attachments;
+    - Decrypt / extract raw 'Trunk' file; Extract raw data as JSON file; All attachments;
 
 List Future Reminders:                  View future reminders on screen. Allows you to set the days to look forward
 Security Performance Graph:             Graphs selected securities, calculating relative price performance as percentage
@@ -2879,7 +2884,7 @@ Visit: %s (Author's site)
             _label1.setForeground(getColorBlue())
             aboutPanel.add(_label1)
 
-            _label2 = JLabel(pad("StuWareSoftSystems (2020-2022)", 800))
+            _label2 = JLabel(pad("StuWareSoftSystems (2020-2023)", 800))
             _label2.setForeground(getColorBlue())
             aboutPanel.add(_label2)
 
@@ -3106,7 +3111,7 @@ Visit: %s (Author's site)
         global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
         # all
-        global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH
+        global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_JSON, autoExtract_EATTACH
 
         # extract_account_registers_csv
         global lIncludeOpeningBalances_EAR, lIncludeBalanceAdjustments_EAR
@@ -3183,6 +3188,7 @@ Visit: %s (Author's site)
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ECH") is not None: autoExtract_ECH = GlobalVars.parametersLoadedFromFile.get("autoExtract_ECH")                                                            # noqa
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ESB") is not None: autoExtract_ESB = GlobalVars.parametersLoadedFromFile.get("autoExtract_ESB")                                                            # noqa
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_ETRUNK") is not None: autoExtract_ETRUNK = GlobalVars.parametersLoadedFromFile.get("autoExtract_ETRUNK")                                                            # noqa
+        if GlobalVars.parametersLoadedFromFile.get("autoExtract_JSON") is not None: autoExtract_JSON = GlobalVars.parametersLoadedFromFile.get("autoExtract_JSON")                                                            # noqa
         if GlobalVars.parametersLoadedFromFile.get("autoExtract_EATTACH") is not None: autoExtract_EATTACH = GlobalVars.parametersLoadedFromFile.get("autoExtract_EATTACH")                                                            # noqa
 
         # extract_account_registers_csv
@@ -3283,6 +3289,7 @@ Visit: %s (Author's site)
         GlobalVars.parametersLoadedFromFile["autoExtract_ECH"] = autoExtract_ECH
         GlobalVars.parametersLoadedFromFile["autoExtract_ESB"] = autoExtract_ESB
         GlobalVars.parametersLoadedFromFile["autoExtract_ETRUNK"] = autoExtract_ETRUNK
+        GlobalVars.parametersLoadedFromFile["autoExtract_JSON"] = autoExtract_JSON
         GlobalVars.parametersLoadedFromFile["autoExtract_EATTACH"] = autoExtract_EATTACH
 
         # extract_account_registers_csv
@@ -3625,6 +3632,7 @@ Visit: %s (Author's site)
         user_security_balances = JRadioButton("Security Balances - extract to csv", False)
         user_price_history = JRadioButton("Currency price history - extract to csv (simple or detailed formats)", False)
         user_extract_trunk = JRadioButton("Decrypt & extract raw Trunk file", False)
+        user_extract_json = JRadioButton("Extract raw data as JSON file", False)
         user_extract_attachments = JRadioButton("Attachments - extract to disk", False)
         user_AccountNumbers = JRadioButton("Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
 
@@ -3636,6 +3644,7 @@ Visit: %s (Author's site)
         bg.add(user_security_balances)
         bg.add(user_price_history)
         bg.add(user_extract_trunk)
+        bg.add(user_extract_json)
         bg.add(user_extract_attachments)
         bg.add(user_AccountNumbers)
         bg.clearSelection()
@@ -3648,6 +3657,7 @@ Visit: %s (Author's site)
             elif defaultSelection == "_ESB": user_security_balances.setSelected(True)
             elif defaultSelection == "_ECH": user_price_history.setSelected(True)
             elif defaultSelection == "_ETRUNK": user_extract_trunk.setSelected(True)
+            elif defaultSelection == "_JSON": user_extract_json.setSelected(True)
             elif defaultSelection == "_EATTACH": user_extract_attachments.setSelected(True)
 
         _userFilters.add(user_stockglance2020)
@@ -3657,10 +3667,11 @@ Visit: %s (Author's site)
         _userFilters.add(user_security_balances)
         _userFilters.add(user_price_history)
         _userFilters.add(user_extract_trunk)
+        _userFilters.add(user_extract_json)
         _userFilters.add(user_extract_attachments)
         _userFilters.add(user_AccountNumbers)
 
-        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = _lExtractTrunk = _lExtractAttachments = False
+        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = _lExtractTrunk = _lExtractJSON = _lExtractAttachments = False
 
         while True:
             _options = ["EXIT", "PROCEED"]
@@ -3712,6 +3723,11 @@ Visit: %s (Author's site)
                 _lExtractTrunk  = True
                 break
 
+            if user_extract_json.isSelected():
+                myPrint("B", "Extract raw data as JSON file option has been chosen")
+                _lExtractJSON  = True
+                break
+
             if user_extract_attachments.isSelected():
                 myPrint("B", "Attachments extract option has been chosen")
                 _lExtractAttachments  = True
@@ -3731,10 +3747,11 @@ Visit: %s (Author's site)
         elif user_security_balances.isSelected():   newDefault = "_ESB"
         elif user_price_history.isSelected():       newDefault = "_ECH"
         elif user_extract_trunk.isSelected():       newDefault = "_ETRUNK"
+        elif user_extract_json.isSelected():        newDefault = "_JSON"
         elif user_extract_attachments.isSelected(): newDefault = "_EATTACH"
         else:                                       newDefault = None
 
-        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractCurrencyHistory, _lExtractTrunk, _lExtractAttachments
+        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractCurrencyHistory, _lExtractTrunk, _lExtractJSON, _lExtractAttachments
 
     def validateCSVFileDelimiter(requestedDelimiter=None):
         decimalStrings = [".", ","]
@@ -5517,6 +5534,57 @@ Visit: %s (Author's site)
 
         return _exit
 
+    def listExtractJSONParameters():
+        myPrint("B","---------------------------------------------------------------------------------------")
+        myPrint("B","Parameters: Extract raw data as JSON file:")
+        myPrint("B", "  Auto Extract.........................:", autoExtract_JSON)
+        myPrint("B","---------------------------------------------------------------------------------------")
+
+    def setupExtractJSONParameters():
+        # ##############################################
+        # EXTRACT_JSON PARAMETER SCREEN
+        # ##############################################
+
+        global debug
+        global autoExtract_JSON
+
+        labelAutoExtract = JLabel("Enable Auto Extract?")
+        user_AutoExtract = JCheckBox("", autoExtract_JSON)
+
+        labelDEBUG = JLabel("Turn DEBUG Verbose messages on?")
+        user_selectDEBUG = JCheckBox("", debug)
+
+        userFilters = JPanel(GridLayout(0, 2))
+        userFilters.add(labelAutoExtract)
+        userFilters.add(user_AutoExtract)
+        userFilters.add(labelDEBUG)
+        userFilters.add(user_selectDEBUG)
+
+        _exit = False
+
+        options = ["ABORT", "EXTRACT RAW JSON"]
+        userAction = (JOptionPane.showOptionDialog(extract_data_frame_, userFilters, "EXTRACT raw data as JSON file: Set Script Parameters....",
+                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                   JOptionPane.QUESTION_MESSAGE,
+                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                   options, options[1]))
+        if userAction == 1:
+            myPrint("DB", "Extract chosen")
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = True
+        else:
+            myPrint("B", "User Cancelled Parameter selection.. Will abort..")
+            _exit = True
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = False
+
+        if not _exit:
+            autoExtract_JSON = user_AutoExtract.isSelected()
+            debug = user_selectDEBUG.isSelected()
+            listExtractJSONParameters()
+
+        return _exit
+
     def listExtractAttachmentsParameters():
         myPrint("B","---------------------------------------------------------------------------------------")
         myPrint("B","Parameters: Extract Attachments:")
@@ -5697,7 +5765,7 @@ Visit: %s (Author's site)
             global whichDefaultExtractToRun_SWSS, lWriteParametersToExportFile_SWSS, lAllowEscapeExitApp_SWSS
 
             # all
-            global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH
+            global autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_JSON, autoExtract_EATTACH
 
             # extract_account_registers_csv
             global lIncludeOpeningBalances_EAR, lIncludeBalanceAdjustments_EAR
@@ -5777,11 +5845,12 @@ Visit: %s (Author's site)
                 GlobalVars.defaultFileName_ECH = "extract_currency_history"
                 GlobalVars.defaultFileName_ESB = "extract_security_balances"
                 GlobalVars.defaultFileName_ETRUNK = "extract_trunk"
+                GlobalVars.defaultFileName_JSON = "extract_json"
                 GlobalVars.defaultFileName_EATTACH = "extract_attachments"
 
                 if GlobalVars.AUTO_EXTRACT_MODE:
                     iCountAutos = 0
-                    for checkAutoExtract in [autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_EATTACH]:
+                    for checkAutoExtract in [autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_JSON, autoExtract_EATTACH]:
                         if checkAutoExtract: iCountAutos += 1
 
                     if iCountAutos < 1:
@@ -5810,7 +5879,7 @@ Visit: %s (Author's site)
                                               GlobalVars.defaultFileName_future_ERTC,
                                               GlobalVars.defaultFileName_EAR, GlobalVars.defaultFileName_EIT,
                                               GlobalVars.defaultFileName_ECH, GlobalVars.defaultFileName_ESB]:
-                            chkExtnType = ".csv" if "trunk".lower() not in checkFileName.lower() else "."
+                            chkExtnType = "." if ("trunk".lower() in checkFileName.lower() or "json".lower() in checkFileName.lower()) else ".csv"
                             checkPath = os.path.join(GlobalVars.scriptpath, checkFileName + chkExtnType)
                             if check_file_writable(checkPath):
                                 myPrint("B", "AUTO EXTRACT: CONFIRMED >> Path: '%s' writable... (exists/overwrite: %s)" %(checkPath, os.path.exists(checkPath)))
@@ -5842,6 +5911,7 @@ Visit: %s (Author's site)
                     lExtractSecurityBalances = autoExtract_ESB
                     lExtractCurrencyHistory = autoExtract_ECH
                     lExtractTrunk = autoExtract_ETRUNK
+                    lExtractJSON = autoExtract_JSON
                     lExtractAttachments = autoExtract_EATTACH
                     GlobalVars.DISPLAY_DATA = False
                     GlobalVars.EXTRACT_DATA = True
@@ -5854,8 +5924,9 @@ Visit: %s (Author's site)
                                  "     Security Balances.......: %s\n"
                                  "     Currency History........: %s\n"
                                  "     Decrypt & Extract Trunk.: %s\n"
+                                 "     Extract raw data as JSON: %s\n"
                                  "     Attachments.............: %s\n"
-                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH, autoExtract_ETRUNK, autoExtract_EATTACH))
+                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH, autoExtract_ETRUNK, autoExtract_JSON, autoExtract_EATTACH))
 
                     if lExtractAttachments_EAR or lExtractAttachments_EIT:
                         if lExtractAttachments_EAR:
@@ -5878,10 +5949,11 @@ Visit: %s (Author's site)
                     if lExtractCurrencyHistory:     listExtractCurrencyHistoryParameters()
                     if lExtractSecurityBalances:    listExtractSecurityBalancesParameters()
                     if lExtractTrunk:               listExtractTrunkParameters()
+                    if lExtractJSON:                listExtractJSONParameters()
                     if lExtractAttachments:         listExtractAttachmentsParameters()
 
                 else:
-                    exitScript, whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountTxns, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractCurrencyHistory, lExtractTrunk, lExtractAttachments \
+                    exitScript, whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountTxns, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractCurrencyHistory, lExtractTrunk, lExtractJSON, lExtractAttachments \
                         = getExtractChoice(whichDefaultExtractToRun_SWSS)
 
                 if exitScript:
@@ -5911,6 +5983,9 @@ Visit: %s (Author's site)
 
                     elif lExtractTrunk:
                         exitScript = setupExtractTrunkParameters()
+
+                    elif lExtractJSON:
+                        exitScript = setupExtractJSONParameters()
 
                     elif lExtractAttachments:
                         exitScript = setupExtractAttachmentsParameters()
@@ -5956,6 +6031,9 @@ Visit: %s (Author's site)
                         elif lExtractTrunk:
                             name_addition = "" + currentDateTimeMarker() + "."
                             extract_filename = GlobalVars.defaultFileName_ETRUNK + name_addition
+                        elif lExtractJSON:
+                            name_addition = "" + currentDateTimeMarker() + ".json"
+                            extract_filename = GlobalVars.defaultFileName_JSON + name_addition
                         elif lExtractAttachments:
                             name_addition = "" + "_" + UUID.randomUUID().toString() + currentDateTimeMarker()
                             extract_filename = GlobalVars.defaultFileName_EATTACH + name_addition
@@ -6039,7 +6117,10 @@ Visit: %s (Author's site)
                                 else:
                                     theTitle = "Select/Create CSV file for extract (CANCEL=NO EXTRACT)"
 
-                                extnType = "csv" if not lExtractTrunk else ""
+                                if lExtractTrunk: extnType = ""
+                                elif lExtractJSON: extnType = "json"
+                                else: extnType = "csv"
+
                                 GlobalVars.csvfilename = getFileFromFileChooser(extract_data_frame_,    # Parent frame or None
                                                                     GlobalVars.scriptpath,              # Starting path
                                                                     extract_filename,                   # Default Filename
@@ -11998,7 +12079,6 @@ Visit: %s (Author's site)
                                         return False
                             #### ENDIF lExtractSecurityBalances ####
 
-
                             if lExtractTrunk:
                                 # ####################################################
                                 # EXTRACT_TRUNK_FILE EXECUTION
@@ -12071,6 +12151,73 @@ Visit: %s (Author's site)
                                         genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
                                         return False
                             #### ENDIF lExtractTrunk ####
+
+                            if lExtractJSON:
+                                # ####################################################
+                                # EXTRACT_JSON_FILE EXECUTION
+                                # ####################################################
+
+                                _THIS_EXTRACT_NAME = pad("EXTRACT: JSON file:", 34)
+                                GlobalVars.lGlobalErrorDetected = False
+
+                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+
+                                if GlobalVars.AUTO_EXTRACT_MODE:
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_JSON + ".json")
+
+                                def do_extract_json():
+
+                                    def ExtractDataToFile():
+                                        myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
+
+                                        try:
+                                            myPrint("B", "Saving txns, flushing sync to disk...")
+                                            MD_REF.saveCurrentAccount()
+
+                                            myPrint("B", "Starting JSON extract..... to file: '%s'" %(GlobalVars.csvfilename))
+                                            exportWindow = ExportWindow(None, MD_REF.getCurrentAccounts(), MD_REF.getUI())
+                                            invokeMethodByReflection(exportWindow, "exportToJSON", [File], [File(GlobalVars.csvfilename)])
+                                            myPrint("B", "... JSON extract COMPLETED.....")
+                                            del exportWindow
+
+                                            _msgTxt = _THIS_EXTRACT_NAME + "JSON file decrypted and extracted to disk: '%s'" %(GlobalVars.csvfilename)
+                                            myPrint("B", _msgTxt)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            GlobalVars.countFilesCreated += 1
+
+                                        except:
+                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            myPrint("B", _msgTxt)
+                                            raise
+
+                                    ExtractDataToFile()
+
+                                    if not GlobalVars.lGlobalErrorDetected:
+                                        sTxt = "Extract file CREATED:"
+                                        mTxt = "Raw JSON file has been decrypted and extracted"
+                                        myPrint("B", _THIS_EXTRACT_NAME + "%s\n%s" %(sTxt, mTxt))
+                                    else:
+                                        _msgTextx = _THIS_EXTRACT_NAME + "ERROR Creating extract (review console for error messages)...."
+                                        GlobalVars.AUTO_MESSAGES.append(_msgTextx)
+
+                                try:
+                                    do_extract_json()
+                                except:
+                                    GlobalVars.lGlobalErrorDetected = True
+
+                                if GlobalVars.lGlobalErrorDetected:
+                                    GlobalVars.countErrorsDuringExtract += 1
+                                    _txt = _THIS_EXTRACT_NAME + "@@ ERROR: do_extract_json() has failed (review console)!"
+                                    GlobalVars.AUTO_MESSAGES.append(_txt)
+                                    myPrint("B", _txt)
+                                    dump_sys_error_to_md_console_and_errorlog()
+                                    if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        return False
+                            #### ENDIF lExtractJSON ####
 
                             if lExtractAttachments:
                                 # ####################################################
@@ -12245,6 +12392,7 @@ Visit: %s (Author's site)
                             if lExtractCurrencyHistory:     msgs.append("Extract Currency History           REQUESTED")
                             if lExtractSecurityBalances:    msgs.append("Extract Security Balances          REQUESTED")
                             if lExtractTrunk:               msgs.append("Extract raw Trunk file             REQUESTED")
+                            if lExtractJSON:                msgs.append("Extract raw JSON file              REQUESTED")
                             if lExtractAttachments:         msgs.append("Extract Attachments                REQUESTED")
 
                             msgs.append("")
