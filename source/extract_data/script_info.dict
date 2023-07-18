@@ -1,27 +1,28 @@
 {
   "actions" = (
     {
+      "type" = "initializer"
+      "script_file" = "extract_data_init.py"
+    }
+    {
       "type" = "menu"
       "script_file" = "extract_data_bootstrap1.py"
-      "parameter" = "parameter1"
       "name" = "Extract Data"
     }
     {
       "type" = "menu"
       "script_file" = "extract_data_bootstrap2.py"
-      "parameter" = "parameter2"
       "name" = "Extract Data: auto extract mode"
-    }
-    {
-      "type" = "initializer"
-      "script_file" = "extract_data_init.py"
     }
     {
       "type" = "method"
       "method" = "invoke"
-      "script_file" = "extract_data_bootstrap3.py"
-      "parameter" = "parameter2"
-      "not_using_script_file" = "extract_data_invoke.py"
+      "script_file" = "extract_data_bootstrap3_invoke_handle_event.py"
+    }
+    {
+      "type" = "method"
+      "method" = "handle_event"
+      "script_file" = "extract_data_bootstrap3_invoke_handle_event.py"
     }
     {
       "type" = "method"

@@ -1,33 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-########################################################################################################################
-## bootstrap.py: Execute a compiled script if possible (faster load times) #############################################
-########################################################################################################################
-# Author: Stuart Beesley June 2023 - StuWareSoftSystems
-# Purpose: a) load compiled version for faster launch time, b) avoid "method too large" RuntimeException (.pyc helper)
-#
-# NOTES: There are various ways to load/run/execute a script.... Some as follows:
-# execfile() - executes a py script file on disk
-# exec() - can execute org.python.core.PyCode object.
-# org.python.util.PythonInterpreter.execfile() - can execute a py script on disk, or from an InputStream
-# imp.load_module() - can import (which means runs/executes) a script, or InputStream, and either .py or $py.class file
-# >> The "problem" with Import / load_module() is that the code will end up within its own module's namespace...
-#
-# Normally running just the original .py file will be fine.
-#
-# For large files, executing a $py.class compiled code file will be faster to load: To compile, use command below:
-# java -cp jython.jar org.python.util.jython -c "import compileall; compileall.compile_file(yourscript.py')"
-# For some large files, you may get a "method too large" RuntimeException. One resolution to this is to provide a
-# CPython byte code .pyc file - this "helps" both the running of .py files, and/or the compilation of $py.class files
-# to create a CPython byte code .pyc file, use this command: python -m py_compile yourscript.py
-# ... or add -Dpython.cpython2=python to the java compile command when compiling.
-# If the .pyc file is present when running a script, or compiling, then the "method too large" problem will be avoided
-#
-# Given Moneydance extensions will be running from within their own mxt file (ZIP) then you need a way to reference the
-# zip's resources. Use the moneydance_extension_loader (ClassLoader) variable and then use .getResourceAsStream().
-# I.E. you cannot just import / execute a file/directory/package that you created... You have to access the mxt's stream
-########################################################################################################################
+# This script combines bootstrap, invoke and handle_event method calls...
 
 ###############################################################################
 # MIT License
@@ -54,14 +28,82 @@
 ###############################################################################
 
 if "__file__" in globals(): raise Exception("ERROR: This script should only be run as part of an extension!")
+if "moneydance_extension_parameter" not in globals(): raise Exception("ERROR: 'moneydance_extension_parameter' not found in globals()!")
 
 global System, RuntimeException, imp, builtins, AppEventManager
 global moneydance, moneydance_ui, moneydance_extension_parameter, moneydance_extension_loader
 global _THIS_IS_, _QuickAbortThisScriptException, _specialPrint, _decodeCommand
 global debug
 
+from com.infinitekind.tiksync import SyncRecord
+_EXTN_PREF_KEY = "stuwaresoftsystems" + "." + _THIS_IS_
+
+def _getExtensionPreferences():
+    # type: () -> SyncRecord
+    _extnPrefs =  moneydance.getCurrentAccountBook().getLocalStorage().getSubset(_EXTN_PREF_KEY)
+    _specialPrint("Retrieved Extn Preferences from LocalStorage: %s" %(_extnPrefs))
+    return _extnPrefs
+
+def _saveExtensionPreferences(newExtnPrefs):
+    # type: (SyncRecord) -> None
+    if not isinstance(newExtnPrefs, SyncRecord):
+        raise Exception("ERROR: 'newExtnPrefs' is not a SyncRecord (given: '%s')" %(type(newExtnPrefs)))
+    _localStorage = moneydance.getCurrentAccountBook().getLocalStorage()
+    _localStorage.put(_EXTN_PREF_KEY, newExtnPrefs)
+    _specialPrint("Stored Extn Preferences into LocalStorage: %s"  %(newExtnPrefs))
+
+
 try:
-    moneydance_extension_parameter = "menu2_auto"                                                                       # noqa
+    if "debug" not in globals(): debug = False
+
+    respondToMDEvents = [AppEventManager.FILE_CLOSING]
+
+    # allMDEvents = ["md:file:closing",
+    #                "md:file:closed",
+    #                "md:file:opening",
+    #                "md:file:opened",
+    #                "md:file:presave",
+    #                "md:file:postsave",
+    #                "md:app:exiting",
+    #                "md:account:select",
+    #                "md:account:root",
+    #                "md:graphreport",
+    #                "md:viewbudget",
+    #                "md:viewreminders",
+    #                "md:licenseupdated"]
+
+    if not isinstance(moneydance_extension_parameter, basestring): moneydance_extension_parameter = ""
+    cmd, cmdParam = _decodeCommand(moneydance_extension_parameter)
+
+    lInvoke = lQuitAfter = lHandleEvent = False
+    if moneydance_extension_parameter.startswith("md:"):
+        if debug: _specialPrint("HANDLE_EVENT was passed '%s', Command: '%s', Parameter: '%s'" %(moneydance_extension_parameter, cmd, cmdParam))
+        if moneydance_extension_parameter not in respondToMDEvents:
+            if debug: _specialPrint("... ignoring: '%s'" %(moneydance_extension_parameter))
+            raise _QuickAbortThisScriptException
+        else:
+            _EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING = "auto_extract_when_file_closing"
+            if not _getExtensionPreferences().getBoolean(_EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, False):
+                if debug: _specialPrint("handle_event() - Event: '%s' - 'auto_extract_when_file_closing' NOT SET - So Ignoring...." %(moneydance_extension_parameter))
+                raise _QuickAbortThisScriptException
+            else:
+                lHandleEvent = True
+                _specialPrint("handle_event() - Event: '%s' Book: '%s', 'auto_extract_when_file_closing' is set >> EXECUTING" %(moneydance_extension_parameter, moneydance.getCurrentAccountBook()))
+
+    else:
+        lInvoke = True
+        _specialPrint("INVOKE was passed '%s', Command: '%s', Parameter: '%s'" %(moneydance_extension_parameter, cmd, cmdParam))
+
+        if cmd.lower() != "autoextract":
+            _specialPrint("Invoke IGNORED... Only accepted command = 'autoextract:noquit' or 'autoextract:quit'")
+            raise _QuickAbortThisScriptException
+
+        if cmdParam.lower() == "quit":
+            lQuitAfter = True
+            _specialPrint("... Moneydance will QUIT after auto extract completes...")
+        else:
+            _specialPrint("... Moneydance will remain running after auto extract completes...")
+
 
     # Little trick as imported module will have it's own globals
     builtins.moneydance = moneydance
@@ -105,6 +147,7 @@ try:
 
     # Method(s) to run/execute script via import. Loads into it's own module namespace
     # ... Tries the compiled $py.class file first, then the original .py file
+
     _launchedFile = _THIS_IS_ + _compiledExtn
     scriptStream = MD_EXTENSION_LOADER.getResourceAsStream("/%s" %(_launchedFile))
     if scriptStream is None:

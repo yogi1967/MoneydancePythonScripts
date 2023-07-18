@@ -3,22 +3,40 @@
 
 # Initializer file for extension - this will only run from build 3056 onwards - otherwise ignored
 
-import datetime
-from java.lang import System
+import imp, datetime                                                                                                    # noqa
+import __builtin__ as builtins                                                                                          # noqa
+from java.lang import System, RuntimeException                                                                          # noqa
+from com.moneydance.apps.md.controller import AppEventManager                                                           # noqa
+global debug
 
-_THIS_IS_ = u"extract_data"
+_THIS_IS_ = "extract_data"
+
+class _QuickAbortThisScriptException(Exception): pass
 
 def _specialPrint(_what):
-    dt = datetime.datetime.now().strftime(u"%Y/%m/%d-%H:%M:%S")
+    dt = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
     print(_what)
-    System.err.write(_THIS_IS_ + u":" + dt + u": ")
+    System.err.write(_THIS_IS_ + ":" + dt + ": ")
     System.err.write(_what)
-    System.err.write(u"\n")
+    System.err.write("\n")
 
+def _decodeCommand(passedEvent):
+    param = ""
+    uri = passedEvent
+    command = uri
+    theIdx = uri.find('?')
+    if(theIdx>=0):
+        command = uri[:theIdx]
+        param = uri[theIdx+1:]
+    else:
+        theIdx = uri.find(':')
+        if(theIdx>=0):
+            command = uri[:theIdx]
+            param = uri[theIdx+1:]
+    return command, param
 
-msg = u"\n#####################################################################\n"\
-      u"%s: %s_init.py initializer script running - doing nothing - will exit....\n"\
-      u"#####################################################################\n" %(_THIS_IS_,_THIS_IS_)
+msg = "\n#####################################################################\n"\
+      "%s: %s_init.py initializer script running - doing nothing - will exit....\n"\
+      "#####################################################################\n" %(_THIS_IS_,_THIS_IS_)
 
 _specialPrint(msg)
-del _THIS_IS_, _specialPrint

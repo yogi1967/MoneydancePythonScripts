@@ -2,16 +2,25 @@
 # -*- coding: UTF-8 -*-
 
 # extract_data.py - build: 1035 - July 2023 - Stuart Beesley
-#                   You can auto invoke by launching MD with '-invoke=moneydance:fmodule:extract_data:autoextract'
-#                   NOTE: MD will auto-quit after using this...
+#                   You can auto invoke by launching MD with one of the following:
+#                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:noquit'
+#                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:quit'
+#                                             ...NOTE: MD will auto-quit after executing this way...
+#
+#                 You can also enable the 'auto extract every time dataset is closed' option
+#                     WARNING: This will execute all extracts (except attachments) everytime dataset is closed.
+#                     Thus, you could launch MD with:
+#                           '-d [datasetpath] -invoke_and_quit=moneydance:fmodule:extract_data:hello'
+#                           ('hello' does not exist and does nothing, but MD will then start shutdown and if the
+#                            option is set then it will initiate the auto extracts)
+#                     NOTE: This runs silently.. MD will appear to hang. View help/console (errlog.txt) for messages....
 
-# Consolidation of prior scripts into one:
-# stockglance2020.py
-# extract_reminders_csv.py
-# extract_currency_history_csv.py
-# extract_account_registers_csv.py
-# extract_investment_transactions_csv.py
+
 # ######################################################################################################################
+# Consolidation of prior many scripts into one - including...:
+# stockglance2020.py, extract_reminders_csv.py, extract_currency_history_csv.py, extract_account_registers_csv.py
+# extract_investment_transactions_csv.py
+#
 # YES - there is code inefficiency and duplication here.. It was a toss up between speed of consolidating the scripts,
 # or spending a lot of time refining and probably introducing code errors..... This will be refined over time. You will
 # also see the evolution of my coding from the first script I created to the most recent (clearly exposed when
@@ -118,6 +127,7 @@
 # build: 1034 - Added extract future reminders option...; Added extract Trunk; Added extract attachments...
 # build: 1034 - You can call extension and auto-extract by launching MD with '-invoke=moneydance:fmodule:extract_data:autoextract' parameter
 # build: 1035 - Added extract raw data as JSON file option
+# build: 1035 - Added handle_event ability to auto extract upon 'md:file:closing' command...
 
 # todo - StockGlance2020 asof balance date...
 # todo - extract budget data?
@@ -334,6 +344,7 @@ else:
 
     from com.moneydance.apps.md.controller import AccountBookWrapper
     from com.infinitekind.moneydance.model import AccountBook
+    from com.infinitekind.tiksync import SyncRecord                                                                     # noqa
 
     from javax.swing import JButton, JScrollPane, WindowConstants, JLabel, JPanel, JComponent, KeyStroke, JDialog, JComboBox
     from javax.swing import JOptionPane, JTextArea, JMenuBar, JMenu, JMenuItem, AbstractAction, JCheckBoxMenuItem, JFileChooser
@@ -1150,10 +1161,14 @@ Visit: %s (Author's site)
             self.messageJText = None
             if not self.theMessage.endswith("\n"): self.theMessage+="\n"
             if self.OKButtonText == "": self.OKButtonText="OK"
-            # if Platform.isOSX() and int(float(MD_REF.getBuild())) >= 3039: self.lAlertLevel = 0    # Colors don't work on Mac since VAQua
             if isMDThemeDark() or isMacDarkModeDetected(): self.lAlertLevel = 0
 
         def updateMessages(self, newTitle=None, newStatus=None, newMessage=None, lPack=True):
+            # We wait when on the EDT as most scripts execute on the EDT.. So this is probably an in execution update message
+            # ... if we invokeLater() then the message will (probably) only appear after the EDT script finishes....
+            genericSwingEDTRunner(False, True, self._updateMessages, newTitle, newStatus, newMessage, lPack)
+
+        def _updateMessages(self, newTitle=None, newStatus=None, newMessage=None, lPack=True):
             if not newTitle and not newStatus and not newMessage: return
             if newTitle:
                 self.theTitle = newTitle
@@ -1257,10 +1272,8 @@ Visit: %s (Author's site)
                     self._popup_d.dispose()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
-            return
 
-        def result(self):
-            return self.lResult[0]
+        def result(self): return self.lResult[0]
 
         def go(self):
             myPrint("DB", "In MyPopUpDialogBox.", inspect.currentframe().f_code.co_name, "()")
@@ -1270,8 +1283,7 @@ Visit: %s (Author's site)
                 def __init__(self, callingClass):
                     self.callingClass = callingClass
 
-                def run(self):                                                                                                      # noqa
-
+                def run(self):                                                                                          # noqa
                     myPrint("DB", "In MyPopUpDialogBoxRunnable.", inspect.currentframe().f_code.co_name, "()")
                     myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
@@ -1303,12 +1315,10 @@ Visit: %s (Author's site)
                         maxDialogWidth = min(screenSize.width-20, self.callingClass.maxSize.width)
                         maxDialogHeight = min(screenSize.height-40, self.callingClass.maxSize.height)
                         maxDimension = Dimension(maxDialogWidth,maxDialogHeight)
-                        # self.callingClass._popup_d.setPreferredSize(Dimension(maxDialogWidth,maxDialogHeight))
                     else:
                         maxDialogWidth = min(screenSize.width-20, max(GetFirstMainFrame.DEFAULT_MAX_WIDTH, int(round(GetFirstMainFrame.getSize().width *.9,0))))
                         maxDialogHeight = min(screenSize.height-40, max(GetFirstMainFrame.DEFAULT_MAX_WIDTH, int(round(GetFirstMainFrame.getSize().height *.9,0))))
                         maxDimension = Dimension(maxDialogWidth,maxDialogHeight)
-                        # self.callingClass._popup_d.setPreferredSize(Dimension(maxDialogWidth,maxDialogHeight))
 
                     # noinspection PyUnresolvedReferences
                     self.callingClass._popup_d = MyJDialog(maxDimension,
@@ -1410,10 +1420,14 @@ Visit: %s (Author's site)
                     self.callingClass._popup_d.setVisible(True)
 
             if not SwingUtilities.isEventDispatchThread():
-                myPrint("DB",".. Not running within the EDT so calling via MyPopUpDialogBoxRunnable()...")
-                SwingUtilities.invokeAndWait(MyPopUpDialogBoxRunnable(self))
+                if not self.lModal:
+                    myPrint("DB",".. Not running on the EDT, but also NOT Modal, so will .invokeLater::MyPopUpDialogBoxRunnable()...")
+                    SwingUtilities.invokeLater(MyPopUpDialogBoxRunnable(self))
+                else:
+                    myPrint("DB",".. Not running on the EDT so calling .invokeAndWait::MyPopUpDialogBoxRunnable()...")
+                    SwingUtilities.invokeAndWait(MyPopUpDialogBoxRunnable(self))
             else:
-                myPrint("DB",".. Already within the EDT so calling naked...")
+                myPrint("DB",".. Already on the EDT, just executing::MyPopUpDialogBoxRunnable() now...")
                 MyPopUpDialogBoxRunnable(self).run()
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
@@ -3090,6 +3104,78 @@ Visit: %s (Author's site)
 
     def isAlertControllerEnabledBuild(): return (float(MD_REF.getBuild()) >= GlobalVars.MD_ALERTCONTROLLER_BUILD)       # 2022.3
 
+    def genericSwingEDTRunner(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, *args):
+        """Will detect and then run the codeblock on the EDT"""
+
+        isOnEDT = SwingUtilities.isEventDispatchThread()
+        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        myPrint("DB", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT)
+
+        class GenericSwingEDTRunner(Runnable):
+
+            def __init__(self, _codeblock, arguments):
+                self.codeBlock = _codeblock
+                self.params = arguments
+
+            def run(self):
+                myPrint("DB", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... about to execute codeblock.... isOnEDT:", SwingUtilities.isEventDispatchThread())
+                self.codeBlock(*self.params)
+                myPrint("DB", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... finished executing codeblock....")
+
+        _gser = GenericSwingEDTRunner(codeblock, args)
+
+        if ((isOnEDT and not ifOnEDTThenRunNowAndWait) or (not isOnEDT and not ifOffEDTThenRunNowAndWait)):
+            myPrint("DB", "... calling codeblock via .invokeLater()...")
+            SwingUtilities.invokeLater(_gser)
+        elif not isOnEDT:
+            myPrint("DB", "... calling codeblock via .invokeAndWait()...")
+            SwingUtilities.invokeAndWait(_gser)
+        else:
+            myPrint("DB", "... calling codeblock.run() naked...")
+            _gser.run()
+
+        myPrint("DB", "... finished calling the codeblock via method reported above...")
+
+    def genericThreadRunner(daemon, codeblock, *args):
+        """Will run the codeblock on a new Thread"""
+
+        myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
+
+        class GenericThreadRunner(Runnable):
+
+            def __init__(self, _codeblock, arguments):
+                self.codeBlock = _codeblock
+                self.params = arguments
+
+            def run(self):
+                myPrint("DB", "** In .genericThreadRunner():: GenericThreadRunner().run()... about to execute codeblock....")
+                self.codeBlock(*self.params)
+                myPrint("DB", "** In .genericThreadRunner():: GenericThreadRunner().run()... finished executing codeblock....")
+
+        _gtr = GenericThreadRunner(codeblock, args)
+
+        _t = Thread(_gtr, "NAB_GenericThreadRunner".lower())
+        _t.setDaemon(daemon)
+        _t.start()
+
+        myPrint("DB", "... finished calling the codeblock...")
+
+    GlobalVars.EXTN_PREF_KEY = "stuwaresoftsystems" + "." + myModuleID
+
+    def getExtensionPreferences():
+        # type: () -> SyncRecord
+        _extnPrefs =  GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage().getSubset(GlobalVars.EXTN_PREF_KEY)
+        myPrint("DB", "Retrieved Extn Preferences from LocalStorage: %s" %(_extnPrefs))
+        return _extnPrefs
+
+    def saveExtensionPreferences(newExtnPrefs):
+        # type: (SyncRecord) -> None
+        if not isinstance(newExtnPrefs, SyncRecord):
+            raise Exception("ERROR: 'newExtnPrefs' is not a SyncRecord (given: '%s')" %(type(newExtnPrefs)))
+        _localStorage = GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage()
+        _localStorage.put(GlobalVars.EXTN_PREF_KEY, newExtnPrefs)
+        myPrint("DB", "Stored Extn Preferences into LocalStorage: %s" %(newExtnPrefs))
+
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
     # END COMMON DEFINITIONS ###############################################################################################
@@ -3370,9 +3456,9 @@ Visit: %s (Author's site)
             destroyOldFrames(myModuleID)
 
         try:
-            MD_REF.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(GlobalVars.thisScriptName),0)
-        except:
-            pass  # If this fails, then MD is probably shutting down.......
+            if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                MD_REF.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s......." %(GlobalVars.thisScriptName),0)
+        except: pass  # If this fails, then MD is probably shutting down.......
 
         if not GlobalVars.i_am_an_extension_so_run_headless: print(scriptExit)
 
@@ -3411,62 +3497,6 @@ Visit: %s (Author's site)
         status = unicode(txn.getStatusChar())
         if status == u"x": return "r"
         return status
-
-    def genericSwingEDTRunner(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, *args):
-        """Will detect and then run the codeblock on the EDT"""
-
-        isOnEDT = SwingUtilities.isEventDispatchThread()
-        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
-        myPrint("DB", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT)
-
-        class GenericSwingEDTRunner(Runnable):
-
-            def __init__(self, _codeblock, arguments):
-                self.codeBlock = _codeblock
-                self.params = arguments
-
-            def run(self):
-                myPrint("DB", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... about to execute codeblock.... isOnEDT:", SwingUtilities.isEventDispatchThread())
-                self.codeBlock(*self.params)
-                myPrint("DB", "** In .genericSwingEDTRunner():: GenericSwingEDTRunner().run()... finished executing codeblock....")
-
-        _gser = GenericSwingEDTRunner(codeblock, args)
-
-        if ((isOnEDT and not ifOnEDTThenRunNowAndWait) or (not isOnEDT and not ifOffEDTThenRunNowAndWait)):
-            myPrint("DB", "... calling codeblock via .invokeLater()...")
-            SwingUtilities.invokeLater(_gser)
-        elif not isOnEDT:
-            myPrint("DB", "... calling codeblock via .invokeAndWait()...")
-            SwingUtilities.invokeAndWait(_gser)
-        else:
-            myPrint("DB", "... calling codeblock.run() naked...")
-            _gser.run()
-
-        myPrint("DB", "... finished calling the codeblock via method reported above...")
-
-    def genericThreadRunner(daemon, codeblock, *args):
-        """Will run the codeblock on a new Thread"""
-
-        myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
-
-        class GenericThreadRunner(Runnable):
-
-            def __init__(self, _codeblock, arguments):
-                self.codeBlock = _codeblock
-                self.params = arguments
-
-            def run(self):
-                myPrint("DB", "** In .genericThreadRunner():: GenericThreadRunner().run()... about to execute codeblock....")
-                self.codeBlock(*self.params)
-                myPrint("DB", "** In .genericThreadRunner():: GenericThreadRunner().run()... finished executing codeblock....")
-
-        _gtr = GenericThreadRunner(codeblock, args)
-
-        _t = Thread(_gtr, "NAB_GenericThreadRunner".lower())
-        _t.setDaemon(daemon)
-        _t.start()
-
-        myPrint("DB", "... finished calling the codeblock...")
 
     def isPreviewBuild():
         if MD_EXTENSION_LOADER is not None:
@@ -3624,6 +3654,9 @@ Visit: %s (Author's site)
     def getExtractChoice(defaultSelection):
         _exit = False
 
+        extnPrefs = getExtensionPreferences()
+        EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING = "auto_extract_when_file_closing"
+
         _userFilters = JPanel(GridLayout(0, 1))
         user_stockglance2020 = JRadioButton("StockGlance2020 - display consolidated stock info on screen **OR** extract to csv", False)
         user_reminders = JRadioButton("Reminders - display on screen **OR** extract to csv", False)
@@ -3635,6 +3668,8 @@ Visit: %s (Author's site)
         user_extract_json = JRadioButton("Extract raw data as JSON file", False)
         user_extract_attachments = JRadioButton("Attachments - extract to disk", False)
         user_AccountNumbers = JRadioButton("Produce report of Accounts and bank/account number information (Useful for legacy / Will making)", False)
+        user_autoExtractWhenFileClosing = JCheckBox("Enable auto extract EVERY TIME this dataset (USE WITH CARE!)?", extnPrefs.getBoolean(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, False))
+        user_autoExtractWhenFileClosing.setToolTipText("WARNING: When enabled, all the selected 'auto extracts' will execute every time this dataset closes!")
 
         bg = ButtonGroup()
         bg.add(user_stockglance2020)
@@ -3670,19 +3705,57 @@ Visit: %s (Author's site)
         _userFilters.add(user_extract_json)
         _userFilters.add(user_extract_attachments)
         _userFilters.add(user_AccountNumbers)
+        _userFilters.add(JLabel("---------"))
+        _userFilters.add(user_autoExtractWhenFileClosing)
 
         _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = _lExtractTrunk = _lExtractJSON = _lExtractAttachments = False
 
+        class WarningMessage(AbstractAction):
+            def __init__(self, _dialog, _user_autoExtractWhenFileClosing):
+                self.dialog = _dialog
+                self.user_autoExtractWhenFileClosing = _user_autoExtractWhenFileClosing
+                self.enableListener = True
+
+            def setEnableListener(self, _enableListener): self.enableListener = _enableListener
+            def isEnableListener(self,): return self.enableListener
+
+            def actionPerformed(self, event):
+                if self.isEnabled():
+                    option = event.getSource()
+                    if isinstance(option, JCheckBox): pass
+                    if option.isSelected():
+                        if option is self.user_autoExtractWhenFileClosing:
+                            _msg = "Are you really sure? This will trigger auto extract every time this dataset closes!"
+                            if not myPopupAskQuestion(theParent=self.dialog, theTitle="WARNING", theQuestion=_msg):
+                                option.setSelected(False)
+                        else: raise Exception("LOGIC ERROR: event unknown: %s; %s" %(option, event))
+                else:
+                    myPrint("DB", "@@ WarningMessage:: .actionPerformed() - disabled - doing nothing....")
+
+
+        _options = ["EXIT", "PROCEED"]
+
+
         while True:
-            _options = ["EXIT", "PROCEED"]
-            _userAction = (JOptionPane.showOptionDialog(extract_data_frame_,
-                                                        _userFilters,
-                                                        "EXTRACT DATA: SELECT OPTION",
-                                                        JOptionPane.OK_CANCEL_OPTION,
-                                                        JOptionPane.QUESTION_MESSAGE,
-                                                        getMDIcon(lAlwaysGetIcon=True),
-                                                        _options,
-                                                        _options[0]))
+
+            pane = JOptionPane()
+            pane.setIcon(getMDIcon(lAlwaysGetIcon=True))
+            pane.setMessage(_userFilters)
+            pane.setMessageType(JOptionPane.QUESTION_MESSAGE)
+            pane.setOptionType(JOptionPane.OK_CANCEL_OPTION)
+            pane.setOptions(_options)
+            dlg = pane.createDialog(extract_data_frame_, "EXTRACT DATA: SELECT OPTION")
+            warnAlert = WarningMessage(dlg, user_autoExtractWhenFileClosing)
+            user_autoExtractWhenFileClosing.addActionListener(warnAlert)
+            dlg.setVisible(True)
+
+            rtnValue = pane.getValue()
+            _userAction = -1
+            for i in range(0, len(_options)):
+                if _options[i] == rtnValue:
+                    _userAction = i
+                    break
+
             if _userAction != 1:
                 myPrint("B", "User chose to exit....")
                 _exit = True
@@ -3739,6 +3812,12 @@ Visit: %s (Author's site)
                 continue
 
             continue
+
+        extnPrefs.put(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, user_autoExtractWhenFileClosing.isSelected())
+        myPrint("DB", "'%s' parameter set to:", extnPrefs.getBoolean(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, False))
+
+        myPrint("DB", "Saving Extension's parameter(s) back to local storage..." )
+        saveExtensionPreferences(extnPrefs)
 
         if user_stockglance2020.isSelected():       newDefault = "_SG2020"
         elif user_reminders.isSelected():           newDefault = "_ERTC"
@@ -5718,36 +5797,48 @@ Visit: %s (Author's site)
                     myPrint("B","@@ ERROR calling GenericWindowClosingRunnable to push a WINDOW_CLOSING Event (via the Swing EDT) to %s.... :-< ** I'm getting out quick! **" %(self.myModuleID))
                 if not debug: myPrint("DB","Returning back to Moneydance after calling for %s to close...." %self.myModuleID)
 
-            # md:file:closing	The Moneydance file is being closed
-            # md:file:closed	The Moneydance file has closed
-            # md:file:opening	The Moneydance file is being opened
-            # md:file:opened	The Moneydance file has opened
-            # md:file:presave	The Moneydance file is about to be saved
-            # md:file:postsave	The Moneydance file has been saved
-            # md:app:exiting	Moneydance is shutting down
-            # md:account:select	An account has been selected by the user
-            # md:account:root	The root account has been selected
-            # md:graphreport	An embedded graph or report has been selected
-            # md:viewbudget	One of the budgets has been selected
-            # md:viewreminders	One of the reminders has been selected
-            # md:licenseupdated	The user has updated the license
-
-
-    ####################################################################################################################
-    MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
     ####################################################################################################################
 
     if checkObjectInNameSpace(u"moneydance_extension_parameter") and GlobalVars.i_am_an_extension_so_run_headless:
         MD_EXTENSION_PARAMETER = moneydance_extension_parameter
+        cmd, cmdParam = decodeCommand(MD_EXTENSION_PARAMETER)
     else:
-        MD_EXTENSION_PARAMETER = None
+        MD_EXTENSION_PARAMETER = ""
+        cmd = cmdParam = ""
 
-    GlobalVars.AUTO_EXTRACT_MODE = (MD_EXTENSION_PARAMETER == "menu2_auto" or MD_EXTENSION_PARAMETER == "invoke_auto")
-    myPrint("B", "Auto Extract Mode: %s (Menu/Parameter detected was: '%s')" %(GlobalVars.AUTO_EXTRACT_MODE, MD_EXTENSION_PARAMETER))
+    cmd = cmd.lower()
+    cmdParam = cmdParam.lower()
 
-    GlobalVars.AUTO_INVOKE_CALLED = (MD_EXTENSION_PARAMETER == "invoke_auto")
+    GlobalVars.AUTO_INVOKE_CALLED = (cmd == "autoextract")
+
+    from com.moneydance.apps.md.controller import AppEventManager
+    GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE = (MD_EXTENSION_PARAMETER == AppEventManager.FILE_CLOSING)
+    # md:file:closing	The Moneydance file is being closed
+    # md:file:closed	The Moneydance file has closed
+    # md:file:opening	The Moneydance file is being opened
+    # md:file:opened	The Moneydance file has opened
+    # md:file:presave	The Moneydance file is about to be saved
+    # md:file:postsave	The Moneydance file has been saved
+    # md:app:exiting	Moneydance is shutting down
+    # md:account:select	An account has been selected by the user
+    # md:account:root	The root account has been selected
+    # md:graphreport	An embedded graph or report has been selected
+    # md:viewbudget	One of the budgets has been selected
+    # md:viewreminders	One of the reminders has been selected
+    # md:licenseupdated	The user has updated the license
+
+    GlobalVars.AUTO_EXTRACT_MODE = (cmd == "menu2_auto" or GlobalVars.AUTO_INVOKE_CALLED or GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE)
+
+    GlobalVars.AUTO_INVOKE_THEN_QUIT = False
     if GlobalVars.AUTO_INVOKE_CALLED:
-        myPrint("B", "AUTO INVOKE CALLED: %s (Menu/Parameter detected was: '%s')" %(GlobalVars.AUTO_INVOKE_CALLED, MD_EXTENSION_PARAMETER))
+        GlobalVars.AUTO_INVOKE_THEN_QUIT = (cmdParam == "quit")
+
+    myPrint("B", "Book: '%s', Auto Extract Mode: %s, Auto Invoke: %s (MD Quit after extract: %s), Handle_Event triggered: %s (Menu/Parameter/Event detected: '%s')"
+            %(MD_REF.getCurrentAccountBook(), GlobalVars.AUTO_EXTRACT_MODE, GlobalVars.AUTO_INVOKE_CALLED, GlobalVars.AUTO_INVOKE_THEN_QUIT, GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE, MD_EXTENSION_PARAMETER))
+
+    ####################################################################################################################
+    if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+        MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
     ####################################################################################################################
 
 
@@ -5797,7 +5888,11 @@ Visit: %s (Author's site)
             myPrint("DB", "In MainAppRunnable()", inspect.currentframe().f_code.co_name, "()")
             myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-            if not SwingUtilities.isEventDispatchThread(): raise Exception("LOGIC ERROR: Should only be run on the EDT!?")
+            if not SwingUtilities.isEventDispatchThread():
+                if GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                    myPrint("B", "Allowing auto extract(s) to run on non-EDT thread - as triggered from file closing event....")
+                else:
+                    raise Exception("LOGIC ERROR: Should only be run on the EDT!?")
 
             if MD_REF.getCurrentAccountBook() is None:
                 msgTxt = "Moneydance appears to be empty - no data to scan - aborting..."
@@ -5806,18 +5901,19 @@ Visit: %s (Author's site)
                     myPopupInformationBox(None, msgTxt, "EMPTY DATASET", theMessageType=JOptionPane.ERROR_MESSAGE)
                 raise Exception(msgTxt)
 
-
-            # Create application JFrame() so that all popups have correct Moneydance Icons etc
-            # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
-            extract_data_frame_ = MyJFrame()
-            extract_data_frame_.setName(u"%s_main" %(myModuleID))
-            if (not Platform.isMac()):
-                MD_REF.getUI().getImages()
-                extract_data_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
-            extract_data_frame_.setVisible(False)
-            extract_data_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
-
-            myPrint("DB","Main JFrame %s for application created.." %(extract_data_frame_.getName()))
+            if GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                extract_data_frame_ = None
+            else:
+                # Create application JFrame() so that all popups have correct Moneydance Icons etc
+                # JFrame.setDefaultLookAndFeelDecorated(True)   # Note: Darcula Theme doesn't like this and seems to be OK without this statement...
+                extract_data_frame_ = MyJFrame()
+                extract_data_frame_.setName(u"%s_main" %(myModuleID))
+                if (not Platform.isMac()):
+                    MD_REF.getUI().getImages()
+                    extract_data_frame_.setIconImage(MDImages.getImage(MD_REF.getSourceInformation().getIconResource()))
+                extract_data_frame_.setVisible(False)
+                extract_data_frame_.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE)
+                myPrint("DB","Main JFrame %s for application created.." %(extract_data_frame_.getName()))
 
             try:
 
@@ -5848,6 +5944,9 @@ Visit: %s (Author's site)
                 GlobalVars.defaultFileName_JSON = "extract_json"
                 GlobalVars.defaultFileName_EATTACH = "extract_attachments"
 
+
+                didDisableALL_attachments = False
+
                 if GlobalVars.AUTO_EXTRACT_MODE:
                     iCountAutos = 0
                     for checkAutoExtract in [autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ECH, autoExtract_ESB, autoExtract_ETRUNK, autoExtract_JSON, autoExtract_EATTACH]:
@@ -5857,42 +5956,50 @@ Visit: %s (Author's site)
                         GlobalVars.AUTO_EXTRACT_MODE = False
                         msgTxt = "@@ AUTO EXTRACT MODE DISABLED - No auto extracts found/enabled @@"
                         myPrint("B", msgTxt)
-                        MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
-                                         theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting 'auto extract')",
-                                         theTitle="EXTRACT_DATA: AUTO_MODE",
-                                         lModal=False).go()
+                        if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                            MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
+                                             theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting 'auto extract')",
+                                             theTitle="EXTRACT_DATA: AUTO_MODE",
+                                             lModal=False).go()
 
                     elif GlobalVars.scriptpath is None or GlobalVars.scriptpath == "" or not os.path.isdir(GlobalVars.scriptpath):
                         GlobalVars.AUTO_EXTRACT_MODE = False
                         msgTxt = "@@ AUTO EXTRACT MODE DISABLED: Pre-saved extract folder appears invalid @@"
                         myPrint("B", "%s: '%s'" %(msgTxt, GlobalVars.scriptpath))
-                        MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
-                                         theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting the folder to save extracts)\n"
-                                                            "Invalid extract folder:\n"
-                                                            "'%s'" %(GlobalVars.scriptpath),
-                                         theTitle="EXTRACT_DATA: AUTO_MODE",
-                                         lModal=False).go()
+                        if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                            MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
+                                             theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting the folder to save extracts)\n"
+                                                                "Invalid extract folder:\n"
+                                                                "'%s'" %(GlobalVars.scriptpath),
+                                             theTitle="EXTRACT_DATA: AUTO_MODE",
+                                             lModal=False).go()
 
                     else:
 
                         for checkFileName in [GlobalVars.defaultFileName_SG2020, GlobalVars.defaultFileName_ERTC,
                                               GlobalVars.defaultFileName_future_ERTC,
                                               GlobalVars.defaultFileName_EAR, GlobalVars.defaultFileName_EIT,
-                                              GlobalVars.defaultFileName_ECH, GlobalVars.defaultFileName_ESB]:
-                            chkExtnType = "." if ("trunk".lower() in checkFileName.lower() or "json".lower() in checkFileName.lower()) else ".csv"
-                            checkPath = os.path.join(GlobalVars.scriptpath, checkFileName + chkExtnType)
+                                              GlobalVars.defaultFileName_ECH, GlobalVars.defaultFileName_ESB,
+                                              GlobalVars.defaultFileName_ETRUNK, GlobalVars.defaultFileName_JSON]:
+
+                            if "_trunk".lower() in checkFileName.lower(): chkExtnType = ""
+                            elif "_json".lower() in checkFileName.lower(): chkExtnType = ".json"
+                            else: chkExtnType = ".csv"
+
+                            checkPath = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + checkFileName + chkExtnType)
                             if check_file_writable(checkPath):
                                 myPrint("B", "AUTO EXTRACT: CONFIRMED >> Path: '%s' writable... (exists/overwrite: %s)" %(checkPath, os.path.exists(checkPath)))
                             else:
                                 GlobalVars.AUTO_EXTRACT_MODE = False
                                 msgTxt = "@@ AUTO EXTRACT MODE DISABLED: Default extract path invalid (review console) @@"
                                 myPrint("B", "%s: '%s'" %(msgTxt, checkPath))
-                                MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
-                                                 theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting the directory to save extracts)\n"
-                                                            "Invalid path:\n"
-                                                            "'%s'" %(checkPath),
-                                                 theTitle="EXTRACT_DATA: AUTO_MODE",
-                                                 lModal=False).go()
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    MyPopUpDialogBox(extract_data_frame_, theStatus=msgTxt,
+                                                     theMessage="Configure Auto Extract Mode by running required extract(s) manually first (and selecting the directory to save extracts)\n"
+                                                                "Invalid path:\n"
+                                                                "'%s'" %(checkPath),
+                                                     theTitle="EXTRACT_DATA: AUTO_MODE",
+                                                     lModal=False).go()
                                 break
 
                     if not GlobalVars.AUTO_EXTRACT_MODE:
@@ -5916,6 +6023,10 @@ Visit: %s (Author's site)
                     GlobalVars.DISPLAY_DATA = False
                     GlobalVars.EXTRACT_DATA = True
 
+                    if GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE and lExtractAttachments:
+                        didDisableALL_attachments = True
+                        lExtractAttachments = False
+
                     myPrint("B", "AUTO EXTRACT MODE: Will auto extract the following...:\n"
                                  "     StockGlance2020.........: %s\n"
                                  "     Reminders...............: %s\n"
@@ -5925,8 +6036,9 @@ Visit: %s (Author's site)
                                  "     Currency History........: %s\n"
                                  "     Decrypt & Extract Trunk.: %s\n"
                                  "     Extract raw data as JSON: %s\n"
-                                 "     Attachments.............: %s\n"
-                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH, autoExtract_ETRUNK, autoExtract_JSON, autoExtract_EATTACH))
+                                 "     Attachments.............: %s%s\n"
+                            %(autoExtract_SG2020, autoExtract_ERTC, autoExtract_EAR, autoExtract_EIT, autoExtract_ESB, autoExtract_ECH, autoExtract_ETRUNK, autoExtract_JSON,
+                              autoExtract_EATTACH, "" if not (didDisableALL_attachments) else " *** DISABLING extract of ALL ATTACHMENTS (when in auto extract on file closing mode) ***"))
 
                     if lExtractAttachments_EAR or lExtractAttachments_EIT:
                         if lExtractAttachments_EAR:
@@ -6029,7 +6141,7 @@ Visit: %s (Author's site)
                         elif lExtractReminders:
                             extract_filename = GlobalVars.defaultFileName_ERTC + name_addition
                         elif lExtractTrunk:
-                            name_addition = "" + currentDateTimeMarker() + "."
+                            name_addition = "" + currentDateTimeMarker() + ""
                             extract_filename = GlobalVars.defaultFileName_ETRUNK + name_addition
                         elif lExtractJSON:
                             name_addition = "" + currentDateTimeMarker() + ".json"
@@ -6040,6 +6152,9 @@ Visit: %s (Author's site)
 
                         else:
                             raise Exception("@@ ERROR - Invalid extract detected....?!")
+
+                        extract_filename = MD_REF.getCurrentAccountBook().getName() + "_" + extract_filename
+
 
                         if lExtractAttachments:
 
@@ -6117,7 +6232,7 @@ Visit: %s (Author's site)
                                 else:
                                     theTitle = "Select/Create CSV file for extract (CANCEL=NO EXTRACT)"
 
-                                if lExtractTrunk: extnType = ""
+                                if lExtractTrunk: extnType = None
                                 elif lExtractJSON: extnType = "json"
                                 else: extnType = "csv"
 
@@ -6129,7 +6244,7 @@ Visit: %s (Author's site)
                                                                     False,                              # True for Open/Load, False for Save
                                                                     True,                               # True = Files, else Dirs
                                                                     None,                               # Load/Save button text, None for defaults
-                                                                    extnType,                           # File filter (non Mac only). Example: "txt" or "qif"
+                                                                    extnType,                           # File filter. Examples: None, "txt", "qif"
                                                                     lAllowTraversePackages=True,
                                                                     lForceJFC=False,
                                                                     lForceFD=True,
@@ -6271,6 +6386,7 @@ Visit: %s (Author's site)
                             DoExtractsSwingWorker.setPleaseWait(None)
 
                     def __init__(self, pleaseWaitDiag):
+                        # type: (MyPopUpDialogBox) -> None
                         self.setPleaseWait(pleaseWaitDiag)
 
                     def process(self, chunks):              # This executes on the EDT
@@ -6299,9 +6415,11 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: StockGlance2020:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
+
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_SG2020 + ".csv")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_SG2020 + ".csv")
 
                                 def do_stockglance2020():
 
@@ -8024,10 +8142,12 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: Reminders:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
+
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_ERTC + ".csv")
-                                    GlobalVars.csvfilename_future = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_future_ERTC + ".csv")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_ERTC + ".csv")
+                                    GlobalVars.csvfilename_future = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_future_ERTC + ".csv")
 
                                 def do_extract_reminders():
                                     global lDidIUseAttachmentDir
@@ -9382,9 +9502,11 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: Account Registers:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
+
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_EAR + ".csv")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_EAR + ".csv")
 
                                 def do_extract_account_registers():
                                     global lDidIUseAttachmentDir
@@ -10239,10 +10361,11 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: Investment Transactions:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
 
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_EIT + ".csv")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_EIT + ".csv")
 
                                 def do_extract_investment_transactions():
                                     global lDidIUseAttachmentDir
@@ -11353,10 +11476,11 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: Currency History:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
 
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_ECH + ".csv")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_ECH + ".csv")
 
                                 def do_extract_currency_history():
                                     global lDidIUseAttachmentDir
@@ -11636,10 +11760,11 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: Security Balances:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
 
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_ESB + ".csv")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_ESB + ".csv")
 
                                 def do_extract_security_balances():
                                     global baseCurrency
@@ -12087,10 +12212,11 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: Trunk file:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
 
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_ETRUNK + ".")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_ETRUNK + "")
 
                                 def do_extract_trunk():
 
@@ -12160,10 +12286,11 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: JSON file:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
 
                                 if GlobalVars.AUTO_EXTRACT_MODE:
-                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_JSON + ".json")
+                                    GlobalVars.csvfilename = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_JSON + ".json")
 
                                 def do_extract_json():
 
@@ -12227,11 +12354,12 @@ Visit: %s (Author's site)
                                 _THIS_EXTRACT_NAME = pad("EXTRACT: Attachments:", 34)
                                 GlobalVars.lGlobalErrorDetected = False
 
-                                self.super__publish([_THIS_EXTRACT_NAME.strip()])                                       # noqa
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
 
                                 if GlobalVars.AUTO_EXTRACT_MODE:
                                     _name_addition = "" + "_" + UUID.randomUUID().toString() + currentDateTimeMarker()
-                                    GlobalVars.extractFolderName = os.path.join(GlobalVars.scriptpath, GlobalVars.defaultFileName_EATTACH + _name_addition)
+                                    GlobalVars.extractFolderName = os.path.join(GlobalVars.scriptpath, MD_REF.getCurrentAccountBook().getName() + "_" + GlobalVars.defaultFileName_EATTACH + _name_addition)
                                     GlobalVars.csvfilename = GlobalVars.extractFolderName   # Just populate with something
 
                                 def do_extract_attachments():
@@ -12362,9 +12490,10 @@ Visit: %s (Author's site)
                         myPrint("DB", "In DoExtractsSwingWorker()", inspect.currentframe().f_code.co_name, "()")
                         myPrint("DB", "SwingUtilities.isEventDispatchThread() = %s" %(SwingUtilities.isEventDispatchThread()))
 
-                        myPrint("DB", "... calling done:get()")
-                        self.get()     # wait for task to complete
-                        myPrint("DB", "... after done:get()")
+                        if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                            myPrint("DB", "... calling done:get()")
+                            self.get()     # wait for task to complete
+                            myPrint("DB", "... after done:get()")
 
                         DoExtractsSwingWorker.killPleaseWait()
 
@@ -12381,8 +12510,15 @@ Visit: %s (Author's site)
                                 msgs.append("SINGLE DATA FILE EXTRACT MODE ENABLED")
                             msgs.append("")
 
+                            if GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                msgs.append("EXTRACT TRIGGERED BY FILE CLOSING EVENT")
+                                msgs.append("")
+
                             if GlobalVars.AUTO_INVOKE_CALLED:
-                                msgs.append("AUTO INVOKE CALLED >> WILL TRIGGER SHUTDOWN...")
+                                if GlobalVars.AUTO_INVOKE_THEN_QUIT:
+                                    msgs.append("AUTO INVOKE CALLED >> WILL TRIGGER SHUTDOWN...")
+                                else:
+                                    msgs.append("AUTO INVOKE CALLED >> Moneydance will remain running after extract(s)...")
                                 msgs.append("")
 
                             if lExtractStockGlance2020:     msgs.append("Extract StockGlance2020            REQUESTED")
@@ -12394,6 +12530,7 @@ Visit: %s (Author's site)
                             if lExtractTrunk:               msgs.append("Extract raw Trunk file             REQUESTED")
                             if lExtractJSON:                msgs.append("Extract raw JSON file              REQUESTED")
                             if lExtractAttachments:         msgs.append("Extract Attachments                REQUESTED")
+                            if didDisableALL_attachments:   msgs.append("Extract Attachments                *DISABLED*")
 
                             msgs.append("")
                             msgs.extend(GlobalVars.AUTO_MESSAGES)
@@ -12413,32 +12550,41 @@ Visit: %s (Author's site)
                             endMsg = "\n".join(msgs)
                             myPrint("B", endMsg)
 
-                            MyPopUpDialogBox(None, theStatus="EXTRACT PROCESS COMPLETED >> review status below:)", theMessage=endMsg, theTitle="EXTRACT_DATA: AUTO_MODE", lModal=False).go()
+                            if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                MyPopUpDialogBox(None, theStatus="EXTRACT PROCESS COMPLETED >> review status below:)", theMessage=endMsg, theTitle="EXTRACT_DATA: AUTO_MODE", lModal=False).go()
 
-                            if not GlobalVars.AUTO_EXTRACT_MODE and GlobalVars.countFilesCreated > 0:
-                                try:
-                                    helper = MD_REF.getPlatformHelper()
-                                    helper.openDirectory(File(GlobalVars.csvfilename))
-                                except: pass
+                                if not GlobalVars.AUTO_EXTRACT_MODE and GlobalVars.countFilesCreated > 0:
+                                    try:
+                                        helper = MD_REF.getPlatformHelper()
+                                        helper.openDirectory(File(GlobalVars.csvfilename))
+                                    except: pass
 
                             cleanup_actions(extract_data_frame_)
 
                         if GlobalVars.AUTO_INVOKE_CALLED:
-                            myPrint("B", "@@ COMPLETED - Triggering shutdown @@")
-                            MD_REF.saveCurrentAccount()
-                            # genericThreadRunner(True, MD_REF.shutdown)
-                            genericThreadRunner(True, MD_REF.getUI().shutdownApp, False)
+                            if GlobalVars.AUTO_INVOKE_THEN_QUIT:
+                                myPrint("B", "@@ COMPLETED - Triggering shutdown @@")
+                                MD_REF.saveCurrentAccount()
+                                genericThreadRunner(True, MD_REF.getUI().shutdownApp, False)
+                            else:
+                                myPrint("B", "@@ COMPLETED (Moneydance will remain running) @@")
 
                 _msgPad = 100
                 _msg = pad("PLEASE WAIT: Extracting Data", _msgPad, padChar=".")
-                if GlobalVars.DISPLAY_DATA:
+                if GlobalVars.DISPLAY_DATA or GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
                     pleaseWait = None
                 else:
                     pleaseWait = MyPopUpDialogBox(extract_data_frame_, theStatus=_msg, theTitle=_msg, lModal=False, OKButtonText="WAIT")
                     pleaseWait.go()
 
-                sw = DoExtractsSwingWorker(pleaseWait)
-                sw.execute()
+                if GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                    # Run / block calling MD thread...
+                    sw = DoExtractsSwingWorker(pleaseWait)
+                    sw.doInBackground()
+                    sw.done()
+                else:
+                    sw = DoExtractsSwingWorker(pleaseWait)
+                    sw.execute()
 
             except QuickAbortThisScriptException:
                 myPrint("DB", "Caught Exception: QuickAbortThisScriptException... Doing nothing (assume exit requested)...")
@@ -12447,9 +12593,15 @@ Visit: %s (Author's site)
                 crash_txt = "ERROR - Extract_Data has crashed. Please review MD Menu>Help>Console Window for details".upper()
                 myPrint("B", crash_txt)
                 crash_output = dump_sys_error_to_md_console_and_errorlog(True)
-                jif = QuickJFrame("ERROR - Extract_Data:", crash_output).show_the_frame()
-                MyPopUpDialogBox(jif, theStatus="ERROR: Extract_Data has crashed", theMessage=crash_txt, theTitle="ERROR", lAlertLevel=2, lModal=False).go()
+                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                    jif = QuickJFrame("ERROR - Extract_Data:", crash_output).show_the_frame()
+                    MyPopUpDialogBox(jif, theStatus="ERROR: Extract_Data has crashed", theMessage=crash_txt, theTitle="ERROR", lAlertLevel=2, lModal=False).go()
                 raise
 
 
-    SwingUtilities.invokeLater(MainAppRunnable())
+    if GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+        # Keep / block the same calling Moneydance event thread....
+        myPrint("DB", "Executing code on the same Moneydance handle_event thread to block Moneydance whilst auto extract runs....")
+        MainAppRunnable().run()
+    else:
+        SwingUtilities.invokeLater(MainAppRunnable())
