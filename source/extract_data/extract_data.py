@@ -3814,7 +3814,7 @@ Visit: %s (Author's site)
             continue
 
         extnPrefs.put(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, user_autoExtractWhenFileClosing.isSelected())
-        myPrint("DB", "'%s' parameter set to:", extnPrefs.getBoolean(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, False))
+        myPrint("DB", "'%s' parameter set to: %s" %(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, extnPrefs.getBoolean(EXTN_PREF_KEY_AUTO_EXTRACT_WHEN_FILE_CLOSING, False)))
 
         myPrint("DB", "Saving Extension's parameter(s) back to local storage..." )
         saveExtensionPreferences(extnPrefs)

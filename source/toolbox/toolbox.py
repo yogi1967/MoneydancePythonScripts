@@ -182,6 +182,7 @@
 #               Disabled the createUSAAProfile() menu option (no longer needed)
 #               MD2023.2(5008): Kotlin entire code set recompiled build >> tweaks/fixes...
 #               ... Tweaked ManuallyCloseAndReloadDataset() to cope with multi syncer threads...
+#               added call to .showURL("moneydance:fmodule:extract_data:disable_events") and enable_events when restarting dataset....
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -580,7 +581,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.2
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5012
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5014
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -3582,6 +3583,23 @@ Visit: %s (Author's site)
     class ManuallyCloseAndReloadDataset(Runnable):
 
         @staticmethod
+        def setOtherExtensionsEnabled(otherExtnsEnabled):
+            myPrint("DB", "In ManuallyCloseAndReloadDataset.setOtherExtensionsEnabled()")
+            ortherExtns = ["extract_data"]
+            baseUrl = "moneydance:fmodule:"
+            sendCmd = "enable_events" if otherExtnsEnabled else "disable_events"
+            for otherExtn in ortherExtns:
+                try:
+                    wholeCmd = baseUrl + otherExtn + ":" + sendCmd
+                    myPrint("DB", "Sending '%s'" %(wholeCmd))
+                    MD_REF.showURL(wholeCmd)
+                except:
+                    e, exc_value, exc_traceback = sys.exc_info()                                                        # noqa
+                    txt = "Error sending command - ! Error was: '%s'" %(e)
+                    myPrint("B", txt)
+
+
+        @staticmethod
         def closeSecondaryWindows():
             myPrint("DB", "In ManuallyCloseAndReloadDataset.closeSecondaryWindows()")
             if not SwingUtilities.isEventDispatchThread(): return False
@@ -3637,6 +3655,7 @@ Visit: %s (Author's site)
                 myPrint("B", "@@ RESTARTING MONEYDANCE >> RELOADING SAME DATASET @@")
                 Thread(ManuallyCloseAndReloadDataset(), "toolbox_moneydanceExitOrRestart").start()
             else:
+                ManuallyCloseAndReloadDataset.setOtherExtensionsEnabled(False)
                 if lAllowSaveWorkspace:
                     myPrint("B", "@@ EXITING MONEYDANCE @@")
                     MD_REF.getUI().exit()
@@ -3652,6 +3671,8 @@ Visit: %s (Author's site)
             force kill Syncer thread(s) found... parameter: lKillAllSyncers:False will only kill this dataset's Syncer (True = kill all Syncers found)"""
 
             myPrint("DB", "In ManuallyCloseAndReloadDataset.manuallyCloseDataset(), lCloseWindows: %s, lKillAllSyncers: %s lKillAllFramesWithBookReferences: %s" %(lCloseWindows, lKillAllSyncers, lKillAllFramesWithBookReferences))
+
+            ManuallyCloseAndReloadDataset.setOtherExtensionsEnabled(False)
 
             wr_bookToClose = WeakReference(theBook)
             del theBook
@@ -3846,6 +3867,8 @@ Visit: %s (Author's site)
             myPrint("DB", "Successfully obtained 'wrapper' for dataset: %s\n" %(fCurrentFilePath.getCanonicalPath()))
 
             SyncerDebug.changeState(True)
+
+            ManuallyCloseAndReloadDataset.setOtherExtensionsEnabled(True)
 
             openResult = None                                                                                           # noqa
             try:
@@ -23001,6 +23024,8 @@ now after saving the file, restart Moneydance
 
             _operationMsg = "renamed/relocated" if success else "original"
             myPrint("B", "(Re)opening %s dataset...." %(_operationMsg))
+
+            ManuallyCloseAndReloadDataset.setOtherExtensionsEnabled(True)
 
             openResult = None                                                                                           # noqa
             try:

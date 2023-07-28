@@ -131,4 +131,3 @@ try:
     except AttributeError: pass
 
 except _QuickAbortThisScriptException: pass
-except: raise

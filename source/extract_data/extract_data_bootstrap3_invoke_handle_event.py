@@ -32,32 +32,21 @@ if "moneydance_extension_parameter" not in globals(): raise Exception("ERROR: 'm
 
 global System, RuntimeException, imp, builtins, AppEventManager
 global moneydance, moneydance_ui, moneydance_extension_parameter, moneydance_extension_loader
-global _THIS_IS_, _QuickAbortThisScriptException, _specialPrint, _decodeCommand
+global _THIS_IS_, _QuickAbortThisScriptException, _specialPrint, _decodeCommand, _HANDLE_EVENT_ENABLED_IF_REQUESTED
+global _getExtensionPreferences, _saveExtensionPreferences
 global debug
-
-from com.infinitekind.tiksync import SyncRecord
-_EXTN_PREF_KEY = "stuwaresoftsystems" + "." + _THIS_IS_
-
-def _getExtensionPreferences():
-    # type: () -> SyncRecord
-    _extnPrefs =  moneydance.getCurrentAccountBook().getLocalStorage().getSubset(_EXTN_PREF_KEY)
-    _specialPrint("Retrieved Extn Preferences from LocalStorage: %s" %(_extnPrefs))
-    return _extnPrefs
-
-def _saveExtensionPreferences(newExtnPrefs):
-    # type: (SyncRecord) -> None
-    if not isinstance(newExtnPrefs, SyncRecord):
-        raise Exception("ERROR: 'newExtnPrefs' is not a SyncRecord (given: '%s')" %(type(newExtnPrefs)))
-    _localStorage = moneydance.getCurrentAccountBook().getLocalStorage()
-    _localStorage.put(_EXTN_PREF_KEY, newExtnPrefs)
-    _specialPrint("Stored Extn Preferences into LocalStorage: %s"  %(newExtnPrefs))
-
 
 try:
     if "debug" not in globals(): debug = False
 
-    respondToMDEvents = [AppEventManager.FILE_CLOSING]
+    if not isinstance(moneydance_extension_parameter, basestring): moneydance_extension_parameter = ""
+    cmd, cmdParam = _decodeCommand(moneydance_extension_parameter)
 
+    if not _HANDLE_EVENT_ENABLED_IF_REQUESTED and not cmd.endswith("_events"):
+        _specialPrint("EVENT HANDLING IS DISABLED >> WILL IGNORE THIS EVENT..... (was passed '%s', Command: '%s', Parameter: '%s')" %(moneydance_extension_parameter, cmd, cmdParam))
+        raise _QuickAbortThisScriptException
+
+    respondToMDEvents = [AppEventManager.FILE_CLOSING]
     # allMDEvents = ["md:file:closing",
     #                "md:file:closed",
     #                "md:file:opening",
@@ -71,9 +60,6 @@ try:
     #                "md:viewbudget",
     #                "md:viewreminders",
     #                "md:licenseupdated"]
-
-    if not isinstance(moneydance_extension_parameter, basestring): moneydance_extension_parameter = ""
-    cmd, cmdParam = _decodeCommand(moneydance_extension_parameter)
 
     lInvoke = lQuitAfter = lHandleEvent = False
     if moneydance_extension_parameter.startswith("md:"):
@@ -93,6 +79,15 @@ try:
     else:
         lInvoke = True
         _specialPrint("INVOKE was passed '%s', Command: '%s', Parameter: '%s'" %(moneydance_extension_parameter, cmd, cmdParam))
+
+        if cmd.lower() == "disable_events":
+            _HANDLE_EVENT_ENABLED_IF_REQUESTED = False
+            _specialPrint("DISABLE_EVENTS detected >> DISABLED event handling....")
+            raise _QuickAbortThisScriptException
+        elif cmd.lower() == "enable_events":
+            _HANDLE_EVENT_ENABLED_IF_REQUESTED = True
+            _specialPrint("ENABLE_EVENTS detected >> (RE)ENABLING event handling....")
+            raise _QuickAbortThisScriptException
 
         if cmd.lower() != "autoextract":
             _specialPrint("Invoke IGNORED... Only accepted command = 'autoextract:noquit' or 'autoextract:quit'")
@@ -174,4 +169,3 @@ try:
     except AttributeError: pass
 
 except _QuickAbortThisScriptException: pass
-except: raise
