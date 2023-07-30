@@ -183,6 +183,8 @@
 #               MD2023.2(5008): Kotlin entire code set recompiled build >> tweaks/fixes...
 #               ... Tweaked ManuallyCloseAndReloadDataset() to cope with multi syncer threads...
 #               added call to .showURL("moneydance:fmodule:extract_data:disable_events") and enable_events when restarting dataset....
+#               Deprecated DetectAndChangeMacTabbingMode class to avoid PyBytecode-approach: java.lang.RuntimeException: java.lang.RuntimeException: For unknown reason, too large method code couldn't be resolved
+#               Added new DetectMobileAppTxnFiles class...
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -4676,125 +4678,6 @@ Visit: %s (Author's site)
                      u"('%s' = '%s')\n" %(KEY, javaTmpDir)
         return rtnMsg
 
-    class DetectAndChangeMacTabbingMode(AbstractAction):
-
-        def __init__(self, lQuickCheckOnly):
-            self.lQuickCheckOnly = lQuickCheckOnly
-
-        def actionPerformed(self, event):
-            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
-
-            if not Platform.isOSX():
-                if self.lQuickCheckOnly: return True
-                txt = "Change Mac Tabbing Mode - This can only be run on a Mac!"
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-                return
-
-            if not isOSXVersionBigSurOrLater():
-                if self.lQuickCheckOnly: return True
-                txt = "Change Mac Tabbing Mode - You are not running Big Sur - no changes made!"
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
-                return
-
-            if (float(MD_REF.getBuild()) > 1929 and float(MD_REF.getBuild()) < 2008):                                         # noqa
-                txt = "You are running 2021.build %s - This version has problems with DUAL MONITORS - Upgrade to at least 2021. build 2012: https://infinitekind.com/preview" %(MD_REF.getBuild())
-                setDisplayStatus(txt, "R")
-                txt = "Change Mac Tabbing Mode - You are running 2021.build %s - This version has problems with DUAL MONITORS\nPlease upgrade to at least 2021. build 2012:\nhttps://infinitekind.com/preview" %(MD_REF.getBuild())
-                myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-            prefFile = os.path.join(System.getProperty("UserHome", "Library/Preferences/.GlobalPreferences.plist"))
-            if not os.path.exists(prefFile):
-                if self.lQuickCheckOnly: return True
-                txt = "Change Mac Tabbing Mode - Sorry - For some reason I could not find: %s - no changes made!" %(prefFile)
-                setDisplayStatus(txt, "R")
-                myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-            try:
-                tabbingMode = subprocess.check_output("defaults read -g AppleWindowTabbingMode", shell=True)
-            except:
-                if self.lQuickCheckOnly: return True
-                txt = "Change Mac Tabbing Mode - Sorry - error getting your Tabbing mode! - no changes made!"
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
-                dump_sys_error_to_md_console_and_errorlog()
-                return
-
-            tabbingMode=tabbingMode.strip().lower()
-            if not (tabbingMode == "fullscreen" or tabbingMode == "manual" or tabbingMode == "always"):
-                if self.lQuickCheckOnly: return True
-                txt = "Change Mac Tabbing Mode - Sorry - I don't understand your tabbing mode: %s - no changes made!" %(tabbingMode)
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-            if tabbingMode == "fullscreen" or tabbingMode == "manual":
-                if self.lQuickCheckOnly:
-                    myPrint("J", "Quick check of MacOS tabbing showed it's OK and set to: %s" %tabbingMode)
-                    return True
-                txt = "Change Mac Tabbing Mode - NO PROBLEM FOUND - Your tabbing mode is: %s - no changes made!" %(tabbingMode)
-                setDisplayStatus(txt, "B"); myPrint("B", txt)
-                myPopupInformationBox(toolbox_frame_,txt)
-                return
-
-            if self.lQuickCheckOnly:
-                myPrint("J", "Quick check of MacOS tabbing showed it's NEEDS CHANGING >> It's set to: %s" %tabbingMode)
-                return False
-
-            myPrint("B","More information here: https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac")
-
-            myPrint("B", "@@@ PROBLEM - Your Tabbing Mode is set to: %s - NEEDS CHANGING" %tabbingMode)
-            myPopupInformationBox(toolbox_frame_,"@@@ PROBLEM - Your Tabbing Mode is set to: %s\nTHIS NEEDS CHANGING!" %tabbingMode,theMessageType=JOptionPane.ERROR_MESSAGE)
-            myPopupInformationBox(toolbox_frame_,"Info:\n<https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac>\nPress OK to select new mode...",theMessageType=JOptionPane.ERROR_MESSAGE)
-
-            mode_options = ["fullscreen", "manual"]
-            selectedMode = JOptionPane.showInputDialog(toolbox_frame_,
-                                                        "TABBING MODE", "Select the new Tabbing Mode?",
-                                                        JOptionPane.WARNING_MESSAGE,
-                                                        getMDIcon(lAlwaysGetIcon=True),
-                                                        mode_options,
-                                                        None)
-            if selectedMode is None:
-                txt = "Change Mac Tabbing Mode - No new Tabbing Mode was selected - aborting.."
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(toolbox_frame_,txt)
-                return
-
-            if not doesUserAcceptDisclaimer(toolbox_frame_, "TABBING MODE", "Are you really sure you want to change MacOS system setting>>Tabbing Mode?"):
-                txt = "Change Mac Tabbing Mode - User declined the disclaimer - no changes made...."
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-                return
-
-            try:
-                tabbingModeChanged = subprocess.check_output('defaults write -g AppleWindowTabbingMode -string "%s"' %selectedMode, shell=True)
-                if tabbingModeChanged.strip() != "":
-                    myPrint("B", "Tabbing mode change output>>>>")
-                    myPrint("B", tabbingModeChanged)
-                myPrint("B","!!! Your tabbing mode has been changed to %s - MONEYDANCE WILL NOW RESTART" %selectedMode)
-            except:
-                txt = "Change Mac Tabbing Mode - Sorry - error setting your Tabbing mode! - no changes made!"
-                setDisplayStatus(txt, "R"); myPrint("B", txt)
-                dump_sys_error_to_md_console_and_errorlog()
-                myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-            if tabbingModeChanged.strip() != "":
-                myPopupInformationBox(toolbox_frame_,"Change Mac Tabbing Mode: Response: %s" %tabbingModeChanged, JOptionPane.WARNING_MESSAGE)
-
-            txt = "MacOS Tabbing Mode: OK I Made the Change to your Mac Tabbing Mode: MONEYDANCE WILL NOW RESTART"
-            setDisplayStatus(txt, "R")
-            logToolboxUpdates("DetectAndChangeMacTabbingMode", txt, onlyLogGenericEntry=True)
-            myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
-            ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
-
     class MyPopupRegister(SecondaryDialog):
 
         class MyTxnRegisterType(TxnRegisterType):
@@ -4854,6 +4737,125 @@ Visit: %s (Author's site)
                     self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close_window")
                 else:
                     self.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))
+
+    # class DetectAndChangeMacTabbingMode(AbstractAction):
+    #
+    #     def __init__(self, lQuickCheckOnly):
+    #         self.lQuickCheckOnly = lQuickCheckOnly
+    #
+    #     def actionPerformed(self, event):
+    #         myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+    #
+    #         if not Platform.isOSX():
+    #             if self.lQuickCheckOnly: return True
+    #             txt = "Change Mac Tabbing Mode - This can only be run on a Mac!"
+    #             setDisplayStatus(txt, "R")
+    #             myPrint("B", txt)
+    #             myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+    #             return
+    #
+    #         if not isOSXVersionBigSurOrLater():
+    #             if self.lQuickCheckOnly: return True
+    #             txt = "Change Mac Tabbing Mode - You are not running Big Sur - no changes made!"
+    #             setDisplayStatus(txt, "R")
+    #             myPrint("B", txt)
+    #             myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.WARNING_MESSAGE)
+    #             return
+    #
+    #         if (float(MD_REF.getBuild()) > 1929 and float(MD_REF.getBuild()) < 2008):                                         # noqa
+    #             txt = "You are running 2021.build %s - This version has problems with DUAL MONITORS - Upgrade to at least 2021. build 2012: https://infinitekind.com/preview" %(MD_REF.getBuild())
+    #             setDisplayStatus(txt, "R")
+    #             txt = "Change Mac Tabbing Mode - You are running 2021.build %s - This version has problems with DUAL MONITORS\nPlease upgrade to at least 2021. build 2012:\nhttps://infinitekind.com/preview" %(MD_REF.getBuild())
+    #             myPrint("B", txt)
+    #             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             return
+    #
+    #         prefFile = os.path.join(System.getProperty("UserHome", "Library/Preferences/.GlobalPreferences.plist"))
+    #         if not os.path.exists(prefFile):
+    #             if self.lQuickCheckOnly: return True
+    #             txt = "Change Mac Tabbing Mode - Sorry - For some reason I could not find: %s - no changes made!" %(prefFile)
+    #             setDisplayStatus(txt, "R")
+    #             myPrint("B", txt)
+    #             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             return
+    #
+    #         try:
+    #             tabbingMode = subprocess.check_output("defaults read -g AppleWindowTabbingMode", shell=True)
+    #         except:
+    #             if self.lQuickCheckOnly: return True
+    #             txt = "Change Mac Tabbing Mode - Sorry - error getting your Tabbing mode! - no changes made!"
+    #             setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             dump_sys_error_to_md_console_and_errorlog()
+    #             return
+    #
+    #         tabbingMode=tabbingMode.strip().lower()
+    #         if not (tabbingMode == "fullscreen" or tabbingMode == "manual" or tabbingMode == "always"):
+    #             if self.lQuickCheckOnly: return True
+    #             txt = "Change Mac Tabbing Mode - Sorry - I don't understand your tabbing mode: %s - no changes made!" %(tabbingMode)
+    #             setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #             myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             return
+    #
+    #         if tabbingMode == "fullscreen" or tabbingMode == "manual":
+    #             if self.lQuickCheckOnly:
+    #                 myPrint("J", "Quick check of MacOS tabbing showed it's OK and set to: %s" %tabbingMode)
+    #                 return True
+    #             txt = "Change Mac Tabbing Mode - NO PROBLEM FOUND - Your tabbing mode is: %s - no changes made!" %(tabbingMode)
+    #             setDisplayStatus(txt, "B"); myPrint("B", txt)
+    #             myPopupInformationBox(toolbox_frame_,txt)
+    #             return
+    #
+    #         if self.lQuickCheckOnly:
+    #             myPrint("J", "Quick check of MacOS tabbing showed it's NEEDS CHANGING >> It's set to: %s" %tabbingMode)
+    #             return False
+    #
+    #         myPrint("B","More information here: https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac")
+    #
+    #         myPrint("B", "@@@ PROBLEM - Your Tabbing Mode is set to: %s - NEEDS CHANGING" %tabbingMode)
+    #         myPopupInformationBox(toolbox_frame_,"@@@ PROBLEM - Your Tabbing Mode is set to: %s\nTHIS NEEDS CHANGING!" %tabbingMode,theMessageType=JOptionPane.ERROR_MESSAGE)
+    #         myPopupInformationBox(toolbox_frame_,"Info:\n<https://support.apple.com/en-gb/guide/mac-help/mchla4695cce/mac>\nPress OK to select new mode...",theMessageType=JOptionPane.ERROR_MESSAGE)
+    #
+    #         mode_options = ["fullscreen", "manual"]
+    #         selectedMode = JOptionPane.showInputDialog(toolbox_frame_,
+    #                                                     "TABBING MODE", "Select the new Tabbing Mode?",
+    #                                                     JOptionPane.WARNING_MESSAGE,
+    #                                                     getMDIcon(lAlwaysGetIcon=True),
+    #                                                     mode_options,
+    #                                                     None)
+    #         if selectedMode is None:
+    #             txt = "Change Mac Tabbing Mode - No new Tabbing Mode was selected - aborting.."
+    #             setDisplayStatus(txt, "R")
+    #             myPopupInformationBox(toolbox_frame_,txt)
+    #             return
+    #
+    #         if not doesUserAcceptDisclaimer(toolbox_frame_, "TABBING MODE", "Are you really sure you want to change MacOS system setting>>Tabbing Mode?"):
+    #             txt = "Change Mac Tabbing Mode - User declined the disclaimer - no changes made...."
+    #             setDisplayStatus(txt, "R")
+    #             myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+    #             return
+    #
+    #         try:
+    #             tabbingModeChanged = subprocess.check_output('defaults write -g AppleWindowTabbingMode -string "%s"' %selectedMode, shell=True)
+    #             if tabbingModeChanged.strip() != "":
+    #                 myPrint("B", "Tabbing mode change output>>>>")
+    #                 myPrint("B", tabbingModeChanged)
+    #             myPrint("B","!!! Your tabbing mode has been changed to %s - MONEYDANCE WILL NOW RESTART" %selectedMode)
+    #         except:
+    #             txt = "Change Mac Tabbing Mode - Sorry - error setting your Tabbing mode! - no changes made!"
+    #             setDisplayStatus(txt, "R"); myPrint("B", txt)
+    #             dump_sys_error_to_md_console_and_errorlog()
+    #             myPopupInformationBox(toolbox_frame_,txt, theMessageType=JOptionPane.ERROR_MESSAGE)
+    #             return
+    #
+    #         if tabbingModeChanged.strip() != "":
+    #             myPopupInformationBox(toolbox_frame_,"Change Mac Tabbing Mode: Response: %s" %tabbingModeChanged, JOptionPane.WARNING_MESSAGE)
+    #
+    #         txt = "MacOS Tabbing Mode: OK I Made the Change to your Mac Tabbing Mode: MONEYDANCE WILL NOW RESTART"
+    #         setDisplayStatus(txt, "R")
+    #         logToolboxUpdates("DetectAndChangeMacTabbingMode", txt, onlyLogGenericEntry=True)
+    #         myPopupInformationBox(toolbox_frame_,txt,theMessageType=JOptionPane.WARNING_MESSAGE)
+    #         ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
     class DetectInvalidWindowLocations(AbstractAction):
 
@@ -5003,6 +5005,110 @@ Visit: %s (Author's site)
 
             myPrint("B","Requesting Moneydance shuts down now...")
             ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False, lAllowSaveWorkspace=False)
+
+    class DetectMobileAppTxnFiles(AbstractAction):
+
+        def __init__(self, lQuickCheckOnly):
+            self.lQuickCheckOnly = lQuickCheckOnly
+
+        def actionPerformed(self, event):
+            myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
+
+            _THIS_METHOD_NAME = "DETECT MOBILE APP TXN FILES".upper()
+
+            DAY_IN_MS = 24 * 60 * 60 * 1000
+            DAYS_TO_KEEP = 1
+
+            # from com.moneydance.apps.md.controller.sync import AbstractSyncFolder
+            try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
+            except: syncFolder = None
+            if syncFolder is None:
+                myPrint("B", "Syncing not enabled - skipping detection for old(er) Mobile App Sync Folder .txn file(s)")
+                return False
+
+            oldTxnFiles = []
+            ignoringTxnFiles = []
+            nowTimeMS = System.currentTimeMillis()
+            cutoffTimeMS = nowTimeMS - (DAYS_TO_KEEP * DAY_IN_MS)
+
+            output = "%s:\n" \
+                     "---------------------------------\n" %(_THIS_METHOD_NAME)
+
+            MD_REF.saveCurrentAccount()
+
+            try:
+                output += "Sync method: '%s'\n" %(syncFolder.getSyncTypeID())
+                output += "Sync path:   '%s'\n" %(syncFolder.toString())
+
+                txnfiles = syncFolder.listTxnFiles()
+                for txnfile in txnfiles:
+                    if syncFolder.getFileTimestamp(txnfile) >= cutoffTimeMS:
+                        ignoringTxnFiles.append(txnfile)
+                    else:
+                        oldTxnFiles.append(txnfile)
+
+                # ignoringTxnFiles = sorted(ignoringTxnFiles, key=lambda sort_x: (syncFolder.getFileTimestamp(sort_x)))
+                # oldTxnFiles = sorted(ignoringTxnFiles, key=lambda sort_x: (syncFolder.getFileTimestamp(sort_x)))
+
+                for fileSet in [ignoringTxnFiles, oldTxnFiles]:
+                    output += "\n"
+                    for txnfile in fileSet:
+                        txnFileTimestamp = syncFolder.getFileTimestamp(txnfile)
+                        txnFileDateInt = (0 if txnFileTimestamp == 0 else DateUtil.convertLongDateToInt(txnFileTimestamp))
+                        txnFileDateHuman = convertStrippedIntDateFormattedText(txnFileDateInt)
+                        lIgnore = (txnFileTimestamp >= cutoffTimeMS)
+                        output += "%s Mobile Sync .txn file dated: %s (time stamp: %s): '%s' \n"\
+                                  %("(ignoring recent)" if lIgnore else "<SUGGEST DELETE!>",txnFileDateHuman, txnFileTimestamp, txnfile)
+                    output += "\n"
+
+            except:
+                myPrint("B", "Error processing Mobile App Sync .txn file(s)? (aborting checks)")
+                dump_sys_error_to_md_console_and_errorlog()
+                return False
+
+            myPrint("B", "Detected %s recent and %s old(er) Mobile App Sync Folder .txn files" %(len(ignoringTxnFiles), len(oldTxnFiles)))
+            if self.lQuickCheckOnly:
+                return len(oldTxnFiles) > 0
+
+            if len(oldTxnFiles) < 1:
+                txt = "No old(er) Mobile App .txn Sync Files detected - no changes made"
+                output += "%s\n<END>\n" %(txt); myPrint("B", txt)
+                QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
+                return False
+
+            output += "ALERT: %s old(er) mobile app .txn Sync Files detected\n\n" %(len(oldTxnFiles))
+            jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
+
+
+            if not confirm_backup_confirm_disclaimer(jif,
+                                                     _THIS_METHOD_NAME,
+                                                     "DELETE %s old(er) mobile app .txn Sync Files?" %(len(oldTxnFiles))):
+                return
+
+            jif.dispose()
+
+            iCountErrors = 0
+            for txnfile in oldTxnFiles:
+                try:
+                    syncFolder.delete(txnfile)
+                    txt = "Deleted old(er) mobile app sync .txn file: '%s'" %(txnfile)
+                    output += "%s\n" %(txt); myPrint("B", txt)
+                except:
+                    iCountErrors += 1
+                    txt = "ERROR Deleting old(er) mobile app sync .txn file: '%s' (review help/console)" %(txnfile)
+                    output += "%s\n" %(txt); myPrint("B", txt)
+                    dump_sys_error_to_md_console_and_errorlog()
+
+
+            txt = "%s - Deleted %s old(er) mobile app sync .txn files (with %s errors)" %(_THIS_METHOD_NAME, len(oldTxnFiles), iCountErrors)
+            output += "\n\n%s\n<END>" %(txt)
+            setDisplayStatus(txt, "R"); myPrint("B", txt)
+            logToolboxUpdates("DetectMobileAppTxnFiles", txt)
+
+            play_the_money_sound()
+            MyPopUpDialogBox(toolbox_frame_, txt, output, theTitle="OLD(ER) MOBILE APP SYNC .TXN FILES DELETED", OKButtonText="RESTART MD", lAlertLevel=1).go()
+
+            ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
     def find_other_datasets():
         output = ""
@@ -28711,7 +28817,7 @@ now after saving the file, restart Moneydance
                     user_diagnose_attachments = MenuJRadioButton("DIAG: Diagnose Attachments and detect Orphans too", False)
                     user_diagnose_attachments.setToolTipText("This will analise your Attachments, show you the file storage consumed, and detect Orphans/issues")
 
-                    syncFolder = None                                                                                       # noqa
+                    syncFolder = None                                                                                   # noqa
                     try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
                     except: syncFolder = False
 
@@ -29752,16 +29858,16 @@ now after saving the file, restart Moneydance
                 createMoneydanceSyncFolder_button.setVisible(False)
                 GlobalVars.allButtonsList.append(createMoneydanceSyncFolder_button)
 
-            lTabbingModeNeedsChanging = False
-            if (isOSXVersionBigSurOrLater()
-                    and int(MD_REF.getBuild()) < 3065
-                    and not DetectAndChangeMacTabbingMode(True).actionPerformed("quick check")):
-                lTabbingModeNeedsChanging = True
-                fixTabbingMode_button = MyJButton("<html><center>FIX: MacOS<BR>Tabbing Mode</center></html>", adhocButton=True)
-                fixTabbingMode_button.setToolTipText("This allows you to check/fix your MacOS Tabbing Setting")
-                fixTabbingMode_button.addActionListener(DetectAndChangeMacTabbingMode(False))
-                fixTabbingMode_button.setVisible(False)
-                GlobalVars.allButtonsList.append(fixTabbingMode_button)
+            # lTabbingModeNeedsChanging = False
+            # if (isOSXVersionBigSurOrLater()
+            #         and int(MD_REF.getBuild()) < 3065
+            #         and not DetectAndChangeMacTabbingMode(True).actionPerformed("quick check")):
+            #     lTabbingModeNeedsChanging = True
+            #     fixTabbingMode_button = MyJButton("<html><center>FIX: MacOS<BR>Tabbing Mode</center></html>", adhocButton=True)
+            #     fixTabbingMode_button.setToolTipText("This allows you to check/fix your MacOS Tabbing Setting")
+            #     fixTabbingMode_button.addActionListener(DetectAndChangeMacTabbingMode(False))
+            #     fixTabbingMode_button.setVisible(False)
+            #     GlobalVars.allButtonsList.append(fixTabbingMode_button)
 
             lWindowLocationsNeedZapping = False
             if (DetectInvalidWindowLocations(True).actionPerformed("quick_check")):
@@ -29778,6 +29884,15 @@ now after saving the file, restart Moneydance
                 FixDropboxOneWaySync_button.addActionListener(self.FixDropboxOneWaySyncButtonAction(FixDropboxOneWaySync_button))
                 FixDropboxOneWaySync_button.setVisible(False)
                 GlobalVars.allButtonsList.append(FixDropboxOneWaySync_button)
+
+            lMobileAppTxnFilesFound = False
+            if (DetectMobileAppTxnFiles(True).actionPerformed("quick_check")):
+                lMobileAppTxnFilesFound = True
+                fixDeleteMobileAppTxnFiles_button = MyJButton("<html><center>FIX: Delete mobile<BR>app .txn files</center></html>", adhocButton=True)
+                fixDeleteMobileAppTxnFiles_button.setToolTipText("This will delete mobile app .txn files from sync location")
+                fixDeleteMobileAppTxnFiles_button.addActionListener(DetectMobileAppTxnFiles(False))
+                fixDeleteMobileAppTxnFiles_button.setVisible(False)
+                GlobalVars.allButtonsList.append(fixDeleteMobileAppTxnFiles_button)
 
             # end of instant fix buttons
             # ----------------------------------------------------------------------------------------------------------
@@ -30253,19 +30368,19 @@ now after saving the file, restart Moneydance
                 del countCachedAccount, countCachedTxns
             except: pass
 
-            # Check to see if Tabbing mode needs changing on a MAc
-            if lTabbingModeNeedsChanging:
-                MyPopUpDialogBox(toolbox_frame_,
-                                 theStatus="MacOS TABBING MODE WARNING:",
-                                 theMessage="Your Mac has 'Tabbing Mode' set to 'always'\n"
-                                            "- You can find this in Settings>General>Prefer tabs:,\n"
-                                            "- THIS CAUSES STRANGE MONEYDANCE FREEZES.\n"
-                                            ">> To change this setting now, use UPDATE Mode...\n"
-                                            "........\n",
-                                 theTitle="MacOS TABBING MODE WARNING",
-                                 OKButtonText="ACKNOWLEDGE",
-                                 lAlertLevel=1,
-                                 lModal=False).go()
+            # # Check to see if Tabbing mode needs changing on a MAc
+            # if lTabbingModeNeedsChanging:
+            #     MyPopUpDialogBox(toolbox_frame_,
+            #                      theStatus="MacOS TABBING MODE WARNING:",
+            #                      theMessage="Your Mac has 'Tabbing Mode' set to 'always'\n"
+            #                                 "- You can find this in Settings>General>Prefer tabs:,\n"
+            #                                 "- THIS CAUSES STRANGE MONEYDANCE FREEZES.\n"
+            #                                 ">> To change this setting now, use UPDATE Mode...\n"
+            #                                 "........\n",
+            #                      theTitle="MacOS TABBING MODE WARNING",
+            #                      OKButtonText="ACKNOWLEDGE",
+            #                      lAlertLevel=1,
+            #                      lModal=False).go()
 
             # Check to see if any windows are off-screen
             if lWindowLocationsNeedZapping:
@@ -30276,6 +30391,20 @@ now after saving the file, restart Moneydance
                                             ">> To zap these invalid settings, use UPDATE Mode...\n"
                                             "........\n",
                                  theTitle="INVALID WINDOW LOCATIONS WARNING",
+                                 OKButtonText="ACKNOWLEDGE",
+                                 lAlertLevel=1,
+                                 lModal=False).go()
+
+            # Detect any old(er) mobile app sync txn files...
+            if lMobileAppTxnFilesFound:
+                MyPopUpDialogBox(toolbox_frame_,
+                                 theStatus="MOBILE APP SYNC TXN FILES DETECTED:",
+                                 theMessage="Toolbox has detected that you have at least one unprocessed\n"
+                                            ".txn file(s) in your sync folder from your mobile app.\n"
+                                            "These may be causing an error (review help/console)\n"
+                                            ">> To DELETE these files, use UPDATE Mode...\n"
+                                            "........\n",
+                                 theTitle="MOBILE APP SYNC TXN FILES WARNING",
                                  OKButtonText="ACKNOWLEDGE",
                                  lAlertLevel=1,
                                  lModal=False).go()

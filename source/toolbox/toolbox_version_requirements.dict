@@ -5,7 +5,7 @@
                     {
                     "build" = "1060"
                     "disable" = "n"
-                    "news" = "NEW: 'Toolbox: Zap md+/ofx/qif (default) memo fields' menu utility; MD2023.2(5008) Tweaks/fixes..."
+                    "news" = "NEW: 'Toolbox: Zap md+/ofx/qif (default) memo fields' menu utility; MD2023.2(5008+ KOTLIN) Tweaks/fixes...; Detect / delete mobile app sync .txn files..."
                     "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
                     "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2023.2"
                     "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "5014"
