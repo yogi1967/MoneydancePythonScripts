@@ -5014,7 +5014,7 @@ Visit: %s (Author's site)
         def actionPerformed(self, event):
             myPrint("D", "In ", inspect.currentframe().f_code.co_name, "()", "Event: ", event )
 
-            _THIS_METHOD_NAME = "DETECT MOBILE APP TXN FILES".upper()
+            _THIS_METHOD_NAME = "DETECT MOBILE APP SYNC TXN FILES".upper()
 
             DAY_IN_MS = 24 * 60 * 60 * 1000
             DAYS_TO_KEEP = 1
@@ -5023,7 +5023,7 @@ Visit: %s (Author's site)
             try: syncFolder = MD_REF.getUI().getCurrentAccounts().getSyncFolder()
             except: syncFolder = None
             if syncFolder is None:
-                myPrint("B", "Syncing not enabled - skipping detection for old(er) Mobile App Sync Folder .txn file(s)")
+                myPrint("B", "Syncing not enabled - skipping detection for old(er) mobile app sync .txn file(s)")
                 return False
 
             oldTxnFiles = []
@@ -5040,8 +5040,10 @@ Visit: %s (Author's site)
                 output += "Sync method: '%s'\n" %(syncFolder.getSyncTypeID())
                 output += "Sync path:   '%s'\n" %(syncFolder.toString())
 
+                myPrint("B", "Checking '%s' sync folder (%s) for mobile app sync .txn files....." %(syncFolder.getSyncTypeID(), syncFolder.toString()))
                 txnfiles = syncFolder.listTxnFiles()
                 for txnfile in txnfiles:
+                    myPrint("B", "@@@@ mobile app sync file detected:", txnfile, syncFolder.getModified(txnfile), " @@@")
                     if syncFolder.getFileTimestamp(txnfile) >= cutoffTimeMS:
                         ignoringTxnFiles.append(txnfile)
                     else:
@@ -5057,32 +5059,32 @@ Visit: %s (Author's site)
                         txnFileDateInt = (0 if txnFileTimestamp == 0 else DateUtil.convertLongDateToInt(txnFileTimestamp))
                         txnFileDateHuman = convertStrippedIntDateFormattedText(txnFileDateInt)
                         lIgnore = (txnFileTimestamp >= cutoffTimeMS)
-                        output += "%s Mobile Sync .txn file dated: %s (time stamp: %s): '%s' \n"\
+                        output += "%s Mobile app sync .txn file dated: %s (time stamp: %s): '%s' \n"\
                                   %("(ignoring recent)" if lIgnore else "<SUGGEST DELETE!>",txnFileDateHuman, txnFileTimestamp, txnfile)
                     output += "\n"
 
             except:
-                myPrint("B", "Error processing Mobile App Sync .txn file(s)? (aborting checks)")
+                myPrint("B", "Error processing mobile app sync .txn file(s)? (aborting checks)")
                 dump_sys_error_to_md_console_and_errorlog()
                 return False
 
-            myPrint("B", "Detected %s recent and %s old(er) Mobile App Sync Folder .txn files" %(len(ignoringTxnFiles), len(oldTxnFiles)))
+            myPrint("B", "Detected %s recent and %s old(er) mobile app sync .txn file(s)" %(len(ignoringTxnFiles), len(oldTxnFiles)))
             if self.lQuickCheckOnly:
                 return len(oldTxnFiles) > 0
 
             if len(oldTxnFiles) < 1:
-                txt = "No old(er) Mobile App .txn Sync Files detected - no changes made"
+                txt = "No old(er) mobile app .txn sync file(s) detected - no changes made"
                 output += "%s\n<END>\n" %(txt); myPrint("B", txt)
                 QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True).show_the_frame()
                 return False
 
-            output += "ALERT: %s old(er) mobile app .txn Sync Files detected\n\n" %(len(oldTxnFiles))
+            output += "ALERT: %s old(er) mobile app .txn sync file(s) detected\n\n" %(len(oldTxnFiles))
             jif = QuickJFrame(_THIS_METHOD_NAME, output, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lAutoSize=True, lAlertLevel=1).show_the_frame()
 
 
             if not confirm_backup_confirm_disclaimer(jif,
                                                      _THIS_METHOD_NAME,
-                                                     "DELETE %s old(er) mobile app .txn Sync Files?" %(len(oldTxnFiles))):
+                                                     "DELETE %s old(er) mobile app .txn sync file(s)?" %(len(oldTxnFiles))):
                 return
 
             jif.dispose()
@@ -5100,13 +5102,13 @@ Visit: %s (Author's site)
                     dump_sys_error_to_md_console_and_errorlog()
 
 
-            txt = "%s - Deleted %s old(er) mobile app sync .txn files (with %s errors)" %(_THIS_METHOD_NAME, len(oldTxnFiles), iCountErrors)
+            txt = "%s - Deleted %s old(er) mobile app sync .txn file(s) (with %s errors)" %(_THIS_METHOD_NAME, len(oldTxnFiles), iCountErrors)
             output += "\n\n%s\n<END>" %(txt)
             setDisplayStatus(txt, "R"); myPrint("B", txt)
             logToolboxUpdates("DetectMobileAppTxnFiles", txt)
 
             play_the_money_sound()
-            MyPopUpDialogBox(toolbox_frame_, txt, output, theTitle="OLD(ER) MOBILE APP SYNC .TXN FILES DELETED", OKButtonText="RESTART MD", lAlertLevel=1).go()
+            MyPopUpDialogBox(toolbox_frame_, txt, output, theTitle="OLD(ER) MOBILE APP SYNC .TXN FILE(S) DELETED", OKButtonText="RESTART MD", lAlertLevel=1).go()
 
             ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
 
