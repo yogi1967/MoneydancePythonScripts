@@ -155,7 +155,7 @@ class QuickDiag(Runnable):
                 msg += u"\n"
                 _specialPrint(msg)
                 msg = u"\n-----------------------------------------------------\n"
-                Thread.sleep(60 * 1000)     # Sleep and repeat.....
+                Thread.sleep((i + 1) * 60 * 1000)     # Sleep and repeat.....
 
         except InterruptedException: pass
 

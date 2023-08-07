@@ -53,7 +53,7 @@
 # SOFTWARE.
 ###############################################################################
 
-import imp
+# import imp
 import datetime
 import __builtin__ as builtins
 
@@ -89,14 +89,16 @@ _normalExtn = u".py"
 _compiledExtn = u"$py.class"
 
 # Method to run/execute compiled code in current name space.
-# import os
-# from org.python.core import BytecodeLoader
-# from org.python.apache.commons.compress.utils import IOUtils
-# _launchedFile = _THIS_IS_ + _compiledExtn
-# scriptStream = MD_EXTENSION_LOADER.getResourceAsStream(u"/%s" %(_launchedFile))
-# code = BytecodeLoader.makeCode(os.path.splitext(_launchedFile)[0], IOUtils.toByteArray(scriptStream), (_THIS_IS_ + _normalExtn))
-# scriptStream.close()
-# exec(code)
+_startTimeMs = System.currentTimeMillis()
+import os
+from org.python.core import BytecodeLoader
+from org.python.apache.commons.compress.utils import IOUtils
+_launchedFile = _THIS_IS_ + _compiledExtn
+scriptStream = MD_EXTENSION_LOADER.getResourceAsStream(u"/%s" %(_launchedFile))
+code = BytecodeLoader.makeCode(os.path.splitext(_launchedFile)[0], IOUtils.toByteArray(scriptStream), (_THIS_IS_ + _normalExtn))
+scriptStream.close()
+exec(code)
+_specialPrint(u"BOOTSTRAP launched script in %s seconds..." %((System.currentTimeMillis() - _startTimeMs) / 1000.0))
 
 # Method to run/execute py script in current name space.
 # try:
@@ -115,27 +117,27 @@ _compiledExtn = u"$py.class"
 
 # Method(s) to run/execute script via import. Loads into it's own module namespace
 # ... Tries the compiled $py.class file first, then the original .py file
-_launchedFile = _THIS_IS_ + _compiledExtn
-scriptStream = MD_EXTENSION_LOADER.getResourceAsStream(u"/%s" %(_launchedFile))
-if scriptStream is None:
-    _specialPrint(u"@@ Will run normal (non)compiled script ('%s') @@" %(_launchedFile))
-    _launchedFile = _THIS_IS_ + _normalExtn
-    scriptStream = MD_EXTENSION_LOADER.getResourceAsStream(u"/%s" %(_launchedFile))
-    _suffixIdx = 0
-else:
-    _specialPrint(u"@@ Will run pre-compiled script for best launch speed ('%s') @@" %(_launchedFile))
-    _suffixIdx = 1
-
-if scriptStream is None: raise Exception(u"ERROR: Could not get the script (%s) from within the mxt" %(_launchedFile))
-
-_startTimeMs = System.currentTimeMillis()
-bootstrapped_extension = imp.load_module(_THIS_IS_,
-                                         scriptStream,
-                                         (u"bootstrapped_" + _launchedFile),
-                                         imp.get_suffixes()[_suffixIdx])
-_specialPrint(u"BOOTSTRAP launched script in %s seconds..." %((System.currentTimeMillis() - _startTimeMs) / 1000.0))
-scriptStream.close()
+# _launchedFile = _THIS_IS_ + _compiledExtn
+# scriptStream = MD_EXTENSION_LOADER.getResourceAsStream(u"/%s" %(_launchedFile))
+# if scriptStream is None:
+#     _specialPrint(u"@@ Will run normal (non)compiled script ('%s') @@" %(_launchedFile))
+#     _launchedFile = _THIS_IS_ + _normalExtn
+#     scriptStream = MD_EXTENSION_LOADER.getResourceAsStream(u"/%s" %(_launchedFile))
+#     _suffixIdx = 0
+# else:
+#     _specialPrint(u"@@ Will run pre-compiled script for best launch speed ('%s') @@" %(_launchedFile))
+#     _suffixIdx = 1
+#
+# if scriptStream is None: raise Exception(u"ERROR: Could not get the script (%s) from within the mxt" %(_launchedFile))
+#
+# _startTimeMs = System.currentTimeMillis()
+# bootstrapped_extension = imp.load_module(_THIS_IS_,
+#                                          scriptStream,
+#                                          (u"bootstrapped_" + _launchedFile),
+#                                          imp.get_suffixes()[_suffixIdx])
+# _specialPrint(u"BOOTSTRAP launched script in %s seconds..." %((System.currentTimeMillis() - _startTimeMs) / 1000.0))
+# scriptStream.close()
 
 # if the extension is using an extension class, then pass pass back to Moneydance
-try: moneydance_extension = bootstrapped_extension.moneydance_extension
-except AttributeError: pass
+# try: moneydance_extension = bootstrapped_extension.moneydance_extension
+# except AttributeError: pass
