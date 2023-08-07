@@ -187,6 +187,7 @@
 #               Added new DetectMobileAppTxnFiles class...; Added new advanced_options_encrypt_file_into_sync_folder() feature
 #               Deprectated: advanced_options_set_check_days()
 #               NOTE: MD2023.2(5008+) KOTLIN ALL uses Java 20.0.1 on Mac. Thread.stop() no longer work affects ManuallyCloseAndReloadDataset's ability to kill Syncer Threads.. :-(
+#               Tweak to detect_fix_txns_assigned_root (removed detect_non_hier_sec_acct_or_orphan_txns() check).
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
