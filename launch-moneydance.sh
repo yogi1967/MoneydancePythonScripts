@@ -48,7 +48,7 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-md_version=" 2023.2 (5012) KOTLIN COMPILED ALL"
+md_version=" 2023.2 (5016) KOTLIN COMPILED ALL"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
 # Download/install Java FX (allows Moneybot Console) to run: https://gluonhq.com/download/javafx-15-0-1-sdk-mac/
@@ -69,7 +69,12 @@ md_version=" 2023.2 (5012) KOTLIN COMPILED ALL"
 # https://adoptium.net/temurin/releases/?version=18
 # https://gluonhq.com/products/javafx/
 
-# NOTE:   MD2023.0(5000) Was compiled with Kotlin and build with Gradle...
+# NOTE:   MD2023.2(5008) Java 20.0.1 on Mac
+# https://adoptium.net/temurin/releases/?version=20
+# https://gluonhq.com/products/javafx/
+
+# NOTE:   MD2023.0(5000) Was compiled with Kotlin and built with Gradle... for core Syncing modules
+# NOTE:   MD2023.2(5008) Was compiled with Kotlin and built with Gradle... for all the code...
 
 # Edit the necessary install locations for JDK and JavaFX below
 # Edit the necessary settings and your folder locations below
@@ -111,11 +116,11 @@ echo "My user path: ${my_user_path}"
 
 # Set your JAVA_HOME
 # On Mac, output of '/usr/libexec/java_home --verbose' can help
-export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-18.jdk/Contents/Home"
+export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-20.jdk/Contents/Home"
 
 # JavaFX modules
 javafx_modules="javafx.swing,javafx.media,javafx.web,javafx.fxml"
-javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-18.0.1/lib"
+javafx_modulepath="${my_user_path}/Documents/Moneydance/My Python Scripts/javafx-sdk-20.0.2/lib"
 
 export PATH="${JAVA_HOME}/bin:${PATH}"
 java=java
