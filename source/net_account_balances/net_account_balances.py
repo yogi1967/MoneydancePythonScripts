@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1029 - June 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1029 - July 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -132,7 +132,8 @@
 #               Tweaked popup help/info screen dimensions...
 #               Added Print widget option... Also now bundle own java class to support .print() etc...
 # build: 1028 - contains 1027 sent for signing...
-# build: 1029 - Added Page Setup to menu...
+# build: 1029 - Added Page Setup to menu...; Tweaked getFileFromAppleScriptFileChooser() to allow 'invisibles'...
+#               Fixed dump_StuWareSoftSystems_parameters_from_memory() losing version_build when saving settings....
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -3258,9 +3259,6 @@ Visit: %s (Author's site)
 
         if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
-        # >>> THESE ARE THIS SCRIPT's PARAMETERS TO SAVE
-        GlobalVars.parametersLoadedFromFile["__%s_extension" %(myModuleID)] = version_build
-
         # Purge old parameters
         for key in GlobalVars.extn_oldParamsToMigrate:
             if GlobalVars.parametersLoadedFromFile.get(key) is not None: GlobalVars.parametersLoadedFromFile.pop(key)
@@ -3268,6 +3266,8 @@ Visit: %s (Author's site)
         # save current parameters
         for _paramKey in GlobalVars.extn_newParams:
             GlobalVars.parametersLoadedFromFile[_paramKey] = getattr(GlobalVars, _paramKey)
+
+        GlobalVars.parametersLoadedFromFile["__%s_extension" %(myModuleID)] = version_build
 
         myPrint("DB", "variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
 
@@ -3335,8 +3335,9 @@ Visit: %s (Author's site)
                                           lAllowTraversePackages=None,
                                           lAllowTraverseApplications=None,     # JFileChooser only..
                                           lAllowNewFolderButton=True,          # JFileChooser only..
-                                          lAllowOptionsButton=None):           # JFileChooser only..
-        # type: (JFrame, str, str, str, bool, bool, bool, str, str, bool, bool, bool, bool, bool, bool) -> str
+                                          lAllowOptionsButton=None,            # JFileChooser only..
+                                          lInvisibles=False):                  # AppleScript only..
+        # type: (JFrame, str, str, str, bool, bool, bool, str, str, bool, bool, bool, bool, bool, bool, bool) -> str
         """If on a Mac and AppleScript exists then will attempt to load AppleScript file/folder chooser, else calls getFileFromFileChooser() which loads JFileChooser() or FileDialog() accordingly"""
 
         if not Platform.isOSX() or not File("/usr/bin/osascript").exists() or not isOSXVersionBigSurOrLater():
@@ -3358,7 +3359,7 @@ Visit: %s (Author's site)
         _TRUE = "true"; _FALSE = "false"
         appleScript = "/usr/bin/osascript"
 
-        lAllowInvisibles = False
+        lAllowInvisibles = lInvisibles
         multipleSelectionsAllowed = _TRUE if fileChooser_multiMode else _FALSE
         showPackageContents = _TRUE if lAllowTraversePackages else _FALSE
         showInvisibles = _TRUE if lAllowInvisibles else _FALSE
@@ -5742,7 +5743,8 @@ Visit: %s (Author's site)
                                                                                "RESTORE",
                                                                                "dict_backup",
                                                                                lAllowTraversePackages=True,
-                                                                               lAllowTraverseApplications=True)
+                                                                               lAllowTraverseApplications=True,
+                                                                               lInvisibles=True)
 
                     selectedBackupFile = None if selectedBackupFileStr is None else File(selectedBackupFileStr)
                     if selectedBackupFile is None or not selectedBackupFile.exists():
@@ -5764,6 +5766,10 @@ Visit: %s (Author's site)
                             except:
                                 if debug: dump_sys_error_to_md_console_and_errorlog()
                                 myPrint("B", "Error testing backup config file...: '%s'" %(sys.exc_info()[1]))
+
+                            if debug:
+                                for key in _testConfigFileParams.keys():
+                                    myPrint("B", "@@ Key:", key, _testConfigFileParams.get(key))
 
                             restoreBuild =  _testConfigFileParams.get("__%s_extension" %(myModuleID), None)
                             lastSavedFileUUID = _testConfigFileParams.get(GlobalVars.Strings.PARAMETER_FILEUUID, None)
@@ -10632,17 +10638,17 @@ Visit: %s (Author's site)
                     try:
                         book.removeAccountListener(self)
                     except:
-                        e, exc_value, exc_traceback = sys.exc_info()                                                    # noqa
+                        e_type, exc_value, exc_traceback = sys.exc_info()                                               # noqa
                         myPrint("B", "@@ ERROR calling .removeAccountListener() on:", self)
-                        myPrint("B", "Error:", e)
+                        myPrint("B", "Error:", exc_value)
                         myPrint("B", ".. will ignore and continue")
 
                     try:
                         book.getCurrencies().removeCurrencyListener(self)
                     except:
-                        e, exc_value, exc_traceback = sys.exc_info()                                                    # noqa
+                        e_type, exc_value, exc_traceback = sys.exc_info()                                               # noqa
                         myPrint("B", "@@ ERROR calling .removeCurrencyListener() on:", self)
-                        myPrint("B", "Error:", e)
+                        myPrint("B", "Error:", exc_value)
                         myPrint("B", ".. will ignore and continue")
                 else:
                     myPrint("DB", ".. deactivateListeners().. SKIPPING removing myself as (HomePageView) AccountBook & Currency listener(s) - as already NOT active... Book:", book)
