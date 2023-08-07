@@ -8061,8 +8061,8 @@ Visit: %s (Author's site)
                                                 GlobalVars.countFilesCreated += 1
 
                                             except:
-                                                e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                                _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                                e_type, exc_value, exc_traceback = sys.exc_info()                       # noqa
+                                                _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                                 GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                                 myPrint("B", _msgTxt)
                                                 raise
@@ -9359,8 +9359,8 @@ Visit: %s (Author's site)
                                                     GlobalVars.countFilesCreated += 1
 
                                                 except:
-                                                    e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                                    _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                                    e_type, exc_value, exc_traceback = sys.exc_info()                   # noqa
+                                                    _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                                     GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                                     myPrint("B", _msgTxt)
                                                     raise
@@ -9413,8 +9413,8 @@ Visit: %s (Author's site)
                                                     GlobalVars.countFilesCreated += 1
 
                                                 except:
-                                                    e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                                    _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename_future)
+                                                    e_type, exc_value, exc_traceback = sys.exc_info()                   # noqa
+                                                    _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename_future)
                                                     GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                                     myPrint("B", _msgTxt)
                                                     raise
@@ -10232,8 +10232,8 @@ Visit: %s (Author's site)
                                             GlobalVars.countFilesCreated += 1
 
                                         except:
-                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             myPrint("B", _msgTxt)
                                             raise
@@ -11346,8 +11346,8 @@ Visit: %s (Author's site)
                                             GlobalVars.countFilesCreated += 1
 
                                         except:
-                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             myPrint("B", _msgTxt)
                                             raise
@@ -11694,8 +11694,8 @@ Visit: %s (Author's site)
                                             GlobalVars.countFilesCreated += 1
 
                                         except:
-                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             myPrint("B", _msgTxt)
                                             raise
@@ -12127,8 +12127,8 @@ Visit: %s (Author's site)
                                             GlobalVars.countFilesCreated += 1
 
                                         except:
-                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             myPrint("B", _msgTxt)
                                             raise
@@ -12245,8 +12245,8 @@ Visit: %s (Author's site)
                                             GlobalVars.countFilesCreated += 1
 
                                         except:
-                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             myPrint("B", _msgTxt)
                                             raise
@@ -12313,8 +12313,8 @@ Visit: %s (Author's site)
                                             GlobalVars.countFilesCreated += 1
 
                                         except:
-                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             myPrint("B", _msgTxt)
                                             raise
@@ -12440,8 +12440,8 @@ Visit: %s (Author's site)
                                             GlobalVars.countFilesCreated += 1
 
                                         except:
-                                            e, exc_value, exc_traceback = sys.exc_info()                                # noqa
-                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing attachments: '%s' - Extract ABORTED!" %(e, GlobalVars.csvfilename)
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing attachments: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
                                             GlobalVars.AUTO_MESSAGES.append(_msgTxt)
                                             myPrint("B", _msgTxt)
                                             raise
@@ -12477,9 +12477,9 @@ Visit: %s (Author's site)
                             GlobalVars.lGlobalErrorDetected = False
 
                         except:
-                            e, exc_value, exc_traceback = sys.exc_info()                                                # noqa
+                            e_type, exc_value, exc_traceback = sys.exc_info()                                           # noqa
                             GlobalVars.lGlobalErrorDetected = True
-                            myPrint("B", "@@ ERROR '%s' Detected within DoExtractsSwingWorker()" %(e))
+                            myPrint("B", "@@ ERROR '%s' Detected within DoExtractsSwingWorker()" %(exc_value))
                             dump_sys_error_to_md_console_and_errorlog()
                             return False
                         myPrint("DB", "DoExtractsSwingWorker.doInBackground() completed...")
