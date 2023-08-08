@@ -111,6 +111,8 @@ try:
         myPrint("DB", "Created tmp directory/file:", _tmpFile.getCanonicalPath())
         return _tmpFile
 
+    def getSafeFolderAsFileRef(): return File(MD_REF.getCurrentAccountBook().getRootFolder(), AccountBookWrapper.SAFE_SUBFOLDER_NAME)
+
     def isBadPaddingError(_error):
         errorStr = unicode(_error)
         if "badpadding" in errorStr.lower():
@@ -118,9 +120,15 @@ try:
             return True
         return False
 
-    def getShowFileOption(_frame, _methodName):
+    def getShowFileOption(_frame, _methodName, _fileName):
         """Gets file open/display options after decrypt. Returns Continue(True), Peek(bool), AttemptOpen(bool)"""
-        _options = ["Decrypt(show folder)", "Decrypt(attempt to open)", "Decrypt/Peek at file(on screen)"]
+
+        _options = ["Decrypt(show folder)", "Decrypt(attempt to open)"]
+
+        fileExtension = os.path.splitext(_fileName)[1].lower()
+        if fileExtension in ["", ".", ".txt", ".dct", ".mdtxn", ".txn", ".csv", ".text", ".ascii", ".err", ".log"]:
+            _options.append("Decrypt/Peek at file(on screen)")
+
         _selectedOption = JOptionPane.showInputDialog(_frame,
                                                       "Select decrypt option:",
                                                       _methodName,
@@ -285,18 +293,27 @@ try:
 
         pathStart = Common.ACCOUNT_BOOK_EXTENSION + os.path.sep + AccountBookWrapper.SAFE_SUBFOLDER_NAME + os.path.sep
         searchForSafe = selectedFile.lower().find(pathStart)
-
-        if not debug:
-            if searchForSafe <= 0:
-                txt = "ERROR: Selected file must be within Dataset's encrypted 'safe'"
-                setDisplayStatus(txt, "R")
-                myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
-                return
-
-        carryOn, lPeek, lAttemptOpen = getShowFileOption(toolbox_frame_, _THIS_METHOD_NAME)
-        if not carryOn: return
-
         internalDatasetPath = selectedFile[searchForSafe + len(pathStart):].replace(os.path.sep, "/")                   # Assume always need "/" not os.path.sep here...
+
+        if searchForSafe <= 0:
+            txt = "ERROR: Selected file must be within Dataset's encrypted 'safe'"
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+
+        fileRefInSafe = File(getSafeFolderAsFileRef(), internalDatasetPath)
+        fileRefSelected = File(selectedFile)
+        if (not fileRefInSafe.exists() or not fileRefSelected.exists()
+                or not LS.exists(internalDatasetPath)
+                or not Files.isSameFile(fileRefInSafe.toPath(), fileRefSelected.toPath())):
+            txt = "ERROR: Selected file must exist and be physically located within this Dataset!"
+            setDisplayStatus(txt, "R")
+            myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            return
+        del fileRefInSafe, fileRefSelected
+
+        carryOn, lPeek, lAttemptOpen = getShowFileOption(toolbox_frame_, _THIS_METHOD_NAME, os.path.basename(selectedFile))
+        if not carryOn: return
 
         tmpFile = None
         if not lPeek:
@@ -328,13 +345,15 @@ try:
             return
 
         if lCaughtBadPaddingError:
-            txt = "@@ WARNING: txn file '%s' may have been corrupted. Skipping the remainder, it may be best to delete it >> ERROR(BadPaddingException)!" %(selectedFile)
-            myPrint("B", txt)
-            txt = "ERROR: BadPaddingException - Have extracted/decrypted as much as possible (CONSIDER DELETING FILE!)"
-            setDisplayStatus(txt, "R")
-            myPopupInformationBox(toolbox_frame_, txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPrint("B", "@@ WARNING: file '%s' may have been corrupted. it may be best to delete it >> ERROR(BadPaddingException)!" %(selectedFile))
 
         if lPeek:
+
+            if lCaughtBadPaddingError:
+                txt = "ERROR: BadPaddingException(corrupted) - Cannot peek. Try decrypt option to see good contents (CONSIDER DELETING FILE!)"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_, txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
 
             if readLines is None or len(readLines) < 1:
                 txt = "Selected Dataset file '%s' appears to be empty..? Exiting..." %(internalDatasetPath)
@@ -355,16 +374,19 @@ try:
 
         else:
 
-            myPrint("B", "SUCCESS - Extracted/decrypted file: '%s' from Dataset/safe and copied to tmp/decrypted dir... !" %(selectedFile))
+            if lCaughtBadPaddingError:
+                txt = "ERROR: BadPaddingException(corrupted) - Have extracted/decrypted as much as possible (CONSIDER DELETING FILE!)"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_, txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+            else:
+                myPrint("B", "SUCCESS - Extracted/decrypted file: '%s' from Dataset/safe and copied to tmp/decrypted dir... !" %(selectedFile))
 
             txt = "Dataset file '%s' extracted/decrypted and copied to tmp/decrypted dir" %(internalDatasetPath)
             setDisplayStatus(txt, "B")
             myPopupInformationBox(toolbox_frame_, txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.INFORMATION_MESSAGE)
 
-            if lAttemptOpen:
-                Desktop.getDesktop().open(tmpFile)
-            else:
-                MD_REF.getPlatformHelper().openDirectory(tmpFile)
+            MD_REF.getPlatformHelper().openDirectory(tmpFile)
+            if lAttemptOpen: Desktop.getDesktop().open(tmpFile)
 
     def advanced_options_decrypt_file_from_sync():
         _THIS_METHOD_NAME = "ADVANCED: EXTRACT/DECRYPT FROM SYNC FOLDER"
@@ -541,20 +563,30 @@ try:
                                                 True)
             if selectedFile is None: return
 
-            if not debug:
-                if not selectedFile.startswith(syncFolderOnDiskOrURL):
-                    txt = "ERROR: File to extract/decrypt must be within your Sync folder"
-                    setDisplayStatus(txt, "R")
-                    myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
-                    return
+            if not selectedFile.startswith(syncFolderOnDiskOrURL):
+                txt = "ERROR: File to extract/decrypt must be within your Sync folder"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_,txt,_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+                return
 
             syncSystemPath = selectedFile[len(syncFolderOnDiskOrURL):]
             actualFileName = os.path.basename(syncSystemPath)
 
+            fileRefInSync = File(syncFolderOnDiskOrURL, syncSystemPath)
+            fileRefSelected = File(selectedFile)
+            if (not fileRefInSync.exists() or not fileRefSelected.exists()
+                    or not syncFolder.exists(syncSystemPath)
+                    or not Files.isSameFile(fileRefInSync.toPath(), fileRefSelected.toPath())):
+                txt = "ERROR: Selected file must exist and be physically located within the Sync system!"
+                setDisplayStatus(txt, "R")
+                myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME, theMessageType=JOptionPane.ERROR_MESSAGE)
+                return
+            del fileRefInSync, fileRefSelected
+
+
         myPrint("DB", "%s: Sync system path: '%s' File: '%s'" %("CloudAPI" if lUsingCloudAPI else "SyncOnDisk", syncSystemPath, actualFileName))
 
-
-        carryOn, lPeek, lAttemptOpen = getShowFileOption(toolbox_frame_, _THIS_METHOD_NAME)
+        carryOn, lPeek, lAttemptOpen = getShowFileOption(toolbox_frame_, _THIS_METHOD_NAME, actualFileName)
         if not carryOn: return
 
         tmpCopyFile = makeTempDecryptedFileInDataset(actualFileName, "fromSync")
@@ -609,14 +641,12 @@ try:
 
         else:
 
-            txt = "Sync file '%s' decrypted extracted/decrypted to Dataset/tmp/decrypted/fromSync (to: '%s')(review help/console (errorlog.txt))"%(syncSystemPath, tmpCopyFile.getCanonicalPath())
+            txt = "Sync file '%s' extracted/decrypted to Dataset/tmp/decrypted/fromSync (to: '%s')(review help/console (errorlog.txt))" %(syncSystemPath, tmpCopyFile.getCanonicalPath())
             setDisplayStatus(txt, "B"); myPrint("B", txt)
             myPopupInformationBox(toolbox_frame_, txt, theTitle=_THIS_METHOD_NAME)
 
-            if lAttemptOpen:
-                Desktop.getDesktop().open(tmpCopyFile)
-            else:
-                MD_REF.getPlatformHelper().openDirectory(tmpCopyFile);
+            MD_REF.getPlatformHelper().openDirectory(tmpCopyFile)
+            if lAttemptOpen: Desktop.getDesktop().open(tmpCopyFile)
 
     def advanced_options_decrypt_dataset():
         _THIS_METHOD_NAME = "ADVANCED: EXTRACT/DECRYPT ENTIRE DATASET"

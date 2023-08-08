@@ -7482,7 +7482,7 @@ Visit: %s (Author's site)
             myPrint("DB", " __file__ not found in globals()")
             return None
 
-        helpfile = os.path.splitext(__file__)[0]+"_readme.txt"
+        helpfile = os.path.splitext(__file__)[0] + "_readme.txt"
         if not os.path.exists(helpfile):
             myPrint("DB", " file: %s not found.." %(helpfile))
             return None
@@ -10120,7 +10120,7 @@ Visit: %s (Author's site)
                 saveSyncFolder = os.path.join(syncBaseFolder.getCanonicalPath(), syncF.getSubpath())
                 if os.path.exists(saveSyncFolder):
                     myPrint("DB", "sync folder found:", syncBaseFolder)
-                    return (saveSyncFolder if not lReturnFileOrURLObject else syncBaseFolder)
+                    return (saveSyncFolder if not lReturnFileOrURLObject else File(saveSyncFolder))
         except:
             myPrint("B", "ERROR: in .get_sync_folder()")
             dump_sys_error_to_md_console_and_errorlog()
@@ -24826,7 +24826,7 @@ now after saving the file, restart Moneydance
 
                     keepDirs = ["attach"]
                     ignoreFiles = ["processed.dct"]
-                    ignoreExtns = [".txn",".txn-tmp",".mdtxn", ".mdtxnarchive"]
+                    ignoreExtns = [".txn", ".txn-tmp", ".mdtxn", ".mdtxnarchive"]
 
                     for keepDir in keepDirs:
                         if thedirname.getPath().endswith(keepDir):
@@ -28390,10 +28390,10 @@ now after saving the file, restart Moneydance
                     user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
 
                     user_advanced_extract_from_dataset = MenuJRadioButton("Extract/decrypt a file from Dataset", False, secondaryEnabled=GlobalVars.EXTRA_CODE_INITIALISED)
-                    user_advanced_extract_from_dataset.setToolTipText("This allows you to extract/decrypt a file from inside Dataset (copied to Dataset/tmp/decrypted dir)..... FILE SELF DESTRUCTS AFTER RESTART")
+                    user_advanced_extract_from_dataset.setToolTipText("This allows you to extract/decrypt a file from inside Dataset (copied to Dataset/tmp/decrypted dir)..... TMP FILE SELF DESTRUCTS AFTER RESTART")
 
                     user_advanced_extract_from_sync = MenuJRadioButton("Extract/decrypt from Sync Folder (only when syncing)", False, secondaryEnabled=GlobalVars.EXTRA_CODE_INITIALISED)
-                    user_advanced_extract_from_sync.setToolTipText("This allows you to extract/decrypt a file from inside Sync folder (copied to Dataset/tmp/decrypted/fromSync dir)..... FILE SELF DESTRUCTS AFTER RESTART")
+                    user_advanced_extract_from_sync.setToolTipText("This allows you to extract/decrypt a file from inside Sync folder (copied to Dataset/tmp/decrypted/fromSync dir)..... TMP FILE SELF DESTRUCTS AFTER RESTART")
 
                     user_advanced_decrypt_dataset = MenuJRadioButton("Decrypt entire dataset...", False, secondaryEnabled=GlobalVars.EXTRA_CODE_INITIALISED)
                     user_advanced_decrypt_dataset.setToolTipText("Decrypts your entire Dataset (to a folder of your choosing)")
@@ -28642,13 +28642,13 @@ now after saving the file, restart Moneydance
 
                         total_size += thisFileSize
 
-                        if os.path.basename(f) == "key" and path==keyDir and len:
+                        if os.path.basename(f) == "key" and path == keyDir and len:
                             lValidFile = True
                             keySize = thisFileSize
-                        if os.path.basename(f) == "settings" and path==settingsDir:
+                        if os.path.basename(f) == "settings" and path == settingsDir:
                             lValidFile = True
-                            safe_settingsSize=thisFileSize
-                        if os.path.basename(f) == "trunk" and path==trunkDir:
+                            safe_settingsSize = thisFileSize
+                        if os.path.basename(f) == "trunk" and path == trunkDir:
                             lValidFile = True
                             safe_trunkSize=thisFileSize
                         if path[:len(sync_outDir)] == sync_outDir and (f.endswith(".txn") ):

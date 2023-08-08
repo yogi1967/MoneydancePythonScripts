@@ -271,8 +271,8 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
         - Toggle Moneydance DEBUG (turns ON all MD internal Debug messages - same as view console)
         - Toggle other Moneydance DEBUGs
-        - Extract/decrypt a (single) file from within Dataset. Decrypts a Dataset file to Dataset/tmp/decrypted dir for viewing (file self destructs after MD restart)
-        - Extract/decrypt a (single) file from Sync folder. Decrypts a Sync file to Dataset/tmp/decrypted/fromSync dir for viewing (file self destructs after MD restart)
+        - Extract/decrypt a (single) file from within Dataset. Decrypts a Dataset file to Dataset/tmp/decrypted dir for viewing (tmp file self destructs after MD restart)
+        - Extract/decrypt a (single) file from Sync folder. Decrypts a Sync file to Dataset/tmp/decrypted/fromSync dir for viewing (tmp file self destructs after MD restart)
         - Decrypt entire dataset. Decrypts entire dataset to a folder of your choosing...
         - Shrink Dataset. This function deletes MD's log files of all prior changes (not needed).. Typically these are .txn, .mdtxn files...
         - Clone Dataset's structure (purge transactional data) - Copy dataset keeping structures, purging all transactional data.
