@@ -134,6 +134,7 @@
 # build: 1028 - contains 1027 sent for signing...
 # build: 1029 - Added Page Setup to menu...; Tweaked getFileFromAppleScriptFileChooser() to allow 'invisibles'...
 #               Fixed dump_StuWareSoftSystems_parameters_from_memory() losing version_build when saving settings....
+#               Fixed Common Code: genericSwingEDTRunner - <codeblock>: IllegalArgumentException: java.lang.IllegalArgumentException: Cannot create PyString with non-byte value
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -3126,7 +3127,8 @@ Visit: %s (Author's site)
         """Will detect and then run the codeblock on the EDT"""
 
         isOnEDT = SwingUtilities.isEventDispatchThread()
-        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        # myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: <codeblock>, args: <args>" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait))
         myPrint("DB", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT)
 
         class GenericSwingEDTRunner(Runnable):
@@ -3157,7 +3159,8 @@ Visit: %s (Author's site)
     def genericThreadRunner(daemon, codeblock, *args):
         """Will run the codeblock on a new Thread"""
 
-        myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
+        # myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
+        myPrint("DB", "** In .genericThreadRunner(), codeblock: <codeblock>, args: <args>")
 
         class GenericThreadRunner(Runnable):
 
@@ -9891,7 +9894,7 @@ Visit: %s (Author's site)
 
                     genericSwingEDTRunner(False, False,
                                           self.moneydanceContext.getUI().firstMainFrame.setStatus,
-                                          ">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(),GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()),-1.0)
+                                          ">> StuWareSoftSystems - %s:%s runtime extension installing......." %(self.myModuleID.capitalize(), GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title()), -1.0)
 
                     myPrint("DB", "SPECIAL: post-calling .firstMainFrame.setStatus()")
 
