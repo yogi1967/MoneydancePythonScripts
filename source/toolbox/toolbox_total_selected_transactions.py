@@ -2838,7 +2838,8 @@ Visit: %s (Author's site)
         """Will detect and then run the codeblock on the EDT"""
 
         isOnEDT = SwingUtilities.isEventDispatchThread()
-        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        # myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: <codeblock>, args: <args>" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait))
         myPrint("DB", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT)
 
         class GenericSwingEDTRunner(Runnable):
@@ -2869,7 +2870,8 @@ Visit: %s (Author's site)
     def genericThreadRunner(daemon, codeblock, *args):
         """Will run the codeblock on a new Thread"""
 
-        myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
+        # myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
+        myPrint("DB", "** In .genericThreadRunner(), codeblock: <codeblock>, args: <args>")
 
         class GenericThreadRunner(Runnable):
 

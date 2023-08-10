@@ -28,8 +28,13 @@
     {
       "type" = "method"
       "method" = "invoke"
-      "script_file" = "toolbox_invoke.py"
+      "script_file" = "toolbox_invoke_handle_event.py"
     }    
+    {
+      "type" = "method"
+      "method" = "handle_event"
+      "script_file" = "toolbox_invoke_handle_event.py"
+    }
     {
       "type" = "method"
       "method" = "unload"

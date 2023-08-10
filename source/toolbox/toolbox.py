@@ -188,6 +188,8 @@
 #               Deprectated: advanced_options_set_check_days()
 #               NOTE: MD2023.2(5008+) KOTLIN ALL uses Java 20.0.1 on Mac. Thread.stop() no longer work affects ManuallyCloseAndReloadDataset's ability to kill Syncer Threads.. :-(
 #               Tweak to detect_fix_txns_assigned_root (removed detect_non_hier_sec_acct_or_orphan_txns() check).
+#               Tweaks to class ManuallyCloseAndReloadDataset() to better handle (new) syncer threads when dataset closing
+#               Enhanced _init, _handle_event, _invoke (etc).py scripts; Now maintain list of WeakReferences() to all observed books / syncer objects
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -457,7 +459,7 @@ else:
         from com.moneydance.apps.md.view.gui.theme import Theme as ThemeInfo                                            # noqa
 
     if isinstance(None, (JDateField,CurrencyUtil,Reminder,ParentTxn,SplitTxn,TxnSearch, JComboBox, JCheckBox,
-                         AccountBook, AccountBookWrapper, Long, Integer, Boolean,                          
+                         AccountBook, AccountBookWrapper, Long, Integer, Boolean,
                          JTextArea, JMenuBar, JMenu, JMenuItem, JCheckBoxMenuItem, JFileChooser, JDialog,
                          JButton, FlowLayout, InputEvent, ArrayList, File, IOException, StringReader, BufferedReader,
                          InputStreamReader, Dialog, JTable, BorderLayout, Double, InvestUtil, JRadioButton, ButtonGroup,
@@ -586,7 +588,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.2
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5016
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5018
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -624,7 +626,7 @@ else:
     GlobalVars.Strings.MD_KEY_ASOF_PREF = "gen.rec_asof_enabled"
     GlobalVars.Strings.MD_KEY_OLFITID = "ol_fitid_"
     GlobalVars.Strings.MD_KEY_PARAM_APPLIES_TO_NW = "applies_to_net_worth"
-    
+
     GlobalVars.Strings.MD_KEY_STORAGE_5006SYNCFIX = "pre-5006-sync_backtrack"     # MD2023.1(5006) fix for earlier Sync Issue
 
     GlobalVars.Strings.EXTENSION_QL_ID = "securityquoteload"
@@ -642,9 +644,9 @@ else:
 
     GlobalVars.redact = True
 
-    GlobalVars.lCopyAllToClipBoard_TB = False      
+    GlobalVars.lCopyAllToClipBoard_TB = False
     GlobalVars.lIgnoreOutdatedExtensions_TB = False
-    GlobalVars.lAutoPruneInternalBackups_TB = True 
+    GlobalVars.lAutoPruneInternalBackups_TB = True
     GlobalVars.lBypassAllBackupsAndDisclaimers_TB = False
     GlobalVars.TOOLBOX_STOP_NOW = False
 
@@ -3121,7 +3123,8 @@ Visit: %s (Author's site)
         """Will detect and then run the codeblock on the EDT"""
 
         isOnEDT = SwingUtilities.isEventDispatchThread()
-        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        # myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: '%s', args: '%s'" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait, codeblock, args))
+        myPrint("DB", "** In .genericSwingEDTRunner(), ifOffEDTThenRunNowAndWait: '%s', ifOnEDTThenRunNowAndWait: '%s', codeblock: <codeblock>, args: <args>" %(ifOffEDTThenRunNowAndWait, ifOnEDTThenRunNowAndWait))
         myPrint("DB", "** In .genericSwingEDTRunner(), isOnEDT:", isOnEDT)
 
         class GenericSwingEDTRunner(Runnable):
@@ -3152,7 +3155,8 @@ Visit: %s (Author's site)
     def genericThreadRunner(daemon, codeblock, *args):
         """Will run the codeblock on a new Thread"""
 
-        myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
+        # myPrint("DB", "** In .genericThreadRunner(), codeblock: '%s', args: '%s'" %(codeblock, args))
+        myPrint("DB", "** In .genericThreadRunner(), codeblock: <codeblock>, args: <args>")
 
         class GenericThreadRunner(Runnable):
 
@@ -3274,19 +3278,7 @@ Visit: %s (Author's site)
         # ... modify as required to handle .showURL() events sent to this extension/script...
         myPrint("B","INVOKE - Received extension command: '%s'" %(theCommand))
         cmd, param = decodeCommand(theCommand)
-        try:
-            class QuickTmpRunnable(Runnable):
-                def __init__(self, _cmd, _param):
-                    self.cmd = _cmd
-                    self.param = _param
-
-                def run(self): setDisplayStatus("Received unknown event command ('%s' : '%s')" %(self.cmd, self.param), "B")
-
-            quickRun = QuickTmpRunnable(cmd, param)
-            if not SwingUtilities.isEventDispatchThread():
-                SwingUtilities.invokeLater(quickRun)
-            else:
-                quickRun.run()
+        try: genericSwingEDTRunner(False, False, setDisplayStatus, "Received unhandled event/invoke command ('%s' : '%s')" %(cmd, param), "B")
         except: pass
 
     GlobalVars.defaultPrintLandscape = True
@@ -3294,6 +3286,13 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
+    # Variables initialised by _init.py script and managed by _invoke_handle_event.py script... (extension only)...
+    global _ALL_OBSERVED_BOOKS, _observeMoneydanceObjects
+    if "_ALL_OBSERVED_BOOKS" not in globals():
+        _ALL_OBSERVED_BOOKS = []
+        myPrint("B", "@@ resetting _ALL_OBSERVED_BOOKS (perhaps running as a script, not extension?)")
+    try: _observeMoneydanceObjects(_ALL_OBSERVED_BOOKS)
+    except: pass
 
     # Now hitting method too large issue, so relocating code to toolbox_extra_code.py script file - no choice...!
     GlobalVars.EXTRA_CODE_INITIALISED = False
@@ -3568,7 +3567,7 @@ Visit: %s (Author's site)
         return True
 
     def isMDThread(threadName):
-        for checkName in ["TIKSync", "MD Background Ops", "MDPlus", "MD+", "TaskIndicator"]:
+        for checkName in [ManuallyCloseAndReloadDataset.SYNC_THREAD_NAME, "MD Background Ops", "MDPlus", "MD+", "TaskIndicator"]:
             if threadName.lower().startswith(checkName.lower()): return True
         return False
 
@@ -3618,6 +3617,8 @@ Visit: %s (Author's site)
 
     class ManuallyCloseAndReloadDataset(Runnable):
 
+        SYNC_THREAD_NAME = "TIKSync"
+
         @staticmethod
         def setOtherExtensionsEnabled(otherExtnsEnabled):
             myPrint("DB", "In ManuallyCloseAndReloadDataset.setOtherExtensionsEnabled()")
@@ -3633,7 +3634,6 @@ Visit: %s (Author's site)
                     e_type, exc_value, exc_traceback = sys.exc_info()                                                   # noqa
                     txt = "Error sending command - ! Error was: '%s'" %(exc_value)
                     myPrint("B", txt)
-
 
         @staticmethod
         def closeSecondaryWindows():
@@ -3678,6 +3678,31 @@ Visit: %s (Author's site)
             invokeMethodByReflection(MD_REF, "startBackgroundSyncing", None)
 
         @staticmethod
+        def areSyncerThreadsAlive(syncerObj, debugMessage="", checkAllSyncers=False, checkThreadIDs=None):
+            # type: (Syncer, basestring, bool, [int]) -> bool
+            if checkThreadIDs is None: checkThreadIDs = []
+            sThreads = []
+            sAliveThreads = []
+            myPrint("DB", "In .areSyncerThreadsAlive(syncerObj:%s, debugMessage:'%s', checkAllSyncers:%s, checkThreadIDs:%s)" %(syncerObj, debugMessage, checkAllSyncers, checkThreadIDs))
+            for t in [t for t in Thread.getAllStackTraces().keySet() if ManuallyCloseAndReloadDataset.SYNC_THREAD_NAME.lower() in t.getName().lower()]:
+                if checkAllSyncers or t.getId() in checkThreadIDs:
+                    sThreads.append(t)
+            if syncerObj is None:
+                myPrint("DB", "... %s getSyncer(): No Syncer Object passed...")
+            else:
+                syncer_keepSyncing = getFieldByReflection(syncerObj, "keepSyncing")
+                myPrint("DB", "... %s getSyncer(): %s (keepSyncing: %s) isRunningInBackground: %s isSyncing: %s"
+                        %(debugMessage, syncerObj, syncer_keepSyncing, syncerObj.isRunningInBackground(), syncerObj.isSyncing()))
+            for t in sThreads:
+                myPrint("B", "... Existent Syncer Thread(s)...:", getJVMThreadInformation(t, True))
+                if t.isAlive(): sAliveThreads.append(t)
+            myPrint("DB", ">>(%s) >> There appear to be %s thread(s) alive (out of %s existing)...."
+                    %("ALL Syncers' Threads" if (checkAllSyncers) else "Current Syncer's Threads: %s" %(syncerObj),
+                      len(sAliveThreads),
+                      len(sThreads)))
+            return len(sAliveThreads) > 0
+
+        @staticmethod
         def moneydanceExitOrRestart(lRestart=True, lAllowSaveWorkspace=True):
             # type: (bool, bool) -> bool
             """Checks with MD whether all the Secondary Windows report that they are in a state to close"""
@@ -3701,12 +3726,16 @@ Visit: %s (Author's site)
 
         @staticmethod
         def manuallyCloseDataset(theBook, lCloseWindows=True, lKillAllSyncers=False, lKillAllFramesWithBookReferences=False):
-            # type: (AccountBook, bool, bool, bool) -> bool
+            # type: (AccountBook, bool, bool, bool) -> int
             """Mimics .setCurrentBook(None) but avoids the Auto Backup 'issue'. Also closes open SecondaryWindows, pauses MD+ etc
             You should decide whether to run this on the EDT or on a new background thread when calling this method. This will also
-            force kill Syncer thread(s) found... parameter: lKillAllSyncers:False will only kill this dataset's Syncer (True = kill all Syncers found)"""
+            try to force kill Syncer thread(s) found... parameter: lKillAllSyncers:False will only kill this dataset's Syncer (True = kill all Syncers found)
+            NOTE: As of MD2023.2(5008+)/Java20, Thread.stop() no longer works, so this method will return 0 if successful.
+            Returns: 0 if dataset closed OK (and all syncer threads stopped), 1 if closeSecondaryWindows() failed, 2 if closed but Syncer Threads still running"""
 
             myPrint("DB", "In ManuallyCloseAndReloadDataset.manuallyCloseDataset(), lCloseWindows: %s, lKillAllSyncers: %s lKillAllFramesWithBookReferences: %s" %(lCloseWindows, lKillAllSyncers, lKillAllFramesWithBookReferences))
+
+            lClosedOKStatus = 0
 
             ManuallyCloseAndReloadDataset.setOtherExtensionsEnabled(False)
 
@@ -3721,8 +3750,9 @@ Visit: %s (Author's site)
                 if not SwingUtilities.isEventDispatchThread():
                     raise Exception("ERROR: you must run manuallyCloseDataset() on the EDT if you wish to also call closeSecondaryWindows()...!")
                 if not ManuallyCloseAndReloadDataset.closeSecondaryWindows():
+                    lClosedOKStatus = 1
                     myPrint("B", "manuallyCloseDataset().closeSecondaryWindows() returned False?")
-                    return False
+                    return lClosedOKStatus
 
             SyncerDebug.changeState(True)
 
@@ -3736,9 +3766,7 @@ Visit: %s (Author's site)
 
             wr_bookToClose.get().setUndoManager(None)                                                                   # noqa
 
-            if debug:
-                myPrint("B", "... pre-close getSyncer(): %s isRunningInBackground: %s isSyncing: %s" %(wr_oldSyncer.get(), wr_oldSyncer.get().isRunningInBackground(), wr_oldSyncer.get().isSyncing()))    # noqa
-                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName().lower()]: myPrint("B", "... Current Syncer Threads...:", getJVMThreadInformation(t, True))
+            ManuallyCloseAndReloadDataset.areSyncerThreadsAlive(wr_oldSyncer.get(), "pre-close", checkAllSyncers=True)
 
             myPrint("DB", "... closing SyncManager / settings window etc..")
             if MD_REF.getUI().getSyncManager() is not None:
@@ -3757,23 +3785,18 @@ Visit: %s (Author's site)
 
             MD_REF.fireAppEvent("md:file:closed")
 
-            myPrint("DB", "... calling .cleanUp() ....")
             # This will call syncer.stopSyncing() and syncer.compressLocalStorage()
+            myPrint("DB", "... calling .cleanUp() ....")
             wr_bookToClose.get().cleanUp()                                                                              # noqa
 
-            # myPrint("DB", "... setting syncer's syncFolder to None ....")
-            # if wr_oldSyncer.get() is not None:
-            #     setFieldByReflection(wr_oldSyncer.get(), "syncFolder", None);   # com.infinitekind.tiksync.Syncer.syncFolder : SyncFolder
-
-            # myPrint("DB", "... setting syncer to None ....")
-            # setFieldByReflection(wr_bookToClose.get(), "syncer", None);         # com.infinitekind.moneydance.model.AccountBook.syncer : Syncer
-
             myPrint("B", "... waiting for background tasks to complete... (shutting down 'backgroundThread'....)...")
-            MD_REF.getBackgroundThread().waitForAllTasksToFinish()   # This will actually shut down the Thread.....
+            saveBGT = MD_REF.getBackgroundThread()
+            saveBGT.waitForAllTasksToFinish()                        # This will actually shut down the Thread.....
             setFieldByReflection(MD_REF, "backgroundThread", None)   # com.moneydance.apps.md.controller.Main.backgroundThread : BackgroundOpsThread
 
             # Force kill all Syncer Threads. Should not need to do this, but something in MD can keep these alive. Syncer must NOT run after we move a dataset (for example)
             # .... MD2023.2(5008) changed to use multi-threaded Sync (for attachments)....
+            # NOTE: The Dropbox Connection (i.e cloud access) syncAttachments thread can block the thread for a long time (resolved in MD2023.2(5019))
             wr_syncerThreads = []
             if wr_oldSyncer.get() is not None:
                 try:
@@ -3794,56 +3817,60 @@ Visit: %s (Author's site)
             for wr_sThread in wr_syncerThreads:
                 if wr_sThread.get() is not None:
                     syncerThreadIds.append(wr_sThread.get().getId())                                                    # noqa
-                    myPrint("DB", "Current book's Syncer: %s, SyncerThread: %s (id: %s)" %(wr_oldSyncer.get(), wr_sThread.get(), wr_sThread.get().getId()))   # noqa
+                    myPrint("DB", "Current book's Syncer: %s, SyncerThread: %s (id: %s, isAlive: %s)" %(wr_oldSyncer.get(), wr_sThread.get(), wr_sThread.get().getId(), wr_sThread.get().isAlive()))   # noqa
 
             if len(syncerThreadIds) < 1:
                 myPrint("DB", "Current book's Syncer - no active threads found....")
 
             iSyncerChecks = 0
             if wr_oldSyncer.get() is not None:
-                myPrint("B", "... waiting for syncer background tasks to complete...")
+                myPrint("B", "... waiting for current syncer's background task(s) to complete...")
                 while wr_oldSyncer.get().isRunningInBackground() or wr_oldSyncer.get().isSyncing():                     # noqa
 
                     countAlive = 0
                     for wr_sThread in wr_syncerThreads:
                         if wr_sThread.get() is None or not wr_sThread.get().isAlive():                                  # noqa
-                            myPrint("B", "...... this syncer's thread appears to have died already.... checking any other threads....")
+                            myPrint("B", "...... current syncer's thread appears to have died already.... checking any other threads....")
                         else:
                             countAlive += 1
 
                     if countAlive < 1:
-                        myPrint("B", "...... this syncer's thread(s) appears to have all died already.... will proceed....")
+                        myPrint("B", "...... current syncer's thread(s) appears to have all died already.... will proceed....")
                         break
 
                     iSyncerChecks += 1
-                    if iSyncerChecks <= 16:
+                    if iSyncerChecks <= 40:
                         myPrint("B", "...... syncer task(s) still running.... waiting....")
                         try:
                             Thread.sleep(250)
                             continue
-                        except: myPrint("B", "......... Caught exception during sleep... will proceed....")
-                    else: myPrint("B", "......... giving up after 16 checks (4 seconds)...")
+                        except: myPrint("B", "......... Caught exception during sleep... will ignore/continue....")
+                    else: myPrint("B", "......... giving up after 40 checks (~10 seconds)...")
                     break
 
-                myPrint("B", "...... syncer appears to have finished (or I gave up waiting).....")
+                myPrint("B", "...... current syncer appears to have finished (or Toolbox gave up waiting).....")
 
-            for t in [t for t in Thread.getAllStackTraces().keySet() if "TIKSync async".lower() in t.getName().lower()]:
+            for t in [t for t in Thread.getAllStackTraces().keySet() if ManuallyCloseAndReloadDataset.SYNC_THREAD_NAME.lower() in t.getName().lower()]:
                 if lKillAllSyncers or t.getId() in syncerThreadIds:
-                    myPrint("B", "... Force killing Syncer Thread:", t, t.getId(), t.getName())
-                    try:
-                        t.interrupt()   # Probably futile....
-                        t.stop()        # This is a deprecated method (and bad practice). (as of MD2023.2(5008+) & java20, no longer works)
-                    except UnsupportedOperationException:
-                        myPrint("B", "...... Sorry, since java20 toolbox is no longer able to force kill threads.... Ignoring/Continuing...")
-                        # todo - consider return False here
-                    except:
-                        e_type, exc_value, exc_traceback = sys.exc_info()                                               # noqa
-                        myPrint("B", "...... Caught exception during stop() command.... Continuing... (Error: '%s')" %(exc_value))
-            del wr_syncerThreads, syncerThreadIds
+                    if t.isAlive():
+                        myPrint("B", "... Force killing Syncer Thread:", t, t.getId(), t.getName())
+                        try:
+                            t.interrupt()       # Probably futile....
+                            Thread.sleep(250)
+                            t.stop()            # This is a deprecated method (and bad practice). (as of MD2023.2(5008+) & java20, no longer works)
+                        except UnsupportedOperationException:
+                            myPrint("B", "...... Sorry, since java20 toolbox is no longer able to force kill threads.... Ignoring/Continuing...")
+                        except:
+                            e_type, exc_value, exc_traceback = sys.exc_info()                                               # noqa
+                            myPrint("B", "...... Caught exception during stop() command.... Continuing... (Error: '%s')" %(exc_value))
+                    else:
+                        myPrint("B", "... Ignoring Syncer Thread that reports it's NOT alive:", t, t.getId(), t.getName())
 
-            if debug:
-                myPrint("B", "... after-kill syncer threads getSyncer(): %s isRunningInBackground: %s isSyncing: %s" %(wr_oldSyncer.get(), wr_oldSyncer.get().isRunningInBackground(), wr_oldSyncer.get().isSyncing()))    # noqa
-                for t in [t for t in Thread.getAllStackTraces().keySet() if "sync" in t.getName().lower()]: myPrint("B", "... Current Syncer Threads...:", getJVMThreadInformation(t, True))
+            if ManuallyCloseAndReloadDataset.areSyncerThreadsAlive(wr_oldSyncer.get(), "after-kill syncer threads", checkAllSyncers=lKillAllSyncers, checkThreadIDs=syncerThreadIds):
+                myPrint("B", "@@ ERROR - Syncer threads are still alive after shutdown routines. Dataset close will flag this condition to calling code...")
+                lClosedOKStatus = 2
+                setFieldByReflection(MD_REF, "backgroundThread", saveBGT)   # Allows com.moneydance.apps.md.controller.Main.shutdown() to work
+            del saveBGT
 
             myPrint("DB", "... setting Main's 'currentBook' to None...")
             setFieldByReflection(MD_REF, "currentBook", None)
@@ -3858,8 +3885,9 @@ Visit: %s (Author's site)
 
             SyncerDebug.resetState()
 
-            myPrint("B", "... FINISHED Closing down the dataset")
-            return True
+            myPrint("B", "... FINISHED Closing down the dataset (status: %s) %s" %(lClosedOKStatus, "" if lClosedOKStatus==0 else "@@ WITH ERROR @@"))
+            return lClosedOKStatus
+
 
         class DisplayErrorMsg(Runnable):
             def __init__(self, _msg): self.msg = _msg
@@ -3893,8 +3921,16 @@ Visit: %s (Author's site)
 
             fCurrentFilePath = MD_REF.getCurrentAccountBook().getRootFolder()
 
-            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(MD_REF.getCurrentAccountBook(), lKillAllSyncers=True, lCloseWindows=False, lKillAllFramesWithBookReferences=True):
-                myPrint("B", "manuallyCloseDataset() returned False?")
+            closeDatasetStatus = ManuallyCloseAndReloadDataset.manuallyCloseDataset(MD_REF.getCurrentAccountBook(), lKillAllSyncers=True, lCloseWindows=False, lKillAllFramesWithBookReferences=True)
+            if closeDatasetStatus == 1:
+                myPrint("B", "WARNING: .manuallyCloseDataset() returned status %s - could not close open windows? No action taken" %(closeDatasetStatus))
+                return False
+
+            if closeDatasetStatus != 0:
+                txt = "ERROR: .manuallyCloseDataset() returned status %s (probably errant syncer threads). WILL FORCE QUIT MD (RELAUNCH MANUALLY)" %(closeDatasetStatus)
+                myPrint("B", txt)
+                genericSwingEDTRunner(True, True, myPopupInformationBox, toolbox_frame_, txt, "ERROR RESTARTING", JOptionPane.ERROR_MESSAGE)
+                genericSwingEDTRunner(False, False, ManuallyCloseAndReloadDataset.moneydanceExitOrRestart, False, False)
                 return False
 
             if debug: myPrint("B", getJVMUsageStatistics())
@@ -22691,22 +22727,30 @@ now after saving the file, restart Moneydance
 
             myPrint("B", "%s: Executing CLOSE CURRENT DATASET" %(_THIS_METHOD_NAME))
 
-            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lKillAllSyncers=True, lCloseWindows=True, lKillAllFramesWithBookReferences=True):
-                txt = "ERROR: MD reports that it could not close all open windows.... - no changes made (you might need to restart MD)"
+            closeDatasetStatus = ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lKillAllSyncers=True, lCloseWindows=True, lKillAllFramesWithBookReferences=True)
+            if closeDatasetStatus == 1:
+                txt = "ERROR: Could not close all open windows.... - no changes made (you might need to restart MD)"
                 myPopupInformationBox(toolbox_frame_, txt, theTitle="ERROR", theMessageType=JOptionPane.ERROR_MESSAGE)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
                 return False
 
-            txt = "DATASET CLOSED (review console if appropriate)"
-            setDisplayStatus(txt, "B"); myPrint("B", txt)
+            if closeDatasetStatus != 0:
+                txt = "ERROR: Could not cleanly close dataset (probably syncer threads). Dataset now closed(ish) - PLEASE RESTART MD)"
+                statusColor = "R"
+                msgType = JOptionPane.ERROR_MESSAGE
+            else:
+                txt = "DATASET CLOSED OK (review console if appropriate)"
+                statusColor = "B"
+                msgType = JOptionPane.WARNING_MESSAGE
+            setDisplayStatus(txt, statusColor); myPrint("B", txt)
             disableToolboxButtons()
             play_the_money_sound()
-            myPopupInformationBox(toolbox_frame_, theMessage=txt, theTitle=_THIS_METHOD_NAME, theMessageType=JOptionPane.WARNING_MESSAGE)
+            myPopupInformationBox(toolbox_frame_, theMessage=txt, theTitle=_THIS_METHOD_NAME, theMessageType=msgType)
 
             try: WelcomeWindow.showWelcomeWindow(MD_REF.getUI())
             except: myPrint("B", "%s: FAILED to launch the WelcomeWindow... ignoring the error...." %(_THIS_METHOD_NAME))
 
-            return True
+            return closeDatasetStatus == 0
 
         except:
             dump_sys_error_to_md_console_and_errorlog()
@@ -22832,11 +22876,21 @@ now after saving the file, restart Moneydance
 
             myPrint("B", "Executing '%s' on current dataset: %s - will %s to: %s" %(_THIS_METHOD_NAME, fCurrentFilePath.getCanonicalPath(), actionString, fNewNamePath.getCanonicalPath()))
 
-            if not ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lKillAllSyncers=True, lCloseWindows=True, lKillAllFramesWithBookReferences=True):
+            closeDatasetStatus = ManuallyCloseAndReloadDataset.manuallyCloseDataset(currentBook, lKillAllSyncers=True, lCloseWindows=True, lKillAllFramesWithBookReferences=True)
+            if closeDatasetStatus == 1:
                 txt = "ERROR: MD reports that it could not close all open windows.... - no changes made (you might need to restart MD)"
                 myPopupInformationBox(toolbox_frame_, txt, theTitle="ERROR", theMessageType=JOptionPane.ERROR_MESSAGE)
                 setDisplayStatus(txt, "R"); myPrint("B", txt)
                 return
+
+            elif closeDatasetStatus != 0:
+                txt = "ERROR: Could not cleanly close dataset. No file %s action taken. MD WILL QUIT - PLEASE RELAUNCH & TRY AGAIN (review console)" %(actionString)
+                myPopupInformationBox(toolbox_frame_, txt, theTitle="ERROR", theMessageType=JOptionPane.ERROR_MESSAGE)
+                setDisplayStatus(txt, "R"); myPrint("B", txt)
+                myPrint("B","Requesting Moneydance shuts down now...")
+                ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False, lAllowSaveWorkspace=True)
+                return
+
             del currentBook, currentRoot
 
             success = False
@@ -27020,18 +27074,20 @@ now after saving the file, restart Moneydance
                 except: pass
 
                 try:
+                    syncer = None
                     book = MD_REF.getCurrentAccountBook()
-                    syncer = book.getSyncer()
+                    if book is not None: syncer = book.getSyncer()
                     if syncer is not None:
+                        syncer_keepSyncing = getFieldByReflection(syncer, "keepSyncing")
                         if not isKotlinCompiledBuildAll():
                             syncerThread = getFieldByReflection(syncer, "syncThread")
                             syncerThreadId = syncerThread.getId() if (syncerThread) else None
-                            diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s\n" %(pad(syncerThread,40), rpad(syncerThreadId,4), syncer)
+                            diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s (keepSyncing: %s)\n" %(pad(syncerThread,40), rpad(syncerThreadId,4), syncer, syncer_keepSyncing)
                         else:
                             syncerTasks = getFieldByReflection(syncer, "syncTasks")
                             for sTask in syncerTasks:
                                 syncerThreadId = sTask.getId()
-                                diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s\n" %(pad(sTask,40), rpad(syncerThreadId,4), syncer)
+                                diagTxt += "** Current Book's Sync Thread:   %s (id: %s) %s (keepSyncing: %s)\n" %(pad(sTask,40), rpad(syncerThreadId,4), syncer, syncer_keepSyncing)
                 except:
                     if debug:
                         myPrint("B", "@@ ERROR: Failed to get syncThread / syncTasks?")
@@ -27063,6 +27119,35 @@ now after saving the file, restart Moneydance
                                                                               type(win.getOwner()), (None if (win.getOwner()) is None else win.getOwner().getName()))
                         del ref_book
                     except: pass
+
+                diagTxt += "\nObserved Book(s) [listing those alive out of %s]:\n" \
+                           " --------------------------------------------------\n" %(len(_ALL_OBSERVED_BOOKS))
+                for wr_book, wr_syncer in _ALL_OBSERVED_BOOKS:
+                    if wr_book.get() is not None:
+                        diagTxt += "Observed Book: %s('%s') @{:x}\n".format(System.identityHashCode(wr_book.get())) \
+                                   %(wr_book.get(), wr_book.get().getName())
+                    else:
+                        diagTxt += "Observed Book: <gone away>\n"
+
+                    if wr_syncer.get() is not None:
+                        wr_keepSyncing = WeakReference(getFieldByReflection(wr_syncer.get(), "keepSyncing"))
+                        wr_syncThreads = []
+                        if not isKotlinCompiledBuildAll():
+                            wr_syncThread = WeakReference(getFieldByReflection(wr_syncer.get(), "syncThread"))
+                            wr_syncThreads.append(wr_syncThread)
+                        else:
+                            wr_syncTasks = WeakReference(getFieldByReflection(wr_syncer.get(), "syncTasks"))
+                            for wr_syncTask in wr_syncTasks.get():
+                                wr_syncThreads.append(WeakReference(wr_syncTask))
+
+                        diagTxt += "... Observed Syncer: %s(keepSyncing: %s, isSyncing: %s, isPausing: %s, isRunningInBackground: %s)\n"\
+                                   %(wr_syncer.get(), wr_keepSyncing.get(), wr_syncer.get().isSyncing(), wr_syncer.get().isPausing(), wr_syncer.get().isRunningInBackground())
+                        for wr_syncThread in wr_syncThreads:
+                            if wr_syncThread.get() is not None:
+                                diagTxt += "....................: Observed Sync Thread: [id: %s, '%s', isAlive: %s]\n"\
+                                           %(wr_syncThread.get().getId(), wr_syncThread.get().getName(), wr_syncThread.get().isAlive())     # noqa
+                    else:
+                        diagTxt += "... Observed Syncer: <gone away>\n"
 
                 diagTxt += "\n<END>"
 
