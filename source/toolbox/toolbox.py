@@ -3295,7 +3295,7 @@ Visit: %s (Author's site)
         _ALL_OBSERVED_BOOKS = []
         myPrint("B", "@@ resetting _ALL_OBSERVED_BOOKS (perhaps running as a script, not extension?)")
     try: _observeMoneydanceObjects(_ALL_OBSERVED_BOOKS)
-    except: pass
+    except: myPrint("B", "NOPE: Could not execute _observeMoneydanceObjects().... ignoring....")
 
     # Now hitting method too large issue, so relocating code to toolbox_extra_code.py script file - no choice...!
     GlobalVars.EXTRA_CODE_INITIALISED = False
@@ -27071,6 +27071,10 @@ now after saving the file, restart Moneydance
                 diagTxt = "Quick JVM Diagnostics:\n" \
                           " ---------------------\n\n"
 
+                myPrint("DB", "Calling garbage collection before QuickJVMDiags()....")
+                System.gc()
+                Thread.sleep(100)
+
                 diagTxt += getJVMUsageStatistics(True, True, True) + "\n\n"
 
                 diagTxt += "Threads:\n" \
@@ -27147,9 +27151,12 @@ now after saving the file, restart Moneydance
                             del ref_book
                         except: pass
 
+                try: _observeMoneydanceObjects(_ALL_OBSERVED_BOOKS)
+                except: myPrint("B", "NOPE: Could not execute _observeMoneydanceObjects().... ignoring....")
+
                 diagTxt += "\nObserved Book(s) [listing those alive out of %s]:\n" \
                            " --------------------------------------------------\n" %(len(_ALL_OBSERVED_BOOKS))
-                for wr_book, wr_syncer in _ALL_OBSERVED_BOOKS:
+                for wr_book, wr_syncer, wr_syncerThreads in _ALL_OBSERVED_BOOKS:
                     if wr_book.get() is not None:
                         diagTxt += "Observed Book: %s('%s') @{:x}\n".format(System.identityHashCode(wr_book.get())) \
                                    %(wr_book.get(), wr_book.get().getName())
@@ -27158,23 +27165,34 @@ now after saving the file, restart Moneydance
 
                     if wr_syncer.get() is not None:
                         wr_keepSyncing = WeakReference(getFieldByReflection(wr_syncer.get(), "keepSyncing"))
-                        wr_syncThreads = []
+                        wr_currentSyncThreads = []
                         if not isKotlinCompiledBuildAll():
                             wr_syncThread = WeakReference(getFieldByReflection(wr_syncer.get(), "syncThread"))
-                            wr_syncThreads.append(wr_syncThread)
+                            wr_currentSyncThreads.append(wr_syncThread)
                         else:
                             wr_syncTasks = WeakReference(getFieldByReflection(wr_syncer.get(), "syncTasks"))
                             for wr_syncTask in wr_syncTasks.get():
-                                wr_syncThreads.append(WeakReference(wr_syncTask))
+                                wr_currentSyncThreads.append(WeakReference(wr_syncTask))
 
                         diagTxt += "... Observed Syncer: %s(keepSyncing: %s, isSyncing: %s, isPausing: %s, isRunningInBackground: %s)\n"\
                                    %(wr_syncer.get(), wr_keepSyncing.get(), wr_syncer.get().isSyncing(), wr_syncer.get().isPausing(), wr_syncer.get().isRunningInBackground())
-                        for wr_syncThread in wr_syncThreads:
+
+                        for wr_syncThread in wr_currentSyncThreads:
                             if wr_syncThread.get() is not None:
-                                diagTxt += "....................: Observed Sync Thread: [id: %s, '%s', isAlive: %s]\n"\
+                                diagTxt += "....................: Sync Thread (attached to Observed Syncer):      [id: %s, '%s', isAlive: %s]\n"\
                                            %(wr_syncThread.get().getId(), wr_syncThread.get().getName(), wr_syncThread.get().isAlive())     # noqa
+                            else:
+                                diagTxt += "....................: Sync Thread (attached to Observed Syncer):      <gone away>\n"
+
                     else:
                         diagTxt += "... Observed Syncer: <gone away>\n"
+
+                    for wr_syncThread in wr_syncerThreads:
+                        if wr_syncThread.get() is not None:
+                            diagTxt += "....................: Observed Sync Thread (previously attached):     [id: %s, '%s', isAlive: %s]\n"\
+                                       %(wr_syncThread.get().getId(), wr_syncThread.get().getName(), wr_syncThread.get().isAlive())     # noqa
+                        else:
+                            diagTxt += "....................: Observed Sync Thread (previously attached):     <gone away>\n"
 
                 diagTxt += "\n<END>"
 
