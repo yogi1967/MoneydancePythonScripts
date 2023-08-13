@@ -137,6 +137,7 @@
 #               Fixed Common Code: genericSwingEDTRunner - <codeblock>: IllegalArgumentException: java.lang.IllegalArgumentException: Cannot create PyString with non-byte value
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
+# todo - avp2(avp2@almont.com): select dated transactions - filter on MD's Tax Date?
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
