@@ -1,3 +1,4 @@
+
 # NOTE: Also refer to: .git/info/exclude
 user
 priv_key*
@@ -5,7 +6,7 @@ pub_key*
 user.properties
 extension_keyfile.
 
-*.pyi
+#*.pyi
 
 *$py.class
 *.pyc
