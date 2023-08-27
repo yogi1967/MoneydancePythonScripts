@@ -194,12 +194,12 @@ ${java} \
   -Xmx2G \
   -Ddummyarg1=arg1 \
   -Ddummyarg2=arg2 \
-  Moneydance -d "$1" "$2" "$3" "$4" "$5" &>"$console_file"
+  Moneydance -d "$1" "$2" "$3" "$4" "$5" &>"$console_file" &
 
-open "$console_file"
-
-echo "changing tabbing mode to fullscreen"
-defaults write -g AppleWindowTabbingMode -string fullscreen
-
+open -a Brackets "$console_file" &
+#
+#echo "changing tabbing mode to fullscreen"
+#defaults write -g AppleWindowTabbingMode -string fullscreen
+#
 exit 0
 
