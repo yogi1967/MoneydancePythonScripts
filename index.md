@@ -173,6 +173,6 @@ _If you like my tools you can donate to support my work via PayPal (completely o
 _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=G2MBHPGLQJXLU" rel="nofollow"><img src="https://pics.paypal.com/00/s/Mzc0NDYyNzQtMGZlYS00NzNjLWI2MGItNjRmZDcyMGViNTY0/file.PNG" alt="Donate" style="max-width: 100%;"></a>
 
-_<b>If you would like me to consider writing a Moneydance extension, report, script, or fix for you, then contact me: written_drizzle_0v@icloud.com</b>_<BR>
+_<b>If you would like me to code a Moneydance extension, report, script, or fix for you, (for a fee) then contact me: written_drizzle_0v @ icloud.com (no spaces)</b>_<BR>
 
-_(site last updated 27th August 2023)_
+_(site last updated 1st September 2023)_
