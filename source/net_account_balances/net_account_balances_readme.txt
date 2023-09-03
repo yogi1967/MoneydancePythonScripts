@@ -1,4 +1,4 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated June 2023
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated September 2023
 Credit: (dtd) Dan T Davis for his input, testing and suggestions to make a better product......
 
 Custom Balances works with 2021.1(3056) and newer.
@@ -69,8 +69,8 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
 - Row separator: optionally put horizontal lines above / below rows to separate sections
 - Blink: Enables the blinking of the selected rows (when displayed / visible)
-- Avg/by: Changes the final displayed calculated balance into an average by dividing by the value set (DEFAULT 1.0)
-- Adj/by: [Optional] Allows you to adjust the final calculated balance by a +/- amount (DEFAULT 0.0)
+- Avg/by: Changes the final displayed calculated balance into an average by dividing the value set (DEFAULT 1.0)
+- Adj/by: Allows you to adjust the final calculated balance by a +/- amount (DEFAULT 0.0)
 
 - Maths using another row: (OPTIONAL) When set, then you can retrieve the result from another row and then apply maths
                            to the result of the current row.. E.g. take this row and divide it by the result from row x
@@ -273,3 +273,5 @@ DEVELOPERS: >> You can actually grab the results of the calculations from other 
 
 Thanks for reading..... ;->
 Get more Scripts/Extensions from: https://yogi1967.github.io/MoneydancePythonScripts/
+
+<END>
