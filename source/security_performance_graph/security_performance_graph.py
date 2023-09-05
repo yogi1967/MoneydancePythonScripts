@@ -44,6 +44,8 @@
 # build: 1007 - Common code tweaks
 # build: 1008 - Cleanup references to MD Objects
 
+# todo - hunt down why something retains a reference to MD object..?
+
 # todo - Memorise (save versions) along with choose/delete etc saved versions
 # todo - add markers for splits, buy/sells
 

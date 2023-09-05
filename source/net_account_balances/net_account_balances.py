@@ -9588,7 +9588,7 @@ Visit: %s (Author's site)
                     NAB.displayAverage_JRF.putClientProperty("%s.id" %(NAB.myModuleID), "displayAverage_JRF")
                     NAB.displayAverage_JRF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.displayAverage_JRF.setName("displayAverage_JRF")
-                    NAB.displayAverage_JRF.setToolTipText("Display an average verses a balance (default 1.0)")
+                    NAB.displayAverage_JRF.setToolTipText("Display an average versus a balance (default 1.0)")
                     NAB.displayAverage_JRF.addFocusListener(NAB.saveFocusListener)
                     displayAverage_pnl.add(NAB.displayAverage_JRF, GridC.getc(onAverageCol, onAverageRow).leftInset(5).wx(1.0).fillboth().west())
                     onAverageCol += 1

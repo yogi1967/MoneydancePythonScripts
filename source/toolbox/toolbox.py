@@ -201,6 +201,8 @@
 #               Added feature to disable MoneyForesight whenever MD is launched (prevents memory leaks etc)
 #               Cleaned up references holding onto MD Objects....
 
+# todo - consider adding the encryption / decryption key to the legacy report output - aka from manually_decrypt_md_file.py
+
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
 # todo - Change JMenuBar in all extensions.... Swap in a parent JRootPane etc...
