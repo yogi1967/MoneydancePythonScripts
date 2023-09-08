@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_extra_code.py build: 1000 - July 2023 onwards - Stuart Beesley StuWareSoftSystems
+# toolbox_extra_code.py build: 1001 - Sept 2023 onwards - Stuart Beesley StuWareSoftSystems
 
 # To avoid the dreaded issue below, moving some code here....:
 # java.lang.RuntimeException: java.lang.RuntimeException: For unknown reason, too large method code couldn't be resolved
 
 # build: 1000 - NEW SCRIPT
 #               Rebuilt all the encrypt/decrypt file to/from Dataset/Sync... Now can access Dropbox Cloud Sync files online too...
-
+# build: 1001 - Show encryption details report added - advanced_show_encryption_keys() ...
 ###############################################################################
 # MIT License
 #
