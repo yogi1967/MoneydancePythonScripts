@@ -200,6 +200,7 @@
 #               Build 5031 removed the MD+ licenseCache field - tweak to deal with the change...
 #               Added feature to disable MoneyForesight whenever MD is launched (prevents memory leaks etc)
 #               Cleaned up references holding onto MD Objects....
+#               Added advanced_show_encryption_keys() feature
 
 # todo - consider adding the encryption / decryption key to the legacy report output - aka from manually_decrypt_md_file.py
 
@@ -788,7 +789,7 @@ Visit: %s (Author's site)
             printString = ""
             for what in args:
                 printString += "%s " %what
-            printString = printString.strip()
+            printString = printString.rstrip(" ")
 
             if where == "P" or where == "B" or where[0] == "D":
                 if not GlobalVars.i_am_an_extension_so_run_headless:
@@ -805,7 +806,7 @@ Visit: %s (Author's site)
                     System.err.write(printString)
                     System.err.write("\n")
                 except:
-                    System.err.write(GlobalVars.thisScriptName + ":" + dt + ": "+"Error writing to console")
+                    System.err.write(GlobalVars.thisScriptName + ":" + dt + ": " + "Error writing to console")
                     dump_sys_error_to_md_console_and_errorlog()
 
         except IllegalArgumentException:
@@ -3408,7 +3409,7 @@ Visit: %s (Author's site)
         global _extra_code_initialiser, getCloudDirectory
         global advanced_options_encrypt_file_into_dataset, advanced_options_encrypt_file_into_sync_folder
         global advanced_options_decrypt_file_from_dataset, advanced_options_decrypt_file_from_sync
-        global advanced_options_decrypt_dataset
+        global advanced_options_decrypt_dataset, advanced_show_encryption_keys
 
         _extraCodeString = myModuleID + "_extra_code" + ".py"
         if MD_EXTENSION_LOADER is not None:
@@ -4895,7 +4896,7 @@ Visit: %s (Author's site)
             return False
         tmpDir = File(javaTmpDir)
         try:
-            f = File.createTempFile("TOOLBOX-TEST-TEMP_DIR", str(System.currentTimeMillis() % 10000L), tmpDir)
+            f = File.createTempFile("TOOLBOX-TEST-TEMP_DIR", str(System.currentTimeMillis()), tmpDir)
             f.delete()
             myPrint("DB","Successfully created temp file in '%s':" %(KEY), f.getCanonicalPath())
 
@@ -5852,18 +5853,17 @@ Visit: %s (Author's site)
         keyInfo = loadKeyFile()
         x = keyInfo.getString(u"key", None)
         x = u"<?NOT FOUND?>" if (x is None or x == "") else u"'%s'" %(x)
-        textArray.append(u"Secret internal KEY used for dataset encryption seed: %s" %(x))
+        textArray.append(u"Encrypted (secret) cryptographic KEY used for dataset encryption seed: %s" %(x))
         del keyInfo
 
         if MD_REF.getCurrentAccountBook().getLocalStorage().getString("md.crypto_level", None):
             x = u"Encryption level - Moneydance reports 'md.crypto_level' set as: %s" %(MD_REF.getCurrentAccountBook().getLocalStorage().getString("md.crypto_level", None))
             textArray.append(x)
 
-        x = u"Toolbox's actual 'test' of your Encryption key/passphrase reports: %s\n" %(getMDEncryptionKey())
+        x = u"Encryption test using your key/passphrase reports algorithm: %s\n" %(getMDEncryptionKey())
 
-        x += u"I understand the dataset encryption is: AES 128-bit. Passphrase encrypted using PBKDF2WithHmacSHA512 " \
-             u"(fixed internal salt, high iteration) and then your (secure/random) key is encrypted and used to encrypt " \
-             u"data to disk using AES/CBC/PKCS5Padding with a fixed internal IV"
+        x += u"Dataset & Sync encryption is: AES (aes-128-cbc) >> Advanced Encryption Standard - 128 bit - Cipher Block Chaining (symmetric algorithm)\n"
+        x += u"(review Menu: 'Advanced Options' > 'Show your encryption keys, and the Moneydance encryption methodology' for more details)"
         textArray.append(x)
 
         textArray.append(u"\nSYNC DETAILS")
@@ -6834,12 +6834,13 @@ Visit: %s (Author's site)
             except:
                 return u"Not sure: could not validate your encryption!"
 
-            theFormat = key.getFormat()
             theAlg = key.getAlgorithm()
+            if theAlg != "AES": myPrint("B", "@@@ ALERT: Your dataset encryption reports algorithm '%s', not 'AES'.. (Please report to Toolbox developer)!" %(theAlg))
+
         except:
             return u"Not sure: Error in decryption routine - oh well!!"
 
-        return u"%s / %s" % (theFormat, theAlg)
+        return u"%s" % (theAlg)
 
     def check_dropbox_and_suppress_warnings():
 
@@ -16012,7 +16013,10 @@ now after saving the file, restart Moneydance
             output += "- This application: '%s' Version: %s(%s) - License key: %s\n" %(find_the_program_install_dir(), MD_REF.getVersion(), MD_REF.getBuild(), licenseKey)
             output += "- Master password used to open this dataset: %s\n" %(MD_enc)
             output += "- Syncing: %s - Sync password: %s\n" %(syncMethodTxt, MD_syn)
-            output += "- Secret internal KEY used for dataset encryption seed: %s\n" %(datasetKey)
+            output += "- Encrypted (secret) cryptographic KEY used for dataset encryption seed:       %s\n" %(datasetKey)
+            if GlobalVars.EXTRA_CODE_INITIALISED:
+                output += "- Actual (secret) decrypted cryptographic-key(s) used for encryption: Dataset: '%s', Sync: '%s'\n" %(advanced_show_encryption_keys(justReturnKeys=True))
+            output += "(review Menu: 'Advanced Options' > 'Show your encryption keys, and the Moneydance encryption methodology' for more details)\n"
 
 
         secretTxt = input_includeSecretText.getText()
@@ -19393,7 +19397,7 @@ now after saving the file, restart Moneydance
                         tmpDir = File(MD_REF.getCurrentAccountBook().getRootFolder(), "tmp")
                         tmpDir.mkdirs()
                         attachFileName = (File(tmpDir, selectedOrphan[0])).getName()                                    # noqa
-                        tmpFile = File.createTempFile(str(System.currentTimeMillis() % 10000L), attachFileName, tmpDir)
+                        tmpFile = File.createTempFile(str(System.currentTimeMillis()), attachFileName, tmpDir)
                         tmpFile.deleteOnExit()
                         fout = FileOutputStream(tmpFile)
                         LS.readFile(selectedOrphan[0], fout)                                                            # noqa
@@ -28721,6 +28725,9 @@ now after saving the file, restart Moneydance
                     user_advanced_toggle_other_DEBUGs = MenuJRadioButton("Toggle Other Moneydance DEBUGs", False)
                     user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
 
+                    user_show_encryption_keys = MenuJRadioButton("Show your encryption keys, and the Moneydance encryption methodology (use with care)", False, updateMenu=True, secondaryEnabled=GlobalVars.EXTRA_CODE_INITIALISED)
+                    user_show_encryption_keys.setToolTipText("Will show your encryption keys used to encrypt your dataset [and sync data], along with the encryption methodologies")
+
                     user_advanced_extract_from_dataset = MenuJRadioButton("Extract/decrypt a file from Dataset", False, secondaryEnabled=GlobalVars.EXTRA_CODE_INITIALISED)
                     user_advanced_extract_from_dataset.setToolTipText("This allows you to extract/decrypt a file from inside Dataset (copied to Dataset/tmp/decrypted dir)..... TMP FILE SELF DESTRUCTS AFTER RESTART")
 
@@ -28786,7 +28793,7 @@ now after saving the file, restart Moneydance
                     userFilters.add(user_advanced_decrypt_dataset)
 
                     if GlobalVars.globalShowDisabledMenuItems or ToolboxMode.isUpdateMode():
-                        rows += 16
+                        rows += 17
                         userFilters.add(JLabel(" "))
                         userFilters.add(ToolboxMode.DEFAULT_MENU_UPDATE_TXT_LBL)
 
@@ -28808,6 +28815,7 @@ now after saving the file, restart Moneydance
                         userFilters.add(user_advanced_options_edit_prefs)
                         userFilters.add(user_advanced_edit_param_keys)
                         userFilters.add(user_advanced_suppress_dropbox_warning)
+                        userFilters.add(user_show_encryption_keys)
 
                     bg = setupMenuRadioButtons(userFilters)
 
@@ -28826,6 +28834,7 @@ now after saving the file, restart Moneydance
                         user_toggle_sync_download_attachments.setEnabled(ToolboxMode.isUpdateMode() and (not (storage.get(_PARAM_KEY) is None or storage.get(_PARAM_KEY) == _NONE)))
                         user_advanced_import_to_sync_folder.setEnabled(ToolboxMode.isUpdateMode() and MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None and GlobalVars.EXTRA_CODE_INITIALISED)
                         user_advanced_extract_from_sync.setEnabled(MD_REF.getUI().getCurrentAccounts().getSyncFolder() is not None and GlobalVars.EXTRA_CODE_INITIALISED)
+                        user_show_encryption_keys.setEnabled(ToolboxMode.isUpdateMode() and GlobalVars.EXTRA_CODE_INITIALISED)
 
                         bg.clearSelection()
 
@@ -28847,6 +28856,7 @@ now after saving the file, restart Moneydance
 
                         # if user_advanced_toggle_DEBUG.isSelected():                 advanced_options_DEBUG()
                         if user_advanced_toggle_other_DEBUGs.isSelected():          advanced_options_other_DEBUG()
+                        if user_show_encryption_keys.isSelected():                  advanced_show_encryption_keys()
                         if user_advanced_extract_from_dataset.isSelected():         advanced_options_decrypt_file_from_dataset()
                         if user_advanced_extract_from_sync.isSelected():            advanced_options_decrypt_file_from_sync()
                         if user_advanced_decrypt_dataset.isSelected():              advanced_options_decrypt_dataset()
