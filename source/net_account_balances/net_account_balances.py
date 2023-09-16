@@ -514,7 +514,7 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    GlobalVars.specialDebug = False
+    GlobalVars.specialDebug = True;
 
     GlobalVars.Strings.SWSS_COMMON_CODE_NAME = "StuWareSoftSystems_CommonCode"
 
@@ -4037,6 +4037,7 @@ Visit: %s (Author's site)
 
         def __init__(self, *args, **kwargs):
             self.maxWidth = -1
+            self.maxHeight = -1
             super(self.__class__, self).__init__(*args, **kwargs)
             self.setFocusable(True)
             self.addKeyListener(MyKeyAdapter())
@@ -4064,6 +4065,10 @@ Visit: %s (Author's site)
             dim = super(self.__class__, self).getPreferredSize()
             self.maxWidth = Math.max(self.maxWidth, dim.width)
             dim.width = self.maxWidth
+            if self.maxHeight <= 0 and dim.height > 0:  # Some users reported that this field sometimes grew vertically..?
+                self.maxHeight = dim.height
+            if self.maxHeight > 0:
+                dim.height = self.maxHeight
             return dim
 
     class MyJRateFieldXValue(JRateField):
@@ -5592,12 +5597,45 @@ Visit: %s (Author's site)
                 NAB = NetAccountBalancesExtension.getNAB()
                 NAB.saveSettings(lFromHomeScreen=True)
 
+        def saveFiltersIntoSettings(self):
+            """Just update the savedFilterByGroupID and savedPresavedFilterByGroupIDsTable fields back to the settings file.
+            Relies on all the other xxx_NAB variables staying untouched from when they were loaded. This means that updated
+            values in the other fields are not (yet) saved to allow the user to save/undo etc"""
+
+            if GlobalVars.parametersLoadedFromFile is None or len(GlobalVars.parametersLoadedFromFile) < 1:
+                raise Exception("LOGIC ERROR: parametersLoadedFromFile is None / empty?! - SAVE FILTERS NOT ALLOWED!")
+
+            global debug        # Need this here as we set it below
+
+            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            myPrint("DB", "SAVING [GroupID Filter] PARAMETERS (leaving rest unchanged/unsaved) HomePageView widget back to disk..")
+
+            NAB = NetAccountBalancesExtension.getNAB()
+
+            GlobalVars.extn_param_NEW_filterByGroupID_NAB           = copy.deepcopy(NAB.savedFilterByGroupID)
+            GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable = copy.deepcopy(NAB.savedPresavedFilterByGroupIDsTable)
+
+            GlobalVars.parametersLoadedFromFile[GlobalVars.Strings.PARAMETER_FILEUUID] = GlobalVars.CONTEXT.getCurrentAccountBook().getLocalStorage().getString(GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID, None)
+
+            try:
+                saveDebug = debug
+                debug = False
+                save_StuWareSoftSystems_parameters_to_file(myFile="%s_extension.dict" %(NAB.myModuleID))
+                debug = saveDebug
+            except:
+                myPrint("B", "@@ Error saving [GroupID Filter] parameters back to pickle file....?")
+                dump_sys_error_to_md_console_and_errorlog()
+
+            myPrint("DB", "@@ Settings [GroupID Filters] saved back to disk....")
+
+
         def saveSettings(self, lFromHomeScreen=False):
             global debug        # Need this here as we set it below
 
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
-            myPrint("B", "SAVINGS PARAMETERS HomePageView widget back to disk..")
+            myPrint("B", "SAVING PARAMETERS HomePageView widget back to disk..")
 
             NAB = NetAccountBalancesExtension.getNAB()
 
@@ -5605,39 +5643,38 @@ Visit: %s (Author's site)
             NAB.dumpSavedOptions()
 
             NAB.migratedParameters = False
-            GlobalVars.extn_param_NEW_listAccountUUIDs_NAB          = NAB.savedAccountListUUIDs
-            GlobalVars.extn_param_NEW_balanceType_NAB               = NAB.savedBalanceType
-            GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = NAB.savedIncomeExpenseDateRange
-            GlobalVars.extn_param_NEW_customDatesTable_NAB          = NAB.savedCustomDatesTable
-            GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = NAB.savedRowSeparatorTable
-            GlobalVars.extn_param_NEW_blinkTable_NAB                = NAB.savedBlinkTable
-            GlobalVars.extn_param_NEW_hideDecimalsTable_NAB         = NAB.savedHideDecimalsTable
-            GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = NAB.savedAutoSumAccounts
-            GlobalVars.extn_param_NEW_includeInactive_NAB           = NAB.savedIncludeInactive
-            GlobalVars.extn_param_NEW_widget_display_name_NAB       = NAB.savedWidgetName
-            GlobalVars.extn_param_NEW_currency_NAB                  = NAB.savedCurrencyTable
-            GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = NAB.savedDisableCurrencyFormatting
-            GlobalVars.extn_param_NEW_showWarningsTable_NAB         = NAB.savedShowWarningsTable
-            GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = NAB.savedHideRowWhenXXXTable
-            GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = NAB.savedHideRowXValueTable
-            GlobalVars.extn_param_NEW_displayAverageTable_NAB       = NAB.savedDisplayAverageTable
-            GlobalVars.extn_param_NEW_adjustCalcByTable_NAB         = NAB.savedAdjustCalcByTable
-            GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB  = NAB.savedOperateOnAnotherRowTable
-            GlobalVars.extn_param_NEW_UUIDTable_NAB                 = NAB.savedUUIDTable
-            GlobalVars.extn_param_NEW_groupIDTable_NAB              = NAB.savedGroupIDTable
-
-            GlobalVars.extn_param_NEW_showPrintIcon_NAB             = NAB.savedShowPrintIcon
-            GlobalVars.extn_param_NEW_autoSumDefault_NAB            = NAB.savedAutoSumDefault
-            GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = NAB.savedDisableWidgetTitle
-            GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = NAB.savedShowDashesInsteadOfZeros
-            GlobalVars.extn_param_NEW_disableWarningIcon_NAB        = NAB.savedDisableWarningIcon
-            GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = NAB.savedTreatSecZeroBalInactive
-            GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = NAB.savedUseIndianNumberFormat
-            GlobalVars.extn_param_NEW_useTaxDates_NAB               = NAB.savedUseTaxDates
-            GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = NAB.savedDisplayVisualUnderDots
-            GlobalVars.extn_param_NEW_expandedView_NAB              = NAB.savedExpandedView
-            GlobalVars.extn_param_NEW_filterByGroupID_NAB           = NAB.savedFilterByGroupID
-            GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable = NAB.savedPresavedFilterByGroupIDsTable
+            GlobalVars.extn_param_NEW_listAccountUUIDs_NAB          = copy.deepcopy(NAB.savedAccountListUUIDs)
+            GlobalVars.extn_param_NEW_balanceType_NAB               = copy.deepcopy(NAB.savedBalanceType)
+            GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = copy.deepcopy(NAB.savedIncomeExpenseDateRange)
+            GlobalVars.extn_param_NEW_customDatesTable_NAB          = copy.deepcopy(NAB.savedCustomDatesTable)
+            GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = copy.deepcopy(NAB.savedRowSeparatorTable)
+            GlobalVars.extn_param_NEW_blinkTable_NAB                = copy.deepcopy(NAB.savedBlinkTable)
+            GlobalVars.extn_param_NEW_hideDecimalsTable_NAB         = copy.deepcopy(NAB.savedHideDecimalsTable)
+            GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = copy.deepcopy(NAB.savedAutoSumAccounts)
+            GlobalVars.extn_param_NEW_includeInactive_NAB           = copy.deepcopy(NAB.savedIncludeInactive)
+            GlobalVars.extn_param_NEW_widget_display_name_NAB       = copy.deepcopy(NAB.savedWidgetName)
+            GlobalVars.extn_param_NEW_currency_NAB                  = copy.deepcopy(NAB.savedCurrencyTable)
+            GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = copy.deepcopy(NAB.savedDisableCurrencyFormatting)
+            GlobalVars.extn_param_NEW_showWarningsTable_NAB         = copy.deepcopy(NAB.savedShowWarningsTable)
+            GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB       = copy.deepcopy(NAB.savedHideRowWhenXXXTable)
+            GlobalVars.extn_param_NEW_hideRowXValueTable_NAB        = copy.deepcopy(NAB.savedHideRowXValueTable)
+            GlobalVars.extn_param_NEW_displayAverageTable_NAB       = copy.deepcopy(NAB.savedDisplayAverageTable)
+            GlobalVars.extn_param_NEW_adjustCalcByTable_NAB         = copy.deepcopy(NAB.savedAdjustCalcByTable)
+            GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB  = copy.deepcopy(NAB.savedOperateOnAnotherRowTable)
+            GlobalVars.extn_param_NEW_UUIDTable_NAB                 = copy.deepcopy(NAB.savedUUIDTable)
+            GlobalVars.extn_param_NEW_groupIDTable_NAB              = copy.deepcopy(NAB.savedGroupIDTable)
+            GlobalVars.extn_param_NEW_showPrintIcon_NAB             = copy.deepcopy(NAB.savedShowPrintIcon)
+            GlobalVars.extn_param_NEW_autoSumDefault_NAB            = copy.deepcopy(NAB.savedAutoSumDefault)
+            GlobalVars.extn_param_NEW_disableWidgetTitle_NAB        = copy.deepcopy(NAB.savedDisableWidgetTitle)
+            GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB  = copy.deepcopy(NAB.savedShowDashesInsteadOfZeros)
+            GlobalVars.extn_param_NEW_disableWarningIcon_NAB        = copy.deepcopy(NAB.savedDisableWarningIcon)
+            GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB   = copy.deepcopy(NAB.savedTreatSecZeroBalInactive)
+            GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB     = copy.deepcopy(NAB.savedUseIndianNumberFormat)
+            GlobalVars.extn_param_NEW_useTaxDates_NAB               = copy.deepcopy(NAB.savedUseTaxDates)
+            GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB    = copy.deepcopy(NAB.savedDisplayVisualUnderDots)
+            GlobalVars.extn_param_NEW_expandedView_NAB              = copy.deepcopy(NAB.savedExpandedView)
+            GlobalVars.extn_param_NEW_filterByGroupID_NAB           = copy.deepcopy(NAB.savedFilterByGroupID)
+            GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable = copy.deepcopy(NAB.savedPresavedFilterByGroupIDsTable)
 
 
             if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
@@ -6060,13 +6097,15 @@ Visit: %s (Author's site)
 
                 QuickJFrame("%sINFO ON ROWS/OTHER ROWS/GROUP IDs/UUIDs" %(showLastTxt), output, lWrapText=False, lAutoSize=True, lAlertLevel=(2 if self.showLast else 1)).show_the_frame()
 
-        class PickGroupIDFilter(AbstractAction):
-            def __init__(self, theFrame):
+        class EditRememberedGroupIDFilters(AbstractAction):
+            def __init__(self, theFrame, fromHomeScreenWidget, fromGUI):
                 self.theFrame = theFrame
+                self.fromHomeScreenWidget = fromHomeScreenWidget
+                self.fromGUI = fromGUI
 
             def actionPerformed(self, event):
 
-                myPrint("DB", "In PickGroupIDFilter::%s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
+                myPrint("DB", "In EditRememberedGroupIDFilters::%s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
 
                 NAB = NetAccountBalancesExtension.getNAB()
                 NAB.storeJTextFieldsForSelectedRow()
@@ -6111,7 +6150,7 @@ Visit: %s (Author's site)
                     def mouseEntered(self, evt): pass
 
                     def doDelete(self, evt):
-                        myPrint("DB", "@@ PickGroupIDFilter::MyJTable::mousePressed.doDelete() - evt: %s, evt.getSource()")
+                        myPrint("DB", "@@ EditRememberedGroupIDFilters::MyJTable::mousePressed.doDelete() - evt: %s, evt.getSource()")
                         _jtable = evt.getSource()                                                                        # type: JTable
                         rowIdx = _jtable.getSelectedRow()
                         colIdx = _jtable.getSelectedColumn()
@@ -6144,10 +6183,8 @@ Visit: %s (Author's site)
 
 
                 mdImages = NAB.moneydanceContext.getUI().getImages()
-                # deleteIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_DELETE_32_32, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
-                # addIcon = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_ADD_28_28, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
-                deleteIcon = scaleIcon(mdImages.getIcon(GlobalVars.Strings.MD_GLYPH_DELETE_32_32), 0.60)
                 addIcon = scaleIcon(mdImages.getIcon(GlobalVars.Strings.MD_GLYPH_ADD_28_28), 0.70)
+                deleteIcon = scaleIcon(mdImages.getIcon(GlobalVars.Strings.MD_GLYPH_DELETE_32_32), 0.57)
 
                 quickList = []
                 for groupFilter, filterName in NAB.savedPresavedFilterByGroupIDsTable:
@@ -6157,7 +6194,7 @@ Visit: %s (Author's site)
                 jtable = MyJTable(dtm, addIcon, deleteIcon)
 
                 jsp = MyJScrollPaneForJOptionPane(jtable, self.theFrame, 800, 600)
-                options = ["CANCEL CHANGES", "SAVE CHANGES"]
+                options = ["CANCEL CHANGES", "STORE CHANGES"]
 
                 pane = JOptionPane()
                 pane.setIcon(None)
@@ -6192,8 +6229,21 @@ Visit: %s (Author's site)
                     NAB.savedPresavedFilterByGroupIDsTable.append([newGroupFilter, newGroupFilterName])
 
                 myPrint("DB", "... rebuilt savedPresavedFilterByGroupIDsTable now contains: %s" %(NAB.savedPresavedFilterByGroupIDsTable))
-                NAB.configSaved = False
 
+                # Check to see if we removed the current GroupID Filter from the saved list (Summary Page only)...
+                if self.fromHomeScreenWidget:
+                    if NAB.savedFilterByGroupID.lower().strip() != "":
+                        if NAB.savedFilterByGroupID.lower().strip() not in [_filt.lower().strip() for _filt, _filtName in NAB.savedPresavedFilterByGroupIDsTable]:
+                            myPrint("DB", "... From SummaryPage Widget and found savedFilterByGroupID: '%s' but not in revised remembered list... Removing...." %(NAB.savedFilterByGroupID))
+                            NAB.savedFilterByGroupID = ""
+                            NAB.executeRefresh()
+                        else:
+                            myPrint("DB", "... From SummaryPage Widget confirmed that current savedFilterByGroupID: '%s' still exists in revised remembered list... doing nothing...." %(NAB.savedFilterByGroupID))
+                    else:
+                        myPrint("DB", "... From SummaryPage Widget confirmed that current savedFilterByGroupID: '%s' is empty - doing nothing...." %(NAB.savedFilterByGroupID))
+                    NAB.saveFiltersIntoSettings();
+                else:
+                    NAB.configSaved = False
 
 
         class StoreCurrencyAsText():
@@ -7231,7 +7281,6 @@ Visit: %s (Author's site)
                     self.savedFilterByGroupID = txtFieldValue
 
                     self.searchAndStoreGroupIDs(self.savedFilterByGroupID)
-
                     self.configSaved = False
 
                 txtFieldValue = self.groupIDField_JTF.getText()
@@ -8202,7 +8251,7 @@ Visit: %s (Author's site)
                             else:
                                 myPrint("DB", "... Invalid custom dates, reverting to defaults...")
 
-                            options = ["SAVE DATES", "Cancel"]
+                            options = ["STORE DATES", "Cancel"]
                             getFieldByReflection(dateRanger, "startField").addKeyListener(MyKeyAdapter())
                             getFieldByReflection(dateRanger, "endField").addKeyListener(MyKeyAdapter())
                             if (JOptionPane.showOptionDialog(NAB.theFrame, dateRanger.getPanel(), "Enter Custom Date Range:",
@@ -8960,38 +9009,40 @@ Visit: %s (Author's site)
                             self.migratedParameters = False
 
                         self.parametersLoaded = True
-                        self.savedAccountListUUIDs              = GlobalVars.extn_param_NEW_listAccountUUIDs_NAB
-                        self.savedBalanceType                   = GlobalVars.extn_param_NEW_balanceType_NAB
-                        self.savedIncomeExpenseDateRange        = GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB
-                        self.savedCustomDatesTable              = GlobalVars.extn_param_NEW_customDatesTable_NAB
-                        self.savedRowSeparatorTable             = GlobalVars.extn_param_NEW_rowSeparatorTable_NAB
-                        self.savedBlinkTable                    = GlobalVars.extn_param_NEW_blinkTable_NAB
-                        self.savedHideDecimalsTable             = GlobalVars.extn_param_NEW_hideDecimalsTable_NAB
-                        self.savedIncludeInactive               = GlobalVars.extn_param_NEW_includeInactive_NAB
-                        self.savedAutoSumAccounts               = GlobalVars.extn_param_NEW_autoSumAccounts_NAB
-                        self.savedWidgetName                    = GlobalVars.extn_param_NEW_widget_display_name_NAB
-                        self.savedCurrencyTable                 = GlobalVars.extn_param_NEW_currency_NAB
-                        self.savedDisableCurrencyFormatting     = GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB
-                        self.savedHideRowWhenXXXTable           = GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB
-                        self.savedHideRowXValueTable            = GlobalVars.extn_param_NEW_hideRowXValueTable_NAB
-                        self.savedDisplayAverageTable           = GlobalVars.extn_param_NEW_displayAverageTable_NAB
-                        self.savedAdjustCalcByTable             = GlobalVars.extn_param_NEW_adjustCalcByTable_NAB
-                        self.savedOperateOnAnotherRowTable      = GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB
-                        self.savedUUIDTable                     = GlobalVars.extn_param_NEW_UUIDTable_NAB
-                        self.savedGroupIDTable                  = GlobalVars.extn_param_NEW_groupIDTable_NAB
-                        self.savedShowWarningsTable             = GlobalVars.extn_param_NEW_showWarningsTable_NAB
-                        self.savedShowPrintIcon                 = GlobalVars.extn_param_NEW_showPrintIcon_NAB
-                        self.savedAutoSumDefault                = GlobalVars.extn_param_NEW_autoSumDefault_NAB
-                        self.savedDisableWidgetTitle            = GlobalVars.extn_param_NEW_disableWidgetTitle_NAB
-                        self.savedShowDashesInsteadOfZeros      = GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB
-                        self.savedDisableWarningIcon            = GlobalVars.extn_param_NEW_disableWarningIcon_NAB
-                        self.savedTreatSecZeroBalInactive       = GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB
-                        self.savedUseIndianNumberFormat         = GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB
-                        self.savedUseTaxDates                   = GlobalVars.extn_param_NEW_useTaxDates_NAB
-                        self.savedDisplayVisualUnderDots        = GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB
-                        self.savedExpandedView                  = GlobalVars.extn_param_NEW_expandedView_NAB
-                        self.savedFilterByGroupID               = GlobalVars.extn_param_NEW_filterByGroupID_NAB
-                        self.savedPresavedFilterByGroupIDsTable = GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable
+
+                        # Using copy.deepcopy() so that .savedXXX variables are truly different copies of the XXX_NAB variables....
+                        self.savedAccountListUUIDs              = copy.deepcopy(GlobalVars.extn_param_NEW_listAccountUUIDs_NAB)
+                        self.savedBalanceType                   = copy.deepcopy(GlobalVars.extn_param_NEW_balanceType_NAB)
+                        self.savedIncomeExpenseDateRange        = copy.deepcopy(GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB)
+                        self.savedCustomDatesTable              = copy.deepcopy(GlobalVars.extn_param_NEW_customDatesTable_NAB)
+                        self.savedRowSeparatorTable             = copy.deepcopy(GlobalVars.extn_param_NEW_rowSeparatorTable_NAB)
+                        self.savedBlinkTable                    = copy.deepcopy(GlobalVars.extn_param_NEW_blinkTable_NAB)
+                        self.savedHideDecimalsTable             = copy.deepcopy(GlobalVars.extn_param_NEW_hideDecimalsTable_NAB)
+                        self.savedIncludeInactive               = copy.deepcopy(GlobalVars.extn_param_NEW_includeInactive_NAB)
+                        self.savedAutoSumAccounts               = copy.deepcopy(GlobalVars.extn_param_NEW_autoSumAccounts_NAB)
+                        self.savedWidgetName                    = copy.deepcopy(GlobalVars.extn_param_NEW_widget_display_name_NAB)
+                        self.savedCurrencyTable                 = copy.deepcopy(GlobalVars.extn_param_NEW_currency_NAB)
+                        self.savedDisableCurrencyFormatting     = copy.deepcopy(GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB)
+                        self.savedHideRowWhenXXXTable           = copy.deepcopy(GlobalVars.extn_param_NEW_hideRowWhenXXXTable_NAB)
+                        self.savedHideRowXValueTable            = copy.deepcopy(GlobalVars.extn_param_NEW_hideRowXValueTable_NAB)
+                        self.savedDisplayAverageTable           = copy.deepcopy(GlobalVars.extn_param_NEW_displayAverageTable_NAB)
+                        self.savedAdjustCalcByTable             = copy.deepcopy(GlobalVars.extn_param_NEW_adjustCalcByTable_NAB)
+                        self.savedOperateOnAnotherRowTable      = copy.deepcopy(GlobalVars.extn_param_NEW_operateOnAnotherRowTable_NAB)
+                        self.savedUUIDTable                     = copy.deepcopy(GlobalVars.extn_param_NEW_UUIDTable_NAB)
+                        self.savedGroupIDTable                  = copy.deepcopy(GlobalVars.extn_param_NEW_groupIDTable_NAB)
+                        self.savedShowWarningsTable             = copy.deepcopy(GlobalVars.extn_param_NEW_showWarningsTable_NAB)
+                        self.savedShowPrintIcon                 = copy.deepcopy(GlobalVars.extn_param_NEW_showPrintIcon_NAB)
+                        self.savedAutoSumDefault                = copy.deepcopy(GlobalVars.extn_param_NEW_autoSumDefault_NAB)
+                        self.savedDisableWidgetTitle            = copy.deepcopy(GlobalVars.extn_param_NEW_disableWidgetTitle_NAB)
+                        self.savedShowDashesInsteadOfZeros      = copy.deepcopy(GlobalVars.extn_param_NEW_showDashesInsteadOfZeros_NAB)
+                        self.savedDisableWarningIcon            = copy.deepcopy(GlobalVars.extn_param_NEW_disableWarningIcon_NAB)
+                        self.savedTreatSecZeroBalInactive       = copy.deepcopy(GlobalVars.extn_param_NEW_treatSecZeroBalInactive_NAB)
+                        self.savedUseIndianNumberFormat         = copy.deepcopy(GlobalVars.extn_param_NEW_useIndianNumberFormat_NAB)
+                        self.savedUseTaxDates                   = copy.deepcopy(GlobalVars.extn_param_NEW_useTaxDates_NAB)
+                        self.savedDisplayVisualUnderDots        = copy.deepcopy(GlobalVars.extn_param_NEW_displayVisualUnderDots_NAB)
+                        self.savedExpandedView                  = copy.deepcopy(GlobalVars.extn_param_NEW_expandedView_NAB)
+                        self.savedFilterByGroupID               = copy.deepcopy(GlobalVars.extn_param_NEW_filterByGroupID_NAB)
+                        self.savedPresavedFilterByGroupIDsTable = copy.deepcopy(GlobalVars.extn_param_NEW_presavedFilterByGroupIDsTable)
 
                         self.setSelectedRowIndex(0)
 
@@ -9644,7 +9695,7 @@ Visit: %s (Author's site)
                     controlPnl.add(rowNameLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset).topInset(topInset))
                     onCol += 1
 
-                    NAB.widgetNameField_JTF = MyJTextField("not set")
+                    NAB.widgetNameField_JTF = MyJTextField("**not set**"); "WHY";
                     NAB.widgetNameField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setName("widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setToolTipText("Set the name displayed for this row (See help for <#> & html formatting codes)")
@@ -9828,12 +9879,14 @@ Visit: %s (Author's site)
 
                     groupIDLabel = MyJLabel("GroupID:")
                     groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
+                    groupIDLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     groupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
                     onGroupIDCol += 1
 
                     NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=20)
                     NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
                     NAB.groupIDField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDField_JTF")
+                    NAB.groupIDField_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.groupIDField_JTF.setName("groupIDField_JTF")
                     NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')) that can be used to filter out rows (refer CMD-I help)")
                     NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
@@ -10320,7 +10373,7 @@ Visit: %s (Author's site)
                     NAB.theFrame.getRootPane().getActionMap().put("show-warnings", ShowWarnings())
 
                     NAB.theFrame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_G, (shortcut | Event.SHIFT_MASK)), "pick_groupid_filter")
-                    NAB.theFrame.getRootPane().getActionMap().put("pick_groupid_filter", NAB.PickGroupIDFilter(NAB.theFrame))
+                    NAB.theFrame.getRootPane().getActionMap().put("pick_groupid_filter", NAB.EditRememberedGroupIDFilters(NAB.theFrame, False, True))
 
                     NAB.theFrame.addWindowListener(NAB.WindowListener(NAB.theFrame, NAB.myModuleID))
 
@@ -11201,15 +11254,16 @@ Visit: %s (Author's site)
                 def actionPerformed(self, evt):                                                                         # noqa
                     myPrint("DB", "In showSelectorPopup()::GroupIDFilterAction.actionPerformed() filtertoapply: '%s'" %(self.groupIDFilterToApply))
                     if self.editFilters:
-                        pgidf = self.nab.PickGroupIDFilter(self.nab.theFrame)
+                        pgidf = self.nab.EditRememberedGroupIDFilters(self.nab.theFrame, self.fromHomeScreenWidget, self.fromGUI)
                         genericSwingEDTRunner(False, False, pgidf.actionPerformed, None)
                     elif self.fromHomeScreenWidget:
                         self.nab.savedFilterByGroupID = self.groupIDFilterToApply
-                        self.nab.configSaved = False
+                        # self.nab.configSaved = False
+                        self.nab.saveFiltersIntoSettings();
                         self.nab.executeRefresh()
                     elif self.fromGUI:
                         myPrint("DB", "... about to call .filterByGroupID_JTF.setText('%s')" %(self.groupIDFilterToApply))
-                        self.nab.filterByGroupID_JTF.setText(self.groupIDFilterToApply)
+                        self.nab.filterByGroupID_JTF.setText(self.groupIDFilterToApply);
                         self.nab.storeJTextFieldsForSelectedRow()
                         self.nab.simulateTotalForRow()
 
@@ -11217,7 +11271,7 @@ Visit: %s (Author's site)
             groupIDMenu = JPopupMenu()
             groupIDMenu.add(GroupIDFilterAction(fromHomeScreenWidget, fromGUI, "", "<NO FILTER>", NAB))
             for groupIDFilter, filterName in NAB.savedPresavedFilterByGroupIDsTable:
-                displayName = "filter: %s" %("<%s: '%s'>" %(filterName, groupIDFilter) if filterName != GlobalVars.FILTER_NAME_NOT_DEFINED else "'%s'" %(groupIDFilter))
+                displayName = "%s" %("%s: '%s'" %(filterName, groupIDFilter) if filterName != GlobalVars.FILTER_NAME_NOT_DEFINED else "'%s'" %(groupIDFilter))
                 groupIDMenu.add(GroupIDFilterAction(fromHomeScreenWidget, fromGUI, groupIDFilter, displayName, NAB))
             groupIDMenu.add(GroupIDFilterAction(fromHomeScreenWidget, fromGUI, "", "<EDIT FILTERS>", NAB, editFilters=True))
             groupIDMenu.show(comp, 0, comp.getHeight())
@@ -12244,21 +12298,33 @@ Visit: %s (Author's site)
 
             def mousePressed(self, evt):
                 myPrint("DB", "In mousePressed. Event:", evt, evt.getSource())
+
+                NAB = NetAccountBalancesExtension.getNAB()
+
                 if evt.getSource() is self.collapsableIconLbl:
                     myPrint("DB", "mousePressed: detected collapsableIconLbl... going for toggle collapse....")
                     self.toggleExpandCollapse()
 
                 elif evt.getSource() is self.printIconLbl:
-                    myPrint("DB", "mousePressed: detected printIconLbl... going for print....")
-                    PrintWidget().go()
+                    if NAB.configPanelOpen:
+                        myPrint("B", "Alert - Blocking print button as widget config gui is open...!")
+                    else:
+                        myPrint("DB", "mousePressed: detected printIconLbl... going for print....")
+                        PrintWidget().go()
 
                 elif evt.getSource() is self.warningIconLbl:
-                    myPrint("DB", "mousePressed: detected warningIconLbl... going for ShowWarnings.showWarnings() (later)....")
-                    genericSwingEDTRunner(False, False, ShowWarnings.showWarnings)
+                    if NAB.configPanelOpen:
+                        myPrint("B", "Alert - Blocking show warnings icon as widget config gui is open...!")
+                    else:
+                        myPrint("DB", "mousePressed: detected warningIconLbl... going for ShowWarnings.showWarnings() (later)....")
+                        genericSwingEDTRunner(False, False, ShowWarnings.showWarnings)
 
                 elif evt.getSource() is self.SelectorIconLbl:
-                    myPrint("DB", "mousePressed: detected SelectorIconLbl... going for showSelectorPopup (now)....")
-                    MyHomePageView.showSelectorPopup(evt.getSource(), True, False)
+                    if NAB.configPanelOpen:
+                        myPrint("B", "Alert - Blocking GroupID Filter selector as widget config gui is open...!")
+                    else:
+                        myPrint("DB", "mousePressed: detected SelectorIconLbl... going for showSelectorPopup (now)....")
+                        MyHomePageView.showSelectorPopup(evt.getSource(), True, False)
 
             def mouseClicked(self, evt): pass
             def mouseReleased(self, evt): pass
