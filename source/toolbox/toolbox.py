@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1060 - November 2020 thru 2023 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1061 - November 2020 thru 2023 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -202,6 +202,7 @@
 #               Cleaned up references holding onto MD Objects....
 #               Added advanced_show_encryption_keys() feature
 #               Build: 5036 - changed MoneyForesight fields - fixed disable MFS feature...
+# build: 1061 - ???
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -227,7 +228,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1060"
+version_build = "1061"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
