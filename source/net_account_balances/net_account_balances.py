@@ -5135,6 +5135,15 @@ Visit: %s (Author's site)
             if NAB.printIcon is None or reloadPrinterIcon:
                 NAB.printIcon = loadScaleColorImageToIcon(NAB.moneydanceExtensionLoader, "/print64icon.png", Dimension(17, 17), NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
 
+    def loadDebugIcon(reloadDebugIcon=False):
+        NAB = NetAccountBalancesExtension.getNAB()
+        if NAB.SWSS_CC is None:
+            myPrint("B", "@@ SWSS_CC is None, so cannot (re)load debugIcon:", NAB.debugIcon)
+        else:
+            if NAB.debugIcon is None or reloadDebugIcon:
+                # NAB.debugIcon = loadScaleColorImageToIcon(NAB.moneydanceExtensionLoader, "/debug16icon.png", None, NAB.moneydanceContext.getUI().getColors().secondaryTextFG)
+                NAB.debugIcon = loadScaleColorImageToIcon(NAB.moneydanceExtensionLoader, "/debug16icon.png", None, getColorDarkGreen())
+
     def loadWarningIcon(reloadWarningIcon=False):
         NAB = NetAccountBalancesExtension.getNAB()
         if NAB.SWSS_CC is None:
@@ -5381,6 +5390,8 @@ Visit: %s (Author's site)
             self.rowSelectedSaved = 0
             self.rowSelected_COMBO = None
 
+            self.debug_LBL = None
+
             self.simulateTotal_label = None
             self.warning_label = None
 
@@ -5391,6 +5402,7 @@ Visit: %s (Author's site)
                 self.swingWorkers = []
 
             self.printIcon = None
+            self.debugIcon = None
             self.warningIcon = None
             self.selectorIcon = None
 
@@ -5541,6 +5553,9 @@ Visit: %s (Author's site)
 
             loadPrinterIcon(reloadPrinterIcon=True)
             myPrint("DB", ".. (Re)loaded Printer icon...")
+
+            loadDebugIcon(reloadDebugIcon=True)
+            myPrint("DB", ".. (Re)loaded Debug icon...")
 
             loadWarningIcon(reloadWarningIcon=True)
             myPrint("DB", ".. (Re)loaded Warning icon...")
@@ -7828,6 +7843,8 @@ Visit: %s (Author's site)
 
                     NAB = NetAccountBalancesExtension.getNAB()
 
+                    NAB.debug_LBL.setIcon(NAB.debugIcon if debug else None)
+
                     md = NAB.moneydanceContext
 
                     BlinkSwingTimer.stopAllBlinkers()
@@ -9524,6 +9541,11 @@ Visit: %s (Author's site)
                     selectRow_pnl = MyJPanel(GridBagLayout())
                     onSelectRow = 0
                     onSelectCol = 0
+
+                    NAB.debug_LBL = MyJLabel()
+                    NAB.debug_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "debug_LBL")
+                    selectRow_pnl.add(NAB.debug_LBL, GridC.getc(onSelectCol, onSelectRow).wx(0.1).west())
+                    onSelectCol += 1
 
                     rowSelected_COMBOLabel = MyJLabel("Select Row:")
                     rowSelected_COMBOLabel.putClientProperty("%s.id" %(NAB.myModuleID), "rowSelected_COMBOLabel")
@@ -12176,7 +12198,7 @@ Visit: %s (Author's site)
                                 _view.warningIconLbl.setIcon(setWarningIcon)
 
                                 if len(NAB.savedPresavedFilterByGroupIDsTable) > 0:
-                                    _view.SelectorIconLbl.setIcon(NAB.selectorIcon)
+                                    _view.SelectorIconLbl.setIcon(NAB.selectorIcon);
                                 else:
                                     _view.SelectorIconLbl.setIcon(None)
 
@@ -12405,6 +12427,9 @@ Visit: %s (Author's site)
                 self.collapsableIconLbl.setFont(NAB.moneydanceContext.getUI().getFonts().header)
                 self.collapsableIconLbl.setBorder(self.nameBorder)
 
+                self.debugIconLbl = JLabel("")
+                self.debugIconLbl.setBorder(EmptyBorder(0, 2, 0, 2))
+
                 self.printIconLbl = JLabel("")
                 self.printIconLbl.setBorder(EmptyBorder(0, 2, 0, 2))
 
@@ -12414,11 +12439,13 @@ Visit: %s (Author's site)
                 self.warningIconLbl = JLabel("")
                 self.warningIconLbl.setBorder(EmptyBorder(0, 2, 0, 2))
 
-                self.titlePnl.add(self.collapsableIconLbl, GridC.getc().xy(0, 0).wx(0.1).east())
-                self.titlePnl.add(self.printIconLbl, GridC.getc().xy(1, 0).wx(0.1).center())
-                self.titlePnl.add(self.SelectorIconLbl, GridC.getc().xy(2, 0).wx(0.1).center())
-                self.titlePnl.add(self.warningIconLbl, GridC.getc().xy(3, 0).wx(0.1).center())
-                self.titlePnl.add(self.headerLabel, GridC.getc().xy(4, 0).wx(9.0).fillx().west())
+                lblCol = 0
+                self.titlePnl.add(self.collapsableIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).east());  lblCol += 1
+                self.titlePnl.add(self.debugIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());      lblCol += 1
+                self.titlePnl.add(self.printIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());      lblCol += 1
+                self.titlePnl.add(self.SelectorIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());   lblCol += 1
+                self.titlePnl.add(self.warningIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());    lblCol += 1
+                self.titlePnl.add(self.headerLabel, GridC.getc().xy(lblCol, 0).wx(9.0).fillx().west()); lblCol += 1
 
                 # self.headerPanel.add(self.headerLabel, GridC.getc().xy(0, 0).wx(1.0).fillx().west())
                 self.headerPanel.add(self.titlePnl, GridC.getc().xy(0, 0).wx(1.0).fillx().east())
@@ -12531,6 +12558,9 @@ Visit: %s (Author's site)
 
                     loadWarningIcon()
 
+
+                    # Always set the debug icon (if running debug)...
+                    _view.debugIconLbl.setIcon(NAB.debugIcon if debug else None)
 
                     if not NAB.savedExpandedView and NAB.configSaved:
                         if debug: myPrint("DB", "Widget is collapsed, so doing nothing....")
