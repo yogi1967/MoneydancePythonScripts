@@ -514,7 +514,7 @@ else:
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
-    GlobalVars.specialDebug = True;
+    GlobalVars.specialDebug = False
 
     GlobalVars.Strings.SWSS_COMMON_CODE_NAME = "StuWareSoftSystems_CommonCode"
 
@@ -5540,13 +5540,13 @@ Visit: %s (Author's site)
             myPrint("DB", ".. Decimal set to '%s', Comma set to '%s'" %(self.decimal, self.comma))
 
             loadPrinterIcon(reloadPrinterIcon=True)
-            myPrint("DB", ".. Reloaded Printer icon...")
+            myPrint("DB", ".. (Re)loaded Printer icon...")
 
             loadWarningIcon(reloadWarningIcon=True)
-            myPrint("DB", ".. Reloaded Warning icon...")
+            myPrint("DB", ".. (Re)loaded Warning icon...")
 
             loadSelectorIcon(reloadSelectorIcon=True)
-            myPrint("DB", ".. Reloaded Selector icon...")
+            myPrint("DB", ".. (Re)loaded Selector icon...")
 
             newThemeID = prefs.getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)
             if self.themeID and self.themeID != newThemeID:
@@ -5911,7 +5911,7 @@ Visit: %s (Author's site)
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
                 NAB = NetAccountBalancesExtension.getNAB()
-                NAB.storeJTextFieldsForSelectedRow()
+                NAB.storeJTextFieldsForSelectedRow()            # Only runs within open GUI
 
                 config = "%s_extension.dict" %(NAB.myModuleID)
                 backup = "%s_extension.dict_backup" %(NAB.myModuleID)
@@ -6044,7 +6044,7 @@ Visit: %s (Author's site)
                 myPrint("DB", "... SwingUtilities.isEventDispatchThread() returns: %s" %(SwingUtilities.isEventDispatchThread()))
 
                 NAB = NetAccountBalancesExtension.getNAB()
-                NAB.storeJTextFieldsForSelectedRow()
+                NAB.storeJTextFieldsForSelectedRow()            # Only runs within open GUI
 
                 showLastTxt = ""
 
@@ -6108,7 +6108,8 @@ Visit: %s (Author's site)
                 myPrint("DB", "In EditRememberedGroupIDFilters::%s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
 
                 NAB = NetAccountBalancesExtension.getNAB()
-                NAB.storeJTextFieldsForSelectedRow()
+
+                if self.fromGUI: NAB.storeJTextFieldsForSelectedRow()   # Don't do this if calling from the widget..!
 
                 class MyJTable(JTable, MouseListener):
                     GROUPFILTER_NAME_IDX = 0
@@ -6142,6 +6143,7 @@ Visit: %s (Author's site)
 
                         self.setDragEnabled(False)
                         self.addMouseListener(self)
+                        # self.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE)
 
                     def mouseClicked(self, evt): pass
                     def mousePressed(self, evt): self.doDelete(evt)
@@ -6207,6 +6209,9 @@ Visit: %s (Author's site)
                 # user_autoExtractWhenFileClosing.addActionListener(warnAlert)
                 dlg.setVisible(True)
 
+                ce = jtable.getCellEditor()
+                if ce is not None: ce.stopCellEditing()
+
                 rtnValue = pane.getValue()
                 _userAction = -1
                 for i in range(0, len(options)):
@@ -6215,8 +6220,19 @@ Visit: %s (Author's site)
                         break
 
                 if _userAction != 1:
-                    myPrint("DB", "... user cancelled any changes to remembered groupid filters... quitting...")
-                    return
+                    lAnyChanges = False
+                    if len(quickList) != dtm.getRowCount():
+                        lAnyChanges = True
+                    else:
+                        for i in range(0, len(quickList)):
+                            if (quickList[i][0] != dtm.getValueAt(i, 0).strip()                                         # noqa
+                                    or quickList[i][1] != dtm.getValueAt(i, 1).strip()):                                # noqa
+                                lAnyChanges = True
+                                break
+
+                    if (lAnyChanges and not myPopupAskQuestion(self.theFrame, "ALERT: YOU HAVE CHANGED THE FILTERS", "Click YES to store your changes (ESC/NO will quit without save)?")):
+                        myPrint("DB", "... user cancelled any changes to remembered groupid filters... quitting...")
+                        return
 
                 myPrint("DB", "... rebuilding savedPresavedFilterByGroupIDsTable - wiping first...")
                 NAB.savedPresavedFilterByGroupIDsTable = NAB.presavedFilterByGroupIDsDefault()
@@ -6241,7 +6257,7 @@ Visit: %s (Author's site)
                             myPrint("DB", "... From SummaryPage Widget confirmed that current savedFilterByGroupID: '%s' still exists in revised remembered list... doing nothing...." %(NAB.savedFilterByGroupID))
                     else:
                         myPrint("DB", "... From SummaryPage Widget confirmed that current savedFilterByGroupID: '%s' is empty - doing nothing...." %(NAB.savedFilterByGroupID))
-                    NAB.saveFiltersIntoSettings();
+                    NAB.saveFiltersIntoSettings()
                 else:
                     NAB.configSaved = False
 
@@ -8306,7 +8322,6 @@ Visit: %s (Author's site)
                     if event.getSource().getName().lower() == "rowSelected_COMBO".lower():
                         myPrint("DB", ".. setting selected row to configure to: %s" %(event.getSource().getSelectedIndex()+1))
 
-                        # NAB.storeJTextFieldsForSelectedRow();
                         NAB.rebuildFrameComponents(selectRowIndex=event.getSource().getSelectedIndex())
 
                 # ######################################################################################################
@@ -8477,7 +8492,6 @@ Visit: %s (Author's site)
                 if event.getActionCommand().lower().startswith("save"):
 
                     # Buttons auto-save themselves
-                    # NAB.storeJTextFieldsForSelectedRow();
                     NAB.storeCurrentJListSelected()
 
                     if NAB.savedWidgetName[NAB.getSelectedRowIndex()].strip() == "":
@@ -9695,7 +9709,7 @@ Visit: %s (Author's site)
                     controlPnl.add(rowNameLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset).topInset(topInset))
                     onCol += 1
 
-                    NAB.widgetNameField_JTF = MyJTextField("**not set**"); "WHY";
+                    NAB.widgetNameField_JTF = MyJTextField("**not set**")
                     NAB.widgetNameField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setName("widgetNameField_JTF")
                     NAB.widgetNameField_JTF.setToolTipText("Set the name displayed for this row (See help for <#> & html formatting codes)")
@@ -10650,6 +10664,7 @@ Visit: %s (Author's site)
                         sleepTimeMS = 500
                         if GlobalVars.specialDebug or debug: myPrint("B", "... GetMoneydanceUIRunnable sleeping for %sms..." %(sleepTimeMS))
                         Thread.sleep(sleepTimeMS)
+                        if GlobalVars.specialDebug or debug: myPrint("B", "...... back from sleep....")
                         cumulativeSleepTimeMS += sleepTimeMS
                         while cumulativeSleepTimeMS < abortAfterSleepMS:
                             if self.callingClass.moneydanceContext.getCurrentAccountBook() is not None:
@@ -11242,6 +11257,7 @@ Visit: %s (Author's site)
         @staticmethod
         def showSelectorPopup(comp, fromHomeScreenWidget, fromGUI):
 
+            myPrint("DB", "In HPV::showSelectorPopup() about to build the selector popup...")
             class GroupIDFilterAction(AbstractAction):
                 def __init__(self, _fromHomeScreenWidget, _fromGUI, _groupidfiltertoapply, _displayName, _nab, editFilters=False):
                     super(self.__class__, self).__init__(_displayName)
@@ -11258,8 +11274,7 @@ Visit: %s (Author's site)
                         genericSwingEDTRunner(False, False, pgidf.actionPerformed, None)
                     elif self.fromHomeScreenWidget:
                         self.nab.savedFilterByGroupID = self.groupIDFilterToApply
-                        # self.nab.configSaved = False
-                        self.nab.saveFiltersIntoSettings();
+                        self.nab.saveFiltersIntoSettings()
                         self.nab.executeRefresh()
                     elif self.fromGUI:
                         myPrint("DB", "... about to call .filterByGroupID_JTF.setText('%s')" %(self.groupIDFilterToApply))
@@ -11274,7 +11289,9 @@ Visit: %s (Author's site)
                 displayName = "%s" %("%s: '%s'" %(filterName, groupIDFilter) if filterName != GlobalVars.FILTER_NAME_NOT_DEFINED else "'%s'" %(groupIDFilter))
                 groupIDMenu.add(GroupIDFilterAction(fromHomeScreenWidget, fromGUI, groupIDFilter, displayName, NAB))
             groupIDMenu.add(GroupIDFilterAction(fromHomeScreenWidget, fromGUI, "", "<EDIT FILTERS>", NAB, editFilters=True))
+            myPrint("DB", "... about to show the selector popup...")
             groupIDMenu.show(comp, 0, comp.getHeight())
+            myPrint("DB", "... back from .show() the selector popup...")
 
         def areAnyViewsActive(self, obtainLockFirst=True):
             with (self.HPV_LOCK if (obtainLockFirst) else NoneLock()):
@@ -11400,6 +11417,10 @@ Visit: %s (Author's site)
 
                 # todo - do I want to call this here?
                 NAB.searchAndStoreGroupIDs(NAB.savedFilterByGroupID);        # Ensure the cache of remembered GroupIDs is current...
+
+                tookTime = System.currentTimeMillis() - startTime
+                if debug: myPrint("DB", "calculateBalances() STAGE0 (searchAndStoreGroupIDs) >> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+                startTime = System.currentTimeMillis()
 
                 # Derive the other row we need (when using other row(s) as part of the maths) when simulating...
                 if justIndex is None:
