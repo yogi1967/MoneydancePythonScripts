@@ -6126,6 +6126,17 @@ Visit: %s (Author's site)
 
                 if self.fromGUI: NAB.storeJTextFieldsForSelectedRow()   # Don't do this if calling from the widget..!
 
+                class MyFocusListener(FocusListener):
+                    def focusGained(self, evt): evt.getSource().selectAll()
+                    def focusLost(self, evt): pass
+
+                class MyCellEditor(DefaultCellEditor):
+                    def __init__(self, textField):
+                        # type: (JTextField) -> None
+                        super(self.__class__, self).__init__(textField)
+                        self.setClickCountToStart(1)
+                        textField.addFocusListener(MyFocusListener())
+
                 class MyJTable(JTable, MouseListener):
                     GROUPFILTER_NAME_IDX = 0
                     GROUPFILTER_IDX = 1
@@ -6155,6 +6166,8 @@ Visit: %s (Author's site)
                                 tcm.setMinWidth(w)
                                 tcm.setMaxWidth(w)
                                 tcm.setWidth(w)
+                            if _i == self.GROUPFILTER_NAME_IDX:
+                                tcm.setCellEditor(MyCellEditor(JTextField()))
 
                         self.setDragEnabled(False)
                         self.addMouseListener(self)
@@ -12197,11 +12210,6 @@ Visit: %s (Author's site)
                                             setWarningIcon = NAB.warningIcon
                                 _view.warningIconLbl.setIcon(setWarningIcon)
 
-                                if len(NAB.savedPresavedFilterByGroupIDsTable) > 0:
-                                    _view.SelectorIconLbl.setIcon(NAB.selectorIcon);
-                                else:
-                                    _view.SelectorIconLbl.setIcon(None)
-
                                 if NAB.warningInParametersDetected and lAnyShowWarningsEnabled:
                                     warningTypeText = NAB.getWarningType(NAB.warningInParametersDetectedType)
                                     warningText = "* '%s' (row: %s) *" %(warningTypeText, "multi" if not NAB.warningInParametersDetectedInRow else NAB.warningInParametersDetectedInRow)
@@ -12362,11 +12370,11 @@ Visit: %s (Author's site)
                         myPrint("DB", "mousePressed: detected warningIconLbl... going for ShowWarnings.showWarnings() (later)....")
                         genericSwingEDTRunner(False, False, ShowWarnings.showWarnings)
 
-                elif evt.getSource() is self.SelectorIconLbl:
+                elif evt.getSource() is self.selectorIconLbl:
                     if NAB.configPanelOpen:
                         myPrint("B", "Alert - Blocking GroupID Filter selector as widget config gui is open...!")
                     else:
-                        myPrint("DB", "mousePressed: detected SelectorIconLbl... going for showSelectorPopup (now)....")
+                        myPrint("DB", "mousePressed: detected selectorIconLbl... going for showSelectorPopup (now)....")
                         MyHomePageView.showSelectorPopup(evt.getSource(), True, False)
 
             def mouseClicked(self, evt): pass
@@ -12433,8 +12441,8 @@ Visit: %s (Author's site)
                 self.printIconLbl = JLabel("")
                 self.printIconLbl.setBorder(EmptyBorder(0, 2, 0, 2))
 
-                self.SelectorIconLbl = JLabel("")
-                self.SelectorIconLbl.setBorder(EmptyBorder(0, 2, 0, 2))   # t l b r
+                self.selectorIconLbl = JLabel("")
+                self.selectorIconLbl.setBorder(EmptyBorder(0, 2, 0, 2))   # t l b r
 
                 self.warningIconLbl = JLabel("")
                 self.warningIconLbl.setBorder(EmptyBorder(0, 2, 0, 2))
@@ -12443,7 +12451,7 @@ Visit: %s (Author's site)
                 self.titlePnl.add(self.collapsableIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).east());  lblCol += 1
                 self.titlePnl.add(self.debugIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());      lblCol += 1
                 self.titlePnl.add(self.printIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());      lblCol += 1
-                self.titlePnl.add(self.SelectorIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());   lblCol += 1
+                self.titlePnl.add(self.selectorIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());   lblCol += 1
                 self.titlePnl.add(self.warningIconLbl, GridC.getc().xy(lblCol, 0).wx(0.1).center());    lblCol += 1
                 self.titlePnl.add(self.headerLabel, GridC.getc().xy(lblCol, 0).wx(9.0).fillx().west()); lblCol += 1
 
@@ -12466,7 +12474,7 @@ Visit: %s (Author's site)
                 if NAB.SWSS_CC is not None:
                     self.printIconLbl.addMouseListener(self)
                     self.warningIconLbl.addMouseListener(self)
-                    self.SelectorIconLbl.addMouseListener(self)
+                    self.selectorIconLbl.addMouseListener(self)
 
             def updateUI(self):
                 if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -12567,6 +12575,7 @@ Visit: %s (Author's site)
                         _view.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor(GlobalVars.Strings.MD_GLYPH_TRIANGLE_RIGHT, NAB.moneydanceContext.getUI().getColors().secondaryTextFG))
                         _view.printIconLbl.setIcon(None)
                         _view.warningIconLbl.setIcon(None)
+                        _view.selectorIconLbl.setIcon(None)
                         _view.listPanel.removeAll()
                         _view.listPanel.getParent().revalidate()
                         _view.listPanel.getParent().repaint()
@@ -12574,6 +12583,11 @@ Visit: %s (Author's site)
                     else:
 
                         NAB.savedExpandedView = True        # Override as expanded in case it was collapsed but not saved....
+
+                        if len(NAB.savedPresavedFilterByGroupIDsTable) > 0:
+                            _view.selectorIconLbl.setIcon(NAB.selectorIcon);
+                        else:
+                            _view.selectorIconLbl.setIcon(None)
 
                         if not NAB.configSaved:
                             _view.collapsableIconLbl.setIcon(md.getUI().getImages().getIconWithColor(GlobalVars.Strings.MD_GLYPH_REMINDERS, NAB.moneydanceContext.getUI().getColors().secondaryTextFG))
