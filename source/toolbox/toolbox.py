@@ -202,7 +202,7 @@
 #               Cleaned up references holding onto MD Objects....
 #               Added advanced_show_encryption_keys() feature
 #               Build: 5036 - changed MoneyForesight fields - fixed disable MFS feature...
-# build: 1061 - ???
+# build: 1061 - Added closeBotInterface() and set moneyBotInterface to None when closing dataset....; Added 'moneyBotInterface' to .gatherJVMDiagnostics()
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -3893,7 +3893,9 @@ Visit: %s (Author's site)
             # Shutdown the Alert Controller... When we open a new dataset it should reset itself.....
             shutdownMDAlertController()
 
+            myPrint("DB", "... closing [Money]BotInterface and setting 'moneyBotInterface' to None..")
             MD_REF.getUI().closeBotInterface()
+            setFieldByReflection(MD_REF.getUI(), "moneyBotInterface", None)
 
             wr_bookToClose.get().setUndoManager(None)                                                                   # noqa
 
@@ -27295,6 +27297,12 @@ now after saving the file, restart Moneydance
                     if debug:
                         myPrint("B", "@@ ERROR: Failed to get syncThread / syncTasks?")
                         dump_sys_error_to_md_console_and_errorlog()
+
+
+                mbotRef = getFieldByReflection(MD_REF.getUI(), "moneyBotInterface")
+                mbotBookRef = None if mbotRef is None else getFieldByReflection(mbotRef, "book")
+                diagTxt += "\nMoneydanceGUI: PythonInterface moneyBotInterface reference: '%s' (book: '%s')\n" %(mbotRef, mbotBookRef)
+                del mbotRef, mbotBookRef
 
                 diagTxt += "\n\nWindows:\n" \
                            " -------\n"
