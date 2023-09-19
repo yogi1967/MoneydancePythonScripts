@@ -129,6 +129,10 @@ EXAMINING THE CHOICES/CONFIGURATION:
   - You will also see a small (3 vertical bars) icon to the right of account totals in the list window when this occurs.
 
 
+- Inactive Securities: You can flag a security as inactive by unticking the 'Show on summary page' box on a security
+                       in the MD/Tools/Securities menu. This will then treat this security in ALL investment accounts
+                       as INACTIVE.
+
 USING CATEGORIES:
 
 - Income / Expense Categories:

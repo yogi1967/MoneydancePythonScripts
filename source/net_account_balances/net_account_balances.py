@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1031 - Sept 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1032 - Sept 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -142,6 +142,7 @@
 # build: 1031 - Added [row] number to widget display when debug mode...;
 #               Added new warning icon to widget and GUI, also menu option to disable. CMD-SHIFT-W & 'Warnings console' popup display
 #               Added CMD-SHIFT-G to enable popup GroupID Filter pre-saved/used selection(s)....
+# build: 1032 - Issuing new build number...
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -151,7 +152,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1031"
+version_build = "1032"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -3619,7 +3620,7 @@ Visit: %s (Author's site)
         return True
 
     def accountIncludesInactiveChildren(acct, balType, sudoAccount=None):                                               # noqa
-        # type: (Account, int, HoldBalance) -> bool
+        # type: (Account, int, HoldBalance) -> Account
 
         for child in acct.getSubAccounts():
 
@@ -11313,7 +11314,7 @@ Visit: %s (Author's site)
                         self.nab.executeRefresh()
                     elif self.fromGUI:
                         myPrint("DB", "... about to call .filterByGroupID_JTF.setText('%s')" %(self.groupIDFilterToApply))
-                        self.nab.filterByGroupID_JTF.setText(self.groupIDFilterToApply);
+                        self.nab.filterByGroupID_JTF.setText(self.groupIDFilterToApply)
                         self.nab.storeJTextFieldsForSelectedRow()
                         self.nab.simulateTotalForRow()
 
@@ -11451,7 +11452,7 @@ Visit: %s (Author's site)
                 isParallelBalanceTableOperational()
 
                 # todo - do I want to call this here?
-                NAB.searchAndStoreGroupIDs(NAB.savedFilterByGroupID);        # Ensure the cache of remembered GroupIDs is current...
+                NAB.searchAndStoreGroupIDs(NAB.savedFilterByGroupID)      # Ensure the cache of remembered GroupIDs is current...
 
                 tookTime = System.currentTimeMillis() - startTime
                 if debug: myPrint("DB", "calculateBalances() STAGE0 (searchAndStoreGroupIDs) >> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
@@ -11657,8 +11658,8 @@ Visit: %s (Author's site)
                                                     lWarningDetected = True
                                                     iWarningType = (2 if (iWarningType is None or iWarningType == 2) else 0)
                                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                                    warnTxt = ("WARNING: Row: %s >> AutoSum ON, Excluding Inactive Accounts, BUT account: '%s' includes inactive child with a balance: '%s' (stopping further checks...)"
-                                                               %(onRow, acct, inactiveChild))
+                                                    warnTxt = ("WARNING: Row: %s >> AutoSum ON, Excluding Inactive Accounts, BUT account: '%s' includes inactive child with a balance: '%s' [Tools/Accounts.getAccountIsInactive(): %s, Tools/Securities.getHideOnHomePage: '%s'] (stopping further checks...)"
+                                                               %(onRow, acct, inactiveChild, inactiveChild.getAccountIsInactive(), inactiveChild.getHideOnHomePage()))
                                                     myPrint("B", warnTxt)
                                                     NAB.warningMessagesTable.append(warnTxt)
                                                     lFoundAutoSumInActiveChildInThisThisRowWarning = True
@@ -12585,7 +12586,7 @@ Visit: %s (Author's site)
                         NAB.savedExpandedView = True        # Override as expanded in case it was collapsed but not saved....
 
                         if len(NAB.savedPresavedFilterByGroupIDsTable) > 0:
-                            _view.selectorIconLbl.setIcon(NAB.selectorIcon);
+                            _view.selectorIconLbl.setIcon(NAB.selectorIcon)
                         else:
                             _view.selectorIconLbl.setIcon(None)
 
