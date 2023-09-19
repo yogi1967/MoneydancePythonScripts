@@ -48,7 +48,6 @@ unset md_passphrase
 
 # set to "" for standard app install name (I add the version and build to the app name when installing)
 #md_version=""
-#md_version=" 2023.2 (503X) KOTLIN COMPILED ALL"
 md_version=" 2023.2 (5037) KOTLIN COMPILED ALL"
 
 # Download/install OpenAdoptJDK (Hotspot) v15: https://adoptopenjdk.net/?variant=openjdk15&jvmVariant=hotspot
