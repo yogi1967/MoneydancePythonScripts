@@ -24909,6 +24909,8 @@ now after saving the file, restart Moneydance
         It deletes txns, price history, attachments from the clone (rather than recreating a new structure. The next evolution
         of this function will allow recreation of balances and cutoff dates"""
 
+        # todo - consider whether to provide options to zap md+ settings, reset password etc...
+
         _THIS_METHOD_NAME = "Clone Dataset".upper()
         PARAMETER_KEY = "toolbox_clone_dataset"
 
