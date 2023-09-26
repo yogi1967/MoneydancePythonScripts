@@ -353,6 +353,7 @@ http://jakarta.apache.org/ant/index.html
     # Java compile into $py.class for faster launch time....
     # Note: you can also add -Dpython.cpython2=python to the java command below so that compile_file auto runs the pyc file generation above
     # (thus eliminate the above python2.7 -m py_compile command)
+    # >> Seems to create bytecode version: 50.0 (Java 6) .class files...
     -->
     <echo level="info" message="COMPILING Jython script to create java $py.class file" />
     <java newenvironment="true"

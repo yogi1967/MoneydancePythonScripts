@@ -212,6 +212,8 @@
 # todo - add SwingWorker Threads as appropriate (on heavy duty methods)
 # todo - change from str() to unicode() where appropriate...
 # todo - com.moneydance.apps.md.controller.olb.MoneybotURLStreamHandlerFactory.REQUEST_LOG_BASE = File("/Users/xxx/moneydance_http_logs")
+# todo - consider removing toolbox.py source code now that it's compiled and we launch a .class file...
+# todo - advanced_clone_dataset() - consider whether to provide options to zap md+ settings, reset password etc...
 
 # NOTE: Toolbox will connect to the internet to gather some data. IT WILL NOT SEND ANY OF YOUR DATA OUT FROM YOUR SYSTEM....:
 # 1. At launch it connects to the Author's code site to get information about the latest version of Toolbox and version requirements
@@ -220,7 +222,7 @@
 
 # NOTE - I Use IntelliJ IDE - you may see # noinspection Pyxxxx or # noqa comments
 # These tell the IDE to ignore certain irrelevant/erroneous warnings being reporting:
-# Further options at: https://www.jetbrains.com/help/pycharm/disabling-and-enabling-inspections.html#comments-ref
+# Further options at: https://ww`w.jetbrains.com/help/pycharm/disabling-and-enabling-inspections.html#comments-ref
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -621,7 +623,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.2
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5039
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5041
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -24908,8 +24910,6 @@ now after saving the file, restart Moneydance
         """This feature clones the open dataset. It takes a backup, restores the backup, wipes sync, removes transactional data.
         It deletes txns, price history, attachments from the clone (rather than recreating a new structure. The next evolution
         of this function will allow recreation of balances and cutoff dates"""
-
-        # todo - consider whether to provide options to zap md+ settings, reset password etc...
 
         _THIS_METHOD_NAME = "Clone Dataset".upper()
         PARAMETER_KEY = "toolbox_clone_dataset"
