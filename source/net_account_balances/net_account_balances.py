@@ -663,6 +663,11 @@ Visit: %s (Author's site)
         # myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
         # del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
 
+        myPrint("DB", "... destroying own reference to frame('net_account_balances_frame_')...")
+        global net_account_balances_frame_
+        net_account_balances_frame_ = None
+        del net_account_balances_frame_
+
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 

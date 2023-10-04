@@ -203,6 +203,7 @@
 #               Added advanced_show_encryption_keys() feature
 #               Build: 5036 - changed MoneyForesight fields - fixed disable MFS feature...
 # build: 1061 - Added closeBotInterface() and set moneyBotInterface to None when closing dataset....; Added 'moneyBotInterface' to .gatherJVMDiagnostics()
+#               More memory leak cleanups....; Added: CMD-G - Requests the JVM to run Garbage Collection....
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
 
@@ -623,7 +624,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.2
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5044
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5045
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -741,6 +742,11 @@ Visit: %s (Author's site)
         GlobalVars.mainPnl_toolboxUnlocked_lbl = None
         GlobalVars.SCRIPT_RUNNING_LOCK = None
         GlobalVars.parametersLoadedFromFile = None
+
+        myPrint("DB", "... destroying own reference to frame('toolbox_frame_')...")
+        global toolbox_frame_
+        toolbox_frame_ = None
+        del toolbox_frame_
 
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
@@ -3412,6 +3418,7 @@ Visit: %s (Author's site)
         global advanced_options_encrypt_file_into_dataset, advanced_options_encrypt_file_into_sync_folder
         global advanced_options_decrypt_file_from_dataset, advanced_options_decrypt_file_from_sync
         global advanced_options_decrypt_dataset, advanced_show_encryption_keys
+        global CollectTheGarbage
 
         _extraCodeString = myModuleID + "_extra_code" + ".py"
         if MD_EXTENSION_LOADER is not None:
@@ -8322,7 +8329,6 @@ Visit: %s (Author's site)
                                               "PICKLE: CHANGE",
                                               JOptionPane.WARNING_MESSAGE)
                     continue
-
 
     def can_I_delete_currency():
         myPrint("B", "Analysing whether you can delete a Currency, or show where it's used....")
@@ -29319,6 +29325,10 @@ now after saving the file, restart Moneydance
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_P, shortcut), "display-pickle")
             toolbox_frame_.getRootPane().getActionMap().put("display-pickle", DisplayPickleFile())
+
+            if GlobalVars.EXTRA_CODE_INITIALISED:
+                toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_G, shortcut), "collect-the-garbage")
+                toolbox_frame_.getRootPane().getActionMap().put("collect-the-garbage", CollectTheGarbage())
 
             toolbox_frame_.getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_U, (shortcut | Event.SHIFT_MASK)), "display-UUID")
             toolbox_frame_.getRootPane().getActionMap().put("display-UUID", self.DisplayUUID(toolbox_frame_))

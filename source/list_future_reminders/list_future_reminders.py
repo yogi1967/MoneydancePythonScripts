@@ -519,6 +519,11 @@ Visit: %s (Author's site)
         GlobalVars.tableHeaderRowList = None
         GlobalVars.parametersLoadedFromFile = None
 
+        myPrint("DB", "... destroying own reference to frame('list_future_reminders_frame_')...")
+        global list_future_reminders_frame_
+        list_future_reminders_frame_ = None
+        del list_future_reminders_frame_
+
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -4130,7 +4135,7 @@ Visit: %s (Author's site)
                     loopDetector += 1
                     if loopDetector > 10000:
                         myPrint("B","Loop detected..? Breaking out.... Reminder %s" %(rem))
-                        myPopupInformationBox(list_future_reminders_frame_,"ERROR - Loop detected..?! Will exit (review console log)",theMessageType=JOptionPane.ERROR_MESSAGE)
+                        myPopupInformationBox(list_future_reminders_frame_, "ERROR - Loop detected..?! Will exit (review console log)",theMessageType=JOptionPane.ERROR_MESSAGE)
                         raise Exception("Loop detected..? Aborting.... Reminder %s" %(rem))
 
                     calcNext = myGetNextOccurance(rem, nextDate, stopDate)
@@ -4512,7 +4517,6 @@ Visit: %s (Author's site)
                     MD_REF.getCurrentAccountBook().getReminders().removeReminderListener(self.reminderListener)
 
                 cleanup_actions(self.theFrame)
-
 
         class MouseListener(MouseAdapter):
 

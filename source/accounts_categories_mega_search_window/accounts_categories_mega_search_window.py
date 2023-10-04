@@ -425,6 +425,11 @@ Visit: %s (Author's site)
         # myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
         # del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
 
+        myPrint("DB", "... destroying own reference to frame('accounts_categories_mega_search_window_frame_')...")
+        global accounts_categories_mega_search_window_frame_
+        accounts_categories_mega_search_window_frame_ = None
+        del accounts_categories_mega_search_window_frame_
+
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
@@ -3352,17 +3357,12 @@ Visit: %s (Author's site)
                     self.saveTableModelReference.fireTableDataChanged()
 
                 def dispose(self):
-                    global accounts_categories_mega_search_window_frame_
                     myPrint("DB", "within dispose()")
                     self.isActiveInMoneydance = False
                     myPrint("DB", "... nuking reference to 'storage'")
                     setFieldByReflection(self, "storage", None)
                     myPrint("DB", "... will call (super) original dispose")
                     super(self.__class__, self).dispose()
-
-                    myPrint("DB", "... destroying own reference to frame('accounts_categories_mega_search_window_frame_')...")
-                    accounts_categories_mega_search_window_frame_ = None
-                    del accounts_categories_mega_search_window_frame_
 
                 def searchFiltersUpdated(self):
                     myPrint("DB", "within searchFiltersUpdated()")
