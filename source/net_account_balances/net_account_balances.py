@@ -5494,19 +5494,20 @@ Visit: %s (Author's site)
 
         ################################################################################################################
         class CalUnit:
+            # Note: The set repeats for negitive options...
             NOTSET_IDX = 0
             NOTSET_ID = "notset"
             NOTSET_DISPLAY = "NOT SET"
-            DAYS_IDX = 1
+            DAYS_IDX = [1, 5]
             DAYS_ID = "days"
             DAYS_DISPLAY = "DAYS"
-            WEEKS_IDX = 2
+            WEEKS_IDX = [2, 6]
             WEEKS_ID = "weeks"
             WEEKS_DISPLAY = "WEEKS"
-            MONTHS_IDX = 3
+            MONTHS_IDX = [3, 7]
             MONTHS_ID = "months"
             MONTHS_DISPLAY = "MONTHS"
-            YEARS_IDX = 4
+            YEARS_IDX = [4, 8]
             YEARS_ID = "years"
             YEARS_DISPLAY = "YEARS"
 
@@ -5515,10 +5516,10 @@ Visit: %s (Author's site)
                 # type: (int) -> NetAccountBalancesExtension.CalUnit
                 NAB = NetAccountBalancesExtension.getNAB()
                 if index == NAB.CalUnit.NOTSET_IDX: return NAB.CalUnit(NAB.CalUnit.NOTSET_ID)
-                elif index == NAB.CalUnit.DAYS_IDX: return NAB.CalUnit(NAB.CalUnit.DAYS_ID)
-                elif index == NAB.CalUnit.WEEKS_IDX: return NAB.CalUnit(NAB.CalUnit.WEEKS_ID)
-                elif index == NAB.CalUnit.MONTHS_IDX: return NAB.CalUnit(NAB.CalUnit.MONTHS_ID)
-                elif index == NAB.CalUnit.YEARS_IDX: return NAB.CalUnit(NAB.CalUnit.YEARS_ID)
+                elif index in NAB.CalUnit.DAYS_IDX: return NAB.CalUnit(NAB.CalUnit.DAYS_ID, reverseSign=(index > NAB.CalUnit.YEARS_IDX[0]))
+                elif index in NAB.CalUnit.WEEKS_IDX: return NAB.CalUnit(NAB.CalUnit.WEEKS_ID, reverseSign=(index > NAB.CalUnit.YEARS_IDX[0]))
+                elif index in NAB.CalUnit.MONTHS_IDX: return NAB.CalUnit(NAB.CalUnit.MONTHS_ID, reverseSign=(index > NAB.CalUnit.YEARS_IDX[0]))
+                elif index in NAB.CalUnit.YEARS_IDX: return NAB.CalUnit(NAB.CalUnit.YEARS_ID, reverseSign=(index > NAB.CalUnit.YEARS_IDX[0]))
                 else: raise Exception("ERROR: Invalid index passed ('%s')" %(index))
 
             @staticmethod
@@ -5559,31 +5560,33 @@ Visit: %s (Author's site)
                 if calUnitsBetween == 0 and not lAllowZeroResult:
                     if debug: myPrint("DB", "@@ WARNING - 'calUnitsBetween' zero result detected - returning 1")
                     calUnitsBetween = 1
-                return float(calUnitsBetween)
+                return float(calUnitsBetween * calUnit.multiplier)
 
-            def __init__(self, typeID):
-                # type: (basestring) -> None
+            def __init__(self, typeID, reverseSign=False):
+                # type: (basestring, bool) -> None
                 """Call with one of 'notset', 'days', 'weeks', 'months', 'years' to create a CalUnit of that type"""
                 self.typeID = typeID
+                localIdx = 0 if not reverseSign else 1
+                self.multiplier = 1.0 if not reverseSign else -1.0
                 if typeID == self.__class__.NOTSET_ID:
                     self.index = self.__class__.NOTSET_IDX
                     self.comboDisplay = self.__class__.NOTSET_DISPLAY
                 elif typeID == self.__class__.DAYS_ID:
-                    self.index = self.__class__.DAYS_IDX
+                    self.index = self.__class__.DAYS_IDX[localIdx]
                     self.comboDisplay = self.__class__.DAYS_DISPLAY
                 elif typeID == self.__class__.WEEKS_ID:
-                    self.index = self.__class__.WEEKS_IDX
+                    self.index = self.__class__.WEEKS_IDX[localIdx]
                     self.comboDisplay = self.__class__.WEEKS_DISPLAY
                 elif typeID == self.__class__.MONTHS_ID:
-                    self.index = self.__class__.MONTHS_IDX
+                    self.index = self.__class__.MONTHS_IDX[localIdx]
                     self.comboDisplay = self.__class__.MONTHS_DISPLAY
                 elif typeID == self.__class__.YEARS_ID:
-                    self.index = self.__class__.YEARS_IDX
+                    self.index = self.__class__.YEARS_IDX[localIdx]
                     self.comboDisplay = self.__class__.YEARS_DISPLAY
                 else: raise Exception("ERROR: Invalid typeID passed ('%s')" %(typeID))
 
             def getTypeID(self): return self.typeID
-            def getComboDisplay(self): return self.comboDisplay
+            def getComboDisplay(self): return "%s%s" %("+" if (self.multiplier >= 0.0) else "-", self.comboDisplay)
 
             def __str__(self):      return self.getComboDisplay()
             def __repr__(self):     return self.__str__()
@@ -7336,7 +7339,7 @@ Visit: %s (Author's site)
             NAB.displayAverage_JRF.setValue(NAB.savedDisplayAverageTable[selectRowIndex])
 
             myPrint("DB", "about to set averageByCalUnit_COMBO..")
-            NAB.averageByCalUnit_COMBO.setSelectedIndex(NAB.savedAverageByCalUnitTable[selectRowIndex])
+            NAB.averageByCalUnit_COMBO.setSelectedIndex(NAB.savedAverageByCalUnitTable[selectRowIndex]);
 
             myPrint("DB", "about to set averageByFractionals_CB..")
             NAB.averageByFractionals_CB.setSelected(NAB.savedAverageByFractionalsTable[selectRowIndex])
@@ -10205,7 +10208,9 @@ Visit: %s (Author's site)
                     displayAverage_pnl.add(NAB.displayAverageCal_lbl, GridC.getc(onAverageCol, onAverageRow).east().leftInset(5))
                     onAverageCol += 1
 
-                    calObjects = [NAB.CalUnit("notset"), NAB.CalUnit("days"), NAB.CalUnit("weeks"), NAB.CalUnit("months"), NAB.CalUnit("years")]
+                    calObjects = [NAB.CalUnit("notset"),
+                                  NAB.CalUnit("days"), NAB.CalUnit("weeks"), NAB.CalUnit("months"), NAB.CalUnit("years"),
+                                  NAB.CalUnit("days", reverseSign=True), NAB.CalUnit("weeks", reverseSign=True), NAB.CalUnit("months", reverseSign=True), NAB.CalUnit("years", reverseSign=True)]
                     NAB.averageByCalUnit_COMBO = MyJComboBox(calObjects)
                     NAB.averageByCalUnit_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "averageByCalUnit_COMBO")
                     NAB.averageByCalUnit_COMBO.setName("averageByCalUnit_COMBO")

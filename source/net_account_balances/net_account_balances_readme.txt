@@ -79,7 +79,7 @@ EXAMINING THE CHOICES/CONFIGURATION:
     - Avg/by: Changes the final displayed calculated balance into an average by dividing the value set (DEFAULT 1.0)
       ...or...
     - I/E (date range): Avg/by no# of:
-      ... Select one of: NOTSET, DAYS, WEEKS, MONTHS, YEARS
+      ... Select one of: NOTSET, DAYS, WEEKS, MONTHS, YEARS (prefixed with "-" will multiple result by -1/reverse sign)
       ... Then tick 'Fractionals' if required - see below.
       ... Only enabled/allowed when Income/Expense categories are selected AND when NOT using 'All dates'
       ... Normally returns a whole (integer) number. E.g. MONTHS between 20240101 - 20240215 = 1 not 1.5 (for example)
