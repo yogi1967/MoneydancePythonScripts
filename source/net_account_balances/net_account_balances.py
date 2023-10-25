@@ -5586,7 +5586,12 @@ Visit: %s (Author's site)
                 else: raise Exception("ERROR: Invalid typeID passed ('%s')" %(typeID))
 
             def getTypeID(self): return self.typeID
-            def getComboDisplay(self): return "%s%s" %("+" if (self.multiplier >= 0.0) else "-", self.comboDisplay)
+
+            def getComboDisplay(self):
+                comboTxt = ""
+                if self.index != self.__class__.NOTSET_IDX:
+                    comboTxt = "+" if (self.multiplier >= 0.0) else "-"
+                return "%s%s" %(comboTxt, self.comboDisplay)
 
             def __str__(self):      return self.getComboDisplay()
             def __repr__(self):     return self.__str__()
@@ -7339,7 +7344,7 @@ Visit: %s (Author's site)
             NAB.displayAverage_JRF.setValue(NAB.savedDisplayAverageTable[selectRowIndex])
 
             myPrint("DB", "about to set averageByCalUnit_COMBO..")
-            NAB.averageByCalUnit_COMBO.setSelectedIndex(NAB.savedAverageByCalUnitTable[selectRowIndex]);
+            NAB.averageByCalUnit_COMBO.setSelectedIndex(NAB.savedAverageByCalUnitTable[selectRowIndex])
 
             myPrint("DB", "about to set averageByFractionals_CB..")
             NAB.averageByFractionals_CB.setSelected(NAB.savedAverageByFractionalsTable[selectRowIndex])
@@ -8930,7 +8935,7 @@ Visit: %s (Author's site)
                     NAB.savedHideControlPanel = not NAB.savedHideControlPanel
                     NAB.menuBarItemHideControlPanel_CB.setSelected(NAB.savedHideControlPanel)
 
-                    hideUnideCollapsiblePanels(NAB.theFrame, not NAB.savedHideControlPanel);
+                    hideUnideCollapsiblePanels(NAB.theFrame, not NAB.savedHideControlPanel)
                     NAB.setAvgByControls(NAB.getSelectedRowIndex())
                     myPrint("DB", "User has changed 'Hide Control Panel' to: %s" %(NAB.savedHideControlPanel))
 
@@ -10593,10 +10598,10 @@ Visit: %s (Author's site)
 
                     topInset = 0
                     bottomInset = 0
-                    "HERE";
+
                     NAB.parallelBalancesWarningLabel = MyJLabel("Key:")
                     NAB.parallelBalancesWarningLabel.putClientProperty("%s.id" %(NAB.myModuleID), "parallelBalancesWarningLabel")
-                    NAB.parallelBalancesWarningLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false");
+                    NAB.parallelBalancesWarningLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
                     controlPnl.add(NAB.parallelBalancesWarningLabel, GridC.getc(onCol, onRow).insets(topInset,colLeftInset,bottomInset,colRightInset).rowspan(2))
 
                     onRow += 1
