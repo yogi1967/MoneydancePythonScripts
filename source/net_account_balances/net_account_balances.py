@@ -5526,8 +5526,8 @@ Visit: %s (Author's site)
             def getCalUnitsBetweenDates(calUnit, startDateInt, endDateInt, lAllowZeroResult=True, lReturnFractionalResult=False):
                 # type: (NetAccountBalancesExtension.CalUnit, int, int, bool, bool) -> float
                 """Calculates the difference between two dates in units specified using Java ChronoUnit.UNIT.between() method.
-                Normally returns a whole integer result (unless Fractionals requested - in which case an estimated result will be calculated).
-                Can return zero. This method converts / returns a float result"""
+                Normally returns a WHOLE integer result (unless 'Fractional' requested - in which case an estimated result will be calculated).
+                This method can return zero, and converts / returns to a float result"""
                 NAB = NetAccountBalancesExtension.getNAB()
 
                 DAYS_IN_WEEK = 7
@@ -5537,24 +5537,25 @@ Visit: %s (Author's site)
 
                 ldStartDate = getLocalDateFromDateInt(startDateInt)
                 ldEndDate = getLocalDateFromDateInt(endDateInt)
-                daysBetween = float(ChronoUnit.DAYS.between(ldStartDate, ldEndDate))
+                ldEndDatePlusOne = ldEndDate.plusDays(1)    # ChronoUnit.UNIT.between() does not include the end date!
+                daysBetween = float(ChronoUnit.DAYS.between(ldStartDate, ldEndDatePlusOne))
                 if calUnit.getTypeID() == NAB.CalUnit.DAYS_ID:
                     calUnitsBetween = daysBetween
                 elif calUnit.getTypeID() == NAB.CalUnit.WEEKS_ID:
                     if lReturnFractionalResult:
                         calUnitsBetween = daysBetween / DAYS_IN_WEEK
                     else:
-                        calUnitsBetween = ChronoUnit.WEEKS.between(ldStartDate, ldEndDate)
+                        calUnitsBetween = ChronoUnit.WEEKS.between(ldStartDate, ldEndDatePlusOne)
                 elif calUnit.getTypeID() == NAB.CalUnit.MONTHS_ID:
                     if lReturnFractionalResult:
                         calUnitsBetween = daysBetween / DAYS_IN_MONTH
                     else:
-                        calUnitsBetween = ChronoUnit.MONTHS.between(ldStartDate, ldEndDate)
+                        calUnitsBetween = ChronoUnit.MONTHS.between(ldStartDate, ldEndDatePlusOne)
                 elif calUnit.getTypeID() == NAB.CalUnit.YEARS_ID:
                     if lReturnFractionalResult:
                         calUnitsBetween = daysBetween / DAYS_IN_YEAR
                     else:
-                        calUnitsBetween = ChronoUnit.YEARS.between(ldStartDate, ldEndDate)
+                        calUnitsBetween = ChronoUnit.YEARS.between(ldStartDate, ldEndDatePlusOne)
                 else: raise Exception("ERROR: Invalid typeID detected ('%s')" %(calUnit.getTypeID()))
                 if debug: myPrint("DB", "CalUnit::getCalUnitsBetweenDates(%s, %s, %s) returning: %s" %(calUnit, ldStartDate, ldEndDate, calUnitsBetween))
                 if calUnitsBetween == 0 and not lAllowZeroResult:
@@ -7000,6 +7001,12 @@ Visit: %s (Author's site)
             NAB.displayAverageCal_lbl.setEnabled(enable_averageByCalUnit)
             NAB.averageByCalUnit_COMBO.setEnabled(enable_averageByCalUnit)
             NAB.averageByFractionals_CB.setEnabled(enable_averageByCalUnit)
+
+            if enable_averageByCalUnit:
+                coreAvgLblPrefixTxt = "or by " if enable_averageByManualEntry else ""
+                coreAvgLblTxt = coreAvgLblPrefixTxt + "Inc/Exp Date Range: number of:"
+                NAB.displayAverageCal_lbl.setText(coreAvgLblTxt)
+
             if lHideControls:
                 NAB.displayAverage_JRF.setVisible(enable_averageByManualEntry)
                 NAB.displayAverageCal_lbl.setVisible(enable_averageByCalUnit)
@@ -8532,7 +8539,7 @@ Visit: %s (Author's site)
                             NAB.setAvgByControls(NAB.getSelectedRowIndex())
                             NAB.simulateTotalForRow()
 
-                if event.getActionCommand().lower().startswith("Fractionals".lower()):
+                if event.getActionCommand().lower().startswith("Fractional".lower()):
                     if event.getSource().getName().lower() == "averageByFractionals_CB".lower():
                         if NAB.savedAverageByFractionalsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
                             myPrint("DB", ".. setting averageByFractionals_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
@@ -10206,7 +10213,7 @@ Visit: %s (Author's site)
                     displayAverage_pnl.add(NAB.displayAverage_JRF, GridC.getc(onAverageCol, onAverageRow).leftInset(5).west())
                     onAverageCol += 1
 
-                    NAB.displayAverageCal_lbl = MyJLabel("I/E (date range): Avg/by no# of:")
+                    NAB.displayAverageCal_lbl = MyJLabel("")
                     NAB.displayAverageCal_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "displayAverageCal_lbl")
                     NAB.displayAverageCal_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
@@ -10219,14 +10226,14 @@ Visit: %s (Author's site)
                     NAB.averageByCalUnit_COMBO = MyJComboBox(calObjects)
                     NAB.averageByCalUnit_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "averageByCalUnit_COMBO")
                     NAB.averageByCalUnit_COMBO.setName("averageByCalUnit_COMBO")
-                    NAB.averageByCalUnit_COMBO.setToolTipText("[OPTIONAL] With Inc/Exp categories & date range, you can average by number of Days, Weeks, Months, Years in the range (overrides avg/by field)")
+                    NAB.averageByCalUnit_COMBO.setToolTipText("[OPTIONAL] With Inc/Exp categories & date range, you can average by number of WHOLE Days, Weeks, Months, Years in the range (overrides avg/by field)")
                     NAB.averageByCalUnit_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.averageByCalUnit_COMBO.addActionListener(NAB.saveActionListener)
 
                     displayAverage_pnl.add(NAB.averageByCalUnit_COMBO, GridC.getc(onAverageCol, onAverageRow).leftInset(5).west())
                     onAverageCol += 1
 
-                    NAB.averageByFractionals_CB = MyJCheckBox("Fractionals", False)
+                    NAB.averageByFractionals_CB = MyJCheckBox("Fractional", False)
                     NAB.averageByFractionals_CB.putClientProperty("%s.id" %(NAB.myModuleID), "averageByFractionals_CB")
                     NAB.averageByFractionals_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.averageByFractionals_CB.setName("averageByFractionals_CB")

@@ -78,15 +78,15 @@ EXAMINING THE CHOICES/CONFIGURATION:
 - Average by options:
     - Avg/by: Changes the final displayed calculated balance into an average by dividing the value set (DEFAULT 1.0)
       ...or...
-    - I/E (date range): Avg/by no# of:
+    - I/E (date range): Avg/by no# of:                                               (Read below. The key word is WHOLE)
       ... Select one of: NOTSET, DAYS, WEEKS, MONTHS, YEARS (prefixed with "-" will multiple result by -1/reverse sign)
-      ... Then tick 'Fractionals' if required - see below.
+      ... Then tick 'Fractional' if required - see below.
       ... Only enabled/allowed when Income/Expense categories are selected AND when NOT using 'All dates'
-      ... Normally returns a whole (integer) number. E.g. MONTHS between 20240101 - 20240215 = 1 not 1.5 (for example)
-          - UNLESS 'Fractionals' is ticked which means an estimated avg/by will be calculated (e.g. return 1.5 not 1.0)
+      ... Normally returns a whole (integer) number. E.g. WHOLE MONTHS between 20240101 - 20240215 = 1 not 1.5
+          - UNLESS 'Fractional' is ticked which means an estimated avg/by will be calculated (e.g. return 1.5 not 1.0)
       ... WARNING - this can return zero which will mean your calculated result is always zero or 'n/a'.
       ... When allowed/enabled and used, then this overrides the first avg/by field.
-      ... NOTE: Fractionals assumptions: DAYS_IN_YEAR = 365.2425, DAYS_IN_MONTH = DAYS_IN_YEAR / 12 (30.436875)
+      ... NOTE: Fractional assumptions: DAYS_IN_YEAR = 365.2425, DAYS_IN_MONTH = DAYS_IN_YEAR / 12 (30.436875)
 
 - Adj/by: Allows you to adjust the final calculated balance by a +/- amount (DEFAULT 0.0)
 
