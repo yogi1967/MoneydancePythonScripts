@@ -686,7 +686,7 @@ http://jakarta.apache.org/ant/index.html
     <build-python-mxt
             feature="client_mark_extract_data"
             is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
-            precompile-python="precompile_python_true"
+            precompile-python="precompile_python_false"
             create-zip-bundle-too="create_zip_bundle_too_true"
             include-py-files-in-zip="include_py_files_in_zip_true"
             include-dict-files-in-zip="include_dict_files_in_zip_false"
