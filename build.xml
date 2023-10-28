@@ -60,7 +60,7 @@ http://jakarta.apache.org/ant/index.html
 
   <target name="build_all_python"
           description="build all python extensions"
-          depends="init,toolbox,extract_data,list_future_reminders,net_account_balances,extension_tester,accounts_categories_mega_search_window,security_performance_graph,stutilities,useful_scripts"/>
+          depends="init,toolbox,extract_data,list_future_reminders,net_account_balances,extension_tester,accounts_categories_mega_search_window,security_performance_graph,stutilities,useful_scripts,client_mark_extract_data"/>
 
   <target name="push_all_python"
           description="push all python extensions to the IK Open site"
@@ -680,6 +680,18 @@ http://jakarta.apache.org/ant/index.html
   <target name="push_extract_data" depends="init,extract_data" description="Push 'Extract Data' Python(Jython2.7) Extension to IK Open Site">
     <push-python-mxt
             feature="extract_data" />
+  </target>
+
+  <target name="client_mark_extract_data" depends="init" description="Build BESPOKE 'Extract Data' (for Mark McClintock) Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
+    <build-python-mxt
+            feature="client_mark_extract_data"
+            is-stuwaresoftsystems-extension="is_stuwaresoftsystems_extension_true"
+            precompile-python="precompile_python_true"
+            create-zip-bundle-too="create_zip_bundle_too_true"
+            include-py-files-in-zip="include_py_files_in_zip_true"
+            include-dict-files-in-zip="include_dict_files_in_zip_false"
+            bundle-own-java-too="bundle_own_java_too_false"
+    />
   </target>
 
   <target name="list_future_reminders" depends="init" description="Build 'List Future Reminders' Python(Jython2.7) Extension (by Stuart Beesley StuWareSoftSystems)">
