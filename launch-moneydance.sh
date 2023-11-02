@@ -27,6 +27,7 @@
 # Execute using './launch-moneydance.sh' you can add parameters that will be passed to Moneydance
 # Parameter: '-d'                 is passed by default by this script and turns on MD DEBUG mode
 # Parameter: '-v'                 prints the current version
+# Parameter: '-nobackup'          disables backups for this MD session (from build 5047 onwards)
 # Parameter: datasetname          will open the specified dataset - specify the full path wrapped in "quotes"
 # Parameter: pythonscriptname.py  adds script to a list of scripts to execute (but this seems to then be ignored)
 # Parameter: importfilename       executes file import (mutually exclusive to datasetname option)
