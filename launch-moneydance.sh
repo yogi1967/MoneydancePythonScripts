@@ -38,8 +38,14 @@
 #                                 (there are other variations of this parameter and with ? instead of ':' for parameters.....
 # Parameter: '-invoke=x'          Same as -invoke_and_quit but does launch the UI first and doesn't quit...!
 
+# Extensions: Two extensions have been updated to leverage the =invoke command. These are: Quote Loader & Extract Data.
+# The commands to use these are:
+#                                 -invoke=moneydance:fmodule:securityquoteload:runstandalone:quit
+#                                 -invoke=moneydance:fmodule:extract_data:autoextract:quit
+#                                 (use :quit or :noquit) to quit the session or leave open after execution
+
 # MD2021.2(3088): Adds the capability to set the encryption passphrase into an environment variable to bypass the popup question
-#                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]
+#                 Either: md_passphrase=  or  md_passphrase_[filename in lowercase format]=
 
 # shellcheck disable=SC2121
 unset md_passphrase
