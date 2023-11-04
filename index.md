@@ -91,15 +91,15 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 -  <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/extension_tester.zip">**extension_tester**: Demo extension/scripts for coders wanting to build Moneydance Python extensions.
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
-- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1061 - 3rd Nov 2023) (MD2023 / KOTLIN build(s) (5000+) support...; tweaks / fixes)
+- <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1061 - 4th Nov 2023) (MD2023 / KOTLIN build(s) (5000+) support...; tweaks / fixes)
 - <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1036 - 19th Sept 2023) (MD2023 support...; more extracts; auto extract features)
-- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1023 - 1st April 2022) (MD2023 support...)
+- <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1028 - 4th Nov 2023) (MD2023 support...)
 - <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1034 - 19th Sept 2023) (MD2023 support...; New row formatting options (inc. html); Print widget feature; use tax date option)
 
 ### Signed Versions (hosted on this site - i.e. NOT InfiniteKind's site - may be newer than appear (or not available) in Moneydance's Extensions menu)
 - <a href="https://github.com/yogi1967/MoneydancePythonScripts/tree/master/signed_builds">Directory listing of all current and previously official (IK) signed builds
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1009 - 1st April 2023) (MD2023 support...)
-- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1006 - 1st April 2023) - (MD2023 support...)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/accounts_categories_mega_search_window.mxt">Accounts Categories Mega Search Window (signed) (build: 1012 - 4th Nov 2023) (MD2023 support...)
+- <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/signed_builds/security_performance_graph.mxt">Security Performance Graph (signed) (build: 1008 - 4th Nov 2023) - (MD2023 support...)
 
 ### Other useful ad-hoc scripts (*.py format only) - Very latest code versions
 <a href="https://github.com/yogi1967/MoneydancePythonScripts/raw/master/dist/useful_scripts.zip">**Useful_Scripts**: A zip collection of ad-hoc scripts that can be run individually. Including:
