@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# categories_super_window.py build: 1012 - Sept 2023 - Stuart Beesley StuWareSoftSystems
+# categories_super_window.py build: 1013 - Sept 2023 - Stuart Beesley StuWareSoftSystems
 # >> Renamed to: accounts_categories_mega_search_window.py build: 1003 - April 2022 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
@@ -47,6 +47,7 @@
 # build: 1010 - Add feature to allow search for parent and default account names using {pa:*} and {dc:*} patterns
 # build: 1011 - Common code tweaks...
 # build: 1012 - Cleaned up references to MD Objects; .dispose() nuke 'storage'...
+# build: 1013 - ???
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -56,7 +57,7 @@
 
 # SET THESE LINES
 myModuleID = u"accounts_categories_mega_search_window"
-version_build = "1012"
+version_build = "1013"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 

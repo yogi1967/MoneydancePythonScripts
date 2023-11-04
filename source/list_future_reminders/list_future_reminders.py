@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# list_future_reminders.py (build: 1028) - Sept 2023
+# list_future_reminders.py (build: 1029) - Sept 2023
 # Displays Moneydance future dated / scheduled reminders (along with options to auto-record, delete etc)
 
 ###############################################################################
@@ -75,6 +75,7 @@
 # build: 1026 - Added 'Extract Reminders' feature to Menu and CMD-E keystroke...
 # build: 1027 - Ensure the code runs on the EDT...
 # build: 1028 - Cleaned up references to MD Objects; Added right-click menu option to reset/edit last acknowledged date.
+# build: 1029 - ???
 
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
@@ -84,7 +85,7 @@
 
 # SET THESE LINES
 myModuleID = u"list_future_reminders"
-version_build = "1028"
+version_build = "1029"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
