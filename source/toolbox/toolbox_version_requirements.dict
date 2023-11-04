@@ -1,5 +1,5 @@
 {
-    "last_updated" = "20231103"
+    "last_updated" = "20231104"
     "disable_all" = "n"
     "builds" = (
                     {
@@ -30,24 +30,11 @@
                     }
                     {
                     "build" = "1060"
-                    "disable" = "n"
-                    "news" = "NEW: 'Toolbox: Zap md+/ofx/qif (default) memo fields' menu utility; MD2023.2(5008+ KOTLIN) Tweaks/fixes...; Detect / delete mobile app sync .txn files..."
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2023.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "5050"
-                    "MD_OFX_BANK_SETTINGS_DIR" = "https://infinitekind.com/app/md/fis/"
-                    "MD_OFX_DEFAULT_SETTINGS_FILE" = "https://infinitekind.com/app/md/fi2004.dict"
-                    "MD_OFX_DEBUG_SETTINGS_FILE" = "https://infinitekind.com/app/md.debug/fi2004.dict"
-                    "MD_EXTENSIONS_DIRECTORY_FILE" = "https://infinitekind.com/app/md/extensions.dct"
-                    "MYPYTHON_DOWNLOAD_URL" = "https://yogi1967.github.io/MoneydancePythonScripts/"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1059"
-                    "disable" = "n"
-                    "news" = "Tweaks/fixes; new toolbox_zap_mdplus_ofx_default_memo_fields menu option; tweak non hierarchical detection..."
-                    "TOOLBOX_MINIMUM_TESTED_MD_VERSION" = "2020.0"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_VERSION" = "2023.2"
-                    "TOOLBOX_MAXIMUM_TESTED_MD_BUILD" = "5007"
+                    "disable" = "y"
                     }
                     {
                     "build" = "1058"
