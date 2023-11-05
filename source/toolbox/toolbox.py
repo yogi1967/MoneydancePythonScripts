@@ -210,7 +210,7 @@
 #               Added checks for macOS Sonoma(14).... iCloud issues!
 #               Build 5046 fixes "Infinity" backups and defines .getNumBackupsToKeep() etc (no actual toolbox fix required)
 #               JFrame.dispose() added rootPane.getInputMap().clear() - ensure no memory leaks...; Increased usage of DateRange()
-# build: 1062 - ???
+# build: 1062 - Common code - FileFilter fix...
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -1563,6 +1563,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1573,7 +1574,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():

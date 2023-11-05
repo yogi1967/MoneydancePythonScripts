@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_all_attachments.py build: 23 - Jan 2021 to Sept 2023 - Stuart Beesley StuWareSoftSystems
+# extract_all_attachments.py build: 24 - Jan 2021 to Sept 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -43,6 +43,7 @@
 # build: 21 - Common code tweaks
 # build: 22 - Common code tweaks
 # build: 23 - Tweaks
+# build: 24 - Common code - FileFilter fix...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -50,7 +51,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_all_attachments"
-version_build = "23"
+version_build = "24"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1217,6 +1218,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1227,7 +1229,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():

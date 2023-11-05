@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_move_merge_investment_txns.py build: 1010 - Sept 2023 - Stuart Beesley StuWareSoftSystems
+# toolbox_move_merge_investment_txns.py build: 1011 - Sept 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -41,6 +41,7 @@
 # build: 1008 - Tweak pre-selected txns detection routing for Bank Register 'issue'. Also copy latest detect_non_hier_sec_acct_or_orphan_txns()
 # build: 1009 - Renamed buddy app to: toolbox_zap_mdplus_ofx_qif_default_memo_fields
 # build: 1010 - Cleaned up global references to MD Objects
+# build: 1011 - Common code - FileFilter fix...
 
 # Allows the user to select investment transactions and then move them between accounts:
 # Can be called from the Extensions Menu (with/without txns selected); or from Toolbox menu
@@ -51,7 +52,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox_move_merge_investment_txns"
-version_build = "1010"
+version_build = "1011"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -1237,6 +1238,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1247,7 +1249,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():

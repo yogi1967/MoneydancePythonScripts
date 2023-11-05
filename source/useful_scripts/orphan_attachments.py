@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# orphan_attachments.py - build: 25 - January 2021 to Sept 2023 - Stuart Beesley
+# orphan_attachments.py - build: 26 - January 2021 to Sept 2023 - Stuart Beesley
 
 ###############################################################################
 # MIT License
@@ -48,6 +48,7 @@
 # build: 23 - Common code tweaks
 # build: 24 - Common code tweaks
 # build: 25 - Tweaks
+# build: 26 - Common code - FileFilter fix...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -55,7 +56,7 @@
 
 # SET THESE LINES
 myModuleID = u"orphan_transactions"
-version_build = "25"
+version_build = "26"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -1221,6 +1222,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1231,7 +1233,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():

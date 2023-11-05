@@ -47,7 +47,7 @@
 # build: 1010 - Add feature to allow search for parent and default account names using {pa:*} and {dc:*} patterns
 # build: 1011 - Common code tweaks...
 # build: 1012 - Cleaned up references to MD Objects; .dispose() nuke 'storage'...
-# build: 1013 - ???
+# build: 1013 - Common code - FileFilter fix...
 
 # Clones MD Menu > Tools>Categories and adds Search capability...
 
@@ -1234,6 +1234,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1244,7 +1245,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():

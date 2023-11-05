@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_zap_mdplus_ofx_qif_default_memo_fields.py build: 1003 - Sept 2023 - Stuart Beesley StuWareSoftSystems
+# toolbox_zap_mdplus_ofx_qif_default_memo_fields.py build: 1004 - Sept 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -34,6 +34,7 @@
 # build: 1002 - Added LocalStorage preferences, popup config, manual download imports, extra Memo options with popup GUI
 # build: 1002 - Renamed to toolbox_zap_mdplus_ofx_qif_default_memo_fields.py - now includes QIF too...
 # build: 1003 - Fix held references to MD Objects...
+# build: 1004 - Common code - FileFilter fix...
 
 # Iterates previous x month's md+/ofx/qif transactions across Bank, Credit Card, Investment accounts and zaps the Memo field
 # where it matches certain rules...
@@ -44,7 +45,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox_zap_mdplus_ofx_qif_default_memo_fields"
-version_build = "1003"
+version_build = "1004"
 MIN_BUILD_REQD = 4040                 # 2022.2 MD+ builds
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -1223,6 +1224,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1233,7 +1235,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():

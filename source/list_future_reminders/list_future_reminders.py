@@ -75,7 +75,7 @@
 # build: 1026 - Added 'Extract Reminders' feature to Menu and CMD-E keystroke...
 # build: 1027 - Ensure the code runs on the EDT...
 # build: 1028 - Cleaned up references to MD Objects; Added right-click menu option to reset/edit last acknowledged date.
-# build: 1029 - ???
+# build: 1029 - Common code - FileFilter fix...
 
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
@@ -1328,6 +1328,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1338,7 +1339,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():

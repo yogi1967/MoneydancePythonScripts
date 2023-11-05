@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# toolbox_total_selected_transactions.py build: 1016 - June 2023 - Stuart Beesley StuWareSoftSystems
+# toolbox_total_selected_transactions.py build: 1017 - June 2023 - Stuart Beesley StuWareSoftSystems
 
 ###############################################################################
 # MIT License
@@ -51,6 +51,7 @@
 # build: 1014 - Common code tweaks
 # build: 1015 - Fix for when Bank Register selected in Investment Account (rather than main Investment Register)
 # build: 1016 - Renamed buddy app to: toolbox_zap_mdplus_ofx_qif_default_memo_fields
+# build: 1017 - Common code - FileFilter fix...
 
 # Looks for an Account register that has focus and then totals the selected transactions. If any found, displays on screen
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
@@ -62,7 +63,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox_total_selected_transactions"
-version_build = "1016"
+version_build = "1017"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -1240,6 +1241,7 @@ Visit: %s (Author's site)
         def __init__(self, ext): self.ext = "." + ext.upper()                                                           # noqa
 
         def accept(self, thedir, filename):                                                                             # noqa
+            # type: (File, str) -> bool
             if filename is not None and filename.upper().endswith(self.ext): return True
             return False
 
@@ -1250,7 +1252,9 @@ Visit: %s (Author's site)
         def getDescription(self): return "*"+self.ext                                                                   # noqa
 
         def accept(self, _theFile):                                                                                     # noqa
+            # type: (File) -> bool
             if _theFile is None: return False
+            if _theFile.isDirectory(): return True
             return _theFile.getName().upper().endswith(self.ext)
 
     def MDDiag():
