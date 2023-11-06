@@ -210,7 +210,7 @@
 #               Added checks for macOS Sonoma(14).... iCloud issues!
 #               Build 5046 fixes "Infinity" backups and defines .getNumBackupsToKeep() etc (no actual toolbox fix required)
 #               JFrame.dispose() added rootPane.getInputMap().clear() - ensure no memory leaks...; Increased usage of DateRange()
-# build: 1062 - Common code - FileFilter fix...
+# build: 1062 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -7138,10 +7138,13 @@ Visit: %s (Author's site)
                     theScheme = key[len(PARAM_CURRID):]
                     theCUSIP = sec.getIDForScheme(theScheme)
 
-                    if not theCUSIP: raise Exception("ERROR: %s - empty CUSIP returned? Security: %s, Scheme: %s" %(_THIS_METHOD_NAME, sec, theScheme))
+                    if not theCUSIP:
+                        theCUSIP = "<INVALID SCHEME/CUSIP ID: blank or null!>"
+                        # raise Exception("ERROR: %s - empty CUSIP returned? Security: %s, Scheme: %s" %(_THIS_METHOD_NAME, sec, theScheme))
 
                     iCountFound += 1
-                    output += "%s %s %s %s %s %s %s\n" % (pad(sec.getName(), 45),
+                    output += "%s %s %s %s %s %s %s\n"\
+                                                  %(pad(sec.getName(), 45),
                                                     pad(sec.getIDString(), 15),
                                                     pad(sec.getTickerSymbol(), 15),
                                                     pad(theScheme, 12),
