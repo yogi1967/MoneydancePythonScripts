@@ -529,6 +529,15 @@ Visit: %s (Author's site)
         list_future_reminders_frame_ = None
         del list_future_reminders_frame_
 
+        # myPrint("DB", "... destroying all memory objects....")
+        # _variable = None
+        # _variableList = sorted(list(globals()));
+        # for _variable in _variableList:
+        #     if "_variable" in _variable: continue
+        #     if _variable[0:2] == "__": continue
+        #     exec "global %s;del %s" %(_variable, _variable)
+        # del _variableList, _variable
+
     def load_text_from_stream_file(theStream):
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
