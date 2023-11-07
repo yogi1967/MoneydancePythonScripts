@@ -1,0 +1,33 @@
+{
+  "actions" = (
+    {
+      "type" = "initializer"
+      "script_file" = "client_mark_extract_data_init.py"
+    }
+    {
+      "type" = "menu"
+      "script_file" = "client_mark_extract_data_bootstrap1.py"
+      "name" = "Extract Data (Bespoke)"
+    }
+    {
+      "type" = "menu"
+      "script_file" = "client_mark_extract_data_bootstrap2.py"
+      "name" = "Extract Data (Bespoke): auto extract mode"
+    }
+    {
+      "type" = "method"
+      "method" = "invoke"
+      "script_file" = "client_mark_extract_data_bootstrap3_invoke_handle_event.py"
+    }
+    {
+      "type" = "method"
+      "method" = "handle_event"
+      "script_file" = "client_mark_extract_data_bootstrap3_invoke_handle_event.py"
+    }
+    {
+      "type" = "method"
+      "method" = "unload"
+      "script_file" = "client_mark_extract_data_unload.py"
+    }
+  )
+}
