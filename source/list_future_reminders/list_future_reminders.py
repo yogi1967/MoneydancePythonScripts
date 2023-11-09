@@ -75,7 +75,7 @@
 # build: 1026 - Added 'Extract Reminders' feature to Menu and CMD-E keystroke...
 # build: 1027 - Ensure the code runs on the EDT...
 # build: 1028 - Cleaned up references to MD Objects; Added right-click menu option to reset/edit last acknowledged date.
-# build: 1029 - Common code - FileFilter fix...
+# build: 1029 - Common code - FileFilter fix...; Removed java.awt.print.Book import
 
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
@@ -426,8 +426,8 @@ else:
     from com.infinitekind.moneydance.model import ReminderListener
     # from com.moneydance.apps.md.view.gui import MoneydanceGUI
 
-    exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
-    global Book     # Keep this here for above import
+    # exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
+    # global Book     # Keep this here for above import
     # >>> END THIS SCRIPT'S IMPORTS ########################################################################################
 
     # >>> THIS SCRIPT'S GLOBALS ############################################################################################
