@@ -211,6 +211,7 @@
 #               Build 5046 fixes "Infinity" backups and defines .getNumBackupsToKeep() etc (no actual toolbox fix required)
 #               JFrame.dispose() added rootPane.getInputMap().clear() - ensure no memory leaks...; Increased usage of DateRange()
 # build: 1062 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
+#               add .getFullAcountName() to the error message in review_security_accounts()
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -21681,7 +21682,7 @@ now after saving the file, restart Moneydance
 
             def getAccountTypeTxt(acct):
                 _at = acct.getAccountType()
-                return ("Investment" if (_at == Account.AccountType.INVESTMENT) else "NON INVESTMENT(%s)" %(_at))   # noqa
+                return ("Investment" if (_at == Account.AccountType.INVESTMENT) else "NON INVESTMENT(%s)" %(_at))       # noqa
 
             txnSet = MD_REF.getCurrentAccountBook().getTransactionSet()
             txns = list(txnSet.iterableTxns())      # copy into list() to prevent concurrent modification when modifying.....
@@ -21846,8 +21847,8 @@ now after saving the file, restart Moneydance
 
                         if not isSittingInInvestmentAccount:
                             if fields.security is None:
-                                text += ("** CANNOT FIX Txn where the Parent is sitting within an %s account and the SECURITY is NONE - SKIPPING **"
-                                         %(getAccountTypeTxt(acct)))
+                                text += ("** CANNOT FIX Txn where the Parent is sitting within an %s account ('%s') and the SECURITY is NONE - SKIPPING **"
+                                         %(getAccountTypeTxt(acct), acct.getFullAccountName()))
                                 continue
 
                             # This fix is for where the investment txn is not sitting within an Investment account (batch change on xfr category usually)...
