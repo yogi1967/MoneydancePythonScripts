@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# client_mark_extract_data.py - build: 1000 November 2023 - Stuart Beesley (based on: extract_data build: 1036)
+# client_mark_extract_data.py - build: 1001 November 2023 - Stuart Beesley (based on: extract_data build: 1036)
 #
 # Written specifically for Mark McClintock
 
@@ -59,6 +59,7 @@
 # Build: 908 -  Fixes for Mark's feedback....
 # Build: 909 -  Show last run's output when auto relaunching the GUI...
 # Build: 1000 - Final, released build....
+# Build: 1001 - Tweaks - correct save folder display text
 
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -67,7 +68,7 @@
 
 # SET THESE LINES
 myModuleID = u"client_mark_extract_data"
-version_build = "1000"
+version_build = "1001"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -4053,7 +4054,7 @@ Visit: %s (Author's site)
                     extractFolder = getFileFromFileChooser(client_mark_extract_data_frame_,     # Parent frame or None
                                                            defaultFolder,                       # Starting path
                                                            None,                                # Default Filename
-                                                           "Select Python Script",              # Title
+                                                           "Select Extract Folder",             # Title
                                                            False,                               # Multi-file selection mode
                                                            True,                                # True for Open/Load, False for Save
                                                            False,                               # True = Files, else Dirs
@@ -4417,7 +4418,7 @@ Visit: %s (Author's site)
                                     if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
                                         MyPopUpDialogBox(client_mark_extract_data_frame_, theStatus=msgTxt,
                                                          theMessage="Configure Auto Extract Mode using setup screen (and selecting the directory to save extracts)\n"
-                                                                    "Invalid defauly path:\n"
+                                                                    "Invalid default path:\n"
                                                                     "'%s'" %(checkPath),
                                                          theTitle="EXTRACT_DATA: AUTO_MODE",
                                                          lModal=False).go()
@@ -7138,8 +7139,7 @@ Visit: %s (Author's site)
 
                             if not GlobalVars.AUTO_EXTRACT_MODE and GlobalVars.countFilesCreated > 0:
                                 if GlobalVars.saved_showFolderAfterExtract_SWSS:
-                                    try:
-                                        MD_REF.getPlatformHelper().openDirectory(File(GlobalVars.saved_defaultSavePath_SWSS))
+                                    try: MD_REF.getPlatformHelper().openDirectory(File(GlobalVars.saved_defaultSavePath_SWSS))
                                     except: pass
 
                         cleanup_actions(client_mark_extract_data_frame_)
