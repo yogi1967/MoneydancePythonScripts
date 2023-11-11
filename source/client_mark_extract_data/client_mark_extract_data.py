@@ -59,7 +59,7 @@
 # Build: 908 -  Fixes for Mark's feedback....
 # Build: 909 -  Show last run's output when auto relaunching the GUI...
 # Build: 1000 - Final, released build....
-# Build: 1001 - Tweaks - correct save folder display text
+# Build: 1001 - Tweaks - correct save folder display text; aligned with new code into extract_data...
 
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -385,7 +385,7 @@ else:
     # END SET THESE VARIABLES FOR ALL SCRIPTS ##############################################################################
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
-    from com.infinitekind.moneydance.model import DateRange
+    from com.infinitekind.moneydance.model import DateRange, CostCalculation
     from com.moneydance.apps.md.controller.time import TimeInterval, TimeIntervalUtil                                   # noqa
 
     # from extract_account_registers_csv & extract_investment_transactions_csv
@@ -4323,6 +4323,33 @@ Visit: %s (Author's site)
         MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
     ####################################################################################################################
 
+    def getCostBasisAsOf(sec, asofDate):        # asof = None means latest / current position
+        # type: (Account, int) -> (int, int)
+        """For a given Security Account, executes MD's CostCalculation routines and returns:
+        shareholding, costbasis as of the date specified. Pass None into asof for current/latest position"""
+
+        # noinspection PyUnresolvedReferences
+        if not isinstance(sec, Account) or sec.getAccountType() is not Account.AccountType.SECURITY:
+            raise Exception("ERROR: You must pass a Security Account to this method!")
+
+        costCalculation = CostCalculation(sec, asofDate)
+        lAllDates = (asofDate is None or asofDate == 0)
+
+        if lAllDates:
+            pos = invokeMethodByReflection(costCalculation, "getCurrentPosition", [], [])
+            currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
+            currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
+        else:
+            posns = getFieldByReflection(costCalculation, "positions")
+            currentRunningBasis = 0
+            currentCumulativeShares = 0
+            for pos in posns:
+                date = invokeMethodByReflection(pos, "getDate", [], [])
+                if date > asofDate: break
+                currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
+                currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
+        return currentCumulativeShares, currentRunningBasis
+
 
     class MainAppRunnable(Runnable):
         def __init__(self): pass
@@ -6202,11 +6229,11 @@ Visit: %s (Author's site)
                                     class MyAcctFilterESB(AcctFilter):
 
                                         def __init__(self,
-                                                     _hideInactiveAccounts=True,
+                                                     _hideInactiveAccounts=False,
                                                      _lAllAccounts=True,
                                                      _filterForAccounts="ALL",
-                                                     _hideHiddenAccounts=True,
-                                                     _hideHiddenSecurities=True,
+                                                     _hideHiddenAccounts=False,
+                                                     _hideHiddenSecurities=False,
                                                      _lAllCurrency=True,
                                                      _filterForCurrency="ALL",
                                                      _lAllSecurity=True,
@@ -6330,8 +6357,8 @@ Visit: %s (Author's site)
                                     GlobalVars.dataKeys["_CURRENTPRICETOBASE"]        = [dki, "CurrentPriceToBase"];           dki += 1
                                     GlobalVars.dataKeys["_CURRENTPRICEINVESTCURR"]    = [dki, "CurrentPriceInvestCurr"];       dki += 1
 
-                                    GlobalVars.dataKeys["_CURRENTVALUETOBASE"]        = [dki, "CurrentValueToBase"];           dki += 1
                                     GlobalVars.dataKeys["_CURRENTVALUEINVESTCURR"]    = [dki, "CurrentValueInvestCurr"];       dki += 1
+                                    GlobalVars.dataKeys["_CURRENTVALUETOBASE"]        = [dki, "CurrentValueToBase"];           dki += 1
 
                                     GlobalVars.dataKeys["_KEY"]                       = [dki, "Key"];                          dki += 1
                                     GlobalVars.dataKeys["_END"]                       = [dki, "_END"];                         dki += 1
@@ -6386,13 +6413,14 @@ Visit: %s (Author's site)
                                         _row[GlobalVars.dataKeys["_BASECURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
 
                                         if GlobalVars.ENABLE_BESPOKE_CODING:
-                                            _row[GlobalVars.dataKeys["_ACCTCOSTBASIS"][_COLUMN]] = 0.0
-                                            _row[GlobalVars.dataKeys["_BASECOSTBASIS"][_COLUMN]] = 0.0
+                                            asofShares, asofCostBasis = getCostBasisAsOf(securityAcct, GlobalVars.saved_securityBalancesDate_ESB)
+                                            costBasis = asofCostBasis
+                                            costBasisBase = CurrencyUtil.convertValue(costBasis, investAcctCurr, GlobalVars.baseCurrency, GlobalVars.saved_securityBalancesDate_ESB)
                                         else:
                                             costBasis = InvestUtil.getCostBasis(securityAcct)
                                             costBasisBase = CurrencyUtil.convertValue(costBasis, investAcctCurr, GlobalVars.baseCurrency)
-                                            _row[GlobalVars.dataKeys["_ACCTCOSTBASIS"][_COLUMN]] = investAcctCurr.getDoubleValue(costBasis)
-                                            _row[GlobalVars.dataKeys["_BASECOSTBASIS"][_COLUMN]] = GlobalVars.baseCurrency.getDoubleValue(costBasisBase)
+                                        _row[GlobalVars.dataKeys["_ACCTCOSTBASIS"][_COLUMN]] = investAcctCurr.getDoubleValue(costBasis)
+                                        _row[GlobalVars.dataKeys["_BASECOSTBASIS"][_COLUMN]] = GlobalVars.baseCurrency.getDoubleValue(costBasisBase)
 
                                         _row[GlobalVars.dataKeys["_SECURITY"][_COLUMN]] = unicode(securityCurr.getName())
                                         _row[GlobalVars.dataKeys["_SECURITYID"][_COLUMN]] = unicode(securityCurr.getIDString())
@@ -6500,14 +6528,15 @@ Visit: %s (Author's site)
                                                 usedInvestmentCashAccts.append(investAcct)
                                                 cashBalCurrLong = AccountUtil.getBalanceAsOfDate(book, investAcct, GlobalVars.saved_securityBalancesDate_ESB, True)
                                                 cashBalBaseLong = CurrencyUtil.convertValue(cashBalCurrLong, investAcctCurr, GlobalVars.baseCurrency, GlobalVars.saved_securityBalancesDate_ESB)
+                                                cashBalCurrDbl = investAcctCurr.getDoubleValue(cashBalCurrLong)
                                                 cashBalBaseDbl = GlobalVars.baseCurrency.getDoubleValue(cashBalBaseLong)
 
-                                                if cashBalBaseDbl != 0.0:
+                                                if cashBalCurrDbl != 0.0:
                                                     _row = ([None] * GlobalVars.dataKeys["_END"][0])  # Create a blank row to be populated below...
                                                     _row[GlobalVars.dataKeys["_KEY"][_COLUMN]] = ""
                                                     _row[GlobalVars.dataKeys["_ACCOUNT"][_COLUMN]] = investAcct.getFullAccountName()
+                                                    _row[GlobalVars.dataKeys["_ACCTCURR"][_COLUMN]] = investAcctCurr.getIDString()
                                                     _row[GlobalVars.dataKeys["_BASECURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
-
                                                     _row[GlobalVars.dataKeys["_SECURITY"][_COLUMN]] = "Cash Balance"
                                                     _row[GlobalVars.dataKeys["_SECURITYID"][_COLUMN]] = "CASH"
                                                     _row[GlobalVars.dataKeys["_SECRELCURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
@@ -6515,7 +6544,10 @@ Visit: %s (Author's site)
                                                     _row[GlobalVars.dataKeys["_TICKER"][_COLUMN]] = "__CASH BALANCE__"
                                                     _row[GlobalVars.dataKeys["_SECSHRHOLDING"][_COLUMN]] = 0.0
                                                     _row[GlobalVars.dataKeys["_CURRENTPRICE"][_COLUMN]] = 1.0
-                                                    _row[GlobalVars.dataKeys["_CURRENTVALUEINVESTCURR"][_COLUMN]] = cashBalBaseDbl
+                                                    _row[GlobalVars.dataKeys["_ACCTCOSTBASIS"][_COLUMN]] = round(cashBalCurrDbl, 2)
+                                                    _row[GlobalVars.dataKeys["_BASECOSTBASIS"][_COLUMN]] = round(cashBalBaseDbl, 2)
+                                                    _row[GlobalVars.dataKeys["_CURRENTVALUEINVESTCURR"][_COLUMN]] = round(cashBalCurrDbl, 2)
+                                                    _row[GlobalVars.dataKeys["_CURRENTVALUETOBASE"][_COLUMN]] = round(cashBalBaseDbl, 2)
 
                                                     myPrint("D", _THIS_EXTRACT_NAME, _row)
                                                     GlobalVars.transactionTable.append(_row)
