@@ -138,12 +138,11 @@
 # build: 1038 - Modernised code, removed globals, use own settings file, revamped GUI and file/folder selection procedure
 #               New extensions menu option - run SG2020 / Reminders; removed 'from java.awt.print.Book import'
 # build: 1039 - Enhanced extract_security_balances with asof date, and cash values (inlcudes snazzy CostCalculation with asof date).
+#               Added extract account balances...
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
-# todo - From client version: add Extract Account Balances; update Extract Security Balances with cash and asof date... (consider asof cost basis)
-# todo - Proper usage of DateRangeChooser()
 
-# todo - StockGlance2020 asof balance date...
+# todo - Consider StockGlance2020 asof balance date...
 # todo - extract budget data?
 # todo - import excel writer?
 
@@ -471,6 +470,7 @@ else:
 
     # >>> THIS SCRIPT'S IMPORTS ############################################################################################
 
+    from com.moneydance.apps.md.controller.time import TimeInterval, TimeIntervalUtil                                   # noqa
     from com.moneydance.apps.md.view.gui import MDAction
     from com.infinitekind.moneydance.model import DateRange, CostCalculation
     from java.awt.event import HierarchyListener, ActionListener
@@ -617,6 +617,15 @@ else:
     GlobalVars.saved_securityBalancesDate_ESB = DateUtil.getStrippedDateInt()
     GlobalVars.saved_lOmitExtraSecurityDataFromExtract_ESB = False
 
+    # extract_account_balances
+    GlobalVars.saved_yearsToInclude_EAB = 0
+    GlobalVars.saved_lAllAccounts_EAB = True
+    GlobalVars.saved_filterForAccounts_EAB = "ALL"
+    GlobalVars.saved_lAllCurrency_EAB = True
+    GlobalVars.saved_filterForCurrency_EAB = "ALL"
+    GlobalVars.saved_lHideZeroBalances_EAB = False
+    GlobalVars.saved_lConvertValuesToBase_EAB = True
+
     # extract_currency_history
     GlobalVars.saved_lSimplify_ECH = False
     GlobalVars.saved_filterDateRangeStart_ECH = 19600101                    # was DateRange().getStartDateInt()
@@ -629,6 +638,7 @@ else:
     GlobalVars.saved_autoExtract_EIT = False
     GlobalVars.saved_autoExtract_ECH = False
     GlobalVars.saved_autoExtract_ESB = False
+    GlobalVars.saved_autoExtract_EAB = False
     GlobalVars.saved_autoExtract_ETRUNK = False
     GlobalVars.saved_autoExtract_JSON = False
     GlobalVars.saved_autoExtract_EATTACH = False
@@ -3656,6 +3666,7 @@ Visit: %s (Author's site)
         user_account_txns = JRadioButton("Account register transactions - extract to csv (attachments optional)", False)
         user_investment_txns = JRadioButton("Investment transactions - extract to csv (attachments optional)", False)
         user_security_balances = JRadioButton("Security Balances - extract to csv", False)
+        user_account_balances = JRadioButton("Account Balances - extract to csv", False)
         user_price_history = JRadioButton("Currency price history - extract to csv (simple or detailed formats)", False)
         user_extract_trunk = JRadioButton("Decrypt & extract raw Trunk file", False)
         user_extract_json = JRadioButton("Extract raw data as JSON file", False)
@@ -3687,6 +3698,7 @@ Visit: %s (Author's site)
         bg.add(user_account_txns)
         bg.add(user_investment_txns)
         bg.add(user_security_balances)
+        bg.add(user_account_balances)
         bg.add(user_price_history)
         bg.add(user_extract_trunk)
         bg.add(user_extract_json)
@@ -3700,6 +3712,7 @@ Visit: %s (Author's site)
             elif defaultSelection == "_EAR": user_account_txns.setSelected(True)
             elif defaultSelection == "_EIT": user_investment_txns.setSelected(True)
             elif defaultSelection == "_ESB": user_security_balances.setSelected(True)
+            elif defaultSelection == "_EAB": user_account_balances.setSelected(True)
             elif defaultSelection == "_ECH": user_price_history.setSelected(True)
             elif defaultSelection == "_ETRUNK": user_extract_trunk.setSelected(True)
             elif defaultSelection == "_JSON": user_extract_json.setSelected(True)
@@ -3711,6 +3724,7 @@ Visit: %s (Author's site)
         _userFilters.add(user_account_txns)
         _userFilters.add(user_investment_txns)
         _userFilters.add(user_security_balances)
+        _userFilters.add(user_account_balances)
         _userFilters.add(user_price_history)
         _userFilters.add(user_extract_trunk)
         _userFilters.add(user_extract_json)
@@ -3726,7 +3740,7 @@ Visit: %s (Author's site)
         _userFilters.add(JLabel("---------"))
         _userFilters.add(statusLabel)
 
-        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractCurrencyHistory = _lExtractTrunk = _lExtractJSON = _lExtractAttachments = False
+        _lExtractStockGlance2020 = _lExtractReminders = _lExtractAccountTxns = _lExtractInvestmentTxns = _lExtractSecurityBalances = _lExtractAccountBalances = _lExtractCurrencyHistory = _lExtractTrunk = _lExtractJSON = _lExtractAttachments = False
 
         class WarningMessage(AbstractAction):
             def __init__(self, _dialog, _user_autoExtractWhenFileClosing):
@@ -3761,7 +3775,7 @@ Visit: %s (Author's site)
                 statusLabel.setForeground(getColorRed())
                 statusLabel.setText("<<WARNING: Extract folder path INVALID - Please select folder...>>")
             rowHeight = 24
-            rows = 22
+            rows = 23
             jsp = MyJScrollPaneForJOptionPane(_userFilters, None, 750, rows * rowHeight)
             pane = JOptionPane()
             pane.setIcon(getMDIcon(lAlwaysGetIcon=True))
@@ -3819,6 +3833,11 @@ Visit: %s (Author's site)
                 _lExtractSecurityBalances = True
                 break
 
+            if user_account_balances.isSelected():
+                myPrint("B", "Account Balances extract option has been chosen")
+                _lExtractAccountBalances = True
+                break
+
             if user_price_history.isSelected():
                 myPrint("B", "Currency Price History extract option has been chosen")
                 _lExtractCurrencyHistory = True
@@ -3871,13 +3890,14 @@ Visit: %s (Author's site)
         elif user_account_txns.isSelected():        newDefault = "_EAR"
         elif user_investment_txns.isSelected():     newDefault = "_EIT"
         elif user_security_balances.isSelected():   newDefault = "_ESB"
+        elif user_account_balances.isSelected():    newDefault = "_EAB"
         elif user_price_history.isSelected():       newDefault = "_ECH"
         elif user_extract_trunk.isSelected():       newDefault = "_ETRUNK"
         elif user_extract_json.isSelected():        newDefault = "_JSON"
         elif user_extract_attachments.isSelected(): newDefault = "_EATTACH"
         else:                                       newDefault = None
 
-        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractCurrencyHistory, _lExtractTrunk, _lExtractJSON, _lExtractAttachments
+        return _exit, newDefault, _lExtractStockGlance2020, _lExtractReminders, _lExtractAccountTxns, _lExtractInvestmentTxns, _lExtractSecurityBalances, _lExtractAccountBalances, _lExtractCurrencyHistory, _lExtractTrunk, _lExtractJSON, _lExtractAttachments
 
     def validateCSVFileDelimiter(requestedDelimiter=None):
         decimalStrings = [".", ","]
@@ -5555,6 +5575,176 @@ Visit: %s (Author's site)
 
         return _exit
 
+    def listExtractAccountBalancesParameters():
+
+        myPrint("B","---------------------------------------------------------------------------------------")
+        myPrint("B","Parameters: Extract Account Balances:")
+        myPrint("B", "  Years to lookback / include..........: %s" %(GlobalVars.saved_yearsToInclude_EAB))
+        myPrint("B", "  Convert values back to base currency.: %s" %(GlobalVars.saved_lConvertValuesToBase_EAB))
+        myPrint("B", "  Account filter.......................: %s '%s'" %(GlobalVars.saved_lAllAccounts_EAB, GlobalVars.saved_filterForAccounts_EAB))
+        myPrint("B", "  Currency filter......................: %s '%s'" %(GlobalVars.saved_lAllCurrency_EAB, GlobalVars.saved_filterForCurrency_EAB))
+        myPrint("B", "  Hide zero balances...................: %s" %(GlobalVars.saved_lHideZeroBalances_EAB))
+        myPrint("B", "  Auto Extract.........................:", GlobalVars.saved_autoExtract_EAB)
+        myPrint("B", "  User date format.....................:", GlobalVars.saved_extractDateFormat_SWSS)
+        myPrint("B","---------------------------------------------------------------------------------------")
+
+    def setupExtractAccountBalancesParameters():
+        # ##############################################
+        # EXTRACT_SECURITY_BALANCES_CSV PARAMETER SCREEN
+        # ##############################################
+        global debug
+
+        label_yearsBackToInclude = JLabel("Number of whole years to look back/include (0=this year):")
+        user_yearsBackToInclude = JTextField(3)
+        user_yearsBackToInclude.setText(str(GlobalVars.saved_yearsToInclude_EAB))
+
+        label_lConvertValuesToBase = JLabel("Convert values back to base currency:")
+        user_lConvertValuesToBase = JCheckBox("", GlobalVars.saved_lConvertValuesToBase_EAB)
+
+        label6 = JLabel("Filter for Accounts containing text '...' (or ALL):")
+        user_selectAccounts = JTextField(12)
+        user_selectAccounts.setDocument(JTextFieldLimitYN(20, True, "CURR"))
+        if GlobalVars.saved_lAllAccounts_EAB: user_selectAccounts.setText("ALL")
+        else: user_selectAccounts.setText(GlobalVars.saved_filterForAccounts_EAB)
+
+        label4 = JLabel("Filter for Currency containing text '...' or ALL:")
+        user_selectCurrency = JTextField(5)
+        user_selectCurrency.setDocument(JTextFieldLimitYN(5, True, "CURR"))
+        if GlobalVars.saved_lAllCurrency_EAB: user_selectCurrency.setText("ALL")
+        else: user_selectCurrency.setText(GlobalVars.saved_filterForCurrency_EAB)
+
+        label_lHideZeroBalances = JLabel("Hide zero balances:")
+        user_lHideZeroBalances = JCheckBox("", GlobalVars.saved_lHideZeroBalances_EAB)
+
+        dateStrings=["dd/mm/yyyy", "mm/dd/yyyy", "yyyy/mm/dd", "yyyymmdd"]
+        label9 = JLabel("Select Output Date Format (default yyyy/mm/dd):")
+        user_dateformat = JComboBox(dateStrings)
+
+        if GlobalVars.saved_extractDateFormat_SWSS == "%d/%m/%Y": user_dateformat.setSelectedItem("dd/mm/yyyy")
+        elif GlobalVars.saved_extractDateFormat_SWSS == "%m/%d/%Y": user_dateformat.setSelectedItem("mm/dd/yyyy")
+        elif GlobalVars.saved_extractDateFormat_SWSS == "%Y%m%d": user_dateformat.setSelectedItem("yyyymmdd")
+        else: user_dateformat.setSelectedItem("yyyy/mm/dd")
+
+        label10 = JLabel("Strip non ASCII characters from CSV extract?")
+        user_selectStripASCII = JCheckBox("", GlobalVars.saved_lStripASCII_SWSS)
+
+        label11 = JLabel("Change CSV extract Delimiter from default:")
+        user_selectDELIMITER = JComboBox(GlobalVars.ALLOWED_CSV_FILE_DELIMITER_STRINGS)
+        user_selectDELIMITER.setSelectedItem(GlobalVars.saved_csvDelimiter_SWSS)
+
+        labelBOM = JLabel("Write BOM (Byte Order Mark) to file (helps Excel open files)?")
+        user_selectBOM = JCheckBox("", GlobalVars.saved_lWriteBOMToExportFile_SWSS)
+
+        labelExportParameters = JLabel("Write parameters out to file (added as rows at EOF)?")
+        user_ExportParameters = JCheckBox("", GlobalVars.saved_lWriteParametersToExportFile_SWSS)
+
+        labelAutoExtract = JLabel("Enable Auto Extract?")
+        user_AutoExtract = JCheckBox("", GlobalVars.saved_autoExtract_EAB)
+
+        label12 = JLabel("Turn DEBUG Verbose messages on?")
+        user_selectDEBUG = JCheckBox("", debug)
+
+        userFilters = JPanel(GridLayout(0, 2))
+        userFilters.add(label_yearsBackToInclude)
+        userFilters.add(user_yearsBackToInclude)
+        userFilters.add(label_lConvertValuesToBase)
+        userFilters.add(user_lConvertValuesToBase)
+        userFilters.add(label6)
+        userFilters.add(user_selectAccounts)
+        userFilters.add(label4)
+        userFilters.add(user_selectCurrency)
+        userFilters.add(label_lHideZeroBalances)
+        userFilters.add(user_lHideZeroBalances)
+
+        userFilters.add(JLabel("-"*30)); userFilters.add(JLabel("-"*30))
+
+        userFilters.add(label9)
+        userFilters.add(user_dateformat)
+        userFilters.add(label10)
+        userFilters.add(user_selectStripASCII)
+        userFilters.add(label11)
+        userFilters.add(user_selectDELIMITER)
+        userFilters.add(labelBOM)
+        userFilters.add(user_selectBOM)
+        userFilters.add(labelExportParameters)
+        userFilters.add(user_ExportParameters)
+        userFilters.add(labelAutoExtract)
+        userFilters.add(user_AutoExtract)
+        userFilters.add(label12)
+        userFilters.add(user_selectDEBUG)
+
+        _exit = False
+
+        options = ["ABORT", "CSV Extract"]
+        rowHeight = 24
+        rows = 13
+        jsp = MyJScrollPaneForJOptionPane(userFilters, None, 900, rows * rowHeight)
+        userAction = (JOptionPane.showOptionDialog(extract_data_frame_, jsp, "EXTRACT ACCOUNT BALANCES: Set Script Parameters....",
+                                                   JOptionPane.OK_CANCEL_OPTION,
+                                                   JOptionPane.QUESTION_MESSAGE,
+                                                   getMDIcon(lAlwaysGetIcon=True),
+                                                   options, options[1]))
+        if userAction == 1:
+            myPrint("DB", "Extract chosen")
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = True
+        else:
+            myPrint("B", "User Cancelled Parameter selection.. Will abort..")
+            _exit = True
+            GlobalVars.DISPLAY_DATA = False
+            GlobalVars.EXTRACT_DATA = False
+
+        if not _exit:
+
+            years = user_yearsBackToInclude.getText()
+            if StringUtils.isEmpty(years): years = "0"
+            if StringUtils.isInteger(years) and int(years) >= 0 and int(years) <= 99:
+                GlobalVars.saved_yearsToInclude_EAB = int(years)
+                myPrint("DB", "Extract Account Balances - Years to look back/include set at: %s" %(GlobalVars.saved_yearsToInclude_EAB))
+            else:
+                GlobalVars.saved_yearsToInclude_EAB = 1
+                myPrint("DB", "Extract Account Balances - Years to look back/include INVALID (should be 0 to 99 years) - defaulting to 1....")
+
+            GlobalVars.saved_lConvertValuesToBase_EAB = user_lConvertValuesToBase.isSelected()
+
+            if user_selectCurrency.getText() == "ALL" or user_selectCurrency.getText().strip() == "":
+                GlobalVars.saved_lAllCurrency_EAB = True
+                GlobalVars.saved_filterForCurrency_EAB = "ALL"
+            else:
+                GlobalVars.saved_lAllCurrency_EAB = False
+                GlobalVars.saved_filterForCurrency_EAB = user_selectCurrency.getText()
+
+            if user_selectAccounts.getText() == "ALL" or user_selectAccounts.getText().strip() == "":
+                GlobalVars.saved_lAllAccounts_EAB = True
+                GlobalVars.saved_filterForAccounts_EAB = "ALL"
+            else:
+                GlobalVars.saved_lAllAccounts_EAB = False
+                GlobalVars.saved_filterForAccounts_EAB = user_selectAccounts.getText()
+
+            GlobalVars.saved_lHideZeroBalances_EAB = user_lHideZeroBalances.isSelected()
+
+            if user_dateformat.getSelectedItem() == "dd/mm/yyyy": GlobalVars.saved_extractDateFormat_SWSS = "%d/%m/%Y"
+            elif user_dateformat.getSelectedItem() == "mm/dd/yyyy": GlobalVars.saved_extractDateFormat_SWSS = "%m/%d/%Y"
+            elif user_dateformat.getSelectedItem() == "yyyy/mm/dd": GlobalVars.saved_extractDateFormat_SWSS = "%Y/%m/%d"
+            elif user_dateformat.getSelectedItem() == "yyyymmdd": GlobalVars.saved_extractDateFormat_SWSS = "%Y%m%d"
+            else:
+                # PROBLEM /  default
+                GlobalVars.saved_extractDateFormat_SWSS = "%Y/%m/%d"
+
+            GlobalVars.saved_lStripASCII_SWSS = user_selectStripASCII.isSelected()
+
+            GlobalVars.saved_csvDelimiter_SWSS = validateCSVFileDelimiter(user_selectDELIMITER.getSelectedItem())
+
+            GlobalVars.saved_lWriteBOMToExportFile_SWSS = user_selectBOM.isSelected()
+            GlobalVars.saved_lWriteParametersToExportFile_SWSS = user_ExportParameters.isSelected()
+            GlobalVars.saved_autoExtract_EAB = user_AutoExtract.isSelected()
+
+            debug = user_selectDEBUG.isSelected()
+
+            listExtractSecurityBalancesParameters()
+
+        return _exit
+
     def listExtractTrunkParameters():
         myPrint("B","---------------------------------------------------------------------------------------")
         myPrint("B","Parameters: Decrypt & extract raw Trunk file:")
@@ -5848,6 +6038,8 @@ Visit: %s (Author's site)
             defaultFileName = "extract_future_reminders"
         elif extractType == "esb":
             defaultFileName = "extract_security_balances"
+        elif extractType == "eab":
+            defaultFileName = "extract_account_balances"
         elif extractType == "ech":
             defaultFileName = "extract_currency_history"
         elif extractType == "eab":
@@ -5902,6 +6094,12 @@ Visit: %s (Author's site)
                 currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
                 currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
         return currentCumulativeShares, currentRunningBasis
+
+    def separateYearMonthDayFromDateInt(_dateInt):
+        year = _dateInt / 10000
+        month = _dateInt / 100 % 100
+        day = _dateInt % 100
+        return year, month, day
 
 
     class MainAppRunnable(Runnable):
@@ -5962,7 +6160,16 @@ Visit: %s (Author's site)
 
                 if GlobalVars.AUTO_EXTRACT_MODE:
                     iCountAutos = 0
-                    for checkAutoExtract in [GlobalVars.saved_autoExtract_SG2020, GlobalVars.saved_autoExtract_ERTC, GlobalVars.saved_autoExtract_EAR, GlobalVars.saved_autoExtract_EIT, GlobalVars.saved_autoExtract_ECH, GlobalVars.saved_autoExtract_ESB, GlobalVars.saved_autoExtract_ETRUNK, GlobalVars.saved_autoExtract_JSON, GlobalVars.saved_autoExtract_EATTACH]:
+                    for checkAutoExtract in [GlobalVars.saved_autoExtract_SG2020,
+                                             GlobalVars.saved_autoExtract_ERTC,
+                                             GlobalVars.saved_autoExtract_EAR,
+                                             GlobalVars.saved_autoExtract_EIT,
+                                             GlobalVars.saved_autoExtract_ECH,
+                                             GlobalVars.saved_autoExtract_ESB,
+                                             GlobalVars.saved_autoExtract_EAB,
+                                             GlobalVars.saved_autoExtract_ETRUNK,
+                                             GlobalVars.saved_autoExtract_JSON,
+                                             GlobalVars.saved_autoExtract_EATTACH]:
                         if checkAutoExtract: iCountAutos += 1
 
                     if iCountAutos < 1:
@@ -5988,7 +6195,7 @@ Visit: %s (Author's site)
                                              lModal=False).go()
 
                     else:
-                        for exType in ["EAR", "EIT", "SG2020", "ERTC", "EFRTC", "ESB", "ECH", "EAB", "ETRUNK", "JSON","EATTACH"]:
+                        for exType in ["EAR", "EIT", "SG2020", "ERTC", "EFRTC", "ESB", "EAB", "ECH", "EAB", "ETRUNK", "JSON","EATTACH"]:
 
                             checkPath = getExtractFullPath(exType, lDoNotAddTimeStamp=True)
                             if check_file_writable(checkPath):
@@ -6019,6 +6226,7 @@ Visit: %s (Author's site)
                     lExtractAccountRegisters = GlobalVars.saved_autoExtract_EAR
                     lExtractInvestmentTxns = GlobalVars.saved_autoExtract_EIT
                     lExtractSecurityBalances = GlobalVars.saved_autoExtract_ESB
+                    lExtractAccountBalances = GlobalVars.saved_autoExtract_EAB
                     lExtractCurrencyHistory = GlobalVars.saved_autoExtract_ECH
                     lExtractTrunk = GlobalVars.saved_autoExtract_ETRUNK
                     lExtractJSON = GlobalVars.saved_autoExtract_JSON
@@ -6036,11 +6244,20 @@ Visit: %s (Author's site)
                                  "     Account Transactions....: %s\n"
                                  "     Investment Transactions.: %s\n"
                                  "     Security Balances.......: %s\n"
+                                 "     Account Balances........: %s\n"
                                  "     Currency History........: %s\n"
                                  "     Decrypt & Extract Trunk.: %s\n"
                                  "     Extract raw data as JSON: %s\n"
                                  "     Attachments.............: %s%s\n"
-                            %(GlobalVars.saved_autoExtract_SG2020, GlobalVars.saved_autoExtract_ERTC, GlobalVars.saved_autoExtract_EAR, GlobalVars.saved_autoExtract_EIT, GlobalVars.saved_autoExtract_ESB, GlobalVars.saved_autoExtract_ECH, GlobalVars.saved_autoExtract_ETRUNK, GlobalVars.saved_autoExtract_JSON,
+                            %(GlobalVars.saved_autoExtract_SG2020,
+                              GlobalVars.saved_autoExtract_ERTC,
+                              GlobalVars.saved_autoExtract_EAR,
+                              GlobalVars.saved_autoExtract_EIT,
+                              GlobalVars.saved_autoExtract_ESB,
+                              GlobalVars.saved_autoExtract_EAB,
+                              GlobalVars.saved_autoExtract_ECH,
+                              GlobalVars.saved_autoExtract_ETRUNK,
+                              GlobalVars.saved_autoExtract_JSON,
                               GlobalVars.saved_autoExtract_EATTACH, "" if not (didDisableALL_attachments) else " *** DISABLING extract of ALL ATTACHMENTS (when in auto extract on file closing mode) ***"))
 
                     if GlobalVars.saved_lExtractAttachments_EAR or GlobalVars.saved_lExtractAttachments_EIT:
@@ -6063,6 +6280,7 @@ Visit: %s (Author's site)
                     if lExtractInvestmentTxns:      listExtractInvestmentAccountParameters()
                     if lExtractCurrencyHistory:     listExtractCurrencyHistoryParameters()
                     if lExtractSecurityBalances:    listExtractSecurityBalancesParameters()
+                    if lExtractAccountBalances:     listExtractAccountBalancesParameters()
                     if lExtractTrunk:               listExtractTrunkParameters()
                     if lExtractJSON:                listExtractJSONParameters()
                     if lExtractAttachments:         listExtractAttachmentsParameters()
@@ -6070,14 +6288,14 @@ Visit: %s (Author's site)
                 elif GlobalVars.AUTO_DISPLAY_SG2020:
                     GlobalVars.DISPLAY_DATA = True
                     lExtractStockGlance2020 = True
-                    exitScript = lExtractReminders = lExtractAccountRegisters = lExtractInvestmentTxns = lExtractSecurityBalances = lExtractCurrencyHistory = lExtractTrunk = lExtractJSON = lExtractAttachments = False
+                    exitScript = lExtractReminders = lExtractAccountRegisters = lExtractInvestmentTxns = lExtractSecurityBalances = lExtractAccountBalances = lExtractCurrencyHistory = lExtractTrunk = lExtractJSON = lExtractAttachments = False
 
                 elif GlobalVars.AUTO_DISPLAY_REMINDERS:
                     GlobalVars.DISPLAY_DATA = True
                     lExtractReminders = True
-                    exitScript = lExtractStockGlance2020 = lExtractAccountRegisters = lExtractInvestmentTxns = lExtractSecurityBalances = lExtractCurrencyHistory = lExtractTrunk = lExtractJSON = lExtractAttachments = False
+                    exitScript = lExtractStockGlance2020 = lExtractAccountRegisters = lExtractInvestmentTxns = lExtractSecurityBalances = lExtractAccountBalances = lExtractCurrencyHistory = lExtractTrunk = lExtractJSON = lExtractAttachments = False
                 else:
-                    exitScript, GlobalVars.saved_whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountRegisters, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractCurrencyHistory, lExtractTrunk, lExtractJSON, lExtractAttachments \
+                    exitScript, GlobalVars.saved_whichDefaultExtractToRun_SWSS, lExtractStockGlance2020, lExtractReminders, lExtractAccountRegisters, lExtractInvestmentTxns, lExtractSecurityBalances, lExtractAccountBalances, lExtractCurrencyHistory, lExtractTrunk, lExtractJSON, lExtractAttachments \
                         = getExtractChoice(GlobalVars.saved_whichDefaultExtractToRun_SWSS)
 
                 if exitScript:
@@ -6098,6 +6316,9 @@ Visit: %s (Author's site)
 
                     elif lExtractSecurityBalances:
                         exitScript = setupExtractSecurityBalancesParameters()
+
+                    elif lExtractAccountBalances:
+                        exitScript = setupExtractAccountBalancesParameters()
 
                     elif lExtractCurrencyHistory:
                         exitScript = setupExtractCurrencyHistoryParameters()
@@ -11919,6 +12140,377 @@ Visit: %s (Author's site)
                                         return False
                             #### ENDIF lExtractSecurityBalances ####
 
+                            if lExtractAccountBalances:
+                                # ####################################################
+                                # EXTRACT_ACCOUNT_BALANCES_CSV EXECUTION
+                                # ####################################################
+
+                                _THIS_EXTRACT_NAME = pad("EXTRACT: Account Balances:", 34)
+                                GlobalVars.lGlobalErrorDetected = False
+
+                                if not GlobalVars.HANDLE_EVENT_AUTO_EXTRACT_ON_CLOSE:
+                                    self.super__publish([_THIS_EXTRACT_NAME.strip()])                                   # noqa
+
+                                GlobalVars.csvfilename = getExtractFullPath("EAB")
+
+                                def do_extract_account_balances():
+
+                                    _YEAR = 0; _MONTH = 1; _DAY = 2
+
+                                    todayInt = DateUtil.getStrippedDateInt()
+
+                                    firstMonthEndDateInt = DateUtil.lastDayInMonth(DateUtil.firstDayInYear(DateUtil.incrementDate(todayInt, -GlobalVars.saved_yearsToInclude_EAB, 0, 0)))
+
+                                    # if firstMonthEndDateInt > todayInt:
+                                    #     eabTxt = ("The first calculated month-end date of: %s is after today's date of: %s - NOTHING TO DO - Quitting..."
+                                    #             %(convertStrippedIntDateFormattedText(firstMonthEndDateInt), convertStrippedIntDateFormattedText(todayInt)))
+                                    #     myPrint("B", eabTxt)
+                                    #     GlobalVars.AUTO_MESSAGES.append(eabTxt)
+                                    #     return
+
+                                    if firstMonthEndDateInt > todayInt: firstMonthEndDateInt = DateUtil.firstDayInYear(todayInt)
+
+                                    # lastMonthEndInt = DateUtil.lastDayInMonth(todayInt)
+                                    # lastMonthEndInt = DateUtil.lastDayInMonth(todayInt)
+                                    # if todayInt != lastMonthEndInt:
+                                    #     lastMonthEndInt = DateUtil.lastDayInMonth(DateUtil.incrementDate(lastMonthEndInt, 0, -1, 0))
+                                    lastMonthEndInt = todayInt
+
+                                    myPrint("DB", "@@ Calculate month-end dates: saved_yearsToInclude_EAB: %s, today: %s, first monthend: %s, last monthend: %s"
+                                                   %(GlobalVars.saved_yearsToInclude_EAB,
+                                                     convertStrippedIntDateFormattedText(todayInt),
+                                                     convertStrippedIntDateFormattedText(firstMonthEndDateInt),
+                                                     convertStrippedIntDateFormattedText(lastMonthEndInt)))
+
+                                    # Now calculate month-end 'buckets' - or 'intervals' - Seems to return beginning of months (I want month-ends)
+                                    # interval = TimeInterval.MONTH
+                                    # intervalUtil = TimeIntervalUtil()
+                                    # firstInterval = intervalUtil.getIntervalStart(firstMonthEndDateInt, interval)
+                                    # lastInterval = intervalUtil.getIntervalEnd(lastMonthEndInt, interval)
+                                    # numIntervals = intervalUtil.getNumIntervals(firstInterval, lastInterval, interval)
+                                    # monthEndDatesInt = intervalUtil.getIntervalPoints(numIntervals, firstInterval, interval)
+                                    # if True or debug:
+                                    #     myPrint("B", "interval: %s, firstInterval: %s, lastInterval: %s, numIntervals: %s" %(interval, firstInterval, lastInterval, numIntervals))
+                                    #     myPrint("B", "intervals: %s" %(monthEndDatesInt));
+
+                                    # Now calculate month-end 'buckets' - or 'intervals'
+                                    monthEndDatesInt = []
+                                    interval = TimeInterval.MONTH
+                                    onDateInt = firstMonthEndDateInt
+                                    while onDateInt <= lastMonthEndInt:
+                                        monthEndDatesInt.append(onDateInt)
+                                        onDateInt = DateUtil.lastDayInMonth(DateUtil.incrementDate(onDateInt, 0, 1, 0))
+
+                                    if len(monthEndDatesInt) < 1 or monthEndDatesInt[-1] != lastMonthEndInt:
+                                        monthEndDatesInt.append(lastMonthEndInt)  # Add in current date if not on a month-end
+
+                                    if debug:
+                                        myPrint("B", "intervals: %s, firstInterval: %s, lastInterval: %s, numIntervals: %s"
+                                                %(interval, convertStrippedIntDateFormattedText(monthEndDatesInt[0]), convertStrippedIntDateFormattedText(monthEndDatesInt[-1]), len(monthEndDatesInt)))
+                                        myPrint("B", "intervals: %s" %(monthEndDatesInt))
+
+                                    # noinspection PyArgumentList
+                                    class MyAcctFilterEAB(AcctFilter):
+
+                                        def __init__(self,
+                                                     _hideInactiveAccounts=True,
+                                                     _hideHiddenAccounts=True,
+                                                     _lAllAccounts=True,
+                                                     _filterForAccounts="ALL",
+                                                     _lAllCurrency=True,
+                                                     _filterForCurrency="ALL"):
+
+                                            self._hideHiddenAccounts = _hideHiddenAccounts
+                                            self._hideInactiveAccounts = _hideInactiveAccounts
+                                            self._lAllAccounts = _lAllAccounts
+                                            self._filterForAccounts = _filterForAccounts
+                                            self._lAllCurrency = _lAllCurrency
+                                            self._filterForCurrency = _filterForCurrency
+
+                                        def matches(self, acct):
+
+                                            # noinspection PyUnresolvedReferences
+                                            if not (acct.getAccountType() == Account.AccountType.BANK
+                                                    or acct.getAccountType() == Account.AccountType.CREDIT_CARD
+                                                    or acct.getAccountType() == Account.AccountType.LOAN
+                                                    or acct.getAccountType() == Account.AccountType.LIABILITY
+                                                    or acct.getAccountType() == Account.AccountType.ASSET
+                                                    or acct.getAccountType() == Account.AccountType.INVESTMENT):
+                                                return False
+
+                                            if self._hideInactiveAccounts:
+                                                # This logic replicates Moneydance AcctFilter.ACTIVE_ACCOUNTS_FILTER
+                                                if (acct.getAccountOrParentIsInactive()): return False
+                                                if (acct.getHideOnHomePage() and acct.getBalance() == 0): return False
+
+                                            if self._lAllAccounts or (self._filterForAccounts.upper().strip() in acct.getFullAccountName().upper().strip()):
+                                                pass
+                                            else:
+                                                return False
+
+                                            curr = acct.getCurrencyType()
+                                            currID = curr.getIDString()
+                                            currName = curr.getName()
+
+                                            # All accounts and security records can have currencies
+                                            if self._lAllCurrency:
+                                                pass
+                                            elif (self._filterForCurrency.upper().strip() in currID.upper().strip()):
+                                                pass
+                                            elif (self._filterForCurrency.upper().strip() in currName.upper().strip()):
+                                                pass
+                                            else:
+                                                return False
+
+                                            return True
+
+
+                                    validAccountList = AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(),
+                                                                                       MyAcctFilterEAB(_hideInactiveAccounts=False,
+                                                                                                       _hideHiddenAccounts=False,
+                                                                                                       _lAllAccounts=GlobalVars.saved_lAllAccounts_EAB,
+                                                                                                       _filterForAccounts=GlobalVars.saved_filterForAccounts_EAB,
+                                                                                                       _lAllCurrency=GlobalVars.saved_lAllCurrency_EAB,
+                                                                                                       _filterForCurrency=GlobalVars.saved_filterForCurrency_EAB))
+
+                                    _COLUMN = 0
+                                    _HEADING = 1
+
+                                    dki = 0
+                                    GlobalVars.dataKeys = {}                                                            # noqa
+                                    GlobalVars.dataKeys["_ACCOUNTTYPE"]         = [dki, "AccountType"]; dki += 1
+                                    GlobalVars.dataKeys["_ACCOUNT"]             = [dki, "Account"];     dki += 1
+                                    GlobalVars.dataKeys["_CURR"]                = [dki, "Currency"];    dki += 1
+                                    GlobalVars.dataKeys["_STATUS"]              = [dki, "Status"];      dki += 1
+
+                                    for monthIdx in range(0, len(monthEndDatesInt)):
+                                        dateInt = monthEndDatesInt[monthIdx]
+                                        year, month, day = separateYearMonthDayFromDateInt(dateInt)
+                                        GlobalVars.dataKeys[dateInt]            = [dki, "'%s-%s-%s" %(year, rpad(month, 2, "0"), rpad(day, 2, "0"))]; dki += 1
+                                        del year, month, day
+
+                                    GlobalVars.dataKeys["_KEY"]                 = [dki, "Key"];         dki += 1
+                                    GlobalVars.dataKeys["_END"]                 = [dki, "_END"];        dki += 1
+
+                                    GlobalVars.transactionTable = []
+
+                                    myPrint("DB", _THIS_EXTRACT_NAME, GlobalVars.dataKeys)
+
+                                    book = MD_REF.getCurrentAccountBook()
+
+                                    acctBalancesForDatesPerAccount = {}
+                                    acctBalancesForDatesGrandTotals = [0.0 for _x in range(0, len(monthEndDatesInt))]   # noqa
+
+                                    for acctEAB in validAccountList:
+                                        if isinstance(acctEAB, Account): pass
+                                        acctCurr = acctEAB.getCurrencyType()
+
+                                        lFoundValue = False
+                                        acctBalancesForDatesPerAccount[acctEAB] = AccountUtil.getBalancesAsOfDates(book, acctEAB, monthEndDatesInt, True)
+
+                                        # Add security values into investment account total
+                                        if acctEAB.getAccountType() == Account.AccountType.INVESTMENT:                  # noqa
+                                            secSubAccts = ArrayList(acctEAB.getSubAccounts())
+                                            for secAcct in secSubAccts:
+                                                acctBalancesForDatesForSecAcct = AccountUtil.getBalancesAsOfDates(book, secAcct, monthEndDatesInt, True)
+                                                for monthIdx in range(0, len(monthEndDatesInt)):
+                                                    dateInt = monthEndDatesInt[monthIdx]
+                                                    secBalLong = acctBalancesForDatesForSecAcct[monthIdx]
+                                                    secBalInvestCurrLong = CurrencyUtil.convertValue(secBalLong, secAcct.getCurrencyType(), acctCurr, dateInt)
+                                                    acctBalancesForDatesPerAccount[acctEAB][monthIdx] += secBalInvestCurrLong
+
+                                        _row = ([None] * GlobalVars.dataKeys["_END"][0])  # Create a blank row to be populated below...
+                                        _row[GlobalVars.dataKeys["_KEY"][_COLUMN]] = ""
+                                        _row[GlobalVars.dataKeys["_ACCOUNT"][_COLUMN]] = acctEAB.getFullAccountName()
+
+                                        if GlobalVars.saved_lConvertValuesToBase_EAB:
+                                            currStr = GlobalVars.baseCurrency.getIDString()
+                                        else:
+                                            currStr = acctCurr.getIDString()
+                                        _row[GlobalVars.dataKeys["_CURR"][_COLUMN]] = currStr
+
+                                        _row[GlobalVars.dataKeys["_ACCOUNTTYPE"][_COLUMN]] = acctEAB.getAccountType().toString()
+                                        _row[GlobalVars.dataKeys["_STATUS"][_COLUMN]] = "I" if acctEAB.getAccountIsInactive() else "A"
+                                        _row[GlobalVars.dataKeys["_KEY"][_COLUMN]] = 0
+
+                                        for monthIdx in range(0, len(monthEndDatesInt)):
+                                            dateInt = monthEndDatesInt[monthIdx]
+                                            valCurrLong = acctBalancesForDatesPerAccount[acctEAB][monthIdx]
+                                            valCurrDbl = acctCurr.getDoubleValue(valCurrLong)
+
+                                            valBaseLong = CurrencyUtil.convertValue(valCurrLong, acctCurr, GlobalVars.baseCurrency, dateInt)
+                                            valBaseDbl = GlobalVars.baseCurrency.getDoubleValue(valBaseLong)
+
+                                            _row[GlobalVars.dataKeys[dateInt][_COLUMN]] = round(valBaseDbl if GlobalVars.saved_lConvertValuesToBase_EAB else valCurrDbl, 2)
+
+                                            # Add value into totals row
+                                            acctBalancesForDatesGrandTotals[monthIdx] += valBaseDbl
+                                            if valCurrLong != 0: lFoundValue = True
+
+                                        if GlobalVars.saved_lHideZeroBalances_EAB and not lFoundValue:
+                                            continue
+
+                                        myPrint("D", _THIS_EXTRACT_NAME, _row)
+                                        GlobalVars.transactionTable.append(_row)
+
+                                    if len(GlobalVars.transactionTable) < 1:
+                                        eabTxt = "@@ No data found to report! @@"
+                                        myPrint("B", eabTxt)
+                                        GlobalVars.AUTO_MESSAGES.append(eabTxt)
+                                        return
+
+                                    myPrint("B", _THIS_EXTRACT_NAME + "Account Balance(s) Records selected:", len(GlobalVars.transactionTable))
+                                    ###########################################################################################################
+
+                                    GlobalVars.transactionTable = sorted(GlobalVars.transactionTable, key=lambda x: (x[GlobalVars.dataKeys["_KEY"][_COLUMN]],
+                                                                                                                     x[GlobalVars.dataKeys["_ACCOUNTTYPE"][_COLUMN]].lower(),
+                                                                                                                     x[GlobalVars.dataKeys["_ACCOUNT"][_COLUMN]].lower()))
+
+                                    ###########################################################################################################
+
+
+                                    def ExtractDataToFile():
+                                        myPrint("D", _THIS_EXTRACT_NAME + "In ", inspect.currentframe().f_code.co_name, "()")
+
+                                        headings = []
+                                        sortDataFields = sorted(GlobalVars.dataKeys.items(), key=lambda x: x[1][_COLUMN])
+                                        for i in sortDataFields:
+                                            headings.append(i[1][_HEADING])
+
+                                        myPrint("DB", _THIS_EXTRACT_NAME + "Now pre-processing the file to convert integer dates and strip non-ASCII if requested....")
+                                        for _theRow in GlobalVars.transactionTable:
+
+                                            for col in range(0, GlobalVars.dataKeys["_STATUS"][_COLUMN]):
+                                                _theRow[col] = fixFormatsStr(_theRow[col])
+
+                                        myPrint("B", _THIS_EXTRACT_NAME + "Opening file and writing %s records" %(len(GlobalVars.transactionTable)))
+
+                                        try:
+                                            # CSV Writer will take care of special characters / delimiters within fields by wrapping in quotes that Excel will decode
+                                            with open(GlobalVars.csvfilename, "wb") as csvfile:  # PY2.7 has no newline parameter so opening in binary; juse "w" and newline='' in PY3.0
+
+                                                if GlobalVars.saved_lWriteBOMToExportFile_SWSS:
+                                                    csvfile.write(codecs.BOM_UTF8)   # This 'helps' Excel open file with double-click as UTF-8
+
+                                                writer = csv.writer(csvfile, dialect='excel', quoting=csv.QUOTE_MINIMAL, delimiter=fix_delimiter(GlobalVars.saved_csvDelimiter_SWSS))
+
+                                                if GlobalVars.saved_csvDelimiter_SWSS != ",":
+                                                    writer.writerow(["sep=", ""])  # Tells Excel to open file with the alternative delimiter (it will add the delimiter to this line)
+
+                                                writer.writerow(headings[:GlobalVars.dataKeys["_KEY"][_COLUMN]])  # Print the header, but not the extra _field headings
+
+                                                try:
+                                                    for i in range(0, len(GlobalVars.transactionTable)):
+                                                        writer.writerow(GlobalVars.transactionTable[i][:GlobalVars.dataKeys["_KEY"][_COLUMN]])
+                                                except:
+                                                    _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR writing to CSV on row %s. Please review console" %(i)
+                                                    GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                                    myPrint("B", _msgTxt)
+                                                    myPrint("B", _THIS_EXTRACT_NAME, GlobalVars.transactionTable[i])
+                                                    raise
+
+                                                if GlobalVars.saved_lWriteParametersToExportFile_SWSS:
+                                                    today = Calendar.getInstance()
+                                                    writer.writerow([""])
+                                                    writer.writerow(["StuWareSoftSystems - " + GlobalVars.thisScriptName + "(build: "
+                                                                     + version_build
+                                                                     + ")  Moneydance Python Script - Date of Extract: "
+                                                                     + str(GlobalVars.sdf.format(today.getTime()))])
+
+                                                    writer.writerow([""])
+                                                    writer.writerow(["Dataset path/name: %s" %(MD_REF.getCurrentAccountBook().getRootFolder()) ])
+
+                                                    writer.writerow([""])
+                                                    writer.writerow(["Years to lookback/include..: %s" %(GlobalVars.saved_yearsToInclude_EAB)])
+                                                    writer.writerow(["Convert values back to base: %s" %(GlobalVars.saved_lConvertValuesToBase_EAB)])
+                                                    writer.writerow(["User Parameters..."])
+                                                    writer.writerow(["Account filter.............: %s '%s'" %(GlobalVars.saved_lAllAccounts_EAB, GlobalVars.saved_filterForAccounts_EAB)])
+                                                    writer.writerow(["Currency filter............: %s '%s'" %(GlobalVars.saved_lAllCurrency_EAB, GlobalVars.saved_filterForCurrency_EAB)])
+                                                    writer.writerow(["Hide zero balances.........: %s" %(GlobalVars.saved_lHideZeroBalances_EAB)])
+
+                                            _msgTxt = _THIS_EXTRACT_NAME + "CSV file: '%s' created (%s records)" %(GlobalVars.csvfilename, len(GlobalVars.transactionTable))
+                                            myPrint("B", _msgTxt)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            GlobalVars.countFilesCreated += 1
+
+                                        except:
+                                            e_type, exc_value, exc_traceback = sys.exc_info()                           # noqa
+                                            _msgTxt = _THIS_EXTRACT_NAME + "@@ ERROR '%s' detected writing file: '%s' - Extract ABORTED!" %(exc_value, GlobalVars.csvfilename)
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTxt)
+                                            myPrint("B", _msgTxt)
+                                            raise
+
+                                    def fixFormatsStr(theString, lNumber=False, sFormat=""):
+                                        if isinstance(theString, bool): return theString
+                                        if isinstance(theString, tuple): return theString
+                                        if isinstance(theString, dict): return theString
+                                        if isinstance(theString, list): return theString
+
+                                        if isinstance(theString, int) or isinstance(theString, float) or isinstance(theString, long):
+                                            lNumber = True
+
+                                        if lNumber is None: lNumber = False
+                                        if theString is None: theString = ""
+
+                                        if sFormat == "%" and theString != "":
+                                            theString = "{:.1%}".format(theString)
+                                            return theString
+
+                                        if lNumber: return str(theString)
+
+                                        theString = theString.strip()  # remove leading and trailing spaces
+
+                                        theString = theString.replace("\n", "*")  # remove newlines within fields to keep csv format happy
+                                        theString = theString.replace("\t", "*")  # remove tabs within fields to keep csv format happy
+                                        # theString = theString.replace(";", "*")  # remove tabs within fields to keep csv format happy
+                                        # theString = theString.replace(",", "*")  # remove tabs within fields to keep csv format happy
+                                        # theString = theString.replace("|", "*")  # remove tabs within fields to keep csv format happy
+
+                                        if GlobalVars.saved_lStripASCII_SWSS:
+                                            all_ASCII = ''.join(char for char in theString if ord(char) < 128)  # Eliminate non ASCII printable Chars too....
+                                        else:
+                                            all_ASCII = theString
+                                        return all_ASCII
+
+                                    if len(GlobalVars.transactionTable) > 0:
+
+                                        ExtractDataToFile()
+
+                                        if not GlobalVars.lGlobalErrorDetected:
+                                            sTxt = "Extract file CREATED:"
+                                            mTxt = "With %s rows\n" % (len(GlobalVars.transactionTable))
+                                            myPrint("B", _THIS_EXTRACT_NAME + "%s\n%s" %(sTxt, mTxt))
+                                        else:
+                                            _msgTextx = _THIS_EXTRACT_NAME + "ERROR Creating extract (review console for error messages)...."
+                                            GlobalVars.AUTO_MESSAGES.append(_msgTextx)
+                                    else:
+                                        _msgTextx = _THIS_EXTRACT_NAME + "@@ No records selected and no extract file created @@"
+                                        GlobalVars.AUTO_MESSAGES.append(_msgTextx)
+                                        myPrint("B", _msgTextx)
+                                        if not GlobalVars.AUTO_EXTRACT_MODE:
+                                            DoExtractsSwingWorker.killPleaseWait()
+                                            genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _msgTextx, GlobalVars.thisScriptName, JOptionPane.WARNING_MESSAGE)
+
+                                    # delete references to large objects
+                                    GlobalVars.transactionTable = None
+
+                                try:
+                                    do_extract_account_balances()
+                                except:
+                                    GlobalVars.lGlobalErrorDetected = True
+
+                                if GlobalVars.lGlobalErrorDetected:
+                                    GlobalVars.countErrorsDuringExtract += 1
+                                    _txt = _THIS_EXTRACT_NAME + "@@ ERROR: do_extract_account_balances() has failed (review console)!"
+                                    GlobalVars.AUTO_MESSAGES.append(_txt)
+                                    myPrint("B", _txt)
+                                    dump_sys_error_to_md_console_and_errorlog()
+                                    if not GlobalVars.AUTO_EXTRACT_MODE:
+                                        DoExtractsSwingWorker.killPleaseWait()
+                                        genericSwingEDTRunner(True, True, myPopupInformationBox, extract_data_frame_, _txt, "ERROR", JOptionPane.ERROR_MESSAGE)
+                                        return False
+                            #### ENDIF lExtractAccountBalances ####
+
                             if lExtractTrunk:
                                 # ####################################################
                                 # EXTRACT_TRUNK_FILE EXECUTION
@@ -12234,10 +12826,11 @@ Visit: %s (Author's site)
 
                             if lExtractStockGlance2020:     msgs.append("Extract StockGlance2020            REQUESTED")
                             if lExtractReminders:           msgs.append("Extract Reminders                  REQUESTED")
-                            if lExtractAccountRegisters:         msgs.append("Extract Account Registers          REQUESTED")
+                            if lExtractAccountRegisters:    msgs.append("Extract Account Registers          REQUESTED")
                             if lExtractInvestmentTxns:      msgs.append("Extract Investment Transactions    REQUESTED")
                             if lExtractCurrencyHistory:     msgs.append("Extract Currency History           REQUESTED")
                             if lExtractSecurityBalances:    msgs.append("Extract Security Balances          REQUESTED")
+                            if lExtractAccountBalances:     msgs.append("Extract Account Balances           REQUESTED")
                             if lExtractTrunk:               msgs.append("Extract raw Trunk file             REQUESTED")
                             if lExtractJSON:                msgs.append("Extract raw JSON file              REQUESTED")
                             if lExtractAttachments:         msgs.append("Extract Attachments                REQUESTED")
