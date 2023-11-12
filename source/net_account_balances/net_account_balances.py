@@ -2926,90 +2926,6 @@ Visit: %s (Author's site)
 
             myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
 
-    class PrintWidget(Runnable):
-
-        def __init__(self): pass
-
-        def getPanel(self):
-            HPV = MyHomePageView.getHPV()
-            pnl = None
-            for _viewWR in HPV.views:
-                _view = _viewWR.get()
-                if _view is None: continue
-                pnl = _view
-                break
-            return pnl
-
-        def go(self):
-            if not SwingUtilities.isEventDispatchThread():
-                SwingUtilities.invokeLater(self)
-            else:
-                self.run()
-
-        def run(self):                                                                                                  # noqa
-            NAB = NetAccountBalancesExtension.getNAB()
-            if NAB.SWSS_CC is None:
-                myPrint("B", "@@@ PRINTING DISABLED AS BUNDLED JAVA CODE NOT PRESENT IN MEMORY!? @@")
-            else:
-                printerPrinter = NAB.SWSS_CC.PrintWidgetPrinter(self.getPanel())
-
-                # The more simple way.....
-                # printerJob = PrinterJob.getPrinterJob()
-                # printerJob.setPrintable(printerPrinter)
-                # if printerJob.printDialog():
-                #     try:
-                #         NAB.SWSS_CC.sudoPrinterJobPrint(printerJob)
-                #         myPrint("B", "Home / Summary screen widget successfully printed!")
-                #     except:
-                #         myPrint("B", "@@ Error - the widget did NOT successfully print?")
-
-                title = "Custom Balances - Home / Summary Screen widget (as of: %s)" %(convertStrippedIntDateFormattedText(DateUtil.getStrippedDateInt()))
-
-                printerJob = PrinterJob.getPrinterJob()
-                if GlobalVars.defaultPrintService is not None:
-                    printerJob.setPrintService(GlobalVars.defaultPrintService)
-
-                if GlobalVars.defaultPrinterAttributes is not None:
-                    pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
-                else:
-                    pAttrs = loadDefaultPrinterAttributes(None)
-
-                pAttrs.remove(attribute.standard.JobName)
-                pAttrs.add(attribute.standard.JobName(title, None))
-
-                if GlobalVars.defaultDPI != 72:
-                    pAttrs.remove(attribute.standard.PrinterResolution)
-                    pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
-
-                if not printerJob.printDialog(pAttrs):
-                    myPrint("DB", "User aborted the Print Dialog setup screen, so exiting...")
-                    return
-
-                selectedPrintService = printerJob.getPrintService()
-
-                toFile = pAttrs.containsKey(attribute.standard.Destination)
-
-                if toFile:
-                    printURI = pAttrs.get(attribute.standard.Destination).getURI()
-                    myPrint("B", "User has selected to print to destination: %s" %(printURI))
-                else:
-                    myPrint("DB", "User selected print service:", selectedPrintService)
-
-                thePageFormat = printerJob.getPageFormat(pAttrs)
-
-                # header = MessageFormat(title)
-                # footer = MessageFormat("- page {0} -")
-
-                printerJob.setPrintable(printerPrinter, thePageFormat)
-                NAB.SWSS_CC.sudoPrinterJobPrint(printerJob, pAttrs)
-
-                while pAttrs.containsKey(attribute.standard.JobName): pAttrs.remove(attribute.standard.JobName)
-                while pAttrs.containsKey(attribute.standard.Destination): pAttrs.remove(attribute.standard.Destination)
-
-                myPrint("DB", "Saving current print service:", printerJob.getPrintService())
-                GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
-                GlobalVars.defaultPrintService = printerJob.getPrintService()
-
     def isGoodRate(theRate):
 
         if Double.isNaN(theRate) or Double.isInfinite(theRate) or theRate == 0:
@@ -3417,6 +3333,91 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
+
+    class PrintWidget(Runnable):
+
+        def __init__(self): pass
+
+        def getPanel(self):
+            HPV = MyHomePageView.getHPV()
+            pnl = None
+            for _viewWR in HPV.views:
+                _view = _viewWR.get()
+                if _view is None: continue
+                pnl = _view
+                break
+            return pnl
+
+        def go(self):
+            if not SwingUtilities.isEventDispatchThread():
+                SwingUtilities.invokeLater(self)
+            else:
+                self.run()
+
+        def run(self):                                                                                                  # noqa
+            NAB = NetAccountBalancesExtension.getNAB()
+            if NAB.SWSS_CC is None:
+                myPrint("B", "@@@ PRINTING DISABLED AS BUNDLED JAVA CODE NOT PRESENT IN MEMORY!? @@")
+            else:
+                printerPrinter = NAB.SWSS_CC.PrintWidgetPrinter(self.getPanel())
+
+                # The more simple way.....
+                # printerJob = PrinterJob.getPrinterJob()
+                # printerJob.setPrintable(printerPrinter)
+                # if printerJob.printDialog():
+                #     try:
+                #         NAB.SWSS_CC.sudoPrinterJobPrint(printerJob)
+                #         myPrint("B", "Home / Summary screen widget successfully printed!")
+                #     except:
+                #         myPrint("B", "@@ Error - the widget did NOT successfully print?")
+
+                title = "Custom Balances - Home / Summary Screen widget (as of: %s)" %(convertStrippedIntDateFormattedText(DateUtil.getStrippedDateInt()))
+
+                printerJob = PrinterJob.getPrinterJob()
+                if GlobalVars.defaultPrintService is not None:
+                    printerJob.setPrintService(GlobalVars.defaultPrintService)
+
+                if GlobalVars.defaultPrinterAttributes is not None:
+                    pAttrs = attribute.HashPrintRequestAttributeSet(GlobalVars.defaultPrinterAttributes)
+                else:
+                    pAttrs = loadDefaultPrinterAttributes(None)
+
+                pAttrs.remove(attribute.standard.JobName)
+                pAttrs.add(attribute.standard.JobName(title, None))
+
+                if GlobalVars.defaultDPI != 72:
+                    pAttrs.remove(attribute.standard.PrinterResolution)
+                    pAttrs.add(attribute.standard.PrinterResolution(GlobalVars.defaultDPI, GlobalVars.defaultDPI, attribute.standard.PrinterResolution.DPI))
+
+                if not printerJob.printDialog(pAttrs):
+                    myPrint("DB", "User aborted the Print Dialog setup screen, so exiting...")
+                    return
+
+                selectedPrintService = printerJob.getPrintService()
+
+                toFile = pAttrs.containsKey(attribute.standard.Destination)
+
+                if toFile:
+                    printURI = pAttrs.get(attribute.standard.Destination).getURI()
+                    myPrint("B", "User has selected to print to destination: %s" %(printURI))
+                else:
+                    myPrint("DB", "User selected print service:", selectedPrintService)
+
+                thePageFormat = printerJob.getPageFormat(pAttrs)
+
+                # header = MessageFormat(title)
+                # footer = MessageFormat("- page {0} -")
+
+                printerJob.setPrintable(printerPrinter, thePageFormat)
+                NAB.SWSS_CC.sudoPrinterJobPrint(printerJob, pAttrs)
+
+                while pAttrs.containsKey(attribute.standard.JobName): pAttrs.remove(attribute.standard.JobName)
+                while pAttrs.containsKey(attribute.standard.Destination): pAttrs.remove(attribute.standard.Destination)
+
+                myPrint("DB", "Saving current print service:", printerJob.getPrintService())
+                GlobalVars.defaultPrinterAttributes = attribute.HashPrintRequestAttributeSet(pAttrs)
+                GlobalVars.defaultPrintService = printerJob.getPrintService()
+
 
     def isSyncTaskSyncing(checkMainTask=False, checkAttachmentsTask=False):
         if ((not checkMainTask and not checkAttachmentsTask) or (checkMainTask and checkAttachmentsTask)):
