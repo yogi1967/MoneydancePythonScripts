@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1037 - Oct 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1038 - Oct 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -150,6 +150,7 @@
 #               Applied fix to getDateRangeSelected() for Last1/30/365 days (which were adding 1 days) - MD issue. Should be fixed in build 5047...
 # build: 1037 - In line with MD build 5051 tweaked last 1/30/365 dates and avg fix again... (last 1 is today + yesterday; last30/365 include today)
 #               Common code - FileFilter fix...
+# build: 1038 - Allow UOR chaining...
 
 # todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
 
@@ -159,7 +160,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1037"
+version_build = "1038"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -6902,15 +6903,17 @@ Visit: %s (Author's site)
                             if (thisRow != otherRow):
                                 # myPrint("B", "...... confirmed thisRow != otherRow...");
                                 otherRowIdx = otherRow - 1
-                                if (NAB.savedOperateOnAnotherRowTable[otherRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None):
-                                    # myPrint("B", "...... confirmed savedOperateOnAnotherRowTable[otherRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None...");
-                                    if (NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
-                                        # myPrint("B", "...... confirmed NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS...");
-                                        if (not NAB.isRowFilteredOutByGroupID(otherRowIdx)):
-                                            # myPrint("B", "...... confirmed 'other row' not filtered out by 'Group ID'...");
-                                            resultIdx = int(otherRowIdx)
-                                            lOtherRowConfirmed = True
-                                            # myPrint("B", "...... >>> SUCCESS! RESULT: resultIdx: %s" %(resultIdx))
+
+                                # if (NAB.savedOperateOnAnotherRowTable[otherRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None):
+                                # myPrint("B", "...... confirmed savedOperateOnAnotherRowTable[otherRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None...");
+
+                                if (NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
+                                    # myPrint("B", "...... confirmed NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS...");
+                                    if (not NAB.isRowFilteredOutByGroupID(otherRowIdx)):
+                                        # myPrint("B", "...... confirmed 'other row' not filtered out by 'Group ID'...");
+                                        resultIdx = int(otherRowIdx)
+                                        lOtherRowConfirmed = True
+                                        # myPrint("B", "...... >>> SUCCESS! RESULT: resultIdx: %s" %(resultIdx))
 
             if debug:
                 myPrint("B", ".getOperateOnAnotherRowRowIdx(idx: %s) %s returning otherRowIdx: %s"
@@ -11817,16 +11820,34 @@ Visit: %s (Author's site)
                     simulateRowIdxs = []
                     simulateRowUUIDs = []
                 else:
-                    simulateRowIdxs = [justIndex]
-                    simulateRowUUIDs = [NAB.savedUUIDTable[justIndex]]
-                    needOtherRowIdx = NAB.getOperateOnAnotherRowRowIdx(justIndex)
-                    if needOtherRowIdx is not None:
-                        simulateRowIdxs.append(needOtherRowIdx)
-                        simulateRowUUIDs.append(NAB.savedUUIDTable[needOtherRowIdx])
-                        if debug: myPrint("DB", ".. RowIdx: %s Will include other rowIdx:%s for simulation.." %(justIndex, needOtherRowIdx))
-                    if debug: myPrint("DB", "@@ simulateRowIdxs:", simulateRowIdxs)
-                    if debug: myPrint("DB", "@@ simulateRowUUIDs:", simulateRowUUIDs)
-                    del needOtherRowIdx
+                    # Work out preliminary chain for this simulation...
+                    UORChains = {}
+                    onRowIdx = justIndex
+                    primaryRowUUID = NAB.savedUUIDTable[onRowIdx]
+                    UORChains[primaryRowUUID] = [onRowIdx]
+                    while True:
+                        # if debug: myPrint("B", "*** justIndex: %s, onRowIdx: %s" %(justIndex, onRowIdx))
+                        otherRowIdx = NAB.getOperateOnAnotherRowRowIdx(onRowIdx)
+                        if otherRowIdx is not None:
+                            if otherRowIdx not in UORChains[primaryRowUUID]:
+                                UORChains[primaryRowUUID].append(otherRowIdx)
+                                onRowIdx = otherRowIdx
+                                # if debug: myPrint("B", ".... UORChains[primaryRowUUID]", UORChains[primaryRowUUID])
+                                continue
+                        # elif NAB.savedOperateOnAnotherRowTable[onRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None:
+                        #     break                                          # Clean break, no error, end of the line...
+                        # UORChains[primaryRowUUID] = [onRowIdx, None]       # None signifies an UOR chaining error.....
+                        break
+
+                    if debug:
+                        for uuid in sorted(UORChains, key=lambda x: (UORChains[x][0])):
+                            myPrint("B", "UOR Preliminary Chain for simulation: uuid: %s, chains(rowIdx): %s" %(uuid, UORChains[uuid]))
+
+                    simulateRowIdxs = [simRowIdx for simRowIdx in UORChains[primaryRowUUID] if simRowIdx is not None]
+                    simulateRowUUIDs = [NAB.savedUUIDTable[simRowIdx] for simRowIdx in UORChains[primaryRowUUID] if simRowIdx is not None]
+                    if debug: myPrint("B", "@@ simulateRowIdxs:", simulateRowIdxs)
+                    if debug: myPrint("B", "@@ simulateRowUUIDs:", simulateRowUUIDs)
+
 
                 # --------------------------------------------------------------------------------------------------
                 accountsToShow = buildEmptyAccountList()
@@ -12141,45 +12162,88 @@ Visit: %s (Author's site)
                 startTime = System.currentTimeMillis()
 
                 # Perform maths using results from other rows (optional)...
+                # First work out the chains...
+                UORChains = {}
+                for i in range(0, len(_totalBalanceTable)):
+                    onRowIdx = i
+                    primaryRowUUID = None
+                    while True:
+                        balanceObj = _totalBalanceTable[onRowIdx]                                                       # type: CalculatedBalance
+                        if primaryRowUUID is None:
+                            primaryRowUUID = balanceObj.getUUID()
+                            UORChains[primaryRowUUID] = [i]
+                        if (balanceObj.getBalance() is not None):
+                            otherRowIdx = NAB.getOperateOnAnotherRowRowIdx(onRowIdx)
+                            if otherRowIdx is not None:
+                                otherRowBal = _totalBalanceTable[otherRowIdx].getBalance()
+                                if otherRowBal is not None:
+                                    if otherRowIdx not in UORChains[primaryRowUUID]:
+                                        UORChains[primaryRowUUID].append(otherRowIdx)
+                                        onRowIdx = otherRowIdx
+                                        continue
+                            elif NAB.savedOperateOnAnotherRowTable[onRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None:
+                                break                               # Clean break, no error, end of the line...
+                        UORChains[primaryRowUUID] = [i, None]       # None signifies an UOR chaining error.....
+                        break
+
+                if debug:
+                    for uuid in sorted(UORChains, key=lambda x: (UORChains[x][0])):
+                        myPrint("B", "UOR Chains: uuid: %s, chains(rowIdx): %s" %(uuid, UORChains[uuid]))
+
+                alreadyUpdatedRowUUIDs = []
                 for i in range(0, len(_totalBalanceTable)):
                     onRow = i + 1
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
+                    primaryRowUUID = balanceObj.getUUID()
                     if (balanceObj.getBalance() is not None):
-                        otherRowIdx = NAB.getOperateOnAnotherRowRowIdx(i)
-                        if otherRowIdx is None:
-                            if NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None:
-                                balanceObj.setUORError(True)
-                                lWarningDetected = True
-                                iWarningType = (5 if (iWarningType is None or iWarningType == 5) else 0)
-                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
-                                warnTxt = ("WARNING: Row: %s >> Wants to use other row: %s but this seems invalid and has been ignored...."
-                                           %(onRow, NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
-                                myPrint("B", warnTxt)
-                                NAB.warningMessagesTable.append(warnTxt)
+                        if UORChains[balanceObj.getUUID()][-1] is None:
+                            balanceObj.setUORError(True)
+                            lWarningDetected = True
+                            iWarningType = (5 if (iWarningType is None or iWarningType == 5) else 0)
+                            iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                            warnTxt = ("WARNING: Row: %s >> Wants to use other row: %s but this seems invalid and has been ignored...."
+                                       %(onRow, NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW]))
+                            myPrint("B", warnTxt)
+                            NAB.warningMessagesTable.append(warnTxt)
                         else:
-                            thisRowBal = balanceObj.getBalance()
-                            otherRowBal = _totalBalanceTable[otherRowIdx].getBalance()
-                            if (otherRowBal is None or otherRowBal == 0):
-                                if debug: myPrint("DB", "...... RowIdx: %s (calc: %s) otherRowIdx: %s balance (calc: %s) is NOT  valid (or is zero), so skipping this step - sorry!"%(i, thisRowBal, otherRowIdx, otherRowBal))
-                                continue
-                            if debug: myPrint("DB", "@@ i: %s, otherRowIdx: %s, thisRowBal: %s, otherRowBal: %s" %(i, otherRowIdx, thisRowBal, otherRowBal))
-                            operator = NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_OPERATOR]
-                            if operator == "+":
-                                newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) + _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
-                            elif operator == "-":
-                                newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) - _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
-                            elif operator == "*":
-                                newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) * _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
-                            elif operator == "/":
+                            # [3, 2, 1]
+                            # [1, 2, 3]
+                            #  0, 1, 2
+                            #  0, 1
+                            #  1, 0
+                            for iChainIdx in reversed(range(0, len(UORChains[primaryRowUUID]) -1)):
+                                onChainedUORIdx = UORChains[primaryRowUUID][iChainIdx]
+                                balanceObj = _totalBalanceTable[onChainedUORIdx]                                        # type: CalculatedBalance
+                                if balanceObj.getUUID() in alreadyUpdatedRowUUIDs:
+                                    if debug: myPrint("B", "@@ chains rowIdx: %s chain: %s iChainIdx: %s onChainedUORIdx: %s ALREADY UPDATED - SKIPPING" %(i, UORChains[primaryRowUUID], iChainIdx, onChainedUORIdx))
+                                    continue
+                                otherRowIdx = UORChains[primaryRowUUID][iChainIdx + 1]
+                                if debug: myPrint("B", "@@ chains rowIdx: %s chain: %s iChainIdx: %s onChainedUORIdx: %s otherRowIdx: %s" %(i, UORChains[primaryRowUUID], iChainIdx, onChainedUORIdx, otherRowIdx))
+                                thisRowBal = balanceObj.getBalance()
+                                otherRowBal = _totalBalanceTable[otherRowIdx].getBalance()
+                                if (otherRowBal is None or otherRowBal == 0):
+                                    if debug: myPrint("B", "...... RowIdx: %s (calc: %s) otherRowIdx: %s balance (calc: %s) is NOT valid (or is zero), so skipping this step - sorry!" %(i, thisRowBal, otherRowIdx, otherRowBal))
+                                    continue
+                                if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBal: %s, otherRowBal: %s" %(i, otherRowIdx, thisRowBal, otherRowBal))
+                                operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
+                                if operator == "+":
+                                    newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) + _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
+                                elif operator == "-":
+                                    newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) - _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
+                                elif operator == "*":
+                                    newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) * _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
+                                elif operator == "/":
+                                    newRowBal = balanceObj.getCurrencyType().getDoubleValue(thisRowBal) / _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal)
+                                    if NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
+                                        newRowBal = newRowBal * 100.0
+                                    newRowBal = balanceObj.getCurrencyType().getLongValue(newRowBal)
 
-                                newRowBal = balanceObj.getCurrencyType().getDoubleValue(thisRowBal) / _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal)
-                                if NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
-                                    newRowBal = newRowBal * 100.0
-                                newRowBal = balanceObj.getCurrencyType().getLongValue(newRowBal)
-
-                            else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, i))
-                            if debug: myPrint("DB", "... RowIdx: %s (calc: %s) requires other rowIdx: %s (calc: %s) >> New Balance calculated as: %s" %(i, thisRowBal, otherRowIdx, otherRowBal, newRowBal))
-                            balanceObj.setBalance(newRowBal)
+                                else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, onChainedUORIdx))
+                                if debug: myPrint("DB", "... RowIdx: %s (calc: %s) requires other rowIdx: %s (calc: %s) >> New Balance calculated as: %s"
+                                                  %(i, thisRowBal, otherRowIdx, otherRowBal, newRowBal))
+                                balanceObj.setBalance(newRowBal)
+                                # myPrint("B", "!! Updating balance on onChainedUORIdx: %s with %s" %(onChainedUORIdx, balanceObj));
+                                alreadyUpdatedRowUUIDs.append(balanceObj.getUUID())
 
                 tookTime = System.currentTimeMillis() - startTime
                 if debug: myPrint("DB", "calculateBalances() STAGE5>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
