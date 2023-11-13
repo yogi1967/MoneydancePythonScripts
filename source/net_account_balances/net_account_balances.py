@@ -152,7 +152,9 @@
 #               Common code - FileFilter fix...
 # build: 1038 - Allow UOR chaining...
 
-# todo add 'as of' balance date option (for non inc/exp rows) - perhaps??
+# todo - consider adding 'as of' balance date option (for non inc/exp rows) - perhaps??
+# todo - consider an option to add future Reminders into Balance?
+# todo - consider putting sudo Balance for all Accounts into the table...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
