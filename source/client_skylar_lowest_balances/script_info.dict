@@ -1,0 +1,8 @@
+{
+  "actions" = (
+    {
+      "type" = "initializer"
+      "script_file" = "client_skylar_lowest_balances_bootstrap.py"
+    }
+  )
+}
