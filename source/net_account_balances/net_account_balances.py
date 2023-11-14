@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1038 - Oct 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1039 - Oct 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -151,6 +151,7 @@
 # build: 1037 - In line with MD build 5051 tweaked last 1/30/365 dates and avg fix again... (last 1 is today + yesterday; last30/365 include today)
 #               Common code - FileFilter fix...
 # build: 1038 - Allow UOR chaining...
+# build: 1039 - ???
 
 # todo - consider adding 'as of' balance date option (for non inc/exp rows) - perhaps??
 # todo - consider an option to add future Reminders into Balance?
@@ -162,7 +163,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1038"
+version_build = "1039"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 

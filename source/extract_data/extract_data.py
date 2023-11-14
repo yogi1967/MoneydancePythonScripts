@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1039 - Nov 2023 - Stuart Beesley
+# extract_data.py - build: 1040 - Nov 2023 - Stuart Beesley
 #                   You can auto invoke by launching MD with one of the following:
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:noquit'
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:quit'
@@ -139,6 +139,7 @@
 #               New extensions menu option - run SG2020 / Reminders; removed 'from java.awt.print.Book import'
 # build: 1039 - Enhanced extract_security_balances with asof date, and cash values (inlcudes snazzy CostCalculation with asof date).
 #               Added extract account balances...
+# build: 1040 - ???
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -152,7 +153,7 @@
 
 # SET THESE LINES
 myModuleID = u"extract_data"
-version_build = "1039"
+version_build = "1040"
 MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
