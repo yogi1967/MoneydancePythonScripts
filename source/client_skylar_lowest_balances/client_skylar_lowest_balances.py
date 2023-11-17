@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# client_skylar_lowest_balances.py build: 1000 - November 2023 - Stuart Beesley - StuWareSoftSystems
+# client_skylar_lowest_balances.py build: 1001 - November 2023 - Stuart Beesley - StuWareSoftSystems
 #
 # "Bespoke for 'Skylar De'Font. Shows lowest future balances on Summary / Home page widget"
 ########################################################################################################################
@@ -32,6 +32,7 @@
 
 # Build: 1 - Initial beta release. Based code copied from net_account_balances.
 # Build: 1000 - Initial release...
+# Build: 1001 - Exclude inactive accounts from AccountSelectList()...
 
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -40,7 +41,7 @@
 
 # SET THESE LINES
 myModuleID = u"client_skylar_lowest_balances"
-version_build = "1000"
+version_build = "1001"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -4313,6 +4314,22 @@ Visit: %s (Author's site)
             accountList_ASL = AccountSelectList(LBE.moneydanceContext.getUI())
             accountList_ASL.setAccountFilter(accountFilter)
             return accountList_ASL
+
+        # def getAccountSelectListComponent(self):
+        #     # type: () -> AccountSelectList
+        #     LBE = self
+        #     book = LBE.moneydanceContext.getCurrentAccountBook()
+        #     accountFilter = AccountFilter("all_accounts")
+        #     allowedTypes = [Account.AccountType.BANK, Account.AccountType.CREDIT_CARD]                                  # noqa
+        #     for allowedType in allowedTypes: accountFilter.addAllowedType(allowedType)
+        #     inactiveAccts = [acct for acct in AccountUtil.allMatchesForSearch(book, AcctFilter.ALL_ACCOUNTS_FILTER)
+        #                      if (acct.getAccountType() in allowedTypes) and acct.getAccountOrParentIsInactive()]
+        #     fullAccountList = FullAccountList(LBE.moneydanceContext.getCurrentAccountBook(), accountFilter, True)
+        #     accountFilter.setFullList(fullAccountList)
+        #     for acct in inactiveAccts: myPrint("B", "**", accountFilter.exclude(acct));
+        #     accountList_ASL = AccountSelectList(LBE.moneydanceContext.getUI())
+        #     accountList_ASL.setAccountFilter(accountFilter)
+        #     return accountList_ASL
 
         def build_main_frame(self, lRebuild=False):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
