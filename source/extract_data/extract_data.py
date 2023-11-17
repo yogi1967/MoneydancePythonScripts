@@ -139,7 +139,7 @@
 #               New extensions menu option - run SG2020 / Reminders; removed 'from java.awt.print.Book import'
 # build: 1039 - Enhanced extract_security_balances with asof date, and cash values (inlcudes snazzy CostCalculation with asof date).
 #               Added extract account balances...
-# build: 1040 - ???
+# build: 1040 - Fix file chooser on Windows - could not select Folder...
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -2061,7 +2061,6 @@ Visit: %s (Author's site)
             else:
                 fileDialog.setMode(FileDialog.SAVE)
 
-            # if fileChooser_fileFilterText is not None and (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
             if fileChooser_fileFilterText is not None and (not Platform.isOSX() or isOSXVersionMontereyOrLater()):
                 myPrint("DB",".. Adding file filter for: %s" %(fileChooser_fileFilterText))
                 fileDialog.setFilenameFilter(ExtFilenameFilter(fileChooser_fileFilterText))
@@ -2102,7 +2101,6 @@ Visit: %s (Author's site)
             else:
                 jfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY)   # FILES_ONLY, DIRECTORIES_ONLY, FILES_AND_DIRECTORIES
 
-            # if fileChooser_fileFilterText is not None and (not Platform.isOSX() or not Platform.isOSXVersionAtLeast("10.13")):
             if fileChooser_fileFilterText is not None and (not Platform.isOSX() or isOSXVersionMontereyOrLater()):
                 myPrint("DB",".. Adding file filter for: %s" %(fileChooser_fileFilterText))
                 jfc.setFileFilter(ExtFileFilterJFC(fileChooser_fileFilterText))
@@ -3644,8 +3642,7 @@ Visit: %s (Author's site)
                                                    False,                               # Multi-file selection mode
                                                    True,                                # True for Open/Load, False for Save
                                                    False,                               # True = Files, else Dirs
-                                                   None,                                # Load/Save button text, None for defaults
-                                                   lForceFD=True
+                                                   None                                 # Load/Save button text, None for defaults
                                                    )
 
             if isValidExtractFolder(extractFolder):
