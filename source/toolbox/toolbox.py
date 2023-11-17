@@ -213,6 +213,8 @@
 # build: 1062 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
 #               add .getFullAcountName() to the error message in review_security_accounts()
 
+# todo - vmoptions -Xmx and -XX:MaxRAMPercentage= options. Also new -include-options ${HOME}\.moneydance\vmoptions.txt location
+
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
