@@ -92,7 +92,7 @@ NOTE: It's also a demo of how to create a true runtime Python extension and a Ho
 
 ### Signed Versions (hosted by Moneydance at InfiniteKind - These builds appear in the Extensions/Manage Extensions... menu)
 - <a href="https://infinitekind.com/app/md/extensions/toolbox.mxt">Toolbox (signed) (build: 1061 - 4th Nov 2023) (MD2023 / KOTLIN build(s) (5000+) support...; tweaks / fixes)
-- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1039 - 14th Nov 2023) (MD2023 support...; more extracts; auto extract features)
+- <a href="https://infinitekind.com/app/md/extensions/extract_data.mxt">Extract Data (signed) (build: 1040 - 18th Nov 2023) (MD2023 support...; more extracts; auto extract features)
 - <a href="https://infinitekind.com/app/md/extensions/list_future_reminders.mxt">List Future Reminders (signed) (build: 1028 - 4th Nov 2023) (MD2023 support...)
 - <a href="https://infinitekind.com/app/md/extensions/net_account_balances.mxt">Custom Balances (net_account_balances) (signed) (build: 1038 - 14th Nov 2023) (MD2023 support...; New row formatting options (inc. html); Print widget feature; use tax date option)
 
@@ -175,4 +175,4 @@ _Or perhaps just buy me a "beer" (also via PayPal)_<BR>
 
 _<b>If you would like me to code a Moneydance extension, report, script, or fix for you, (for a fee) then contact me: written_drizzle_0v @ icloud.com (no spaces)</b>_<BR>
 
-_(site last updated 14th November 2023)_
+_(site last updated 18th November 2023)_
