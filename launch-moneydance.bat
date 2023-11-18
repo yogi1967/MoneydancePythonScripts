@@ -1,5 +1,5 @@
 :: Author Stuart Beesley - StuWareSoftSystems - April 2022
-:: Windows verison of Moneydance launch script
+:: Windows version of Moneydance launch script
 :: Download the relevant Java JDK from here: https://adoptium.net/temurin/releases
 :: Download the relevant javafx from glueonhq - e.g. https://download2.gluonhq.com/openjfx/18/openjfx-18_windows-x86_bin-sdk.zip
 :: Run this bat file from the Moneydance' application's lib directory
