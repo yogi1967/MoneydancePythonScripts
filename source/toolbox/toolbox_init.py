@@ -549,7 +549,7 @@ class QuickDiag(Runnable):
                 if  usage > 0.60:
                     msg += ("** MD memory usage is %s of max allocated to JVM%s **\n"
                             %("{:.0%}".format(usage),
-                              ", consider editing .vmoptions file to increase '-Xmx' memory setting" if not Platform.isOSX() else ""))
+                              ", consider editing .vmoptions file to increase '-Xmx' or '-XX:MaxRAMPercentage=' memory setting" if not Platform.isOSX() else ""))
                 msg += "-----------------------------------------------------\n"
                 msg += "\n"
                 _specialPrint(msg)

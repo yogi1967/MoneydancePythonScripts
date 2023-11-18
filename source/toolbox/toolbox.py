@@ -212,8 +212,7 @@
 #               JFrame.dispose() added rootPane.getInputMap().clear() - ensure no memory leaks...; Increased usage of DateRange()
 # build: 1062 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
 #               add .getFullAcountName() to the error message in review_security_accounts()
-
-# todo - vmoptions -Xmx and -XX:MaxRAMPercentage= options. Also new -include-options ${HOME}\.moneydance\vmoptions.txt location
+#               updated -Xmx to include -XX:MaxRAMPercentage= and tweak show vmoptions feature etc....
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -642,7 +641,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.2
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5056
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5057
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -658,6 +657,7 @@ else:
     GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090                        # 2022.5
     GlobalVars.MD_KOTLIN_COMPILED_BUILD_ALL = 5008                          # 2023.2 (Entire codebase compiled in Kotlin)
     GlobalVars.MD_INFINITYBACKUPS_FIXED = 5046                              # 2023.2
+    GlobalVars.MD_VMOPTIONS_CHANGED = 5055                                  # 2023.2
 
     GlobalVars.fixRCurrencyCheck = 0
     GlobalVars.globalSaveFI_data = None
@@ -15533,18 +15533,28 @@ Visit: %s (Author's site)
                                   "AUTO-PRUNE INTERNAL BACKUPS",
                                   JOptionPane.ERROR_MESSAGE)
 
+    def quickReadTextFile(theFileToRead):
+        displayFile = "<ERROR READING FILE - OR DOES NOT EXIST>"
+        try:
+            with open(theFileToRead, "r") as myFile:
+                displayFile = myFile.readlines()
+
+            # If VMOptions, stick a "'" at the beginning for clipboard to Excel to work OK
+            if GlobalVars.lCopyAllToClipBoard_TB and "vmoptions" in theFileToRead.lower():
+                newDisplayFile = []
+                for line in displayFile:
+                    line = "'" + line
+                    newDisplayFile.append(line)
+                displayFile = newDisplayFile
+            else:
+                displayFile.append("\n<END>")
+
+            displayFile = ''.join(displayFile)
+        except:
+            dump_sys_error_to_md_console_and_errorlog()
+        return displayFile
+
     class ViewFileButtonAction(AbstractAction):
-
-        class CloseAction(AbstractAction):
-
-            def __init__(self, the_frame):
-                self.theFrame = the_frame
-
-            # noinspection PyUnusedLocal
-            def actionPerformed(self, event):
-                myPrint("DB", "Inner View File Frame shutting down....")
-                self.theFrame.dispose()     # Listener will already be on the EDT
-                return
 
         def __init__(self, theFile, displayText):
             self.theFile = theFile
@@ -15555,51 +15565,99 @@ Visit: %s (Author's site)
 
             myPrint("DB", "User requested to view " + self.displayText + " file...")
             if not os.path.exists(x):
-                txt = "Sorry - " + self.displayText + " file does not exist or is not available to view!?: " + x
+                txt = "ERROR - " + self.displayText + " file does not exist or is not available to view!?: " + x
                 setDisplayStatus(txt, "R")
                 return
 
-            try:
-                with open(x, "r") as myFile:
-                    displayFile = myFile.readlines()
+            displayFile = quickReadTextFile(x)
 
-                # If VMOptions, stick a "'" at the beginning for clipboard to Excel to work OK
-                if GlobalVars.lCopyAllToClipBoard_TB and x.lower().endswith(".vmoptions"):
-                    newDisplayFile=[]
-                    for line in displayFile:
-                        line ="'"+line
-                        newDisplayFile.append(line)
-                    displayFile = newDisplayFile
-                else:
-                    displayFile.append("\n<END>")
-
-                displayFile = ''.join(displayFile)
-            except:
-                displayFile = "Sorry - error opening file...."
-                dump_sys_error_to_md_console_and_errorlog()
-
-            if x.lower().endswith(".vmoptions"):
+            lViewVMOptions = x.lower().endswith(".vmoptions")
+            if lViewVMOptions:
                 vmoptionsPath = get_vmoptions_path()
-                displayFile += """
--------------------------------------------------------------------------------------------------------------------------------------------
+                vmoptionsLocalPath = os.path.join(Common.getRootDirectory().getCanonicalPath(), "vmoptions.txt")
+                lNewVMOptions = MD_REF.getBuild() >= GlobalVars.MD_VMOPTIONS_CHANGED
+
+                if lNewVMOptions:
+                    displayFile = ("Moneydance's .vmoptions file (DO NOT CHANGE): '%s'\n"
+                                   "---------------------------------------------\n" %(vmoptionsPath)
+                                   + displayFile)
+
+                    displayFile2 = quickReadTextFile(vmoptionsLocalPath)
+
+                    displayFile += ("\n\n"
+                                    "---------------------------------------------------------------------------------------------------------------------------------------------\n"
+                                    "Local user vmoptions.txt file (create/edit): '%s'\n"
+                                    "--------------------------------------------\n" %(vmoptionsLocalPath)
+                                    + displayFile2
+                                    +"\n\n")
+
+                if lNewVMOptions:
+                    displayFile += """
+---------------------------------------------------------------------------------------------------------------------------------------------
 <INSTRUCTIONS - MEMORY>
 ======================
-You can allow for more memory by editing the '%s' file and set it to increase the amount of memory that
-Moneydance is allowed to use. To achieve this you can try the following:
+
+>>>> As of MD2023.2(5055) the default on all platforms is '-XX:MaxRAMPercentage=80' (allow up to 80 percent usage of available memory) <<<<<
+>>>>                      it is highly unlikely that you should need to adjust your memory settings on builds later than 5055          <<<<<
+>>>>                      however, changes should ONLY be made to the ${HOME}/.moneydance/vmoptions.txt file (which you should create) <<<<<
+>>>>                      the 'Moneydance.vmoptions' file should NOT be changed!                                                       <<<<<
+
+MD's .vmoptions file (DO NOT CHANGE):         '%s'
+Local user vmoptions.txt file to create/edit: '%s'
+
+You can change / override Moneydance's memory usage (and other JVM settings) by creating / editing your local 'vmoptions.txt' file.
+
+WITH MONEYDANCE CLOSED... Create/open/edit the '%s' file with Notepad or any other text editor. Update your settings and save...
+
+Here you can set options which will override the Moneydance/JVM... For memory use one of the two following settings:
+-XX:MaxRAMPercentage=80             (would limit usage to 80 percent of max memory available)
+-Xmx2048m                           (would limit usage to 2MB of memory)
+
+If you want to prove this worked.. At MD launch, the Toolbox extension informs you of the memory being used in Help/Console Window.
+
+""" %(vmoptionsPath, vmoptionsLocalPath, vmoptionsLocalPath)
+
+                else:
+                    displayFile += """
+---------------------------------------------------------------------------------------------------------------------------------------------
+<INSTRUCTIONS - MEMORY>
+======================
+
+You can change Moneydance's memory usage by editing the '%s' file and change/increase the amount of memory that Moneydance is allowed to use.
+To achieve this you can make the following changes:
+
+WITH MONEYDANCE CLOSED...
 
 Navigate to the '%s' file, located in the folder where Moneydance is installed:
 
 If you open that file with Notepad or any other text editor, you'll see some instructions for how to change it.
-Close Moneydance first!
 
-The basic recommendation is to changing the -Xmx1024m setting to -Xmx2048m which doubles the amount of memory that Moneydance is allowed to use.
-You can give it more if you wish, E.g.: you make it -Xmx3072m, for optimal results.
+The basic recommendation for builds prior to MD2023.2(5055) is to replace the old '-Xmx1024m' setting with: '-XX:MaxRAMPercentage=80'
+Or, at least use something like '-Xmx2048m' which will double the amount of memory that Moneydance is allowed to use.
+NOTE: The limit was previously set deliberately low to enable it to work with computers having very small amounts of RAM.
 
-NOTE: The limit is set deliberately low to enable it to work with computers having very small amounts of RAM.
+""" %(vmoptionsPath, vmoptionsPath)
 
-""" %(vmoptionsPath, vmoptionsPath)                                                                                     # noqa
+                linuxExtra = """
+<INSTRUCTIONS - Linux and High Resolution Screens>
+=================================================
+When running Linux on a computer with a high resolution display, some distributions will let you adjust the "scaling" of 
+the interface to provide clearer graphics at a larger size. If you use scaling on your Linux desktop but the contents of
+the Moneydance window appears very small then you may need to adjust Moneydance's scaling.
 
-                windowsExtra = """
+To change the scaling, open '%s' with a text editor (as per instructions below) add the following two lines to the bottom of the file:
+
+-Dsun.java2d.uiScale=2
+-Dsun.java2d.uiScale.enabled=true
+
+>>PLEASE NOTE: that as of this writing, non-integer scales (for example, 1.2) are not supported.
+refer: https://infinitekind.tenderapp.com/kb/linux/linux-and-hidpi-high-resolution-screens
+
+after saving the file, restart Moneydance
+---------------------------------------------------------------------------------------------------------------------------------------------
+""" %(vmoptionsLocalPath if lNewVMOptions else vmoptionsPath)
+
+                windowsExtraPermissions = """
 -----
 Windows location: '%s'
 
@@ -15612,30 +15670,15 @@ edit the file and change the -Xmx1024 setting
 ctrl-s to save and then exit Notepad
 exit
 restart Moneydance
--------------------------------------------------------------------------------------------------------------------------------------------
-""" %(vmoptionsPath, vmoptionsPath)                                                                                     # noqa
+---------------------------------------------------------------------------------------------------------------------------------------------
+""" %(vmoptionsPath, vmoptionsPath)
 
-                linuxExtra = """
-<INSTRUCTIONS - Linux and High Resolution Screens>
-=================================================
-When running Linux on a computer with a high resolution display, some distributions will let you adjust the "scaling" of 
-the interface to provide clearer graphics at a larger size. If you use scaling on your Linux desktop but the contents of
-the Moneydance window appears very small then you may need to adjust Moneydance's scaling.
-
-To change the scaling, open '%s' with a text editor (as per instructions below) add the following two
-lines to the bottom of the file:
-
--Dsun.java2d.uiScale=2
--Dsun.java2d.uiScale.enabled=true
-
->>PLEASE NOTE: that as of this writing, non-integer scales (for example, 1.2) are not supported.
-refer: https://infinitekind.tenderapp.com/kb/linux/linux-and-hidpi-high-resolution-screens
-
+                linuxExtraPermissions = """
 -----
 Linux file location: '%s'
 
 In Linux - due to permissions, you will need to do this:
-a) Either edit in Terminal using sudo before the command (e.g. sudo vi '%s') , or;
+a) Either edit in Terminal using sudo before the command (e.g. sudo vi '%s' or sudo xed <file>) , or;
 
 b) You ideally need to be able to open files as root via a right click.
 - This assumes you are on a Debian based system
@@ -15649,20 +15692,25 @@ b) You ideally need to be able to open files as root via a right click.
 So, now find the /Opt folder, right click on the Moneydance FOLDER, Open as Root. Enter your password. Now you can edit the '%s' file....
 >> Note: You may need to logoff and then login to see the changes!
 
-now after saving the file, restart Moneydance
--------------------------------------------------------------------------------------------------------------------------------------------
-""" %(vmoptionsPath, vmoptionsPath, vmoptionsPath, vmoptionsPath)                                                       # noqa
+after saving the file, restart Moneydance
+---------------------------------------------------------------------------------------------------------------------------------------------
+""" %(vmoptionsPath, vmoptionsPath, vmoptionsPath)
 
                 if Platform.isWindows():
-                    displayFile += windowsExtra
+                    if not lNewVMOptions:
+                        displayFile += windowsExtraPermissions
                 elif Platform.isUnix():
                     displayFile += linuxExtra
+                    if not lNewVMOptions:
+                        displayFile += linuxExtraPermissions
                 try:
                     MD_REF.getPlatformHelper().openDirectory(self.theFile)
+                    if lNewVMOptions:
+                        MD_REF.getPlatformHelper().openDirectory(File(vmoptionsLocalPath))
                 except: pass
                 time.sleep(0.5)
 
-            jif = QuickJFrame("View " + self.displayText + " file: " + x, displayFile, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB).show_the_frame()
+            jif = QuickJFrame("View " + self.displayText + " file: " + x, displayFile, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
             jif.toFront()
 
     def reportAccountNumbers(lEditAlternativeAccountNumbers=False):
