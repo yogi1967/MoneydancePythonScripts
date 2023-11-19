@@ -657,7 +657,7 @@ else:
     GlobalVars.MD_MDPLUS_GETPLAIDCLIENT_BUILD = 4090                        # 2022.5
     GlobalVars.MD_KOTLIN_COMPILED_BUILD_ALL = 5008                          # 2023.2 (Entire codebase compiled in Kotlin)
     GlobalVars.MD_INFINITYBACKUPS_FIXED = 5046                              # 2023.2
-    GlobalVars.MD_VMOPTIONS_CHANGED = 5055                                  # 2023.2
+    GlobalVars.MD_VMOPTIONS_CHANGED = 5057                                  # 2023.2 (switched to -include files)
 
     GlobalVars.fixRCurrencyCheck = 0
     GlobalVars.globalSaveFI_data = None
@@ -15577,17 +15577,22 @@ Visit: %s (Author's site)
                 vmoptionsLocalPath = os.path.join(Common.getRootDirectory().getCanonicalPath(), "vmoptions.txt")
                 lNewVMOptions = MD_REF.getBuild() >= GlobalVars.MD_VMOPTIONS_CHANGED
 
-                if lNewVMOptions:
-                    displayFile = ("Moneydance's .vmoptions file (DO NOT CHANGE): '%s'\n"
-                                   "---------------------------------------------\n" %(vmoptionsPath)
+                if not lNewVMOptions:
+                    displayFile = ("Contents of Moneydance's .vmoptions file: '%s'\n"
+                                   "-----------------------------------------\n" %(vmoptionsPath)
+                                   + displayFile)
+                else:
+
+                    displayFile = ("Contents of Moneydance's .vmoptions file (DO NOT CHANGE): '%s'\n"
+                                   "---------------------------------------------------------\n" %(vmoptionsPath)
                                    + displayFile)
 
                     displayFile2 = quickReadTextFile(vmoptionsLocalPath)
 
                     displayFile += ("\n\n"
                                     "---------------------------------------------------------------------------------------------------------------------------------------------\n"
-                                    "Local user vmoptions.txt file (create/edit): '%s'\n"
-                                    "--------------------------------------------\n" %(vmoptionsLocalPath)
+                                    "Contents of Local user vmoptions.txt file (create/edit): '%s'\n"
+                                    "--------------------------------------------------------\n" %(vmoptionsLocalPath)
                                     + displayFile2
                                     +"\n\n")
 
@@ -15597,9 +15602,10 @@ Visit: %s (Author's site)
 <INSTRUCTIONS - MEMORY>
 ======================
 
->>>> As of MD2023.2(5055) the default on all platforms is '-XX:MaxRAMPercentage=80' (allow up to 80 percent usage of available memory) <<<<<
->>>>                      it is highly unlikely that you should need to adjust your memory settings on builds later than 5055          <<<<<
->>>>                      however, changes should ONLY be made to the ${HOME}/.moneydance/vmoptions.txt file (which you should create) <<<<<
+>>>> As of MD2023.2(%s) the default on all platforms is '-XX:MaxRAMPercentage=80' (allow up to 80 percent usage of available memory) <<<<<
+>>>>                      it is highly unlikely that you should need to adjust your memory settings on builds later than %s          <<<<<
+>>>>                      however, changes should ONLY be made to the /.moneydance/vmoptions.txt file (which you should create)        <<<<<
+>>>>                      (note: the 'vmoptions.txt' file location is the same location as the  errlog.txt & config.dict files)        <<<<<
 >>>>                      the 'Moneydance.vmoptions' file should NOT be changed!                                                       <<<<<
 
 MD's .vmoptions file (DO NOT CHANGE):         '%s'
@@ -15609,13 +15615,14 @@ You can change / override Moneydance's memory usage (and other JVM settings) by 
 
 WITH MONEYDANCE CLOSED... Create/open/edit the '%s' file with Notepad or any other text editor. Update your settings and save...
 
-Here you can set options which will override the Moneydance/JVM... For memory use one of the two following settings:
+Using ONE of the following lines will override the default 80 percent max memory JVM usage:
 -XX:MaxRAMPercentage=80             (would limit usage to 80 percent of max memory available)
 -Xmx2048m                           (would limit usage to 2MB of memory)
 
-If you want to prove this worked.. At MD launch, the Toolbox extension informs you of the memory being used in Help/Console Window.
+If you want to prove this worked.. At MD launch, the Toolbox extension informs you of the memory  being used in Help/Console Window.
+Also on opening Toolbox, the bottom status bar line provides JVM Memory information.
 
-""" %(vmoptionsPath, vmoptionsLocalPath, vmoptionsLocalPath)
+""" %(GlobalVars.MD_VMOPTIONS_CHANGED, GlobalVars.MD_VMOPTIONS_CHANGED, vmoptionsPath, vmoptionsLocalPath, vmoptionsLocalPath)
 
                 else:
                     displayFile += """
@@ -15632,11 +15639,14 @@ Navigate to the '%s' file, located in the folder where Moneydance is installed:
 
 If you open that file with Notepad or any other text editor, you'll see some instructions for how to change it.
 
-The basic recommendation for builds prior to MD2023.2(5055) is to replace the old '-Xmx1024m' setting with: '-XX:MaxRAMPercentage=80'
-Or, at least use something like '-Xmx2048m' which will double the amount of memory that Moneydance is allowed to use.
+The basic recommendation for builds prior to MD2023.2(%s) is to replace the old '-Xmx1024m' setting with a new line:
+-XX:MaxRAMPercentage=80     
+#-Xmx1024m                          (adding # in front of this line to comment it out)
+This would limit usage to 80 percent of max memory available.  Or, at least use something like '-Xmx2048m' which will
+double the amount of memory that Moneydance is allowed to use to 2GB
 NOTE: The limit was previously set deliberately low to enable it to work with computers having very small amounts of RAM.
 
-""" %(vmoptionsPath, vmoptionsPath)
+""" %(vmoptionsPath, vmoptionsPath, GlobalVars.MD_VMOPTIONS_CHANGED)
 
                 linuxExtra = """
 <INSTRUCTIONS - Linux and High Resolution Screens>
@@ -15662,16 +15672,16 @@ after saving the file, restart Moneydance
 Windows location: '%s'
 
 In Windows - due to permissions, you will need to do this:
-In the 'Type here to Search' box on the Windows 10 Toolbar, type CMD (do not press enter)
-When Command Prompt appears, click Run as Administrator
-Click yes/agree to allow this app to make changes to this device / grant administrator permissions
-notepad "%s" (and press enter)
-edit the file and change the -Xmx1024 setting
-ctrl-s to save and then exit Notepad
-exit
+
+To save the Moneydance.vmoptions file you need to run Notepad as a Administrator. 
+In the Windows search box, in the Task Bar, type Notepad. When Notepad appears in the list, right-click 
+and select 'run as administrator' to open Notepad.
+Then FILE – OPEN and use dropdown to change Text Document (*.txt) to *.* and navigate to 'Moneydance.vmoptions' file and click OPEN. 
+Edit the file and then use Menu > FILE > SAVE, then FILE > EXIT.
+
 restart Moneydance
 ---------------------------------------------------------------------------------------------------------------------------------------------
-""" %(vmoptionsPath, vmoptionsPath)
+""" %(vmoptionsPath)
 
                 linuxExtraPermissions = """
 -----
