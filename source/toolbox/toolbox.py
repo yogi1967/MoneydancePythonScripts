@@ -15602,11 +15602,11 @@ Visit: %s (Author's site)
 <INSTRUCTIONS - MEMORY>
 ======================
 
->>>> As of MD2023.2(%s) the default on all platforms is '-XX:MaxRAMPercentage=80' (allow up to 80 percent usage of available memory) <<<<<
->>>>                      it is highly unlikely that you should need to adjust your memory settings on builds later than %s          <<<<<
->>>>                      however, changes should ONLY be made to the /.moneydance/vmoptions.txt file (which you should create)        <<<<<
->>>>                      (note: the 'vmoptions.txt' file location is the same location as the  errlog.txt & config.dict files)        <<<<<
->>>>                      the 'Moneydance.vmoptions' file should NOT be changed!                                                       <<<<<
+>>>> As of MD2023.2(%s) the default on all platforms is '-XX:MaxRAMPercentage=80' (allow up to 80%% usage of available memory)  <<<<<
+>>>>                      it is highly unlikely that you should need to adjust your memory settings on build %s or later        <<<<<
+>>>>                      however, changes should ONLY be made to the /.moneydance/vmoptions.txt file (which you should create)   <<<<<
+>>>>                      (note: the 'vmoptions.txt' file location is the same location as the  errlog.txt & config.dict files)   <<<<<
+>>>>                      the 'Moneydance.vmoptions' file should NOT be changed!                                                  <<<<<
 
 MD's .vmoptions file (DO NOT CHANGE):         '%s'
 Local user vmoptions.txt file to create/edit: '%s'
@@ -15615,8 +15615,8 @@ You can change / override Moneydance's memory usage (and other JVM settings) by 
 
 WITH MONEYDANCE CLOSED... Create/open/edit the '%s' file with Notepad or any other text editor. Update your settings and save...
 
-Using ONE of the following lines will override the default 80 percent max memory JVM usage:
--XX:MaxRAMPercentage=80             (would limit usage to 80 percent of max memory available)
+Using ONE of the following lines would override the default 80%% max memory JVM usage:
+-XX:MaxRAMPercentage=50             (would limit usage to 50%% of max memory available)
 -Xmx2048m                           (would limit usage to 2MB of memory)
 
 If you want to prove this worked.. At MD launch, the Toolbox extension informs you of the memory  being used in Help/Console Window.
@@ -15642,7 +15642,7 @@ If you open that file with Notepad or any other text editor, you'll see some ins
 The basic recommendation for builds prior to MD2023.2(%s) is to replace the old '-Xmx1024m' setting with a new line:
 -XX:MaxRAMPercentage=80     
 #-Xmx1024m                          (adding # in front of this line to comment it out)
-This would limit usage to 80 percent of max memory available.  Or, at least use something like '-Xmx2048m' which will
+This would limit usage to 80%% of max memory available.  Or, at least use something like '-Xmx2048m' which will
 double the amount of memory that Moneydance is allowed to use to 2GB
 NOTE: The limit was previously set deliberately low to enable it to work with computers having very small amounts of RAM.
 
@@ -15676,7 +15676,7 @@ In Windows - due to permissions, you will need to do this:
 To save the Moneydance.vmoptions file you need to run Notepad as a Administrator. 
 In the Windows search box, in the Task Bar, type Notepad. When Notepad appears in the list, right-click 
 and select 'run as administrator' to open Notepad.
-Then FILE – OPEN and use dropdown to change Text Document (*.txt) to *.* and navigate to 'Moneydance.vmoptions' file and click OPEN. 
+Then FILE > OPEN and use dropdown to change Text Document (*.txt) to *.* and navigate to 'Moneydance.vmoptions' file and click OPEN. 
 Edit the file and then use Menu > FILE > SAVE, then FILE > EXIT.
 
 restart Moneydance
@@ -18817,8 +18817,8 @@ after saving the file, restart Moneydance
                 _i+=1
 
             if len(old_snapshots):
-                text += "  >> %s'd %s of %s eligible (old) snapshots (%s percent) from %s\n"%(ThnTxt, num_thinned, len(old_snapshots), 100*num_thinned/len(old_snapshots), _curr.getName())
-                text += "  >> %s'd %s of %s total snapshots          (%s percent) from %s\n"%(ThnTxt, num_thinned, len(_snapshots), 100*num_thinned/len(_snapshots), _curr.getName())
+                text += "  >> %s'd %s of %s eligible (old) snapshots (%s%%) from %s\n"%(ThnTxt, num_thinned, len(old_snapshots), 100*num_thinned/len(old_snapshots), _curr.getName())
+                text += "  >> %s'd %s of %s total snapshots          (%s%%) from %s\n"%(ThnTxt, num_thinned, len(_snapshots), 100*num_thinned/len(_snapshots), _curr.getName())
             else:
                 text += "  >> No old snapshots %s'd from %s\n" %(ThnTxt, _curr.getName())
 
