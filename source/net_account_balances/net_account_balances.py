@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1039 - Oct 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1039 - Nov 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -151,7 +151,7 @@
 # build: 1037 - In line with MD build 5051 tweaked last 1/30/365 dates and avg fix again... (last 1 is today + yesterday; last30/365 include today)
 #               Common code - FileFilter fix...
 # build: 1038 - Allow UOR chaining...
-# build: 1039 - ???
+# build: 1039 - Operate using 'sudo' balances for all rows/accounts....
 
 # todo - consider adding 'as of' balance date option (for non inc/exp rows) - perhaps??
 # todo - consider an option to add future Reminders into Balance?
@@ -11910,7 +11910,7 @@ Visit: %s (Author's site)
                     if justIndex is not None and iAccountLoop not in simulateRowIdxs: continue
                     if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
                     if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
-
+                    "HERE";
                     if not isIncomeExpenseAllDatesSelected(iAccountLoop):
                         if debug: myPrint("DB", "HomePageView: Income/Expense Date Range '%s' used on Row: %s (will gather child accounts (if AutoSum) and all related income/expense transactions). AutoSum = %s"
                                 %(NAB.savedIncomeExpenseDateRange[iAccountLoop], onRow, NAB.savedAutoSumAccounts[iAccountLoop]))
