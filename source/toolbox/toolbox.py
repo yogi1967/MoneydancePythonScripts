@@ -15613,7 +15613,8 @@ Local user vmoptions.txt file to create/edit: '%s'
 
 You can change / override Moneydance's memory usage (and other JVM settings) by creating / editing your local 'vmoptions.txt' file.
 
-WITH MONEYDANCE CLOSED... Create/open/edit the '%s' file with Notepad or any other text editor. Update your settings and save...
+WITH MONEYDANCE CLOSED... Create/open/edit the '%s' file with a suitable text editor. Update your settings and save...
+... suggested text editors: Windows: Notepad, Linux: KWrite (from Software Manager/app Store)
 
 Using ONE of the following lines would override the default 80%% max memory JVM usage:
 -XX:MaxRAMPercentage=50             (would limit usage to 50%% of max memory available)
@@ -15637,7 +15638,8 @@ WITH MONEYDANCE CLOSED...
 
 Navigate to the '%s' file, located in the folder where Moneydance is installed:
 
-If you open that file with Notepad or any other text editor, you'll see some instructions for how to change it.
+Open this file with a suitable text editor. The file contents contain some instructions on how to change the settings.
+... suggested text editors: Windows: Notepad, Linux: KWrite (from Software Manager/app Store)
 
 The basic recommendation for builds prior to MD2023.2(%s) is to replace the old '-Xmx1024m' setting with a new line:
 -XX:MaxRAMPercentage=80     
@@ -15687,20 +15689,24 @@ restart Moneydance
 -----
 Linux file location: '%s'
 
-In Linux - due to permissions, you will need to do this:
-a) Either edit in Terminal using sudo before the command (e.g. sudo vi '%s' or sudo xed <file>) , or;
+In Linux - due to system-protection / file permissions, you will need to do ONE of the following:
 
-b) You ideally need to be able to open files as root via a right click.
-- This assumes you are on a Debian based system
-1. Open the Terminal
-2. Type sudo su and press enter. Provide your password and press enter
-3. Then type apt-get install -y nautilus-admin and press enter
-4. Now type nautilus -q and press enter
-5. Finally type exit and press enter, and close the terminal window
-6. All set. Now when you want to open a file as root, simply right click the FOLDER and select Open as Root (or Administrator).
+a) PREFERRED >> Edit the file using KWrite (install  Software Manager/app Store), or;
+   (upon clicking Save you will be asked to enter your admin password to gain Root privileges to allow the edits to be saved)
 
-So, now find the /Opt folder, right click on the Moneydance FOLDER, Open as Root. Enter your password. Now you can edit the '%s' file....
->> Note: You may need to logoff and then login to see the changes!
+b) Edit in Terminal using sudo before the command (e.g. sudo vi '%s' or sudo xed <file>), or;
+
+c) Configure your system to be able to open files as root via a right-click:
+    >> This assumes you are on a Debian based system
+    1. Open the Terminal
+    2. Type sudo su and press enter. Provide your password and press enter
+    3. Then type apt-get install -y nautilus-admin and press enter
+    4. Now type nautilus -q and press enter
+    5. Finally type exit and press enter, and close the terminal window
+    6. All set. Now when you want to open a file as root, simply right click the FOLDER and select Open as Root (or Administrator).
+    
+    Now find the /Opt folder, right-click on the Moneydance FOLDER, Open as Root. Enter your password. Now you can edit the '%s' file....
+    >> Note: You may need to logoff and then login to see the changes!
 
 after saving the file, restart Moneydance
 ---------------------------------------------------------------------------------------------------------------------------------------------
