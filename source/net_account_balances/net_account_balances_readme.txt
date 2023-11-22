@@ -61,6 +61,14 @@ WARNINGS:
 
 EXAMINING THE CHOICES/CONFIGURATION:
 
+- Balance option: Choose from 'Balance', 'Current Balance', 'Cleared Balance', 'Balance asof Date'
+    - These are the same as used by Moneydance:
+        - Balance:           Includes all transactions - even future
+        - Current Balance:   The same as Balance but excluding future transactions
+        - Cleared Balance:   Includes all 'cleared' (i.e. reconciled) transactions - even future
+        - Balance asof Date: Includes all transactions up to / including the supplied asof date (ignores cleared status)
+                             This does NOT apply to Income/Expense accounts / transactions - they use the I/E date range
+
 - AutoSum:
   - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
                                            it auto summarises the whole account(s) including Investments/Cash/Securities
