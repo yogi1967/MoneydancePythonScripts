@@ -68,6 +68,14 @@ EXAMINING THE CHOICES/CONFIGURATION:
         - Cleared Balance:   Includes all 'cleared' (i.e. reconciled) transactions - even future
         - Balance asof Date: Includes all transactions up to / including the supplied asof date (ignores cleared status)
                              This does NOT apply to Income/Expense accounts / transactions - they use the I/E date range
+                             When selected, the asof date options are enabled / appear. Here you select the auto asof
+                             end date, or specify a fixed custom asof date. The auto asof dates will auto-adjust every
+                             time the calculations are executed.
+
+        - WARNING: Using 'Balance asof Date' switches the widget to build and maintain a 'parallel table' of balances.
+                   Calculated by sweeping through all transactions and calculating balances
+                   THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
+                   Any row that uses 'Balance asof Date' will trigger this parallel balances sweep
 
 - AutoSum:
   - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
@@ -90,6 +98,16 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
                  NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
                        .. The search for warnings stops after the first occurrence of each type of error it finds....
+
+- Include Reminders: When selected then Reminders (up to the selected asof date) will be included in the balances.
+
+- Use Cost Basis options:
+    - N/A (default):        Cost Basis is never used
+    - Rtn Cost Basis:       When selected, then the cost basis (as of the balance / asof date) for selected Security
+                            accounts will be returned.
+    - Rtn Unrealised Gains: When selected, then the calculated unrealised gains (asof the balance / asof date) for the
+                            selected Security accounts will be returned. This is calculated as value less cost basis.
+    >> NOTE: These options DO NOT affect non-Security accounts included in this row.
 
 - Average by options:
     - Changes the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
@@ -173,6 +191,8 @@ USING CATEGORIES:
 
   - NOTE: You can select to use a date range at any time. BUT if you have not selected any Inc/Exp categories, then
           the date range will later revert back automatically to 'All dates'.
+
+  - NOTE: The 'Balance asof Date' has no bearing on this setting which is used exclusively for Income / Expense txns.
 
   - I/E Date Range options:
     Example: Given a today's date of 4th November 2023 (20231104), the I/E Date Range filters will return the following:
