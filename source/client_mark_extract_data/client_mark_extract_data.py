@@ -4336,8 +4336,11 @@ Visit: %s (Author's site)
         if not isinstance(sec, Account) or sec.getAccountType() is not Account.AccountType.SECURITY:
             raise Exception("ERROR: You must pass a Security Account to this method!")
 
-        costCalculation = CostCalculation(sec, asofDate)
         lAllDates = (asofDate is None or asofDate == 0)
+        if lAllDates:
+            costCalculation = CostCalculation(sec)
+        else:
+            costCalculation = CostCalculation(sec, asofDate)
 
         if lAllDates:
             pos = invokeMethodByReflection(costCalculation, "getCurrentPosition", [], [])
