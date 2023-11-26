@@ -5115,9 +5115,9 @@ Visit: %s (Author's site)
         def matches(self, acct):    return isIncomeExpenseAcct(acct)
 
 
-    def isIncomeExpenseAllDatesSelected(index):
+    def isIncomeExpenseDatesSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedIncomeExpenseDateRange[index] == NAB.incomeExpenseDateRangeDefault())
+        return (NAB.savedIncomeExpenseDateRange[index] != NAB.incomeExpenseDateRangeDefault())
 
     def isBalanceAsOfDateSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -5127,61 +5127,78 @@ Visit: %s (Author's site)
         NAB = NetAccountBalancesExtension.getNAB()
         return isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index]))
 
+    def isUseCostBasisSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedUseCostBasisTable[index] != GlobalVars.COSTBASIS_TYPE_NONE)
+
     def buildEmptyTxnOrBalanceArray():
-        # type: () -> [{}]
+        # type: () -> [{Account: []}]       # Multi-purpose, can hold {Account: [AbstractTxn or HoldBalance]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
         for i in range(0, NAB.getNumberOfRows()): table.append({})
         return table
 
     def buildEmptyDateRangeArray():
-        # type: () -> [[]]
+        # type: () -> [[DateRange]]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
-        for i in range(0, NAB.getNumberOfRows()): table.append([])
+        for i in range(0, NAB.getNumberOfRows()): table.append(None)
         return table
 
     def buildEmptyAccountList():
-        # type: () -> [[]]
+        # type: () -> [[Account]]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
         for i in range(0, NAB.getNumberOfRows()): table.append([])
         return table
 
-    def isParallelBalanceTableOperational():
+    def isParallelBalanceTableOperational(_rowIdx=None):
         NAB = NetAccountBalancesExtension.getNAB()
 
         lAnyParallel = False
-        for iRowIndex in range(0, NAB.getNumberOfRows()):
+        for iRowIndex in (range(0, NAB.getNumberOfRows()) if (_rowIdx is None) else [_rowIdx]):
             onRow = iRowIndex + 1
             if isBalanceAsOfDateSelected(iRowIndex):
-                if True or debug: myPrint("B", "** Row: %s >> Parallel Balances for Accounts using Txns with asof date is in operation.." %(onRow));
+                if True or debug: myPrint("B", "** Row: %s >> Parallel Balances for Accounts using txns with 'balance asof date' is in operation.." %(onRow));
                 lAnyParallel = True;
-            elif NAB.savedIncomeExpenseDateRange[iRowIndex] != NAB.incomeExpenseDateRangeDefault():
-                if debug: myPrint("DB", "** Row: %s >> Parallel Balances for Inc/Exp Txns based on date range is in operation.." %(onRow))
+            if isIncludeRemindersSelected(iRowIndex):
+                if True or debug: myPrint("B", "** Row: %s >> Parallel Balances for Accounts with 'include reminders asof date' is in operation.." %(onRow));
+                lAnyParallel = True;
+            if isUseCostBasisSelected(iRowIndex):
+                if True or debug: myPrint("B", "** Row: %s >> Parallel Balances for Security accounts with 'return cost basis' is in operation.." %(onRow));
+                lAnyParallel = True;
+            if isIncomeExpenseDatesSelected(iRowIndex):
+                if True or debug: myPrint("B", "** Row: %s >> Parallel Balances for 'Inc/Exp Txns based on date range' is in operation.." %(onRow));
                 lAnyParallel = True
 
-        if debug: myPrint("DB", "** Setting Parallel Balances Detected flag to '%s'" %(lAnyParallel))
+        if _rowIdx is not None:
+            if lAnyParallel:
+                if debug: myPrint("B", ">> Detected parallel balances are required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1))
+            else:
+                if debug: myPrint("B", "[INFO] Parallel balances are NOT required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1));
+            return lAnyParallel
+
+        if debug: myPrint("DB", "** Setting Parallel Balances detected flag to '%s'" %(lAnyParallel))
         NAB.parallelBalanceTableOperating = lAnyParallel
         return NAB.parallelBalanceTableOperating
 
     def rebuildParallelAccountBalances(swClass):
-        # type: (SwingWorker) -> [{Account: [HoldBalance]}]
+        # type: (SwingWorker) -> [{Account: HoldBalance}]
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         NAB = NetAccountBalancesExtension.getNAB()
         iRowIdx = NAB.getSelectedRowIndex()
-
-        if isIncomeExpenseAllDatesSelected(iRowIdx):
+        "HERE";
+        if not isIncomeExpenseDatesSelected(iRowIdx):
             if debug: myPrint("DB", ".. Skipping build of parallel balances table for Income/Expense as not needed (as using all dates)...")
             return buildEmptyTxnOrBalanceArray();
 
-        getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), MyAcctFilterIncExpOnly())
+        getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), MyAcctFilterIncExpOnly());
 
         if debug: myPrint("DB", "Building Parallel Account Balances Table for Income/Expense (from Txs)....:")
 
-        incExpTxnTable = buildEmptyTxnOrBalanceArray()         # type: [{Account: [AbstractTxn]}]
+        incExpTxnTable = buildEmptyTxnOrBalanceArray()                                                                  # type: [{Account: [AbstractTxn]}]
         for acct in getAccounts: incExpTxnTable[iRowIdx][acct] = []
 
         if not swClass.isCancelled():
@@ -5190,7 +5207,7 @@ Visit: %s (Author's site)
         incExpBalanceTable = None
 
         if not swClass.isCancelled():
-            incExpBalanceTable = convertTxnTableIntoBalances(incExpTxnTable, swClass, lBuildParallelTable=True)
+            incExpBalanceTable = convertTableOfTxnsIntoBalances(incExpTxnTable, swClass, lBuildParallelTable=True)
 
         del getAccounts, incExpTxnTable
 
@@ -5314,21 +5331,25 @@ Visit: %s (Author's site)
             asOfDateInt = 0
         return asOfDateInt
 
-    def updateIncExpTableWithTxn(_txn, _table, _dateRangeArray):
-        # type: (AbstractTxn, [{Account: [AbstractTxn]}], [[int, int]]) -> None
+    def updateParallelTableWithTxn(_txn, _table, _ieDateRangeArray):
+        # type: (AbstractTxn, [{Account: [AbstractTxn]}], [DateRange]) -> None
+
+        # NOTE: At this time, we still only harvest txns for Income/Expense accounts/categories....
+        #       But the table is holding non I/E Accounts for other parallel operations... Hence filter these out here..
 
         NAB = NetAccountBalancesExtension.getNAB()
+        "HERE";
+        for iRowIdx in range(len(_table)):
 
-        for iRow in range(len(_table)):
-
-            if len(_table[iRow]) < 1: continue
-
+            if len(_table[iRowIdx]) < 1: continue                                                       # There were no Accounts for this row - so skip...
+            if _ieDateRangeArray[iRowIdx] is None: continue                                             # This row has no I/E date range set - so skip...
             _acct = _txn.getAccount()
-            if _acct not in _table[iRow]: continue
-
-            dateInt = _txn.getDateInt() if not NAB.savedUseTaxDates else _txn.getTaxDateInt()
-            if dateInt >= _dateRangeArray[iRow][0] and dateInt <= _dateRangeArray[iRow][1]:
-                _table[iRow][_acct].append(_txn)
+            if _acct not in _table[iRowIdx]: continue                                                   # This txn was not found in the Accounts requested for this row - so skip...
+            if not isIncomeExpenseAcct(_acct): continue                                                 # We still only use txns for balances on I/E accounts
+            dateInt = Integer(_txn.getDateInt() if not NAB.savedUseTaxDates else _txn.getTaxDateInt())  # Store as java Integer for DateRange to detect the correct overloaded method!
+            # if dateInt >= _ieDateRangeArray[iRowIdx][0] and dateInt <= _ieDateRangeArray[iRowIdx][1]:
+            if _ieDateRangeArray.containsInt(dateInt):
+                _table[iRowIdx][_acct].append(_txn)
 
     def zapIncExpTableOfTxns(_table):
         # type: ([{Account: [AbstractTxn]}]) -> None
@@ -5346,6 +5367,7 @@ Visit: %s (Author's site)
     class HoldBalance():
 
         def __init__(self, acct, autoSum):
+            self.NAB = NetAccountBalancesExtension.getNAB()
             self.acct = acct
             self.startBalance = 0
             self.balance = 0
@@ -5353,17 +5375,18 @@ Visit: %s (Author's site)
             self.clearedBalance = 0
             self.subAccountsBalanceObjects = {}
             self.autoSum = autoSum
-            self.autoSum = autoSum
-            self.NAB = NetAccountBalancesExtension.getNAB()
+            self.parallelRealBalances = False
+            self.parallelIncExpBalances = False
+            self.parallelBalanceAsOfDateBalances = False
+            self.parallelIncludeReminders = False
+            self.parallelReturnCostBasis = False
+            self.incomeExpense = isIncomeExpenseAcct(acct)
 
-            if not isinstance(acct, Account):
-                raise Exception("ERROR: HoldBalance can only hold Account objects")
-
-            if not isIncomeExpenseAcct(acct):
-                raise Exception("ERROR: HoldBalance only programmed for Income/Expense Categories")
+            if not isinstance(acct, Account): raise Exception("ERROR: HoldBalance can only hold Account objects")
+            if not self.isIncomeExpense(): raise Exception("ERROR: HoldBalance only programmed for Income/Expense Categories");
 
         def getAccount(self):               return self.acct
-
+        def isIncomeExpense(self):          return self.incomeExpense
         def getAccountName(self):           return self.getAccount().getAccountName()
         def getFullAccountName(self):       return self.getAccount().getFullAccountName()
         def getAccountType(self):           return self.getAccount().getAccountType()
@@ -5371,6 +5394,18 @@ Visit: %s (Author's site)
         def getHideOnHomePage(self):        return self.getAccount().getHideOnHomePage()
 
         def shouldIncludeInactive(self):    return (self.NAB.savedIncludeInactive[self.NAB.getSelectedRowIndex()])
+
+        def setParallelRealBalances(self, enabled):             self.parallelRealBalances = enabled
+        def setParallelIncExpBalances(self, enabled):           self.parallelIncExpBalances = enabled
+        def setParallelBalanceAsOfDateBalances(self, enabled):  self.parallelBalanceAsOfDateBalances = enabled
+        def setParallelIncludeReminders(self, enabled):         self.parallelIncludeReminders = enabled
+        def setParallelReturnCostBasis(self, enabled):          self.parallelReturnCostBasis = enabled
+
+        def isParallelRealBalances(self):               return self.parallelRealBalances
+        def isParallelIncExpBalances(self):             return self.parallelIncExpBalances
+        def isParallelBalanceAsOfDateBalances(self):    return self.parallelBalanceAsOfDateBalances
+        def isParallelIncludeReminders(self):           return self.parallelIncludeReminders
+        def isParallelReturnCostBasis(self):            return self.parallelReturnCostBasis
 
         def isAutoSum(self):                                        return self.autoSum
         def setSubAccountsBalanceObjects(self, _subAccountObjects): self.subAccountsBalanceObjects = _subAccountObjects
@@ -5408,6 +5443,15 @@ Visit: %s (Author's site)
         def getRecursiveUserCurrentBalance(self): return (-self.getRecursiveCurrentBalance() if self.balanceIsNegated() else self.getRecursiveCurrentBalance())
         def getRecursiveUserClearedBalance(self): return (-self.getRecursiveClearedBalance() if self.balanceIsNegated() else self.getRecursiveClearedBalance())
 
+        def calulateAndSetAccountStartBalance(self, _dateRange):
+            # type: (int, int) -> None
+            _acct = self.getAccount()
+            _startDateInt = _dateRange.getStartDateInt()
+            _endDateInt = _dateRange.getEndDateInt()
+            if (_acct.getCreationDateInt() >= _startDateInt and _acct.getCreationDateInt() <= _endDateInt):
+                if debug: myPrint("DB", ".. @@ Adding in start balance of: %s into Account's HoldBalance: %s" %(_acct.getStartBalance(), _acct))
+                self.setStartBalance(_acct.getStartBalance())                                                           # todo - query MD2023 balance adjustment?
+
         def setStartBalance(self, _bal):    self.startBalance   = _bal
         def setBalance(self, _bal):         self.balance        = _bal
         def setCurrentBalance(self, _bal):  self.currentBalance = _bal
@@ -5439,7 +5483,6 @@ Visit: %s (Author's site)
                 except: dump_sys_error_to_md_console_and_errorlog()
             return bal
 
-
         def getRecursiveCurrentBalance(self):
             bal = self.getCurrentBalance()
             if not self.isAutoSum(): return bal
@@ -5467,45 +5510,231 @@ Visit: %s (Author's site)
             return bal
 
         def __str__(self):
-            return ("Account: %s Bal: %s, CurBal: %s, ClearedBal: %s, RBal: %s, RCurBal: %s, RClearedBal: %s"
+            return ("Account: %s isIncExp: %s, Bal: %s, CurBal: %s, ClearedBal: %s, RBal: %s, RCurBal: %s, RClearedBal: %s (isParallelRealBalances: %s, isParallelIncExpBalances: %s, isParallelBalanceAsOfDateBalances: %s, isParallelIncludeReminders: %s, isParallelReturnCostBasis: %s)"
                     %(self.getAccount(),
+                      self.isIncomeExpense(),
                       self.getBalance(), self.getCurrentBalance(), self.getClearedBalance(),
-                      self.getRecursiveBalance(), self.getRecursiveCurrentBalance(), self.getRecursiveClearedBalance()))
+                      self.getRecursiveBalance(), self.getRecursiveCurrentBalance(), self.getRecursiveClearedBalance()
+                      self.isParallelRealBalances(), self.isParallelIncExpBalances(), self.isParallelBalanceAsOfDateBalances(), self.isParallelIncludeReminders(), self.isParallelReturnCostBasis()))
 
         def __repr__(self): return self.__str__()
         def toString(self): return self.__str__()
 
+    def getCostBasisAsOf(sec, asofDate):        # asof = None means latest / current position
+        # type: (Account, int) -> (int, int)
+        """For a given Security Account, executes MD's CostCalculation routines and returns:
+        shareholding, costbasis as of the date specified. Pass None into asof for current/latest position"""
 
-    def convertTxnTableIntoBalances(_incExpTable, swClass, lBuildParallelTable=False):
-        # type: ([{Account: [AbstractTxn]}], SwingWorker, bool) -> [{Account: [HoldBalance]}]
+        # noinspection PyUnresolvedReferences
+        if not isinstance(sec, Account) or sec.getAccountType() is not Account.AccountType.SECURITY:
+            raise Exception("ERROR: You must pass a Security Account to this method!")
+
+        lAllDates = (asofDate is None or asofDate == 0)
+        if lAllDates:
+            costCalculation = CostCalculation(sec)
+        else:
+            costCalculation = CostCalculation(sec, asofDate)
+
+        if lAllDates:
+            pos = invokeMethodByReflection(costCalculation, "getCurrentPosition", [], [])
+            currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
+            currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
+        else:
+            posns = getFieldByReflection(costCalculation, "positions")
+            currentRunningBasis = 0
+            currentCumulativeShares = 0
+            for pos in posns:
+                date = invokeMethodByReflection(pos, "getDate", [], [])
+                if date > asofDate: break
+                currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
+                currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
+        return currentCumulativeShares, currentRunningBasis
+
+
+    def replaceSecurityCostBasisBalances(_parallelBalanceTable, swClass, lBuildParallelTable=False):
+        # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         NAB = NetAccountBalancesExtension.getNAB()
 
-        _incExpBalanceTable = buildEmptyTxnOrBalanceArray()
+        "HERE";
 
-        today = DateUtil.getStrippedDateInt()
+        for iRowIdx in range(len(_parallelTxnTable)):
 
-        for iRow in range(len(_incExpTable)):
+            if not isUseCostBasisSelected(iRowIdx): continue;
 
-            for acct in _incExpTable[iRow]:
+            for acct in _parallelBalanceTable[iRowIdx]:
 
                 if swClass.isCancelled(): break
 
-                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRow]))
+                balObj = _parallelBalanceTable[iRowIdx][acct]   ;;;                                                        # type: HoldBalance
+                if balObj is None:
+                    raise Exception("LOGIC ERROR: replaceSecurityCostBasisBalances() HoldBalance obj is None?! RowIdx: %s, Acct: %s" %(iRowIdx, acct))
+
+                if balObj.getAccount().getAccountType() != Account.AccountType.SECURITY: continue
+
+                balObj.setParallelReturnCostBasis()True)
+
+                costBasis = getCostBais(bacct, balAsOfDate, True)
+
+                # No need to set a start balance - we will just hold the final 'real' balance(s)
+                # balanceObj.setStartBalance(acct.getStartBalance())
+
+                balanceObj.setBalance(acct.getBalance())
+                balanceObj.setCurrentBalance(acct.getCurrentBalance())
+                balanceObj.setClearedBalance(acct.getClearedBalance())
+
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
+
+        if debug:
+            myPrint("DB", "-------------------------------------")
+            myPrint("DB", ">> Analysis of updated table for remaining accounts with 'real' balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+            myPrint("DB", "------------------------------------")
+
+    def gatherRemainingRealBalances(_parallelBalanceTable, swClass, lBuildParallelTable=False):
+        # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
+
+        if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        NAB = NetAccountBalancesExtension.getNAB()
+
+        "HERE";
+
+        for iRowIdx in range(len(_parallelTxnTable)):
+
+            for acct in _parallelBalanceTable[iRowIdx]:
+
+                if swClass.isCancelled(): break
+
+                balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
+                if balObj is not None:
+                    if balObj.isParallelIncExpBalances() or balObj.isParallelBalanceAsOfDateBalances(): continue
+                    raise Exception("LOGIC ERROR: gatherRemainingRealBalances() HoldBalance obj exists and contains invalid data?! (RowIdx: %s, Acct: %s):" %(iRowIdx, acct)), balObj)
+
+                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
                 if balanceObj.getBalance() != 0: raise Exception("ERROR: Acct: %s getBalance(%s) != ZERO?" %(acct, balanceObj.getBalance()))
 
-                # dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[iRow])
-                dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRow], NAB.savedCustomDatesTable[iRow])
+                balanceObj.setParallelRealBalances(True)
+
+                acctBalLong = AccountUtil.getBalanceAsOfDate(book, acct, balAsOfDate, True)
+
+                # No need to set a start balance - we will just hold the final 'real' balance(s)
+                # balanceObj.setStartBalance(acct.getStartBalance())
+
+                balanceObj.setBalance(acct.getBalance())
+                balanceObj.setCurrentBalance(acct.getCurrentBalance())
+                balanceObj.setClearedBalance(acct.getClearedBalance())
+
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
+
+        if debug:
+            myPrint("DB", "-------------------------------------")
+            myPrint("DB", ">> Analysis of updated table for remaining accounts with 'real' balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+            myPrint("DB", "------------------------------------")
+
+    def gatherBalanceAsOfDateBalances(_parallelBalanceTable, swClass, lBuildParallelTable=False):
+        # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
+
+        if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        NAB = NetAccountBalancesExtension.getNAB()
+
+        "HERE";
+
+        for iRowIdx in range(len(_parallelTxnTable)):
+
+            for acct in _parallelBalanceTable[iRowIdx]:
+
+                if swClass.isCancelled(): break
+
+                balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
+                if balObj is not None:
+                    if balObj.isParallelIncExpBalances() and balObj.isIncomeExpense(): continue
+                    raise Exception("LOGIC ERROR: gatherBalanceAsOfDateBalances() HoldBalance obj exists and is not IncExp?! (RowIdx: %s, Acct: %s)" %(iRowIdx, acct)), balObj)
+
+                if isIncomeExpenseAcct(acct): continue                  # Skip Income/Expense accounts for 'balance asof dates' - obey I/E All Dates...
+                if not isBalanceAsOfDateSelected(iRowIdx): continue     # Skip as 'balance asof dates' not requested...
+
+                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
+                if balanceObj.getBalance() != 0: raise Exception("ERROR: Acct: %s getBalance(%s) != ZERO?" %(acct, balanceObj.getBalance()))
+
+                balanceObj.setParallelBalanceAsOfDateBalances(True)
+
+                balAsOfDate = getBalanceAsOfDateSelected(iRowIdx)
+
+                # No need to set a start balance - we will just hold the calcululated asof balance
+                # balanceObj.calulateAndSetAccountStartBalance(self, DateRange(Integer(0), Integer(balAsOfDateRange));
+
+                acctBalLong = AccountUtil.getBalanceAsOfDate(book, acct, balAsOfDate, True)
+                balanceObj.setBalance(balanceObj.getBalance() + acctBalLong)
+                balanceObj.setCurrentBalance(balanceObj.getCurrentBalance() + acctBalLong)
+                balanceObj.setClearedBalance(balanceObj.getClearedBalance() + acctBalLong)
+
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
+
+        if debug:
+            myPrint("DB", "-------------------------------------")
+            myPrint("DB", ">> Analysis of updated table now with 'balances asof date' balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+            myPrint("DB", "------------------------------------")
+
+    def convertTableOfTxnsIntoBalances(_parallelTxnTable, swClass, lBuildParallelTable=False):
+        # type: ([{Account: [AbstractTxn]}], SwingWorker, bool) -> [{Account: HoldBalance}]
+
+        if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        NAB = NetAccountBalancesExtension.getNAB()
+
+        _parallelBalanceTable = buildEmptyTxnOrBalanceArray()
+
+        today = DateUtil.getStrippedDateInt()
+        "HERE";
+        for iRowIdx in range(len(_parallelTxnTable)):
+
+            for acct in _parallelTxnTable[iRowIdx]:
+
+                if swClass.isCancelled(): break
+
+                if not isIncomeExpenseAcct(acct) or not isIncomeExpenseDatesSelected(iRowIdx):
+                    _parallelBalanceTable[iRowIdx][acct] = None;
+                    continue
+
+                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
+                if balanceObj.getBalance() != 0: raise Exception("ERROR: Acct: %s getBalance(%s) != ZERO?" %(acct, balanceObj.getBalance()))
+
+                balanceObj.setParallelIncExpBalances(True)
+
+                # dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[iRowIdx])
+                dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRowIdx], NAB.savedCustomDatesTable[iRowIdx])
                 # if (acct.getCreationDateInt() >= dateRange.getDateRange().getStartDateInt()
                 #         and acct.getCreationDateInt() <= dateRange.getDateRange().getEndDateInt()):
-                if (acct.getCreationDateInt() >= dateRange.getStartDateInt()
-                        and acct.getCreationDateInt() <= dateRange.getEndDateInt()):
-                    if debug: myPrint("DB", ".. @@ Adding in start balance of: %s to Account: %s" %(acct.getStartBalance(), acct))
-                    balanceObj.setStartBalance(acct.getStartBalance())                                                  # todo - query MD2023 balance adjustment?
 
-                for txn in _incExpTable[iRow][acct]:
+                # if (acct.getCreationDateInt() >= dateRange.getStartDateInt()
+                #         and acct.getCreationDateInt() <= dateRange.getEndDateInt()):
+                #     if debug: myPrint("DB", ".. @@ Adding in start balance of: %s to Account: %s" %(acct.getStartBalance(), acct))
+                #     balanceObj.setStartBalance(acct.getStartBalance())                                                  # todo - query MD2023 balance adjustment?
+
+                balanceObj.calulateAndSetAccountStartBalance(self, dateRange);
+
+                for txn in _parallelTxnTable[iRowIdx][acct]:
                     txnAcct = txn.getAccount()
                     if txnAcct != acct: raise Exception("ERROR: Acct:%s does not match txn acct: %s" %(acct, txnAcct))
 
@@ -5522,22 +5751,22 @@ Visit: %s (Author's site)
                     if txnStatus == AbstractTxn.ClearedStatus.CLEARED:
                         balanceObj.setClearedBalance(balanceObj.getClearedBalance() + txnVal)
 
-                balanceObj.setSubAccountsBalanceObjects(_incExpBalanceTable[iRow])
-                _incExpBalanceTable[iRow][acct] = balanceObj
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
 
         if debug:
             myPrint("DB", "-------------------------------------")
-            myPrint("DB", ">> Analysis of new I/E Balance Table:")
-            myPrint("DB", ">> _incExpBalanceTable Contains: %s rows" %(len(_incExpBalanceTable)))
-            for i in range(0, len(_incExpBalanceTable)):
+            myPrint("DB", ">> Analysis of new table with I/E balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
                 myPrint("DB", "..RowIdx: %s >> " %(i))
-                row = _incExpBalanceTable[i]
-                for acct in row: myPrint("DB", "....", acct, _incExpBalanceTable[i][acct])
+                row = _parallelBalanceTable[i]
+                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
             myPrint("DB", "------------------------------------")
 
-        return _incExpBalanceTable
+        return _parallelBalanceTable
 
-    def returnTransactionsForAccounts(_incExpTable, swClass):
+    def returnTransactionsForAccounts(_parallelTxnTable, swClass):
         # type: ([{Account: [AbstractTxn]}], SwingWorker) -> [{Account: [AbstractTxn]}]
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -5549,14 +5778,22 @@ Visit: %s (Author's site)
         md = GlobalVars.CONTEXT
         book = md.getCurrentAccountBook()
 
-        # pre-build table containing valid date ranges - for speed....
-        _dateRangeArray = buildEmptyDateRangeArray()
-        for iRow in range(len(_incExpTable)):
+        # # pre-build tables containing valid date range(s) - for speed....
+        # _balanceAsOfDateArray = buildEmptyDateRangeArray()
+        # for iRowIdx in range(len(_parallelTxnTable)):
+        #     if len(_parallelTxnTable[iRowIdx]) < 1: continue
+        #     "HERE";
+        #     if not isBalanceAsOfDateSelected(iRowIdx):
+        #         _balanceAsOfDateArray[iRowIdx] = None
+        #     else:
+        #         _balanceAsOfDateArray[iRowIdx] = DateRange(Integer(0), Integer(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[iRowIdx])))
 
-            if len(_incExpTable[iRow]) < 1: continue
-
-            dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRow], NAB.savedCustomDatesTable[iRow])
-            _dateRangeArray[iRow] = [dateRange.getStartDateInt(), dateRange.getEndDateInt()]
+        _incExpDateRangeArray = buildEmptyDateRangeArray()
+        for iRowIdx in range(len(_parallelTxnTable)):
+            if len(_parallelTxnTable[iRowIdx]) < 1: continue            # If no Accounts in the table for this row, then just ignore/skip
+            "HERE";
+            if isIncomeExpenseDatesSelected(iRowIdx):                   # Only add a date range if this row is configured for I/E date range
+                _incExpDateRangeArray[iRowIdx] = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRowIdx], NAB.savedCustomDatesTable[iRowIdx])
 
         iTxns = 0                                                                                                       # noqa
         attempts = 0
@@ -5575,8 +5812,7 @@ Visit: %s (Author's site)
                 if swClass.isCancelled(): break
 
                 iTxns += 1
-                # if not searchIncExpTableForAccount(txn.getAccount(), _incExpTable): continue
-                updateIncExpTableWithTxn(txn, _incExpTable, _dateRangeArray)
+                updateParallelTableWithTxn(txn, _parallelTxnTable, _incExpDateRangeArray)
 
             del txnSet
 
@@ -5588,19 +5824,19 @@ Visit: %s (Author's site)
         if debug:
             myPrint("DB", "------------------------------")
             myPrint("DB", "Attempts: %s" %(attempts))
-            myPrint("DB", ">> Analysis of I/E Txns Table:")
-            myPrint("DB", ">> IncExpTable Contains: %s rows" %(len(_incExpTable)))
-            for i in range(0, len(_incExpTable)):
-                myPrint("DB", ".... RowIdx: %s Contains: %s accounts" %(i, len(_incExpTable[i])))
-                for a in _incExpTable[i]:
-                    myPrint("DB", "...... >> Account: %s Contains %s Harvested Txns" %(a.getAccountName(), len(_incExpTable[i][a])))
+            myPrint("DB", ">> Analysis of parallel Txns Table:")
+            myPrint("DB", ">> _parallelTxnTable Contains: %s rows" %(len(_parallelTxnTable)))
+            for i in range(0, len(_parallelTxnTable)):
+                myPrint("DB", ".... RowIdx: %s Contains: %s accounts" %(i, len(_parallelTxnTable[i])))
+                for a in _parallelTxnTable[i]:
+                    myPrint("DB", "...... >> Account: %s Contains %s harvested Txns" %(a.getAccountName(), len(_parallelTxnTable[i][a])))
             myPrint("DB", "------------------------------")
 
 
         if debug: myPrint("DB", ">>  returnTransactionsForAccounts (Txn Iterator) TOOK: %s milliseconds (%s seconds) - to parse %s Txns"
                                     %((System.currentTimeMillis() - startTime), (System.currentTimeMillis() - startTime) / 1000.0, iTxns))
 
-        return _incExpTable
+        return _parallelTxnTable
 
     def debugMDDateRangeOption():
         if not debug: return
@@ -6558,8 +6794,9 @@ Visit: %s (Author's site)
         def getSudoAccountFromParallel(self, acctObj, rowIndex):
             ## type: (StoreAccount, int) -> [Account, HoldBalance]
 
+            "CHECK THIS";
             NAB = NetAccountBalancesExtension.getNAB()
-            if (isIncomeExpenseAcct(acctObj.getAccount()) and not isIncomeExpenseAllDatesSelected(rowIndex)):
+            if (isIncomeExpenseAcct(acctObj.getAccount()) and isIncomeExpenseDatesSelected(rowIndex)):
                 sudoAcctRef = NAB.jlst.parallelAccountBalances[rowIndex][acctObj.getAccount()]                          # type: HoldBalance
             else:
                 sudoAcctRef = acctObj.getAccount()                                                                      # type: Account
@@ -7717,7 +7954,7 @@ Visit: %s (Author's site)
             else:
                 dateExtraTxt = ""
 
-            if NAB.savedIncomeExpenseDateRange[_rowIdx] != NAB.incomeExpenseDateRangeDefault():
+            if isIncomeExpenseDatesSelected(_rowIdx):
                 # dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[_rowIdx]).getDateRange()
                 dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx], NAB.savedCustomDatesTable[_rowIdx])
                 endDate = NAB.getIncExpEndDate(dateRange.getEndDateInt(), NAB.savedBalanceType[_rowIdx])
@@ -7782,7 +8019,7 @@ Visit: %s (Author's site)
             lHideControls = True
             enable_averageByManualEntry = False
             enable_averageByCalUnit = False
-            if isIncomeExpenseAllDatesSelected(_rowIdx):
+            if not isIncomeExpenseDatesSelected(_rowIdx):
                 enable_averageByManualEntry = True
             else:
                 enable_averageByCalUnit = True
@@ -7841,7 +8078,7 @@ Visit: %s (Author's site)
         def setParallelBalancesWarningLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
             myPrint("DB", "about to set parallelBalancesWarningLabel..")
-            if not isIncomeExpenseAllDatesSelected(_rowIdx) or isBalanceAsOfDateSelected(_rowIdx):
+            if isParallelBalanceTableOperational(_rowIdx):
                 if NAB.parallelBalancesWarningLabel.getIcon() is None:
                     mdImages = NAB.moneydanceContext.getUI().getImages()
                     iconTintParallel = NAB.moneydanceContext.getUI().getColors().errorMessageForeground
@@ -8197,6 +8434,7 @@ Visit: %s (Author's site)
             NAB.setParallelBalancesWarningLabel(selectRowIndex)
             NAB.setIncExpDateRangeLabel(selectRowIndex)
             # NAB.setBalanceAsOfDateLabel(selectRowIndex)
+            # NAB.setIncludeRemindersLabel(selectRowIndex)
             NAB.setAvgByLabel(selectRowIndex)
             NAB.setAvgByControls(selectRowIndex)
             NAB.setBalanceAsOfDateControls(selectRowIndex)
@@ -8330,7 +8568,7 @@ Visit: %s (Author's site)
         def doesRowUseAvgBy(self, _rowIdx):
             # type: (int) -> bool
             NAB = self
-            if isIncomeExpenseAllDatesSelected(_rowIdx) or NAB.savedAverageByCalUnitTable[_rowIdx] == NAB.CalUnit.NOTSET_IDX:
+            if not isIncomeExpenseDatesSelected(_rowIdx) or NAB.savedAverageByCalUnitTable[_rowIdx] == NAB.CalUnit.NOTSET_IDX:
                 return NAB.savedDisplayAverageTable[_rowIdx] != 1.0
             return True
 
@@ -8340,7 +8578,7 @@ Visit: %s (Author's site)
             If CalUnits NOTSET, then returns the std Avg/By field. WARNING: Can return a zero result!"""
             NAB = self
             if debug: myPrint("DB", "In getAvgByForRow(): rowIdx: %s (row: %s)" %(_rowIdx, _rowIdx+1))
-            if isIncomeExpenseAllDatesSelected(_rowIdx):
+            if not isIncomeExpenseDatesSelected(_rowIdx):
                 if debug: myPrint("DB", "... Appears to be using 'all_dates' - so will just return default avg/by...")
                 avgByResult = NAB.savedDisplayAverageTable[_rowIdx]
             else:
@@ -8541,7 +8779,7 @@ Visit: %s (Author's site)
                 dump_sys_error_to_md_console_and_errorlog()
                 raise
 
-        class RebuildParallelBalanceTableSwingWorker(SwingWorker):
+        class RebuildParallelBalanceTableSwingWorker(SwingWorker):  # NOTE: Calls .searchFiltersUpdated(), then .simulateTotalForRow() after execution
             def __init__(self):
                 NetAccountBalancesExtension.getNAB().swingWorkers.append(self)      # Already locked from calling code
 
@@ -8607,7 +8845,6 @@ Visit: %s (Author's site)
                     sw.execute()
                 else:
                     if debug: myPrint("DB", "@@..Sorry parallelRebuildRunning already running, cancelled request.... Try later....")
-
 
         def rebuildJList(self):
             if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -8692,7 +8929,7 @@ Visit: %s (Author's site)
             for iRowIdx in range(0,NAB.getNumberOfRows()):
                 onRow = iRowIdx+1
 
-                if isIncomeExpenseAllDatesSelected(iRowIdx): continue
+                if not isIncomeExpenseDatesSelected(iRowIdx): continue
 
                 lFoundAnyIncExp = False
                 for accID in NAB.savedAccountListUUIDs[iRowIdx]:
@@ -8928,7 +9165,7 @@ Visit: %s (Author's site)
             def isRebuildParallelBalanceTableSwingWorker(self): return False
 
             def doInBackground(self):                                                                                   # Runs on a worker thread
-                # type: () -> [{Account: [HoldBalance]}]
+                # type: () -> [{Account: HoldBalance}]
 
                 if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
@@ -8993,7 +9230,7 @@ Visit: %s (Author's site)
                         lUseAverage = NAB.doesRowUseAvgBy(i)
                         lAdjustFinalBalance = (NAB.savedAdjustCalcByTable[i] != 0.0)
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
-                        lUseTaxDates = (NAB.savedUseTaxDates and not isIncomeExpenseAllDatesSelected(i))
+                        lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
                         balanceOrAverage = balanceObj.getBalance()
 
@@ -9031,10 +9268,29 @@ Visit: %s (Author's site)
                                 showAdjustFinalBalanceText = " (adj)"
                                 if debug: myPrint("DB", ":: Row: %s using final balance adjustment: %s" %(i+1, NAB.savedAdjustCalcByTable[i]))
 
-                            useTaxDatesText = ""
+                            showUseTaxDatesText = ""
                             if lUseTaxDates:
-                                useTaxDatesText = " (txd)"
+                                showUseTaxDatesText = " (txd)"
                                 if debug: myPrint("DB", ":: Row: %s using tax dates" %(i+1))
+
+                            showBalanceAsOfText = ""
+                            if isBalanceAsOfDateSelected(i):
+                                showBalanceAsOfText = " (balasof)"
+                                if debug: myPrint("DB", ":: Row: %s using balance asof date: %s" %(i+1, getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i])))
+
+                            showIncludeRemindersText = ""
+                            if isIncludeRemindersSelected(i):
+                                showIncludeRemindersText = " (rems)"
+                                if debug: myPrint("DB", ":: Row: %s including reminders asof date: %s" %(i+1, getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
+
+                            showCostBasisText = ""
+                            if isUseCostBasisSelected(i):
+                                if NAB.savedUseCostBasisTable[i] == GlobalVars.COSTBASIS_TYPE_CB:
+                                    showCostBasisText = " (cb)"
+                                    if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts)" %(i+1))
+                                elif NAB.savedUseCostBasisTable[i] == GlobalVars.COSTBASIS_TYPE_URGAINS:
+                                    showCostBasisText = " (urg)"
+                                    if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))
 
                             showUsesOtherRowTxt = ""
                             if lUsesOtherRow:
@@ -9064,7 +9320,16 @@ Visit: %s (Author's site)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont())
                             NAB.simulateTotal_label.setForeground(tdfsc.getValueColor(balanceOrAverage))
 
-                            resultTxt = wrap_HTML_BIG_small(theFormattedValue, showCurrText + showAverageText + showAdjustFinalBalanceText + useTaxDatesText + showUsesOtherRowTxt, altFG)
+                            resultTxt = wrap_HTML_BIG_small(theFormattedValue,
+                                                            showCurrText
+                                                            + showAverageText
+                                                            + showAdjustFinalBalanceText
+                                                            + showUseTaxDatesText
+                                                            + showBalanceAsOfText
+                                                            + showIncludeRemindersText
+                                                            + showCostBasisText
+                                                            + showUsesOtherRowTxt,
+                                                            altFG)
                             NAB.simulateTotal_label.setText(resultTxt)
 
                             if NAB.savedBlinkTable[i]:
@@ -9157,10 +9422,10 @@ Visit: %s (Author's site)
                         NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()] = newSettings
 
                         NAB.configSaved = False
+                        NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
                         # NAB.setBalanceAsOfDateLabel(NAB.getSelectedRowIndex())
                         NAB.setIncExpDateRangeLabel(NAB.getSelectedRowIndex())    # Balance option affects end date
                         NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                        NAB.searchFiltersUpdated()
                         NAB.setBalanceAsOfDateControls(NAB.getSelectedRowIndex())
                         NAB.rebuildParallelBalanceTable()
 
@@ -9177,7 +9442,6 @@ Visit: %s (Author's site)
                         NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
                         # NAB.setIncludeRemindersLabel(NAB.getSelectedRowIndex())
                         NAB.setIncludeRemindersDateControls(NAB.getSelectedRowIndex())
-                        NAB.searchFiltersUpdated()
                         NAB.rebuildParallelBalanceTable();
                 else:
                     raise Exception("LOGIC ERROR: Unknown source for MyPropertyChangeListener:", source)
@@ -9316,7 +9580,6 @@ Visit: %s (Author's site)
                         NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
                         # NAB.setIncludeRemindersLabel(NAB.getSelectedRowIndex())
                         NAB.setIncludeRemindersDateControls(NAB.getSelectedRowIndex())
-                        NAB.searchFiltersUpdated()
                         NAB.rebuildParallelBalanceTable();
 
                 # ######################################################################################################
@@ -9352,10 +9615,6 @@ Visit: %s (Author's site)
                         NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()] = useCostBasisCodeSelected
                         NAB.configSaved = False
                         NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
-                        # NAB.setBalanceAsOfDateLabel(NAB.getSelectedRowIndex())
-                        NAB.setIncExpDateRangeLabel(NAB.getSelectedRowIndex())
-                        NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                        NAB.searchFiltersUpdated()
                         NAB.rebuildParallelBalanceTable();
 
                 # ######################################################################################################
@@ -9470,11 +9729,8 @@ Visit: %s (Author's site)
                             # NAB.setBalanceAsOfDateLabel(NAB.getSelectedRowIndex())
                             NAB.setIncExpDateRangeLabel(NAB.getSelectedRowIndex())    # Balance option affects end date
                             NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                            NAB.searchFiltersUpdated()
                             NAB.setBalanceAsOfDateControls(NAB.getSelectedRowIndex())
                             NAB.rebuildParallelBalanceTable();
-                            # NAB.simulateTotalForRow()
-                            # NAB.jlst.repaint()
 
                     if event.getSource() is NAB.incomeExpenseDateRange_COMBO:
                         lSetCustomDates = False
@@ -9511,12 +9767,6 @@ Visit: %s (Author's site)
 
                         if (NAB.savedIncomeExpenseDateRange[NAB.getSelectedRowIndex()] != event.getSource().getSelectedItem().getDR().getResourceKey()
                                 or lSetCustomDates):
-
-                            # if (event.getSource().getSelectedItem().getDR().getResourceKey() != NAB.incomeExpenseDateRangeDefault()):
-                            #     myPopupInformationBox(NAB.theFrame,
-                            #                           theTitle="Inc/Exp Date Range",
-                            #                           theMessage="ALERT: Custom date range scans all txns each time widget refreshes",
-                            #                           theMessageType=JOptionPane.WARNING_MESSAGE)
 
                             myPrint("DB", ".. setting savedIncomeExpenseDateRange to: %s for row: %s" %(event.getSource().getSelectedItem().getDR().getResourceKey(), NAB.getSelectedRow()))
                             NAB.savedIncomeExpenseDateRange[NAB.getSelectedRowIndex()] = event.getSource().getSelectedItem().getDR().getResourceKey()
@@ -9925,7 +10175,6 @@ Visit: %s (Author's site)
                 self.includeInactive = None
                 self.sudoAccountHoldBalanceObj = None
 
-                self.isAllIncExpDatesSelected = True
                 self.hasInactiveChildren = False
                 self.isSelected = False
                 self.account = None
@@ -9940,8 +10189,10 @@ Visit: %s (Author's site)
                 self.userXBalanceStr = None
                 self.recursiveUserXBalance = None
                 self.recursiveUserXBalanceStr = None
-                self.isParallelBalance = False
                 self.hasDisabledCurrencyFormatting = False
+
+                self.isParallelBalance = False
+                # self.isAllIncExpDatesSelected = True
 
                 self.mdImages = NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getImages()
 
@@ -10000,15 +10251,16 @@ Visit: %s (Author's site)
                     self.acctSubAcctCount = self.account.getSubAccountCount()
                     self.acctName = self.account.getFullAccountName() if self.showFullAccountName else self.account.getAccountName()
                     self.acctType = NAB.moneydanceContext.getUI().getResources().getShortAccountType(self.account.getAccountType())
-                    self.isAllIncExpDatesSelected = isIncomeExpenseAllDatesSelected(NAB.getSelectedRowIndex())
 
-                    if self.isAllIncExpDatesSelected or not isIncomeExpenseAcct((self.account)):
-                        self.isParallelBalance = False
+                    # self.isAllIncExpDatesSelected = not isIncomeExpenseDatesSelected(NAB.getSelectedRowIndex())
+                    self.isParallelBalance = (isParallelBalanceTableOperational(NAB.getSelectedRowIndex()))
+
+                    # if self.isAllIncExpDatesSelected or not isIncomeExpenseAcct((self.account)):
+                    if not self.isParallelBalance:
                         self.sudoAccountHoldBalanceObj = self.account
                         self.isAccountActive = isAccountActive(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()])
                         self.hasInactiveChildren = accountIncludesInactiveChildren(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()])
                     else:
-                        self.isParallelBalance = True
                         if NAB.isParallelRebuildRunning_NOLOCKFIRST():
                             self.sudoAccountHoldBalanceObj = self.account   # Temporarily switch to Account whilst rebuild running...
                         else:
@@ -10046,10 +10298,8 @@ Visit: %s (Author's site)
                         if self.userXBalance != 0 and acctCurr != thisRowCurr:
                             self.userXBalance = CurrencyUtil.convertValue(self.userXBalance, acctCurr, thisRowCurr)
 
-
                         # self.userXBalanceStr = (thisRowCurr.formatFancy(self.userXBalance, NAB.decimal) if (not self.hasDisabledCurrencyFormatting)
                         #                         else thisRowCurr.formatSemiFancy(self.userXBalance, NAB.decimal))
-
                         self.userXBalanceStr = formatFancy(thisRowCurr, self.userXBalance, NAB.decimal, fancy=(not self.hasDisabledCurrencyFormatting), indianFormat=NAB.savedUseIndianNumberFormat)
                     else:
                         self.userXBalanceStr = "-"
@@ -10064,7 +10314,6 @@ Visit: %s (Author's site)
 
                             # self.recursiveUserXBalanceStr = (thisRowCurr.formatFancy(self.recursiveUserXBalance, NAB.decimal) if (not self.hasDisabledCurrencyFormatting)
                             #                                  else thisRowCurr.formatSemiFancy(self.recursiveUserXBalance, NAB.decimal))
-
                             self.recursiveUserXBalanceStr = formatFancy(thisRowCurr, self.recursiveUserXBalance, NAB.decimal, fancy=(not self.hasDisabledCurrencyFormatting), indianFormat=NAB.savedUseIndianNumberFormat)
                         else:
                             self.recursiveUserXBalanceStr = "-"
@@ -10081,10 +10330,10 @@ Visit: %s (Author's site)
                     self.acctName = safeStr(self.listItem)
                     self.acctType = ""
                     self.isAccountActive = None
-                    self.isAllIncExpDatesSelected = True
                     self.sudoAccountHoldBalanceObj = None
-                    self.isParallelBalance = False
                     self.hasDisabledCurrencyFormatting = False
+                    # self.isAllIncExpDatesSelected = True
+                    # self.isParallelBalance = False
 
                     self.userXBalance = 0
                     self.userXBalanceStr = ""
@@ -10095,7 +10344,6 @@ Visit: %s (Author's site)
 
                 # Create a line separator between accounts
                 c.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, NAB.moneydanceContext.getUI().getColors().headerBorder))
-
                 return c
 
             # com.moneydance.apps.md.view.gui.AccountTreeCellRenderer
@@ -12562,12 +12810,10 @@ Visit: %s (Author's site)
 
             _totalBalanceTable = []         # type: [CalculatedBalance]
 
-            incExpTxnTable = buildEmptyTxnOrBalanceArray()
+            parallelTxnTable = buildEmptyTxnOrBalanceArray()
 
             try:
                 startTime = System.currentTimeMillis()
-
-                # saveTheRowIndex = (NAB.getSelectedRowIndex() if not lFromSimulate else None)
 
                 isParallelBalanceTableOperational()
 
@@ -12578,7 +12824,8 @@ Visit: %s (Author's site)
                 if debug: myPrint("DB", "calculateBalances() STAGE0 (searchAndStoreGroupIDs) >> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
                 startTime = System.currentTimeMillis()
 
-                # Derive the other row we need (when using other row(s) as part of the maths) when simulating...
+
+                # ------- DERIVE ANY OTHER ROW CHAIN(S) WHEN SIMULATING ------------------------------------------------
                 if justIndex is None:
                     simulateRowIdxs = []
                     simulateRowUUIDs = []
@@ -12597,9 +12844,6 @@ Visit: %s (Author's site)
                                 onRowIdx = otherRowIdx
                                 # if debug: myPrint("B", ".... UORChains[primaryRowUUID]", UORChains[primaryRowUUID])
                                 continue
-                        # elif NAB.savedOperateOnAnotherRowTable[onRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None:
-                        #     break                                          # Clean break, no error, end of the line...
-                        # UORChains[primaryRowUUID] = [onRowIdx, None]       # None signifies an UOR chaining error.....
                         break
 
                     if debug:
@@ -12612,7 +12856,7 @@ Visit: %s (Author's site)
                     if debug: myPrint("B", "@@ simulateRowUUIDs:", simulateRowUUIDs)
 
 
-                # --------------------------------------------------------------------------------------------------
+                # -------- DERIVE LIST OF SELECTED ACCOUNTS ------------------------------------------------------------
                 accountsToShow = buildEmptyAccountList()
                 for iAccountLoop in range(0, NAB.getNumberOfRows()):
 
@@ -12625,15 +12869,13 @@ Visit: %s (Author's site)
                     if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
                     if debug: myPrint("DB", "HomePageView: Finding selected accounts for row: %s" %(onRow))
-                    # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
 
                     for accID in NAB.savedAccountListUUIDs[iAccountLoop]:
 
                         if swClass and swClass.isCancelled(): return []
 
                         if debug: myPrint("DB", "... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
-                        # acct = AccountUtil.findAccountWithID(_book.getRootAccount(), accID)                           # Very slow...
-                        acct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(accID)
+                        acct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(accID)                    # Don't use AccountUtil.findAccountWithID() as very slow!
 
                         if acct is not None:
                             # myPrint("DB", "....found and adding account to list: %s" %acct)
@@ -12646,68 +12888,95 @@ Visit: %s (Author's site)
                 if debug: myPrint("DB", "calculateBalances() STAGE1>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
                 startTime = System.currentTimeMillis()
 
-                # Printing of lists containing objects which return multi-bye characters (e.g. Asian) will error - e.g. print [acct]
+                # NOTE: Printing of lists containing objects which return multi-bye characters (e.g. Asian) will error - e.g. print [acct]
                 try: myPrint("DB", "accountsToShow table: %s" %(accountsToShow))
                 except: pass
 
-                # --------------------------------------------------------------------------------------------------
-                lIncExpData = False
-
-                # Income / Expense harvest associated accounts
+                # ------- SEQUENCE FOR BUILDING PARALLEL BALANCES --------------------------------------------------
+                # Detect if any Parallel Balances are required (per row). These can one or more of the following:
+                # Balance asof date; Income/Expense date range specified; Security Accounts - Cost Basis requested; include Reminders requested
+                # 1. per row, if any parallel operation requested, then for row, gather all selected accounts along with all child/sub accounts
+                # 2. gather all txns, then if Income/Expense dates were requested, put I/E txns into the txn table...
+                # 3. convert this I/E txn table into balances...
+                # 4. for all accounts / balances not derived by steps 2 & 3, then calculate balance asof dates (only if requested)..
+                # 5. for all accounts / balances not derived by steps 2, 3 & 4, then grab the remaining Account's real balance(s)
+                # 6. for all account balances in the table, replace balance with cost basis / u/r gains on Security Accounts (where requested).
+                # 7. for all accounts selected, add Reminder txn/balances up to the reminders asof date (where requested).
+                # ------ 1. DERIVE LIST OF CHILD ACCOUNTS WHEN PARALLEL TABLE REQUIRED ------------------------------------
+                lParallelData = False
                 for iAccountLoop in range(0, NAB.getNumberOfRows()):
 
                     if swClass and swClass.isCancelled(): return []
 
-                    # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
-
                     onRow = iAccountLoop + 1
 
-                    incExpAccountsList = []
+                    parallelFullAccountsList = []
 
                     if justIndex is not None and iAccountLoop not in simulateRowIdxs: continue
                     if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
                     if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
-                    "HERE (parallel)";
-                    if not isIncomeExpenseAllDatesSelected(iAccountLoop):
-                        if debug: myPrint("DB", "HomePageView: Income/Expense Date Range '%s' used on Row: %s (will gather child accounts (if AutoSum) and all related income/expense transactions). AutoSum = %s"
-                                %(NAB.savedIncomeExpenseDateRange[iAccountLoop], onRow, NAB.savedAutoSumAccounts[iAccountLoop]))
+
+                    # if isIncomeExpenseDatesSelected(iAccountLoop):
+                    if isParallelBalanceTableOperational(iAccountLoop):     # Could be for balance asof date, I/E date range, Cost Basis, Reminders
+                        "HERE (parallel)";;;
+
+                        if debug: myPrint("DB", "HomePageView: parallel table required on Row: %s (will gather child accounts (if AutoSum) and transactions (where needed) for balances). AutoSum = %s" %(onRow, NAB.savedAutoSumAccounts[iAccountLoop]))
 
                         for acct in accountsToShow[iAccountLoop]:
 
                             if swClass and swClass.isCancelled(): return []
 
-                            returnThisAccountAndAllChildren(acct, _listAccounts=incExpAccountsList, autoSum=NAB.savedAutoSumAccounts[iAccountLoop], justIncomeExpense=True)
+                            # returnThisAccountAndAllChildren(acct, _listAccounts=parallelFullAccountsList, autoSum=NAB.savedAutoSumAccounts[iAccountLoop], justIncomeExpense=True)
+                            returnThisAccountAndAllChildren(acct, _listAccounts=parallelFullAccountsList, autoSum=NAB.savedAutoSumAccounts[iAccountLoop], justIncomeExpense=False);
 
-                        if len(incExpAccountsList) > 0:
-                            if debug: myPrint("DB", "...incExpAccountsList contains %s Income/Expense accounts... Populating Inc/Exp table - row: %s" %(len(incExpAccountsList), onRow))
+                        if len(parallelFullAccountsList) > 0:
+                            if debug: myPrint("DB", "...parallelFullAccountsList contains %s (for parallel) accounts... Populating empty parallel I/E txns table - row: %s" %(len(parallelFullAccountsList), onRow))
 
-                            lIncExpData = True
+                            lParallelData = True
 
-                            for acct in incExpAccountsList:
-                                incExpTxnTable[iAccountLoop][acct] = []
+                            for acct in parallelFullAccountsList:
+                                parallelTxnTable[iAccountLoop][acct] = []
                         else:
 
-                            if debug: myPrint("DB", "...No Income/Expense Accounts found for row: %s" %(onRow))
+                            if debug: myPrint("DB", "...No Accounts found for parallel operations on row: %s" %(onRow))
 
                 tookTime = System.currentTimeMillis() - startTime
                 if debug: myPrint("DB", "calculateBalances() STAGE2>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
                 startTime = System.currentTimeMillis()
 
-                # Income / Expense harvest associated Txns - all in one sweep....
-                if not lIncExpData:
-                    if debug: myPrint("DB", "HomePageView: No IncExp Data requested or no accounts found... Skipping the harvesting of associated Txns...")
-                    incExpBalanceTable = []
+                if not lParallelData:
+                    if debug: myPrint("DB", "HomePageView: No parallel data requested or no accounts found... Skipping the harvesting of txns / balances parallel data...")
+                    parallelBalanceTable = []   # Dummy / empty list - will not be used...
 
                 else:
 
-                    if debug: myPrint("DB", "HomePageView: IncExp Data found... Harvesting associated Txns")
-                    returnTransactionsForAccounts(incExpTxnTable, swClass)
+                    # ------ 2. HARVEST TXNS REQUIRED FOR PARELLEL BALANCES IN ONE SWEEP -------------------------------
+                    # Income / Expense harvest associated Txns - all in one sweep....
+                    if debug: myPrint("DB", "HomePageView: Parallel data found... Harvesting associated I/E txns")
+                    returnTransactionsForAccounts(parallelTxnTable, swClass);   # NOTE: Updates parallelTxnTable with txns
                     if swClass and swClass.isCancelled(): return []
 
-                    if debug: myPrint("DB", "HomePageView: Converting IncExp Txns into Balances...")
-                    incExpBalanceTable = convertTxnTableIntoBalances(incExpTxnTable, swClass);
+                    # ------ 3. convert the I/E txn table into balances ------------------------------------------------
+                    if debug: myPrint("DB", "HomePageView: Converting parallel I/E txns into I/E balances...")
+                    parallelBalanceTable = convertTableOfTxnsIntoBalances(parallelTxnTable, swClass);   # NOTE: All the non-gathered Accounts will have a HoldBalance stored with ZERO
                     if swClass and swClass.isCancelled(): return []
 
+                    # ------ 4. gather Account balance asof dates balances ---------------------------------------------
+                    if debug: myPrint("DB", "HomePageView: Gathering 'Balance asof date' balances...")
+                    gatherBalanceAsOfDateBalances(parallelBalanceTable, swClass);
+                    if swClass and swClass.isCancelled(): return []
+
+                    # ------ 5. gather remaining 'real' Account balances for all accounts not updated in prior steps ---
+                    if debug: myPrint("DB", "HomePageView: Gathering 'real' Account balances for all accounts/balances not gather in prior steps")
+                    gatherRemainingRealBalances(parallelBalanceTable, swClass);
+                    if swClass and swClass.isCancelled(): return []
+
+                    # ------ 6. replace Security Account balances with cost basis / u/r gains (where requested) --------
+                    if debug: myPrint("DB", "HomePageView: Replacing Security Account Balances with cost basis / u/r gains (where requested)")
+                    replaceSecurityCostBasisBalances(parallelBalanceTable, swClass);
+                    if swClass and swClass.isCancelled(): return []
+
+                del parallelTxnTable
                 # --------------------------------------------------------------------------------------------------
 
                 lWarningDetected = False
@@ -12832,12 +13101,12 @@ Visit: %s (Author's site)
                             # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance", 3 = "Balance asof Date"
 
                             acctCurr = acct.getCurrencyType()
-                            if (isIncomeExpenseAcct(acct) and not isIncomeExpenseAllDatesSelected(iAccountLoop)):
+                            if (isIncomeExpenseAcct(acct) and isIncomeExpenseDatesSelected(iAccountLoop)):
                                 if debug: myPrint("DB", ">> RowIdx: %s - Income/Expense date range: %s - Swapping in recalculated balances....:" %(iAccountLoop, NAB.savedIncomeExpenseDateRange[iAccountLoop]))
 
-                                try: sudoAcctRef = incExpBalanceTable[iAccountLoop][acct]                               # type: HoldBalance
+                                try: sudoAcctRef = parallelBalanceTable[iAccountLoop][acct]                               # type: HoldBalance
                                 except KeyError:
-                                    myPrint("B", "@@ KeyError - Row: %s - Trying to access 'incExpBalanceTable[%s]' with Account: '%s'" %(onRow, iAccountLoop,acct))
+                                    myPrint("B", "@@ KeyError - Row: %s - Trying to access 'parallelBalanceTable[%s]' with Account: '%s'" %(onRow, iAccountLoop,acct))
                                     raise
 
                             else:
@@ -12901,7 +13170,7 @@ Visit: %s (Author's site)
                                                                 rowNumber=onRow))
 
 
-                del accountsToShow, totalBalance, incExpTxnTable, incExpAccountsList, simulateRowIdxs
+                del accountsToShow, totalBalance, parallelFullAccountsList, simulateRowIdxs
 
                 tookTime = System.currentTimeMillis() - startTime
                 if debug: myPrint("DB", "calculateBalances() STAGE3>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
@@ -13228,6 +13497,9 @@ Visit: %s (Author's site)
 
                                 hiddenRows = False
                                 filteredRows = False
+                                useBalanceAsOf = False
+                                returnCostBasis = False
+                                includeReminders = False
 
                                 if not NAB.configSaved:
                                     rowText = " ** CLICK TO SAVE SETTINGS **"
@@ -13247,7 +13519,7 @@ Visit: %s (Author's site)
                                 for i in range(0, len(self.netAmountTable)):
 
                                     onRow = i + 1
-                                    balanceObj = self.netAmountTable[i]    # type: CalculatedBalance
+                                    balanceObj = self.netAmountTable[i]                                                 # type: CalculatedBalance
 
                                     if NAB.isThisRowAlwaysHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
                                         if debug: myPrint("DB", "** Skipping disabled row %s" %(onRow))
@@ -13262,7 +13534,7 @@ Visit: %s (Author's site)
                                     lUseAverage = NAB.doesRowUseAvgBy(i)
                                     lAdjustFinalBalance = (NAB.savedAdjustCalcByTable[i] != 0.0)
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
-                                    lUseTaxDates = (NAB.savedUseTaxDates and not isIncomeExpenseAllDatesSelected(i))
+                                    lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
                                     balanceOrAverage = balanceObj.getBalance()
 
@@ -13285,14 +13557,36 @@ Visit: %s (Author's site)
                                         showAverageText = " (Avg/by: %s)" %(round(avgByForRow, 4))
                                         if debug: myPrint("DB", ":: Row: %s using average / by: %s" %(onRow, avgByForRow))
 
+                                    showBalanceAsOfText = ""
+                                    if isBalanceAsOfDateSelected(i):
+                                        useBalanceAsOf = True
+                                        showBalanceAsOfText = " (bal asof: %s)" %(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i]))
+                                        if debug: myPrint("DB", ":: Row: %s using balance asof date: %s" %(i+1, getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i])))
+
+                                    showIncludeRemindersText = ""
+                                    if isIncludeRemindersSelected(i):
+                                        includeReminders = True
+                                        showIncludeRemindersText = " (incl. reminders asof: %s)" %(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i]))
+                                        if debug: myPrint("DB", ":: Row: %s including reminders asof date: %s" %(i+1, getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
+
+                                    showCostBasisText = ""
+                                    if isUseCostBasisSelected(i):
+                                        returnCostBasis = True
+                                        if NAB.savedUseCostBasisTable[i] == GlobalVars.COSTBASIS_TYPE_CB:
+                                            showCostBasisText = " (costbasis)"
+                                            if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts)" %(i+1))
+                                        elif NAB.savedUseCostBasisTable[i] == GlobalVars.COSTBASIS_TYPE_URGAINS:
+                                            showCostBasisText = " (u/r gains)"
+                                            if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))
+
                                     showAdjustFinalBalanceText = ""
                                     if lAdjustFinalBalance:
                                         showAdjustFinalBalanceText = " (adj by: %s)" %(NAB.savedAdjustCalcByTable[i])
                                         if debug: myPrint("DB", ":: Row: %s using final balance adjustment: %s" %(i+1, NAB.savedAdjustCalcByTable[i]))
 
-                                    useTaxDatesText = ""
+                                    showUseTaxDatesText = ""
                                     if lUseTaxDates:
-                                        useTaxDatesText = " (txd)"
+                                        showUseTaxDatesText = " (txd)"
                                         if debug: myPrint("DB", ":: Row: %s using tax dates" %(i+1))
 
                                     showUsesOtherRowTxt = ""
@@ -13305,7 +13599,18 @@ Visit: %s (Author's site)
 
                                     uuidTxt = "" if not debug else " (uuid: %s)" %(NAB.savedUUIDTable[i])
 
-                                    tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i], balanceObj.getExtraRowTxt() + showCurrText + showAverageText + showAdjustFinalBalanceText + useTaxDatesText + showUsesOtherRowTxt + uuidTxt, altFG)
+                                    tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i],
+                                                                      balanceObj.getExtraRowTxt()
+                                                                      + showCurrText
+                                                                      + showAverageText
+                                                                      + showAdjustFinalBalanceText
+                                                                      + showUseTaxDatesText
+                                                                      + showBalanceAsOfText
+                                                                      + showIncludeRemindersText
+                                                                      + showCostBasisText
+                                                                      + showUsesOtherRowTxt
+                                                                      + uuidTxt,
+                                                                      altFG)
                                     nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc)
 
                                     # NOTE: Leave "  " to avoid the row height collapsing.....
@@ -13425,13 +13730,18 @@ Visit: %s (Author's site)
                                     warningCheckText = "" if not NAB.warningInParametersDetected else "*WARNING!* "
                                     warningsTurnedOffText = "" if not lAnyShowWarningsDisabled else "*SOME WARNINGS OFF* "
                                     parallelText = "" if not NAB.parallelBalanceTableOperating else "*PARALLEL BAL CALCS* "
+                                    balanceAsOfText = "" if not useBalanceAsOf else "*BALANCE ASOF* "
+                                    includeRemindersText = "" if not includeReminders else "*REMINDERS* "
+                                    costBasisText = "" if not returnCostBasis else "*COSTBASIS* "
                                     useTaxDatesText = "" if not NAB.savedUseTaxDates else "*TAX DATES* "
                                     hiddenRowsText = "" if not hiddenRows else "*HIDDEN ROW(s)* "
                                     filteredRowsText = "" if not filteredRows else "*FILTERED ROW(s)* "
                                     filterGroupIDText = "" if NAB.savedFilterByGroupID == "" else "*Filter: '%s'* " %(NAB.savedFilterByGroupID)
                                     combinedTxt = ""
                                     _countTxtAdded = 0
-                                    for _txt in [previewText, debugText, migratedText, warningCheckText, warningsTurnedOffText, parallelText, useTaxDatesText, hiddenRowsText, filteredRowsText, filterGroupIDText]:
+                                    for _txt in [previewText, debugText, migratedText, warningCheckText, warningsTurnedOffText,
+                                                 parallelText, balanceAsOfText, includeRemindersText, costBasisText, useTaxDatesText,
+                                                 hiddenRowsText, filteredRowsText, filterGroupIDText]:
                                         combinedTxt += _txt
                                         if _txt != "": _countTxtAdded += 1
                                         if _countTxtAdded >= 3:
@@ -13795,7 +14105,6 @@ Visit: %s (Author's site)
                         _view.balTypeLabel.setText("Calculated Total")                                                  # noqa
                         _view.balTypeLabel.setForeground(md.getUI().getColors().secondaryTextFG)                        # noqa
 
-                        # if isParallelBalanceTableOperational():
                         if debug:
                             _view.listPanel.removeAll()
                             onPnlRow = 0
