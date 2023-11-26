@@ -641,7 +641,7 @@ else:
 
     GlobalVars.TOOLBOX_MINIMUM_TESTED_MD_VERSION = 2020.0
     GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_VERSION = 2023.2
-    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5057
+    GlobalVars.TOOLBOX_MAXIMUM_TESTED_MD_BUILD =   5059
     GlobalVars.MD_OFX_BANK_SETTINGS_DIR = "https://infinitekind.com/app/md/fis/"
     GlobalVars.MD_OFX_DEFAULT_SETTINGS_FILE = "https://infinitekind.com/app/md/fi2004.dict"
     GlobalVars.MD_OFX_DEBUG_SETTINGS_FILE = "https://infinitekind.com/app/md.debug/fi2004.dict"
@@ -15602,21 +15602,22 @@ Visit: %s (Author's site)
 <INSTRUCTIONS - MEMORY>
 ======================
 
->>>> As of MD2023.2(%s) the default on all platforms is '-XX:MaxRAMPercentage=80' (allow up to 80 percent usage of available memory) <<<<<
->>>>                      it is highly unlikely that you should need to adjust your memory settings on builds later than %s          <<<<<
->>>>                      however, changes should ONLY be made to the /.moneydance/vmoptions.txt file (which you should create)        <<<<<
->>>>                      (note: the 'vmoptions.txt' file location is the same location as the  errlog.txt & config.dict files)        <<<<<
->>>>                      the 'Moneydance.vmoptions' file should NOT be changed!                                                       <<<<<
+>>>> As of MD2023.2(%s) the default on all platforms is '-XX:MaxRAMPercentage=80' (allow up to 80%% usage of available memory)  <<<<<
+>>>>                      it is highly unlikely that you should need to adjust your memory settings on build %s or later        <<<<<
+>>>>                      however, changes should ONLY be made to the /.moneydance/vmoptions.txt file (which you should create)   <<<<<
+>>>>                      (note: the 'vmoptions.txt' file location is the same location as the  errlog.txt & config.dict files)   <<<<<
+>>>>                      the 'Moneydance.vmoptions' file should NOT be changed!                                                  <<<<<
 
 MD's .vmoptions file (DO NOT CHANGE):         '%s'
 Local user vmoptions.txt file to create/edit: '%s'
 
 You can change / override Moneydance's memory usage (and other JVM settings) by creating / editing your local 'vmoptions.txt' file.
 
-WITH MONEYDANCE CLOSED... Create/open/edit the '%s' file with Notepad or any other text editor. Update your settings and save...
+WITH MONEYDANCE CLOSED... Create/open/edit the '%s' file with a suitable text editor. Update your settings and save...
+... suggested text editors: Windows: Notepad, Linux: KWrite (from Software Manager/app Store)
 
-Using ONE of the following lines will override the default 80 percent max memory JVM usage:
--XX:MaxRAMPercentage=80             (would limit usage to 80 percent of max memory available)
+Using ONE of the following lines would override the default 80%% max memory JVM usage:
+-XX:MaxRAMPercentage=50             (would limit usage to 50%% of max memory available)
 -Xmx2048m                           (would limit usage to 2MB of memory)
 
 If you want to prove this worked.. At MD launch, the Toolbox extension informs you of the memory  being used in Help/Console Window.
@@ -15637,12 +15638,13 @@ WITH MONEYDANCE CLOSED...
 
 Navigate to the '%s' file, located in the folder where Moneydance is installed:
 
-If you open that file with Notepad or any other text editor, you'll see some instructions for how to change it.
+Open this file with a suitable text editor. The file contents contain some instructions on how to change the settings.
+... suggested text editors: Windows: Notepad, Linux: KWrite (from Software Manager/app Store)
 
 The basic recommendation for builds prior to MD2023.2(%s) is to replace the old '-Xmx1024m' setting with a new line:
 -XX:MaxRAMPercentage=80     
 #-Xmx1024m                          (adding # in front of this line to comment it out)
-This would limit usage to 80 percent of max memory available.  Or, at least use something like '-Xmx2048m' which will
+This would limit usage to 80%% of max memory available.  Or, at least use something like '-Xmx2048m' which will
 double the amount of memory that Moneydance is allowed to use to 2GB
 NOTE: The limit was previously set deliberately low to enable it to work with computers having very small amounts of RAM.
 
@@ -15676,7 +15678,7 @@ In Windows - due to permissions, you will need to do this:
 To save the Moneydance.vmoptions file you need to run Notepad as a Administrator. 
 In the Windows search box, in the Task Bar, type Notepad. When Notepad appears in the list, right-click 
 and select 'run as administrator' to open Notepad.
-Then FILE – OPEN and use dropdown to change Text Document (*.txt) to *.* and navigate to 'Moneydance.vmoptions' file and click OPEN. 
+Then FILE > OPEN and use dropdown to change Text Document (*.txt) to *.* and navigate to 'Moneydance.vmoptions' file and click OPEN. 
 Edit the file and then use Menu > FILE > SAVE, then FILE > EXIT.
 
 restart Moneydance
@@ -15687,20 +15689,24 @@ restart Moneydance
 -----
 Linux file location: '%s'
 
-In Linux - due to permissions, you will need to do this:
-a) Either edit in Terminal using sudo before the command (e.g. sudo vi '%s' or sudo xed <file>) , or;
+In Linux - due to system-protection / file permissions, you will need to do ONE of the following:
 
-b) You ideally need to be able to open files as root via a right click.
-- This assumes you are on a Debian based system
-1. Open the Terminal
-2. Type sudo su and press enter. Provide your password and press enter
-3. Then type apt-get install -y nautilus-admin and press enter
-4. Now type nautilus -q and press enter
-5. Finally type exit and press enter, and close the terminal window
-6. All set. Now when you want to open a file as root, simply right click the FOLDER and select Open as Root (or Administrator).
+a) PREFERRED >> Edit the file using KWrite (install  Software Manager/app Store), or;
+   (upon clicking Save you will be asked to enter your admin password to gain Root privileges to allow the edits to be saved)
 
-So, now find the /Opt folder, right click on the Moneydance FOLDER, Open as Root. Enter your password. Now you can edit the '%s' file....
->> Note: You may need to logoff and then login to see the changes!
+b) Edit in Terminal using sudo before the command (e.g. sudo vi '%s' or sudo xed <file>), or;
+
+c) Configure your system to be able to open files as root via a right-click:
+    >> This assumes you are on a Debian based system
+    1. Open the Terminal
+    2. Type sudo su and press enter. Provide your password and press enter
+    3. Then type apt-get install -y nautilus-admin and press enter
+    4. Now type nautilus -q and press enter
+    5. Finally type exit and press enter, and close the terminal window
+    6. All set. Now when you want to open a file as root, simply right click the FOLDER and select Open as Root (or Administrator).
+    
+    Now find the /Opt folder, right-click on the Moneydance FOLDER, Open as Root. Enter your password. Now you can edit the '%s' file....
+    >> Note: You may need to logoff and then login to see the changes!
 
 after saving the file, restart Moneydance
 ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -18817,8 +18823,8 @@ after saving the file, restart Moneydance
                 _i+=1
 
             if len(old_snapshots):
-                text += "  >> %s'd %s of %s eligible (old) snapshots (%s percent) from %s\n"%(ThnTxt, num_thinned, len(old_snapshots), 100*num_thinned/len(old_snapshots), _curr.getName())
-                text += "  >> %s'd %s of %s total snapshots          (%s percent) from %s\n"%(ThnTxt, num_thinned, len(_snapshots), 100*num_thinned/len(_snapshots), _curr.getName())
+                text += "  >> %s'd %s of %s eligible (old) snapshots (%s%%) from %s\n"%(ThnTxt, num_thinned, len(old_snapshots), 100*num_thinned/len(old_snapshots), _curr.getName())
+                text += "  >> %s'd %s of %s total snapshots          (%s%%) from %s\n"%(ThnTxt, num_thinned, len(_snapshots), 100*num_thinned/len(_snapshots), _curr.getName())
             else:
                 text += "  >> No old snapshots %s'd from %s\n" %(ThnTxt, _curr.getName())
 
