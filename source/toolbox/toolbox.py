@@ -214,6 +214,8 @@
 #               add .getFullAcountName() to the error message in review_security_accounts()
 #               updated -Xmx to include -XX:MaxRAMPercentage= and tweak show vmoptions feature etc....
 
+# todo - CurrencyType() look for .isPlaceholder() or perhaps not .isSyncable() for comptibility - Use in Diag Currencies when no currencies etc.
+
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
 # todo - consider whether to allow blank securities on dividends (and MiscInc, MiscExp) in fix_non_hier_sec_acct_txns() etc?
@@ -23404,8 +23406,8 @@ after saving the file, restart Moneydance
         all_fonts_code =   ["Hack", "Monospaced"]
         all_fonts_print =   ["Helvetica", "Dialog"]
 
-        lExit=False
-        lAnyFontChanges=False
+        lExit = False
+        lAnyFontChanges = False
 
         for checkFont in ["main_font","mono_font","code_font","print.font_name"]:
             x = prefs.getSetting(checkFont, None)
