@@ -152,12 +152,7 @@
 #               Common code - FileFilter fix...
 # build: 1038 - Allow UOR chaining...
 # build: 1039 - Operate using 'sudo' balances for all rows/accounts....
-#               Added Balance asof date option...; Added Use Cost Basis option(s)...
-
-# todo - consider adding 'as of' balance date option (for non inc/exp rows) - perhaps??
-# todo - consider an option to add future Reminders into Balance?
-
-# todo - consider putting sudo Balance for all Accounts into the table...
+#               Added Balance asof date option...; Added Use Cost Basis option(s)...; Added Include Reminders option...; added
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -624,13 +619,13 @@ else:
     GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX = 1
     GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX = 2
 
-    GlobalVars.ASOF_BALANCE_KEY_IDX = 0
-    GlobalVars.ASOF_BALANCE_DATEINT_IDX = 1
+    GlobalVars.ASOF_BALANCE_IDX = 0
+    GlobalVars.ASOF_BALANCE_KEY_IDX = 1
+    GlobalVars.ASOF_BALANCE_DATEINT_IDX = 2
 
     GlobalVars.BALTYPE_BALANCE = 0
     GlobalVars.BALTYPE_CURRENTBALANCE = 1
     GlobalVars.BALTYPE_CLEAREDBALANCE = 2
-    GlobalVars.BALTYPE_ASOF_DATE = 3
 
     GlobalVars.COSTBASIS_TYPE_NONE = 0
     GlobalVars.COSTBASIS_TYPE_CB = 1
@@ -3640,7 +3635,6 @@ Visit: %s (Author's site)
         sb.append(ct.getSuffix())
         return sb.toString().strip()
 
-    # noinspection PyUnresolvedReferences
     def isAccountActive(acct, balType, checkParents=True, sudoAccount=None):                                            # noqa
         if checkParents:
             if (acct.getAccountOrParentIsInactive()): return False
@@ -3651,7 +3645,7 @@ Visit: %s (Author's site)
         # if sudoAccount is None: sudoAccount = acct
         sudoAccount = acct
 
-        if (sudoAccount.getAccountType() == Account.AccountType.SECURITY):
+        if isSecurityAcct(sudoAccount):
             if (sudoAccount.getCurrencyType().getHideInUI()): return False
             if (NetAccountBalancesExtension.getNAB().savedTreatSecZeroBalInactive
                     and StoreAccount.getXBalance(balType, sudoAccount) == 0):
@@ -3794,9 +3788,7 @@ Visit: %s (Author's site)
                 return _acct.getUserCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getUserClearedBalance()
-            elif _type == GlobalVars.BALTYPE_ASOF_DATE:
-                myPrint("B", "@@@LOGIC ERROR: BALTYPE_ASOF_DATE NOT coded yet!!!");
-                return 0
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         @staticmethod
         def getXBalance(_type, _acct):
@@ -3807,9 +3799,7 @@ Visit: %s (Author's site)
                 return _acct.getCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getClearedBalance()
-            elif _type == GlobalVars.BALTYPE_ASOF_DATE:
-                myPrint("B", "@@@LOGIC ERROR: BALTYPE_ASOF_DATE NOT coded yet!!!");
-                return 0
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         @staticmethod
         def getRecursiveUserXBalance(_type, _acct):
@@ -3820,9 +3810,7 @@ Visit: %s (Author's site)
                 return _acct.getRecursiveUserCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getRecursiveUserClearedBalance()
-            elif _type == GlobalVars.BALTYPE_ASOF_DATE:
-                myPrint("B", "@@@LOGIC ERROR: BALTYPE_ASOF_DATE NOT coded yet!!!");
-                return 0
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         @staticmethod
         def getRecursiveXBalance(_type, _acct):
@@ -3833,9 +3821,7 @@ Visit: %s (Author's site)
                 return _acct.getRecursiveCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getRecursiveClearedBalance()
-            elif _type == GlobalVars.BALTYPE_ASOF_DATE:
-                myPrint("B", "@@@LOGIC ERROR: BALTYPE_ASOF_DATE NOT coded yet!!!");
-                return 0
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         def __str__(self):
             if self.obj is None: return "Invalid Acct Obj or None"
@@ -4904,10 +4890,12 @@ Visit: %s (Author's site)
             self.updateEnabledStatus()
 
         def loadFromParameters(self, settings, defaultKey="asof_today"):
+            # type: ([bool, str, int], str) -> bool
             if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default asof option/key ('%s') not found?!" %(defaultKey))
             foundSetting = False
-            asOfOptionKey = settings[0]
-            asOfDateInt = settings[1]
+            # asOfOptionSelected = settings[0]
+            asOfOptionKey = settings[1]
+            asOfDateInt = settings[2]
             if asOfOptionKey == self.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(asOfDateInt):
                     self.setAsOfDateInt(asOfDateInt)
@@ -4921,11 +4909,13 @@ Visit: %s (Author's site)
             return foundSetting
 
         def returnStoredParameters(self, defaultSettings):
-            settings = defaultSettings
+            # type: ([bool, str, int]) -> [bool, str, int]
+            settings = copy.deepcopy(defaultSettings)
             asOfDateInt = self.getAsOfDateInt()
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
-            settings[0] = selectedOptionKey
-            settings[1] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
+            # leave settings[0] untouched
+            settings[1] = selectedOptionKey
+            settings[2] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
             myPrint("DB", "Returning stored balance asof date parameters settings ('%s')" %(settings))
             return settings
 
@@ -5102,19 +5092,18 @@ Visit: %s (Author's site)
         return (_acct.getAccountType() == Account.AccountType.EXPENSE or _acct.getAccountType() == Account.AccountType.INCOME)
 
     # noinspection PyUnresolvedReferences
-    def isSecurityAcct(_acct):      return (_acct.getAccountType() == Account.AccountType.SECURITY)
+    def isSecurityAcct(_acct):      return (_acct.getAccountType() is Account.AccountType.SECURITY)
 
     # noinspection PyUnresolvedReferences
-    def isInvestmentAcct(_acct):    return (_acct.getAccountType() == Account.AccountType.INVESTMENT)
+    def isInvestmentAcct(_acct):    return (_acct.getAccountType() is Account.AccountType.INVESTMENT)
 
     # noinspection PyUnresolvedReferences
-    def isRootAcct(_acct):          return (_acct.getAccountType() == Account.AccountType.ROOT)
+    def isRootAcct(_acct):          return (_acct.getAccountType() is Account.AccountType.ROOT)
 
 
     class MyAcctFilterIncExpOnly(AcctFilter):
         def __init__(self):         pass
         def matches(self, acct):    return isIncomeExpenseAcct(acct)
-
 
     def isIncomeExpenseDatesSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -5122,11 +5111,11 @@ Visit: %s (Author's site)
 
     def isBalanceAsOfDateSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedBalanceType[index] == GlobalVars.BALTYPE_ASOF_DATE and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
+        return (NAB.savedBalanceAsOfDateTable[index][GlobalVars.ASOF_BALANCE_IDX] and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
 
     def isIncludeRemindersSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index]))
+        return (NAB.savedIncludeRemindersTable[index][GlobalVars.INCLUDE_REMINDERS_IDX] and isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
 
     def isUseCostBasisSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -5158,30 +5147,116 @@ Visit: %s (Author's site)
 
         lAnyParallel = False
         for iRowIndex in (range(0, NAB.getNumberOfRows()) if (_rowIdx is None) else [_rowIdx]):
-            onRow = iRowIndex + 1
+            # onRow = iRowIndex + 1
             if isBalanceAsOfDateSelected(iRowIndex):
-                if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Accounts using txns with 'balance asof date' is in operation.." %(onRow));
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Accounts using txns with 'balance asof date' is in operation.." %(onRow));
                 lAnyParallel = True;
             if isIncludeRemindersSelected(iRowIndex):
-                if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Accounts with 'include reminders asof date' is in operation.." %(onRow));
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Accounts with 'include reminders asof date' is in operation.." %(onRow))
                 lAnyParallel = True;
             if isUseCostBasisSelected(iRowIndex):
-                if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Security accounts with 'return cost basis' is in operation.." %(onRow));
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Security accounts with 'return cost basis' is in operation.." %(onRow))
                 lAnyParallel = True;
             if isIncomeExpenseDatesSelected(iRowIndex):
-                if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for 'Inc/Exp Txns based on date range' is in operation.." %(onRow));
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for 'Inc/Exp Txns based on date range' is in operation.." %(onRow))
                 lAnyParallel = True
 
         if _rowIdx is not None:
-            if lAnyParallel:
-                if True or debug: myPrint("B", ">> Detected parallel balances are required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1));
-            else:
-                if True or debug: myPrint("B", "[INFO] Parallel balances are NOT required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1));
+            # if lAnyParallel:
+            #     if debug: myPrint("B", ">> Detected parallel balances are required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1))
+            # else:
+            #     if debug: myPrint("B", "[INFO] Parallel balances are NOT required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1))
             return lAnyParallel
 
         if True or debug: myPrint("DB", "** Setting Parallel Balances detected flag to '%s'" %(lAnyParallel));
         NAB.parallelBalanceTableOperating = lAnyParallel
         return NAB.parallelBalanceTableOperating
+
+    def rebuildParallelAccountBalancesStages2to7(_parallelTxnTable, swClass, lBuildParallelTable, emptyReturnValue):
+        # type: ([{Account: [AbstractTxn]}], SwingWorker, bool, [{Account: HoldBalance}]) -> [{Account: HoldBalance}]
+
+        # ------- SEQUENCE FOR BUILDING PARALLEL BALANCES --------------------------------------------------
+        # Detect if any Parallel Balances are required (per row). These can one or more of the following:
+        # Balance asof date; Income/Expense date range specified; Security Accounts - Cost Basis requested; include Reminders requested
+        # 1. per row, if any parallel operation requested, then for row, gather all selected accounts along with all child/sub accounts
+        # 2. gather all txns, then if Income/Expense dates were requested, put I/E txns into the txn table...
+        # 3. convert this I/E txn table into balances...
+        # 4. for all accounts / balances not derived by steps 2 & 3, then calculate balance asof dates (only if requested)..
+        # 5. for all accounts / balances not derived by steps 2, 3 & 4, then grab the remaining Account's real balance(s)
+        # 6. for all account balances in the table, replace balance with cost basis / u/r gains on Security Accounts (where requested).
+        # 7. for all accounts selected, add Reminder txn/balances up to the reminders asof date (where requested).
+
+        if debug: myPrint("B", "In .rebuildParallelAccountBalancesStages2to7()")
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        startTime = System.currentTimeMillis()
+
+        # ------ 2. HARVEST TXNS REQUIRED FOR PARALLEL BALANCES IN ONE SWEEP -------------------------------
+        # Income / Expense harvest associated Txns - all in one sweep....
+        if debug: myPrint("DB", ":: Parallel data found... Harvesting associated I/E txns")
+        returnTransactionsForAccounts(_parallelTxnTable, swClass)   # NOTE: Updates parallelTxnTable with txns
+
+        tookTime = System.currentTimeMillis() - startTime
+        if debug: myPrint("DB", "::returnTransactionsForAccounts()        STAGE2.2>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+        startTime = System.currentTimeMillis()
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        # ------ 3. convert the I/E txn table into balances ------------------------------------------------
+        if debug: myPrint("DB", ":: Converting parallel I/E txns into I/E balances...")
+        parallelBalanceTable = convertTableOfTxnsIntoBalances(_parallelTxnTable, swClass, lBuildParallelTable)  # NOTE: non-gathered Accounts will hold None (instead of HoldBalance)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - startTime
+        if debug: myPrint("DB", "::convertTableOfTxnsIntoBalances()       STAGE2.3>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+        startTime = System.currentTimeMillis()
+
+        # ------ 4. gather Account balance asof dates balances ---------------------------------------------
+        if debug: myPrint("DB", ":: Gathering 'Balance asof date' balances...")
+        gatherBalanceAsOfDateBalances(parallelBalanceTable, swClass, lBuildParallelTable)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - startTime
+        if debug: myPrint("DB", "::gatherBalanceAsOfDateBalances()        STAGE2.4>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+        startTime = System.currentTimeMillis()
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        # ------ 5. gather remaining 'real' Account balances for all accounts not updated in prior steps ---
+        if debug: myPrint("DB", ":: Gathering 'real' Account balances for all accounts/balances not gather in prior steps")
+        gatherRemainingRealBalances(parallelBalanceTable, swClass, lBuildParallelTable)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - startTime
+        if debug: myPrint("DB", "::gatherRemainingRealBalances()          STAGE2.5>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+        startTime = System.currentTimeMillis()
+
+        # ------ 6. replace Security Account balances with cost basis / u/r gains (where requested) --------
+        if debug: myPrint("DB", ":: Replacing Security Account Balances with cost basis / u/r gains (where requested)")
+        replaceSecurityCostBasisBalances(parallelBalanceTable, swClass);
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - startTime
+        if debug: myPrint("DB", "::replaceSecurityCostBasisBalances()     STAGE2.6>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+        startTime = System.currentTimeMillis()
+
+        # ------ 7. update account balances with Reminders (if requested) --------
+        if debug: myPrint("DB", ":: Updating Account Balances with reminders (where requested)")
+        updateBalancesWithHarvestedReminders(parallelBalanceTable, swClass)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - startTime
+        if debug: myPrint("DB", "::updateBalancesWithHarvestedReminders() STAGE2.7>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        return parallelBalanceTable
 
     def rebuildParallelAccountBalances(swClass):
         # type: (SwingWorker) -> [{Account: HoldBalance}]
@@ -5192,48 +5267,21 @@ Visit: %s (Author's site)
         iRowIdx = NAB.getSelectedRowIndex()
         "HERE";
 
+        emptyTxnOrBalanceArray = buildEmptyTxnOrBalanceArray()                                                          # type: [{Account: [AbstractTxn]}]
+
         if not isParallelBalanceTableOperational(iRowIdx):
             if debug: myPrint("DB", ".. Skipping build of parallel balances table as not needed...")
-            return buildEmptyTxnOrBalanceArray()
+            return emptyTxnOrBalanceArray
 
-        if debug: myPrint("DB", "Building Parallel Account Balances Table....:")
-
-        parallelBalanceTable = None
+        if debug: myPrint("DB", "::rebuildParallelAccountBalances() >> Building Parallel Account Balances Table....:")
 
         # ------ 1. DERIVE LIST OF ACCOUNTS WHEN PARALLEL TABLE REQUIRED -----------------------------------------------
         # getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), MyAcctFilterIncExpOnly())
-        getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), AcctFilter.ALL_ACCOUNTS_FILTER);
-
         parallelTxnTable = buildEmptyTxnOrBalanceArray()                                                                # type: [{Account: [AbstractTxn]}]
+        getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), AcctFilter.ALL_ACCOUNTS_FILTER);
         for acct in getAccounts: parallelTxnTable[iRowIdx][acct] = []
 
-        # ------ 2. HARVEST TXNS REQUIRED FOR PARELLEL BALANCES IN ONE SWEEP -------------------------------
-        if not swClass.isCancelled():
-            returnTransactionsForAccounts(parallelTxnTable, swClass);   # NOTE: Updates parallelTxnTable with txns
-
-        # ------ 3. convert the I/E txn table into balances ------------------------------------------------
-        if not swClass.isCancelled():
-            parallelBalanceTable = convertTableOfTxnsIntoBalances(parallelTxnTable, swClass, lBuildParallelTable=True);
-
-        # ------ 4. gather Account balance asof dates balances ---------------------------------------------
-        if not swClass.isCancelled():
-            gatherBalanceAsOfDateBalances(parallelBalanceTable, swClass, lBuildParallelTable=True);
-
-        # ------ 5. gather remaining 'real' Account balances for all accounts not updated in prior steps ---
-        if not swClass.isCancelled():
-            gatherRemainingRealBalances(parallelBalanceTable, swClass, lBuildParallelTable=True);
-
-        # ------ 6. replace Security Account balances with cost basis / u/r gains (where requested) --------
-        if not swClass.isCancelled():
-            replaceSecurityCostBasisBalances(parallelBalanceTable, swClass);
-
-        # ------ 7. update account balances with Reminders (if requested) --------
-        if not swClass.isCancelled():
-            updateBalancesWithHarvestedReminders(parallelBalanceTable, swClass);
-
-        if swClass.isCancelled(): return buildEmptyTxnOrBalanceArray()
-
-        return parallelBalanceTable
+        return rebuildParallelAccountBalancesStages2to7(parallelTxnTable, swClass, True, emptyTxnOrBalanceArray)
 
     def returnThisAccountAndAllChildren(_acct, _listAccounts=None, autoSum=False, justIncomeExpense=True):
         # type: (Account, [Account], bool, bool) -> [Account]
@@ -5323,24 +5371,28 @@ Visit: %s (Author's site)
         return dateRange
 
     def getBalanceAsOfDateSelected(rowBalanceAsOfDateSettings):
-        # type: ([str, int]) -> int
+        # type: ([bool, str, int]) -> int
+        _fromAsOfWanted = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_IDX]
         _fromAsOfKey = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_KEY_IDX]
         _fromCustomAsOfDateInt = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_DATEINT_IDX]
-        if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
-            if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
-                asOfDateInt = _fromCustomAsOfDateInt
+        if _fromAsOfWanted:
+            if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
+                if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
+                    asOfDateInt = _fromCustomAsOfDateInt
+                else:
+                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY)
             else:
-                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY)
+                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey)
         else:
-            asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey)
+            asOfDateInt = 0
         return asOfDateInt
 
     def getIncludeRemindersAsOfDateSelected(rowIncludeRemindersAsOfSettings):
         # type: ([bool, str, int]) -> int
-        _fromIncludeReminders = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_IDX]
+        _fromAsOfWanted = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_IDX]
         _fromAsOfKey = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX]
         _fromCustomAsOfDateInt = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX]
-        if _fromIncludeReminders:
+        if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
                     asOfDateInt = _fromCustomAsOfDateInt
@@ -5388,13 +5440,17 @@ Visit: %s (Author's site)
             self.parallelBalanceAsOfDateBalances = False
             self.parallelIncludeReminders = False
             self.parallelReturnCostBasis = False
-            self.incomeExpense = isIncomeExpenseAcct(acct)
+            self.isIncomeExpense = isIncomeExpenseAcct(acct)
+            self.isSecurity = isSecurityAcct(acct)
+            self.isInvestment = isInvestmentAcct(acct)
 
             if not isinstance(acct, Account): raise Exception("ERROR: HoldBalance can only hold Account objects")
             # if not self.isIncomeExpense(): raise Exception("ERROR: HoldBalance only programmed for Income/Expense Categories");
 
         def getAccount(self):               return self.acct
-        def isIncomeExpense(self):          return self.incomeExpense
+        def isIncomeExpense(self):          return self.isIncomeExpense
+        def isSecurity(self):               return self.isSecurity
+        def isInvestment(self):             return self.isInvestment
         def getAccountName(self):           return self.getAccount().getAccountName()
         def getFullAccountName(self):       return self.getAccount().getFullAccountName()
         def getAccountType(self):           return self.getAccount().getAccountType()
@@ -5423,9 +5479,7 @@ Visit: %s (Author's site)
             if _balType == GlobalVars.BALTYPE_BALANCE:          return self.getBalance()         if not _autoSum else self.getRecursiveBalance()
             elif _balType == GlobalVars.BALTYPE_CURRENTBALANCE: return self.getCurrentBalance()  if not _autoSum else self.getRecursiveCurrentBalance()
             elif _balType == GlobalVars.BALTYPE_CLEAREDBALANCE: return self.getClearedBalance()  if not _autoSum else self.getRecursiveClearedBalance()
-            elif _balType == GlobalVars.BALTYPE_ASOF_DATE:
-                myPrint("B", "@@@LOGIC ERROR: BALTYPE_ASOF_DATE NOT coded yet!!!");
-                return 0
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_balType))
 
         def getStartBalance(self):       return (self.startBalance)
 
@@ -5518,12 +5572,12 @@ Visit: %s (Author's site)
             return bal
 
         def __str__(self):
-            return ("Account: %s isIncExp: %s, Bal: %s, CurBal: %s, ClearedBal: %s, RBal: %s, RCurBal: %s, RClearedBal: %s (isParallelRealBalances: %s, isParallelIncExpBalances: %s, isParallelBalanceAsOfDateBalances: %s, isParallelIncludeReminders: %s, isParallelReturnCostBasis: %s)"
-                    %(self.getAccount(),
-                      self.isIncomeExpense(),
+            return ("HoldBalance: isIncExp: %s, Bal: %s, CurBal: %s, ClearedBal: %s, RBal: %s, RCurBal: %s, RClearedBal: %s (isParallelRealBalances: %s, isParallelIncExpBalances: %s, isParallelBalanceAsOfDateBalances: %s, isParallelIncludeReminders: %s, isParallelReturnCostBasis: %s) - Account: %s"
+                    %(self.isIncomeExpense(),
                       self.getBalance(), self.getCurrentBalance(), self.getClearedBalance(),
                       self.getRecursiveBalance(), self.getRecursiveCurrentBalance(), self.getRecursiveClearedBalance(),
-                      self.isParallelRealBalances(), self.isParallelIncExpBalances(), self.isParallelBalanceAsOfDateBalances(), self.isParallelIncludeReminders(), self.isParallelReturnCostBasis()))
+                      self.isParallelRealBalances(), self.isParallelIncExpBalances(), self.isParallelBalanceAsOfDateBalances(), self.isParallelIncludeReminders(), self.isParallelReturnCostBasis()),
+                      self.getAccount().getFullAccountName())
 
         def __repr__(self): return self.__str__()
         def toString(self): return self.__str__()
@@ -5534,8 +5588,7 @@ Visit: %s (Author's site)
         """For a given Security Account, executes MD's CostCalculation routines and returns:
         shareholding, costbasis as of the date specified. Pass None into asof for current/latest position"""
 
-        # noinspection PyUnresolvedReferences
-        if not isinstance(sec, Account) or sec.getAccountType() is not Account.AccountType.SECURITY:
+        if not isinstance(sec, Account) or not isSecurityAcct(sec):
             raise Exception("ERROR: You must pass a Security Account to this method!")
 
         lAllDates = (asofDate is None or asofDate == 0)
@@ -5574,7 +5627,7 @@ Visit: %s (Author's site)
                 if rem not in _remindersByAccount[remSplitAcct]: _remindersByAccount[remSplitAcct].append(rem)
         return _remindersByAccount
 
-    def getNextReminderOccurance(theRem, startDate, maximumDate):
+    def getNextReminderOccurrence(theRem, startDate, maximumDate):
         cal = Calendar.getInstance()
         ackPlusOne = theRem.getDateAcknowledgedInt()
         if ackPlusOne > 0:
@@ -5621,7 +5674,7 @@ Visit: %s (Author's site)
 
                 if swClass.isCancelled(): break
 
-                if acct.getAccountType() == Account.AccountType.SECURITY: continue                                      # noqa
+                if isSecurityAcct(acct): continue
 
                 balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
                 if balObj is None:
@@ -5644,7 +5697,7 @@ Visit: %s (Author's site)
                         loopDetector += 1
                         if loopDetector > 10000: raise Exception("LOGIC ERROR: .updateBalancesWithHarvestedReminders() Loop detected iterating Reminders..? Aborting.... (Acct: %s rowIdx: %s, Row: %s) Reminder:" %(acct, iRowIdx, iRowIdx+1), rem)
 
-                        calcNextRemDateInt = getNextReminderOccurance(rem, nextRemStartCalcDateInt, remCutOffDateInt)
+                        calcNextRemDateInt = getNextReminderOccurrence(rem, nextRemStartCalcDateInt, remCutOffDateInt)
                         if calcNextRemDateInt < 1: break
 
                         nextRemStartCalcDateInt = DateUtil.incrementDate(calcNextRemDateInt, 0, 0, 1)
@@ -5676,7 +5729,7 @@ Visit: %s (Author's site)
             for i in range(0, len(_parallelBalanceTable)):
                 myPrint("DB", "..RowIdx: %s >> " %(i))
                 row = _parallelBalanceTable[i]
-                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+                for acct in row: myPrint("DB", "....", acct, "HoldBalance:", _parallelBalanceTable[i][acct])
             myPrint("DB", "------------------------------------")
 
     def replaceSecurityCostBasisBalances(_parallelBalanceTable, swClass):
@@ -5698,6 +5751,9 @@ Visit: %s (Author's site)
                 # Assume / presume that for cost basis, that today is the cutoff for both Balance and Current Balance!
                 asOfDate = DateUtil.getStrippedDateInt()
 
+            myPrint("B", "!!!! row: %s NAB.savedUseCostBasisTable: %s, savedBalanceAsOfDateTable: %s"
+                    %(iRowIdx+1, NAB.savedUseCostBasisTable[iRowIdx], NAB.savedBalanceAsOfDateTable[iRowIdx]));
+
             for acct in _parallelBalanceTable[iRowIdx]:
 
                 if swClass.isCancelled(): break
@@ -5706,7 +5762,7 @@ Visit: %s (Author's site)
                 if balObj is None:
                     raise Exception("LOGIC ERROR: replaceSecurityCostBasisBalances() HoldBalance obj is None?! RowIdx: %s, Acct: %s" %(iRowIdx, acct))
 
-                if acct.getAccountType() != Account.AccountType.SECURITY: continue                                      # noqa
+                if not isSecurityAcct(acct): continue
 
                 balObj.setParallelReturnCostBasis(True)
                 securityValue = balObj.getBalance()             # We must have already calculated this earlier!
@@ -5721,6 +5777,8 @@ Visit: %s (Author's site)
                 balObj.setCurrentBalance(balObj.getBalance())
                 balObj.setClearedBalance(0)  # Illogical - so ZERO
 
+                myPrint("B", "!!!! Sec: %s val: %s shrs: %s cb: %s urgain: %s (getBalance(): %s" %(acct, securityValue, asofShares, asofCostBasis, urGains, balObj.getBalance()));
+
         if debug:
             myPrint("DB", "-------------------------------------")
             myPrint("DB", ">> Analysis of updated table for all stored accounts with security cost basis / u/r gains balances:")
@@ -5728,10 +5786,10 @@ Visit: %s (Author's site)
             for i in range(0, len(_parallelBalanceTable)):
                 myPrint("DB", "..RowIdx: %s >> " %(i))
                 row = _parallelBalanceTable[i]
-                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+                for acct in row: myPrint("DB", "....", acct, "HoldBalance:", _parallelBalanceTable[i][acct])
             myPrint("DB", "------------------------------------")
 
-    def gatherRemainingRealBalances(_parallelBalanceTable, swClass, lBuildParallelTable=False):
+    def gatherRemainingRealBalances(_parallelBalanceTable, swClass, lBuildParallelTable):
         # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -5773,10 +5831,10 @@ Visit: %s (Author's site)
             for i in range(0, len(_parallelBalanceTable)):
                 myPrint("DB", "..RowIdx: %s >> " %(i))
                 row = _parallelBalanceTable[i]
-                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+                for acct in row: myPrint("DB", "....", acct, "HoldBalance:", _parallelBalanceTable[i][acct])
             myPrint("DB", "------------------------------------")
 
-    def gatherBalanceAsOfDateBalances(_parallelBalanceTable, swClass, lBuildParallelTable=False):
+    def gatherBalanceAsOfDateBalances(_parallelBalanceTable, swClass, lBuildParallelTable):
         # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -5799,7 +5857,7 @@ Visit: %s (Author's site)
                     if balObj.isParallelIncExpBalances() and balObj.isIncomeExpense(): continue
                     raise Exception("LOGIC ERROR: gatherBalanceAsOfDateBalances() HoldBalance obj exists and is not IncExp?! (RowIdx: %s, Acct: %s)" %(iRowIdx, acct), balObj)
 
-                if isIncomeExpenseAcct(acct): continue                  # Skip Income/Expense accounts for 'balance asof dates' - obey I/E All Dates...
+                if isIncomeExpenseAcct(acct): continue      # Skip Income/Expense accounts for 'balance asof dates' - obey I/E All Dates...
 
                 balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
                 if balanceObj.getBalance() != 0: raise Exception("ERROR: Acct: %s getBalance(%s) != ZERO?" %(acct, balanceObj.getBalance()))
@@ -5811,7 +5869,10 @@ Visit: %s (Author's site)
                 # No need to set a start balance - we will just hold the calcululated asof balance
                 # balanceObj.calculateAndSetAccountStartBalance(self, DateRange(Integer(0), Integer(balAsOfDateRange));
 
+                # todo - "HERE"
+                "FIX THIS TO CALCULATE BALANCE TYPES!!!!";
                 acctBalLong = AccountUtil.getBalanceAsOfDate(book, acct, balAsOfDate, True)
+
                 balanceObj.setBalance(balanceObj.getBalance() + acctBalLong)
                 balanceObj.setCurrentBalance(balanceObj.getCurrentBalance() + acctBalLong)
                 balanceObj.setClearedBalance(balanceObj.getClearedBalance() + acctBalLong)
@@ -5821,15 +5882,18 @@ Visit: %s (Author's site)
 
         if debug:
             myPrint("DB", "-------------------------------------")
-            myPrint("DB", ">> Analysis of updated table now with 'balances asof date' balances:")
+            myPrint("DB", ">> Analysis of updated parallel balance table now with 'balances asof date' balances:")
             myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
             for i in range(0, len(_parallelBalanceTable)):
                 myPrint("DB", "..RowIdx: %s >> " %(i))
                 row = _parallelBalanceTable[i]
-                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+                for acct in row:
+                    # holdBalResult = _parallelBalanceTable[i][acct];
+                    # if acct is None: raise Exception("@@@@@ ERROR: acct is None rowIdx: %s, acct: %s, holdBal acct: %s" %(i, acct, holdBalResult.getAccount()));
+                    myPrint("DB", "....", acct, "HoldBalance:", _parallelBalanceTable[i][acct])
             myPrint("DB", "------------------------------------")
 
-    def convertTableOfTxnsIntoBalances(_parallelTxnTable, swClass, lBuildParallelTable=False):
+    def convertTableOfTxnsIntoBalances(_parallelTxnTable, swClass, lBuildParallelTable):
         # type: ([{Account: [AbstractTxn]}], SwingWorker, bool) -> [{Account: HoldBalance}]
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -5894,7 +5958,7 @@ Visit: %s (Author's site)
             for i in range(0, len(_parallelBalanceTable)):
                 myPrint("DB", "..RowIdx: %s >> " %(i))
                 row = _parallelBalanceTable[i]
-                for acct in row: myPrint("DB", "....", acct, _parallelBalanceTable[i][acct])
+                for acct in row: myPrint("DB", "....", acct, "HoldBalance:", _parallelBalanceTable[i][acct])
             myPrint("DB", "------------------------------------")
 
         return _parallelBalanceTable
@@ -5919,13 +5983,10 @@ Visit: %s (Author's site)
                 _incExpDateRangeArray[iRowIdx] = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRowIdx], NAB.savedCustomDatesTable[iRowIdx])
 
         iTxns = 0                                                                                                       # noqa
-        attempts = 0
 
         ################################################################################################################
         # One sweep big of Txns: This method returns the 'old' ParentTxn/SplitTxn records AND the TxnSet is locked....
         try:
-            attempts += 1
-
             txnSet = book.getTransactionSet().getTransactions(MyTxnSearch())        # using matchesAll() TRUE is faster
 
             iTxns = 0
@@ -5946,7 +6007,6 @@ Visit: %s (Author's site)
 
         if debug:
             myPrint("DB", "------------------------------")
-            myPrint("DB", "Attempts: %s" %(attempts))
             myPrint("DB", ">> Analysis of parallel Txns Table:")
             myPrint("DB", ">> _parallelTxnTable Contains: %s rows" %(len(_parallelTxnTable)))
             for i in range(0, len(_parallelTxnTable)):
@@ -6443,6 +6503,7 @@ Visit: %s (Author's site)
             self.jlst                               = None
             self.balanceType_COMBO                  = None
             self.asOfDateChooser_AODC               = None
+            self.asOfDateChooser_CB                 = None
             self.includeRemindersChooser_AODC       = None
             self.includeRemindersChooser_CB         = None
             self.incomeExpenseDateRange_COMBO       = None
@@ -7516,11 +7577,11 @@ Visit: %s (Author's site)
         def currencyDefault(self):                      return None
         def disableCurrencyFormattingDefault(self):     return False
         def balanceDefault(self):                       return 0
-        def balanceAsOfDateDefault(self):               return [AsOfDateChooser.ASOF_TODAY, 0]
+        def balanceAsOfDateDefault(self, sel=False):    return [sel, AsOfDateChooser.ASOF_TODAY, 0]
+        def includeRemindersDefault(self, sel=False):   return [sel, AsOfDateChooser.KEY_ASOF_END_FUTURE, 0]
         def incomeExpenseDateRangeDefault(self):        return DateRangeOption.DR_ALL_DATES.getResourceKey()
         def customDatesDefault(self):                   return [0, 0]
         def useCostBasisDefault(self):                  return GlobalVars.COSTBASIS_TYPE_NONE
-        def includeRemindersDefault(self):              return [False, AsOfDateChooser.KEY_ASOF_END_FUTURE, 0]
         def rowSeparatorDefault(self):                  return GlobalVars.ROW_SEPARATOR_NEVER
         def blinkDefault(self):                         return False
         def includeInactiveDefault(self):               return 0
@@ -7773,11 +7834,13 @@ Visit: %s (Author's site)
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
                         printResetMessage("savedAccountListUUIDs", self.savedAccountListUUIDs[i], self.accountListDefault(), i)
                         self.savedAccountListUUIDs[i] = self.accountListDefault()
-                    if self.savedBalanceType[i] is None or not isinstance(self.savedBalanceType[i], int) or self.savedBalanceType[i] < GlobalVars.BALTYPE_BALANCE or self.savedBalanceType[i] > GlobalVars.BALTYPE_ASOF_DATE:
+                    if self.savedBalanceType[i] is None or not isinstance(self.savedBalanceType[i], int) or self.savedBalanceType[i] < GlobalVars.BALTYPE_BALANCE or self.savedBalanceType[i] > GlobalVars.BALTYPE_CLEAREDBALANCE:
                         printResetMessage("savedBalanceType", self.savedBalanceType[i], self.balanceDefault(), i)
                         self.savedBalanceType[i] = self.balanceDefault()
-                    if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != 2
-                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_DATEINT_IDX], int)):
+                    if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != 3
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX], bool)
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_DATEINT_IDX], int)
+                            or (self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX] and not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
                         printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
                         self.savedBalanceAsOfDateTable[i] = self.balanceAsOfDateDefault()
                     if self.savedWidgetName[i] is None or not isinstance(self.savedWidgetName[i], basestring) or self.savedWidgetName[i] == "":
@@ -7827,10 +7890,10 @@ Visit: %s (Author's site)
                             not isValidIncExpDateRange(self.savedCustomDatesTable[i][0], self.savedCustomDatesTable[i][1]):
                         printResetMessage("savedCustomDatesTable", self.savedCustomDatesTable[i], self.customDatesDefault(), i)
                         self.savedCustomDatesTable[i] = self.customDatesDefault()
-                    if self.savedBalanceAsOfDateTable[i] != self.balanceAsOfDateDefault() and \
-                            not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])):
-                        printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
-                        self.savedBalanceAsOfDateTable[i] = self.balanceAsOfDateDefault()
+                    # if self.savedBalanceAsOfDateTable[i] != self.balanceAsOfDateDefault() and \
+                    #         not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])):
+                    #     printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
+                    #     self.savedBalanceAsOfDateTable[i] = self.balanceAsOfDateDefault()
                     if not self.isValidAndFixOperateOnAnotherRowParams(self.savedOperateOnAnotherRowTable[i]):
                         printResetMessage("savedOperateOnAnotherRowTable", self.savedOperateOnAnotherRowTable[i], self.operateOnAnotherRowDefault(), i)
                         self.savedOperateOnAnotherRowTable[i] = self.operateOnAnotherRowDefault()
@@ -8058,6 +8121,11 @@ Visit: %s (Author's site)
 
             self.setSelectedRowIndex(0)
 
+
+
+        # todo - "HERE"
+        "FIX THIS / INCLUDE EVERYWHERE!";
+
         def getIncExpEndDate(self, _endDate, _balType):
             """Retrieve the right Income/Expense end date (depends on Balance Option set - smaller of date/today when Current Balance)"""
             today = min(DateUtil.getStrippedDateInt(), _endDate)
@@ -8072,11 +8140,10 @@ Visit: %s (Author's site)
 
             if (NAB.savedBalanceType[_rowIdx] == GlobalVars.BALTYPE_CURRENTBALANCE):
                 dateExtraTxt = "(up to today's date)"
-            elif (NAB.savedBalanceType[_rowIdx] == GlobalVars.BALTYPE_ASOF_DATE):
-                dateExtraTxt = "(up to asof date: '%s' = %s)" %(NAB.savedBalanceAsOfDateTable[0], convertStrippedIntDateFormattedText(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[_rowIdx])))
             else:
                 dateExtraTxt = ""
 
+            "CHECK that I/E bal/curr bal works everywhere (min value)";
             if isIncomeExpenseDatesSelected(_rowIdx):
                 # dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[_rowIdx]).getDateRange()
                 dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx], NAB.savedCustomDatesTable[_rowIdx])
@@ -8089,44 +8156,6 @@ Visit: %s (Author's site)
             NAB.incExpDateRangeLabel.setText(wrap_HTML_BIG_small("", drTxt, _smallItalics=True, _smallColor=GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground))
             NAB.incExpDateRangeLabel.setHorizontalAlignment(JLabel.LEFT)
             NAB.incExpDateRangeLabel.repaint()
-
-        # def setBalanceAsOfDateLabel(self, _rowIdx):
-        #     NAB = NetAccountBalancesExtension.getNAB()
-        #
-        #     myPrint("DB", "about to set balance asof date label..")
-        #
-        #     dateFormat = NAB.moneydanceContext.getPreferences().getShortDateFormat()
-        #
-        #     if isBalanceAsOfDateSelected(_rowIdx):
-        #         dateText = "Balance asof date: %s = %s" %(NAB.savedBalanceAsOfDateTable[_rowIdx][GlobalVars.ASOF_BALANCE_KEY_IDX],
-        #                                                   convertStrippedIntDateFormattedText(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[_rowIdx]),
-        #                                                   dateFormat))
-        #         htmlDateText = wrap_HTML_BIG_small("", dateText, _smallItalics=True, _smallColor=GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
-        #     else:
-        #         htmlDateText = ""
-        #
-        #     NAB.balanceAsOfDateLabel.setText(htmlDateText)
-        #     NAB.balanceAsOfDateLabel.setHorizontalAlignment(JLabel.LEFT)
-        #     NAB.balanceAsOfDateLabel.repaint()
-
-        # def setIncludeRemindersLabel(self, _rowIdx):
-        #     NAB = NetAccountBalancesExtension.getNAB()
-        #
-        #     myPrint("DB", "about to set include reminders label..")
-        #
-        #     dateFormat = NAB.moneydanceContext.getPreferences().getShortDateFormat()
-        #
-        #     if isIncludeRemindersSelected(_rowIdx):
-        #         dateText = "Include reminders asof date: %s = %s" %(NAB.savedIncludeRemindersTable[_rowIdx][GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX],
-        #                                                             convertStrippedIntDateFormattedText(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[_rowIdx]),
-        #                                                             dateFormat))
-        #         htmlDateText = wrap_HTML_BIG_small("", dateText, _smallItalics=True, _smallColor=GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground)
-        #     else:
-        #         htmlDateText = ""
-        #
-        #     NAB.includeRemindersDateLabel.setText(htmlDateText)
-        #     NAB.includeRemindersDateLabel.setHorizontalAlignment(JLabel.LEFT)
-        #     NAB.includeRemindersDateLabel.repaint()
 
         def setAvgByLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
@@ -8169,7 +8198,7 @@ Visit: %s (Author's site)
             if NAB.savedHideControlPanel: return
             shouldHideControls = True
             NAB.getSelectedRowIndex()
-            shouldShow = NAB.savedBalanceType[_rowIdx] == GlobalVars.BALTYPE_ASOF_DATE
+            shouldShow = NAB.savedBalanceAsOfDateTable[_rowIdx][GlobalVars.ASOF_BALANCE_IDX]
             NAB.asOfDateChooser_AODC.setEnabled(shouldShow, shouldHideControls)
 
         def setIncludeRemindersDateControls(self, _rowIdx):
@@ -8476,11 +8505,12 @@ Visit: %s (Author's site)
             NAB.balanceType_COMBO.setSelectedIndex(NAB.savedBalanceType[selectRowIndex])
 
             myPrint("DB", "..about to set balance asof date chooser..")
+            NAB.asOfDateChooser_CB.setSelected(NAB.savedBalanceAsOfDateTable[selectRowIndex][GlobalVars.ASOF_BALANCE_IDX])
             NAB.asOfDateChooser_AODC.loadFromParameters(NAB.savedBalanceAsOfDateTable[selectRowIndex])
 
             myPrint("DB", "..about to set include reminders option/chooser..")
             NAB.includeRemindersChooser_CB.setSelected(NAB.savedIncludeRemindersTable[selectRowIndex][GlobalVars.INCLUDE_REMINDERS_IDX])
-            NAB.includeRemindersChooser_AODC.loadFromParameters(NAB.savedIncludeRemindersTable[selectRowIndex][GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX:])
+            NAB.includeRemindersChooser_AODC.loadFromParameters(NAB.savedIncludeRemindersTable[selectRowIndex])
 
             myPrint("DB", "..about to set incomeExpenseDateRange_COMBO..")
             NAB.incomeExpenseDateRange_COMBO.setSelectedIndex(NAB.findDateRange(NAB.savedIncomeExpenseDateRange[selectRowIndex]))
@@ -8609,6 +8639,7 @@ Visit: %s (Author's site)
             myPrint("DB", ".....savedBalanceType: %s"                        %(NAB.savedBalanceType[selectRowIndex]))
             myPrint("DB", ".....balanceType_COMBO: %s"                       %(NAB.balanceType_COMBO.getSelectedIndex()))
             myPrint("DB", ".....savedBalanceAsOfDateTable: %s"               %(NAB.savedBalanceAsOfDateTable[selectRowIndex]))
+            myPrint("DB", ".....asOfDateChooser_CB: %s"                      %(NAB.asOfDateChooser_CB.isSelected()))
             myPrint("DB", ".....savedIncomeExpenseDateRange: %s"             %(NAB.savedIncomeExpenseDateRange[selectRowIndex]))
             myPrint("DB", ".....incomeExpenseDateRange_COMBO: %s"            %(NAB.incomeExpenseDateRange_COMBO.getSelectedItem()))
             myPrint("DB", ".....savedCustomDatesTable: %s"                   %(NAB.savedCustomDatesTable[selectRowIndex]))
@@ -9540,13 +9571,13 @@ Visit: %s (Author's site)
                     if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
                         myPrint("DB", "User has changed the balance asof date option....")
 
-                        newSettings = event.getSource().returnStoredParameters(NAB.balanceAsOfDateDefault())
+                        selected = NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX]
+                        newSettings = event.getSource().returnStoredParameters(NAB.balanceAsOfDateDefault(selected))
                         myPrint("DB", ".. setting savedBalanceAsOfDateTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
                         NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()] = newSettings
 
                         NAB.configSaved = False
                         NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
-                        # NAB.setBalanceAsOfDateLabel(NAB.getSelectedRowIndex())
                         NAB.setIncExpDateRangeLabel(NAB.getSelectedRowIndex())    # Balance option affects end date
                         NAB.setAvgByLabel(NAB.getSelectedRowIndex())
                         NAB.setBalanceAsOfDateControls(NAB.getSelectedRowIndex())
@@ -9556,14 +9587,13 @@ Visit: %s (Author's site)
                     if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
                         myPrint("DB", "User has changed the include reminders asof date option....")
 
-                        newSettings = [NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX]]
-                        newSettings.extend(event.getSource().returnStoredParameters(NAB.includeRemindersDefault()[GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX:]))
+                        selected = NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX]
+                        newSettings = event.getSource().returnStoredParameters(NAB.includeRemindersDefault(selected))
                         NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()] = newSettings
                         myPrint("DB", ".. setting savedIncludeRemindersTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
 
                         NAB.configSaved = False
                         NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
-                        # NAB.setIncludeRemindersLabel(NAB.getSelectedRowIndex())
                         NAB.setIncludeRemindersDateControls(NAB.getSelectedRowIndex())
                         NAB.rebuildParallelBalanceTable();
                 else:
@@ -9695,13 +9725,22 @@ Visit: %s (Author's site)
                         NAB.simulateTotalForRow()
 
                 # ######################################################################################################
+                if event.getSource() is NAB.asOfDateChooser_CB:
+                    if NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedBalanceAsOfDateTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX] = event.getSource().isSelected()
+                        NAB.configSaved = False
+                        NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
+                        NAB.setBalanceAsOfDateControls(NAB.getSelectedRowIndex())
+                        NAB.rebuildParallelBalanceTable();
+
+                # ######################################################################################################
                 if event.getSource() is NAB.includeRemindersChooser_CB:
                     if NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX] != event.getSource().isSelected():
                         myPrint("DB", ".. setting savedIncludeRemindersTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
                         NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX] = event.getSource().isSelected()
                         NAB.configSaved = False
                         NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
-                        # NAB.setIncludeRemindersLabel(NAB.getSelectedRowIndex())
                         NAB.setIncludeRemindersDateControls(NAB.getSelectedRowIndex())
                         NAB.rebuildParallelBalanceTable();
 
@@ -9840,20 +9879,16 @@ Visit: %s (Author's site)
                 # ######################################################################################################
                 if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
                     if event.getSource() is NAB.balanceType_COMBO:
-                        if event.getSource().getSelectedIndex() == GlobalVars.BALTYPE_ASOF_DATE:
-                            myPrint("DB", "FYI - User has selected balance asof date option....")
-
                         if (NAB.savedBalanceType[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex()):
                             myPrint("DB", ".. setting savedBalanceType to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
                             NAB.savedBalanceType[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
 
                             NAB.configSaved = False
-                            NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
-                            # NAB.setBalanceAsOfDateLabel(NAB.getSelectedRowIndex())
                             NAB.setIncExpDateRangeLabel(NAB.getSelectedRowIndex())    # Balance option affects end date
                             NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                            NAB.setBalanceAsOfDateControls(NAB.getSelectedRowIndex())
-                            NAB.rebuildParallelBalanceTable();
+                            NAB.searchFiltersUpdated()
+                            NAB.simulateTotalForRow()
+                            NAB.jlst.repaint()
 
                     if event.getSource() is NAB.incomeExpenseDateRange_COMBO:
                         lSetCustomDates = False
@@ -10367,6 +10402,8 @@ Visit: %s (Author's site)
 
                 NAB = NetAccountBalancesExtension.getNAB()
 
+                lKeyError = False
+
                 self.listItem = value
                 if isinstance(self.listItem, StoreAccount) and isinstance(self.listItem.getAccount(), Account):
                     self.account = self.listItem.getAccount()
@@ -10394,7 +10431,8 @@ Visit: %s (Author's site)
                                 myPrint("B", "@@ KeyError accessing parallel balances on RowInd: %s (Acct: '%s')- REPORT TO DEVELOPER - WHAT WERE YOU DOING? @@" %(NAB.getSelectedRowIndex(), self.account))
                                 myPrint("B", "@@ parallelAccountBalances[%s] contains:" %(NAB.getSelectedRowIndex()), NAB.jlst.parallelAccountBalances[NAB.getSelectedRowIndex()])
                                 myPrint("B", "-------------------")
-                                raise
+                                self.sudoAccountHoldBalanceObj = self.account   # Temporarily switch to Account when KeyError error occurs...
+                                lKeyError = True
 
                         self.isAccountActive = isAccountActive(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()], sudoAccount=self.sudoAccountHoldBalanceObj)
                         self.hasInactiveChildren = accountIncludesInactiveChildren(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()], sudoAccount=self.sudoAccountHoldBalanceObj)
@@ -10445,6 +10483,10 @@ Visit: %s (Author's site)
                         self.recursiveUserXBalanceStr = ""
 
                     if NAB.isParallelRebuildRunning_NOLOCKFIRST(): self.recursiveUserXBalanceStr = "<rebuilding>"
+
+                    if lKeyError:
+                        self.userXBalanceStr = "<!!KeyError!!>"
+                        self.recursiveUserXBalanceStr = "<!!KeyError!!>"
 
                 else:
                     self.account = None
@@ -11361,7 +11403,7 @@ Visit: %s (Author's site)
                     controlPnl.add(balanceOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    balanceTypes = ["Balance", "Current Balance", "Cleared Balance", "Balance asof Date"]
+                    balanceTypes = ["Balance", "Current Balance", "Cleared Balance"]
                     NAB.balanceType_COMBO = MyJComboBox(balanceTypes)
                     NAB.balanceType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "balanceType_COMBO")
                     NAB.balanceType_COMBO.setName("balanceType_COMBO")
@@ -11369,7 +11411,33 @@ Visit: %s (Author's site)
                     NAB.balanceType_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.balanceType_COMBO.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.balanceType_COMBO, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx().padx(padx))
+
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 0
+                    topInset = 2
+
+                    balanceAsOfLabel = MyJLabel("Override Balance asof Date:")
+                    balanceAsOfLabel.putClientProperty("%s.id" %(NAB.myModuleID), "balanceAsOfLabel")
+                    balanceAsOfLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(balanceAsOfLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
+
+                    onBalanceAsOfRow = 0
+                    onBalanceAsOfCol = 0
+                    balanceAsOfSelection_pnl = MyJPanel(GridBagLayout())
+                    balanceAsOfSelection_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    NAB.asOfDateChooser_CB = MyJCheckBox("", True)
+                    NAB.asOfDateChooser_CB.putClientProperty("%s.id" %(NAB.myModuleID), "asOfDateChooser_CB")
+                    NAB.asOfDateChooser_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.asOfDateChooser_CB.setName("asOfDateChooser_CB")
+                    NAB.asOfDateChooser_CB.setToolTipText("Select to override the balance asof date")
+                    NAB.asOfDateChooser_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.asOfDateChooser_CB.addActionListener(NAB.saveActionListener)
+                    balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_CB, GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).topInset(topInset))
+                    onBalanceAsOfCol += 1
 
                     NAB.asOfDateChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI())
                     NAB.asOfDateChooser_AODC.setName("asOfDateChooser_AODC")
@@ -11378,24 +11446,15 @@ Visit: %s (Author's site)
                     NAB.asOfDateChooser_AODC.getChoiceLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.asOfDateChooser_AODC.getAsOfDateField().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.asOfDateChooser_AODC.getAsOfLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option (when asof balance type has been selected)")
-                    NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date (when asof balance type has been selected)")
+                    NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option")
+                    NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")
                     NAB.asOfDateChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
-                    controlPnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).leftInset(colInsetFiller).west().colspan(2))
+                    balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).leftInset(5).west())
+
+                    controlPnl.add(balanceAsOfSelection_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset).colspan(3))
+
                     onRow += 1
 
-                    # --------------------------------------------------------------------------------------------------
-                    # onCol = 1
-                    # topInset = 0
-                    # bottomInset = 0
-                    #
-                    # NAB.balanceAsOfDateLabel = MyJLabel("Balance asof date:")
-                    # NAB.balanceAsOfDateLabel.putClientProperty("%s.id" %(NAB.myModuleID), "balanceAsOfDateLabel")
-                    # NAB.balanceAsOfDateLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    # controlPnl.add(NAB.balanceAsOfDateLabel, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset).north())
-                    #
-                    # onRow += 1
-                    #
                     # --------------------------------------------------------------------------------------------------
                     onCol = 0
                     topInset = 2
@@ -11436,19 +11495,7 @@ Visit: %s (Author's site)
                     controlPnl.add(includeRemindersSelection_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset).colspan(3))
 
                     onRow += 1
-                    # --------------------------------------------------------------------------------------------------
-                    #
-                    # onCol = 1
-                    # topInset = 0
-                    # bottomInset = 0
-                    #
-                    # NAB.includeRemindersDateLabel = MyJLabel("")
-                    # NAB.includeRemindersDateLabel.putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersDateLabel")
-                    # NAB.includeRemindersDateLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    # controlPnl.add(NAB.includeRemindersDateLabel, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset).north())
-                    #
-                    # onRow += 1
-                    #
+
                     # --------------------------------------------------------------------------------------------------
                     onCol = 1
                     NAB.autoSumAccounts_CB = MyJCheckBox("AutoSum Accts", True)
@@ -12923,6 +12970,8 @@ Visit: %s (Author's site)
 
         @staticmethod
         def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):
+            # type: (AccountBook, bool, bool, SwingWorker) -> [CalculatedBalance]
+
             if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
             NAB = NetAccountBalancesExtension.getNAB()
@@ -12931,7 +12980,7 @@ Visit: %s (Author's site)
 
             baseCurr = _book.getCurrencies().getBaseType()
 
-            _totalBalanceTable = []         # type: [CalculatedBalance]
+            _totalBalanceTable = []                                                                                     # type: [CalculatedBalance]
 
             parallelTxnTable = buildEmptyTxnOrBalanceArray()
 
@@ -13015,16 +13064,6 @@ Visit: %s (Author's site)
                 try: myPrint("DB", "accountsToShow table: %s" %(accountsToShow))
                 except: pass
 
-                # ------- SEQUENCE FOR BUILDING PARALLEL BALANCES --------------------------------------------------
-                # Detect if any Parallel Balances are required (per row). These can one or more of the following:
-                # Balance asof date; Income/Expense date range specified; Security Accounts - Cost Basis requested; include Reminders requested
-                # 1. per row, if any parallel operation requested, then for row, gather all selected accounts along with all child/sub accounts
-                # 2. gather all txns, then if Income/Expense dates were requested, put I/E txns into the txn table...
-                # 3. convert this I/E txn table into balances...
-                # 4. for all accounts / balances not derived by steps 2 & 3, then calculate balance asof dates (only if requested)..
-                # 5. for all accounts / balances not derived by steps 2, 3 & 4, then grab the remaining Account's real balance(s)
-                # 6. for all account balances in the table, replace balance with cost basis / u/r gains on Security Accounts (where requested).
-                # 7. for all accounts selected, add Reminder txn/balances up to the reminders asof date (where requested).
                 # ------ 1. DERIVE LIST OF CHILD ACCOUNTS WHEN PARALLEL TABLE REQUIRED ------------------------------------
                 lParallelData = False
                 for iAccountLoop in range(0, NAB.getNumberOfRows()):
@@ -13064,7 +13103,7 @@ Visit: %s (Author's site)
                             if debug: myPrint("DB", "...No Accounts found for parallel operations on row: %s" %(onRow))
 
                 tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE2>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
+                if debug: myPrint("DB", "calculateBalances()::returnThisAccountAndAllChildren()      STAGE2.1>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
                 startTime = System.currentTimeMillis()
 
                 if not lParallelData:
@@ -13072,37 +13111,11 @@ Visit: %s (Author's site)
                     parallelBalanceTable = []   # Dummy / empty list - will not be used...
 
                 else:
+                    emptyReturnValue = []
 
-                    # ------ 2. HARVEST TXNS REQUIRED FOR PARELLEL BALANCES IN ONE SWEEP -------------------------------
-                    # Income / Expense harvest associated Txns - all in one sweep....
-                    if debug: myPrint("DB", "HomePageView: Parallel data found... Harvesting associated I/E txns")
-                    returnTransactionsForAccounts(parallelTxnTable, swClass);   # NOTE: Updates parallelTxnTable with txns
-                    if swClass and swClass.isCancelled(): return []
-
-                    # ------ 3. convert the I/E txn table into balances ------------------------------------------------
-                    if debug: myPrint("DB", "HomePageView: Converting parallel I/E txns into I/E balances...")
-                    parallelBalanceTable = convertTableOfTxnsIntoBalances(parallelTxnTable, swClass);   # NOTE: All the non-gathered Accounts will have a HoldBalance stored with ZERO
-                    if swClass and swClass.isCancelled(): return []
-
-                    # ------ 4. gather Account balance asof dates balances ---------------------------------------------
-                    if debug: myPrint("DB", "HomePageView: Gathering 'Balance asof date' balances...")
-                    gatherBalanceAsOfDateBalances(parallelBalanceTable, swClass);
-                    if swClass and swClass.isCancelled(): return []
-
-                    # ------ 5. gather remaining 'real' Account balances for all accounts not updated in prior steps ---
-                    if debug: myPrint("DB", "HomePageView: Gathering 'real' Account balances for all accounts/balances not gather in prior steps")
-                    gatherRemainingRealBalances(parallelBalanceTable, swClass);
-                    if swClass and swClass.isCancelled(): return []
-
-                    # ------ 6. replace Security Account balances with cost basis / u/r gains (where requested) --------
-                    if debug: myPrint("DB", "HomePageView: Replacing Security Account Balances with cost basis / u/r gains (where requested)")
-                    replaceSecurityCostBasisBalances(parallelBalanceTable, swClass);
-                    if swClass and swClass.isCancelled(): return []
-
-                    # ------ 7. update account balances with Reminders (if requested) --------
-                    if debug: myPrint("DB", "HomePageView: Updating Account Balances with reminders (where requested)")
-                    updateBalancesWithHarvestedReminders(parallelBalanceTable, swClass);
-                    if swClass and swClass.isCancelled(): return []
+                    parallelBalanceTable = rebuildParallelAccountBalancesStages2to7(parallelTxnTable, swClass, False, emptyReturnValue)
+                    if parallelBalanceTable is emptyReturnValue: return emptyReturnValue
+                    if swClass and swClass.isCancelled(): return emptyReturnValue
 
                 del parallelTxnTable
                 # --------------------------------------------------------------------------------------------------
@@ -13152,14 +13165,12 @@ Visit: %s (Author's site)
 
                             if swClass and swClass.isCancelled(): return []
 
-                            # noinspection PyUnresolvedReferences
-                            if acct.getAccountType() == Account.AccountType.SECURITY:
+                            if isSecurityAcct(acct):
                                 iCountSecurities += 1
                             elif isIncomeExpenseAcct(acct):
                                 iCountIncomeExpense += 1
                             else:
-                                # noinspection PyUnresolvedReferences
-                                if acct.getAccountType() != Account.AccountType.INVESTMENT:
+                                if not isInvestmentAcct(acct):
                                     iCountNonInvestAccounts += 1
                                 iCountAccounts += 1
 
@@ -13210,15 +13221,13 @@ Visit: %s (Author's site)
                                             NAB.warningMessagesTable.append(warnTxt)
                                             lFoundAutoSumInActiveParentInThisThisRowWarning = True
 
-                            # noinspection PyUnresolvedReferences
-                            if acct.getAccountType() != Account.AccountType.SECURITY:
+                            if not isSecurityAcct(acct):
                                 lFoundNonSecurity = True
                             elif not lFoundNonSecurity:
                                 secLabelText = " (Securities)"
 
                             if NAB.migratedParameters:
-                                # noinspection PyUnresolvedReferences
-                                if acct.getAccountType() == Account.AccountType.INVESTMENT:
+                                if isInvestmentAcct(acct):
                                     autoSumFlag = True
                                 else:
                                     autoSumFlag = False
@@ -13253,9 +13262,6 @@ Visit: %s (Author's site)
                                 bal = sudoAcctRef.getClearedBalance() if not autoSumFlag else sudoAcctRef.getRecursiveClearedBalance()
                                 if debug: myPrint("DB", "HomePageView: adding acct: %s Cleared Balance: %s - RecursiveAutoSum: %s"
                                         %((sudoAcctRef.getFullAccountName()), rpad(formatSemiFancy(acctCurr, bal, NAB.decimal, indianFormat=NAB.savedUseIndianNumberFormat),12), autoSumFlag))
-                            elif NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_ASOF_DATE:
-                                myPrint("B", "@@@LOGIC ERROR: BALTYPE_ASOF_DATE NOT coded yet!!!");
-                                bal = 0
                             else:
                                 bal = 0
                                 myPrint("B", "@@ HomePageView widget - INVALID BALANCE TYPE: %s?" %(NAB.savedBalanceType[iAccountLoop]))
@@ -13688,13 +13694,13 @@ Visit: %s (Author's site)
                                     showBalanceAsOfText = ""
                                     if isBalanceAsOfDateSelected(i):
                                         useBalanceAsOf = True
-                                        showBalanceAsOfText = " (bal asof: %s)" %(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i]))
+                                        showBalanceAsOfText = " (bal asof: %s)" %(convertStrippedIntDateFormattedText(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i])))
                                         if debug: myPrint("DB", ":: Row: %s using balance asof date: %s" %(i+1, getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i])))
 
                                     showIncludeRemindersText = ""
                                     if isIncludeRemindersSelected(i):
                                         includeReminders = True
-                                        showIncludeRemindersText = " (incl. reminders asof: %s)" %(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i]))
+                                        showIncludeRemindersText = " (incl. reminders asof: %s)" %(convertStrippedIntDateFormattedText(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
                                         if debug: myPrint("DB", ":: Row: %s including reminders asof date: %s" %(i+1, getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
 
                                     showCostBasisText = ""

@@ -36,7 +36,7 @@ LET'S GET STARTED:
 Let's start with a row that is <NOT CONFIGURED>. Give it a name - like Credit Card Debt.
 Now select all your credit cards from the picklist. Click each one. Hit Save All Settings.
 See the result on the summary page.You did note the installation bit, right? Putting the widget in place?
-You should now have a row which says "Credit Card Debt.    $(not too much hopefully)"
+You should now have a row which says "Credit Card Debt.    £(not too much hopefully)"
 That's the basics of CB (to create custom calculations)... "Custom Balances"... But you can do so many things now!
 
 How about an account which has a minimum balance? New row - "Checking Account I keep too low" (minimum balance 100)
@@ -61,16 +61,33 @@ WARNINGS:
 
 EXAMINING THE CHOICES/CONFIGURATION:
 
-- Balance option: Choose from 'Balance', 'Current Balance', 'Cleared Balance', 'Balance asof Date'
+- Balance option: Choose from 'Balance', 'Current Balance', 'Cleared Balance'
     - These are the same as used by Moneydance:
-        - Balance:           Includes all transactions - even future
-        - Current Balance:   The same as Balance but excluding future transactions
-        - Cleared Balance:   Includes all 'cleared' (i.e. reconciled) transactions - even future
-        - Balance asof Date: Includes all transactions up to / including the supplied asof date (ignores cleared status)
-                             This does NOT apply to Income/Expense accounts / transactions - they use the I/E date range
-                             When selected, the asof date options are enabled / appear. Here you select the auto asof
-                             end date, or specify a fixed custom asof date. The auto asof dates will auto-adjust every
-                             time the calculations are executed.
+        - Balance:             Includes all transactions - even future
+        - Current Balance:     The same as Balance but excluding future transactions
+        - Cleared Balance:     Includes all 'cleared' (i.e. reconciled) transactions - even future
+
+- Override Balance asof Date:  Allows you to override the balance asof cutoff date.
+        - Includes all transactions / balances up to / including the selected balance asof date
+          This option does NOT apply to Income/Expense categories / transactions - they use the 'I/E date range'
+          When selected, the balance asof date options are enabled. Here you select the auto asof end date,
+          or specify a fixed custom asof date. The auto dates will auto-adjust every time the calculations are executed.
+
+        - NOTE: This option will attempt to obey the Balance option choice when building the parallel balances. However,
+                the following points should be noted:
+                - Income / Expense categopries:
+                    - These account do not consider the balance asof date option - refer I/E Date Range section
+                - Security Accounts with 'Use Cost Basis' options:
+                    - With no balance as of date selected, then Balance & Current Balance will be asof today
+                    - With balance asof date seelcted, then Balance & Current Balance will be as of the asof selected.
+                    - Cleared Balance will always return zero.
+                - Include Reminders:
+                    - Only uncommitted Reminders will be selected. Then...
+                    - Future Reminder date(s) will be calculated up to the Reminder's asof date setting. Then...
+                    - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
+                    - NOTE: It would be unusual to find any reminders with a Cleared Status - so expect ZERO.
+                - All other (normal) account types:
+                    - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
 
         - WARNING: Using 'Balance asof Date' switches the widget to build and maintain a 'parallel table' of balances.
                    Calculated by sweeping through all transactions and calculating balances
@@ -99,7 +116,11 @@ EXAMINING THE CHOICES/CONFIGURATION:
                  NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
                        .. The search for warnings stops after the first occurrence of each type of error it finds....
 
-- Include Reminders: When selected then Reminders (up to the selected asof date) will be included in the balances.
+- Include Reminders: When selected then Reminders (up to selected reminder asof date) will be included in the balances.
+        - WARNING: Using 'Include Reminders' switches the widget to build and maintain a 'parallel table' of balances.
+                   Calculated by sweeping through all transactions and calculating balances
+                   THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
+                   Any row that uses 'Include Reminders' will trigger this parallel balances sweep
 
 - Use Cost Basis options:
     - N/A (default):        Cost Basis is never used
@@ -108,6 +129,15 @@ EXAMINING THE CHOICES/CONFIGURATION:
     - Rtn Unrealised Gains: When selected, then the calculated unrealised gains (asof the balance / asof date) for the
                             selected Security accounts will be returned. This is calculated as value less cost basis.
     >> NOTE: These options DO NOT affect non-Security accounts included in this row.
+             There can never be future dated cost basis / gains (the latest asof date can only ever be today)
+
+        - WARNING: You can create 'illogical' calculations by enabling this option and selecting both Security and
+                   non-Security accounts in the same row!
+
+        - WARNING: Using 'Use Cost Basis' switches the widget to build and maintain a 'parallel table' of balances.
+                   Calculated by sweeping through all transactions and calculating balances
+                   THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
+                   Any row that uses 'Use Cost Basis' will trigger this parallel balances sweep
 
 - Average by options:
     - Changes the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
