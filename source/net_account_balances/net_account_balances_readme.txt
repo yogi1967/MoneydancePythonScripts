@@ -1,12 +1,12 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated November 2023
-Credit: (dtd) Dan T Davis for his input, testing and suggestions to make a better product......
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated December 2023
+Credit: (slack: @dtd) aka Dan T Davis for his input, testing and suggestions to make a better product......
 
 Custom Balances works with 2021.1(3056) and newer.
 DISCLAIMER: THIS EXTENSION IS READONLY (IT DOES NOT CHANGE DATA) >> BUT YOU USE AT YOUR OWN RISK!
 
 DEFINITIONS:
 - CB means this extension / Custom Balances
-- All dates mentioned in this guide are in the format yyyymmdd (e.g. 15th January 2024 = 20240115)
+- Dates are typically mentioned in this guide in the format yyyymmdd (e.g. 15th January 2025 = 20250115)
 
 INSTALLATION:
 - Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
@@ -43,8 +43,8 @@ How about an account which has a minimum balance? New row - "Checking Account I 
 Click that account to pick it, select "Hide Row" if >=X and set X to 100
 If it goes below 100, it will appear, and you can even make it blink.
 
-You can also monitor your spending. Gas spent this month? Create a row, find your gas category.
-Select "Month to date" in Inc/Exp Date Range. If you have multiple gas categories, you can select them all.
+You can also monitor your spending. E.g. Groceries spend this month? So, create a row, and find your groceries category.
+Select "Month to date" in Inc/Exp Date Range. If you have multiple groceries categories, you can select them all.
 Save and look.
 
 Now that you have an inkling of the custom balance power potential here, go explore.
@@ -52,47 +52,56 @@ Now that you have an inkling of the custom balance power potential here, go expl
 
 WARNINGS:
 
-  - You can create illogical totals (e.g. by adding Securities to Income). CB tries to detect these issues.
+  - You can create (very) illogical totals (e.g. by adding Securities to Income). CB tries to detect these issues.
   - It will alert you if any are found. Help>Console Window will show you the details of any warnings
   - A red warning icon will appear on the title bar of the widget, and in the GUI, if you have warnings.
-        - Click the warning icon to see a popup window displaying the detail(s) of all the warnings.
+        - Click the warning icon to see a popup window displaying the detail(s) of the warnings.
         - NOTE: The symbol will not be triggered for warnings on rows where Show Warnings has been un-ticked
                 ... unless debug mode is enabled, in which case the icon will always appear.
 
 EXAMINING THE CHOICES/CONFIGURATION:
 
 - Balance option: Choose from 'Balance', 'Current Balance', 'Cleared Balance'
-    - These are the same as used by Moneydance:
+    - These are the same definitions used by Moneydance:
         - Balance:             Includes all transactions - even future
         - Current Balance:     The same as Balance but excluding future transactions
         - Cleared Balance:     Includes all 'cleared' (i.e. reconciled) transactions - even future
 
-- Override Balance asof Date:  Allows you to override the balance asof cutoff date.
-        - Includes all transactions / balances up to / including the selected balance asof date
-          This option does NOT apply to Income/Expense categories / transactions - they use the 'I/E date range'
-          When selected, the balance asof date options are enabled. Here you select the auto asof end date,
-          or specify a fixed custom asof date. The auto dates will auto-adjust every time the calculations are executed.
+- Override Balance asof Date:  Allows you to obtain the balance asof a specified date.
+        - Includes all transactions / balances up to, and including, the selected balance asof date
+          When selected, the balance asof date options are enabled. Here you select the automatic asof end date,
+          or specify a fixed custom asof date. Auto-dates will auto-adjust every time the calculations are executed.
 
-        - NOTE: This option will attempt to obey the Balance option choice when building the parallel balances. However,
-                the following points should be noted:
-                - Income / Expense categopries:
-                    - These account do not consider the balance asof date option - refer I/E Date Range section
-                - Security Accounts with 'Use Cost Basis' options:
-                    - With no balance as of date selected, then Balance & Current Balance will be asof today
-                    - With balance asof date seelcted, then Balance & Current Balance will be as of the asof selected.
-                    - Cleared Balance will always return zero.
-                - Include Reminders:
-                    - Only uncommitted Reminders will be selected. Then...
-                    - Future Reminder date(s) will be calculated up to the Reminder's asof date setting. Then...
-                    - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
-                    - NOTE: It would be unusual to find any reminders with a Cleared Status - so expect ZERO.
-                - All other (normal) account types:
-                    - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
+        - Calculation methodology for Balance/Current/Cleared Balance when using asof date:
+             - Balance always uses the calculated asof-dated Balance
+             - Past asof-dated Current Balance uses the calculated asof-dated Balance
+             - Today/future asof-dated Current Balance uses the real account's Current Balance
+             - Past asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance     ** WARNING **
+             - Today/future asof-dated Cleared Balance uses the real account's Cleared Balance
 
-        - WARNING: Using 'Balance asof Date' switches the widget to build and maintain a 'parallel table' of balances.
-                   Calculated by sweeping through all transactions and calculating balances
-                   THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
-                   Any row that uses 'Balance asof Date' will trigger this parallel balances sweep
+        The following points should be noted:
+             - Income / Expense categories: Not affected by this option - refer separate 'I/E Date Range' section
+             - Include Reminders:           Not affected by this option - refer separate 'Include Reminders' section
+             - Security accounts when the 'Securities return Cost Basis / Unrealised Gains' option is selected
+                 - refer separate 'Securities: Return Cost Basis / Unrealised Gains options' section...
+
+        - WARNING: tax dates when using 'asof' cannot be derived. The 'normal' txn date will be applied.
+
+        - WARNING: When using asof dates, consider that inactive accounts might have had balances in the past!
+                   I.E. It might be best to Include Inactive and select all accounts (including currently inactive).
+
+        - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
+
+- Include Reminders: When selected, Reminders (up to the specified reminder asof date) will be included in the balances.
+        - The 'balance asof date' setting has no bearing on Reminders.
+        - Only uncommitted (ie. non-recorded) Reminders will be selected. Then...
+        - Reminder date(s) will be forward calculated up to the Reminder's asof date setting. Then...
+        - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
+        - NOTE: It would be unusual to find any reminders with a Cleared Status - so expect ZERO.
+
+        - WARNING: tax dates on reminders cannot be calculated. The 'normal' date will be applied.
+
+        - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
 - AutoSum:
   - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
@@ -109,35 +118,24 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
   - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
 
-- Show Warnings: This enables / disables the alerts flagging whether warnings have been detected in your parameters
-                 These are primarily where you have created 'illogical' calculations - e.g. Expense: Gas plus a Security
-                 You can enable/disable warnings per row. The widget doesn't care. It will total up anything...!
-
-                 NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
-                       .. The search for warnings stops after the first occurrence of each type of error it finds....
-
-- Include Reminders: When selected then Reminders (up to selected reminder asof date) will be included in the balances.
-        - WARNING: Using 'Include Reminders' switches the widget to build and maintain a 'parallel table' of balances.
-                   Calculated by sweeping through all transactions and calculating balances
-                   THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
-                   Any row that uses 'Include Reminders' will trigger this parallel balances sweep
-
-- Use Cost Basis options:
+- Securities: Return Cost Basis / Unrealised Gains options:            >> ONLY FROM MD 2023.2(5008) builds onwards... <<
     - N/A (default):        Cost Basis is never used
     - Rtn Cost Basis:       When selected, then the cost basis (as of the balance / asof date) for selected Security
-                            accounts will be returned.
+                            accounts will be returned (instead of the normal shareholding).
     - Rtn Unrealised Gains: When selected, then the calculated unrealised gains (asof the balance / asof date) for the
                             selected Security accounts will be returned. This is calculated as value less cost basis.
-    >> NOTE: These options DO NOT affect non-Security accounts included in this row.
-             There can never be future dated cost basis / gains (the latest asof date can only ever be today)
+
+    >> NOTES:
+        - When selected then calculated cost basis / gains values will overwrite normal calculated balances
+        - This option does NOT affect non-security accounts included in this row.
+        - There can never be future-dated cost basis / ur-gains (the latest asof date will be truncated back to today)
+                - asof-dated cost basis can never be future-dated, so Balance and Current Balance are equal
+                - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance       ** WARNING **
 
         - WARNING: You can create 'illogical' calculations by enabling this option and selecting both Security and
-                   non-Security accounts in the same row!
+                   non-security accounts in the same row!
 
-        - WARNING: Using 'Use Cost Basis' switches the widget to build and maintain a 'parallel table' of balances.
-                   Calculated by sweeping through all transactions and calculating balances
-                   THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
-                   Any row that uses 'Use Cost Basis' will trigger this parallel balances sweep
+        - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
 - Average by options:
     - Changes the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
@@ -162,7 +160,6 @@ EXAMINING THE CHOICES/CONFIGURATION:
                            as a percentage of total networth...
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
 
-
 - Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
 ... You can set X to any value (positive or negative)
     NOTE: If you select row option 'Hide Decimal Places', AND auto-hide row when balance=X,
@@ -177,13 +174,18 @@ EXAMINING THE CHOICES/CONFIGURATION:
 - Row separator: You can put horizontal lines above / below rows to separate sections
 - Blink: Enables the blinking of the selected rows (when displayed / visible)
 
+- Show Warnings: This enables / disables the alerts flagging whether warnings have been detected in your parameters
+                 These are primarily where you have created 'illogical' calculations - e.g. Expense: Gas plus a Security
+                 You can enable/disable warnings per row. The widget doesn't care. It will total up anything...!
+
+                 NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
+                       .. The search for warnings stops after the first occurrence of each type of error it finds....
 
 - Active / Inactive Accounts:
   - MD ALWAYS includes the total balance(s) of all child accounts in an account's total. Irrespective of Active/Inactive
   - Thus if you select Active only and select an account containing inactive children, it will include inactive balances
   - When using AutoSum in this situation you will get a warning on screen
   - You will also see a small (3 vertical bars) icon to the right of account totals in the list window when this occurs.
-
 
 - Inactive Securities: You can flag a security as inactive by unticking the 'Show on summary page' box on a security
                        in the MD/Tools/Securities menu. This will then treat this security in ALL investment accounts
@@ -213,11 +215,9 @@ EXAMINING THE CHOICES/CONFIGURATION:
 USING CATEGORIES:
 
 - Income / Expense Categories:
+  - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
+
   - You can change the date range selection from the default of "All Dates" to any of the options in the list
-  - WARNING: This switches the widget to build and maintain a 'parallel table' of balances.
-             Calculated by sweeping through all transactions and calculating balances
-             THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
-             Any row that uses NON "All Dates" will trigger this parallel balances sweep
 
   - NOTE: You can select to use a date range at any time. BUT if you have not selected any Inc/Exp categories, then
           the date range will later revert back automatically to 'All dates'.
@@ -258,6 +258,31 @@ USING CATEGORIES:
 
     NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
 
+PARALLEL BALANCES:
+    - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts
+      ... used by that row: Balance asof date; Income/Expense date range; Cost Basis / Unrealised Gains; incl. Reminders
+
+    - The sequence of harvesting data / calculating balances for rows using parallel balances is as follows:
+        # 1. per row, gather all selected accounts along with all child/sub accounts...
+        # 2. if Income/Expense dates requested, then harvest related I/E txns...
+        # 3. convert the harvested I/E txn table into account balances...
+        # 4. for all accounts / balances not derived by steps 2 & 3, calculate balance asof dates (where requested)...
+        # 5. for all accounts / balances not derived by steps 2, 3 & 4, harvest remaining Account's real balance(s)...
+        # 6. replace balance(s) with cost basis / unrealised gains on security accounts (where requested)...
+        # 7. for all accounts selected, add reminder txn/balances upto the reminder's asof date (where requested).
+
+    - NOTE: For the Summary Screen (Home Page), only selected accounts use parallel balances...
+            But when using the configuration GUI, then all Accounts for the viewed row will use parallel balances...
+
+    - WARNING: Parallel operations calculate by sweeping through transactions and calculating balances from scratch
+               Balance asof dates & I/E date ranges harvest transactions...
+               Future reminders are forward calculated...
+               Cost Basis / Unrealised Gains sweep Buy/Sell txns...
+               Remaining real balances, sweep accounts and uses the Account's real stored balance(s)
+               ALL THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
+               No harm will be caused, but these rows may take a few seconds to calculate / appear....
+
+
 >> DON'T FORGET TO SAVE CHANGES! <<
 
 
@@ -275,7 +300,10 @@ OPTIONS MENU
   - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
-  - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date
+  - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date.
+                   WARNING: tax dates cannot be derived when including:
+                            - reminders,  cost basis / ur-gains, or when using 'balance asof dates'.
+                            ... as such, the 'normal' transaction date will be used.
   - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
 
 
