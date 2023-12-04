@@ -13,6 +13,10 @@ INSTALLATION:
   ... or Drag & drop .mxt onto left side bar, or Extensions, Manage Extensions, add from file to install.
 - Once installed, visit Preferences > Summary Page, and then move the new widget to the desired Summary Page location
 
+***********************************************************************************************************************
+** auto simulate row when you make GUI config changes has been turned off. Now you need to click the SIMULATE button **
+***********************************************************************************************************************
+
 PURPOSE:
 This extension creates a 'widget' that calculates / displays totals on the Moneydance Summary Page (Home Page)
 
@@ -118,19 +122,23 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
   - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
 
-- Securities: Return Cost Basis / Unrealised Gains options:            >> ONLY FROM MD 2023.2(5008) builds onwards... <<
+- Securities: Return Cost Basis / Unrealised Gains options: >> ASOF FEATS. ONLY FROM MD2023.2(5008) builds onwards... <<
     - N/A (default):        Cost Basis is never used
-    - Rtn Cost Basis:       When selected, then the cost basis (as of the balance / asof date) for selected Security
+    - Rtn Cost Basis:       When selected, then the cost basis (**as of the balance / asof date) for selected Security
                             accounts will be returned (instead of the normal shareholding).
-    - Rtn Unrealised Gains: When selected, then the calculated unrealised gains (asof the balance / asof date) for the
+    - Rtn Unrealised Gains: When selected, then the calculated unrealised gains (**asof the balance / asof date) for the
                             selected Security accounts will be returned. This is calculated as value less cost basis.
 
     >> NOTES:
         - When selected then calculated cost basis / gains values will overwrite normal calculated balances
         - This option does NOT affect non-security accounts included in this row.
         - There can never be future-dated cost basis / ur-gains (the latest asof date will be truncated back to today)
-                - asof-dated cost basis can never be future-dated, so Balance and Current Balance are equal
+                - **asof-dated cost basis can never be future-dated, so Balance and Current Balance are equal
                 - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance       ** WARNING **
+
+        - WARNING: PRIOR TO MD2023.2(5008) - cost basis / ur-gains feature can only return the current (latest) position
+            - if you select 'use cost basis / ur-gains' then you will always get the current / latest position (balance)
+              ... for today / future-dated asof, and ZERO for past-dated asof.
 
         - WARNING: You can create 'illogical' calculations by enabling this option and selecting both Security and
                    non-security accounts in the same row!
