@@ -155,7 +155,7 @@
 #               Added Balance asof date option...; Added Use Cost Basis option(s)...; Added Include Reminders option...;
 #               Switched I/E date range to use full/pure DateRangeChooser class
 #               NOTE: Cost Basis and U/R Gains only enabled from MD 2023.2(5008) builds onwards... (as CostCalculation was not public then)
-#               GUI fixes; KeyError tweak
+#               GUI fixes; KeyError tweak; Enhance the Account/Category select filter...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -4000,6 +4000,76 @@ Visit: %s (Author's site)
         def toString(self): return self.__str__()
 
 
+    # noinspection PyUnresolvedReferences
+    class AccountTypeHolder:
+
+        ALL_USEABLE_TYPES = [t for t in Account.AccountType.values() if t is not Account.AccountType.ROOT]
+
+        def __init__(self, acctType=None, allTypes=False, allAcctsNoCats=False, allAcctsNoSecsNoCats=False, investAndSec=False, incAndExp=False, bankAndCC=False, allDebt=False):
+            if (not acctType and not allTypes and not allAcctsNoCats and not allAcctsNoSecsNoCats and not investAndSec and not incAndExp and not bankAndCC and not allDebt):
+                raise Exception("ERROR - no type(s) specified!")
+            if acctType and not isinstance(acctType, Account.AccountType): raise Exception("ERROR - Must pass a valid Account Type (passed: '%s', type: %s" %(acctType, type(acctType)))
+            self.acctType=acctType
+            self.allTypes=allTypes
+            self.allAcctsNoCats=allAcctsNoCats
+            self.allAcctsNoSecsNoCats=allAcctsNoSecsNoCats
+            self.investAndSec=investAndSec
+            self.incAndExp=incAndExp
+            self.bankAndCC=bankAndCC
+            self.allDebt=allDebt
+            self.validTypes = []
+            if self.isType():                 self.validTypes = [acctType]
+            elif self.isInvestAndSecurity():  self.validTypes = [Account.AccountType.INVESTMENT, Account.AccountType.SECURITY]
+            elif self.isAllDebt():            self.validTypes = [Account.AccountType.CREDIT_CARD, Account.AccountType.LIABILITY, Account.AccountType.LOAN]
+            elif self.isBankAndCreditCard():  self.validTypes = [Account.AccountType.BANK, Account.AccountType.CREDIT_CARD]
+            elif self.isIncomeAndExpense():   self.validTypes = [Account.AccountType.INCOME, Account.AccountType.EXPENSE]
+            elif self.isAll():                self.validTypes = copy.copy(self.ALL_USEABLE_TYPES)
+            elif self.isAllNoCats():          self.validTypes = [t for t in self.ALL_USEABLE_TYPES if t not in [Account.AccountType.INCOME, Account.AccountType.EXPENSE]]
+            elif self.isAllNoSecsNoCats():    self.validTypes = [t for t in self.ALL_USEABLE_TYPES if t not in [Account.AccountType.INCOME, Account.AccountType.EXPENSE, Account.AccountType.SECURITY]]
+            else:                             raise Exception("ERROR - no account type detected?!")
+
+        def getAccountType(self):       return self.acctType
+
+        def isType(self):               return self.acctType is not None
+        def isAll(self):                return self.allTypes
+        def isAllNoCats(self):          return self.allAcctsNoCats
+        def isAllNoSecsNoCats(self):    return self.allAcctsNoSecsNoCats
+        def isInvestAndSecurity(self):  return self.investAndSec
+        def isIncomeAndExpense(self):   return self.incAndExp
+        def isBankAndCreditCard(self):  return self.bankAndCC
+        def isAllDebt(self):            return self.allDebt
+
+        def getValidTypes(self):        return self.validTypes
+
+        def __str__(self):
+            if self.isAll():                 rtnStr = "All Accounts AND Categories"
+            elif self.isAllNoCats():         rtnStr = "All Accounts (no categories)"
+            elif self.isAllNoSecsNoCats():   rtnStr = "All Accounts (no Securities)"
+            elif self.isInvestAndSecurity(): rtnStr = "Investment AND Security accts"
+            elif self.isIncomeAndExpense():  rtnStr = "Income AND Expense categories"
+            elif self.isBankAndCreditCard(): rtnStr = "Bank AND Credit Card accts"
+            elif self.isAllDebt():           rtnStr = "All Debt type accounts"
+            elif self.isType():              rtnStr = self.getAccountType().toString()
+            else: raise Exception("ERROR - unknown type/option?!")
+            return rtnStr
+
+        def __repr__(self):     return self.__str__()
+        def toString(self):     return self.__str__()
+
+        @staticmethod
+        def generateListForCombo():
+            # type: () -> [Account.AccountType]
+            comboList = []
+            comboList.append(AccountTypeHolder(allTypes=True))
+            comboList.append(AccountTypeHolder(allAcctsNoCats=True))
+            comboList.append(AccountTypeHolder(allAcctsNoSecsNoCats=True))
+            comboList.append(AccountTypeHolder(bankAndCC=True))
+            comboList.append(AccountTypeHolder(investAndSec=True))
+            comboList.append(AccountTypeHolder(allDebt=True))
+            comboList.append(AccountTypeHolder(incAndExp=True))
+            for t in AccountTypeHolder.ALL_USEABLE_TYPES: comboList.append(AccountTypeHolder(t))
+            return comboList
+
     class StoreAccount:
 
         def __init__(self, obj, _autoSum):
@@ -7559,45 +7629,52 @@ Visit: %s (Author's site)
 
             NAB = NetAccountBalancesExtension.getNAB()
 
-            myPrint("DB", "...filter: %s" %(_filterText))
+            _filterText = _filterText.lower()
+            myPrint("DB", "...filter.lower(): %s" %(_filterText))
 
             row = NAB.getSelectedRowIndex()
 
             filteredListAccounts = []
 
+            selectedAccountTypeObj = NAB.filterOnlyAccountType_COMBO.getSelectedItem()                              # type: AccountTypeHolder
+            if selectedAccountTypeObj is None: selectedAccountTypeObj = NAB.filterOnlyAccountType_COMBO.getItemAt(0)
+            selectedTypes = selectedAccountTypeObj.getValidTypes()
+
             for obj in self.jlst.originalListObjects:
 
+                lObjNotInListOfSelectedObjects = (obj not in NAB.jlst.listOfSelectedObjects)
+
                 sudoAccount = self.getSudoAccountFromParallel(obj, NAB.getSelectedRowIndex())
-                if (self.filterOnlyShowSelected_CB.isSelected()
-                        and obj not in NAB.jlst.listOfSelectedObjects):
+                if (self.filterOnlyShowSelected_CB.isSelected() and lObjNotInListOfSelectedObjects):
                     continue
 
-                lAllAccountTypes = NAB.filterOnlyAccountType_COMBO.getSelectedItem() == "All Account Types"
-                selectedAccountType = NAB.filterOnlyAccountType_COMBO.getSelectedItem()
+                # lAllAccountTypes = NAB.filterOnlyAccountType_COMBO.getSelectedItem() == "All Account Types";;;
+                # selectedAccountType = NAB.filterOnlyAccountType_COMBO.getSelectedItem()
 
                 if (not self.savedIncludeInactive[row]
                         and not isAccountActive(obj.getAccount(), self.savedBalanceType[row])):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
-                if (_filterText.lower() not in obj.getAccount().getFullAccountName().lower()):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                if (_filterText not in obj.getAccount().getFullAccountName().lower()):
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
                 if (self.filterOutZeroBalAccts_INACTIVE_CB.isSelected()
                         and not isAccountActive(obj.getAccount(), NAB.savedBalanceType[row])
                         and StoreAccount.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
                 if (self.filterOutZeroBalAccts_ACTIVE_CB.isSelected()
                         and isAccountActive(obj.getAccount(), NAB.savedBalanceType[row])
                         and StoreAccount.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
-                if not lAllAccountTypes and obj.getAccount().getAccountType() != selectedAccountType:
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                # if not selectedAccountTypeObj.isAll() and obj.getAccount().getAccountType() != selectedAccountType:
+                if obj.getAccount().getAccountType() not in selectedTypes:
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
                 filteredListAccounts.append(obj)
@@ -9072,7 +9149,8 @@ Visit: %s (Author's site)
 
             # Reset Filter filterOnlyAccountType_COMBO
             myPrint("DB", "..about to reset filterOnlyAccountType_COMBO ..")
-            NAB.filterOnlyAccountType_COMBO.setSelectedItem("All Account Types")
+            # NAB.filterOnlyAccountType_COMBO.setSelectedItem("All Account Types")
+            NAB.filterOnlyAccountType_COMBO.setSelectedIndex(0)
 
             myPrint("DB", "..about to set balanceType_COMBO..")
             NAB.balanceType_COMBO.setSelectedIndex(NAB.savedBalanceType[selectRowIndex])
@@ -10786,16 +10864,32 @@ Visit: %s (Author's site)
                         NAB.savedWidgetName[NAB.getSelectedRowIndex()] = NAB.widgetRowDefault()
 
                     NAB.configPanelOpen = False
-                    NAB.theFrame.setVisible(False)    # Listener, so already on Swing EDT
+                    NAB.theFrame.setVisible(False)                                                                      # Listener, so already on Swing EDT
 
                     lShouldRefreshHomeScreenWidget = True
                     lShouldSaveParameters = True
 
                 # ######################################################################################################
-                if event.getActionCommand() == "clear_selection":
-                    myPrint("DB", "...clearing account list selection...")
+                if event.getActionCommand() == "clear_visible_selection":
+                    myPrint("DB", "...clearing (visible) account list selection...")
                     NAB.jlst.clearSelection()
 
+                # ######################################################################################################
+                if event.getActionCommand() == "clear_entire_selection":
+                    myPrint("DB", "...clearing entire account list selection...")
+                    NAB.jlst.clearSelection()
+                    del NAB.jlst.listOfSelectedObjects[:]
+                    NAB.refreshJListDisplay();
+
+                # ######################################################################################################
+                if event.getActionCommand() == "select_all_visible":
+                    myPrint("DB", "...selecting all (visible) accounts/cats in list selection...")
+                    # NAB.jlst.setSelectedIndices(range(0, NAB.jlst.getModel().getSize()))
+                    selectEnd = NAB.jlst.getModel().getSize() - 1
+                    if selectEnd >= 0:
+                        NAB.jlst.setSelectionInterval(0, selectEnd)
+                    else:
+                        myPrint("DB", "... No items in visible list.. Doing nothing...")
                 # ######################################################################################################
                 if event.getActionCommand() == "page_setup":
                     myPrint("DB", "... performing printer page setup routines")
@@ -12676,16 +12770,48 @@ Visit: %s (Author's site)
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
+                    topInset = 8
+                    bottomInset = 5
+                    js = MyJSeparator()
+                    js.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(MyJSeparator(), GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(4).fillx())
+
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+
+                    onCol = 0
                     topInset = 7
 
-                    clearList_button = MyJButton("Clear Selection")
-                    clearList_button.setActionCommand("clear_selection")
+                    onJListBtnCol = 0
+                    jlistButton_pnl = MyJPanel(GridBagLayout())
+                    jlistButton_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "False")
+
+                    selectAllVisible_button = MyJButton("Select All Visible")
+                    selectAllVisible_button.setActionCommand("select_all_visible")
+                    selectAllVisible_button.putClientProperty("%s.id" %(NAB.myModuleID), "selectAllVisible_button")
+                    selectAllVisible_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    selectAllVisible_button.setToolTipText("Selects all Accounts / Categories in the visible list")
+                    selectAllVisible_button.addActionListener(NAB.saveActionListener)
+                    jlistButton_pnl.add(selectAllVisible_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
+
+                    clearList_button = MyJButton("Clear Visible Selection")
+                    clearList_button.setActionCommand("clear_visible_selection")
                     clearList_button.putClientProperty("%s.id" %(NAB.myModuleID), "clearList_button")
                     clearList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     clearList_button.setToolTipText("Clears the current selection(s)...")
                     clearList_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(clearList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
-                    onCol += 1
+                    jlistButton_pnl.add(clearList_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
+
+                    clearEntireList_button = MyJButton("Clear Entire Selection")
+                    clearEntireList_button.setActionCommand("clear_entire_selection")
+                    clearEntireList_button.putClientProperty("%s.id" %(NAB.myModuleID), "clearEntireList_button")
+                    clearEntireList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    clearEntireList_button.setToolTipText("Clears the entire selection(s) (both visible and filtered out)...")
+                    clearEntireList_button.addActionListener(NAB.saveActionListener)
+                    jlistButton_pnl.add(clearEntireList_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
 
                     undoListChanges_button = MyJButton("Undo List Changes")
                     undoListChanges_button.setActionCommand("undo_list_changes")
@@ -12693,8 +12819,8 @@ Visit: %s (Author's site)
                     undoListChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     undoListChanges_button.setToolTipText("Undo your account list changes and revert to last saved list")
                     undoListChanges_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(undoListChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
-                    onCol += 1
+                    jlistButton_pnl.add(undoListChanges_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
 
                     storeAccountList_button = MyJButton("Store List Changes")
                     storeAccountList_button.setActionCommand("store_list_changes")
@@ -12702,8 +12828,8 @@ Visit: %s (Author's site)
                     storeAccountList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     storeAccountList_button.setToolTipText("Stores the selected account list into memory (does not save)")
                     storeAccountList_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(storeAccountList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
-                    onCol += 1
+                    jlistButton_pnl.add(storeAccountList_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
 
                     saveSettings_button = MyJButton("Save All Settings".upper())
                     saveSettings_button.setActionCommand("save_all_settings")
@@ -12711,8 +12837,10 @@ Visit: %s (Author's site)
                     saveSettings_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     saveSettings_button.setToolTipText("Saves all the changes made to settings")
                     saveSettings_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(saveSettings_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    jlistButton_pnl.add(saveSettings_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    onJListBtnCol += 1
 
+                    controlPnl.add(jlistButton_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx().colspan(4))
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -12822,19 +12950,7 @@ Visit: %s (Author's site)
                     onCol = 0
                     topInset = 5
 
-                    # noinspection PyUnresolvedReferences
-                    includeAccountType = ["All Account Types",
-                                          Account.AccountType.BANK,
-                                          Account.AccountType.CREDIT_CARD,
-                                          Account.AccountType.INVESTMENT,
-                                          Account.AccountType.SECURITY,
-                                          Account.AccountType.ASSET,
-                                          Account.AccountType.LIABILITY,
-                                          Account.AccountType.LOAN,
-                                          Account.AccountType.INCOME,
-                                          Account.AccountType.EXPENSE]
-
-                    NAB.filterOnlyAccountType_COMBO = MyJComboBox(includeAccountType)
+                    NAB.filterOnlyAccountType_COMBO = MyJComboBox(AccountTypeHolder.generateListForCombo())
                     NAB.filterOnlyAccountType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyAccountType_COMBO")
                     NAB.filterOnlyAccountType_COMBO.setName("filterOnlyAccountType_COMBO")
                     NAB.filterOnlyAccountType_COMBO.setToolTipText("Applies an additional filter: Only show the selected account type")
@@ -12876,7 +12992,7 @@ Visit: %s (Author's site)
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 2
-                    NAB.keyLabel = MyJLabel("Key:")
+                    NAB.keyLabel = MyJLabel("")
                     NAB.keyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "keyLabel")
                     NAB.keyLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().colspan(2).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset+2))
