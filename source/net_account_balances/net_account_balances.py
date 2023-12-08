@@ -3260,7 +3260,7 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 
-    SUPER_DEBUG = False;
+    TIMING_DEBUG = True;
 
     def selectAllHomeScreens():
 
@@ -3303,7 +3303,7 @@ Visit: %s (Author's site)
             if paramValue is not None:
                 setattr(GlobalVars, _paramKey, paramValue)
 
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             myPrint("B", "parametersLoadedFromFile{} set into memory (as variables).....:", GlobalVars.parametersLoadedFromFile)
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
@@ -3325,14 +3325,14 @@ Visit: %s (Author's site)
 
         GlobalVars.parametersLoadedFromFile["__%s_extension" %(myModuleID)] = version_build
 
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             myPrint("B", "variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
 
     # clear up any old left-overs....
     destroyOldFrames(myModuleID)
 
     myPrint("DB", "DEBUG IS ON..")
-    if SUPER_DEBUG: myPrint("B", "SUPER DEBUG IS ON..")
+    if TIMING_DEBUG: myPrint("B", "TIMING DEBUG IS ON..")
 
     if SwingUtilities.isEventDispatchThread():
         myPrint("DB", "FYI - This script/extension is currently running within the Swing Event Dispatch Thread (EDT)")
@@ -4462,7 +4462,7 @@ Visit: %s (Author's site)
         def __str__(self):
             i = 10
             extraDebugInfo = ""
-            if debug or SUPER_DEBUG:
+            if debug:
                 if self.isParallelRealBalances():
                     extraDebugInfo += " DEBUG [REAL BALS: %s]" %(self.getParallelRealBalAdjs())
                 if self.isParallelIncExpBalances():
@@ -5563,7 +5563,7 @@ Visit: %s (Author's site)
                 myPrint("B", "@@ %s::loadFromParameters() - I/E date range settings ('%s %s') not found / invalid?! Loaded default ('%s')"
                         %(self.getName(), drOptionKey, drSettings, defaultKey))
             else:
-                if debug or SUPER_DEBUG: myPrint("B", "Successfully loaded I/E date range date settings ('%s %s')" %(drOptionKey, drSettings))
+                if debug: myPrint("B", "Successfully loaded I/E date range date settings ('%s %s')" %(drOptionKey, drSettings))
             return foundSetting
 
         def returnStoredParameters(self, defaultDRSettings):
@@ -5576,7 +5576,7 @@ Visit: %s (Author's site)
             selectedOptionKey = self.getOption(selectedIndex)
             drSettings[0] = startDateInt if (selectedOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey()) else 0
             drSettings[1] = endDateInt if (selectedOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey()) else 0
-            if debug or SUPER_DEBUG: myPrint("B", "%s::returnStoredParameters() - Returning stored I/E date range parameters settings ('%s %s')" %(self.getName(), selectedOptionKey, drSettings))
+            if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored I/E date range parameters settings ('%s %s')" %(self.getName(), selectedOptionKey, drSettings))
             return selectedOptionKey, drSettings
 
 
@@ -5781,7 +5781,7 @@ Visit: %s (Author's site)
                 myPrint("B", "@@ %s::loadFromParameters() - asof date settings ('%s') not found / invalid?! Loaded default ('%s')"
                         %(self.getName(), settings, defaultKey))
             else:
-                if debug or SUPER_DEBUG: myPrint("B", "Successfully loaded asof date settings ('%s')" %(settings))
+                if debug: myPrint("B", "Successfully loaded asof date settings ('%s')" %(settings))
             return foundSetting
 
         def returnStoredParameters(self, defaultSettings):
@@ -5792,7 +5792,7 @@ Visit: %s (Author's site)
             # leave settings[0] untouched
             settings[1] = selectedOptionKey
             settings[2] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
-            if debug or SUPER_DEBUG: myPrint("B", "%s::returnStoredParameters() - Returning stored asof date parameters settings ('%s')" %(self.getName(), settings))
+            if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored asof date parameters settings ('%s')" %(self.getName(), settings))
             return settings
 
         # def loadFromParameters(self, settings, defaultKey="asof_today"):
@@ -5823,11 +5823,11 @@ Visit: %s (Author's site)
                 self.asOfDateIntResult = asOfDateInt
                 self.selectedOptionKeyResult = selectedOptionKey
                 if asOfDateInt != oldAsOfDateInt:
-                    # if debug or SUPER_DEBUG:
+                    # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt))
                     getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt)
                 else:
-                    # if debug or SUPER_DEBUG:
+                    # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey))
                     getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey)
 
@@ -6062,7 +6062,7 @@ Visit: %s (Author's site)
             #     if debug: myPrint("B", "[INFO] Parallel balances are NOT required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1))
             return lAnyParallel
 
-        if debug or SUPER_DEBUG: myPrint("B", "** Setting Parallel Balances detected flag to '%s'" %(lAnyParallel))
+        if debug or TIMING_DEBUG: myPrint("B", "** Setting Parallel Balances detected flag to '%s'" %(lAnyParallel))
         NAB.parallelBalanceTableOperating = lAnyParallel
         return NAB.parallelBalanceTableOperating
 
@@ -6093,7 +6093,7 @@ Visit: %s (Author's site)
         returnIncExpTransactionsForAccounts(_parallelTxnTable, swClass)   # NOTE: Updates parallelTxnTable with txns
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.2"; stageTxt = "::returnIncExpTransactionsForAccounts()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
         thisSectionStartTime = System.currentTimeMillis()
@@ -6107,7 +6107,7 @@ Visit: %s (Author's site)
         if swClass and swClass.isCancelled(): return emptyReturnValue
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.3"; stageTxt = "::convertTableOfIncExpTxnsIntoBalances()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
         thisSectionStartTime = System.currentTimeMillis()
@@ -6123,7 +6123,7 @@ Visit: %s (Author's site)
         if swClass and swClass.isCancelled(): return emptyReturnValue
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             if lFasterWay:
                 stage = "2.4"; stageTxt = "::gatherBalanceAsOfDateBalances_FASTER()"
                 myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
@@ -6135,13 +6135,13 @@ Visit: %s (Author's site)
         if swClass and swClass.isCancelled(): return emptyReturnValue
 
         # ------ 5. gather remaining 'real' Account balances for all accounts not updated in prior steps ---
-        if debug or SUPER_DEBUG: myPrint("B", ":: Gathering 'real' Account balances for all accounts/balances not gathered in prior steps")
+        if debug or TIMING_DEBUG: myPrint("B", ":: Gathering 'real' Account balances for all accounts/balances not gathered in prior steps")
         gatherRemainingRealBalances(parallelBalanceTable, swClass, lBuildParallelTable)
 
         if swClass and swClass.isCancelled(): return emptyReturnValue
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.5"; stageTxt = "::gatherRemainingRealBalances()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
         thisSectionStartTime = System.currentTimeMillis()
@@ -6153,7 +6153,7 @@ Visit: %s (Author's site)
         if swClass and swClass.isCancelled(): return emptyReturnValue
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.6"; stageTxt = "::replaceSecurityCostBasisBalances()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
         thisSectionStartTime = System.currentTimeMillis()
@@ -6165,14 +6165,14 @@ Visit: %s (Author's site)
         if swClass and swClass.isCancelled(): return emptyReturnValue
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.7"; stageTxt = "::updateBalancesWithHarvestedReminders()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
 
         if swClass and swClass.isCancelled(): return emptyReturnValue
 
         tookTime = System.currentTimeMillis() - veryStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "<2-7>"; stageTxt = "REBUILD PARALLEL ACCOUNT BALANCES"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
 
@@ -6909,7 +6909,7 @@ Visit: %s (Author's site)
                 if txnSet.getSize() > 0: txnSet.sortByField(AccountUtil.DATE_THEN_AMOUNT)
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.4(a)"; stageTxt = "::gatherBalanceAsOfDateBalances_FASTER()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
         thisSectionStartTime = System.currentTimeMillis()
@@ -6963,7 +6963,7 @@ Visit: %s (Author's site)
                 _parallelBalanceTable[iRowIdx][acct] = balanceObj
 
         tookTime = System.currentTimeMillis() - thisSectionStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.4(b)"; stageTxt = "::gatherBalanceAsOfDateBalances_FASTER()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
 
@@ -6981,7 +6981,7 @@ Visit: %s (Author's site)
             myPrint("DB", "---------------------------------------------------------------------------------------------")
 
         tookTime = System.currentTimeMillis() - veryStartTime
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = " <2.4>"; stageTxt = "GATHER BALANCE ASOF DATES FASTER"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
 
@@ -7187,7 +7187,7 @@ Visit: %s (Author's site)
             myPrint("DB", "-----------------------------------")
 
 
-        if debug or SUPER_DEBUG:
+        if debug or TIMING_DEBUG:
             stage = "2.1"; stageTxt = "::returnIncExpTransactionsForAccounts()"
             myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds) - to parse %s Txns" %(pad(stageTxt, 60), pad(stage,7), (System.currentTimeMillis() - startTime), (System.currentTimeMillis() - startTime) / 1000.0, iTxns))
 
@@ -10781,21 +10781,21 @@ Visit: %s (Author's site)
                 newValue = event.getNewValue()
                 source = event.getSource()
                 if debug: myPrint("B", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
-                if SUPER_DEBUG or debug: myPrint("B", "... Property Name: '%s', oldVal: %s, newVal: %s, event:" %(propName, oldValue, newValue), event)
+                if debug: myPrint("B", "... Property Name: '%s', oldVal: %s, newVal: %s, event:" %(propName, oldValue, newValue), event)
 
                 NAB = NetAccountBalancesExtension.getNAB()
 
                 if self.disabled:
-                    if SUPER_DEBUG or debug: myPrint("B", "... disabled is set, skipping this.....")
+                    if debug: myPrint("B", "... disabled is set, skipping this.....")
                     return
 
                 if source is NAB.asOfDateChooser_AODC:
                     if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
-                        if SUPER_DEBUG or debug: myPrint("B", "User has changed the balance asof date option....")
+                        if debug: myPrint("B", "User has changed the balance asof date option....")
 
                         selected = NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX]
                         newSettings = event.getSource().returnStoredParameters(NAB.balanceAsOfDateDefault(selected))
-                        if SUPER_DEBUG or debug: myPrint("B", ".. setting savedBalanceAsOfDateTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
+                        if debug: myPrint("B", ".. setting savedBalanceAsOfDateTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
                         NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()] = newSettings
 
                         NAB.configSaved = False
@@ -10806,12 +10806,12 @@ Visit: %s (Author's site)
 
                 elif source is NAB.includeRemindersChooser_AODC:
                     if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
-                        if SUPER_DEBUG or debug: myPrint("B", "User has changed the include reminders asof date option....")
+                        if debug: myPrint("B", "User has changed the include reminders asof date option....")
 
                         selected = NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX]
                         newSettings = event.getSource().returnStoredParameters(NAB.includeRemindersDefault(selected))
                         NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()] = newSettings
-                        if SUPER_DEBUG or debug: myPrint("B", ".. setting savedIncludeRemindersTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
+                        if debug: myPrint("B", ".. setting savedIncludeRemindersTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
 
                         NAB.configSaved = False
                         # NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
@@ -10821,14 +10821,14 @@ Visit: %s (Author's site)
 
                 elif source is NAB.incomeExpenseDateRange_DRC:
                     if propName == NAB.incomeExpenseDateRange_DRC.PROP_DATE_RANGE_CHANGED:
-                        if SUPER_DEBUG or debug: myPrint("B", "User has changed the income/expense date range option....")
+                        if debug: myPrint("B", "User has changed the income/expense date range option....")
                         _rowIdx = NAB.getSelectedRowIndex()
                         _row = NAB.getSelectedRow()
                         newDRKey, newDRSettings = event.getSource().returnStoredParameters(NAB.customDatesDefault())
                         NAB.savedIncomeExpenseDateRange[_rowIdx] = newDRKey
                         NAB.savedCustomDatesTable[_rowIdx] = newDRSettings
-                        if SUPER_DEBUG or debug: myPrint("B", ".. setting savedIncomeExpenseDateRange to: '%s 'for row: %s" %(newDRKey, _row))
-                        if SUPER_DEBUG or debug: myPrint("B", ".. setting savedCustomDatesTable to:       '%s 'for row: %s" %(newDRSettings, _row))
+                        if debug: myPrint("B", ".. setting savedIncomeExpenseDateRange to: '%s 'for row: %s" %(newDRKey, _row))
+                        if debug: myPrint("B", ".. setting savedCustomDatesTable to:       '%s 'for row: %s" %(newDRSettings, _row))
 
                         NAB.configSaved = False
                         # NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
@@ -11776,8 +11776,8 @@ Visit: %s (Author's site)
                     if NAB.isParallelRebuildRunning_NOLOCKFIRST(): self.recursiveUserXBalanceStr = "<rebuilding>"
 
                     if lKeyError:
-                        self.userXBalanceStr = "<run simulation>"
-                        self.recursiveUserXBalanceStr = "<run simulation>"
+                        self.userXBalanceStr = "<click simulate>"
+                        self.recursiveUserXBalanceStr = "<click simulate>"
 
                 else:
                     self.account = None
@@ -13423,7 +13423,8 @@ Visit: %s (Author's site)
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
-                    lblText = wrap_HTML_BIG_small("<< click here to SIMULATE >>", "", _bold=True, _bigColor=getColorBlue())
+                    # lblText = wrap_HTML_BIG_small("<< click here to SIMULATE >>", "", _bold=True, _bigColor=getColorBlue())
+                    lblText = "<< Simulate Row >>"
                     NAB.simulate_JBTN = MyJButton(lblText)
                     NAB.simulate_JBTN.setActionCommand("simulate")
                     NAB.simulate_JBTN.putClientProperty("%s.id" %(NAB.myModuleID), "simulate_JBTN")
@@ -13501,7 +13502,7 @@ Visit: %s (Author's site)
 
                     controlPnl.add(icons_pnl, GridC.getc(onCol, onRow).insets(topInset,colLeftInset,bottomInset,colRightInset))
 
-                    controlPnl.add(NAB.simulate_JBTN, GridC.getc(onCol, onRow+1).insets(topInset,colLeftInset,bottomInset,colRightInset).fillx())
+                    controlPnl.add(NAB.simulate_JBTN, GridC.getc(onCol, onRow+1).insets(topInset,colLeftInset,bottomInset,colRightInset))
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
@@ -14401,7 +14402,7 @@ Visit: %s (Author's site)
                 NAB.searchAndStoreGroupIDs(NAB.savedFilterByGroupID)      # Ensure the cache of remembered GroupIDs is current...
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "0"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
@@ -14456,7 +14457,7 @@ Visit: %s (Author's site)
 
                         if swClass and swClass.isCancelled(): return []
 
-                        if debug and not SUPER_DEBUG: myPrint("B", "... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
+                        if debug: myPrint("B", "... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
                         acct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(accID)                    # Don't use AccountUtil.findAccountWithID() as very slow!
 
                         if acct is not None:
@@ -14467,7 +14468,7 @@ Visit: %s (Author's site)
                             myPrint("B", "....WARNING - Row: %s >> Account with UUID %s not found..? Skipping this one...." %(onRow, accID))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "1"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
@@ -14516,7 +14517,7 @@ Visit: %s (Author's site)
                             if debug: myPrint("DB", "...No Accounts found for parallel operations on row: %s" %(onRow))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "2.1"; stageTxt = "::calculateBalances()::returnThisAccountAndAllChildren()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
@@ -14825,7 +14826,7 @@ Visit: %s (Author's site)
                 del accountsToShow, totalBalance, parallelFullAccountsList, simulateRowIdxs
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "3"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
@@ -14847,7 +14848,7 @@ Visit: %s (Author's site)
                         balanceObj.setBalance(average)
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "4"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
@@ -14937,7 +14938,7 @@ Visit: %s (Author's site)
                                 alreadyUpdatedRowUUIDs.append(balanceObj.getUUID())
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "5"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
@@ -14954,7 +14955,7 @@ Visit: %s (Author's site)
                         balanceObj.setBalance(adjustedBalance)
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "6"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
@@ -14992,7 +14993,7 @@ Visit: %s (Author's site)
                     if debug: NAB.validateLastResultsTable(obtainLockFirst=False)
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
-                if debug or SUPER_DEBUG:
+                if debug or TIMING_DEBUG:
                     stage = "7"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 # thisSectionStartTime = System.currentTimeMillis()
@@ -15026,7 +15027,7 @@ Visit: %s (Author's site)
                 # if not lFromSimulate: NAB.setSelectedRowIndex(saveTheRowIndex);
 
                 tookTime = System.currentTimeMillis() - veryStartTime
-                if debug or SUPER_DEBUG or (tookTime >= 1000):
+                if debug or TIMING_DEBUG or (tookTime >= 1000):
                     stage = "<ALL>"; stageTxt = ">> CALCULATE BALANCES"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
 
