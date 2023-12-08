@@ -11518,7 +11518,12 @@ Visit: %s (Author's site)
                 c = super(self.__class__, self).getListCellRendererComponent(thelist, value, index, isSelected, cellHasFocus)
 
                 md = NetAccountBalancesExtension.getNAB().moneydanceContext
-                baseCurr = md.getCurrentAccountBook().getCurrencies().getBaseType()
+                book = md.getCurrentAccountBook()
+                if book is None:
+                    myPrint("B", "@@ getListCellRendererComponent() - book is None... Perhaps MD is closing.. Will ignore and return...")
+                    return c
+
+                baseCurr = book.getCurrencies().getBaseType()
 
                 NAB = NetAccountBalancesExtension.getNAB()
 
