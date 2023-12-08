@@ -13,7 +13,8 @@ INSTALLATION:
   ... or Drag & drop .mxt onto left side bar, or Extensions, Manage Extensions, add from file to install.
 - Once installed, visit Preferences > Summary Page, and then move the new widget to the desired Summary Page location
 
-***********************************************************************************************************************
+
+*******Make this the normal versus trying to explain the change (it won't be a change in future versions***************
 ** auto simulate row when you make GUI config changes has been turned off. Now you need to click the SIMULATE button **
 ***********************************************************************************************************************
 
@@ -71,6 +72,21 @@ EXAMINING THE CHOICES/CONFIGURATION:
         - Current Balance:     The same as Balance but excluding future transactions
         - Cleared Balance:     Includes all 'cleared' (i.e. reconciled) transactions - even future
 
+- AutoSum:
+  - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
+                                           it auto summarises the whole account(s) including Investments/Cash/Securities
+                                           ('recursively' means iterate through all an account's children accounts...)
+                                 When off, it just adds the value held at that account level (ignoring its children)
+                                           you can manually select individual accounts/cats/securities/cash (by row)
+
+  - AutoSum ON  will always auto-include all a selected account's child/sub accounts at runtime.
+            OFF will only include the accounts you have selected. You will have to select/add any new accounts created
+
+  - Investment accounts hold Cash at the investment account level. AutoSum affects your ability to select just cash
+                        - When AutoSum is on, all securities get totalled into the Investment account
+
+  - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
+
 - Override Balance asof Date:  Allows you to obtain the balance asof a specified date.
         - Includes all transactions / balances up to, and including, the selected balance asof date
           When selected, the balance asof date options are enabled. Here you select the automatic asof end date,
@@ -109,21 +125,6 @@ EXAMINING THE CHOICES/CONFIGURATION:
         - WARNING: tax dates on reminders cannot be calculated. The 'normal' date will be applied.
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-- AutoSum:
-  - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
-                                           it auto summarises the whole account(s) including Investments/Cash/Securities
-                                           ('recursively' means iterate through all an account's children accounts...)
-                                 When off, it just adds the value held at that account level (ignoring its children)
-                                           you can manually select individual accounts/cats/securities/cash (by row)
-
-  - AutoSum ON  will always auto-include all a selected account's child/sub accounts at runtime.
-            OFF will only include the accounts you have selected. You will have to select/add any new accounts created
-
-  - Investment accounts hold Cash at the investment account level. AutoSum affects your ability to select just cash
-                        - When AutoSum is on, all securities get totalled into the Investment account
-
-  - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
-
 - Securities: Return Cost Basis / Unrealised Gains options:
     - N/A (default):         Cost Basis is never used
     - Rtn Cost Basis:        When selected, then the cost basis (**as of the balance / asof date) for selected Security
@@ -141,6 +142,13 @@ EXAMINING THE CHOICES/CONFIGURATION:
         - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance               ** WARNING **
 
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
+
+INC/EXP Date Range: Simple Explanation - Refer to Detail at USING Categories
+
+Display Currency: Simple Explanation
+
+
+CALCULATIONS TO BALANCES:
 
 - Average by options:
     - Changes the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
