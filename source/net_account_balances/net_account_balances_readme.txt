@@ -87,6 +87,7 @@ EXAMINING THE CHOICES/CONFIGURATION:
              - Income / Expense categories: Not affected by this option - refer separate 'I/E Date Range' section
              - Include Reminders:           Not affected by this option - refer separate 'Include Reminders' section
              - Security accounts when the 'Securities return Cost Basis / Unrealised Gains' option is selected
+                 ... or Investment accounts when 'include cash' option is selected in conjunction with return cost basis
                  - refer separate 'Securities: Return Cost Basis / Unrealised Gains options' section...
 
         - WARNING: tax dates when using 'asof' cannot be derived. The 'normal' txn date will be applied.
@@ -101,10 +102,11 @@ EXAMINING THE CHOICES/CONFIGURATION:
         - Only uncommitted (ie. non-recorded) Reminders will be selected. Then...
         - Reminder date(s) will be forward calculated up to the Reminder's asof date setting. Then...
         - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
+
         - NOTE: It would be unusual to find any reminders with a Cleared Status - so expect ZERO.
+        - NOTE: Ignored when returning cost basis / unrealised gains
 
         - WARNING: tax dates on reminders cannot be calculated. The 'normal' date will be applied.
-
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
 - AutoSum:
@@ -122,26 +124,21 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
   - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
 
-- Securities: Return Cost Basis / Unrealised Gains options: >> ASOF FEATS. ONLY FROM MD2023.2(5008) builds onwards... <<
-    - N/A (default):        Cost Basis is never used
-    - Rtn Cost Basis:       When selected, then the cost basis (**as of the balance / asof date) for selected Security
-                            accounts will be returned (instead of the normal shareholding).
-    - Rtn Unrealised Gains: When selected, then the calculated unrealised gains (**asof the balance / asof date) for the
-                            selected Security accounts will be returned. This is calculated as value less cost basis.
+- Securities: Return Cost Basis / Unrealised Gains options:
+    - N/A (default):         Cost Basis is never used
+    - Rtn Cost Basis:        When selected, then the cost basis (**as of the balance / asof date) for selected Security
+                             accounts will be returned (instead of the normal shareholding).
+    - Rtn Unrealised Gains:  When selected, then the calculated unrealised gains (**asof the balance / asof date) for the
+                             selected Security accounts will be returned. This is calculated as value less cost basis.
+    - Include Cash Balances: When selected then cash balances on (selected) investment accounts will be included too.
 
     >> NOTES:
-        - When selected then calculated cost basis / gains values will overwrite normal calculated balances
-        - This option does NOT affect non-security accounts included in this row.
-        - There can never be future-dated cost basis / ur-gains (the latest asof date will be truncated back to today)
-                - **asof-dated cost basis can never be future-dated, so Balance and Current Balance are equal
-                - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance       ** WARNING **
-
-        - WARNING: PRIOR TO MD2023.2(5008) - cost basis / ur-gains feature can only return the current (latest) position
-            - if you select 'use cost basis / ur-gains' then you will always get the current / latest position (balance)
-              ... for today / future-dated asof, and ZERO for past-dated asof.
-
-        - WARNING: You can create 'illogical' calculations by enabling this option and selecting both Security and
-                   non-security accounts in the same row!
+        - When selected then calculated cost basis / unrealised gains values will overwrite normal calculated balances
+          ... this is a MUTUALLY EXCLUSIVE option. When enabled, no other calculation type(s) will be included!
+          ...... (no reminders, no other non-security/investment(cash), no income / expense transactions)
+        - There can in theory be future-dated cost basis / ur-gains. Let me know how this works out for you?!
+        - Current Balance will derive the cost basis asof today.
+        - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance               ** WARNING **
 
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
@@ -279,13 +276,16 @@ PARALLEL BALANCES:
         # 6. replace balance(s) with cost basis / unrealised gains on security accounts (where requested)...
         # 7. for all accounts selected, add reminder txn/balances upto the reminder's asof date (where requested).
 
+    - NOTE: When cost basis / unrealised gains is enabled, all other steps are skipped >> MUTUALLY EXCLUSIVE option!
+            (i.e. no reminders, income / expense transactions, no non-security/investment(cash) accounts
+
     - NOTE: For the Summary Screen (Home Page), only selected accounts use parallel balances...
             But when using the configuration GUI, then all Accounts for the viewed row will use parallel balances...
 
     - WARNING: Parallel operations calculate by sweeping through transactions and calculating balances from scratch
                Balance asof dates & I/E date ranges harvest transactions...
                Future reminders are forward calculated...
-               Cost Basis / Unrealised Gains sweep Buy/Sell txns...
+               Cost Basis / Unrealised Gains sweep Buy/Sell txns... (possibly twice for Balance vs Current Balance)
                Remaining real balances, sweep accounts and uses the Account's real stored balance(s)
                ALL THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
                No harm will be caused, but these rows may take a few seconds to calculate / appear....
