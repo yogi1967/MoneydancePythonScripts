@@ -298,8 +298,26 @@ PARALLEL BALANCES:
                ALL THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
                No harm will be caused, but these rows may take a few seconds to calculate / appear....
 
+ACCOUNT PICKLIST:
+    - You select accounts one-by-one to include in the row calculation.
+    - You can use the dropdown select box to quickly view certain accounts - e.g. "All Investment AND Security accts"
+      ... using the dropdown does not actually select any accounts. You have to click each one.
+      ... or use the 'Select All Visible' button
+    - 'Select All Visbible'     selects all accounts in the current view filtered list, and adds the selection to the
+                                existing selection. E.g. If you view INVESTMENT, select all visible, then view SECURITY,
+                                then select all, then you will end up with all investment and all security.
+    - 'Clear Visible Selection' deselects all accounts in the currently viewable list (but does not deselect any
+                                selected accounts in non-viewable filtered list). E.g. view SECURITY,
+                                clear visible selection, then view INVESTMENT, and you will see your investment
+                                selections are still there.
+    - 'Clear Entire Selection'  deselects all accounts - whether they are in the viewable/filtered list or not.
+    - 'Undo List Changes'       undo any selection changes since your last 'Store List Changes'
+    - 'Store List Changes'      stores the current account list selection into memory (this does NOT save selections)
 
->> DON'T FORGET TO SAVE CHANGES! <<
+    >> You must click 'STORE LIST CHANGES' before you click simulate or exit the config screen. If you do not do this
+       then your selection changes will be lost!
+
+>> DON'T FORGET TO SAVE CHANGES! (for convenience, this also stores your current account selection list too) <<
 
 
 OPTIONS MENU
