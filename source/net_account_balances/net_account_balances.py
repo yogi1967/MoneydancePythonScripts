@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1039 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1040 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -156,6 +156,7 @@
 #               Switched I/E date range to use full/pure DateRangeChooser class
 #               NOTE: Cost Basis and U/R Gains with MyCostCalculation (as CostCalculation not very accessible)
 #               GUI fixes; KeyError tweak; Enhance the Account/Category select filter...; Put UNDO/Reload option on homepage widget
+# build: 1040 - Bumping the build number....
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -163,7 +164,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1039"
+version_build = "1040"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -515,7 +516,7 @@ else:
 
     from javax.swing.table import DefaultTableModel
 
-    from java.awt.event import HierarchyListener, ItemListener, MouseAdapter
+    from java.awt.event import HierarchyListener, ItemListener, MouseAdapter, ItemEvent
     from java.awt.event import FocusAdapter, MouseListener, ActionListener, KeyAdapter, FocusListener
     from java.awt import FontMetrics, Event
     from java.awt import RenderingHints, BasicStroke, Graphics2D, Rectangle
@@ -697,7 +698,7 @@ Visit: %s (Author's site)
 
     def cleanup_references():
         global MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
-        # myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
+        # myPrint("DB",""About" to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
         # del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
 
         myPrint("DB", "... destroying own reference to frame('net_account_balances_frame_')...")
@@ -3300,7 +3301,7 @@ Visit: %s (Author's site)
             if paramValue is not None:
                 setattr(GlobalVars, _paramKey, paramValue)
 
-        if debug or TIMING_DEBUG:
+        if debug:
             myPrint("B", "parametersLoadedFromFile{} set into memory (as variables).....:", GlobalVars.parametersLoadedFromFile)
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
@@ -3322,7 +3323,7 @@ Visit: %s (Author's site)
 
         GlobalVars.parametersLoadedFromFile["__%s_extension" %(myModuleID)] = version_build
 
-        if debug or TIMING_DEBUG:
+        if debug:
             myPrint("B", "variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
 
     # clear up any old left-overs....
@@ -3526,7 +3527,7 @@ Visit: %s (Author's site)
             if debug: myPrint("B", "adding position:", pos)
             self.getPositions().add(newPos)
             ptxn = txn.getParentTxn()                                                                                   # type: ParentTxn
-            self.positionsByID.put(ptxn.getUUID(), newPos)
+            self.getPositionByID().put(ptxn.getUUID(), newPos)
 
         def allocateAverageCostSales(self):
             #type: () -> None
@@ -3585,15 +3586,16 @@ Visit: %s (Author's site)
             for sellPosition in [position for position in self.getPositions() if (position.getSharesAdded() < 0)]:
                 fields.setFieldStatus(sellPosition.getTxn().getParentTxn())
                 buyTable = TxnUtil.parseCostBasisTag(sellPosition.getTxn())                                             # type: {String: Long}
-                for buyID in buyTable.keySet():
-                    boughtPos = self.positionsByID.get(buyID)                                                           # type: MyCostCalculation.Position
-                    if (boughtPos is not None):
-                        boughtShares = buyTable.get(buyID)
-                        boughtSharesAdjusted = self.secCurr.adjustValueForSplitsInt(boughtPos.getDate(), boughtShares, sellPosition.getDate())
-                        sellPosition.getBuys().add(MyCostCalculation.Allocation(self, boughtShares, boughtPos))
-                        sellPosition.setUnallottedSharesAdded(sellPosition.getUnallottedSharesAdded() + boughtSharesAdjusted)
-                        boughtPos.getSells().add(MyCostCalculation.Allocation(self, boughtShares, sellPosition))
-                        boughtPos.setUnallottedSharesAdded(boughtPos.getUnallottedSharesAdded() - boughtShares)
+                if buyTable is not None:
+                    for buyID in buyTable.keySet():
+                        boughtPos = self.getPositionByID().get(buyID)                                                   # type: MyCostCalculation.Position
+                        if (boughtPos is not None):
+                            boughtShares = buyTable.get(buyID)
+                            boughtSharesAdjusted = self.secCurr.adjustValueForSplitsInt(boughtPos.getDate(), boughtShares, sellPosition.getDate())
+                            sellPosition.getBuys().add(MyCostCalculation.Allocation(self, boughtShares, boughtPos))
+                            sellPosition.setUnallottedSharesAdded(sellPosition.getUnallottedSharesAdded() + boughtSharesAdjusted)
+                            boughtPos.getSells().add(MyCostCalculation.Allocation(self, boughtShares, sellPosition))
+                            boughtPos.setUnallottedSharesAdded(boughtPos.getUnallottedSharesAdded() - boughtShares)
 
             if debug:
                 myPrint("B", "-------------------------\npositions and allotments for '%s':" %(self.getSecAccount()))
@@ -5506,6 +5508,18 @@ Visit: %s (Author's site)
             self.name = "IncExpDateRangeChooser"
             super(self.__class__, self).__init__(mdGUI)
 
+        # @Override
+        def itemStateChanged(self, evt):
+            # if debug: myPrint("B", "@@ In IncExpDateRangeChooser(DateRangeChooser)::itemStateChanged() - event:", evt);
+            src = evt.getSource()
+            drc = getFieldByReflection(self, "dateRangeChoice")
+            if (src is drc and evt.getStateChange() == ItemEvent.SELECTED):
+                if debug:
+                    myPrint("B", "@@ IncExpDateRangeChooser:%s:itemStateChanged().firePropertyChange(%s) >> selection changed (from: '%s' to '%s') <<"
+                            %(self.getName(), self.PROP_DATE_RANGE_CHANGED, "<unknown>", src.getSelectedItem().getValue()))
+                getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, "<unknown>", src.getSelectedItem().getValue())
+            if evt.getStateChange() == ItemEvent.SELECTED: super(self.__class__, self).itemStateChanged(evt)
+
         def setName(self, newName): self.name = newName
         def getName(self): return self.name
         def getActionListeners(self): return []
@@ -6001,11 +6015,14 @@ Visit: %s (Author's site)
         NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_NONE)
 
-    def shouldIncludeAccountForCostBasis(index, acct):
+    def isUseCostBasisCashSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
+        return isUseCostBasisSelected(index) and NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX]
+
+    def shouldIncludeAccountForCostBasis(index, acct):
         if isUseCostBasisSelected(index):
             checkATs = [Account.AccountType.SECURITY]                                                                   # noqa
-            if NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX]:
+            if isUseCostBasisCashSelected(index):
                 checkATs.append(Account.AccountType.INVESTMENT)                                                         # noqa
             if acct.getAccountType() in checkATs: return True
         return False
@@ -6590,7 +6607,7 @@ Visit: %s (Author's site)
 
                 balObj.setParallelReturnCostBasis(True)
                 balObj.setParallelReturnCostBasisType(NAB.savedUseCostBasisTable[iRowIdx][GlobalVars.COSTBASIS_TYPE_IDX])
-                balObj.setParallelReturnCostBasisCash(NAB.savedUseCostBasisTable[iRowIdx][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX])
+                balObj.setParallelReturnCostBasisCash(isUseCostBasisCashSelected(iRowIdx))
 
                 balObj.setEffectiveDateInt(effectiveDateInt)
 
@@ -9673,7 +9690,7 @@ Visit: %s (Author's site)
             NAB.useCostBasisURGains_JRB.setSelected( True if NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_URGAINS else False)
 
             myPrint("DB", "..about to set useCostBasisCash_CB..")
-            NAB.useCostBasisCash_CB.setSelected(NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX])
+            NAB.useCostBasisCash_CB.setSelected(isUseCostBasisCashSelected(selectRowIndex))
 
             myPrint("DB", "..about to set separatorSelectorNone_JRB, separatorSelectorAbove_JRB, separatorSelectorBelow_JRB, separatorSelectorBoth_JRB..")
             NAB.separatorSelectorNone_JRB.setSelected(  True if NAB.savedRowSeparatorTable[selectRowIndex] == GlobalVars.ROW_SEPARATOR_NEVER else False)
@@ -10954,14 +10971,22 @@ Visit: %s (Author's site)
                     if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] != useCostBasisCodeSelected:
                         myPrint("DB", ".. setting savedUseCostBasisTable[type] to: %s for row: %s" %(useCostBasisCodeSelected, NAB.getSelectedRow()))
                         NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] = useCostBasisCodeSelected
+
+                        if not isUseCostBasisSelected(NAB.getSelectedRowIndex()):
+                            NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] = False
+                            NAB.useCostBasisCash_CB.setSelected(isUseCostBasisCashSelected(NAB.getSelectedRowIndex()))
+
                         NAB.configSaved = False
 
                 # ######################################################################################################
                 if event.getSource() is NAB.useCostBasisCash_CB:
-                    if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] != event.getSource().isSelected():
-                        myPrint("DB", ".. setting savedUseCostBasisTable[useCash] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] = event.getSource().isSelected()
-                        NAB.configSaved = False
+                    if not isUseCostBasisSelected(NAB.getSelectedRowIndex()):
+                        event.getSource().setSelected(False)
+                    else:
+                        if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] != event.getSource().isSelected():
+                            myPrint("DB", ".. setting savedUseCostBasisTable[useCash] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                            NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] = event.getSource().isSelected()
+                            NAB.configSaved = False
 
                 # ######################################################################################################
                 if event.getSource() in [NAB.separatorSelectorNone_JRB, NAB.separatorSelectorAbove_JRB, NAB.separatorSelectorBelow_JRB, NAB.separatorSelectorBoth_JRB]:
@@ -11094,6 +11119,7 @@ Visit: %s (Author's site)
                         NAB.configSaved = False
                         NAB.rebuildFrameComponents(selectRowIndex=newPosIdx)
 
+                # ######################################################################################################
                 if event.getActionCommand() == "insert_row_before":
                     if myPopupAskQuestion(NAB.theFrame, "INSERT ROW", "Insert a new row %s (before this row)?" %(NAB.getSelectedRow())):
                         myPrint("DB", ".. inserting a new row number %s (before)" %(NAB.getSelectedRow()))
@@ -11132,6 +11158,7 @@ Visit: %s (Author's site)
                         NAB.configSaved = False
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex())
 
+                # ######################################################################################################
                 if event.getActionCommand() == "insert_row_after":
                     if myPopupAskQuestion(NAB.theFrame, "INSERT ROW", "Insert a new row %s (after this row)?" %(NAB.getSelectedRow()+1)):
                         myPrint("DB", ".. inserting a new row number %s (after)" %(NAB.getSelectedRow()+1))
@@ -11170,6 +11197,7 @@ Visit: %s (Author's site)
                         NAB.configSaved = False
                         NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex()+1)
 
+                # ######################################################################################################
                 if event.getActionCommand() == "delete_row":
                     if myPopupAskQuestion(NAB.theFrame, "DELETE ROW", "Delete row: %s from Home Page Widget?" %(NAB.getSelectedRow())):
 
@@ -11200,6 +11228,7 @@ Visit: %s (Author's site)
                             NAB.configSaved = False
                             NAB.rebuildFrameComponents(selectRowIndex=(min(NAB.getSelectedRowIndex(), NAB.getNumberOfRows()-1)))
 
+                # ######################################################################################################
                 if event.getActionCommand() == "move_row":
                     if NAB.getNumberOfRows() < 2:
                         myPopupInformationBox(NAB.theFrame, "Not enough rows to move!", theMessageType=JOptionPane.WARNING_MESSAGE)
@@ -11231,11 +11260,11 @@ Visit: %s (Author's site)
                                 myPrint("B", "User entered an invalid new row position (%s) to move from (%s) - no action taken" %(newPosition, NAB.getSelectedRow()))
                         else:
                             myPrint("B", "User did not enter a valid new row position - no action taken")
-                # ######################################################################################################
 
+                # ######################################################################################################
                 if event.getActionCommand() == "reset_defaults":
-                    if myPopupAskQuestion(NAB.theFrame, "RESET", "Wipe all saved settings & reset to defaults with one row?"):
-                        myPrint("DB", ".. RESET: Wiping all saved settings and resetting to defaults with one row")
+                    if myPopupAskQuestion(NAB.theFrame, "RESET", "Do you really want to wipe all your saved settings & RESET to defaults (one row / no config)?"):
+                        myPrint("DB", ".. RESET: Wiping all saved settings and resetting to defaults (one row / no config)")
                         NAB.resetParameters()
                         NAB.configSaved = False
                         NAB.rebuildFrameComponents(selectRowIndex=0)
@@ -11304,11 +11333,11 @@ Visit: %s (Author's site)
                     NAB.rebuildJList()
 
                 # ##########################################################################################################
-                if event.getActionCommand().lower() == "about":
+                if event.getActionCommand() == "about":
                     AboutThisScript(NAB.theFrame).go()
 
                 # ##########################################################################################################
-                if event.getActionCommand().lower() == "help":
+                if event.getActionCommand() == "help":
                     QuickJFrame("%s - Help" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME), NAB.helpFile, lWrapText=False, lAutoSize=False).show_the_frame()
 
                 # ######################################################################################################
@@ -11982,17 +12011,27 @@ Visit: %s (Author's site)
             menuItemPS.addActionListener(NAB.saveActionListener)
             menuO.add(menuItemPS)
 
+            menuItemResetDefaults = MyJMenuItem("Reset Defaults")
+            menuItemResetDefaults.setActionCommand("reset_defaults")
+            menuItemResetDefaults.addActionListener(NAB.saveActionListener)
+            menuItemResetDefaults.setToolTipText("Creates a backup of your current config")
+            menuItemResetDefaults.setToolTipText("RESET: Wipes out all saved settings, and RESETS to defaults (one row / no config) >> (no save, so can undo)")
+            menuItemResetDefaults.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, (shortcut | Event.SHIFT_MASK)))
+            menuO.add(menuItemResetDefaults)
+
             menuItemBackup = MyJMenuItem("Backup Config")
+            menuItemBackup.setActionCommand("backup_config")
             menuItemBackup.setMnemonic(KeyEvent.VK_B)
             menuItemBackup.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, backup=True))
-            menuItemBackup.setToolTipText("Creates a backup of your current config")
+            menuItemBackup.setToolTipText("Creates a backup of your current config (use CMD-SHIFT-B/R to Backup/Restore)")
             menuItemBackup.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, (shortcut | Event.SHIFT_MASK)))
             menuO.add(menuItemBackup)
 
             menuItemRestore = MyJMenuItem("Restore Config")
+            menuItemRestore.setActionCommand("restore_config")
             menuItemRestore.setMnemonic(KeyEvent.VK_R)
             menuItemRestore.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, restore=True))
-            menuItemRestore.setToolTipText("Allows you to restore a config file")
+            menuItemRestore.setToolTipText("Allows you to restore a previous backup config file (use CMD-SHIFT-B/R to Backup/Restore)")
             menuItemRestore.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, (shortcut | Event.SHIFT_MASK)))
             menuO.add(menuItemRestore)
 
@@ -12076,6 +12115,7 @@ Visit: %s (Author's site)
             menuA.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
             menuItemA = MyJMenuItem("About")
+            menuItemA.setActionCommand("about")
             menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setToolTipText("About...")
             menuItemA.addActionListener(NAB.saveActionListener)
@@ -12083,6 +12123,7 @@ Visit: %s (Author's site)
             menuA.add(menuItemA)
 
             menuItemH = MyJMenuItem("Help / Information Guide")
+            menuItemH.setActionCommand("help")
             menuItemH.setToolTipText("Shows the readme.txt file with useful help / information.")
             menuItemH.setMnemonic(KeyEvent.VK_I)
             menuItemH.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I, (shortcut)))
@@ -12494,23 +12535,24 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.cancelChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
                     onCol += 1
 
-                    resetDefaults_button = MyJButton("Reset Defaults")
-                    resetDefaults_button.setActionCommand("reset_defaults")
-                    resetDefaults_button.putClientProperty("%s.id" %(NAB.myModuleID), "resetDefaults_button")
-                    resetDefaults_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    resetDefaults_button.setToolTipText("Wipes all saved settings, resets to defaults with 1 row (does not save)")
-                    resetDefaults_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    resetDefaults_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(resetDefaults_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
-                    onCol += 1
-
                     backup_button = MyJButton("Backup Config")
+                    backup_button.setActionCommand("backup_config")
                     backup_button.putClientProperty("%s.id" %(NAB.myModuleID), "backup_button")
                     backup_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    backup_button.setToolTipText("Creates a backup of your current config (use CMD-SHIFT-R to restore)")
+                    backup_button.setToolTipText("Creates a backup of your current config (use CMD-SHIFT-B/R to Backup/Restore)")
                     backup_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     backup_button.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, backup=True))
                     controlPnl.add(backup_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
+                    onCol += 1
+
+                    restore_button = MyJButton("Restore Config")
+                    restore_button.setActionCommand("restore_config")
+                    restore_button.putClientProperty("%s.id" %(NAB.myModuleID), "restore_button")
+                    restore_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    restore_button.setToolTipText("Allows you to restore a previous backup config file (use CMD-SHIFT-B/R to Backup/Restore)")
+                    restore_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    restore_button.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, restore=True))
+                    controlPnl.add(restore_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
                     onCol += 1
 
                     onRow += 1
@@ -13217,7 +13259,7 @@ Visit: %s (Author's site)
                     NAB.saveSettings_JBTN.setActionCommand("save_all_settings")
                     NAB.saveSettings_JBTN.putClientProperty("%s.id" %(NAB.myModuleID), "saveSettings_JBTN")
                     NAB.saveSettings_JBTN.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.saveSettings_JBTN.setToolTipText("Saves all the changes made to settings (NOTE: This also stores the current account seelction list first)")
+                    NAB.saveSettings_JBTN.setToolTipText("Saves all changes made to settings (NOTE: This also stores the current account selection list too)")
                     NAB.saveSettings_JBTN.addActionListener(NAB.saveActionListener)
                     jlistButton_pnl.add(NAB.saveSettings_JBTN, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
                     onJListBtnCol += 1
@@ -14546,7 +14588,7 @@ Visit: %s (Author's site)
                                 NAB.warningMessagesTable.append(warnTxt)
 
                             if ((NAB.savedUseCostBasisTable[iAccountLoop][GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_NONE
-                                    and (iCountSecurities or (NAB.savedUseCostBasisTable[iAccountLoop][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] and iCountInvestAccounts)))):
+                                    and (iCountSecurities or (isUseCostBasisCashSelected(iAccountLoop) and iCountInvestAccounts)))):
                                 if (iCountIncomeExpense or iCountNonInvestAccounts):
                                     lWarningDetected = True
                                     iWarningType = (6 if (iWarningType is None or iWarningType == 6) else 0)
@@ -14982,7 +15024,7 @@ Visit: %s (Author's site)
                                     saveUndoPnl = JPanel(GridBagLayout())
                                     saveUndoPnl.add(saveLabel, GridC.getc().xy(0, self.widgetOnPnlRow).filly().pady(2))
                                     saveUndoPnl.add(undoLabel, GridC.getc().xy(1, self.widgetOnPnlRow).filly().pady(2))
-                                    _view.listPanel.add(saveUndoPnl, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).filly().pady(2).east())
+                                    _view.listPanel.add(saveUndoPnl, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).filly().pady(2))
                                     self.widgetOnPnlRow += 1
 
                                     thisViewsBlinkers.append(saveUndoPnl)
