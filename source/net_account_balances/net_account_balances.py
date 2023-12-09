@@ -5609,6 +5609,7 @@ Visit: %s (Author's site)
                               ["asof_end_this_quarter",         "asof end this quarter"],
                               ["asof_end_this_month",           "asof end this month"],
                               ["asof_end_this_week",            "asof end this week"],
+                              ["asof_end_next_month",           "asof end next month"],
                               ["asof_end_last_year",            "asof end last year"],
                               ["asof_end_last_fiscal_year",     "asof end last Fiscal Year"],
                               ["asof_end_last_quarter",         "asof end last quarter"],
@@ -5645,6 +5646,7 @@ Visit: %s (Author's site)
                 elif forOptionKey == "asof_end_this_quarter":        return Util.lastDayInQuarter(todayInt)
                 elif forOptionKey == "asof_end_this_year":           return DateUtil.lastDayInYear(todayInt)
                 elif forOptionKey == "asof_end_this_month":          return Util.lastDayInMonth(todayInt)
+                elif forOptionKey == "asof_end_next_month":          return Util.lastDayInMonth(Util.incrementDate(todayInt, 0, 1, 0))
                 elif forOptionKey == "asof_end_this_week":           return Util.lastDayInWeek(todayInt)
                 elif forOptionKey == "asof_end_last_year":           return Util.lastDayInYear(Util.decrementYear(todayInt))
                 elif forOptionKey == "asof_end_last_quarter":        return DateUtil.lastDayInQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0))
@@ -5863,7 +5865,8 @@ Visit: %s (Author's site)
 
         def itemStateChanged(self, evt):
             src = evt.getSource()
-            if src is self.getChoiceCombo(): self.asOfSelected()
+            if (evt.getStateChange() == ItemEvent.SELECTED and src is self.getChoiceCombo()):
+                self.asOfSelected()
 
         def propertyChange(self, event):
             # myPrint("B", "@@ AsOfDateChooser:%s:propertyChange('%s') - .getSelectedOptionKey() reports: '%s'"
@@ -12016,7 +12019,6 @@ Visit: %s (Author's site)
             menuItemResetDefaults.addActionListener(NAB.saveActionListener)
             menuItemResetDefaults.setToolTipText("Creates a backup of your current config")
             menuItemResetDefaults.setToolTipText("RESET: Wipes out all saved settings, and RESETS to defaults (one row / no config) >> (no save, so can undo)")
-            menuItemResetDefaults.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, (shortcut | Event.SHIFT_MASK)))
             menuO.add(menuItemResetDefaults)
 
             menuItemBackup = MyJMenuItem("Backup Config")
@@ -12693,7 +12695,7 @@ Visit: %s (Author's site)
                     onCol = 0
                     topInset = 2
 
-                    includeRemindersLabel = MyJLabel("Include Reminders:")
+                    includeRemindersLabel = MyJLabel("Include (non-recorded) Reminders:")
                     includeRemindersLabel.putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersLabel")
                     includeRemindersLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(includeRemindersLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
@@ -12708,7 +12710,7 @@ Visit: %s (Author's site)
                     NAB.includeRemindersChooser_CB.putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersChooser_CB")
                     NAB.includeRemindersChooser_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.includeRemindersChooser_CB.setName("includeRemindersChooser_CB")
-                    NAB.includeRemindersChooser_CB.setToolTipText("Select to include Reminders")
+                    NAB.includeRemindersChooser_CB.setToolTipText("Select to include non-recorded Reminders (once they commit/record, they cannot be included)")
                     NAB.includeRemindersChooser_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.includeRemindersChooser_CB.addActionListener(NAB.saveActionListener)
                     includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_CB, GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).topInset(topInset))
