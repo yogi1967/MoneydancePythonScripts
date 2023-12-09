@@ -7428,6 +7428,7 @@ Visit: %s (Author's site)
 
                                             def __init__(self, lTextNumber=False, lPercent=False):
                                                 self.padding = BorderFactory.createEmptyBorder(0, 7, 0, 0)
+                                                self.paddingAccts = BorderFactory.createEmptyBorder(0, 20, 0, 0)
                                                 self.lTextNumber = lTextNumber
                                                 self.lPercent = lPercent
                                                 super(self.__class__, self).__init__()                                  # noqa
@@ -7445,7 +7446,7 @@ Visit: %s (Author's site)
 
                                                 # get the default first!
                                                 label = super(self.__class__, self).getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
-                                                label.setBorder(BorderFactory.createCompoundBorder(label.getBorder(), self.padding))
+                                                label.setBorder(BorderFactory.createCompoundBorder(label.getBorder(), self.paddingAccts if column == 10 else self.padding))
 
                                                 if (not self.lPercent and not self.lTextNumber) or isSelected: return label
 
@@ -7888,6 +7889,7 @@ Visit: %s (Author's site)
                                         def __init__(self):
                                             # super(DefaultTableHeaderCellRenderer, self).__init__()
                                             self.padding = BorderFactory.createEmptyBorder(0, 7, 0, 0)
+                                            self.paddingAccts = BorderFactory.createEmptyBorder(0, 20, 0, 0)
                                             self.setHorizontalAlignment(JLabel.CENTER)  # This one changes the text alignment
                                             self.setHorizontalTextPosition(
                                                 JLabel.RIGHT)  # This positions the  text to the  left/right of  the sort icon
@@ -7910,7 +7912,7 @@ Visit: %s (Author's site)
 
                                             self.setIcon(self._getIcon(table, column))
                                             # self.setBorder(UIManager.getBorder("TableHeader.cellBorder"))
-                                            self.setBorder(BorderFactory.createCompoundBorder(UIManager.getBorder("TableHeader.cellBorder"), self.padding))
+                                            self.setBorder(BorderFactory.createCompoundBorder(UIManager.getBorder("TableHeader.cellBorder"), self.paddingAccts if column == 10 else self.padding))
 
                                             self.setForeground(MD_REF.getUI().getColors().headerFG)
                                             self.setBackground(MD_REF.getUI().getColors().headerBG1)
