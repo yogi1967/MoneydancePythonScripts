@@ -142,6 +142,7 @@
 # build: 1040 - Fix file chooser on Windows - could not select Folder...
 # build: 1041 - Fix .getCostBasisAsOf() and the call to cope with builds prior to 5008 (CostCalculation not accessible).
 #               NOTE: On builds prior to 5008, zero costbasis will be returned.
+#               Tweak cell renderer(s) in SG2020 and Extract Reminders to fix cell padding and highlighted colors...
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -504,11 +505,11 @@ else:
 
     from java.awt.event import MouseAdapter
     from java.util import Comparator
-    from javax.swing import SortOrder, ListSelectionModel, JPopupMenu
+    from javax.swing import SortOrder, ListSelectionModel, JPopupMenu, BorderFactory
     from javax.swing.table import DefaultTableCellRenderer, DefaultTableModel, TableRowSorter
     from javax.swing.border import CompoundBorder, MatteBorder
     from javax.swing.event import TableColumnModelListener
-    from java.lang import Number
+    from java.lang import Number, Object
     from com.moneydance.apps.md.controller import AppEventListener
     from com.infinitekind.util import StringUtils
     # exec("from java.awt.print import Book")     # IntelliJ doesnt like the use of 'print' (as it's a keyword). Messy, but hey!
@@ -7287,6 +7288,7 @@ Visit: %s (Author's site)
 
                                             def __init__(self, tableModel, lSortTheTable, lInTheFooter):
                                                 super(JTable, self).__init__(tableModel)
+                                                # self.setIntercellSpacing(Dimension(8, 1))  # The problem with this is that it creates colour gaps between cells!
                                                 self.lInTheFooter = lInTheFooter
                                                 if lSortTheTable: self.fixTheRowSorter()
 
@@ -7299,22 +7301,21 @@ Visit: %s (Author's site)
                                                 renderer = None
 
                                                 if GlobalVars.stockGlanceInstance.columnTypes[column] == "Text":
-                                                    renderer = DefaultTableCellRenderer()
+                                                    renderer = GlobalVars.stockGlanceInstance.MyClunkyRenderer()
                                                     renderer.setHorizontalAlignment(JLabel.LEFT)
                                                 elif GlobalVars.stockGlanceInstance.columnTypes[column] == "TextNumber":
-                                                    renderer = GlobalVars.stockGlanceInstance.MyGainsRenderer()
+                                                    renderer = GlobalVars.stockGlanceInstance.MyClunkyRenderer(lTextNumber=True)
                                                     renderer.setHorizontalAlignment(JLabel.RIGHT)
                                                 elif GlobalVars.stockGlanceInstance.columnTypes[column] == "%":
-                                                    renderer = GlobalVars.stockGlanceInstance.MyPercentRenderer()
+                                                    renderer = GlobalVars.stockGlanceInstance.MyClunkyRenderer(lPercent=True)
                                                     renderer.setHorizontalAlignment(JLabel.RIGHT)
                                                 elif GlobalVars.stockGlanceInstance.columnTypes[column] == "TextC":
-                                                    renderer = DefaultTableCellRenderer()
+                                                    renderer = GlobalVars.stockGlanceInstance.MyClunkyRenderer()
                                                     renderer.setHorizontalAlignment(JLabel.CENTER)
                                                 else:
-                                                    renderer = DefaultTableCellRenderer()
+                                                    renderer = GlobalVars.stockGlanceInstance.MyClunkyRenderer()
 
                                                 renderer.setVerticalAlignment(JLabel.CENTER)
-
                                                 return renderer
 
                                             class MyTextNumberComparator(Comparator):
@@ -7396,70 +7397,89 @@ Visit: %s (Author's site)
                                                 self.getRowSorter().toggleSortOrder(1)
 
                                             def prepareRenderer(self, renderer, row, column):                           # noqa
-                                                # make Banded rows
+                                                # make Banded background rows
                                                 component = super(GlobalVars.stockGlanceInstance.MyJTable, self).prepareRenderer(renderer, row, column)    # noqa
-                                                if not self.isRowSelected(row):
+                                                isSelected = self.isRowSelected(row)
+                                                if not isSelected:
+                                                    flip = (row % 2 == 0)
+                                                    colors = MD_REF.getUI().getColors()
+
                                                     if (self.lInTheFooter):
-                                                        component.setBackground(MD_REF.getUI().getColors().registerBG1 if row % 2 == 0 else MD_REF.getUI().getColors().registerBG2)
+                                                        component.setBackground(colors.registerBG1 if (flip) else colors.registerBG2)
                                                         if "total" in str(self.getValueAt(row, 0)).lower():
-                                                            component.setForeground(MD_REF.getUI().getColors().headerFG)
-                                                            component.setBackground(MD_REF.getUI().getColors().headerBG1)
+                                                            component.setForeground(colors.headerFG)
+                                                            component.setBackground(colors.headerBG1)
                                                             component.setFont(component.getFont().deriveFont(Font.BOLD))
+
                                                     elif (not GlobalVars.saved_lSplitSecuritiesByAccount_SG2020):
-                                                        component.setBackground(MD_REF.getUI().getColors().registerBG1 if row % 2 == 0 else MD_REF.getUI().getColors().registerBG2)
+                                                        bg = colors.registerBG1 if (flip) else colors.registerBG2
+                                                        component.setBackground(bg)
+                                                        # fg = colors.registerSelectedFG if isSelected else colors.defaultTextForeground;
+                                                        # component.setForeground(fg)
+
                                                     elif str(self.getValueAt(row, 0)).lower()[:5] == "total":
-                                                        component.setBackground(MD_REF.getUI().getColors().registerBG1)
+                                                        component.setBackground(colors.registerBG1)
+
                                                 return component
 
                                         # This copies the standard class and just changes the colour to RED if it detects a negative - leaves field intact
                                         # noinspection PyArgumentList
-                                        class MyGainsRenderer(DefaultTableCellRenderer):
+                                        class MyClunkyRenderer(DefaultTableCellRenderer):
 
-                                            def __init__(self):
-                                                super(DefaultTableCellRenderer, self).__init__()
+                                            def __init__(self, lTextNumber=False, lPercent=False):
+                                                self.padding = BorderFactory.createEmptyBorder(0, 7, 0, 0)
+                                                self.lTextNumber = lTextNumber
+                                                self.lPercent = lPercent
+                                                super(self.__class__, self).__init__()                                  # noqa
 
                                             def setValue(self, value):
-                                                validString = "-0123456789" + GlobalVars.decimalCharSep
-
-                                                self.setText(value)
-
-                                                if (value is None
-                                                        or value.strip() == ""
-                                                        or "==" in value
-                                                        or "--" in value):
+                                                if not self.lPercent:
+                                                    super(self.__class__, self).setValue(value)
                                                     return
 
-                                                # strip non numerics from string so can convert back to float - yes, a bit of a reverse hack
-                                                conv_string1 = ""
-                                                for char in value:
-                                                    if char in validString:
-                                                        conv_string1 = conv_string1 + char
-                                                try:
-                                                    str1 = float(conv_string1)
-                                                    if float(str1) < 0.0:
-                                                        self.setForeground(MD_REF.getUI().getColors().budgetAlertColor)
-                                                    else:
-                                                        self.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
-                                                except:
-                                                    # No real harm done; so move on.... (was failing on 'Fr. 305.2' - double point in text)
-                                                    self.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
-
-                                        # This copies the standard class and just changes the colour to RED if it detects a negative - and formats as %
-                                        # noinspection PyArgumentList
-                                        class MyPercentRenderer(DefaultTableCellRenderer):
-
-                                            def __init__(self):
-                                                super(DefaultTableCellRenderer, self).__init__()
-
-                                            def setValue(self, value):
                                                 if value is None: return
-
                                                 self.setText("{:.1%}".format(value))
 
-                                                if value < 0.0:
-                                                    self.setForeground(MD_REF.getUI().getColors().budgetAlertColor)
+                                            def getTableCellRendererComponent(self, table, value, isSelected, hasFocus, row, column):
+                                                # type: (JTable, Object, bool, bool, int, int) -> JLabel
+
+                                                # get the default first!
+                                                label = super(self.__class__, self).getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+                                                label.setBorder(BorderFactory.createCompoundBorder(label.getBorder(), self.padding))
+
+                                                if (not self.lPercent and not self.lTextNumber) or isSelected: return label
+
+                                                showNegColor = False
+                                                if self.lPercent:
+                                                    if value < 0.0:
+                                                        showNegColor = True
                                                 else:
-                                                    self.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
+                                                    # Yup - this is 'clunky' not how I would do it now!!
+                                                    validString = "-0123456789" + GlobalVars.decimalCharSep
+
+                                                    if (value is None
+                                                            or value.strip() == ""
+                                                            or "==" in value
+                                                            or "--" in value):
+                                                        return label
+
+                                                    # strip non numerics from string so can convert back to float - yes, a bit of a reverse hack
+                                                    conv_string1 = ""
+                                                    for char in value:
+                                                        if char in validString:
+                                                            conv_string1 = conv_string1 + char
+                                                    try:
+                                                        flt = float(conv_string1)
+                                                        if flt < 0.0: showNegColor = True
+                                                    except:
+                                                        # No real harm done; so move on.... (was failing on 'Fr. 305.2' - double point in text)
+                                                        pass
+
+                                                if showNegColor:
+                                                    label.setForeground(MD_REF.getUI().getColors().budgetAlertColor)
+                                                else:
+                                                    label.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
+                                                return label
 
                                         # Synchronises column widths of both JTables
                                         class ColumnChangeListener(TableColumnModelListener):
@@ -7865,41 +7885,14 @@ Visit: %s (Author's site)
 
                                     class DefaultTableHeaderCellRenderer(DefaultTableCellRenderer):
 
-                                        # /**
-                                        # * Constructs a <code>DefaultTableHeaderCellRenderer</code>.
-                                        # * <P>
-                                        # * The horizontal alignment and text position are set as appropriate to a
-                                        # * table header cell, and the opaque property is set to false.
-                                        # */
-
                                         def __init__(self):
                                             # super(DefaultTableHeaderCellRenderer, self).__init__()
+                                            self.padding = BorderFactory.createEmptyBorder(0, 7, 0, 0)
                                             self.setHorizontalAlignment(JLabel.CENTER)  # This one changes the text alignment
                                             self.setHorizontalTextPosition(
                                                 JLabel.RIGHT)  # This positions the  text to the  left/right of  the sort icon
                                             self.setVerticalAlignment(JLabel.BOTTOM)
                                             self.setOpaque(True)  # if this is false then it hides the background colour
-
-                                        # enddef
-
-                                        # /**
-                                        # * returns the default table header cell renderer.
-                                        # * <P>
-                                        # * If the column is sorted, the appropriate icon is retrieved from the
-                                        # * current Look and Feel, and a border appropriate to a table header cell
-                                        # * is applied.
-                                        # * <P>
-                                        # * Subclasses may override this method to provide custom content or
-                                        # * formatting.
-                                        # *
-                                        # * @param table the <code>JTable</code>.
-                                        # * @param value the value to assign to the header cell
-                                        # * @param isSelected This parameter is ignored.
-                                        # * @param hasFocus This parameter is ignored.
-                                        # * @param row This parameter is ignored.
-                                        # * @param column the column of the header cell to render
-                                        # * @return the default table header cell renderer
-                                        # */
 
                                         # noinspection PyUnusedLocal
                                         def getTableCellRendererComponent(self, table, value, isSelected, hasFocus, row, column):   # noqa
@@ -7916,7 +7909,8 @@ Visit: %s (Author's site)
                                                 self.setHorizontalTextPosition(JLabel.LEFT)
 
                                             self.setIcon(self._getIcon(table, column))
-                                            self.setBorder(UIManager.getBorder("TableHeader.cellBorder"))
+                                            # self.setBorder(UIManager.getBorder("TableHeader.cellBorder"))
+                                            self.setBorder(BorderFactory.createCompoundBorder(UIManager.getBorder("TableHeader.cellBorder"), self.padding))
 
                                             self.setForeground(MD_REF.getUI().getColors().headerFG)
                                             self.setBackground(MD_REF.getUI().getColors().headerBG1)
@@ -8571,40 +8565,13 @@ Visit: %s (Author's site)
 
                                     class DefaultTableHeaderCellRenderer(DefaultTableCellRenderer):
 
-                                        # /**
-                                        # * Constructs a <code>DefaultTableHeaderCellRenderer</code>.
-                                        # * <P>
-                                        # * The horizontal alignment and text position are set as appropriate to a
-                                        # * table header cell, and the opaque property is set to false.
-                                        # */
-
                                         def __init__(self):
                                             # super(DefaultTableHeaderCellRenderer, self).__init__()
+                                            self.padding = BorderFactory.createEmptyBorder(0, 7, 0, 0)
                                             self.setHorizontalAlignment(JLabel.CENTER)  # This one changes the text alignment
                                             self.setHorizontalTextPosition(JLabel.RIGHT)  # This positions the  text to the  left/right of  the sort icon
                                             self.setVerticalAlignment(JLabel.BOTTOM)
                                             self.setOpaque(True)  # if this is false then it hides the background colour
-
-                                        # enddef
-
-                                        # /**
-                                        # * returns the default table header cell renderer.
-                                        # * <P>
-                                        # * If the column is sorted, the appropriate icon is retrieved from the
-                                        # * current Look and Feel, and a border appropriate to a table header cell
-                                        # * is applied.
-                                        # * <P>
-                                        # * Subclasses may overide this method to provide custom content or
-                                        # * formatting.
-                                        # *
-                                        # * @param table the <code>JTable</code>.
-                                        # * @param value the value to assign to the header cell
-                                        # * @param isSelected This parameter is ignored.
-                                        # * @param hasFocus This parameter is ignored.
-                                        # * @param row This parameter is ignored.
-                                        # * @param column the column of the header cell to render
-                                        # * @return the default table header cell renderer
-                                        # */
 
                                         def getTableCellRendererComponent(self, table, value, isSelected, hasFocus, row, column):	# noqa
                                             # noinspection PyUnresolvedReferences
@@ -8621,7 +8588,8 @@ Visit: %s (Author's site)
                                                 self.setHorizontalTextPosition(JLabel.LEFT)
 
                                             self.setIcon(self._getIcon(table, column))
-                                            self.setBorder(UIManager.getBorder("TableHeader.cellBorder"))
+                                            # self.setBorder(UIManager.getBorder("TableHeader.cellBorder"))
+                                            self.setBorder(BorderFactory.createCompoundBorder(UIManager.getBorder("TableHeader.cellBorder"), self.padding))
 
                                             self.setForeground(MD_REF.getUI().getColors().headerFG)
                                             self.setBackground(MD_REF.getUI().getColors().headerBG1)
@@ -8630,16 +8598,6 @@ Visit: %s (Author's site)
 
                                             return self
 
-                                        # enddef
-
-                                        # /**
-                                        # * Overloaded to return an icon suitable to the primary sorted column, or null if
-                                        # * the column is not the primary sort key.
-                                        # *
-                                        # * @param table the <code>JTable</code>.
-                                        # * @param column the column index.
-                                        # * @return the sort icon, or null if the column is unsorted.
-                                        # */
                                         def _getIcon(self, table, column):												# noqa
                                             sortKey = self.getSortKey(table, column)
                                             if (sortKey is not None and table.convertColumnIndexToView(sortKey.getColumn()) == column):
@@ -8649,17 +8607,6 @@ Visit: %s (Author's site)
                                                 elif x == SortOrder.UNSORTED: return UIManager.getIcon("Table.naturalSortIcon")
                                             return None
 
-                                        # enddef
-
-                                        # /**
-                                        # * returns the current sort key, or null if the column is unsorted.
-                                        # *
-                                        # * @param table the table
-                                        # * @param column the column index
-                                        # * @return the SortKey, or null if the column is unsorted
-                                        # */
-                                        # noinspection PyMethodMayBeStatic
-                                        # noinspection PyUnusedLocal
                                         def getSortKey(self, table, column):											# noqa
                                             rowSorter = table.getRowSorter()
                                             if (rowSorter is None): return None
@@ -8830,11 +8777,11 @@ Visit: %s (Author's site)
                                         # noinspection PyMethodMayBeStatic
                                         def getCellRenderer(self, row, column):											# noqa
                                             if column == 0:
-                                                renderer = MyPlainNumberRenderer()
+                                                renderer = MyClunkyRenderer(lPlainNumber=True)
                                             elif GlobalVars.headerFormats_ERTC[column][0] == Number:
-                                                renderer = MyNumberRenderer()
+                                                renderer = MyClunkyRenderer(lNumber=True)
                                             else:
-                                                renderer = DefaultTableCellRenderer()
+                                                renderer = MyClunkyRenderer()
 
                                             renderer.setHorizontalAlignment(GlobalVars.headerFormats_ERTC[column][1])
 
@@ -8926,46 +8873,66 @@ Visit: %s (Author's site)
 
                                         # make Banded rows
                                         def prepareRenderer(self, renderer, row, column):  								# noqa
-
                                             # noinspection PyUnresolvedReferences
                                             component = super(MyJTable, self).prepareRenderer(renderer, row, column)
                                             if not self.isRowSelected(row):
                                                 component.setBackground(MD_REF.getUI().getColors().registerBG1 if row % 2 == 0 else MD_REF.getUI().getColors().registerBG2)
-
                                             return component
 
-                                    # This copies the standard class and just changes the colour to RED if it detects a negative - leaves field intact
-                                    # noinspection PyArgumentList
-                                    class MyNumberRenderer(DefaultTableCellRenderer):
+                                    class MyClunkyRenderer(DefaultTableCellRenderer):
 
-                                        def __init__(self):
-                                            super(DefaultTableCellRenderer, self).__init__()
+                                        def __init__(self, lPlainNumber=False, lNumber=False):
+                                            self.padding = BorderFactory.createEmptyBorder(0, 10, 0, 0)
+                                            self.lPlainNumber = lPlainNumber
+                                            self.lNumber = lNumber
+                                            super(self.__class__, self).__init__()                                      # noqa
 
                                         def setValue(self, value):
-                                            if isinstance(value, (float,int)):
-                                                if value < 0.0:
-                                                    self.setForeground(MD_REF.getUI().getColors().budgetAlertColor)
+                                            if value is None: return
+
+                                            if self.lNumber:
+                                                if isinstance(value, (float, int)):
+                                                    base = MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
+                                                    self.setText(base.formatFancy(int(value * 100), GlobalVars.decimalCharSep, True))
                                                 else:
-                                                    self.setForeground(MD_REF.getUI().getColors().budgetHealthyColor)
-                                                base = MD_REF.getCurrentAccountBook().getCurrencies().getBaseType()
-                                                self.setText(base.formatFancy(int(value*100), GlobalVars.decimalCharSep, True))
-                                            else:
+                                                    if isinstance(value, StoreDateInt):
+                                                        self.setText(value.getDateIntFormatted())
+                                                    else:
+                                                        self.setText(str(value))
+                                                return
+
+                                            elif self.lPlainNumber:
                                                 if isinstance(value, StoreDateInt):
                                                     self.setText(value.getDateIntFormatted())
                                                 else:
                                                     self.setText(str(value))
+                                                return
 
-                                            return
+                                            super(self.__class__, self).setValue(value)
 
-                                    class MyPlainNumberRenderer(DefaultTableCellRenderer):
-                                        def __init__(self):
-                                            super(DefaultTableCellRenderer, self).__init__()                            # noqa
+                                        def getTableCellRendererComponent(self, table, value, isSelected, hasFocus, row, column):
+                                            # type: (JTable, Object, bool, bool, int, int) -> JLabel
 
-                                        def setValue(self, value):
-                                            if isinstance(value, StoreDateInt):
-                                                self.setText(value.getDateIntFormatted())
+                                            # get the default first!
+                                            label = super(self.__class__, self).getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+                                            label.setBorder(BorderFactory.createCompoundBorder(label.getBorder(), self.padding))
+
+                                            if (not self.lPlainNumber and not self.lNumber) or isSelected: return label
+
+                                            showNegColor = False
+                                            if self.lNumber:
+                                                if isinstance(value, (float, int)):
+                                                    if value < 0.0:
+                                                        showNegColor = True
+
+                                            if showNegColor:
+                                                label.setForeground(MD_REF.getUI().getColors().budgetAlertColor)
                                             else:
-                                                self.setText(str(value))
+                                                if self.lNumber:
+                                                    # label.setForeground(MD_REF.getUI().getColors().defaultTextForeground)
+                                                    label.setForeground(MD_REF.getUI().getColors().budgetHealthyColor)
+
+                                            return label
 
                                     def ReminderTable(tabledata, ind):
                                         GlobalVars.reminderTableCount_ERTC += 1
