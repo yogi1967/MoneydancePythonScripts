@@ -5660,10 +5660,15 @@ Visit: %s (Author's site)
                 if (SwingUtilities.isLeftMouseButton(event) and event.getClickCount() > 1):
                     self.callingClass.asOfChoice_COMBO.setSelectedItem(self.callingClass.customOption)
 
-        def __init__(self, mdGUI, defaultKey):
-            # type: (MoneydanceGUI, str) -> None
+        def __init__(self, mdGUI, defaultKey, excludeKeys=None):
+            # type: (MoneydanceGUI, str, list[str]) -> None
+            if isinstance(excludeKeys, str): excludeKeys = [excludeKeys]
+            if excludeKeys is None or not isinstance(excludeKeys, list): excludeKeys = []
+            for checkKey in [self.KEY_CUSTOM_ASOF, self.KEY_ASOF_END_FUTURE]:
+                if checkKey in excludeKeys: excludeKeys.remove(checkKey)
             self.mdGUI = mdGUI
             self.customOption = None
+            self.excludeKeys = excludeKeys
             self.name = "AsOfDateChooser"
             self.defaultKey = defaultKey
             self.allDatesOption = None
@@ -5693,7 +5698,7 @@ Visit: %s (Author's site)
         def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
 
         def createAsOfDateOptions(self):
-            choices = [AsOfDateChooser.AsOfDateChoice(choice[0], choice[1]) for choice in self.ASOF_DATE_OPTIONS]
+            choices = [AsOfDateChooser.AsOfDateChoice(choice[0], choice[1]) for choice in self.ASOF_DATE_OPTIONS if choice[0] not in self.excludeKeys]
             for choice in choices:
                 if choice.getKey() == self.KEY_CUSTOM_ASOF: self.customOption = choice
                 if choice.getKey() == self.KEY_ASOF_END_FUTURE: self.allDatesOption = choice
