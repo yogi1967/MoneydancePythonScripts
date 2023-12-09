@@ -5661,7 +5661,7 @@ Visit: %s (Author's site)
                     self.callingClass.asOfChoice_COMBO.setSelectedItem(self.callingClass.customOption)
 
         def __init__(self, mdGUI, defaultKey, excludeKeys=None):
-            # type: (MoneydanceGUI, str, list[str]) -> None
+            # type: (MoneydanceGUI, str, [str]) -> None
             if isinstance(excludeKeys, str): excludeKeys = [excludeKeys]
             if excludeKeys is None or not isinstance(excludeKeys, list): excludeKeys = []
             for checkKey in [self.KEY_CUSTOM_ASOF, self.KEY_ASOF_END_FUTURE]:
@@ -9431,6 +9431,11 @@ Visit: %s (Author's site)
                 NAB.parallelBalancesWarningLabel.setIcon(None)
                 NAB.parallelBalancesWarningLabel.repaint()
 
+        def setAccountListChangedLabel(self):
+            NAB = self
+            NAB.storeAccountList_JBTN.setForeground(getColorRed() if NAB.jlst.hasListSelectionChanged() else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
+            # NAB.storeAccountList_JBTN.setText("<list changed>" if NAB.jlst.hasListSelectionChanged() else "")
+
         def setAllGUILabelsControls(self, _rowIdx):
             NAB = self
             NAB.setIncExpDateRangeLabel(_rowIdx)
@@ -9440,7 +9445,7 @@ Visit: %s (Author's site)
             NAB.setIncludeRemindersDateControls(_rowIdx)
             NAB.setAcctListKeyLabel(_rowIdx)
             NAB.setParallelBalancesWarningLabel(_rowIdx)
-            NAB.storeAccountList_JBTN.setForeground(getColorRed() if NAB.jlst.hasListSelectionChanged() else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
+            NAB.setAccountListChangedLabel()
             NAB.saveSettings_JBTN.setForeground(getColorRed() if not NAB.configSaved else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
 
         def refreshJListDisplay(self): self.jlst.repaint()
@@ -10026,7 +10031,15 @@ Visit: %s (Author's site)
 
 
         def storeCurrentJListSelected(self):
-            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+            if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            if debug: myPrint("B", "** storeCurrentJListSelected(): hasListSelectionChanged(): %s" %(self.jlst.hasListSelectionChanged()))
+            if not self.jlst.hasListSelectionChanged():
+                if debug: myPrint("B", ".... No list changes detected, so skipping store routines and just returning....")
+                return
+
+            if debug: myPrint("B", ".... storing account list changes....")
+
             del self.savedAccountListUUIDs[self.getSelectedRowIndex()][:]
             myPrint("DB", "Storing account list for HomePageView widget for row: %s into memory.." %(self.getSelectedRow()))
             for selectedAccount in self.jlst.getSelectedValuesList():
@@ -12286,7 +12299,7 @@ Visit: %s (Author's site)
                                     if not self.hasListSelectionChanged():
                                         # NAB = NetAccountBalancesExtension.getNAB()
                                         self.setListSelectionChanged(True)
-                                        NAB.storeAccountList_JBTN.setForeground(getColorRed() if NAB.jlst.hasListSelectionChanged() else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
+                                        NAB.setAccountListChangedLabel()
 
                                     for i in range(e.getFirstIndex(), e.getLastIndex() + 1):
                                         obj = dataModel.getElementAt(i)
