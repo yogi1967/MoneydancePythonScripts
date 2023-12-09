@@ -1,12 +1,12 @@
-Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated November 2023
-Credit: (dtd) Dan T Davis for his input, testing and suggestions to make a better product......
+Author: Stuart Beesley - StuWareSoftSystems (March 2021 - a lockdown project) - Last updated December 2023
+Credit: (slack: @dtd) aka Dan T Davis for his input, testing and suggestions to make a better product......
 
 Custom Balances works with 2021.1(3056) and newer.
 DISCLAIMER: THIS EXTENSION IS READONLY (IT DOES NOT CHANGE DATA) >> BUT YOU USE AT YOUR OWN RISK!
 
 DEFINITIONS:
 - CB means this extension / Custom Balances
-- All dates mentioned in this guide are in the format yyyymmdd (e.g. 15th January 2024 = 20240115)
+- Dates are typically mentioned in this guide in the format yyyymmdd (e.g. 15th January 2025 = 20250115)
 
 INSTALLATION:
 - Double-click the .mxt file (this may not work if you do not have .mxt extensions associated with Moneydance)
@@ -34,32 +34,40 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 LET'S GET STARTED:
 
 Let's start with a row that is <NOT CONFIGURED>. Give it a name - like Credit Card Debt.
-Now select all your credit cards from the picklist. Click each one. Hit Save All Settings.
+Now select all your credit cards from the account selection list. Click each one. Hit Save All Settings.
 See the result on the summary page.You did note the installation bit, right? Putting the widget in place?
-You should now have a row which says "Credit Card Debt.    $(not too much hopefully)"
+You should now have a row which says "Credit Card Debt.    £(not too much hopefully)"
 That's the basics of CB (to create custom calculations)... "Custom Balances"... But you can do so many things now!
 
 How about an account which has a minimum balance? New row - "Checking Account I keep too low" (minimum balance 100)
 Click that account to pick it, select "Hide Row" if >=X and set X to 100
 If it goes below 100, it will appear, and you can even make it blink.
 
-You can also monitor your spending. Gas spent this month? Create a row, find your gas category.
-Select "Month to date" in Inc/Exp Date Range. If you have multiple gas categories, you can select them all.
+You can also monitor your spending. E.g. Groceries spend this month? So, create a row, and find your groceries category.
+Select "Month to date" in Inc/Exp Date Range. If you have multiple groceries categories, you can select them all.
 Save and look.
 
 Now that you have an inkling of the custom balance power potential here, go explore.
 
 
-WARNINGS:
+CREATING ROWS AND SAVING:
 
-  - You can create illogical totals (e.g. by adding Securities to Income). CB tries to detect these issues.
-  - It will alert you if any are found. Help>Console Window will show you the details of any warnings
-  - A red warning icon will appear on the title bar of the widget, and in the GUI, if you have warnings.
-        - Click the warning icon to see a popup window displaying the detail(s) of all the warnings.
-        - NOTE: The symbol will not be triggered for warnings on rows where Show Warnings has been un-ticked
-                ... unless debug mode is enabled, in which case the icon will always appear.
+Select Row:     Allows you to pick the row you want to work on. (Details below)
+Search Box:     Allows you to set up what rows you see in the widget via GroupID (Details below)
+Warnings Box:   Provides warnings based on 'illogical' selections (Details below)
+Insert Row Before/Insert Row After/Delete Row/Move Row/Duplicate Row: Allows you to create rows in any order.
+Reload Settings/Backup Config/Restore Config: Allows you to restore or save your configuration.
 
-EXAMINING THE CHOICES/CONFIGURATION:
+
+CHOICES/CONFIGURATION FOR A ROW:
+
+- Row Name: Name for the row. (Details below)
+
+- Balance option: Choose from 'Balance', 'Current Balance', 'Cleared Balance'
+    - These are the same definitions used by Moneydance:
+        - Balance:             Includes all transactions - even future
+        - Current Balance:     The same as Balance but excluding future transactions
+        - Cleared Balance:     Includes all 'cleared' (i.e. reconciled) transactions - even future
 
 - AutoSum:
   - You can turn AutoSum ON/OFF: When on,  AutoSum recursively totals the selected account and all its sub-accounts
@@ -76,12 +84,74 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
   - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
 
-- Show Warnings: This enables / disables the alerts flagging whether warnings have been detected in your parameters
-                 These are primarily where you have created 'illogical' calculations - e.g. Expense: Gas plus a Security
-                 You can enable/disable warnings per row. The widget doesn't care. It will total up anything...!
+- Override Balance asof Date:  Allows you to obtain the balance asof a specified date.
+        - Includes all transactions / balances up to, and including, the selected balance asof date
+          When selected, the balance asof date options are enabled. Here you select the automatic asof end date,
+          or specify a fixed custom asof date. Auto-dates will auto-adjust every time the calculations are executed.
 
-                 NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
-                       .. The search for warnings stops after the first occurrence of each type of error it finds....
+        - Calculation methodology for Balance/Current/Cleared Balance when using asof date:
+            - Balance always uses the calculated asof-dated Balance
+            - Past asof-dated Current Balance uses the calculated asof-dated Balance
+            - Today/future asof-dated Current Balance uses the real account's Current Balance
+            - Past asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance      ** WARNING **
+            - Today/future asof-dated Cleared Balance uses the real account's Cleared Balance
+
+        The following points should be noted:
+            - Income / Expense categories:      Not affected by this option - refer separate 'I/E Date Range' section
+            - Include (non-recorded) Reminders: Not affected by this option - refer separate 'Include Reminders' section
+            - Security accounts when the 'Securities return Cost Basis / Unrealised Gains' option is selected
+                ... or Investment accounts when 'include cash' option is selected in conjunction with return cost basis
+                - refer separate 'Securities: Return Cost Basis / Unrealised Gains options' section...
+
+        - WARNING: tax dates when using 'asof' cannot be derived. The 'normal' txn date will be applied.
+
+        - WARNING: When using asof dates, consider that inactive accounts might have had balances in the past!
+                   I.E. It might be best to Include Inactive and select all accounts (including currently inactive).
+
+        - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
+
+- Include (non-recorded) Reminders: Reminders (up to the specified reminder asof date) can be included in the balances.
+
+        >> This only includes reminder occurrence(s) that have not already been committed/recorded into the register
+           ... ie. once they are recorded/committed then they are already within the actual balance for that date
+
+        - The 'balance asof date' setting has no bearing on (non-recorded) Reminders to include.
+        - Only uncommitted (ie. non-recorded) Reminders will be selected. Then...
+        - Reminder date(s) will be forward calculated up to the Reminder's asof date setting. Then...
+        - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
+
+        - NOTE: It would be unusual to find any (non-recorded) reminders with a Cleared Status - so expect ZERO.
+        - NOTE: Ignored when returning cost basis / unrealised gains
+
+        - WARNING: tax dates on (non-recorded) reminders cannot be calculated. The 'normal' date will be applied.
+        - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
+
+- Securities: Return Cost Basis / Unrealised Gains options:
+    - N/A (default):         Cost Basis is never used
+    - Rtn Cost Basis:        When selected, the cost basis (**as of the balance / asof date) for selected Security
+                             accounts will be returned (instead of the normal shareholding).
+    - Rtn Unrealised Gains:  When selected, the calculated unrealised gains (**asof the balance / asof date) for the
+                             selected Security accounts will be returned. This is calculated as value less cost basis.
+    - Include Cash Balances: When selected then cash balances on (selected) investment accounts will be included too.
+
+    >> NOTES:
+        - When selected then calculated cost basis / unrealised gains values will overwrite normal calculated balances
+          ... this is a MUTUALLY EXCLUSIVE option. When enabled, no other calculation type(s) will be included!
+          ...... (no reminders, no other non-security/investment(cash), no income / expense transactions)
+        - There can in theory be future-dated cost basis / ur-gains. Let me know how this works out for you?!
+        - Current Balance will derive the cost basis asof today.
+        - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance               ** WARNING **
+
+        - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
+
+- INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
+                      Otherwise they have entries for all dates. (Details below)
+
+- Display Currency: Allows you to display the balance in a chosen currency, or security value, or other format.
+                    Disable Currency Formatting: drops any symbol/prefix/suffix associated with the currency.
+
+
+CALCULATIONS ON CALCULATED BALANCES:
 
 - Average by options:
     - Changes the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
@@ -106,9 +176,8 @@ EXAMINING THE CHOICES/CONFIGURATION:
                            as a percentage of total networth...
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
 
-
 - Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
-... You can set X to any value (positive or negative)
+    You can set X to any value (positive or negative)
     NOTE: If you select row option 'Hide Decimal Places', AND auto-hide row when balance=X,
           AND set X to a value with no decimals, then the calculated balance will be rounded when comparing to X.
           Rounding will be towards X... This means that X=0 would include -0.99 to +0.99 (example)
@@ -119,97 +188,66 @@ EXAMINING THE CHOICES/CONFIGURATION:
                        ... This means if X=1 for example, then 0.1 thru 1.9 would show as 1 (not zero)
 
 - Row separator: You can put horizontal lines above / below rows to separate sections
+
 - Blink: Enables the blinking of the selected rows (when displayed / visible)
 
+- Show Warnings: This enables / disables the alerts flagging whether warnings have been detected in your parameters
+                 These are primarily where you have created 'illogical' calculations - e.g. Expense: Gas plus a Security
+                 You can enable/disable warnings per row. The widget doesn't care. It will total up anything...!
+
+                 NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
+                       .. The search for warnings stops after the first occurrence of each type of error it finds....
+
+
+ACCOUNT SELECTION LIST:
+
+    - You select accounts one-by-one to include in the row calculation.
+    - You can use the dropdown select box to quickly view certain accounts - e.g. "All Investment AND Security accts"
+      ... using the dropdown does not actually select any accounts. You have to click each one.
+      ... or use the following buttons
+    - 'Select All Visible'      selects all accounts in the current view filtered list, and adds the selection to the
+                                existing selection. E.g. If you view INVESTMENT, select all visible, then view SECURITY,
+                                then select all, then you will end up with all investment and all security.
+    - 'Clear Visible Selection' deselects all accounts in the currently viewable list (but does not deselect any
+                                selected accounts in non-viewable filtered list). E.g. view SECURITY,
+                                clear visible selection, then view INVESTMENT, and you will see your investment
+                                selections are still there.
+    - 'Clear Entire Selection'  deselects all accounts - whether they are in the viewable/filtered list or not.
+    - 'Undo List Changes'       undo any selection changes since your last 'Store List Changes'
+    - 'Store List Changes'      stores the current account list selection into memory (this does NOT save selections)
+
+    >> You must click 'STORE LIST CHANGES' before you click simulate or exit the config screen. If you do not do this
+       then your selection changes could be lost! However, you will be asked if you want to store the changes first.
+
+>> DON'T FORGET TO SAVE ALL SETTINGS! (for convenience, this also stores your current account selection list too) <<
+
+<<Simulate Row>> - As you make changes, the value calculation is not recalculated. Once you have your list created,
+you can click Simulate Row to provide the value you will see.
+
+
+FILTERS FOR LIST CHOICES:
 
 - Active / Inactive Accounts:
   - MD ALWAYS includes the total balance(s) of all child accounts in an account's total. Irrespective of Active/Inactive
   - Thus if you select Active only and select an account containing inactive children, it will include inactive balances
   - When using AutoSum in this situation you will get a warning on screen
   - You will also see a small (3 vertical bars) icon to the right of account totals in the list window when this occurs.
-
-
-- Inactive Securities: You can flag a security as inactive by unticking the 'Show on summary page' box on a security
+  - Inactive Securities: You can flag a security as inactive by unticking the 'Show on summary page' box on a security
                        in the MD/Tools/Securities menu. This will then treat this security in ALL investment accounts
                        as INACTIVE.
 
-** NOTE: When rows can be hidden, they may not display on the Summary screen widget. Click on the widget to config:
-         - In the row selector:
-           ... rows coloured red are currently filtered out / hidden by a groupid filter or AutoHide option
-           ... row numbers are suffixed with codes:
-               <always hide>    Always hide row option is set (red = NOT active and hidden)
-               <auto hide>      An auto hide row rule is active. (red = ACTIVE, but hidden)
-               <groupid: xxx>   A groupid value has been set on this row
-               <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
-                                NOTE: Filtered rows (red) are NOT active and hidden.
-
->> CALCULATION ORDER: The calculations are performed is this sequence:
-    - Skip any 'always hide' rows - these are never calculated / used anywhere
-    - Skip any rows filtered out by GroupID
-    - Calculate raw balances for selected rows/accounts, including recursive sub accounts for autosum rows
-    - Convert calculated balances to target currency
-    - Iterate over each row/calculation, apply any average/by calculations
-    - Iterate over each row/calculation, apply any Use Other Row (UOR) calculations.. Iterate the whole UOR chain
-    - Lastly, iterate over each row/calculation, apply any final calculation adjustment amounts specified
+- List Choices - you can filter the pick list by multiple criteria.
+	       - other filters include filtering out zero values, and by what has been selected.
 
 
-
-USING CATEGORIES:
-
-- Income / Expense Categories:
-  - You can change the date range selection from the default of "All Dates" to any of the options in the list
-  - WARNING: This switches the widget to build and maintain a 'parallel table' of balances.
-             Calculated by sweeping through all transactions and calculating balances
-             THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
-             Any row that uses NON "All Dates" will trigger this parallel balances sweep
-
-  - NOTE: You can select to use a date range at any time. BUT if you have not selected any Inc/Exp categories, then
-          the date range will later revert back automatically to 'All dates'.
-
-  - I/E Date Range options:
-    Example: Given a today's date of 4th November 2023 (20231104), the I/E Date Range filters will return the following:
-    DR_YEAR_TO_DATE                20230101 - 20231104
-    DR_FISCAL_YEAR_TO_DATE         20230406 - 20231104  (assuming a UK tax year starting 6th April 2023)
-    DR_LAST_FISCAL_QUARTER         20230706 - 20231005
-    DR_QUARTER_TO_DATE             20231001 - 20231104
-    DR_MONTH_TO_DATE               20231101 - 20231104
-    DR_THIS_YEAR                   20230101 - 20231231 **future**
-    DR_THIS_FISCAL_YEAR            20230406 - 20240405 **future**
-    DR_THIS_QUARTER                20231001 - 20231231 **future**
-    DR_THIS_MONTH                  20231101 - 20231130 **future**
-    DR_THIS_WEEK                   20231029 - 20231104
-    DR_LAST_YEAR                   20220101 - 20221231
-    DR_LAST_FISCAL_YEAR            20220406 - 20230405
-    DR_LAST_QUARTER                20230701 - 20230930
-    DR_LAST_MONTH                  20231001 - 20231031
-    DR_LAST_WEEK                   20231022 - 20231028
-    DR_LAST_12_MONTHS              20221101 - 20231031
-    DR_LAST_365_DAYS               20221105 - 20231104
-    DR_LAST_30_DAYS                20231006 - 20231104
-    DR_LAST_1_DAY                  20231103 - 20231104  (known as yesterday and today, which is actually 2 days)
-    DR_ALL_DATES                   (returns all dates)  (from 1970 thru 2100)
-
-    NOTE: The above will interact with your Balance/Current Balance/Cleared setting for that row:
-          E.G.  Current Balance will always cutoff to today's date
-                Balance will just include everything it finds within the above date ranges
-                Cleared Balance will just include all cleared items within the above date ranges
-
-    >> If you choose 'Custom Date' you can manually edit the date range. Once you have selected 'Custom Date',
-       .. if you then select one of the preconfigured date options, it simply pre-populates the start/end dates for you
-       .. this pre-selection name is irrelevant and is not saved. All that is saved is the date range you enter.
-
-    NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
-
->> DON'T FORGET TO SAVE CHANGES! <<
-
-
-OPTIONS MENU
+OPTIONS MENU:
 
   - Debug: Generates program debug messages in Help>Console Window. DO NOT LEAVE THIS PERMANENTLY ON (setting not saved)
                      NOTE: Enabling this will show [row number] against each widget row on the home screen
   - Show Print Icon: Enables/shows the print icon on the Home / Summary screen widget.. Will print the current view
                      NOTE: Even when icon not visible, clicking the white-space before the title will activate print...
   - Page Setup: Allows you to predefine certain page attributes for printing - e.g. Landscape etc...
+  - Reset Defaults: Basically allows an entire reset to initial settings (i.e. gets rid of all your data)
   - Backup Config: Creates a backup of your current config file (then opens a window showing location of backup)
   - Restore Config: Allows you to restore (or import) config file from previous back up
   - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
@@ -217,11 +255,14 @@ OPTIONS MENU
   - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
   - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
-  - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date
+  - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date.
+                   WARNING: tax dates cannot be derived when including:
+                            - reminders,  cost basis / ur-gains, or when using 'balance asof dates'.
+                            ... as such, the 'normal' transaction date will be used.
   - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
 
 
-BACKUP/RESTORE
+BACKUP/RESTORE:
 
 - When in the config GUI, the keystroke combination:
           CMD-SHIFT-B will create a backup of your config...
@@ -233,7 +274,67 @@ BACKUP/RESTORE
           CMD-SHIFT-G allows you to edit the pre-defined/used GroupID Filter(s)... Click +/- cell (on right) to add/del
 
 
-ROW NAME FORMATTING
+
+>>>>> DETAILS SECTION <<<<<
+
+SELECT ROW INFORMATION:
+
+** NOTE: When rows can be hidden, they may not display on the Summary screen widget. Click on the widget to config:
+         - In the row selector:
+           ... rows coloured red are currently filtered out / hidden by a groupid filter or AutoHide option
+           ... row numbers are suffixed with codes:
+               <always hide>    Always hide row option is set (red = NOT active and hidden)
+               <auto hide>      An auto hide row rule is active. (red = ACTIVE, but hidden)
+               <groupid: xxx>   A groupid value has been set on this row
+               <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
+                                NOTE: Filtered rows (red) are NOT active and hidden.
+
+
+SEARCH BOX AND GROUPID:
+
+Once you have a lot of rows, you may only wish to display some of them.
+GroupID allows you create groups of rows that you can separately display.
+
+- You can enter a 'GroupID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')
+   NOTE: You can also enter the ';' character to separate groups. But you cannot filter for ';' as
+         this is the separator between filter search elements...
+
+   When you enter 'Group ID' filter text (next to the row selector), then this will filter rows from
+   appearing on the Summary / Home page widget.. For example, set a row with "123" and then filter "2", then
+   only the row(s) containing "2" will appear on the widget (this would include groups with id "123")
+   NOTE: You can filter multiple 'Group IDs' by separating with ';'
+         Enter '!' (not) to make the filter include rows that do NOT have the requested filters
+         Enter '&' (and) to make the filter include rows where all the requested filters match
+                        NOTE: |(or) is default - will be the default anyway unless '!' or '&' used
+         Group ID Filters are cAsE InSeNsItIve...
+         Each filter you use will be remembered and stored for later quick selection.. The most recent will always be
+              top of the list. Click the little up/down selector on the widget title bar, or in the GUI to select one
+              Use CMD-SHIFT-G to edit the list and provide names to the filters
+              Only the most recent 20 will be saved...
+
+   WARNING: Only enter one of '!|&' characters as only one search type can be used within a single filter.
+         NOTE:    !(not) is always implicitly also &(and) - i.e. !1;2 (means not '1' and not '2')
+
+   EXAMPLES:
+          - Filter: '1'      - only include rows where the groupid includes a '1'
+          - Filter: '1;2;3'  - only include rows where the groupid includes a '1' or '2' or '3'
+          - Filter: '!1;2;3' - only include rows where the groupid does NOT include a '1' or '2' or '3'
+          - Filter: '&1;2;3' - only include rows where the groupid includes one '1' and '2' and '3'
+
+NOTE: This is free text, so the numbers are examples. A groupid of "Debt;CCList;Whatever" totally works.
+
+
+WARNINGS BOX:
+
+  - You can create (very) 'illogical' totals (e.g. by adding Securities to Income). CB tries to detect these issues.
+  - It will alert you if any are found. Help>Console Window will show you the details of any warnings
+  - A red warning icon will appear on the title bar of the widget, and in the GUI, if you have warnings.
+        - Click the warning icon to see a popup window displaying the detail(s) of the warnings.
+        - NOTE: The symbol will not be triggered for warnings on rows where Show Warnings has been un-ticked
+                ... unless debug mode is enabled, in which case the icon will always appear.
+
+
+ROW NAME FORMATTING:
 
 - ROW NAME Configuration Options:
   - You can embed the following text (lowercase) in the Row Name field to configure the row / total (value) as follows:
@@ -269,36 +370,93 @@ ROW NAME FORMATTING
    <#html><b><font color=#0000ff>Expenses </font></b>Last month <small><u><font color=#bb0000>OVERDUE</font></u></small>
 
 
-FILTERS [Using GroupID]
+USING CATEGORIES (DATE RANGE)
 
-- You can enter a 'GroupID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')
-   NOTE: You can also enter the ';' character to separate groups. But you cannot filter for ';' as
-         this is the separator between filter search elements...
+- Income / Expense Categories:
+  - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-   When you enter 'Group ID' filter text (next to the row selector), then this will filter rows from
-   appearing on the Summary / Home page widget.. For example, set a row with "123" and then filter "2", then
-   only the row(s) containing "2" will appear on the widget (this would include groups with id "123")
-   NOTE: You can filter multiple 'Group IDs' by separating with ';'
-         Enter '!' (not) to make the filter include rows that do NOT have the requested filters
-         Enter '&' (and) to make the filter include rows where all the requested filters match
-                        NOTE: |(or) is default - will be the default anyway unless '!' or '&' used
-         Group ID Filters are cAsE InSeNsItIve...
-         Each filter you use will be remembered and stored for later quick selection.. The most recent will always be
-              top of the list. Click the little up/down selector on the widget title bar, or in the GUI to select one
-              Use CMD-SHIFT-G to edit the list and provide names to the filters
-              Only the most recent 20 will be saved...
+  - You can change the date range selection from the default of "All Dates" to any of the options in the list
 
-   WARNING: Only enter one of '!|&' characters as only one search type can be used within a single filter.
-         NOTE:    !(not) is always implicitly also &(and) - i.e. !1;2 (means not '1' and not '2')
+  - NOTE: You can select to use a date range at any time. BUT if you have not selected any Inc/Exp categories, then
+          the date range will later revert back automatically to 'All dates'.
 
-   EXAMPLES:
-          - Filter: '1'      - only include rows where the groupid includes a '1'
-          - Filter: '1;2;3'  - only include rows where the groupid includes a '1' or '2' or '3'
-          - Filter: '!1;2;3' - only include rows where the groupid does NOT include a '1' or '2' or '3'
-          - Filter: '&1;2;3' - only include rows where the groupid includes one '1' and '2' and '3'
+  - NOTE: The 'Balance asof Date' has no bearing on this setting which is used exclusively for Income / Expense txns.
+
+  - I/E Date Range options:
+    Example: Given a today's date of 4th November 2023 (20231104), the I/E Date Range filters will return the following:
+    DR_YEAR_TO_DATE                20230101 - 20231104
+    DR_FISCAL_YEAR_TO_DATE         20230406 - 20231104  (assuming a UK tax year starting 6th April 2023)
+    DR_LAST_FISCAL_QUARTER         20230706 - 20231005
+    DR_QUARTER_TO_DATE             20231001 - 20231104
+    DR_MONTH_TO_DATE               20231101 - 20231104
+    DR_THIS_YEAR                   20230101 - 20231231 **future**
+    DR_THIS_FISCAL_YEAR            20230406 - 20240405 **future**
+    DR_THIS_QUARTER                20231001 - 20231231 **future**
+    DR_THIS_MONTH                  20231101 - 20231130 **future**
+    DR_THIS_WEEK                   20231029 - 20231104
+    DR_LAST_YEAR                   20220101 - 20221231
+    DR_LAST_FISCAL_YEAR            20220406 - 20230405
+    DR_LAST_QUARTER                20230701 - 20230930
+    DR_LAST_MONTH                  20231001 - 20231031
+    DR_LAST_WEEK                   20231022 - 20231028
+    DR_LAST_12_MONTHS              20221101 - 20231031
+    DR_LAST_365_DAYS               20221105 - 20231104
+    DR_LAST_30_DAYS                20231006 - 20231104
+    DR_LAST_1_DAY                  20231103 - 20231104  (known as yesterday and today, which is actually 2 days)
+    DR_ALL_DATES                   (returns all dates)  (from 1970 thru 2100)
+
+    NOTE: The above will interact with your Balance/Current Balance/Cleared setting for that row:
+          E.G.  Current Balance will always cutoff to today's date
+                Balance will just include everything it finds within the above date ranges
+                Cleared Balance will just include all cleared items within the above date ranges
+
+    >> If you choose 'Custom Date' you can manually edit the date range. Once you have selected 'Custom Date',
+       .. if you then select one of the preconfigured date options, it simply pre-populates the start/end dates for you
+       .. this pre-selection name is irrelevant and is not saved. All that is saved is the date range you enter.
+
+    NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
 
 
-NOTE: This is free text, so the numbers are examples. A groupid of "Debt;CCList;Whatever" totally works.
+DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
+
+
+>> CALCULATION ORDER: The calculations are performed is this sequence:
+    - Skip any 'always hide' rows - these are never calculated / used anywhere
+    - Skip any rows filtered out by GroupID
+    - Calculate raw balances for selected rows/accounts, including recursive sub accounts for autosum rows
+    - Convert calculated balances to target currency
+    - Iterate over each row/calculation, apply any average/by calculations
+    - Iterate over each row/calculation, apply any Use Other Row (UOR) calculations.. Iterate the whole UOR chain
+    - Lastly, iterate over each row/calculation, apply any final calculation adjustment amounts specified
+
+
+>> PARALLEL BALANCES:
+    - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts
+      ... used by that row: Balance asof date; Income/Expense date range; Cost Basis / Unrealised Gains; incl. Reminders
+
+    - The sequence of harvesting data / calculating balances for rows using parallel balances is as follows:
+        # 1. per row, gather all selected accounts along with all child/sub accounts...
+        # 2. if Income/Expense dates requested, then harvest related I/E txns...
+        # 3. convert the harvested I/E txn table into account balances...
+        # 4. for all accounts / balances not derived by steps 2 & 3, calculate balance asof dates (where requested)...
+        # 5. for all accounts / balances not derived by steps 2, 3 & 4, harvest remaining Account's real balance(s)...
+        # 6. replace balance(s) with cost basis / unrealised gains on security accounts (where requested)...
+        # 7. for all accounts selected, add reminder txn/balances upto the reminder's asof date (where requested).
+
+    - NOTE: When cost basis / unrealised gains is enabled, all other steps are skipped >> MUTUALLY EXCLUSIVE option!
+            (i.e. no reminders, income / expense transactions, no non-security/investment(cash) accounts
+
+    - NOTE: For the Summary Screen (Home Page), only selected accounts use parallel balances...
+            But when using the configuration GUI, then all Accounts for the viewed row will use parallel balances...
+
+    - WARNING: Parallel operations calculate by sweeping through transactions and calculating balances from scratch
+               Balance asof dates & I/E date ranges harvest transactions...
+               Future reminders are forward calculated...
+               Cost Basis / Unrealised Gains sweep Buy/Sell txns... (possibly twice for Balance vs Current Balance)
+               Remaining real balances, sweep accounts and uses the Account's real stored balance(s)
+               ALL THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
+               No harm will be caused, but these rows may take a few seconds to calculate / appear....
+
 
 
 TECHNICAL/HISTORICAL NOTES:

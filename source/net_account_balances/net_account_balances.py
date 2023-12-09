@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1039 - Oct 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1040 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -147,15 +147,16 @@
 # build: 1034 - Added .getNewJListCellRenderer() to reset the renderer and the MD Object references it stores....
 # build: 1035 - Help file spelling corrections...
 # build: 1036 - Added extra average options for CalUnits days/weeks/months/years etc....
-#               Applied fix to getDateRangeSelected() for Last1/30/365 days (which were adding 1 days) - MD issue. Should be fixed in build 5047...
+#               Applied fix to getIncExpDateRangeSelected() for Last1/30/365 days (which were adding 1 days) - MD issue. Should be fixed in build 5047...
 # build: 1037 - In line with MD build 5051 tweaked last 1/30/365 dates and avg fix again... (last 1 is today + yesterday; last30/365 include today)
 #               Common code - FileFilter fix...
 # build: 1038 - Allow UOR chaining...
-# build: 1039 - ???
-
-# todo - consider adding 'as of' balance date option (for non inc/exp rows) - perhaps??
-# todo - consider an option to add future Reminders into Balance?
-# todo - consider putting sudo Balance for all Accounts into the table...
+# build: 1039 - Operate using 'sudo' balances for all rows/accounts involved in a row when that row uses parallel balances:
+#               Added Balance asof date option...; Added Use Cost Basis option(s)...; Added Include Reminders option...;
+#               Switched I/E date range to use full/pure DateRangeChooser class
+#               NOTE: Cost Basis and U/R Gains with MyCostCalculation (as CostCalculation not very accessible)
+#               GUI fixes; KeyError tweak; Enhance the Account/Category select filter...; Put UNDO/Reload option on homepage widget
+# build: 1040 - Bumping the build number....
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -163,7 +164,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1039"
+version_build = "1040"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -486,19 +487,22 @@ else:
     import re
     import copy
     import threading
+    from com.moneydance.util import BasePropertyChangeReporter
     from com.moneydance.awt import GridC, JLinkListener, JLinkLabel, AwtUtil, QuickSearchField, JRateField
     # from com.moneydance.awt import CollapsibleRefresher
+    from com.moneydance.apps.md.controller import Util
+    # from com.moneydance.apps.md.view.gui import MDURLUtil
     from com.moneydance.apps.md.view import HomePageView
     # from com.moneydance.apps.md.view.gui import SearchFieldBorder
-    from com.moneydance.apps.md.view.gui import MoneydanceGUI
-    from com.moneydance.apps.md.view.gui import MoneydanceLAF, DateRangeChooser, ConsoleWindow, MainFrame
-    from com.moneydance.apps.md.controller import FeatureModule, PreferencesListener
+    from com.moneydance.apps.md.view.gui import MoneydanceGUI, MoneydanceLAF, DateRangeChooser, ConsoleWindow, MainFrame
+    from com.moneydance.apps.md.controller import FeatureModule, PreferencesListener, UserPreferences
     from com.moneydance.apps.md.controller.time import DateRangeOption
-    from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener, DateRange
+    from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener, DateRange, TxnSet
+    # from com.infinitekind.moneydance.model import CostCalculation
+    from com.infinitekind.moneydance.model import CapitalGainResult, InvestFields, InvestTxnType
+
     # from com.infinitekind.moneydance.model import TxnIterator
     from com.infinitekind.util import StringUtils, StreamVector
-
-    from com.moneydance.apps.md.controller import UserPreferences
 
     from org.apache.commons.lang3 import StringEscapeUtils
 
@@ -511,18 +515,19 @@ else:
     # from javax.swing.text import View
 
     from javax.swing.table import DefaultTableModel
-    from java.awt.event import HierarchyListener
 
+    from java.awt.event import HierarchyListener, ItemListener, MouseAdapter, ItemEvent
+    from java.awt.event import FocusAdapter, MouseListener, ActionListener, KeyAdapter, FocusListener
     from java.awt import FontMetrics, Event
     from java.awt import RenderingHints, BasicStroke, Graphics2D, Rectangle
     from java.awt.font import TextAttribute
-    from java.awt.event import FocusAdapter, MouseListener, ActionListener, KeyAdapter, FocusListener
     from java.awt.geom import Path2D
+    from java.beans import PropertyChangeListener
     from java.lang import StringBuilder
     from java.lang import Runtime                                                                                       # noqa
     from java.lang import Process, ArrayIndexOutOfBoundsException, Integer, InterruptedException, Character
     from java.lang.ref import WeakReference
-    from java.util import Comparator, Iterator, Collections, Iterator, UUID
+    from java.util import Comparator, Iterator, Collections, Iterator, UUID, HashMap
     from java.util.concurrent import CancellationException
     # from java.util import ConcurrentModificationException
 
@@ -545,6 +550,7 @@ else:
     GlobalVars.Strings.MD_GLYPH_SELECTOR_7_9 = "/com/moneydance/apps/md/view/gui/glyphs/selector_sm.png"
     GlobalVars.Strings.MD_GLYPH_DELETE_32_32 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_delete.png"
     GlobalVars.Strings.MD_GLYPH_ADD_28_28 = "/com/moneydance/apps/md/view/gui/glyphs/glyph_income_icon@2x.png"
+    GlobalVars.Strings.MD_ICON_GRAPHS_32_32 = "/com/moneydance/apps/md/view/gui/icons/graphs_32.png"
 
     GlobalVars.Strings.PARAMETER_FILEUUID = "__last_saved_file_uuid"
     GlobalVars.Strings.MD_STORAGE_KEY_FILEUUID = "netsync.dropbox.fileid"
@@ -569,6 +575,7 @@ else:
     # New multi-row variables
     GlobalVars.extn_param_NEW_listAccountUUIDs_NAB          = None
     GlobalVars.extn_param_NEW_balanceType_NAB               = None
+    GlobalVars.extn_param_NEW_balanceAsOfDate_NAB           = None
     GlobalVars.extn_param_NEW_widget_display_name_NAB       = None
     GlobalVars.extn_param_NEW_currency_NAB                  = None
     GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = None
@@ -577,6 +584,8 @@ else:
     GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = None
     GlobalVars.extn_param_NEW_showWarningsTable_NAB         = None
     GlobalVars.extn_param_NEW_customDatesTable_NAB          = None
+    GlobalVars.extn_param_NEW_useCostBasisTable_NAB         = None
+    GlobalVars.extn_param_NEW_includeRemindersTable_NAB     = None
     GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = None
     GlobalVars.extn_param_NEW_blinkTable_NAB                = None
     GlobalVars.extn_param_NEW_hideDecimalsTable_NAB         = None
@@ -613,9 +622,24 @@ else:
     GlobalVars.WIDGET_ROW_DISABLED                  = "** ROW HIDDEN/DISABLED **"
     GlobalVars.FILTER_NAME_NOT_DEFINED              = "<name not defined>"
 
+    GlobalVars.INCLUDE_REMINDERS_IDX = 0
+    GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX = 1
+    GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX = 2
+
+    GlobalVars.ASOF_BALANCE_IDX = 0
+    GlobalVars.ASOF_BALANCE_KEY_IDX = 1
+    GlobalVars.ASOF_BALANCE_DATEINT_IDX = 2
+
     GlobalVars.BALTYPE_BALANCE = 0
     GlobalVars.BALTYPE_CURRENTBALANCE = 1
     GlobalVars.BALTYPE_CLEAREDBALANCE = 2
+
+    GlobalVars.COSTBASIS_TYPE_NONE = 0
+    GlobalVars.COSTBASIS_TYPE_CB = 1
+    GlobalVars.COSTBASIS_TYPE_URGAINS = 2
+
+    GlobalVars.COSTBASIS_TYPE_IDX = 0
+    GlobalVars.COSTBASIS_INCLUDE_CASH_IDX = 1
 
     GlobalVars.DATE_RANGE_VALID = 19000101
 
@@ -674,7 +698,7 @@ Visit: %s (Author's site)
 
     def cleanup_references():
         global MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
-        # myPrint("DB","About to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
+        # myPrint("DB",""About" to delete reference to MD_REF, MD_REF_UI and MD_EXTENSION_LOADER....!")
         # del MD_REF, MD_REF_UI, MD_EXTENSION_LOADER
 
         myPrint("DB", "... destroying own reference to frame('net_account_balances_frame_')...")
@@ -3234,6 +3258,8 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 
+    TIMING_DEBUG = True;
+
     def selectAllHomeScreens():
 
         try:
@@ -3275,9 +3301,8 @@ Visit: %s (Author's site)
             if paramValue is not None:
                 setattr(GlobalVars, _paramKey, paramValue)
 
-        myPrint("DB", "parametersLoadedFromFile{} set into memory (as variables).....:",                        GlobalVars.parametersLoadedFromFile)
-
-        return
+        if debug:
+            myPrint("B", "parametersLoadedFromFile{} set into memory (as variables).....:", GlobalVars.parametersLoadedFromFile)
 
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     def dump_StuWareSoftSystems_parameters_from_memory():
@@ -3298,14 +3323,14 @@ Visit: %s (Author's site)
 
         GlobalVars.parametersLoadedFromFile["__%s_extension" %(myModuleID)] = version_build
 
-        myPrint("DB", "variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
-
-        return
+        if debug:
+            myPrint("B", "variables dumped from memory back into parametersLoadedFromFile{}.....:", GlobalVars.parametersLoadedFromFile)
 
     # clear up any old left-overs....
     destroyOldFrames(myModuleID)
 
     myPrint("DB", "DEBUG IS ON..")
+    if TIMING_DEBUG: myPrint("B", "TIMING DEBUG IS ON..")
 
     if SwingUtilities.isEventDispatchThread():
         myPrint("DB", "FYI - This script/extension is currently running within the Swing Event Dispatch Thread (EDT)")
@@ -3338,6 +3363,490 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
+
+    GlobalVars.MD_COSTCALCULATION_PUBLIC = 5008                             # 2023.2 (CC made public with extra methods)
+    def isCostCalculationPublic():
+        return (float(MD_REF.getBuild()) >= GlobalVars.MD_COSTCALCULATION_PUBLIC)
+
+    ################################################################################################################
+    # Copied from: com.infinitekind.moneydance.model.CostCalculation (as it's quite inaccessible before build 5008)
+    ################################################################################################################
+    class MyCostCalculation:
+        """CostBasis calculation engine. Copies/enhances MD CostCalculation().
+        Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
+        preparedTxns is typically used by itself to recall the class to get the current cost basis
+        obtainCurrentBalanceToo is used to request that the class calls itself to also get the current/today balance too"""
+        def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False):
+            # type: (Account, int, TxnSet, bool) -> None
+
+            todayInt = DateUtil.getStrippedDateInt()
+            if (asOfDate is None or asOfDate < 19000000): asOfDate = None
+            self.asOfDate = asOfDate
+
+            self.positions = ArrayList()        # Use java Class to exactly mirror original code (rather than [list])
+            self.positionsByID = HashMap()      # Use java Class to exactly mirror original code (rather than {dict})
+            self.longTermCutoffDate = DateUtil.incrementDate(DateUtil.getStrippedDateInt(), -1, 0, 0)
+            self.secAccount = secAccount
+            self.investCurr = secAccount.getParentAccount().getCurrencyType()                                           # type: CurrencyType
+            self.secCurr = secAccount.getCurrencyType()                                                                 # type: CurrencyType
+
+            if isinstance(preparedTxns, TxnSet) and preparedTxns.getSize() > 0:
+                self.txns = preparedTxns                                                                                # type: TxnSet
+            else:
+                self.txns = secAccount.getBook().getTransactionSet().getTransactionsForAccount(secAccount)              # type: TxnSet
+                self.txns.sortWithComparator(TxnUtil.DATE_THEN_AMOUNT_COMPARATOR.reversed())     # Newest first by index
+
+            self.asOfDate = self.deriveRealBalanceDateInt(self.getTxns())
+            self.isAsOfToday = (asOfDate == todayInt)
+
+            self.getPositions().add(MyCostCalculation.Position(self))           # Adds a dummy start Position
+            for secTxn in self.getTxns(): self.addTxn(secTxn)                   # Iterates in reverse = oldest first
+
+            if secAccount.getUsesAverageCost():
+                lAverage = True
+                self.allocateAverageCostSales()
+            else:
+                lAverage = False
+                self.allocateLots()
+
+            if obtainCurrentBalanceToo:
+                if self.getAsOfDate() > todayInt:
+                    self.currentBalanceCostCalculation = MyCostCalculation(self.getSecAccount(), todayInt, self.getTxns(), False)
+                else:
+                    self.currentBalanceCostCalculation = self                                                           # type: MyCostCalculation
+            else:
+                self.currentBalanceCostCalculation = None                                                               # type: MyCostCalculation
+
+            if debug: myPrint("B", "** MyCostCalculation() running asof: %s, for account: '%s' (%s) **" %(asOfDate, secAccount, "AvgCost" if lAverage else "LotControl"))
+
+        def getCurrentBalanceCostCalculation(self):
+            # type: () -> MyCostCalculation
+            return self.currentBalanceCostCalculation
+
+        def getTxns(self): return self.txns                                     # New method
+
+        def getSecAccount(self): return self.secAccount                         # New method
+
+        def getAsOfDate(self): return self.asOfDate                             # New method
+
+        def deriveRealBalanceDateInt(self, txns):                               # New method
+            # type: (TxnSet) -> int
+            """When asof is None, you are requesting the Balance.. This determines the future date of that Balance"""
+            if self.getAsOfDate() is not None: return self.getAsOfDate()        # If you specify a date, then just use that...
+            todayInt = DateUtil.getStrippedDateInt()
+            mostRecentDateInt = todayInt
+            fields = InvestFields()                                                                                     # type: InvestFields
+            for i in range(0, txns.getSize()):              # Iterate by index = newest first
+                txn = txns.getTxnAt(i)
+                dateInt = txn.getDateInt()
+                if dateInt <= todayInt: break
+
+                fields.setFieldStatus(txn.getParentTxn())
+
+                # ie not [InvestTxnType.BANK, InvestTxnType.DIVIDEND, InvestTxnType.DIVIDENDXFR]
+                if fields.txnType not in [InvestTxnType.BUY, InvestTxnType.BUY_XFER, InvestTxnType.COVER, InvestTxnType.DIVIDEND_REINVEST,
+                                          InvestTxnType.SELL, InvestTxnType.SELL_XFER, InvestTxnType.SHORT,
+                                          InvestTxnType.MISCINC, InvestTxnType.MISCEXP]:
+                    continue    # Skip back in time....
+                assert dateInt >= mostRecentDateInt
+                mostRecentDateInt = dateInt
+                break
+
+            if debug: myPrint("B", "@@deriveRealBalanceDateInt().. sec: '%s' requested asof: %s, derived asof: %s"
+                              %(self.getSecAccount(), self.getAsOfDate(), mostRecentDateInt))
+            return mostRecentDateInt
+
+        def getPositions(self):  # NEW METHOD
+            # type: () -> [MyCostCalculation.Position]
+            return self.positions
+
+        def getPositionByID(self):  # NEW METHOD
+            # type: () -> {String: MyCostCalculation.Position}
+            return self.positionsByID
+
+        def getCurrentPosition(self):
+            # type: () -> MyCostCalculation.Position
+            return self.getMostRecentPosition()
+
+        def getMostRecentPosition(self):                # RENAMED METHOD
+            # type: () -> MyCostCalculation.Position
+            """Returns the most recent Position. NOTE: This could in theory be future!"""
+            return self.getPositions().get(self.getPositions().size() - 1)  # NOTE: There is always a dummy first position
+
+        def getMostRecentCostBasis(self):               # NEW METHOD
+            # type: () -> int
+            """Returns the (long) most recent cost basis. NOTE: This could in theory be future!"""
+            curPosn = self.getMostRecentPosition()                                                                      # type: MyCostCalculation.Position
+            return curPosn.getCostBasis()
+
+        def getPositionForAsOf(self):                   # NEW METHOD
+            # type: () -> MyCostCalculation.Position
+            """Returns the most recent Position upto/asof requested"""
+            rtnPos = self.getPositions().get(0)
+            for pos in reversed(self.getPositions()):         # Reversed puts most recent first
+                if pos.getDate() > self.asOfDate: continue    # Skip future posns
+                rtnPos = pos
+                if pos.getDate() <= self.asOfDate: break      # Capture the most recent posn we find before/on asof
+            return rtnPos
+
+        def getSharesAndCostBasisForAsOf(self):         # NEW METHOD
+            # type: () -> (int, int)
+            """Returns a tuple containing the (long) shares owned, (long) cost basis upto/asof the date requested"""
+            asofPos = self.getPositionForAsOf()
+            return asofPos.getSharesOwned(), asofPos.getRunningCost()
+
+        def getSaleGainsUptoAsOf(self):                 # NEW METHOD
+            # type: () -> HoldCapitalGainTotal
+            """Calculates / returns CapitalGainResult containing the grand total of all fields upto/asof the date requested"""
+            totSaleValue = 0
+            totSaleBasis = 0
+            totSaleGains = 0
+            totSaleShares = 0
+
+            # Add them all the sales gains manually...
+            for pos in self.getPositions():                   # Iterate oldest to most recent
+                if pos.getDate() > self.asOfDate: break
+                txn = pos.getTxn()
+                if not isinstance(txn, (AbstractTxn, SplitTxn)): continue
+                if not InvestUtil.isSaleTransaction(txn.getParentTxn().getInvestTxnType()): continue
+                gainInfo = self.getGainInfo(txn)
+                saleValue = txn.getParentAmount()
+                saleBasis = gainInfo.getBasis()
+                saleGains = (saleValue - saleBasis)
+                saleShares = (gainInfo.getShortTermShares() + gainInfo.getLongTermShares())
+                totSaleValue += (saleValue)
+                totSaleBasis += (saleBasis)
+                totSaleGains += (saleGains)
+                totSaleShares += (saleShares)
+            return self.HoldCapitalGainTotal(self.getSecAccount(), self.asOfDate, totSaleShares, totSaleValue, totSaleBasis, totSaleGains)
+
+        def addTxn(self, txn):
+            # type: (AbstractTxn) -> None
+            pos = self.getCurrentPosition()
+            newPos = MyCostCalculation.Position(self, txn, pos)
+            if debug: myPrint("B", "adding position:", pos)
+            self.getPositions().add(newPos)
+            ptxn = txn.getParentTxn()                                                                                   # type: ParentTxn
+            self.getPositionByID().put(ptxn.getUUID(), newPos)
+
+        def allocateAverageCostSales(self):
+            #type: () -> None
+
+            buyIdx = 0
+            sellIdx = 0
+            numPositions = self.getPositions().size()
+
+            while (sellIdx < numPositions and buyIdx < numPositions):
+
+                if (buyIdx > sellIdx): myPrint("B", "Info: buy transactions overran sells; going short")
+
+                sell = self.getPositions().get(sellIdx)                                                                 # type: MyCostCalculation.Position
+
+                if (sell.getSharesAdded() >= 0):
+                    sellIdx += 1
+                    continue
+
+                if (sell.getUnallottedSharesAdded() >= 0):
+                    sellIdx += 1
+                    continue
+
+                while (buyIdx < numPositions and sell.getUnallottedSharesAdded() < 0):
+                    buy = self.getPositions().get(buyIdx)                                                               # type: MyCostCalculation.Position
+
+                    if (buy.getSharesAdded() < 0):
+                        buyIdx += 1
+                        continue
+
+                    unallottedSellShares = self.secCurr.unadjustValueForSplitsInt(sell.getDate(), -sell.getUnallottedSharesAdded(), buy.getDate())
+                    sharesFromBuy = Math.min(unallottedSellShares, buy.getUnallottedSharesAdded())
+                    sharesFromBuyAdjusted = self.secCurr.adjustValueForSplitsInt(buy.getDate(), sharesFromBuy, sell.getDate())
+                    if (sharesFromBuyAdjusted == 0 and sharesFromBuy != 0):
+                        sharesFromBuyAdjusted = (-1 if (sharesFromBuy < 0) else 1)
+
+                    if (sharesFromBuy != 0):
+                        sell.setUnallottedSharesAdded(sell.getUnallottedSharesAdded() + sharesFromBuyAdjusted)
+                        buy.setUnallottedSharesAdded(buy.getUnallottedSharesAdded() - sharesFromBuy)
+                        sell.getBuys().add(MyCostCalculation.Allocation(self, sharesFromBuyAdjusted, buy))
+                        buy.getSells().add(MyCostCalculation.Allocation(self, sharesFromBuy, sell))
+
+                    if (buy.getUnallottedSharesAdded() == 0):
+                        buyIdx += 1
+
+            if debug:
+                myPrint("B", "-------------------------\npositions and allotments for '%s':" %(self.getSecAccount()))
+                for buy in self.getPositions(): myPrint("B", "  ", buy)
+                myPrint("B", "-------------------------")
+
+        def allocateLots(self):
+            #type: () -> None
+
+            # numPositions = self.getPositions().size()
+            fields = InvestFields()
+
+            for sellPosition in [position for position in self.getPositions() if (position.getSharesAdded() < 0)]:
+                fields.setFieldStatus(sellPosition.getTxn().getParentTxn())
+                buyTable = TxnUtil.parseCostBasisTag(sellPosition.getTxn())                                             # type: {String: Long}
+                if buyTable is not None:
+                    for buyID in buyTable.keySet():
+                        boughtPos = self.getPositionByID().get(buyID)                                                   # type: MyCostCalculation.Position
+                        if (boughtPos is not None):
+                            boughtShares = buyTable.get(buyID)
+                            boughtSharesAdjusted = self.secCurr.adjustValueForSplitsInt(boughtPos.getDate(), boughtShares, sellPosition.getDate())
+                            sellPosition.getBuys().add(MyCostCalculation.Allocation(self, boughtShares, boughtPos))
+                            sellPosition.setUnallottedSharesAdded(sellPosition.getUnallottedSharesAdded() + boughtSharesAdjusted)
+                            boughtPos.getSells().add(MyCostCalculation.Allocation(self, boughtShares, sellPosition))
+                            boughtPos.setUnallottedSharesAdded(boughtPos.getUnallottedSharesAdded() - boughtShares)
+
+            if debug:
+                myPrint("B", "-------------------------\npositions and allotments for '%s':" %(self.getSecAccount()))
+                for pos in self.getPositions(): myPrint("B", "  ", pos)
+                myPrint("B", "-------------------------")
+
+        def getBasisPrice(self, asOfTxn):
+            # type: (AbstractTxn) -> float
+            if asOfTxn is not None:
+                for pos in self.getPositions():                                                                         # type: MyCostCalculation.Position
+                    if pos.getTxn() is not None and pos.getTxn() is asOfTxn:
+                        return pos.getBasisPrice()
+                myPrint("B", "unable to find position for txn :%s; returning cost basis as of last position" %(asOfTxn))
+
+            curPos = self.getCurrentPosition()                                                                          # type: MyCostCalculation.Position
+            return curPos.getBasisPrice()
+
+        def getGainInfo(self, saleTxn):
+            #type: (AbstractTxn) -> CapitalGainResult
+            if saleTxn is not None:
+                for pos in self.getPositions():                                                                         # type: MyCostCalculation.Position
+                    if (pos.getTxn() is not None and pos.getTxn() is saleTxn):
+                        return self.calculateGains(pos)
+                myPrint("B", "unable to find position for txn :%s; returning gain at last position" %(saleTxn))
+            return self.calculateGains(self.getCurrentPosition())
+
+        def calculateGains(self, pos):
+            # type: (MyCostCalculation.Position) -> CapitalGainResult
+            messageKey = None
+            if (pos.getSharesAdded() < 0 and pos.getSharesOwned() <= pos.getSharesAdded()): messageKey = "sell_short"
+
+            ltDate = self.longTermCutoffDate if (pos.getDate() <= 0) else DateUtil.incrementDate(pos.getDate(), -1, 0, 0)
+            longTermSharesSold = -(pos.getSharesAdded())
+            shortTermSalesSold = 0
+
+            for buy in pos.getBuys():                                                                                   # type: MyCostCalculation.Allocation
+                if buy.getAllocatedPosition().getDate() >= ltDate:
+                    shortTermSalesSold += buy.getSharesAllocated()
+                    longTermSharesSold -= buy.getSharesAllocated()
+
+            longProportion = 0.0 if (pos.getSharesAdded() == 0) else (float(longTermSharesSold) / (longTermSharesSold + shortTermSalesSold))
+            posIdx = self.getPositions().indexOf(pos)
+            previousPosition = self.getPositions().get(posIdx - 1) if (posIdx > 0) else self.getPositions().get(0)      # type: MyCostCalculation.Position
+            costBasis = self.investCurr.getLongValue(self.secCurr.getDoubleValue(-pos.getSharesAdded()) * previousPosition.getBasisPrice()) + pos.getFee()
+            longCostBasis = Math.round(float(costBasis) * longProportion)
+            shortCostBasis = costBasis - longCostBasis
+            longTermAvailShares = Math.round(float(previousPosition.getSharesOwned()) * longProportion)
+            shortTermAvailShares = previousPosition.getSharesOwned() - longTermAvailShares
+            result = CapitalGainResult(costBasis, shortCostBasis, longCostBasis, shortTermSalesSold, longTermSharesSold, shortTermAvailShares, longTermAvailShares, messageKey)
+            if debug:  myPrint("B", "calculated gain from position ", pos, "\nprevious position:", previousPosition, "\n-->", result)
+            return result
+
+        class HoldCapitalGainTotal:
+            def __init__(self, secAcct, asofDateInt, totSaleShares, totSaleValue, totSaleBasis, totSaleGains):
+                # type: (Account, int, int, int, int, int) -> None
+                self.secAcct = secAcct
+                self.asofDateInt = asofDateInt
+                self.totSaleShares = totSaleShares
+                self.totSaleShares = totSaleShares
+                self.totSaleValue = totSaleValue
+                self.totSaleBasis = totSaleBasis
+                self.totSaleGains = totSaleGains
+
+            def toString(self):
+                i = 14
+                strTxt = ("HoldCapitalGainTotal: asof: %s, totSaleShares: %s, totSaleValue: %s, totSaleBasis: %s, totSaleGains: %s, secAcct: '%s'"
+                          %(pad(self.asofDateInt, 8), rpad(self.totSaleShares,i), rpad(self.totSaleValue,i), rpad(self.totSaleBasis,i), rpad(self.totSaleGains,i), self.secAcct))
+                return strTxt
+            def __str__(self):  return self.toString()
+            def __repr__(self): return self.toString()
+
+        class Position:
+            def __init__(self, callingClass, txn=None, previousPosition=None):
+                # type: (MyCostCalculation, AbstractTxn, MyCostCalculation.Position) -> None
+                self.callingClass = callingClass
+                self.buys = ArrayList()
+                self.sells = ArrayList()
+                self.txn = txn
+                self.date = 0 if (txn is None) else txn.getDateInt()
+                fields = InvestFields()                                                                                 # type: InvestFields
+                if txn is not None:
+                    fields.setFieldStatus(txn.getParentTxn())
+                else:
+                    fields.txnType = InvestTxnType.BANK
+
+                txnCostBasis = 0
+                txnShares = 0
+                txnFee = 0
+                txnRunningCost = 0 if (previousPosition is None) else previousPosition.getRunningCost()
+
+                if fields.txnType in [InvestTxnType.BUY, InvestTxnType.BUY_XFER, InvestTxnType.COVER, InvestTxnType.DIVIDEND_REINVEST]:
+                    txnShares = fields.shares
+                    buyCost = Math.round(float(txnShares) / fields.price)
+                    txnCostBasis = fields.amount if (buyCost == 0) else buyCost + fields.fee
+                    txnFee = fields.fee
+
+                elif fields.txnType in [InvestTxnType.SELL, InvestTxnType.SELL_XFER, InvestTxnType.SHORT]:
+                    txnShares = -fields.shares
+                    runningAvgPrice = float(fields.price)
+                    if (previousPosition is not None and previousPosition.getSharesOwned() != 0):
+                        runningAvgPrice = float(txnRunningCost) / float(previousPosition.getSharesOwned())
+
+                    sellCost = Math.round(float(txnShares) * runningAvgPrice)
+                    txnCostBasis = (-fields.amount - fields.fee) if (sellCost == 0) else sellCost
+                    txnFee = fields.fee
+
+                elif fields.txnType in [InvestTxnType.MISCINC]:
+                    txnFee = fields.fee
+                    txnCostBasis = fields.fee
+
+                elif fields.txnType in [InvestTxnType.MISCEXP]:
+                    txnFee = fields.fee
+                    txnCostBasis = fields.fee
+
+                elif fields.txnType in [InvestTxnType.BANK, InvestTxnType.DIVIDEND, InvestTxnType.DIVIDENDXFR]:
+                    pass
+
+                txnShares = callingClass.secCurr.adjustValueForSplitsInt(self.getDate(), txnShares, callingClass.getAsOfDate())
+                self.fee = txnFee
+                self.sharesAdded = txnShares
+                self.costBasis = txnCostBasis
+                self.runningCost = txnRunningCost + txnCostBasis
+                self.unallottedSharesAdded = self.getSharesAdded()
+                self.sharesOwned = self.getSharesAdded() + (0 if previousPosition is None else previousPosition.getSharesOwned())
+
+            def getTxn(self):
+                # type: () -> AbstractTxn
+                return self.txn
+
+            def getSharesOwned(self):
+                # type: () -> int
+                return self.sharesOwned
+
+            def getSharesAdded(self):
+                # type: () -> int
+                return self.sharesAdded
+
+            def getRunningCost(self):
+                # type: () -> int
+                return self.runningCost
+
+            def getCostBasis(self):
+                # type: () -> int
+                return self.costBasis
+
+            def getFee(self):
+                # type: () -> int
+                return self.fee
+
+            def getDate(self):
+                # type: () -> int
+                return self.date
+
+            def getUnallottedSharesAdded(self):
+                # type: () -> int
+                return self.unallottedSharesAdded
+
+            def setUnallottedSharesAdded(self, uasa):
+                # type: (int) -> None
+                self.unallottedSharesAdded = uasa
+
+            def getBuys(self):
+                # type: () -> [MyCostCalculation.Allocation]
+                return self.buys
+
+            def setBuys(self, buyList):
+                # type: ([MyCostCalculation.Allocation]) -> None
+                self.buys = buyList
+
+            def getSells(self):
+                # type: () -> [MyCostCalculation.Allocation]
+                return self.sells
+
+            def setSells(self, sellList):
+                # type: ([MyCostCalculation.Allocation]) -> None
+                self.sells = sellList
+
+            def toString(self):
+                # type: () -> String
+                i = 12
+                isBuy = (self.getSharesAdded() > 0)
+                sb = StringBuilder()
+                sb.append(pad(self.getDate(), 8))
+                sb.append("\t").append(pad("buy:" if isBuy else "sell:",5)).append(rpad(self.callingClass.secCurr.formatSemiFancy(Math.abs(self.getSharesAdded()), '.'), i))
+                sb.append("\tfee:").append(rpad(self.callingClass.investCurr.formatSemiFancy(self.getFee(), '.'), i))
+                sb.append("\tcostBasis:").append(rpad(self.callingClass.investCurr.formatSemiFancy(self.getCostBasis(), '.'),i))
+                sb.append("\ttotcost:").append(rpad(self.callingClass.investCurr.formatSemiFancy(self.getRunningCost(), '.'),i))
+                if (self.getSharesAdded() != 0):
+                    sb.append("\tprice:").append(rpad(self.callingClass.investCurr.getDoubleValue(self.getCostBasis()) / self.callingClass.secCurr.getDoubleValue(self.getSharesAdded()),i))
+                else:
+                    sb.append("\tprice:").append(pad("",i))
+                sb.append("\ttotshrs:").append(rpad(self.callingClass.secCurr.formatSemiFancy(self.getSharesOwned(), '.'),i))
+
+                if (self.getBuys().size() > 0):
+                    sb.append("\n  buys:\n")
+                    for aBuy in self.getBuys():                                                                         # type: MyCostCalculation.Allocation
+                        sb.append("    ").append(aBuy).append('\n')
+
+                if (self.getSells().size() > 0):
+                    sb.append("\n  sells:\n")
+                    for aSell in self.getSells():                                                                       # type: MyCostCalculation.Allocation
+                        sb.append("    ").append(aSell).append('\n')
+                return sb.toString()
+            def __str__(self):  return self.toString()
+            def __repr__(self): return self.toString()
+
+            def price(self, net):
+                # type: (bool) -> float
+                shrsAdded = self.callingClass.secCurr.getDoubleValue(Math.abs(self.getSharesAdded()))
+                txnFee = self.getFee() if (net) else 0
+                return 0.0 if (shrsAdded == 0.0) else self.callingClass.investCurr.getDoubleValue(Math.abs(self.getCostBasis() + txnFee)) / shrsAdded
+
+            def getBasisPrice(self):
+                # type: () -> float
+                shares = self.getSharesOwned()
+                return 0.0 if (shares == 0) else self.callingClass.investCurr.getDoubleValue(self.getRunningCost()) / self.callingClass.secCurr.getDoubleValue(shares)
+
+        class Allocation:
+            def __init__(self, callingClass, sharesAllocated, allocatedPosition):
+                # type: (MyCostCalculation, int, MyCostCalculation.Position) -> None
+                self.callingClass = callingClass
+                self.sharesAllocated = sharesAllocated
+                self.allocatedPosition = allocatedPosition
+
+            def getSharesAllocated(self):
+                # type: () -> int
+                return self.sharesAllocated
+
+            def setSharesAllocated(self, sa):
+                # type: (int) -> None
+                self.sharesAllocated = sa
+
+            def getAllocatedPosition(self):
+                # type: () -> MyCostCalculation.Position
+                return self.allocatedPosition
+
+            def setAllocatedPosition(self, position):
+                # type: (MyCostCalculation.Position) -> None
+                self.allocatedPosition = position
+
+            def toString(self):
+                i = 14
+                strTxt = ("%s %s shrs x %s = %s"
+                          %(pad(self.getAllocatedPosition().getDate(), 8),
+                            rpad(self.callingClass.secCurr.format(self.getSharesAllocated(), '.'),i),
+                            rpad(self.getAllocatedPosition().price(True),i),
+                            rpad((self.callingClass.secCurr.getDoubleValue(self.getSharesAllocated()) * self.getAllocatedPosition().price(True)), i)))
+                return strTxt
+            def __str__(self):  return self.toString()
+            def __repr__(self): return self.toString()
+
 
     class PrintWidget(Runnable):
 
@@ -3625,7 +4134,6 @@ Visit: %s (Author's site)
         sb.append(ct.getSuffix())
         return sb.toString().strip()
 
-    # noinspection PyUnresolvedReferences
     def isAccountActive(acct, balType, checkParents=True, sudoAccount=None):                                            # noqa
         if checkParents:
             if (acct.getAccountOrParentIsInactive()): return False
@@ -3636,14 +4144,14 @@ Visit: %s (Author's site)
         # if sudoAccount is None: sudoAccount = acct
         sudoAccount = acct
 
-        if (sudoAccount.getAccountType() == Account.AccountType.SECURITY):
+        if isSecurityAcct(sudoAccount):
             if (sudoAccount.getCurrencyType().getHideInUI()): return False
             if (NetAccountBalancesExtension.getNAB().savedTreatSecZeroBalInactive
-                    and StoreAccountList.getXBalance(balType, sudoAccount) == 0):
+                    and StoreAccount.getXBalance(balType, sudoAccount) == 0):
                 return False
         else:
             if (sudoAccount.getHideOnHomePage()
-                    and StoreAccountList.getXBalance(balType, sudoAccount) == 0):
+                    and StoreAccount.getXBalance(balType, sudoAccount) == 0):
                 return False
         return True
 
@@ -3660,7 +4168,7 @@ Visit: %s (Author's site)
                 sudoChild = sudoAccount.getSubAccountsBalanceObject(child)                                              # noqa
 
             if (not isAccountActive(child, balType, checkParents=False, sudoAccount=sudoChild)
-                    and StoreAccountList.getRecursiveXBalance(balType, (child if sudoChild is None else sudoChild)) != 0):
+                    and StoreAccount.getRecursiveXBalance(balType, (child if sudoChild is None else sudoChild)) != 0):
                 return child
             childResult = accountIncludesInactiveChildren(child, balType, sudoAccount=sudoAccount)
             if childResult: return childResult
@@ -3759,12 +4267,308 @@ Visit: %s (Author's site)
         if (_smallUnderline): convertedSmallText = wrap_HTML_underline(convertedSmallText, stripChars=False, addHTML=False)
         return wrap_HTML("%s%s" %(htmlBigText, convertedSmallText), stripChars=False)
 
-    class StoreAccountList():
+    class HoldBalance:
+        """Holds an Account object along with [calculated or real] balance information"""
+
+        def __init__(self, acct, autoSum):
+            self.NAB = NetAccountBalancesExtension.getNAB()
+            self.acct = acct
+
+            self.effectiveDateInt = None        # set when using asof balances
+
+            self.startBalance = 0
+
+            # These hold the final balance(s) to be used/displayed
+            self.balance = 0
+            self.currentBalance = 0
+            self.clearedBalance = 0
+
+            # These are for debugging and hold the adjustments made to balance(s) for their category
+            self.real_balance = 0
+            self.real_currentBalance = 0
+            self.real_clearedBalance = 0
+            self.incExp_balance = 0
+            self.incExp_currentBalance = 0
+            self.incExp_clearedBalance = 0
+            self.balAsOf_balance = 0
+            self.balAsOf_currentBalance = 0
+            self.balAsOf_clearedBalance = 0
+            self.rems_balance = 0
+            self.rems_currentBalance = 0
+            self.rems_clearedBalance = 0
+            self.cbasis_balance = 0
+            self.cbasis_currentBalance = 0
+            self.cbasis_clearedBalance = 0
+
+            self.subAccountsBalanceObjects = {}
+            self.autoSum = autoSum
+            self.parallelRealBalances = False
+            self.parallelIncExpBalances = False
+            self.parallelBalanceAsOfDateBalances = False
+            self.parallelIncludeReminders = False
+            self.parallelReturnCostBasis = False
+            self.parallelReturnCostBasisType = GlobalVars.COSTBASIS_TYPE_NONE
+            self.parallelReturnCostBasisCash = False
+            self.isIncomeExpenseAcct = isIncomeExpenseAcct(acct)
+            self.isSecurityAcct = isSecurityAcct(acct)
+            self.isInvestmentAcct = isInvestmentAcct(acct)
+
+            if not isinstance(acct, Account): raise Exception("ERROR: HoldBalance can only hold Account objects")
+            # if not self.isIncomeExpense(): raise Exception("ERROR: HoldBalance only programmed for Income/Expense Categories");
+
+        def getAccount(self):               return self.acct
+        def isIncomeExpense(self):          return self.isIncomeExpenseAcct
+        def isSecurity(self):               return self.isSecurityAcct
+        def isInvestment(self):             return self.isInvestmentAcct
+        def getAccountName(self):           return self.getAccount().getAccountName()
+        def getFullAccountName(self):       return self.getAccount().getFullAccountName()
+        def getAccountType(self):           return self.getAccount().getAccountType()
+        def getCurrencyType(self):          return self.getAccount().getCurrencyType()
+        def getHideOnHomePage(self):        return self.getAccount().getHideOnHomePage()
+
+        def setEffectiveDateInt(self, effectiveDateInt): self.effectiveDateInt = effectiveDateInt
+        def getEffectiveDateInt(self): return self.effectiveDateInt
+
+        def shouldIncludeInactive(self):    return (self.NAB.savedIncludeInactive[self.NAB.getSelectedRowIndex()])
+
+        def setParallelRealBalances(self, enabled):             self.parallelRealBalances = enabled
+        def setParallelIncExpBalances(self, enabled):           self.parallelIncExpBalances = enabled
+        def setParallelBalanceAsOfDateBalances(self, enabled):  self.parallelBalanceAsOfDateBalances = enabled
+        def setParallelIncludeReminders(self, enabled):         self.parallelIncludeReminders = enabled
+        def setParallelReturnCostBasis(self, enabled):          self.parallelReturnCostBasis = enabled
+        def setParallelReturnCostBasisType(self, cbType):       self.parallelReturnCostBasisType = cbType
+        def setParallelReturnCostBasisCash(self, useCash):      self.parallelReturnCostBasisCash = useCash
+
+        def isParallelRealBalances(self):               return self.parallelRealBalances
+        def isParallelIncExpBalances(self):             return self.parallelIncExpBalances
+        def isParallelBalanceAsOfDateBalances(self):    return self.parallelBalanceAsOfDateBalances
+        def isParallelIncludeReminders(self):           return self.parallelIncludeReminders
+        def isParallelReturnCostBasis(self):            return self.parallelReturnCostBasis
+        def getParallelReturnCostBasisType(self):       return self.parallelReturnCostBasisType
+        def getParallelReturnCostBasisCash(self):       return self.parallelReturnCostBasisCash
+
+        def isAutoSum(self):                                        return self.autoSum
+        def setSubAccountsBalanceObjects(self, _subAccountObjects): self.subAccountsBalanceObjects = _subAccountObjects
+        def getSubAccountsBalanceObject(self, _acct):               return self.subAccountsBalanceObjects[_acct]
+
+        # These are for debugging / info only...
+        def getParallelRealBalAdjs(self): return [self.real_balance, self.real_currentBalance, self.real_clearedBalance]
+        def getParallelIncExpBalAdjs(self): return [self.incExp_balance, self.incExp_currentBalance, self.incExp_clearedBalance]
+        def getParallelBalAsOfBalAdjs(self): return [self.balAsOf_balance, self.balAsOf_currentBalance, self.balAsOf_clearedBalance]
+        def getParallelRemindersBalAdjs(self): return [self.rems_balance, self.rems_currentBalance, self.rems_clearedBalance]
+        def getParallelCostBasisBalAdjs(self): return [self.cbasis_balance, self.cbasis_currentBalance, self.cbasis_clearedBalance]
+
+        def getXBalance(self, _balType, _autoSum):
+            if _balType == GlobalVars.BALTYPE_BALANCE:          return self.getBalance()         if not _autoSum else self.getRecursiveBalance()
+            elif _balType == GlobalVars.BALTYPE_CURRENTBALANCE: return self.getCurrentBalance()  if not _autoSum else self.getRecursiveCurrentBalance()
+            elif _balType == GlobalVars.BALTYPE_CLEAREDBALANCE: return self.getClearedBalance()  if not _autoSum else self.getRecursiveClearedBalance()
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_balType))
+
+        def getStartBalance(self):       return (self.startBalance)
+
+        def getBalance(self):
+            # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_BALANCE, self): return 0
+            return (self.getStartBalance() + self.balance)
+
+        def getCurrentBalance(self):
+            # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_CURRENTBALANCE, self): return 0
+            return (self.getStartBalance() + self.currentBalance)
+
+        def getClearedBalance(self):
+            # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_CLEAREDBALANCE, self): return 0
+            return (self.getStartBalance() + self.clearedBalance)
+
+        def balanceIsNegated(self):      return self.getAccount().balanceIsNegated()
+
+        def getUserBalance(self):        return (-self.getBalance()        if self.balanceIsNegated() else self.getBalance())
+        def getUserCurrentBalance(self): return (-self.getCurrentBalance() if self.balanceIsNegated() else self.getCurrentBalance())
+        def getUserClearedBalance(self): return (-self.getClearedBalance() if self.balanceIsNegated() else self.getClearedBalance())
+
+        def getRecursiveUserBalance(self):        return (-self.getRecursiveBalance()        if self.balanceIsNegated() else self.getRecursiveBalance())
+        def getRecursiveUserCurrentBalance(self): return (-self.getRecursiveCurrentBalance() if self.balanceIsNegated() else self.getRecursiveCurrentBalance())
+        def getRecursiveUserClearedBalance(self): return (-self.getRecursiveClearedBalance() if self.balanceIsNegated() else self.getRecursiveClearedBalance())
+
+        def calculateAndSetAccountStartBalance(self, _dateRange):
+            # type: (DateRange) -> None
+            _acct = self.getAccount()                                                                                   # type: Account
+            _startDateInt = _dateRange.getStartDateInt()
+            _endDateInt = _dateRange.getEndDateInt()
+            if (_acct.getCreationDateInt() >= _startDateInt and _acct.getCreationDateInt() <= _endDateInt):
+                if debug: myPrint("DB", ".. @@ Adding in start balance of: %s into Account's HoldBalance: %s" %(_acct.getStartBalance(), _acct))
+                self.setStartBalance(_acct.getStartBalance())                                                           # todo - query MD2023 balance adjustment?
+
+        def setStartBalance(self, _bal):    self.startBalance   = _bal
+        def setBalance(self, _bal):         self.balance        = _bal
+        def setCurrentBalance(self, _bal):  self.currentBalance = _bal
+        def setClearedBalance(self, _bal):  self.clearedBalance = _bal
+
+        def getRecursiveStartBalance(self):
+            bal = self.getStartBalance()
+            if not self.isAutoSum(): return bal
+            thisAcct = self.getAccount()
+            for i in reversed(range(0, thisAcct.getSubAccountCount())):
+                subAcct = thisAcct.getSubAccount(i)
+                try:
+                    bal += convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveStartBalance(),
+                                        subAcct.getCurrencyType(),
+                                        thisAcct.getCurrencyType(),
+                                        self.getEffectiveDateInt())
+                except: dump_sys_error_to_md_console_and_errorlog()
+            return bal
+
+        def getRecursiveBalance(self):
+            bal = self.getBalance()
+            if not self.isAutoSum(): return bal
+            thisAcct = self.getAccount()
+            for i in reversed(range(0, thisAcct.getSubAccountCount())):
+                subAcct = thisAcct.getSubAccount(i)
+                try:
+                    bal += convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveBalance(),
+                                        subAcct.getCurrencyType(),
+                                        thisAcct.getCurrencyType(),
+                                        self.getEffectiveDateInt())
+                except: dump_sys_error_to_md_console_and_errorlog()
+            return bal
+
+        def getRecursiveCurrentBalance(self):
+            bal = self.getCurrentBalance()
+            if not self.isAutoSum(): return bal
+            thisAcct = self.getAccount()
+            for i in reversed(range(0, thisAcct.getSubAccountCount())):
+                subAcct = thisAcct.getSubAccount(i)
+                try:
+                    bal += convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveCurrentBalance(),
+                                        subAcct.getCurrencyType(),
+                                        thisAcct.getCurrencyType(),
+                                        self.getEffectiveDateInt())
+                except: dump_sys_error_to_md_console_and_errorlog()
+            return bal
+
+        def getRecursiveClearedBalance(self):
+            bal = self.getClearedBalance()
+            if not self.isAutoSum(): return bal
+            thisAcct = self.getAccount()
+            for i in reversed(range(0, thisAcct.getSubAccountCount())):
+                subAcct = thisAcct.getSubAccount(i)
+                try:
+                    bal += convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveClearedBalance(),
+                                        subAcct.getCurrencyType(),
+                                        thisAcct.getCurrencyType(),
+                                        self.getEffectiveDateInt())
+                except: dump_sys_error_to_md_console_and_errorlog()
+            return bal
+
+        def __str__(self):
+            i = 10
+            extraDebugInfo = ""
+            if debug:
+                if self.isParallelRealBalances():
+                    extraDebugInfo += " DEBUG [REAL BALS: %s]" %(self.getParallelRealBalAdjs())
+                if self.isParallelIncExpBalances():
+                    extraDebugInfo += " DEBUG [INC/EXP BALS: %s]" %(self.getParallelIncExpBalAdjs())
+                if self.isParallelBalanceAsOfDateBalances():
+                    extraDebugInfo += " DEBUG [BAL ASOF BALS: %s]" %(self.getParallelBalAsOfBalAdjs())
+                if self.isParallelIncludeReminders():
+                    extraDebugInfo += " DEBUG [REMINDERS BALS: %s]" %(self.getParallelRemindersBalAdjs())
+                if self.isParallelReturnCostBasis():
+                    extraDebugInfo += " DEBUG [%s BALS: %s]" %("COSTBASIS" if (self.getParallelReturnCostBasisType() == GlobalVars.COSTBASIS_TYPE_CB) else "U/R GAINS",
+                                                               self.getParallelCostBasisBalAdjs())
+            return ("HoldBalance: isIncExp: %s, isSec: %s, isInv: %s, "
+                    "Bal: %s, CurBal: %s, ClearedBal: %s, "
+                    "RBal: %s, RCurBal: %s, RClearedBal: %s "
+                    "(isParRealBals: %s, isParIncExpBals: %s, isParAsOfBals: %s, isParRems: %s, isParCB: %s(%s)) "
+                    "- Account: %s %s"
+                    %(self.isIncomeExpense(), self.isSecurity(), self.isInvestment(),
+                      rpad(self.getBalance(), i), rpad(self.getCurrentBalance(), i), rpad(self.getClearedBalance(), i),
+                      rpad(self.getRecursiveBalance(), i), rpad(self.getRecursiveCurrentBalance(), i), rpad(self.getRecursiveClearedBalance(), i),
+                      self.isParallelRealBalances(), self.isParallelIncExpBalances(), self.isParallelBalanceAsOfDateBalances(), self.isParallelIncludeReminders(), self.isParallelReturnCostBasis(), self.getParallelReturnCostBasisType(),
+                      self.getAccount().getFullAccountName(),
+                      extraDebugInfo))
+
+        def __repr__(self): return self.__str__()
+        def toString(self): return self.__str__()
+
+
+    # noinspection PyUnresolvedReferences
+    class AccountTypeHolder:
+
+        ALL_USEABLE_TYPES = [t for t in Account.AccountType.values() if t is not Account.AccountType.ROOT]
+
+        def __init__(self, acctType=None, allTypes=False, allAcctsNoCats=False, allAcctsNoSecsNoCats=False, investAndSec=False, incAndExp=False, bankAndCC=False, allDebt=False):
+            if (not acctType and not allTypes and not allAcctsNoCats and not allAcctsNoSecsNoCats and not investAndSec and not incAndExp and not bankAndCC and not allDebt):
+                raise Exception("ERROR - no type(s) specified!")
+            if acctType and not isinstance(acctType, Account.AccountType): raise Exception("ERROR - Must pass a valid Account Type (passed: '%s', type: %s" %(acctType, type(acctType)))
+            self.acctType=acctType
+            self.allTypes=allTypes
+            self.allAcctsNoCats=allAcctsNoCats
+            self.allAcctsNoSecsNoCats=allAcctsNoSecsNoCats
+            self.investAndSec=investAndSec
+            self.incAndExp=incAndExp
+            self.bankAndCC=bankAndCC
+            self.allDebt=allDebt
+            self.validTypes = []
+            if self.isType():                 self.validTypes = [acctType]
+            elif self.isInvestAndSecurity():  self.validTypes = [Account.AccountType.INVESTMENT, Account.AccountType.SECURITY]
+            elif self.isAllDebt():            self.validTypes = [Account.AccountType.CREDIT_CARD, Account.AccountType.LIABILITY, Account.AccountType.LOAN]
+            elif self.isBankAndCreditCard():  self.validTypes = [Account.AccountType.BANK, Account.AccountType.CREDIT_CARD]
+            elif self.isIncomeAndExpense():   self.validTypes = [Account.AccountType.INCOME, Account.AccountType.EXPENSE]
+            elif self.isAll():                self.validTypes = copy.copy(self.ALL_USEABLE_TYPES)
+            elif self.isAllNoCats():          self.validTypes = [t for t in self.ALL_USEABLE_TYPES if t not in [Account.AccountType.INCOME, Account.AccountType.EXPENSE]]
+            elif self.isAllNoSecsNoCats():    self.validTypes = [t for t in self.ALL_USEABLE_TYPES if t not in [Account.AccountType.INCOME, Account.AccountType.EXPENSE, Account.AccountType.SECURITY]]
+            else:                             raise Exception("ERROR - no account type detected?!")
+
+        def getAccountType(self):       return self.acctType
+
+        def isType(self):               return self.acctType is not None
+        def isAll(self):                return self.allTypes
+        def isAllNoCats(self):          return self.allAcctsNoCats
+        def isAllNoSecsNoCats(self):    return self.allAcctsNoSecsNoCats
+        def isInvestAndSecurity(self):  return self.investAndSec
+        def isIncomeAndExpense(self):   return self.incAndExp
+        def isBankAndCreditCard(self):  return self.bankAndCC
+        def isAllDebt(self):            return self.allDebt
+
+        def getValidTypes(self):        return self.validTypes
+
+        def __str__(self):
+            if self.isAll():                 rtnStr = "All Accounts AND Categories"
+            elif self.isAllNoCats():         rtnStr = "All Accounts (no categories)"
+            elif self.isAllNoSecsNoCats():   rtnStr = "All Accounts (no Securities)"
+            elif self.isInvestAndSecurity(): rtnStr = "Investment AND Security accts"
+            elif self.isIncomeAndExpense():  rtnStr = "Income AND Expense categories"
+            elif self.isBankAndCreditCard(): rtnStr = "Bank AND Credit Card accts"
+            elif self.isAllDebt():           rtnStr = "All Debt type accounts"
+            elif self.isType():              rtnStr = self.getAccountType().toString()
+            else: raise Exception("ERROR - unknown type/option?!")
+            return rtnStr
+
+        def __repr__(self):     return self.__str__()
+        def toString(self):     return self.__str__()
+
+        @staticmethod
+        def generateListForCombo():
+            # type: () -> [Account.AccountType]
+            comboList = []
+            comboList.append(AccountTypeHolder(allTypes=True))
+            comboList.append(AccountTypeHolder(allAcctsNoCats=True))
+            comboList.append(AccountTypeHolder(allAcctsNoSecsNoCats=True))
+            comboList.append(AccountTypeHolder(bankAndCC=True))
+            comboList.append(AccountTypeHolder(investAndSec=True))
+            comboList.append(AccountTypeHolder(allDebt=True))
+            comboList.append(AccountTypeHolder(incAndExp=True))
+            for t in AccountTypeHolder.ALL_USEABLE_TYPES: comboList.append(AccountTypeHolder(t))
+            return comboList
+
+    class StoreAccount:
 
         def __init__(self, obj, _autoSum):
             self.obj = None
             self._autoSum = _autoSum
-            if isinstance(obj,Account): self.obj = obj  # type: Account
+            if isinstance(obj, Account): self.obj = obj                                                                 # type: Account
+
+        def getAccount(self):
+            # type: () -> Account
+            return self.obj
 
         @staticmethod
         def getUserXBalance(_type, _acct):
@@ -3775,6 +4579,7 @@ Visit: %s (Author's site)
                 return _acct.getUserCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getUserClearedBalance()
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         @staticmethod
         def getXBalance(_type, _acct):
@@ -3785,6 +4590,7 @@ Visit: %s (Author's site)
                 return _acct.getCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getClearedBalance()
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         @staticmethod
         def getRecursiveUserXBalance(_type, _acct):
@@ -3795,6 +4601,7 @@ Visit: %s (Author's site)
                 return _acct.getRecursiveUserCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getRecursiveUserClearedBalance()
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         @staticmethod
         def getRecursiveXBalance(_type, _acct):
@@ -3805,15 +4612,12 @@ Visit: %s (Author's site)
                 return _acct.getRecursiveCurrentBalance()
             elif _type == GlobalVars.BALTYPE_CLEAREDBALANCE:
                 return _acct.getRecursiveClearedBalance()
-
-        def getAccount(self): return self.obj
+            else: raise Exception("@@@ LOGIC ERROR: BalanceType: '%s' NOT coded?!" %(_type))
 
         def __str__(self):
             if self.obj is None: return "Invalid Acct Obj or None"
             return self.getAccount().toString()
-
         def __repr__(self): return self.__str__()
-
         def toString(self): return self.__str__()
 
     # noinspection PyUnusedLocal
@@ -4400,9 +5204,700 @@ Visit: %s (Author's site)
             dim.width = self.maxWidth
             return dim
 
+    class SpecialJLinkLabel(JLinkLabel):
+        def __init__(self, *args, **kwargs):
+            tdfsc = kwargs.pop("tdfsc", None)                                                                           # type: TextDisplayForSwingConfig
+            self.maxWidth = -1
+            self.maxHeight = -1
+            super(self.__class__, self).__init__(*args)
+            self.NAB = NetAccountBalancesExtension.getNAB()
+            self.md = self.NAB.moneydanceContext
+            self.fonts = self.md.getUI().getFonts()
+            self.fonts.updateMetricsIfNecessary(self.getGraphics())
+            self.maxBaseline = self.fonts.defaultMetrics.getMaxDescent()
+            self.underlineStroke = BasicStroke(1.0, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0, [1.0, 6.0], 1.0 if (self.getHorizontalAlignment() == JLabel.LEFT) else 0.0)
+            self.underlineDots = self.NAB.savedDisplayVisualUnderDots
+            if tdfsc.isNoUnderlineDots(): self.underlineDots = False
+            if tdfsc.isForceUnderlineDots(): self.underlineDots = True
+
+        def setUnderlineDots(self, underlineDots): self.underlineDots = underlineDots
+
+        def getPreferredSize(self):
+            dim = super(self.__class__, self).getPreferredSize()
+            self.maxWidth = Math.max(self.maxWidth, dim.width)
+            dim.width = self.maxWidth
+            self.maxHeight = Math.max(self.maxHeight, dim.height)
+            dim.height = self.maxHeight
+            return dim
+
+        def paintComponent(self, g2d):
+            if isinstance(self, JLabel): pass                                                                           # trick IDE into type checking
+            if isinstance(g2d, Graphics2D): pass                                                                        # trick IDE into type checking
+
+            super(self.__class__, self).paintComponent(g2d)
+            if (not self.underlineDots or g2d is None): return
+
+            # html_view = self.getClientProperty("html")
+            # if html_view is None: return
+            # if isinstance(html_view, View): pass
+
+            isLeftAlign = (self.getHorizontalAlignment() == JLabel.LEFT)
+
+            x = 0
+            y = 0
+            w = self.getWidth()
+            h = self.getHeight()
+            insets = self.getInsets()
+
+            # self.fonts.updateMetricsIfNecessary(g2d)
+            # g2d.setFont(self.fonts.defaultText)
+
+            viewR = Rectangle(w, h)
+            iconR = Rectangle()
+            textR = Rectangle()
+
+            clippedText = SwingUtilities.layoutCompoundLabel(
+                self,
+                g2d.getFontMetrics(),
+                self.getText(),
+                self.getIcon(),
+                self.getVerticalAlignment(),
+                self.getHorizontalAlignment(),
+                self.getVerticalTextPosition(),
+                self.getHorizontalTextPosition(),
+                viewR,
+                iconR,
+                textR,
+                self.getIconTextGap()
+            )
+            if clippedText is None: pass
+
+            visibleTextWidth = int(textR.getWidth())
+
+            # visibleTextWidth = int(html_view.getPreferredSpan(View.X_AXIS))   # Only useful when html...
+
+            baselineY = (y + self.getHeight() - self.maxBaseline - 1)
+
+            if isLeftAlign:
+                startDots = (visibleTextWidth + insets.left)
+                lengthOfDots = (self.getWidth() - startDots)
+            else:
+                startDots = x
+                lengthOfDots = (self.getWidth() - visibleTextWidth - insets.right)
+
+            line = Path2D.Double()                                                                                      # noqa
+            line.moveTo(w if isLeftAlign else 0.0, baselineY - insets.top)
+            line.lineTo(0.0 if isLeftAlign else w, baselineY - insets.top)
+
+            g2d.setColor(self.md.getUI().getColors().defaultTextForeground)
+            g2d.clipRect(startDots, 0, lengthOfDots, h)
+            g2d.setStroke(self.underlineStroke)
+            g2d.draw(line)
+
+    class TextDisplayForSwingConfig:
+        WIDGET_ROW_BLANKROWNAME = "<#brn>"
+        WIDGET_ROW_RIGHTROWNAME = "<#jr>"
+        WIDGET_ROW_CENTERROWNAME = "<#jc>"
+        WIDGET_ROW_REDROWNAME = "<#cre>"
+        WIDGET_ROW_BLUEROWNAME = "<#cbl>"
+        WIDGET_ROW_LIGHTGREYROWNAME = "<#cgr>"
+        WIDGET_ROW_BOLDROWNAME = "<#fbo>"
+        WIDGET_ROW_ITALICSROWNAME = "<#fit>"
+        WIDGET_ROW_UNDERLINESROWNAME = "<#fun>"
+        WIDGET_ROW_NO_UNDERLINE_DOTS = "<#nud>"
+        WIDGET_ROW_FORCE_UNDERLINE_DOTS = "<#fud>"
+        WIDGET_ROW_HTMLROWNAME = "<#html>"
+
+        WIDGET_ROW_BLANKZEROVALUE = "<#bzv>"
+
+        WIDGET_ROW_VALUE_RED = "<#cvre>"
+        WIDGET_ROW_VALUE_BLUE = "<#cvbl>"
+        WIDGET_ROW_VALUE_LIGHTGREY = "<#cvgr>"
+        WIDGET_ROW_VALUE_BOLD = "<#fvbo>"
+        WIDGET_ROW_VALUE_ITALICS = "<#fvit>"
+        WIDGET_ROW_VALUE_UNDERLINE = "<#fvun>"
+
+        def __init__(self, _rowText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True):
+            self.ui = GlobalVars.CONTEXT.getUI()
+            self.mono = self.ui.getFonts().mono
+            self.originalRowText = _rowText
+            self.originalSmallText = _smallText
+            self.originalSmallColor = _smallColor
+            self.originalStripBigChars = stripBigChars
+            self.originalStripSmallChars = stripSmallChars
+            self.swingComponentText = None
+            self.color = None
+            self.blankRow = False
+            self.bold = False
+            self.italics = False
+            self.underline = False
+            self.forceUnderlineDots = False
+            self.noUnderlineDots = False
+            self.html = False
+            self.justification = JLabel.LEFT
+            self.disableBlinkOnValue = False
+            self.blankZero = False
+            self.valueColor = None
+            self.valueBold = False
+            self.valueItalics = False
+            self.valueUnderline = False
+
+            if (self.__class__.WIDGET_ROW_BLUEROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BLUEROWNAME, "")
+                self.color = getColorBlue()
+
+            if (self.__class__.WIDGET_ROW_REDROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_REDROWNAME, "")
+                self.color = getColorRed()
+
+            if (self.__class__.WIDGET_ROW_LIGHTGREYROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_LIGHTGREYROWNAME, "")
+                self.color = GlobalVars.CONTEXT.getUI().getColors().tertiaryTextFG
+
+            if (self.__class__.WIDGET_ROW_BOLDROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BOLDROWNAME, "")
+                self.bold = True
+
+            if (self.__class__.WIDGET_ROW_ITALICSROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_ITALICSROWNAME, "")
+                self.italics = True
+
+            if (self.__class__.WIDGET_ROW_UNDERLINESROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_UNDERLINESROWNAME, "")
+                self.underline = True
+
+            if (self.__class__.WIDGET_ROW_HTMLROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_HTMLROWNAME, "")
+                self.html = True
+
+            if (self.__class__.WIDGET_ROW_BLANKZEROVALUE in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BLANKZEROVALUE, "")
+                self.blankZero = True
+
+            if (self.__class__.WIDGET_ROW_VALUE_BLUE in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_BLUE, "")
+                self.valueColor = getColorBlue()
+
+            if (self.__class__.WIDGET_ROW_VALUE_RED in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_RED, "")
+                self.valueColor = getColorRed()
+
+            if (self.__class__.WIDGET_ROW_VALUE_LIGHTGREY in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_LIGHTGREY, "")
+                self.valueColor = GlobalVars.CONTEXT.getUI().getColors().tertiaryTextFG
+
+            if (self.__class__.WIDGET_ROW_VALUE_BOLD in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_BOLD, "")
+                self.valueBold = True
+
+            if (self.__class__.WIDGET_ROW_VALUE_ITALICS in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_ITALICS, "")
+                self.valueItalics = True
+
+            if (self.__class__.WIDGET_ROW_VALUE_UNDERLINE in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_UNDERLINE, "")
+                self.valueUnderline = True
+
+            if (self.__class__.WIDGET_ROW_RIGHTROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_RIGHTROWNAME, "")
+                self.justification = JLabel.RIGHT
+
+            if (self.__class__.WIDGET_ROW_CENTERROWNAME in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_CENTERROWNAME, "")
+                self.justification = JLabel.CENTER
+
+            if (self.__class__.WIDGET_ROW_BLANKROWNAME in _rowText):
+                _rowText = ""
+                self.blankRow = True
+
+            if (self.__class__.WIDGET_ROW_NO_UNDERLINE_DOTS in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_NO_UNDERLINE_DOTS, "")
+                self.noUnderlineDots = True
+                self.forceUnderlineDots = False
+
+            if (self.__class__.WIDGET_ROW_FORCE_UNDERLINE_DOTS in _rowText):
+                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_FORCE_UNDERLINE_DOTS, "")
+                self.forceUnderlineDots = True
+                self.noUnderlineDots = False
+
+            if self.getJustification() == JLabel.CENTER:
+                self.noUnderlineDots = True         # These don't work properly when centered....
+                self.forceUnderlineDots = False
+
+            if self.blankZero: self.disableBlinkOnValue = True
+
+            self.swingComponentText = wrap_HTML_BIG_small(_rowText,
+                                                          _smallText,
+                                                          _smallColor=_smallColor,
+                                                          stripBigChars=stripBigChars,
+                                                          stripSmallChars=stripSmallChars,
+                                                          _bigColor=self.color,
+                                                          _italics=self.italics,
+                                                          _bold=self.bold,
+                                                          _underline=self.underline,
+                                                          _html=self.html)
+
+        def clone(self, tdfsc, prependBigText, appendBigText):
+            newTDFSC = TextDisplayForSwingConfig(prependBigText + tdfsc.originalRowText + appendBigText,
+                                                 tdfsc.originalSmallText,
+                                                 _smallColor=tdfsc.originalSmallText,
+                                                 stripBigChars=tdfsc.originalStripBigChars,
+                                                 stripSmallChars=tdfsc.originalStripSmallChars)
+            return newTDFSC
+
+        def getSwingComponentText(self): return self.swingComponentText
+        def getBlankZero(self): return self.blankZero
+        def getJustification(self): return self.justification
+        def isNoUnderlineDots(self): return self.noUnderlineDots
+        def isForceUnderlineDots(self): return self.forceUnderlineDots
+        def getDisableBlinkonValue(self): return self.disableBlinkOnValue
+        def getValueBold(self): return self.valueBold
+        def getValueItalics(self): return self.valueItalics
+        def getValueUnderline(self): return self.valueUnderline
+
+        def getValueColor(self, resultValue=-1):
+            if self.valueColor is not None:
+                return self.valueColor
+            if resultValue < 0:
+                return self.ui.getColors().negativeBalFG
+            else:
+                if "default" == ThemeInfo.themeForID(self.ui,
+                        self.ui.getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
+                    return self.ui.getColors().budgetHealthyColor
+                else:
+                    return self.ui.getColors().positiveBalFG
+
+        def getValueFont(self, enhanceFormat=True):
+            font = self.mono                                                                                            # type: Font
+            if enhanceFormat:
+                if self.getValueBold() or self.getValueItalics() or self.getValueUnderline():
+                    fa = font.getAttributes()
+                    if self.getValueBold(): fa.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD)
+                    if self.getValueItalics(): fa.put(TextAttribute.POSTURE, TextAttribute.POSTURE_OBLIQUE)
+                    if self.getValueUnderline(): fa.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON)
+                    font = font.deriveFont(fa)
+            return font
+
+
+    # if isKotlinCompiledBuild():
+    #     from okio import BufferedSource, Buffer, Okio                                                                   # noqa
+    #     if debug: myPrint("B", "** Kotlin compiled build detected, new libraries enabled.....")
+    #
+    # def convertBufferedSourceToInputStream(bufferedSource):
+    #     if isKotlinCompiledBuild() and isinstance(bufferedSource, BufferedSource):
+    #         return bufferedSource.inputStream()
+    #     return bufferedSource
+    #
+    # def readFromString(paramString):
+    #     # type: (str) -> SyncRecord
+    #     _settings = SyncRecord()
+    #     if isKotlinCompiledBuild():
+    #         _settings.readSet(Buffer().writeUtf8(paramString))
+    #     else:
+    #         _settings.readSet(StringReader(paramString))
+    #     return _settings
+    #
+    # def returnParametersOrDefaults(_paramStr, _returnDefaults=False):
+    #     # type: (str, bool) -> SyncRecord
+    #     if _returnDefaults: return SyncRecord()
+    #     return  readFromString(_paramStr)
+
+    class IncExpDateRangeChooser(DateRangeChooser):
+
+        def __init__(self, mdGUI):
+            self.name = "IncExpDateRangeChooser"
+            super(self.__class__, self).__init__(mdGUI)
+
+        # @Override
+        def itemStateChanged(self, evt):
+            # if debug: myPrint("B", "@@ In IncExpDateRangeChooser(DateRangeChooser)::itemStateChanged() - event:", evt);
+            src = evt.getSource()
+            drc = getFieldByReflection(self, "dateRangeChoice")
+            if (src is drc and evt.getStateChange() == ItemEvent.SELECTED):
+                if debug:
+                    myPrint("B", "@@ IncExpDateRangeChooser:%s:itemStateChanged().firePropertyChange(%s) >> selection changed (from: '%s' to '%s') <<"
+                            %(self.getName(), self.PROP_DATE_RANGE_CHANGED, "<unknown>", src.getSelectedItem().getValue()))
+                getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, "<unknown>", src.getSelectedItem().getValue())
+            if evt.getStateChange() == ItemEvent.SELECTED: super(self.__class__, self).itemStateChanged(evt)
+
+        def setName(self, newName): self.name = newName
+        def getName(self): return self.name
+        def getActionListeners(self): return []
+        def getFocusListeners(self): return []
+        def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
+
+        def setSelectedOptionKey(self, dateOptionKey):
+            # type: (str) -> bool
+            lSetOption = False
+            drOptions = getFieldByReflection(self, "dateRangeOptions")
+            drChoice = getFieldByReflection(self, "dateRangeChoice")
+            for i in range(0, len(drOptions)):
+                choice = drOptions[i]
+                if choice.getValue().getResourceKey() == dateOptionKey:
+                    lSetOption = True
+                    drChoice.setSelectedIndex(i)
+                    break
+
+            if lSetOption: invokeMethodByReflection(self, "dateRangeSelected", [], [])
+            return lSetOption
+
+        def getPanel(self, includeChoiceLabel=True, horizontal=True):
+            p = MyJPanel(GridBagLayout())
+            x = 0; y = 0
+            vertInc = 0 if horizontal else 1
+            if includeChoiceLabel:
+                p.add(self.getChoiceLabel(),    GridC.getc(x, y).label()); x += 1
+            p.add(self.getChoice(),             GridC.getc(x, y).field()); x += 1; y += vertInc
+            if not horizontal: x = 0
+            p.add(self.getStartLabel(),         GridC.getc(x, y).label()); x += 1
+            p.add(self.getStartField(),         GridC.getc(x, y).field()); x += 1; y += vertInc
+            if not horizontal: x = 0
+            p.add(self.getEndLabel(),           GridC.getc(x, y).label()); x += 1
+            p.add(self.getEndField(),           GridC.getc(x, y).field()); x += 1; y += vertInc
+            return p
+
+        def loadFromParameters(self, drOptionKey, drSettings, defaultKey=DateRangeOption.DR_ALL_DATES.getResourceKey()):
+            # type: (str, [int, int], str) -> bool
+            if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default i/e date range option/key ('%s') not found?!" %(defaultKey))
+            if drOptionKey is None or drOptionKey == "": drOptionKey = defaultKey
+            foundSetting = False
+            drStartDateInt = drSettings[0]
+            drEndDateInt = drSettings[1]
+            if drOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey():
+                if isValidIncExpDateRange(drStartDateInt, drEndDateInt):
+                    self.setStartDate(drStartDateInt)
+                    self.setEndDate(drEndDateInt)
+                    foundSetting = True
+            else:
+                foundSetting = self.setSelectedOptionKey(drOptionKey)
+            if not foundSetting:
+                myPrint("B", "@@ %s::loadFromParameters() - I/E date range settings ('%s %s') not found / invalid?! Loaded default ('%s')"
+                        %(self.getName(), drOptionKey, drSettings, defaultKey))
+            else:
+                if debug: myPrint("B", "Successfully loaded I/E date range date settings ('%s %s')" %(drOptionKey, drSettings))
+            return foundSetting
+
+        def returnStoredParameters(self, defaultDRSettings):
+            # type: ([int, int]) -> (str, [int, int])
+            drSettings = copy.deepcopy(defaultDRSettings)
+            dr = self.getDateRange()
+            startDateInt = dr.getStartDateInt()
+            endDateInt = dr.getEndDateInt()
+            selectedIndex = invokeMethodByReflection(self, "getSelectedIndex", [], [])
+            selectedOptionKey = self.getOption(selectedIndex)
+            drSettings[0] = startDateInt if (selectedOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey()) else 0
+            drSettings[1] = endDateInt if (selectedOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey()) else 0
+            if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored I/E date range parameters settings ('%s %s')" %(self.getName(), selectedOptionKey, drSettings))
+            return selectedOptionKey, drSettings
+
+
+    class AsOfDateChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
+        """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged"""
+        PARAM_ASOF_CHOICE = "asof_option"
+        PARAM_ASOF_DATE = "asof_date"
+        PROP_ASOF_CHANGED = "asOfChanged"
+        ASOF_TODAY = "asof_today"
+        KEY_CUSTOM_ASOF = "custom_asof"
+        KEY_ASOF_END_FUTURE = "asof_end_future"
+        KEY_ASOF_END_THIS_MONTH = "asof_end_this_month"
+        ASOF_DATE_OPTIONS = [
+                              ["asof_today",                    "asof today"],
+                              ["asof_yesterday",                "asof yesterday"],
+                              ["asof_end_last_fiscal_quarter",  "asof end last Fiscal Quarter"],
+                              ["asof_end_this_fiscal_year",     "asof end this Fiscal Year"],
+                              ["asof_end_this_year",            "asof end this year"],
+                              ["asof_end_this_quarter",         "asof end this quarter"],
+                              ["asof_end_this_month",           "asof end this month"],
+                              ["asof_end_this_week",            "asof end this week"],
+                              ["asof_end_next_month",           "asof end next month"],
+                              ["asof_end_last_year",            "asof end last year"],
+                              ["asof_end_last_fiscal_year",     "asof end last Fiscal Year"],
+                              ["asof_end_last_quarter",         "asof end last quarter"],
+                              ["asof_end_last_month",           "asof end last month"],
+                              ["asof_end_last_week",            "asof end last week"],
+                              ["asof_end_future",               "asof end future (all dates)"],
+                              ["custom_asof",                   "Custom asof date"]
+                            ]
+
+        class AsOfDateChoice:
+            def __init__(self, key, displayName):
+                self.key = key
+                self.displayName = displayName
+            def getKey(self):           return self.key
+            def getDisplayName(self):   return self.displayName
+            def __str__(self):          return self.getDisplayName()
+            def __repr__(self):         return self.__str__()
+            def toString(self):         return self.__str__()
+
+            @staticmethod
+            def getAsOfDateFromKey(forOptionKey):
+                # type: (str) -> int
+
+                todayInt = Util.getStrippedDateInt()
+                yesterdayInt = DateUtil.incrementDate(todayInt, 0, 0, -1)
+
+                if forOptionKey == "custom_asof":                    return todayInt
+                elif forOptionKey ==  "asof_end_future":             return DateRange().getEndDateInt()
+                elif forOptionKey == "asof_today":                   return todayInt
+                elif forOptionKey == "asof_yesterday":               return yesterdayInt
+                elif forOptionKey == "asof_end_this_fiscal_year":    return DateUtil.lastDayInFiscalYear(todayInt)
+                elif forOptionKey == "asof_end_last_fiscal_year":    return DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(todayInt))
+                elif forOptionKey == "asof_end_last_fiscal_quarter": return DateUtil.lastDayInFiscalQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0))
+                elif forOptionKey == "asof_end_this_quarter":        return Util.lastDayInQuarter(todayInt)
+                elif forOptionKey == "asof_end_this_year":           return DateUtil.lastDayInYear(todayInt)
+                elif forOptionKey == "asof_end_this_month":          return Util.lastDayInMonth(todayInt)
+                elif forOptionKey == "asof_end_next_month":          return Util.lastDayInMonth(Util.incrementDate(todayInt, 0, 1, 0))
+                elif forOptionKey == "asof_end_this_week":           return Util.lastDayInWeek(todayInt)
+                elif forOptionKey == "asof_end_last_year":           return Util.lastDayInYear(Util.decrementYear(todayInt))
+                elif forOptionKey == "asof_end_last_quarter":        return DateUtil.lastDayInQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0))
+                elif forOptionKey == "asof_end_last_month":          return Util.incrementDate(Util.firstDayInMonth(todayInt), 0, 0, -1)
+                elif forOptionKey == "asof_end_last_week":           return Util.incrementDate(Util.firstDayInWeek(todayInt), 0, 0, -1)
+                raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
+
+        class AsOfDateClickListener(MouseAdapter):
+            def __init__(self, callingClass):   self.callingClass = callingClass
+            def mouseClicked(self, event):
+                if (SwingUtilities.isLeftMouseButton(event) and event.getClickCount() > 1):
+                    self.callingClass.asOfChoice_COMBO.setSelectedItem(self.callingClass.customOption)
+
+        def __init__(self, mdGUI, defaultKey, excludeKeys=None):
+            # type: (MoneydanceGUI, str, [str]) -> None
+            if isinstance(excludeKeys, str): excludeKeys = [excludeKeys]
+            if excludeKeys is None or not isinstance(excludeKeys, list): excludeKeys = []
+            for checkKey in [self.KEY_CUSTOM_ASOF, self.KEY_ASOF_END_FUTURE]:
+                if checkKey in excludeKeys: excludeKeys.remove(checkKey)
+            self.mdGUI = mdGUI
+            self.customOption = None
+            self.excludeKeys = excludeKeys
+            self.name = "AsOfDateChooser"
+            self.defaultKey = defaultKey
+            self.allDatesOption = None
+            self.asOfDateIntResult = None
+            self.selectedOptionKeyResult = None
+            self.ignoreDateChanges = False
+            self.isEnabled = True
+            self.asOfOptions = self.createAsOfDateOptions()                                                             # type: [AsOfDateChooser.AsOfDateChoice]
+            self.asOfDate_JDF = JDateField(mdGUI)
+            self.asOfDate_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
+            self.asOfDate_JDF.addMouseListener(self.AsOfDateClickListener(self))
+            # self.asOfDate_JDF.setFocusable(True)
+            # self.asOfDate_JDF.addKeyListener(MyKeyAdapter())
+            self.asOfDate_LBL = MyJLabel(" ", 4)
+            self.asOfChoice_LBL = MyJLabel(" ", 4)
+            self.asOfChoice_COMBO = MyJComboBox()
+            self.preferencesUpdated()
+            self.asOfSelected()
+            self.asOfChoice_COMBO.addItemListener(self)
+
+        def setDefaultKey(self, newDefault): self.defaultKey = newDefault
+        def getDefaultKey(self): return self.defaultKey
+        def setName(self, newName): self.name = newName
+        def getName(self): return self.name
+        def getActionListeners(self): return []
+        def getFocusListeners(self): return []
+        def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
+
+        def createAsOfDateOptions(self):
+            choices = [AsOfDateChooser.AsOfDateChoice(choice[0], choice[1]) for choice in self.ASOF_DATE_OPTIONS if choice[0] not in self.excludeKeys]
+            for choice in choices:
+                if choice.getKey() == self.KEY_CUSTOM_ASOF: self.customOption = choice
+                if choice.getKey() == self.KEY_ASOF_END_FUTURE: self.allDatesOption = choice
+            return choices
+
+        def getAsOfLabel(self): return self.asOfDate_LBL
+        def getAsOfDateField(self): return self.asOfDate_JDF
+        def getChoiceLabel(self): return self.asOfChoice_LBL
+        def getChoiceCombo(self): return self.asOfChoice_COMBO
+
+        def isCustomAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.customOption)
+        def isAllAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.allDatesOption)
+
+        def selectAllAsOfDates(self):
+            self.getChoiceCombo().setSelectedItem(self.allDatesOption)
+            self.asOfSelected()
+
+        def preferencesUpdated(self):
+            prefs = self.mdGUI.getPreferences()
+            self.asOfDate_JDF.setDateFormat(prefs.getShortDateFormatter())
+            self.asOfDate_LBL.setText("date:")
+            self.asOfChoice_LBL.setText("Balance:")
+            asOfSel = self.getSelectedIndex()
+            self.getChoiceCombo().setModel(DefaultComboBoxModel(self.asOfOptions))
+            prototypeText = ""
+            protoChoice = None
+            for choice in self.asOfOptions:
+                text = choice.getDisplayName()
+                if len(text) <= len(prototypeText): continue
+                prototypeText = text
+                protoChoice = choice
+            if protoChoice is None: protoChoice = self.asOfOptions[0]
+            self.getChoiceCombo().setPrototypeDisplayValue(self.AsOfDateChoice(protoChoice.getKey(), protoChoice.getDisplayName()))
+            self.getChoiceCombo().setMaximumRowCount(len(self.asOfOptions))
+            if (asOfSel >= 0): self.getChoiceCombo().setSelectedIndex(asOfSel)
+
+        def getPanel(self, includeChoiceLabel=True, horizontal=True):
+            p = MyJPanel(GridBagLayout())
+            x = 0; y = 0
+            vertInc = 0 if horizontal else 1
+            if includeChoiceLabel:
+                p.add(self.getChoiceLabel(),    GridC.getc(x, y).label()); x += 1
+            p.add(self.getChoiceCombo(),        GridC.getc(x, y).field()); x += 1; y += vertInc
+            if not horizontal: x = 0
+            p.add(self.getAsOfLabel(),          GridC.getc(x, y).label()); x += 1
+            p.add(self.getAsOfDateField(),      GridC.getc(x, y).field()); x += 1; y += vertInc
+            return p
+
+        def setSelectedOptionKey(self, asOfOptionKey):
+            lSetOption = False
+            for choice in self.asOfOptions:
+                if choice.getKey() == asOfOptionKey:
+                    lSetOption = True
+                    self.getChoiceCombo().setSelectedItem(choice)
+                    break
+            if lSetOption: self.asOfSelected()
+            return lSetOption
+
+        def getSelectedOptionKey(self, position): return self.asOfOptions[position].getKey()
+
+        def getSelectedIndex(self):
+            sel = self.getChoiceCombo().getSelectedIndex()
+            if sel < 0: sel = 0
+            return sel
+
+        def setAsOfDateInt(self, asofDateInt):
+            self.getChoiceCombo().setSelectedItem(self.customOption)
+            self.asOfDate_JDF.setDateInt(asofDateInt)
+            self.asOfSelected()
+
+        def getAsOfDateInt(self):
+            if self.asOfDateIntResult is None: self.asOfSelected()
+            return Integer(self.asOfDateIntResult)
+
+        def asOfSelected(self):
+            asofDateInt = self.getAsOfDateIntFromSelectedOption()
+            # myPrint("B", "@@ AsOfDateChooser:%s:asOfSelected() - getAsOfDateIntFromSelectedOption() reports: '%s'" %(self.getName(), asofDateInt))
+            self.ignoreDateChanges = True
+            self.asOfDate_JDF.setDateInt(asofDateInt)
+            self.ignoreDateChanges = False
+            self.setAsOfDateResult(asofDateInt)
+            self.updateEnabledStatus()
+
+        def loadFromParameters(self, settings, defaultKey):
+            # type: ([bool, str, int], str) -> bool
+            if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default asof option/key ('%s') not found?!" %(defaultKey))
+            foundSetting = False
+            # asOfOptionSelected = settings[0]
+            asOfOptionKey = settings[1]
+            asOfDateInt = settings[2]
+            if asOfOptionKey == self.KEY_CUSTOM_ASOF:
+                if isValidBalanceAsOfDate(asOfDateInt):
+                    self.setAsOfDateInt(asOfDateInt)
+                    foundSetting = True
+            else:
+                foundSetting = self.setSelectedOptionKey(asOfOptionKey)
+            if not foundSetting:
+                myPrint("B", "@@ %s::loadFromParameters() - asof date settings ('%s') not found / invalid?! Loaded default ('%s')"
+                        %(self.getName(), settings, defaultKey))
+            else:
+                if debug: myPrint("B", "Successfully loaded asof date settings ('%s')" %(settings))
+            return foundSetting
+
+        def returnStoredParameters(self, defaultSettings):
+            # type: ([bool, str, int]) -> [bool, str, int]
+            settings = copy.deepcopy(defaultSettings)
+            asOfDateInt = self.getAsOfDateInt()
+            selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+            # leave settings[0] untouched
+            settings[1] = selectedOptionKey
+            settings[2] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
+            if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored asof date parameters settings ('%s')" %(self.getName(), settings))
+            return settings
+
+        # def loadFromParameters(self, settings, defaultKey="asof_today"):
+        #     self.setSelectedOptionKey(defaultKey)
+        #     asOfDateInt = self.getAsOfDateInt()
+        #     foundSetting = False
+        #     if settings.containsKey(self.PARAM_ASOF_CHOICE):
+        #         self.setSelectedOptionKey(settings.getString(self.PARAM_ASOF_CHOICE, defaultKey));
+        #         foundSetting = True
+        #     if (settings.containsKey(self.PARAM_ASOF_DATE)):
+        #         self.setAsOfDateInt(MDURLUtil.getDate(settings, self.PARAM_ASOF_DATE, Integer(asOfDateInt)))
+        #         foundSetting = True
+        #     return foundSetting
+
+        # def storeToParameters(self, settings):
+        #     asOfDateInt = self.getAsOfDateInt()
+        #     selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+        #     settings.put(self.PARAM_ASOF_CHOICE, selectedOptionKey)
+        #     if selectedOptionKey == self.KEY_CUSTOM_ASOF:
+        #         MDURLUtil.putDate(settings, self.PARAM_ASOF_DATE, Integer(asOfDateInt))
+
+        def setAsOfDateResult(self, asOfDateInt):
+            oldAsOfDateInt = self.asOfDateIntResult
+            oldSelectedKey = self.selectedOptionKeyResult
+            selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+            # myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s) (old asof date: %s), selectedKey: '%s' (old key: '%s')" %(self.getName(), asOfDateInt, oldAsOfDateInt, selectedOptionKey, oldSelectedKey));
+            if asOfDateInt != oldAsOfDateInt or selectedOptionKey != oldSelectedKey:
+                self.asOfDateIntResult = asOfDateInt
+                self.selectedOptionKeyResult = selectedOptionKey
+                if asOfDateInt != oldAsOfDateInt:
+                    # if debug:
+                    #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt)
+                else:
+                    # if debug:
+                    #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey)
+
+        def setEnabled(self, isEnabled, shouldHide=False):
+            self.isEnabled = isEnabled
+            self.updateEnabledStatus(shouldHide=shouldHide)
+
+        def updateEnabledStatus(self, shouldHide=False):
+            self.getChoiceCombo().setEnabled(self.isEnabled)
+            self.asOfChoice_LBL.setEnabled(self.isEnabled)
+            self.asOfDate_LBL.setEnabled(self.isEnabled)
+            self.asOfDate_JDF.setEditable(self.isEnabled)
+            self.getChoiceCombo().setFocusable(self.isEnabled)
+            self.asOfChoice_LBL.setFocusable(self.isEnabled)
+            self.asOfDate_LBL.setFocusable(self.isEnabled)
+            self.asOfDate_JDF.setFocusable(self.isEnabled)
+            if shouldHide:
+                self.asOfChoice_LBL.setVisible(self.isEnabled)
+                self.getChoiceCombo().setVisible(self.isEnabled)
+                self.asOfDate_LBL.setVisible(self.isEnabled)
+                self.asOfDate_JDF.setVisible(self.isEnabled)
+
+        def itemStateChanged(self, evt):
+            src = evt.getSource()
+            if (evt.getStateChange() == ItemEvent.SELECTED and src is self.getChoiceCombo()):
+                self.asOfSelected()
+
+        def propertyChange(self, event):
+            # myPrint("B", "@@ AsOfDateChooser:%s:propertyChange('%s') - .getSelectedOptionKey() reports: '%s'"
+            #         %(self.getName(), event.getPropertyName(), self.getSelectedOptionKey(self.getSelectedIndex())));
+            if event.getPropertyName() == JDateField.PROP_DATE_CHANGED and not self.ignoreDateChanges:
+                selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+                if (selectedOptionKey != self.KEY_CUSTOM_ASOF and self.asOfVariesFromSelectedOption()):
+                    self.getChoiceCombo().setSelectedItem(self.customOption)
+                if (selectedOptionKey == self.KEY_CUSTOM_ASOF):
+                    self.setAsOfDateResult(self.asOfDate_JDF.getDateInt())
+
+        def asOfVariesFromSelectedOption(self):
+            asOfDateInt = self.asOfDate_JDF.getDateInt()
+            selectedAsOfDateInt = self.getAsOfDateIntFromSelectedOption()
+            return asOfDateInt != selectedAsOfDateInt
+
+        def getAsOfDateIntFromSelectedOption(self):
+            selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+            if (selectedOptionKey == self.KEY_CUSTOM_ASOF):
+                return self.asOfDate_JDF.parseDateInt()
+            return self.AsOfDateChoice.getAsOfDateFromKey(selectedOptionKey)
+
+
+
     # ------------------------------------------------------------------------------------------------------------------
     # com.infinitekind.moneydance.model.AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR : Comparator
-
 
     def compareAccountType(acctType1, acctType2):
         code1 = acctType1.code()
@@ -4410,7 +5905,6 @@ Visit: %s (Author's site)
         if code1 < code2: return -1
         if code1 > code2: return 1
         return 0
-
 
     def compareAccountsByHierarchy(a1, a2):
         # com.infinitekind.moneydance.model.AccountUtil.compareAccountsByHierarchy(Account, Account) : int
@@ -4499,89 +5993,235 @@ Visit: %s (Author's site)
         return (_acct.getAccountType() == Account.AccountType.EXPENSE or _acct.getAccountType() == Account.AccountType.INCOME)
 
     # noinspection PyUnresolvedReferences
-    def isSecurityAcct(_acct):      return (_acct.getAccountType() == Account.AccountType.SECURITY)
+    def isSecurityAcct(_acct):          return (_acct.getAccountType() is Account.AccountType.SECURITY)
 
     # noinspection PyUnresolvedReferences
-    def isInvestmentAcct(_acct):    return (_acct.getAccountType() == Account.AccountType.INVESTMENT)
+    def isInvestmentAcct(_acct):        return (_acct.getAccountType() is Account.AccountType.INVESTMENT)
 
     # noinspection PyUnresolvedReferences
-    def isRootAcct(_acct):          return (_acct.getAccountType() == Account.AccountType.ROOT)
+    def isRootAcct(_acct):              return (_acct.getAccountType() is Account.AccountType.ROOT)
 
+    def isInvestmentOrSecurity(_acct):  return (isInvestmentAcct(_acct) or isSecurityAcct(_acct))
 
     class MyAcctFilterIncExpOnly(AcctFilter):
         def __init__(self):         pass
         def matches(self, acct):    return isIncomeExpenseAcct(acct)
 
-
-    def isIncomeExpenseAllDatesSelected(index):
+    def isIncomeExpenseDatesSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedIncomeExpenseDateRange[index] == NAB.incomeExpenseDateRangeDefault())
+        return (NAB.savedIncomeExpenseDateRange[index] != NAB.incomeExpenseDateRangeDefault())
+
+    def isBalanceAsOfDateSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedBalanceAsOfDateTable[index][GlobalVars.ASOF_BALANCE_IDX] and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
+
+    def isIncludeRemindersSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedIncludeRemindersTable[index][GlobalVars.INCLUDE_REMINDERS_IDX] and isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
+
+    def isUseCostBasisSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_NONE)
+
+    def isUseCostBasisCashSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return isUseCostBasisSelected(index) and NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX]
+
+    def shouldIncludeAccountForCostBasis(index, acct):
+        if isUseCostBasisSelected(index):
+            checkATs = [Account.AccountType.SECURITY]                                                                   # noqa
+            if isUseCostBasisCashSelected(index):
+                checkATs.append(Account.AccountType.INVESTMENT)                                                         # noqa
+            if acct.getAccountType() in checkATs: return True
+        return False
 
     def buildEmptyTxnOrBalanceArray():
-        # type: () -> [{}]
+        # type: () -> [{Account: []}]       # Multi-purpose, can hold {Account: [AbstractTxn or HoldBalance or Reminder]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
         for i in range(0, NAB.getNumberOfRows()): table.append({})
         return table
 
     def buildEmptyDateRangeArray():
-        # type: () -> [[]]
+        # type: () -> [[DateRange]]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
-        for i in range(0, NAB.getNumberOfRows()): table.append([])
+        for i in range(0, NAB.getNumberOfRows()): table.append(None)
         return table
 
     def buildEmptyAccountList():
-        # type: () -> [[]]
+        # type: () -> [[Account]]
         NAB = NetAccountBalancesExtension.getNAB()
         table = []
         for i in range(0, NAB.getNumberOfRows()): table.append([])
         return table
 
-    def isParallelBalanceTableOperational():
+    def isParallelBalanceTableOperational(_rowIdx=None):
+        # type: (int) -> bool
         NAB = NetAccountBalancesExtension.getNAB()
 
         lAnyParallel = False
-        for iRowIndex in range(0, NAB.getNumberOfRows()):
-            onRow = iRowIndex+1
-            if NAB.savedIncomeExpenseDateRange[iRowIndex] != NAB.incomeExpenseDateRangeDefault():
-                if debug: myPrint("DB", "** Row: %s >> Parallel Balances based on Txns is in operation.." %(onRow))
+        for iRowIndex in (range(0, NAB.getNumberOfRows()) if (_rowIdx is None) else [_rowIdx]):
+            # onRow = iRowIndex + 1
+            if isBalanceAsOfDateSelected(iRowIndex):
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Accounts using txns with 'balance asof date' is in operation.." %(onRow));
+                lAnyParallel = True
+            if isIncludeRemindersSelected(iRowIndex):
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Accounts with 'include reminders asof date' is in operation.." %(onRow))
+                lAnyParallel = True
+            if isUseCostBasisSelected(iRowIndex):
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Security accounts with 'return cost basis' is in operation.." %(onRow))
+                lAnyParallel = True
+            if isIncomeExpenseDatesSelected(iRowIndex):
+                # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for 'Inc/Exp Txns based on date range' is in operation.." %(onRow))
                 lAnyParallel = True
 
-        if debug: myPrint("DB", "** Setting Parallel Balances Detected flag to '%s'" %(lAnyParallel))
+        if _rowIdx is not None:
+            # if lAnyParallel:
+            #     if debug: myPrint("B", ">> Detected parallel balances are required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1))
+            # else:
+            #     if debug: myPrint("B", "[INFO] Parallel balances are NOT required for row index: %s (row: %s)" %(_rowIdx, _rowIdx+1))
+            return lAnyParallel
+
+        if debug or TIMING_DEBUG: myPrint("B", "** Setting Parallel Balances detected flag to '%s'" %(lAnyParallel))
         NAB.parallelBalanceTableOperating = lAnyParallel
         return NAB.parallelBalanceTableOperating
 
+    def rebuildParallelAccountBalancesStages2to7(_parallelTxnTable, swClass, lBuildParallelTable, emptyReturnValue):
+        # type: ([{Account: [AbstractTxn]}], SwingWorker, bool, [{Account: HoldBalance}]) -> [{Account: HoldBalance}]
+
+        # ------- SEQUENCE FOR BUILDING PARALLEL BALANCES --------------------------------------------------
+        # Detect if any Parallel Balances are required (per row). These can one or more of the following:
+        # Balance asof date; Income/Expense date range specified; Security Accounts - Cost Basis requested; include Reminders requested
+        # 1. per row, if any parallel operation requested, then for row, gather all selected accounts along with all child/sub accounts
+        # 2. if Income/Expense dates were requested, then gather related I/E txns and put into the txn table...
+        # 3. convert this I/E txn table into balances...
+        # 4. for all accounts / balances not derived by steps 2 & 3, then calculate balance asof dates (only if requested)..
+        # 5. for all accounts / balances not derived by steps 2, 3 & 4, then grab the remaining Account's real balance(s)
+        # 6. for all account balances in the table, replace balance with cost basis / u/r gains on Security Accounts (where requested).
+        # 7. for all accounts selected, add Reminder txn/balances up to the reminders asof date (where requested).
+        # ** NOTE: The use cost basis / unrealised gains option is mutually exclusive to the other options (i.e. no other asof balances, no inc/exp, no reminders etc)...
+
+        if debug: myPrint("B", "In .rebuildParallelAccountBalancesStages2to7()")
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        veryStartTime = thisSectionStartTime = System.currentTimeMillis()
+
+        # ------ 2. HARVEST TXNS REQUIRED FOR PARALLEL BALANCES IN ONE SWEEP -------------------------------
+        # Income / Expense harvest associated Txns - all in one sweep....
+        if debug: myPrint("DB", ":: Parallel data found... Harvesting associated I/E txns")
+        returnIncExpTransactionsForAccounts(_parallelTxnTable, swClass)   # NOTE: Updates parallelTxnTable with txns
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            stage = "2.2"; stageTxt = "::returnIncExpTransactionsForAccounts()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+        thisSectionStartTime = System.currentTimeMillis()
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        # ------ 3. convert the I/E txn table into balances ------------------------------------------------
+        if debug: myPrint("DB", ":: Converting parallel I/E txns into I/E balances...")
+        parallelBalanceTable = convertTableOfIncExpTxnsIntoBalances(_parallelTxnTable, swClass, lBuildParallelTable)  # NOTE: non-gathered Accounts will hold None (instead of HoldBalance)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            stage = "2.3"; stageTxt = "::convertTableOfIncExpTxnsIntoBalances()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+        thisSectionStartTime = System.currentTimeMillis()
+
+        # ------ 4. gather Account balance asof dates balances ---------------------------------------------
+        lFasterWay = True
+        if debug: myPrint("DB", ":: Gathering 'Balance asof date' balances...")
+        if lFasterWay:
+            gatherBalanceAsOfDateBalances_FASTER(parallelBalanceTable, swClass, lBuildParallelTable)
+        else:
+            gatherBalanceAsOfDateBalances_SLOWLY(parallelBalanceTable, swClass, lBuildParallelTable)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            if lFasterWay:
+                stage = "2.4"; stageTxt = "::gatherBalanceAsOfDateBalances_FASTER()"
+                myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+            else:
+                stage = "2.4"; stageTxt = "::gatherBalanceAsOfDateBalances_SLOWLY()"
+                myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+        thisSectionStartTime = System.currentTimeMillis()
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        # ------ 5. gather remaining 'real' Account balances for all accounts not updated in prior steps ---
+        if debug or TIMING_DEBUG: myPrint("B", ":: Gathering 'real' Account balances for all accounts/balances not gathered in prior steps")
+        gatherRemainingRealBalances(parallelBalanceTable, swClass, lBuildParallelTable)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            stage = "2.5"; stageTxt = "::gatherRemainingRealBalances()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+        thisSectionStartTime = System.currentTimeMillis()
+
+        # ------ 6. replace Security Account balances with cost basis / u/r gains (where requested) --------
+        if debug: myPrint("DB", ":: Replacing Security Account Balances with cost basis / u/r gains (where requested)")
+        replaceSecurityCostBasisBalances(parallelBalanceTable, swClass)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            stage = "2.6"; stageTxt = "::replaceSecurityCostBasisBalances()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+        thisSectionStartTime = System.currentTimeMillis()
+
+        # ------ 7. update account balances with Reminders (if requested) --------
+        if debug: myPrint("DB", ":: Updating Account Balances with reminders (where requested)")
+        updateBalancesWithHarvestedReminders(parallelBalanceTable, swClass)
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            stage = "2.7"; stageTxt = "::updateBalancesWithHarvestedReminders()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+
+        if swClass and swClass.isCancelled(): return emptyReturnValue
+
+        tookTime = System.currentTimeMillis() - veryStartTime
+        if debug or TIMING_DEBUG:
+            stage = "<2-7>"; stageTxt = "REBUILD PARALLEL ACCOUNT BALANCES"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+
+        return parallelBalanceTable
+
     def rebuildParallelAccountBalances(swClass):
-        # type: (SwingWorker) -> [{Account: [HoldBalance]}]
+        # type: (SwingWorker) -> [{Account: HoldBalance}]
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         NAB = NetAccountBalancesExtension.getNAB()
         iRowIdx = NAB.getSelectedRowIndex()
 
-        if isIncomeExpenseAllDatesSelected(iRowIdx):
-            if debug: myPrint("DB", ".. Skipping build of parallel balances table for Income/Expense as not needed (as using all dates)...")
-            return buildEmptyTxnOrBalanceArray()
+        emptyTxnOrBalanceArray = buildEmptyTxnOrBalanceArray()                                                          # type: [{Account: [AbstractTxn]}]
 
-        getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), MyAcctFilterIncExpOnly())
+        if not isParallelBalanceTableOperational(iRowIdx):
+            if debug: myPrint("DB", ".. Skipping build of parallel balances table as not needed...")
+            return emptyTxnOrBalanceArray
 
-        if debug: myPrint("DB", "Building Parallel Account Balances Table for Income/Expense (from Txs)....:")
+        if debug: myPrint("DB", "::rebuildParallelAccountBalances() >> Building Parallel Account Balances Table....:")
 
-        incExpTxnTable = buildEmptyTxnOrBalanceArray()         # type: [{Account: [AbstractTxn]}]
-        for acct in getAccounts: incExpTxnTable[iRowIdx][acct] = []
+        # ------ 1. DERIVE LIST OF ACCOUNTS WHEN PARALLEL TABLE REQUIRED -----------------------------------------------
+        # getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), MyAcctFilterIncExpOnly())
+        parallelTxnTable = buildEmptyTxnOrBalanceArray()                                                                # type: [{Account: [AbstractTxn]}]
+        getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), AcctFilter.ALL_ACCOUNTS_FILTER)
+        for acct in getAccounts: parallelTxnTable[iRowIdx][acct] = []
 
-        if not swClass.isCancelled():
-            returnTransactionsForAccounts(incExpTxnTable, swClass)
-
-        incExpBalanceTable = None
-
-        if not swClass.isCancelled():
-            incExpBalanceTable = convertTxnTableIntoBalances(incExpTxnTable, swClass, lBuildParallelTable=True)
-
-        del getAccounts, incExpTxnTable
-
-        return incExpBalanceTable
+        return rebuildParallelAccountBalancesStages2to7(parallelTxnTable, swClass, True, emptyTxnOrBalanceArray)
 
     def returnThisAccountAndAllChildren(_acct, _listAccounts=None, autoSum=False, justIncomeExpense=True):
         # type: (Account, [Account], bool, bool) -> [Account]
@@ -4594,17 +6234,25 @@ Visit: %s (Author's site)
             for child in _acct.getSubAccounts(): returnThisAccountAndAllChildren(child, _listAccounts, autoSum=autoSum, justIncomeExpense=justIncomeExpense)
         return _listAccounts
 
-    def isValidDateRange(_startInt, _endInt):
+    def isValidBalanceAsOfDate(_dateInt):
+        # type: (int) -> bool
+        if not isinstance(_dateInt, (int, Integer)):    return False
+        if _dateInt < GlobalVars.DATE_RANGE_VALID:      return False
+        return True
 
-        if not isinstance(_startInt, int):              return False
-        if not isinstance(_endInt, int):                return False
+    def isValidIncExpDateRange(_startInt, _endInt):
+        if not isinstance(_startInt, (int, Integer)):   return False
+        if not isinstance(_endInt, (int, Integer)):     return False
         if _startInt <= GlobalVars.DATE_RANGE_VALID:    return False
         if _endInt   <= GlobalVars.DATE_RANGE_VALID:    return False
         if _startInt > _endInt:                         return False
         return True
 
-    def getDateRangeSelected(_fromRangeKey, _fromCustomDates):
-        # type: (str, list) -> DateRange
+    def getIncExpDateRangeSelected(_fromRangeKey, _fromCustomDates, adjForBalType=None):
+        # type: (str, list, bool) -> DateRange
+        """Takes saved I/E date range settings and returns a populated DateRange.
+        Normally adjForBalType is None when using to select txns (as the balance type buckets hold current/future balances etc.
+        So, only use adjForBalType when showing the end date to user, or to determine avg CAL_UNITS etc"""
 
         # myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
         # myPrint("DB", ".. Passed '%s'Date Range with '%s':" %(_fromRangeKey, _fromCustomDates))
@@ -4640,15 +6288,15 @@ Visit: %s (Author's site)
                 myPrint("B", "@@ DateRange fixes for Last30/365 days REQUIRED (e.g. Last365days: %s = days between: %s, should be 365; Last30days: %s(%s); Last1days: %s(%s)) - fix will be applied where required!"
                         %(last365dr, last365DaysBetween, last30dr, last30DaysBetween, last1dr, last1DaysBetween))
             else:
-                raise Exception("@@ LOGIC ERROR in getDateRangeSelected() - fixDateRange (%s) found %s days between (%s:%s; %s:%s)?!"
+                raise Exception("@@ LOGIC ERROR in getIncExpDateRangeSelected() - fixDateRange (%s) found %s days between (%s:%s; %s:%s)?!"
                                 %(last365dr, last365DaysBetween, last30dr, last30DaysBetween, last1dr, last1DaysBetween))
 
         if _fromRangeKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey():
-            if isValidDateRange(_fromCustomDates[0], _fromCustomDates[1]):
-                # myPrint("DB", "... Returning custom date range for key: '%s'" %(_fromRangeKey))
+            if isValidIncExpDateRange(_fromCustomDates[0], _fromCustomDates[1]):
+                # myPrint("DB", "... Returning custom date range for key: '%s'" %(_fromRangeKey));
                 dateRange = DateRange(Integer(_fromCustomDates[0]), Integer(_fromCustomDates[1]))
             else:
-                # myPrint("DB", "..... ALERT >> No valid custom start/end dates found! Will use defaults")
+                # myPrint("DB", "..... ALERT >> No valid custom start/end dates found! Will use defaults");
                 dateRange = DateRangeOption.DR_CUSTOM_DATE.getDateRange()
         else:
             dateRange = DateRangeOption.fromKey(_fromRangeKey).getDateRange()
@@ -4662,198 +6310,807 @@ Visit: %s (Author's site)
                                       %(_fromRangeKey, dateRange, dateRange.getNumDays(), fixedDateRange,fixedDateRange.getNumDays()))
                     dateRange = fixedDateRange
 
-        # myPrint("DB", ".. '%s' Date Range set to:" %(_fromRangeKey), dateRange)
+        # myPrint("DB", ".. '%s' Date Range set to:" %(_fromRangeKey), dateRange);
+
+        if adjForBalType is not None:
+            # myPrint("DB", "@@@ pre-date range was: %s" %(dateRange))
+            dateRange = fixIncExpEndDateUsingBalType(dateRange, adjForBalType)                                          # type: DateRange
+            # myPrint("DB", "..... '%s' Date Range adjusted to: %s according to balType: '%s'" %(_fromRangeKey, dateRange, adjForBalType))
+
         return dateRange
 
-    def updateIncExpTableWithTxn(_txn, _table, _dateRangeArray):
-        # type: (AbstractTxn, [{Account: [AbstractTxn]}], [[int, int]]) -> None
+    def fixIncExpEndDateUsingBalType(_dr, _balType):
+        # type: (DateRange, int) -> DateRange
+        """Retrieve the right Income/Expense end date (depends on Balance Option set - smaller of date/today when Current Balance)"""
+        _originalEndDateInt = _dr.getEndDateInt()
+        minDateInt = min(DateUtil.getStrippedDateInt(), _originalEndDateInt)
+        newEndDateInt = (minDateInt if (_balType == GlobalVars.BALTYPE_CURRENTBALANCE) else _originalEndDateInt)
+        return DateRange(Integer(_dr.getStartDateInt()), Integer(newEndDateInt))
+
+    def getBalanceAsOfDateSelected(rowBalanceAsOfDateSettings):
+        # type: ([bool, str, int]) -> int
+        _fromAsOfWanted = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_IDX]
+        _fromAsOfKey = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_KEY_IDX]
+        _fromCustomAsOfDateInt = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_DATEINT_IDX]
+        if _fromAsOfWanted:
+            if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
+                if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
+                    asOfDateInt = _fromCustomAsOfDateInt
+                else:
+                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY)
+            else:
+                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey)
+        else:
+            asOfDateInt = 0
+        return asOfDateInt
+
+    def getIncludeRemindersAsOfDateSelected(rowIncludeRemindersAsOfSettings):
+        # type: ([bool, str, int]) -> int
+        _fromAsOfWanted = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_IDX]
+        _fromAsOfKey = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX]
+        _fromCustomAsOfDateInt = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX]
+        if _fromAsOfWanted:
+            if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
+                if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
+                    asOfDateInt = _fromCustomAsOfDateInt
+                else:
+                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.KEY_ASOF_END_THIS_MONTH)
+            else:
+                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey)
+        else:
+            asOfDateInt = 0
+        return asOfDateInt
+
+    # def isAllowedUseCostBasisSettings(_rowIdx=None):
+    #     Irrelevant now we have MyCostCalculation
+    #     if not isCostCalculationPublic():
+    #         NAB = NetAccountBalancesExtension.getNAB()
+    #         checkRows = [_rowIdx] if (_rowIdx is not None) else range(0, len(NAB.savedUseCostBasisTable))
+    #         for iAccountLoop in checkRows:
+    #             if (NAB.savedUseCostBasisTable[iAccountLoop][GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_NONE):
+    #                 return False
+    #     return True
+
+    def updateParallelTableWithTxn(_txn, _table, _dateRangeArray, selectIncExp):
+        # type: (AbstractTxn, [{Account: [AbstractTxn]}], [DateRange], bool) -> None
 
         NAB = NetAccountBalancesExtension.getNAB()
 
-        for iRow in range(len(_table)):
-
-            if len(_table[iRow]) < 1: continue
-
+        for iRowIdx in range(0, len(_table)):
+            if len(_table[iRowIdx]) < 1: continue            # There were no Accounts for this row - so skip...
+            if _dateRangeArray[iRowIdx] is None: continue    # This row has no date range set - so skip...
             _acct = _txn.getAccount()
-            if _acct not in _table[iRow]: continue
+            if _acct not in _table[iRowIdx]: continue        # This txn was not found in the Accounts requested for this row - so skip...
+            if not selectIncExp:
+                # Select all dates when using asof and funky new sweep for txns code....
+                _table[iRowIdx][_acct].addTxn(_txn)
+            else:
+                if not isIncomeExpenseAcct(_acct): continue
+                dateInt = Integer(_txn.getDateInt() if not NAB.savedUseTaxDates else _txn.getTaxDateInt())  # Store as java Integer for DateRange to detect the correct overloaded method!
+                if _dateRangeArray[iRowIdx].containsInt(dateInt):
+                    _table[iRowIdx][_acct].append(_txn)
 
-            dateInt = _txn.getDateInt() if not NAB.savedUseTaxDates else _txn.getTaxDateInt()
-            if dateInt >= _dateRangeArray[iRow][0] and dateInt <= _dateRangeArray[iRow][1]:
-                _table[iRow][_acct].append(_txn)
+    def convertValue(value, fromCurr, toCurr, effectiveDateInt=None):
+        # type: (int, CurrencyType, CurrencyType, int) -> int
+        if effectiveDateInt is None: return CurrencyUtil.convertValue(value, fromCurr, toCurr)
+        return CurrencyUtil.convertValue(value, fromCurr, toCurr, effectiveDateInt)
 
-    def zapIncExpTableOfTxns(_table):
-        # type: ([{Account: [AbstractTxn]}]) -> None
-
-        for iRow in range(len(_table)):
-            for acct in _table[iRow]:
-                _table[iRow][acct] = []
-
-    # def searchIncExpTableForAccount(_acct, _table):
-    #     # type: (Account, [{Account: [AbstractTxn]}]) -> bool
-    #     for iRow in range(len(_table)):
-    #         if _acct in _table[iRow]: return True
-    #     return False
-
-    class HoldBalance():
-
-        def __init__(self, acct, autoSum):
-            self.acct = acct
-            self.startBalance = 0
-            self.balance = 0
-            self.currentBalance = 0
-            self.clearedBalance = 0
-            self.subAccountsBalanceObjects = {}
-            self.autoSum = autoSum
-            self.autoSum = autoSum
-            self.NAB = NetAccountBalancesExtension.getNAB()
-
-            if not isinstance(acct, Account):
-                raise Exception("ERROR: HoldBalance can only hold Account objects")
-
-            if not isIncomeExpenseAcct(acct):
-                raise Exception("ERROR: HoldBalance only programmed for Income/Expense Categories")
-
-        def getAccount(self):               return self.acct
-
-        def getAccountName(self):           return self.getAccount().getAccountName()
-        def getFullAccountName(self):       return self.getAccount().getFullAccountName()
-        def getAccountType(self):           return self.getAccount().getAccountType()
-        def getCurrencyType(self):          return self.getAccount().getCurrencyType()
-        def getHideOnHomePage(self):        return self.getAccount().getHideOnHomePage()
-
-        def shouldIncludeInactive(self):    return (self.NAB.savedIncludeInactive[self.NAB.getSelectedRowIndex()])
-
-        def isAutoSum(self):                                        return self.autoSum
-        def setSubAccountsBalanceObjects(self, _subAccountObjects): self.subAccountsBalanceObjects = _subAccountObjects
-        def getSubAccountsBalanceObject(self, _acct):               return self.subAccountsBalanceObjects[_acct]
-
-        def getXBalance(self, _balType, _autoSum):
-            if _balType == GlobalVars.BALTYPE_BALANCE:          return self.getBalance()         if not _autoSum else self.getRecursiveBalance()
-            elif _balType == GlobalVars.BALTYPE_CURRENTBALANCE: return self.getCurrentBalance()  if not _autoSum else self.getRecursiveCurrentBalance()
-            elif _balType == GlobalVars.BALTYPE_CLEAREDBALANCE: return self.getClearedBalance()  if not _autoSum else self.getRecursiveClearedBalance()
-
-        def getStartBalance(self):       return (self.startBalance)
-
-        def getBalance(self):
-            # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_BALANCE, self): return 0
-            return (self.getStartBalance() + self.balance)
-
-        def getCurrentBalance(self):
-            # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_CURRENTBALANCE, self): return 0
-            return (self.getStartBalance() + self.currentBalance)
-
-        def getClearedBalance(self):
-            # if not self.shouldIncludeInactive() and not isAccountActive(self.getAccount(),GlobalVars.BALTYPE_CLEAREDBALANCE, self): return 0
-            return (self.getStartBalance() + self.clearedBalance)
-
-        def balanceIsNegated(self):      return self.getAccount().balanceIsNegated()
-
-        def getUserBalance(self):        return (-self.getBalance()        if self.balanceIsNegated() else self.getBalance())
-        def getUserCurrentBalance(self): return (-self.getCurrentBalance() if self.balanceIsNegated() else self.getCurrentBalance())
-        def getUserClearedBalance(self): return (-self.getClearedBalance() if self.balanceIsNegated() else self.getClearedBalance())
-
-        def getRecursiveUserBalance(self):        return (-self.getRecursiveBalance()        if self.balanceIsNegated() else self.getRecursiveBalance())
-        def getRecursiveUserCurrentBalance(self): return (-self.getRecursiveCurrentBalance() if self.balanceIsNegated() else self.getRecursiveCurrentBalance())
-        def getRecursiveUserClearedBalance(self): return (-self.getRecursiveClearedBalance() if self.balanceIsNegated() else self.getRecursiveClearedBalance())
-
-        def setStartBalance(self, _bal):    self.startBalance   = _bal
-        def setBalance(self, _bal):         self.balance        = _bal
-        def setCurrentBalance(self, _bal):  self.currentBalance = _bal
-        def setClearedBalance(self, _bal):  self.clearedBalance = _bal
-
-        def getRecursiveStartBalance(self):
-            bal = self.getStartBalance()
-            if not self.isAutoSum(): return bal
-            thisAcct = self.getAccount()
-            for i in reversed(range(0, thisAcct.getSubAccountCount())):
-                subAcct = thisAcct.getSubAccount(i)
-                try:
-                    bal += CurrencyUtil.convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveStartBalance(),
-                                                     subAcct.getCurrencyType(),
-                                                     thisAcct.getCurrencyType())
-                except: dump_sys_error_to_md_console_and_errorlog()
-            return bal
-
-        def getRecursiveBalance(self):
-            bal = self.getBalance()
-            if not self.isAutoSum(): return bal
-            thisAcct = self.getAccount()
-            for i in reversed(range(0, thisAcct.getSubAccountCount())):
-                subAcct = thisAcct.getSubAccount(i)
-                try:
-                    bal += CurrencyUtil.convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveBalance(),
-                                                     subAcct.getCurrencyType(),
-                                                     thisAcct.getCurrencyType())
-                except: dump_sys_error_to_md_console_and_errorlog()
-            return bal
+    # def getCostBasisAsOf(sec, asofDate):
+    #     # type: (Account, int) -> (int, int)
+    #     """For a given Security Account, executes MyCostCalculation (copy of MD's CostCalculation) routines and returns:
+    #     shareholding, costbasis asof the date specified. Pass None into asof for most recent (future) position."""
+    #
+    #     if not isinstance(sec, Account) or not isSecurityAcct(sec):
+    #         raise Exception("ERROR: You must pass a Security Account to this method! Passed: (%s) %s" %(sec.getAccountType(), sec.getFullAccountName()))
+    #
+    #     todayInt = DateUtil.getStrippedDateInt()
+    #
+    #     if (asofDate is None or asofDate < 1): asofDate = todayInt
+    #     asofDate = min(asofDate, todayInt)
+    #
+    #     # The class was only made public in MD2023.2(5008) onwards
+    #     if not isCostCalculationPublic():
+    #         if lReturnLatestIfNotAvailable and asofDate >= todayInt:
+    #             if debug: myPrint("B", "@@ WARNING - .getCostBasisAsOf() returning latest/balance numbers as enhanced asof feature(s) not available on MD builds < %s. Parameters(Sec: '%s', asof: %s)"
+    #                               %(GlobalVars.MD_COSTCALCULATION_PUBLIC, sec, asofDate))
+    #             shareBalance = sec.getBalance()  # NOTE: perhaps .getCurrentBalance() would be better - .getCostBasis() returns the latest posn/price?!
+    #             costBasis = InvestUtil.getCostBasis(sec)
+    #         else:
+    #             if debug: myPrint("B", "@@ WARNING - .getCostBasisAsOf() will return zeros as enhanced asof feature not available on MD builds < %s. Parameters(Sec: '%s', asof: %s)"
+    #                               %(GlobalVars.MD_COSTCALCULATION_PUBLIC, sec, asofDate))
+    #             shareBalance = 0
+    #             costBasis = 0
+    #         return shareBalance, costBasis
+    #
+    #     currentRunningBasis = 0
+    #     currentCumulativeShares = 0
+    #
+    #     posns = getFieldByReflection(costCalculation, "positions")
+    #     for pos in reversed(posns):
+    #         date = invokeMethodByReflection(pos, "getDate", [], [])
+    #         currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
+    #         currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
+    #         if date <= asofDate: break
+    #     return currentCumulativeShares, currentRunningBasis
+    #
+    #     costCalculation = MyCostCalculation(sec, asofDate)
+    #     return costCalculation.getSharesAndCostBasisForAsOf()
 
 
-        def getRecursiveCurrentBalance(self):
-            bal = self.getCurrentBalance()
-            if not self.isAutoSum(): return bal
-            thisAcct = self.getAccount()
-            for i in reversed(range(0, thisAcct.getSubAccountCount())):
-                subAcct = thisAcct.getSubAccount(i)
-                try:
-                    bal += CurrencyUtil.convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveCurrentBalance(),
-                                                     subAcct.getCurrencyType(),
-                                                     thisAcct.getCurrencyType())
-                except: dump_sys_error_to_md_console_and_errorlog()
-            return bal
+    def buildRemindersByAccountDict(_reminders):            # One massive sweep....
+        # type: ([Reminder]) -> {Account: [Reminder]}
+        _remindersByAccount = {}                                                                                        # type: {Account: [Reminder]}
+        for rem in _reminders:
+            remParentTxn = rem.getTransaction()                                                                         # type: ParentTxn
+            remParentAcct = remParentTxn.getAccount()
+            if _remindersByAccount.get(remParentAcct, None) is None: _remindersByAccount[remParentAcct] = []
+            if rem not in _remindersByAccount[remParentAcct]: _remindersByAccount[remParentAcct].append(rem)
+            for iRemSplit in range(0, remParentTxn.getOtherTxnCount()):
+                remSplit = remParentTxn.getOtherTxn(iRemSplit)                                                          # type: SplitTxn
+                remSplitAcct = remSplit.getAccount()
+                if _remindersByAccount.get(remSplitAcct, None) is None: _remindersByAccount[remSplitAcct] = []
+                if rem not in _remindersByAccount[remSplitAcct]: _remindersByAccount[remSplitAcct].append(rem)
+        return _remindersByAccount
 
-        def getRecursiveClearedBalance(self):
-            bal = self.getClearedBalance()
-            if not self.isAutoSum(): return bal
-            thisAcct = self.getAccount()
-            for i in reversed(range(0, thisAcct.getSubAccountCount())):
-                subAcct = thisAcct.getSubAccount(i)
-                try:
-                    bal += CurrencyUtil.convertValue(self.getSubAccountsBalanceObject(subAcct).getRecursiveClearedBalance(),
-                                                     subAcct.getCurrencyType(),
-                                                     thisAcct.getCurrencyType())
-                except: dump_sys_error_to_md_console_and_errorlog()
-            return bal
+    def getNextReminderOccurrence(theRem, startDate, maximumDate):
+        cal = Calendar.getInstance()
+        ackPlusOne = theRem.getDateAcknowledgedInt()
+        if ackPlusOne > 0:
+            ackPlusOne = DateUtil.incrementDate(ackPlusOne, 0, 0, 1)
+        DateUtil.setCalendarDate(cal, Math.max(startDate, ackPlusOne))
+        while True:
+            intDate = DateUtil.convertCalToInt(cal)
+            if (intDate > maximumDate or (theRem.getLastDateInt() > 0 and intDate > theRem.getLastDateInt())):
+                return 0
+            if (theRem.occursOnDate(cal)):
+                return DateUtil.convertCalToInt(cal)
+            cal.add(Calendar.DAY_OF_MONTH, 1)
 
-        def __str__(self):
-            return ("Account: %s Bal: %s, CurBal: %s, ClearedBal: %s, RBal: %s, RCurBal: %s, RClearedBal: %s"
-                    %(self.getAccount(),
-                      self.getBalance(), self.getCurrentBalance(), self.getClearedBalance(),
-                      self.getRecursiveBalance(), self.getRecursiveCurrentBalance(), self.getRecursiveClearedBalance()))
+    def updateBalancesWithHarvestedReminders(_parallelBalanceTable, swClass):
+        # type: ([{Account: HoldBalance}], SwingWorker) -> None
 
-        def __repr__(self): return self.__str__()
-        def toString(self): return self.__str__()
+        NAB = NetAccountBalancesExtension.getNAB()
+
+        FUTURE_MAX_END_DATE = DateRange().getEndDateInt()
+        todayInt = DateUtil.getStrippedDateInt()
+
+        remindersByAccount = None
+        _remindersTxnTable = buildEmptyTxnOrBalanceArray()
+
+        for iRowIdx in range(0, len(_remindersTxnTable)):
+
+            if swClass.isCancelled(): break
+
+            if not isIncludeRemindersSelected(iRowIdx): continue
+
+            if isUseCostBasisSelected(iRowIdx): continue        # Nope - Reminders NOT allowed when using cost basis / urgs
+
+            remCutOffDateInt = getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[iRowIdx])
+
+            if remindersByAccount is None:  # Here we go... grab and index reminders by account....
+                if debug: myPrint("B", "updateBalancesWithHarvestedReminders() >> Harvesting Reminders triggered....")
+                allReminders = [rem for rem in (NAB.moneydanceContext.getCurrentAccountBook().getReminders().getAllReminders())
+                                if (rem.getReminderType() is Reminder.Type.TRANSACTION and rem.getNextOccurance(FUTURE_MAX_END_DATE) != 0)]  # noqa
+
+                if len(allReminders) < 1:
+                    if debug: myPrint("B", "@@ updateBalancesWithHarvestedReminders() no reminders found...")
+                    return
+
+                remindersByAccount = buildRemindersByAccountDict(allReminders)                                          # type: {Account: [Reminder]}
+
+            for acct in _parallelBalanceTable[iRowIdx]:
+
+                if swClass.isCancelled(): break
+
+                # NOTE: Reminders can include Securities - crazy but true!
+
+                balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
+                if balObj is None:
+                    raise Exception("LOGIC ERROR: updateBalancesWithHarvestedReminders() HoldBalance obj is None?! RowIdx: %s, Acct: %s" %(iRowIdx, acct))
+
+                totRemsBalValue = 0
+                totRemsCurrentBalValue = 0
+                totRemsClearedBalValue = 0
+
+                if acct not in remindersByAccount: continue
+                remindersForAcct = remindersByAccount[acct]                                                             # type: [Reminder]
+
+                if debug: myPrint("B", "@@ updateBalancesWithHarvestedReminders() Row:      %s Acct: %s" %(iRowIdx, acct.getAccountName()))
+
+                for rem in remindersForAcct:
+
+                    if debug: myPrint("B", "@@ updateBalancesWithHarvestedReminders() Reminder: %s" %(rem))
+
+                    nextRemStartCalcDateInt = rem.getNextOccurance(remCutOffDateInt)
+                    if nextRemStartCalcDateInt < 1: continue
+
+                    loopDetector = 0
+                    while True:
+                        loopDetector += 1
+                        if loopDetector > 10000: raise Exception("LOGIC ERROR: .updateBalancesWithHarvestedReminders() Loop detected iterating Reminders..? Aborting.... (Acct: %s rowIdx: %s, Row: %s) Reminder:" %(acct, iRowIdx, iRowIdx+1), rem)
+
+                        calcNextRemDateInt = getNextReminderOccurrence(rem, nextRemStartCalcDateInt, remCutOffDateInt)
+                        if calcNextRemDateInt < 1: break
+
+                        nextRemStartCalcDateInt = DateUtil.incrementDate(calcNextRemDateInt, 0, 0, 1)
+
+                        if debug: myPrint("B", "@@ updateBalancesWithHarvestedReminders() DATE:     %s" %(calcNextRemDateInt))
+
+                        thisVal = 0
+                        remParentTxn = rem.getTransaction()                                                             # type: ParentTxn
+                        if remParentTxn.getAccount() is acct: thisVal += remParentTxn.getValue()
+                        for iRemSplit in range(0, remParentTxn.getOtherTxnCount()):
+                            remSplit = remParentTxn.getOtherTxn(iRemSplit)                                              # type: SplitTxn
+                            if remSplit.getAccount() is acct: thisVal += remSplit.getValue()
+
+                        # NOTE: Impossible to know an uncommitted Reminder's tax date (sorry)!!
+                        # remTxnDate = remParentTxn.getDateInt() if not NAB.savedUseTaxDates else remParentTxn.getTaxDateInt()
+                        remTxnDate = calcNextRemDateInt
+
+                        remTxnStatus = remParentTxn.getClearedStatus()
+
+                        if debug: myPrint("B", "@@ updateBalancesWithHarvestedReminders() Adding     BalVal: %s" %(thisVal))
+                        totRemsBalValue += thisVal
+                        if remTxnDate <= todayInt:
+                            if debug: myPrint("B", "@@ updateBalancesWithHarvestedReminders() Adding CurrBalVal: %s" %(thisVal))
+                            totRemsCurrentBalValue += thisVal
+                        if remTxnStatus is AbstractTxn.ClearedStatus.CLEARED:                                           # noqa
+                            if debug: myPrint("B", "@@ updateBalancesWithHarvestedReminders() Adding ClrdBalVal: %s" %(thisVal))
+                            totRemsClearedBalValue += thisVal                                                           # noqa
+
+                if totRemsBalValue != 0 or totRemsCurrentBalValue != 0 or totRemsClearedBalValue != 0:
+                    balObj.setParallelIncludeReminders(True)
+
+                    balObj.setBalance(balObj.getBalance() + totRemsBalValue)
+                    balObj.setCurrentBalance(balObj.getCurrentBalance() + totRemsCurrentBalValue)
+                    balObj.setClearedBalance(balObj.getClearedBalance() + totRemsClearedBalValue)
+
+                    # for debug...
+                    balObj.rems_balance = totRemsBalValue
+                    balObj.rems_currentBalance = totRemsCurrentBalValue
+                    balObj.rems_clearedBalance = totRemsClearedBalValue
 
 
-    def convertTxnTableIntoBalances(_incExpTable, swClass, lBuildParallelTable=False):
-        # type: ([{Account: [AbstractTxn]}], SwingWorker, bool) -> [{Account: [HoldBalance]}]
+        if debug:
+            myPrint("DB", "---------------------------------------------------------------------------")
+            myPrint("DB", ">> Analysis of table for updated stored accounts after including reminders:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row:
+                    holdBal = _parallelBalanceTable[i][acct]                                                            # type: HoldBalance
+                    if acct and holdBal and holdBal.isParallelIncludeReminders():
+                        myPrint("DB", "....", holdBal, "Key:", acct)
+            myPrint("DB", "---------------------------------------------------------------------------")
+
+    def replaceSecurityCostBasisBalances(_parallelBalanceTable, swClass):
+        # type: ([{Account: HoldBalance}], SwingWorker) -> None
+
+        if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        NAB = NetAccountBalancesExtension.getNAB()
+        todayInt = DateUtil.getStrippedDateInt()
+
+        for iRowIdx in range(0, len(_parallelBalanceTable)):
+
+            if not isUseCostBasisSelected(iRowIdx): continue
+
+            if isBalanceAsOfDateSelected(iRowIdx):
+                asOfDate = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iRowIdx])
+                effectiveDateInt = None if (asOfDate == todayInt) else asOfDate
+            else:
+                asOfDate = None             # This tells MyCostCalculation to derive the balance asof date....
+                effectiveDateInt = None     # Really means no conversion = asof today
+
+            for acct in _parallelBalanceTable[iRowIdx]:
+
+                if swClass.isCancelled(): break
+
+                if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
+
+                balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
+                if balObj is None:
+                    raise Exception("LOGIC ERROR: replaceSecurityCostBasisBalances() HoldBalance obj is None?! RowIdx: %s, Acct: %s" %(iRowIdx, acct))
+
+                balObj.setParallelReturnCostBasis(True)
+                balObj.setParallelReturnCostBasisType(NAB.savedUseCostBasisTable[iRowIdx][GlobalVars.COSTBASIS_TYPE_IDX])
+                balObj.setParallelReturnCostBasisCash(isUseCostBasisCashSelected(iRowIdx))
+
+                balObj.setEffectiveDateInt(effectiveDateInt)
+
+                lRtnURGains = (NAB.savedUseCostBasisTable[iRowIdx][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_URGAINS)
+
+                if isInvestmentAcct(acct):      # Cash!
+                    # Basically not a lot to do here (as we are dealing with pre-calculated balances, not shares or cost basis etc)
+                    # There are never gains on cash! Cost Basis always = cash = balance(s) - so not change on those
+                    if lRtnURGains:
+                        balObj.setBalance(0)
+                        balObj.setCurrentBalance(0)
+
+                else:
+                    costCalculationBal = MyCostCalculation(acct, asOfDate, None, True)
+                    costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
+
+                    asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
+                    asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
+
+                    assert balObj.getBalance() == asofSharesBal, ("LOGIC ERROR: HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getBalance(), asofSharesBal))
+                    assert balObj.getCurrentBalance() == asofSharesCurBal, ("LOGIC ERROR: HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getCurrentBalance(), asofSharesCurBal))
+
+                    valueBal = convertValue(balObj.getBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
+                    valueCurBal = convertValue(balObj.getCurrentBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
+
+                    # This is a 'fudge'.. We convert the calculated costbasis/gains from the investment acct's currency back to shares (which is the acct's currency)
+                    # .. then the NAB 'calculation engine' will reconvert it back to the requested display currency....
+                    cbAsSharesBal = convertValue(asofCostBasisBal, acct.getParentAccount().getCurrencyType(), acct.getCurrencyType(), effectiveDateInt)
+                    cbAsSharesCurBal = convertValue(asofCostBasisCurBal, acct.getParentAccount().getCurrencyType(), acct.getCurrencyType(), effectiveDateInt)
+
+                    urGainsBal = valueBal - asofCostBasisBal                                                            # noqa
+                    urGainsAsSharesBal = asofSharesBal - cbAsSharesBal
+
+                    urGainsCurBal = valueCurBal - asofCostBasisCurBal                                                   # noqa
+                    urGainsAsSharesCurBal = asofSharesCurBal - cbAsSharesCurBal
+
+                    balObj.setBalance(urGainsAsSharesBal if lRtnURGains else cbAsSharesBal)
+                    balObj.setCurrentBalance(urGainsAsSharesCurBal if lRtnURGains else cbAsSharesCurBal)
+
+                # NOTE: asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance ** WARNING **
+                balObj.setClearedBalance(balObj.getBalance())                                                           # WARNING
+
+                # No need to set start balance - we will just hold the calculated cost basis / ur gains which which includes any assumed opening balance
+                balObj.setStartBalance(0)       # Do this last!
+
+                # for debug...
+                balObj.cbasis_balance = balObj.getBalance()
+                balObj.cbasis_currentBalance = balObj.getCurrentBalance()
+                balObj.cbasis_clearedBalance = balObj.getClearedBalance()
+
+                if debug:
+                    if isInvestmentAcct(acct):
+                        myPrint("B", "!!!! Invst: %s balObj.getBalance(): %s, balObj.getCurrentBalance(): %s" %(acct, balObj.getBalance(), balObj.getCurrentBalance()))
+                    else:
+                        myPrint("B", "!!!! Sec: %s balObj.getBalance(): %s asofSharesBal: %s cb: %s cbAsSharesBal: %s urGainsBal: %s, urGainsAsSharesBal: %s (getBalance(): %s"
+                                      %(acct, balObj.getBalance(), asofSharesBal, asofCostBasisBal, cbAsSharesBal, urGainsBal, urGainsAsSharesBal, balObj.getBalance()))                                    # noqa
+                        myPrint("B", "!!!! Sec: %s balObj.getCurrentBalance(): %s asofSharesCurBal: %s cb: %s cbAsSharesCurBal: %s urGainsCurBal: %s, urGainsAsSharesCurBal: %s (getCurrentBalance(): %s"
+                                      %(acct, balObj.getCurrentBalance(), asofSharesCurBal, asofCostBasisCurBal, cbAsSharesCurBal, urGainsCurBal, urGainsAsSharesCurBal, balObj.getCurrentBalance()))       # noqa
+
+
+        if debug:
+            myPrint("DB", "-----------------------------------------------------------------------------------------------")
+            myPrint("DB", ">> Analysis of table for updated stored accounts with security cost basis / u/r gains balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row:
+                    holdBal = _parallelBalanceTable[i][acct]                                                            # type: HoldBalance
+                    if acct and holdBal and holdBal.isParallelReturnCostBasis():
+                        myPrint("DB", "....", holdBal, "Key:", acct)
+            myPrint("DB", "-----------------------------------------------------------------------------------------------")
+
+    def gatherRemainingRealBalances(_parallelBalanceTable, swClass, lBuildParallelTable):
+        # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
 
         NAB = NetAccountBalancesExtension.getNAB()
 
-        _incExpBalanceTable = buildEmptyTxnOrBalanceArray()
+        for iRowIdx in range(0, len(_parallelBalanceTable)):
 
-        today = DateUtil.getStrippedDateInt()
-
-        for iRow in range(len(_incExpTable)):
-
-            for acct in _incExpTable[iRow]:
+            for acct in _parallelBalanceTable[iRowIdx]:
 
                 if swClass.isCancelled(): break
 
-                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRow]))
-                if balanceObj.getBalance() != 0: raise Exception("ERROR: Acct: %s getBalance(%s) != ZERO?" %(acct, balanceObj.getBalance()))
+                balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
+                if balObj is not None:
+                    if balObj.isParallelIncExpBalances() or balObj.isParallelBalanceAsOfDateBalances(): continue
+                    raise Exception("LOGIC ERROR: gatherRemainingRealBalances() HoldBalance obj exists and contains invalid data?! (RowIdx: %s, Acct: %s):" %(iRowIdx, acct), balObj)
+                del balObj
 
-                # dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[iRow])
-                dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRow], NAB.savedCustomDatesTable[iRow])
-                # if (acct.getCreationDateInt() >= dateRange.getDateRange().getStartDateInt()
-                #         and acct.getCreationDateInt() <= dateRange.getDateRange().getEndDateInt()):
-                if (acct.getCreationDateInt() >= dateRange.getStartDateInt()
-                        and acct.getCreationDateInt() <= dateRange.getEndDateInt()):
-                    if debug: myPrint("DB", ".. @@ Adding in start balance of: %s to Account: %s" %(acct.getStartBalance(), acct))
-                    balanceObj.setStartBalance(acct.getStartBalance())                                                  # todo - query MD2023 balance adjustment?
+                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
+                balanceObj.setParallelRealBalances(True)
+                balanceObj.setEffectiveDateInt(None)
 
-                for txn in _incExpTable[iRow][acct]:
+                if isUseCostBasisSelected(iRowIdx) and not shouldIncludeAccountForCostBasis(iRowIdx, acct):
+                    balanceObj.setBalance(0)
+                    balanceObj.setCurrentBalance(0)
+                    balanceObj.setClearedBalance(0)
+                else:
+                    balanceObj.setBalance(acct.getBalance())
+                    balanceObj.setCurrentBalance(acct.getCurrentBalance())
+                    balanceObj.setClearedBalance(acct.getClearedBalance())
+
+                # No need to set start balance - we will just hold the final 'real' balance(s) which includes the opening balance
+                balanceObj.setStartBalance(0)       # Do this last!
+
+                # for debug...
+                balanceObj.real_balance = balanceObj.getBalance()
+                balanceObj.real_currentBalance = balanceObj.getCurrentBalance()
+                balanceObj.real_clearedBalance = balanceObj.getClearedBalance()
+
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
+
+        if debug:
+            myPrint("DB", "----------------------------------------------------------------------------------")
+            myPrint("DB", ">> Analysis of table for updated (remaining) stored accounts with 'real' balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row:
+                    holdBal = _parallelBalanceTable[i][acct]                                                            # type: HoldBalance
+                    if acct and holdBal and holdBal.isParallelRealBalances():
+                        myPrint("DB", "....", holdBal, "Key:", acct)
+            myPrint("DB", "----------------------------------------------------------------------------------")
+
+    # Copied from com.infinitekind.moneydance.model.AccountUtil.getBalanceAsOfDate(AccountBook, Account, int, boolean)
+    def getBalanceAsOfDate(book, account, asofDate, outOfDateAsZero, swClass=None, acctTxnSet=None):
+        # type: (AccountBook, Account, int, bool, SwingWorker, TxnSet) -> int
+        balances = getBalancesAsOfDates(book, account, [asofDate], outOfDateAsZero,
+                                        swClass=swClass, acctTxnSet=acctTxnSet)
+        return balances[0]
+
+    def getBalancesAsOfDates(book, account, asofDates, outOfDateAsZero, swClass=None, acctTxnSet=None):
+        # type: (AccountBook, Account, [int], bool, SwingWorker, TxnSet) -> [int]
+
+        if (asofDates is None or len(asofDates) < 1): return [None]
+
+        creationDateInt = account.getCreationDateInt()
+        uninitialized = (creationDateInt == 0)
+
+        emptyBalances = [None] * len(asofDates)
+        balances = [None] * len(asofDates)
+
+        for index in range(0, len(balances)):
+            if (uninitialized or asofDates[index] < creationDateInt):
+                balances[index] = Long.MIN_VALUE
+            else:
+                balances[index] = account.getBalance()  # Will include the start balance....
+
+        if swClass and swClass.isCancelled(): return emptyBalances
+
+        if acctTxnSet is None:
+            transactionSet = book.getTransactionSet()
+            acctTxns = transactionSet.getTransactionsForAccount(account)                                                # type: TxnSet
+        else:
+            acctTxns = acctTxnSet                                                                                       # type: TxnSet
+
+        if (acctTxns.getSize() == 0):
+            if (outOfDateAsZero):
+                replaceOutOfDateWithZero(balances)
+            return balances
+
+        if swClass and swClass.isCancelled(): return emptyBalances
+
+        if acctTxnSet is None:
+            acctTxns.sortByField(AccountUtil.DATE_THEN_AMOUNT)
+
+        if swClass and swClass.isCancelled(): return emptyBalances
+
+        firstDate = acctTxns.getTxnAt(0).getDateInt()
+        for index in range(0, len(balances)):
+            if swClass and swClass.isCancelled(): return emptyBalances
+            if (balances[index] != Long.MIN_VALUE or firstDate > asofDates[index]): continue
+            balances[index] = account.getBalance()
+
+        if swClass and swClass.isCancelled(): return emptyBalances
+
+        today = DateUtil.getStrippedDateInt()
+        allDatesAfterLastDate = True
+        abstractTxn = acctTxns.getLastTxn()                                                                             # type: AbstractTxn
+        if (abstractTxn is not None):
+            lastDate = abstractTxn.getDateInt()
+            for index in range(0, len(asofDates)):
+                asofDate = asofDates[index]
+                if (asofDate >= lastDate): continue
+                allDatesAfterLastDate = False
+                break
+
+        if swClass and swClass.isCancelled(): return emptyBalances
+
+        if (allDatesAfterLastDate):
+            balances = getCorrectedBalances(balances, asofDates, account.getCurrencyType(), today, swClass, emptyBalances)
+            if (outOfDateAsZero):
+                replaceOutOfDateWithZero(balances)
+            return balances
+
+        # Note: Iterate in reversed order - i.e. newest txn date first, oldest last...
+        for txn in acctTxns:
+            if swClass and swClass.isCancelled(): return emptyBalances
+            date = txn.getDateInt()
+            allDatesAfterTxnDate = True
+            for index in range(0, len(asofDates)):
+                asofDate = asofDates[index]
+                if (date <= asofDate): continue
+                allDatesAfterTxnDate = False
+                break
+
+            if (allDatesAfterTxnDate): break
+            currencyType = account.getCurrencyType()
+            amount = currencyType.adjustValueForSplitsInt(date, txn.getValue())
+            for index in range(0, len(asofDates)):
+                if (date <= asofDates[index] or balances[index] == Long.MIN_VALUE): continue
+                balances[index] -= amount
+
+        if swClass and swClass.isCancelled(): return emptyBalances
+
+        balances = getCorrectedBalances(balances, asofDates, account.getCurrencyType(), today, swClass, emptyBalances)
+        if (outOfDateAsZero): replaceOutOfDateWithZero(balances)
+        return balances
+
+    def replaceOutOfDateWithZero(balances):
+        # type: ([int]) -> None
+        for index in range(0, len(balances)):
+            if (balances[index] != Long.MIN_VALUE): continue
+            balances[index] = 0
+
+    def getCorrectedBalances(balances, asofDates, currency, today, swClass, emptyBalances):
+        # type: ([int], [int], CurrencyType, int, SwingWorker, list) -> [int]
+        for index in range(0, len(asofDates)):
+            if swClass and swClass.isCancelled(): return emptyBalances
+            if (balances[index] == Long.MIN_VALUE): continue
+            currencyType = currency
+            balances[index] = currencyType.unadjustValueForSplitsInt(asofDates[index], balances[index], today)
+        return balances
+
+    def gatherBalanceAsOfDateBalances_FASTER(_parallelBalanceTable, swClass, lBuildParallelTable):
+        # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
+
+        if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        NAB = NetAccountBalancesExtension.getNAB()
+        book = NAB.moneydanceContext.getCurrentAccountBook()
+
+        todayInt = DateUtil.getStrippedDateInt()
+
+        veryStartTime = thisSectionStartTime = System.currentTimeMillis()
+
+        # Build list of accounts for txns to be gathered into....
+        asofBalanceTxnTable = buildEmptyTxnOrBalanceArray()                                                             # type: [{Account: [AbstractTxn]}]
+        for iRowIdx in range(0, len(_parallelBalanceTable)):
+
+            if not isBalanceAsOfDateSelected(iRowIdx): continue     # Skip as 'balance asof dates' not requested...
+
+            for acct in _parallelBalanceTable[iRowIdx]:
+
+                if swClass and swClass.isCancelled(): return
+
+                balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
+                if balObj is not None:
+                    if balObj.isParallelIncExpBalances() and balObj.isIncomeExpense(): continue
+                    raise Exception("LOGIC ERROR: gatherBalanceAsOfDateBalances_FASTER() HoldBalance obj exists and is not IncExp?! (RowIdx: %s, Acct: %s)" %(iRowIdx, acct), balObj)
+                del balObj
+
+                if isIncomeExpenseAcct(acct): continue      # Skip Income/Expense accounts for 'balance asof dates' - obey I/E All Dates...
+
+                if isUseCostBasisSelected(iRowIdx):         # When selecting cost basis / urgains, only allow Invest(when cash)/Security accounts
+                    if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
+
+                asofBalanceTxnTable[iRowIdx][acct] = TxnSet()
+
+        if swClass and swClass.isCancelled(): return
+
+        _asofDateRangeArray = buildEmptyDateRangeArray()
+        for iRowIdx in range(0, len(asofBalanceTxnTable)):
+            if len(asofBalanceTxnTable[iRowIdx]) < 1: continue              # If no Accounts in the table for this row, then just ignore/skip
+            _asofDateRangeArray[iRowIdx] = DateRange()      # Dummy range
+
+        if swClass and swClass.isCancelled(): return
+
+        iTxns = 0                                                                                                       # noqa
+
+        ################################################################################################################
+        # One sweep big of Txns: This method returns the 'old' ParentTxn/SplitTxn records AND the TxnSet is locked....
+        try:
+            txnSet = book.getTransactionSet().getAllTxns()
+            iTxns = 0
+            for txn in txnSet:
+                if swClass and swClass.isCancelled(): return
+                iTxns += 1
+                updateParallelTableWithTxn(txn, asofBalanceTxnTable, _asofDateRangeArray, False)
+            del txnSet
+        except:
+            myPrint("B", "@@ ERROR: .gatherBalanceAsOfDateBalances_FASTER() failed whilst iterating TxnSet: book.getTransactionSet().getAllTxns()")
+            dump_sys_error_to_md_console_and_errorlog()
+            raise
+
+        if swClass and swClass.isCancelled(): return
+
+        # Sort the TxnSets
+        for iRowIdx in range(0, len(asofBalanceTxnTable)):
+            for acct in asofBalanceTxnTable[iRowIdx]:
+                if swClass and swClass.isCancelled(): return
+                txnSet = asofBalanceTxnTable[iRowIdx][acct]
+                if txnSet.getSize() > 0: txnSet.sortByField(AccountUtil.DATE_THEN_AMOUNT)
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            stage = "2.4(a)"; stageTxt = "::gatherBalanceAsOfDateBalances_FASTER()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+        thisSectionStartTime = System.currentTimeMillis()
+
+        if swClass and swClass.isCancelled(): return
+
+        # convert asof txns into asof balances
+        # Modified to do in one sweep: com.infinitekind.moneydance.model.AccountUtil.getBalancesAsOfDates()
+
+        # NOTE: TxnSet, after sort, is in ASCENDING date order (i.e. oldest first, newest last).
+        #       When accessing via index(0 to size), then you get this order.
+        #       ... via an iterator (for txn in TxnSet), then you get a REVERSED / DESCENDING order. I.e. newest first!
+
+        for iRowIdx in range(0, len(asofBalanceTxnTable)):
+
+            if len(asofBalanceTxnTable[iRowIdx]) < 1: continue              # If no Accounts in the table for this row, then just ignore/skip
+
+            balAsOfDate = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iRowIdx])
+            effectiveDateInt = None if (balAsOfDate == todayInt) else balAsOfDate
+
+            for acct in asofBalanceTxnTable[iRowIdx]:                                                                   # type: Account
+
+                if swClass and swClass.isCancelled(): return
+
+                acctTxns = asofBalanceTxnTable[iRowIdx][acct]
+                balance = getBalanceAsOfDate(book, acct, balAsOfDate, True, swClass, acctTxns)
+
+                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
+                balanceObj.setParallelBalanceAsOfDateBalances(True)
+                balanceObj.setEffectiveDateInt(effectiveDateInt)
+
+                # NOTES: Balance always uses the calculated asof-dated Balance
+                #        Past asof-dated Current Balance uses the calculated asof-dated Balance
+                #        Today/future asof-dated Current Balance uses the real account's Current Balance
+                #        Past asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance ** WARNING **
+                #        Today/future asof-dated Cleared Balance uses the real account's Cleared Balance
+
+                balanceObj.setBalance(balance)
+                balanceObj.setCurrentBalance(balance if balAsOfDate < todayInt else acct.getCurrentBalance())
+                balanceObj.setClearedBalance(balance if balAsOfDate < todayInt else acct.getClearedBalance())           # WARNING
+
+                # No need to set start balance - calculated asof balance includes the opening balance
+                balanceObj.setStartBalance(0)       # Do this last!
+
+                # for debug...
+                balanceObj.balAsOf_balance = balanceObj.getBalance()
+                balanceObj.balAsOf_currentBalance = balanceObj.getCurrentBalance()
+                balanceObj.balAsOf_clearedBalance = balanceObj.getClearedBalance()
+
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
+
+        tookTime = System.currentTimeMillis() - thisSectionStartTime
+        if debug or TIMING_DEBUG:
+            stage = "2.4(b)"; stageTxt = "::gatherBalanceAsOfDateBalances_FASTER()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+
+        if debug:
+            myPrint("DB", "---------------------------------------------------------------------------------------------")
+            myPrint("DB", ">> (FASTER METHOD) Analysis of table for updated accounts with 'balances asof date' balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row:
+                    holdBal = _parallelBalanceTable[i][acct]                                                            # type: HoldBalance
+                    if acct and holdBal and holdBal.isParallelBalanceAsOfDateBalances():
+                        myPrint("DB", "....", holdBal, "Key:", acct)
+            myPrint("DB", "---------------------------------------------------------------------------------------------")
+
+        tookTime = System.currentTimeMillis() - veryStartTime
+        if debug or TIMING_DEBUG:
+            stage = " <2.4>"; stageTxt = "GATHER BALANCE ASOF DATES FASTER"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+
+
+    def gatherBalanceAsOfDateBalances_SLOWLY(_parallelBalanceTable, swClass, lBuildParallelTable):
+        # type: ([{Account: HoldBalance}], SwingWorker, bool) -> None
+
+        if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        NAB = NetAccountBalancesExtension.getNAB()
+        book = NAB.moneydanceContext.getCurrentAccountBook()
+
+        todayInt = Util.getStrippedDateInt()
+
+        for iRowIdx in range(0, len(_parallelBalanceTable)):
+
+            if not isBalanceAsOfDateSelected(iRowIdx): continue     # Skip as 'balance asof dates' not requested...
+            balAsOfDate = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iRowIdx])
+
+            for acct in _parallelBalanceTable[iRowIdx]:
+
+                if swClass.isCancelled(): break
+
+                balObj = _parallelBalanceTable[iRowIdx][acct]                                                           # type: HoldBalance
+                if balObj is not None:
+                    if balObj.isParallelIncExpBalances() and balObj.isIncomeExpense(): continue
+                    raise Exception("LOGIC ERROR: gatherBalanceAsOfDateBalances_SLOWLY() HoldBalance obj exists and is not IncExp?! (RowIdx: %s, Acct: %s)" %(iRowIdx, acct), balObj)
+                del balObj
+
+                if isIncomeExpenseAcct(acct): continue      # Skip Income/Expense accounts for 'balance asof dates' - obey I/E All Dates...
+
+                if isUseCostBasisSelected(iRowIdx):         # When selecting cost basis / urgains, only allow Invest(when cash)/Security accounts
+                    if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
+
+                acctBalLong = AccountUtil.getBalanceAsOfDate(book, acct, balAsOfDate, True)
+
+                # acctBalLongMyVersion = getBalanceAsOfDate(book, acct, balAsOfDate, True, swClass, None)
+                #
+                # myPrint("B", "***** Original asof bal: %s, my asof bal: %s - asof: %s, Account: %s"
+                #         %(rpad(acctBalLong, 12), rpad(acctBalLongMyVersion, 12), balAsOfDate, acct));
+                # assert acctBalLong == acctBalLongMyVersion, "LOGIC ERROR: asof balances differ?! MD: %s vs Simulant: %s" %(acctBalLong, acctBalLongMyVersion);
+
+                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
+                balanceObj.setParallelBalanceAsOfDateBalances(True)
+                balanceObj.setEffectiveDateInt(balAsOfDate)
+
+                # NOTES: Balance always uses the calculated asof-dated Balance
+                #        Past asof-dated Current Balance uses the calculated asof-dated Balance
+                #        Today/future asof-dated Current Balance uses the real account's Current Balance
+                #        Past asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance ** WARNING **
+                #        Today/future asof-dated Cleared Balance uses the real account's Cleared Balance
+
+                balanceObj.setBalance(acctBalLong)
+                balanceObj.setCurrentBalance(acctBalLong if balAsOfDate < todayInt else acct.getCurrentBalance())
+                balanceObj.setClearedBalance(acctBalLong if balAsOfDate < todayInt else acct.getClearedBalance())       # WARNING
+
+                # No need to set start balance - calculated asof balance includes the opening balance
+                balanceObj.setStartBalance(0)       # Do this last!
+
+                # for debug...
+                balanceObj.balAsOf_balance = balanceObj.getBalance()
+                balanceObj.balAsOf_currentBalance = balanceObj.getCurrentBalance()
+                balanceObj.balAsOf_clearedBalance = balanceObj.getClearedBalance()
+
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
+
+        if debug:
+            myPrint("DB", "-------------------------------------------------------------------------------------------")
+            myPrint("DB", ">> (SLOW METHOD) Analysis of table for updated accounts with 'balances asof date' balances:")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
+                myPrint("DB", "..RowIdx: %s >> " %(i))
+                row = _parallelBalanceTable[i]
+                for acct in row:
+                    holdBal = _parallelBalanceTable[i][acct]                                                            # type: HoldBalance
+                    if acct and holdBal and holdBal.isParallelBalanceAsOfDateBalances():
+                        myPrint("DB", "....", holdBal, "Key:", acct)
+            myPrint("DB", "-------------------------------------------------------------------------------------------")
+
+    def convertTableOfIncExpTxnsIntoBalances(_parallelTxnTable, swClass, lBuildParallelTable):
+        # type: ([{Account: [AbstractTxn]}], SwingWorker, bool) -> [{Account: HoldBalance}]
+
+        if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
+
+        NAB = NetAccountBalancesExtension.getNAB()
+
+        _parallelBalanceTable = buildEmptyTxnOrBalanceArray()
+
+        today = DateUtil.getStrippedDateInt()
+
+        for iRowIdx in range(0, len(_parallelTxnTable)):
+
+            for acct in _parallelTxnTable[iRowIdx]:
+
+                if swClass.isCancelled(): break
+
+                if (not isIncomeExpenseAcct(acct) or not isIncomeExpenseDatesSelected(iRowIdx)
+                        or isUseCostBasisSelected(iRowIdx)):        # Don't allow I/E when cost basis selected for this row!
+                    _parallelBalanceTable[iRowIdx][acct] = None
+                    continue
+
+                balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
+                balanceObj.setEffectiveDateInt(None)
+
+                balanceObj.setParallelIncExpBalances(True)
+
+                dateRange = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRowIdx], NAB.savedCustomDatesTable[iRowIdx])
+
+                balanceObj.calculateAndSetAccountStartBalance(dateRange)
+
+                for txn in _parallelTxnTable[iRowIdx][acct]:
                     txnAcct = txn.getAccount()
                     if txnAcct != acct: raise Exception("ERROR: Acct:%s does not match txn acct: %s" %(acct, txnAcct))
 
@@ -4870,22 +7127,31 @@ Visit: %s (Author's site)
                     if txnStatus == AbstractTxn.ClearedStatus.CLEARED:
                         balanceObj.setClearedBalance(balanceObj.getClearedBalance() + txnVal)
 
-                balanceObj.setSubAccountsBalanceObjects(_incExpBalanceTable[iRow])
-                _incExpBalanceTable[iRow][acct] = balanceObj
+                # for debug...
+                balanceObj.incExp_balance = balanceObj.getBalance()                 # NOTE: This will also include any start Balance!
+                balanceObj.incExp_currentBalance = balanceObj.getCurrentBalance()
+                balanceObj.incExp_clearedBalance = balanceObj.getClearedBalance()
+
+                balanceObj.setSubAccountsBalanceObjects(_parallelBalanceTable[iRowIdx])
+                _parallelBalanceTable[iRowIdx][acct] = balanceObj
+
 
         if debug:
-            myPrint("DB", "-------------------------------------")
-            myPrint("DB", ">> Analysis of new I/E Balance Table:")
-            myPrint("DB", ">> _incExpBalanceTable Contains: %s rows" %(len(_incExpBalanceTable)))
-            for i in range(0, len(_incExpBalanceTable)):
+            myPrint("DB", "--------------------------------------------------------")
+            myPrint("DB", ">> Analysis of new table with calculated 'I/E balances':")
+            myPrint("DB", ">> _parallelBalanceTable Contains: %s rows" %(len(_parallelBalanceTable)))
+            for i in range(0, len(_parallelBalanceTable)):
                 myPrint("DB", "..RowIdx: %s >> " %(i))
-                row = _incExpBalanceTable[i]
-                for acct in row: myPrint("DB", "....", acct, _incExpBalanceTable[i][acct])
-            myPrint("DB", "------------------------------------")
+                row = _parallelBalanceTable[i]
+                for acct in row:
+                    holdBal = _parallelBalanceTable[i][acct]                                                            # type: HoldBalance
+                    if acct and holdBal and holdBal.isParallelIncExpBalances():
+                        myPrint("DB", "....", holdBal, "Key:", acct)
+            myPrint("DB", "--------------------------------------------------------")
 
-        return _incExpBalanceTable
+        return _parallelBalanceTable
 
-    def returnTransactionsForAccounts(_incExpTable, swClass):
+    def returnIncExpTransactionsForAccounts(_parallelTxnTable, swClass):
         # type: ([{Account: [AbstractTxn]}], SwingWorker) -> [{Account: [AbstractTxn]}]
 
         if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
@@ -4897,23 +7163,18 @@ Visit: %s (Author's site)
         md = GlobalVars.CONTEXT
         book = md.getCurrentAccountBook()
 
-        # pre-build table containing valid date ranges - for speed....
-        _dateRangeArray = buildEmptyDateRangeArray()
-        for iRow in range(len(_incExpTable)):
-
-            if len(_incExpTable[iRow]) < 1: continue
-
-            dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRow], NAB.savedCustomDatesTable[iRow])
-            _dateRangeArray[iRow] = [dateRange.getStartDateInt(), dateRange.getEndDateInt()]
+        _incExpDateRangeArray = buildEmptyDateRangeArray()
+        for iRowIdx in range(0, len(_parallelTxnTable)):
+            if len(_parallelTxnTable[iRowIdx]) < 1: continue            # If no Accounts in the table for this row, then just ignore/skip
+            if isUseCostBasisSelected(iRowIdx): continue                # Don't allow I/E when cost basis selected for this row!
+            if isIncomeExpenseDatesSelected(iRowIdx):                   # Only add a date range if this row is configured for I/E date range
+                _incExpDateRangeArray[iRowIdx] = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRowIdx], NAB.savedCustomDatesTable[iRowIdx])
 
         iTxns = 0                                                                                                       # noqa
-        attempts = 0
 
         ################################################################################################################
         # One sweep big of Txns: This method returns the 'old' ParentTxn/SplitTxn records AND the TxnSet is locked....
         try:
-            attempts += 1
-
             txnSet = book.getTransactionSet().getTransactions(MyTxnSearch())        # using matchesAll() TRUE is faster
 
             iTxns = 0
@@ -4923,32 +7184,31 @@ Visit: %s (Author's site)
                 if swClass.isCancelled(): break
 
                 iTxns += 1
-                # if not searchIncExpTableForAccount(txn.getAccount(), _incExpTable): continue
-                updateIncExpTableWithTxn(txn, _incExpTable, _dateRangeArray)
+                updateParallelTableWithTxn(txn, _parallelTxnTable, _incExpDateRangeArray, True)
 
             del txnSet
 
         except:
-            myPrint("B", "@@ ERROR: .returnTransactionsForAccounts() failed whilst iterating TxnSet: book.getTransactionSet().getTransactions(MyTxnSearch())")
+            myPrint("B", "@@ ERROR: .returnIncExpTransactionsForAccounts() failed whilst iterating TxnSet: book.getTransactionSet().getTransactions(MyTxnSearch())")
             dump_sys_error_to_md_console_and_errorlog()
             raise
 
         if debug:
-            myPrint("DB", "------------------------------")
-            myPrint("DB", "Attempts: %s" %(attempts))
-            myPrint("DB", ">> Analysis of I/E Txns Table:")
-            myPrint("DB", ">> IncExpTable Contains: %s rows" %(len(_incExpTable)))
-            for i in range(0, len(_incExpTable)):
-                myPrint("DB", ".... RowIdx: %s Contains: %s accounts" %(i, len(_incExpTable[i])))
-                for a in _incExpTable[i]:
-                    myPrint("DB", "...... >> Account: %s Contains %s Harvested Txns" %(a.getAccountName(), len(_incExpTable[i][a])))
-            myPrint("DB", "------------------------------")
+            myPrint("DB", "-----------------------------------")
+            myPrint("DB", ">> Analysis of parallel Txns Table:")
+            myPrint("DB", ">> _parallelTxnTable Contains: %s rows" %(len(_parallelTxnTable)))
+            for i in range(0, len(_parallelTxnTable)):
+                myPrint("DB", ".... RowIdx: %s Contains: %s accounts" %(i, len(_parallelTxnTable[i])))
+                for acct in _parallelTxnTable[i]:
+                    myPrint("DB", "...... >> Contains %s harvested txns - Account: %s" %(rpad(len(_parallelTxnTable[i][acct]), 12), acct.getAccountName()))
+            myPrint("DB", "-----------------------------------")
 
 
-        if debug: myPrint("DB", ">>  returnTransactionsForAccounts (Txn Iterator) TOOK: %s milliseconds (%s seconds) - to parse %s Txns"
-                                    %((System.currentTimeMillis() - startTime), (System.currentTimeMillis() - startTime) / 1000.0, iTxns))
+        if debug or TIMING_DEBUG:
+            stage = "2.1"; stageTxt = "::returnIncExpTransactionsForAccounts()"
+            myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds) - to parse %s Txns" %(pad(stageTxt, 60), pad(stage,7), (System.currentTimeMillis() - startTime), (System.currentTimeMillis() - startTime) / 1000.0, iTxns))
 
-        return _incExpTable
+        return _parallelTxnTable
 
     def debugMDDateRangeOption():
         if not debug: return
@@ -5103,7 +7363,15 @@ Visit: %s (Author's site)
     def hideUnideCollapsiblePanels(startingComponent, lSetVisible):
         # type: (JComponent, bool) -> None
 
-        # if isinstance(startingComponent, JPanel) and startingComponent.getClientProperty("%s.collapsible" %(myModuleID)) is not None:
+        # if debug:
+        #     try:
+        #         if isinstance(startingComponent, JComponent) and startingComponent.getClientProperty("%s.collapsible" %(myModuleID)) != "true":
+        #             myPrint("B", "@@ Not collapsing JComponent:", startingComponent)
+        #         elif startingComponent.getClientProperty("%s.collapsible" %(myModuleID)) != "true":
+        #             myPrint("B", "@@ Not collapsing NON-JComponent:", startingComponent)
+        #     except:
+        #         myPrint("B", "@@ ERROR: Could not interrogate component:", startingComponent);
+
         if isinstance(startingComponent, JComponent) and startingComponent.getClientProperty("%s.collapsible" %(myModuleID)) == "true":
             startingComponent.setVisible(lSetVisible)
 
@@ -5351,12 +7619,14 @@ Visit: %s (Author's site)
             self.helpFile = "<NONE>"
 
             self.saveActionListener = None
+            self.savePropertyChangeListener = None
             self.saveFocusListener = None
 
             self.quickSearchField = None
 
             self.savedAccountListUUIDs          = None
             self.savedBalanceType               = None
+            self.savedBalanceAsOfDateTable      = None
             self.savedAutoSumAccounts           = None
             self.savedWidgetName                = None
             self.savedCurrencyTable             = None      # Only contains UUID strings
@@ -5364,6 +7634,8 @@ Visit: %s (Author's site)
             self.savedIncludeInactive           = None
             self.savedIncomeExpenseDateRange    = None
             self.savedCustomDatesTable          = None
+            self.savedUseCostBasisTable         = None
+            self.savedIncludeRemindersTable     = None
             self.savedRowSeparatorTable         = None
             self.savedBlinkTable                = None
             self.savedHideDecimalsTable         = None
@@ -5418,14 +7690,23 @@ Visit: %s (Author's site)
             self.configPanelOpen = False
 
             self.jlst                               = None
+            self.simulate_JBTN                      = None
             self.balanceType_COMBO                  = None
-            self.incomeExpenseDateRange_COMBO       = None
+            self.asOfDateChooser_AODC               = None
+            self.asOfDateChooser_CB                 = None
+            self.includeRemindersChooser_AODC       = None
+            self.includeRemindersChooser_CB         = None
+            self.incomeExpenseDateRange_DRC         = None
             self.currency_COMBO                     = None                  # Contains a Class holding Currency Objects
             self.disableCurrencyFormatting_CB       = None
             self.widgetNameField_JTF                = None
             self.groupIDField_JTF                   = None
             self.filterByGroupID_JTF                = None
             self.cancelChanges_button               = None
+            self.useCostBasisNone_JRB               = None
+            self.useCostBasisCB_JRB                 = None
+            self.useCostBasisURGains_JRB            = None
+            self.useCostBasisCash_CB                = None
             self.separatorSelectorNone_JRB          = None
             self.separatorSelectorAbove_JRB         = None
             self.separatorSelectorBelow_JRB         = None
@@ -5452,16 +7733,19 @@ Visit: %s (Author's site)
             self.filterIncludeSelected_CB           = None
             self.filterOnlyShowSelected_CB          = None
             self.filterOnlyAccountType_COMBO        = None
+            self.storeAccountList_JBTN              = None
+            self.saveSettings_JBTN                  = None
 
             self.utiliseOtherRow_JTFAI              = None
             self.otherRowMathsOperator_COMBO        = None
             self.otherRowIsPercent_CB               = None
             self.showWarnings_LBL                   = None
 
-            self.keyLabel = None
-            self.dateRangeLabel = None
-            self.avgByLabel = None
-            self.parallelBalancesWarningLabel = None
+            self.keyLabel                           = None
+            self.incExpDateRangeLabel               = None
+            self.includeRemindersDateLabel          = None
+            self.avgByLabel                         = None
+            self.parallelBalancesWarningLabel       = None
 
             self.rowSelectedSaved = 0
             self.rowSelected_COMBO = None
@@ -5768,6 +8052,15 @@ Visit: %s (Author's site)
             self.themeID = newThemeID
             del prefs
 
+        class UndoReloadSettingsRunnable(Runnable):
+            def __init__(self): pass
+
+            def run(self):
+                NAB = NetAccountBalancesExtension.getNAB()
+                NAB.load_saved_parameters(lForceReload=True)
+                MyHomePageView.getHPV().lastRefreshTriggerWasAccountModified = False
+                NAB.executeRefresh()
+
         class SaveSettingsRunnable(Runnable):
             def __init__(self): pass
 
@@ -5823,8 +8116,11 @@ Visit: %s (Author's site)
             NAB.migratedParameters = False
             GlobalVars.extn_param_NEW_listAccountUUIDs_NAB          = copy.deepcopy(NAB.savedAccountListUUIDs)
             GlobalVars.extn_param_NEW_balanceType_NAB               = copy.deepcopy(NAB.savedBalanceType)
+            GlobalVars.extn_param_NEW_balanceAsOfDate_NAB           = copy.deepcopy(NAB.savedBalanceAsOfDateTable)
             GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = copy.deepcopy(NAB.savedIncomeExpenseDateRange)
             GlobalVars.extn_param_NEW_customDatesTable_NAB          = copy.deepcopy(NAB.savedCustomDatesTable)
+            GlobalVars.extn_param_NEW_useCostBasisTable_NAB         = copy.deepcopy(NAB.savedUseCostBasisTable)
+            GlobalVars.extn_param_NEW_includeRemindersTable_NAB     = copy.deepcopy(NAB.savedIncludeRemindersTable)
             GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = copy.deepcopy(NAB.savedRowSeparatorTable)
             GlobalVars.extn_param_NEW_blinkTable_NAB                = copy.deepcopy(NAB.savedBlinkTable)
             GlobalVars.extn_param_NEW_hideDecimalsTable_NAB         = copy.deepcopy(NAB.savedHideDecimalsTable)
@@ -5881,10 +8177,10 @@ Visit: %s (Author's site)
                 NAB.executeRefresh()
 
         def getSudoAccountFromParallel(self, acctObj, rowIndex):
-            ## type: (StoreAccountList, int) -> [Account, HoldBalance]
+            ## type: (StoreAccount, int) -> [Account, HoldBalance]
 
             NAB = NetAccountBalancesExtension.getNAB()
-            if (isIncomeExpenseAcct(acctObj.getAccount()) and not isIncomeExpenseAllDatesSelected(rowIndex)):
+            if isParallelBalanceTableOperational(rowIndex):
                 sudoAcctRef = NAB.jlst.parallelAccountBalances[rowIndex][acctObj.getAccount()]                          # type: HoldBalance
             else:
                 sudoAcctRef = acctObj.getAccount()                                                                      # type: Account
@@ -5899,45 +8195,48 @@ Visit: %s (Author's site)
 
             NAB = NetAccountBalancesExtension.getNAB()
 
-            myPrint("DB", "...filter: %s" %(_filterText))
+            _filterText = _filterText.lower()
+            myPrint("DB", "...filter.lower(): %s" %(_filterText))
 
             row = NAB.getSelectedRowIndex()
 
             filteredListAccounts = []
 
+            selectedAccountTypeObj = NAB.filterOnlyAccountType_COMBO.getSelectedItem()                              # type: AccountTypeHolder
+            if selectedAccountTypeObj is None: selectedAccountTypeObj = NAB.filterOnlyAccountType_COMBO.getItemAt(0)
+            selectedTypes = selectedAccountTypeObj.getValidTypes()
+
             for obj in self.jlst.originalListObjects:
 
-                sudoAccount = self.getSudoAccountFromParallel(obj, NAB.getSelectedRowIndex())
-                if (self.filterOnlyShowSelected_CB.isSelected()
-                        and obj not in NAB.jlst.listOfSelectedObjects):
-                    continue
+                lObjNotInListOfSelectedObjects = (obj not in NAB.jlst.listOfSelectedObjects)
 
-                lAllAccountTypes = NAB.filterOnlyAccountType_COMBO.getSelectedItem() == "All Account Types"
-                selectedAccountType = NAB.filterOnlyAccountType_COMBO.getSelectedItem()
+                sudoAccount = self.getSudoAccountFromParallel(obj, NAB.getSelectedRowIndex())
+                if (self.filterOnlyShowSelected_CB.isSelected() and lObjNotInListOfSelectedObjects):
+                    continue
 
                 if (not self.savedIncludeInactive[row]
                         and not isAccountActive(obj.getAccount(), self.savedBalanceType[row])):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
-                if (_filterText.lower() not in obj.getAccount().getFullAccountName().lower()):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                if (_filterText not in obj.getAccount().getFullAccountName().lower()):
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
                 if (self.filterOutZeroBalAccts_INACTIVE_CB.isSelected()
                         and not isAccountActive(obj.getAccount(), NAB.savedBalanceType[row])
-                        and StoreAccountList.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                        and StoreAccount.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
                 if (self.filterOutZeroBalAccts_ACTIVE_CB.isSelected()
                         and isAccountActive(obj.getAccount(), NAB.savedBalanceType[row])
-                        and StoreAccountList.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                        and StoreAccount.getRecursiveXBalance(NAB.savedBalanceType[row], sudoAccount) == 0):
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
-                if not lAllAccountTypes and obj.getAccount().getAccountType() != selectedAccountType:
-                    if not self.filterIncludeSelected_CB.isSelected() or obj not in NAB.jlst.listOfSelectedObjects:
+                if obj.getAccount().getAccountType() not in selectedTypes:
+                    if not self.filterIncludeSelected_CB.isSelected() or lObjNotInListOfSelectedObjects:
                         continue
 
                 filteredListAccounts.append(obj)
@@ -5962,7 +8261,6 @@ Visit: %s (Author's site)
             myPrint("DB", "Confirming WidgetID: %s exists in Summary Page layout (somewhere)" %(widgetID))
             for where_key, where in [[prefs.GUI_VIEW_LEFT, lefties], [prefs.GUI_VIEW_RIGHT, righties], [prefs.GUI_VIEW_UNUSED, unused]]:
                 for iIndex in range(0, where.size()):
-                    # theID = where.elementAt(iIndex)
                     theID = where.get(iIndex)
                     if theID == widgetID:
                         myPrint("DB", ".. WidgetID: '%s' found in '%s' on row: %s" %(theID, where_key, iIndex+1))
@@ -6063,8 +8361,6 @@ Visit: %s (Author's site)
 
                 myPrint("DB", "Pushing Window Closing event....")
                 self.theFrame.dispatchEvent(WindowEvent(self.theFrame, WindowEvent.WINDOW_CLOSING))
-
-
 
         class HelpAction(AbstractAction):
 
@@ -6481,8 +8777,11 @@ Visit: %s (Author's site)
         def currencyDefault(self):                      return None
         def disableCurrencyFormattingDefault(self):     return False
         def balanceDefault(self):                       return 0
+        def balanceAsOfDateDefault(self, sel=False):    return [sel, AsOfDateChooser.ASOF_TODAY, 0]
+        def includeRemindersDefault(self, sel=False):   return [sel, AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, 0]
         def incomeExpenseDateRangeDefault(self):        return DateRangeOption.DR_ALL_DATES.getResourceKey()
         def customDatesDefault(self):                   return [0, 0]
+        def useCostBasisDefault(self):                  return [GlobalVars.COSTBASIS_TYPE_NONE, False]
         def rowSeparatorDefault(self):                  return GlobalVars.ROW_SEPARATOR_NEVER
         def blinkDefault(self):                         return False
         def includeInactiveDefault(self):               return 0
@@ -6516,7 +8815,7 @@ Visit: %s (Author's site)
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
             if self.savedCurrencyTable == [self.currencyDefault()] and len(self.savedCurrencyTable) != self.getNumberOfRows():
-                self.savedCurrencyTable = [self.currencyDefault() for i in range(0,self.getNumberOfRows())]             # Don't just do [] * n (as you will get references to same list)
+                self.savedCurrencyTable = [self.currencyDefault() for i in range(0, self.getNumberOfRows())]             # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedCurrencyTable detected, pre-populating with %s (= base currency)" %(self.savedCurrencyTable))
 
             if self.savedDisableCurrencyFormatting == [self.disableCurrencyFormattingDefault()] and len(self.savedDisableCurrencyFormatting) != self.getNumberOfRows():
@@ -6524,77 +8823,91 @@ Visit: %s (Author's site)
                 myPrint("B", "New parameter savedDisableCurrencyFormatting detected, pre-populating with %s (= Normal Currency Formatting)" %(self.savedDisableCurrencyFormatting))
 
             if self.savedIncludeInactive == [self.includeInactiveDefault()] and len(self.savedIncludeInactive) != self.getNumberOfRows():
-                self.savedIncludeInactive = [self.includeInactiveDefault() for i in range(0,self.getNumberOfRows())]    # Don't just do [] * n (as you will get references to same list)
+                self.savedIncludeInactive = [self.includeInactiveDefault() for i in range(0, self.getNumberOfRows())]    # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedIncludeInactive detected, pre-populating with %s (= Active items only)" %(self.savedIncludeInactive))
 
             if self.savedAutoSumAccounts == [self.autoSumDefault()] and len(self.savedAutoSumAccounts) != self.getNumberOfRows():
-                self.savedAutoSumAccounts = [self.autoSumDefault() for i in range(0,self.getNumberOfRows())]            # Don't just do [] * n (as you will get references to same list)
+                self.savedAutoSumAccounts = [self.autoSumDefault() for i in range(0, self.getNumberOfRows())]            # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedAutoSumAccounts detected, pre-populating with %s (= Auto Sum Accounts)" %(self.savedAutoSumAccounts))
 
             if self.savedIncomeExpenseDateRange == [self.incomeExpenseDateRangeDefault()] and len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
-                self.savedIncomeExpenseDateRange = [self.incomeExpenseDateRangeDefault() for i in range(0,self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
+                self.savedIncomeExpenseDateRange = [self.incomeExpenseDateRangeDefault() for i in range(0, self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedIncomeExpenseDateRange detected, pre-populating with %s (= Income/Expense All Dates)" %(self.savedIncomeExpenseDateRange))
 
             if self.savedCustomDatesTable == [self.customDatesDefault()] and len(self.savedCustomDatesTable) != self.getNumberOfRows():
-                self.savedCustomDatesTable = [self.customDatesDefault() for i in range(0,self.getNumberOfRows())]       # Don't just do [] * n (as you will get references to same list)
+                self.savedCustomDatesTable = [self.customDatesDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedCustomDatesTable detected, pre-populating with %s (= no custom dates)" %(self.savedCustomDatesTable))
+
+            if self.savedUseCostBasisTable == [self.useCostBasisDefault()] and len(self.savedUseCostBasisTable) != self.getNumberOfRows():
+                self.savedUseCostBasisTable = [self.useCostBasisDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedUseCostBasisTable detected, pre-populating with [%s] (= not using cost basis, do not include cash)" %(self.savedUseCostBasisTable))
+
+            if self.savedIncludeRemindersTable == [self.includeRemindersDefault()] and len(self.savedIncludeRemindersTable) != self.getNumberOfRows():
+                self.savedIncludeRemindersTable = [self.includeRemindersDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedIncludeRemindersTable detected, pre-populating with %s (= not including future reminders)" %(self.savedIncludeRemindersTable))
+
+            if self.savedBalanceAsOfDateTable == [self.balanceAsOfDateDefault()] and len(self.savedBalanceAsOfDateTable) != self.getNumberOfRows():
+                self.savedBalanceAsOfDateTable = [self.balanceAsOfDateDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedBalanceAsOfDateTable detected, pre-populating with %s (= no balance asof date)" %(self.savedBalanceAsOfDateTable))
 
             if self.savedOperateOnAnotherRowTable == [self.operateOnAnotherRowDefault()] and len(self.savedOperateOnAnotherRowTable) != self.getNumberOfRows():
                 self.savedOperateOnAnotherRowTable = [self.operateOnAnotherRowDefault() for i in range(0,self.getNumberOfRows())]
                 myPrint("B", "New parameter savedOperateOnAnotherRowTable detected, pre-populating with %s (= no operation using another row's result)" %(self.savedOperateOnAnotherRowTable))
 
             if self.savedUUIDTable == [self.UUIDDefault(newUUID=False)] and len(self.savedUUIDTable) != self.getNumberOfRows():
-                self.savedUUIDTable = [self.UUIDDefault(newUUID=True) for i in range(0,self.getNumberOfRows())]
+                self.savedUUIDTable = [self.UUIDDefault(newUUID=True) for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedUUIDTable detected, pre-populating with %s (= default new UUID(s))" %(self.savedUUIDTable))
 
             if self.savedGroupIDTable == [self.groupIDDefault()] and len(self.savedGroupIDTable) != self.getNumberOfRows():
-                self.savedGroupIDTable = [self.groupIDDefault() for i in range(0,self.getNumberOfRows())]
+                self.savedGroupIDTable = [self.groupIDDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedGroupIDTable detected, pre-populating with %s (= <no groupid>)" %(self.savedGroupIDTable))
 
             if self.savedShowWarningsTable == [self.showWarningsDefault()] and len(self.savedShowWarningsTable) != self.getNumberOfRows():
-                self.savedShowWarningsTable = [self.showWarningsDefault() for i in range(0,self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
+                self.savedShowWarningsTable = [self.showWarningsDefault() for i in range(0, self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedShowWarningsTable detected, pre-populating with %s (= Default Show Warnings per row)" %(self.savedShowWarningsTable))
 
             if self.savedHideRowWhenXXXTable == [self.hideRowWhenXXXDefault()] and len(self.savedHideRowWhenXXXTable) != self.getNumberOfRows():
-                self.savedHideRowWhenXXXTable = [self.hideRowWhenXXXDefault() for i in range(0,self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
+                self.savedHideRowWhenXXXTable = [self.hideRowWhenXXXDefault() for i in range(0, self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedHideRowWhenXXXTable detected, pre-populating with %s (= Default row not hidden - i.e. it's visible)" %(self.savedHideRowWhenXXXTable))
 
             if self.savedHideRowXValueTable == [self.hideRowXValueDefault()] and len(self.savedHideRowXValueTable) != self.getNumberOfRows():
-                self.savedHideRowXValueTable = [self.hideRowXValueDefault() for i in range(0,self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
+                self.savedHideRowXValueTable = [self.hideRowXValueDefault() for i in range(0, self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedHideRowXValueTable detected, pre-populating with %s (= Default row not hidden x value = 0)" %(self.savedHideRowXValueTable))
 
             if self.savedDisplayAverageTable == [self.displayAverageDefault()] and len(self.savedDisplayAverageTable) != self.getNumberOfRows():
-                self.savedDisplayAverageTable = [self.displayAverageDefault() for i in range(0,self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
+                self.savedDisplayAverageTable = [self.displayAverageDefault() for i in range(0, self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedDisplayAverageTable detected, pre-populating with %s (= 1.0 = don't display average)" %(self.savedDisplayAverageTable))
 
             if self.savedAverageByCalUnitTable == [self.averageByCalUnitDefault()] and len(self.savedAverageByCalUnitTable) != self.getNumberOfRows():
-                self.savedAverageByCalUnitTable = [self.averageByCalUnitDefault() for i in range(0,self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
+                self.savedAverageByCalUnitTable = [self.averageByCalUnitDefault() for i in range(0, self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedAverageByCalUnitTable detected, pre-populating with %s (= 0 = don't use/calculate Calendar Units for avg/by)" %(self.savedAverageByCalUnitTable))
 
             if self.savedAverageByFractionalsTable == [self.averageByFractionalsDefault()] and len(self.savedAverageByFractionalsTable) != self.getNumberOfRows():
-                self.savedAverageByFractionalsTable = [self.averageByFractionalsDefault() for i in range(0,self.getNumberOfRows())]
+                self.savedAverageByFractionalsTable = [self.averageByFractionalsDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedAverageByFractionalsTable detected, pre-populating with %s (= False = only calculate whole/integer Calendar Units for avg/by)" %(self.savedAverageByFractionalsTable))
 
             if self.savedAdjustCalcByTable == [self.adjustCalcByDefault()] and len(self.savedAdjustCalcByTable) != self.getNumberOfRows():
-                self.savedAdjustCalcByTable = [self.adjustCalcByDefault() for i in range(0,self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
+                self.savedAdjustCalcByTable = [self.adjustCalcByDefault() for i in range(0, self.getNumberOfRows())]  # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedAdjustCalcByTable detected, pre-populating with %s (= 0.0 = no final adjustment to calculation)" %(self.savedAdjustCalcByTable))
 
             if self.savedRowSeparatorTable == [self.rowSeparatorDefault()] and len(self.savedRowSeparatorTable) != self.getNumberOfRows():
-                self.savedRowSeparatorTable = [self.rowSeparatorDefault() for i in range(0,self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
+                self.savedRowSeparatorTable = [self.rowSeparatorDefault() for i in range(0, self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedRowSeparatorTable detected, pre-populating with %s (= Default no row separators)" %(self.savedRowSeparatorTable))
 
             if self.savedBlinkTable == [self.blinkDefault()] and len(self.savedBlinkTable) != self.getNumberOfRows():
-                self.savedBlinkTable = [self.blinkDefault() for i in range(0,self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
+                self.savedBlinkTable = [self.blinkDefault() for i in range(0, self.getNumberOfRows())]     # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedBlinkTable detected, pre-populating with %s (= Default Blinking OFF)" %(self.savedBlinkTable))
 
             if self.savedHideDecimalsTable == [self.hideDecimalsDefault()] and len(self.savedHideDecimalsTable) != self.getNumberOfRows():
-                self.savedHideDecimalsTable = [self.hideDecimalsDefault() for i in range(0,self.getNumberOfRows())]
+                self.savedHideDecimalsTable = [self.hideDecimalsDefault() for i in range(0, self.getNumberOfRows())]
                 myPrint("B", "New parameter savedHideDecimalsTable detected, pre-populating with %s (= Default NO hiding of decimals)" %(self.savedHideDecimalsTable))
 
             if self.savedAccountListUUIDs is None or not isinstance(self.savedAccountListUUIDs, list) or self.getNumberOfRows() < 1:
                 self.resetParameters(1)
             elif self.savedBalanceType is None or not isinstance(self.savedBalanceType, list) or len(self.savedBalanceType) < 1:
                 self.resetParameters(3)
+            elif self.savedBalanceAsOfDateTable is None or not isinstance(self.savedBalanceAsOfDateTable, list) or len(self.savedBalanceType) < 1:
+                self.resetParameters(4)
             elif self.savedWidgetName is None or not isinstance(self.savedWidgetName, list) or len(self.savedWidgetName) < 1:
                 self.resetParameters(5)
             elif self.savedCurrencyTable is None or not isinstance(self.savedCurrencyTable, list) or len(self.savedCurrencyTable) < 1:
@@ -6609,8 +8922,12 @@ Visit: %s (Author's site)
                 self.resetParameters(15)
             elif self.savedCustomDatesTable is None or not isinstance(self.savedCustomDatesTable, list) or len(self.savedCustomDatesTable) < 1:
                 self.resetParameters(17)
-            elif self.savedOperateOnAnotherRowTable is None or not isinstance(self.savedOperateOnAnotherRowTable, list) or len(self.savedOperateOnAnotherRowTable) < 1:
+            elif self.savedUseCostBasisTable is None or not isinstance(self.savedUseCostBasisTable, list) or len(self.savedUseCostBasisTable) < 1:
+                self.resetParameters(18)
+            elif self.savedIncludeRemindersTable is None or not isinstance(self.savedIncludeRemindersTable, list) or len(self.savedIncludeRemindersTable) < 1:
                 self.resetParameters(19)
+            elif self.savedOperateOnAnotherRowTable is None or not isinstance(self.savedOperateOnAnotherRowTable, list) or len(self.savedOperateOnAnotherRowTable) < 1:
+                self.resetParameters(20)
             elif self.savedRowSeparatorTable is None or not isinstance(self.savedRowSeparatorTable, list) or len(self.savedRowSeparatorTable) < 1:
                 self.resetParameters(21)
             elif self.savedBlinkTable is None or not isinstance(self.savedBlinkTable, list) or len(self.savedBlinkTable) < 1:
@@ -6657,6 +8974,8 @@ Visit: %s (Author's site)
                 self.resetParameters(57)
             elif len(self.savedBalanceType) != self.getNumberOfRows():
                 self.resetParameters(59)
+            elif len(self.savedBalanceAsOfDateTable) != self.getNumberOfRows():
+                self.resetParameters(60)
             elif len(self.savedWidgetName) != self.getNumberOfRows():
                 self.resetParameters(61)
             elif len(self.savedCurrencyTable) != self.getNumberOfRows():
@@ -6671,8 +8990,12 @@ Visit: %s (Author's site)
                 self.resetParameters(71)
             elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
                 self.resetParameters(73)
-            elif len(self.savedOperateOnAnotherRowTable) != self.getNumberOfRows():
+            elif len(self.savedUseCostBasisTable) != self.getNumberOfRows():
+                self.resetParameters(74)
+            elif len(self.savedIncludeRemindersTable) != self.getNumberOfRows():
                 self.resetParameters(75)
+            elif len(self.savedOperateOnAnotherRowTable) != self.getNumberOfRows():
+                self.resetParameters(76)
             elif len(self.savedShowWarningsTable) != self.getNumberOfRows():
                 self.resetParameters(77)
             elif len(self.savedUUIDTable) != self.getNumberOfRows():
@@ -6711,9 +9034,15 @@ Visit: %s (Author's site)
                     if self.savedAccountListUUIDs[i] is None or not isinstance(self.savedAccountListUUIDs[i], list):
                         printResetMessage("savedAccountListUUIDs", self.savedAccountListUUIDs[i], self.accountListDefault(), i)
                         self.savedAccountListUUIDs[i] = self.accountListDefault()
-                    if self.savedBalanceType[i] is None or not isinstance(self.savedBalanceType[i], int) or self.savedBalanceType[i] < 0 or self.savedBalanceType[i] > 2:
+                    if self.savedBalanceType[i] is None or not isinstance(self.savedBalanceType[i], int) or self.savedBalanceType[i] < GlobalVars.BALTYPE_BALANCE or self.savedBalanceType[i] > GlobalVars.BALTYPE_CLEAREDBALANCE:
                         printResetMessage("savedBalanceType", self.savedBalanceType[i], self.balanceDefault(), i)
                         self.savedBalanceType[i] = self.balanceDefault()
+                    if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != 3
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX], bool)
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_DATEINT_IDX], int)
+                            or (self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX] and not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
+                        printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
+                        self.savedBalanceAsOfDateTable[i] = self.balanceAsOfDateDefault()
                     if self.savedWidgetName[i] is None or not isinstance(self.savedWidgetName[i], basestring) or self.savedWidgetName[i] == "":
                         printResetMessage("savedWidgetName", self.savedWidgetName[i], self.widgetRowDefault(), i)
                         self.savedWidgetName[i] = self.widgetRowDefault()
@@ -6735,6 +9064,17 @@ Visit: %s (Author's site)
                     if self.savedCustomDatesTable[i] is None or not isinstance(self.savedCustomDatesTable[i], list) or len(self.savedCustomDatesTable[i]) != 2:
                         printResetMessage("savedCustomDatesTable", self.savedCustomDatesTable[i], self.customDatesDefault(), i)
                         self.savedCustomDatesTable[i] = self.customDatesDefault()
+                    if (self.savedUseCostBasisTable[i] is None or not isinstance(self.savedUseCostBasisTable[i], list) or len(self.savedUseCostBasisTable[i]) != 2
+                            or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX], int) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX], bool)
+                            or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_URGAINS):
+                        printResetMessage("savedUseCostBasisTable", self.savedUseCostBasisTable[i], self.useCostBasisDefault(), i)
+                        self.savedUseCostBasisTable[i] = self.useCostBasisDefault()
+                    if (self.savedIncludeRemindersTable[i] is None or not isinstance(self.savedIncludeRemindersTable[i], list) or len(self.savedIncludeRemindersTable[i]) != 3
+                            or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_IDX], bool)
+                            or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX], str) or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX], int)
+                            or (self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_IDX] and not isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(self.savedIncludeRemindersTable[i])))):
+                        printResetMessage("savedIncludeRemindersTable", self.savedIncludeRemindersTable[i], self.includeRemindersDefault(), i)
+                        self.savedIncludeRemindersTable[i] = self.includeRemindersDefault()
                     if self.savedOperateOnAnotherRowTable[i] is None or not isinstance(self.savedOperateOnAnotherRowTable[i], list) or len(self.savedOperateOnAnotherRowTable[i]) != 3:
                         printResetMessage("savedOperateOnAnotherRowTable", self.savedOperateOnAnotherRowTable[i], self.operateOnAnotherRowDefault(), i)
                         self.savedOperateOnAnotherRowTable[i] = self.operateOnAnotherRowDefault()
@@ -6748,7 +9088,7 @@ Visit: %s (Author's site)
                         printResetMessage("savedHideDecimalsTable", self.savedHideDecimalsTable[i], self.hideDecimalsDefault(), i)
                         self.savedHideDecimalsTable[i] = self.hideDecimalsDefault()
                     if self.savedCustomDatesTable[i] != self.customDatesDefault() and \
-                            not isValidDateRange(self.savedCustomDatesTable[i][0], self.savedCustomDatesTable[i][1]):
+                            not isValidIncExpDateRange(self.savedCustomDatesTable[i][0], self.savedCustomDatesTable[i][1]):
                         printResetMessage("savedCustomDatesTable", self.savedCustomDatesTable[i], self.customDatesDefault(), i)
                         self.savedCustomDatesTable[i] = self.customDatesDefault()
                     if not self.isValidAndFixOperateOnAnotherRowParams(self.savedOperateOnAnotherRowTable[i]):
@@ -6896,9 +9236,6 @@ Visit: %s (Author's site)
             if (NAB.savedHideRowWhenXXXTable[thisRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
                 # myPrint("B", "...... confirmed this row not AUTOHIDE...");
 
-                # if (not NAB.isRowFilteredOutByGroupID(thisRowIdx)):
-                #     # myPrint("B", "...... confirmed this row not filtered out by 'Group ID'...");
-
                 if otherRow is not None:
                     # myPrint("B", "...... confirmed otherRow not None... (will cast to int)");
                     otherRow = int(otherRow)
@@ -6909,9 +9246,6 @@ Visit: %s (Author's site)
                             if (thisRow != otherRow):
                                 # myPrint("B", "...... confirmed thisRow != otherRow...");
                                 otherRowIdx = otherRow - 1
-
-                                # if (NAB.savedOperateOnAnotherRowTable[otherRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None):
-                                # myPrint("B", "...... confirmed savedOperateOnAnotherRowTable[otherRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None...");
 
                                 if (NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
                                     # myPrint("B", "...... confirmed NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS...");
@@ -6938,8 +9272,11 @@ Visit: %s (Author's site)
 
             self.savedAccountListUUIDs              = [self.accountListDefault()]
             self.savedBalanceType                   = [self.balanceDefault()]
+            self.savedBalanceAsOfDateTable          = [self.balanceAsOfDateDefault()]
             self.savedIncomeExpenseDateRange        = [self.incomeExpenseDateRangeDefault()]
             self.savedCustomDatesTable              = [self.customDatesDefault()]
+            self.savedIncludeRemindersTable         = [self.includeRemindersDefault()]
+            self.savedUseCostBasisTable             = [self.useCostBasisDefault()]
             self.savedOperateOnAnotherRowTable      = [self.operateOnAnotherRowDefault()]
             self.savedRowSeparatorTable             = [self.rowSeparatorDefault()]
             self.savedBlinkTable                    = [self.blinkDefault()]
@@ -6975,31 +9312,36 @@ Visit: %s (Author's site)
 
             self.setSelectedRowIndex(0)
 
-        def getEndDate(self, _endDate, _balType):
-            today = min(DateUtil.getStrippedDateInt(), _endDate)
-            return (today if (_balType == GlobalVars.BALTYPE_CURRENTBALANCE) else _endDate)
+        def getSimulateEnabled(self): return self.simulate_JBTN.isEnabled()
+        def setSimulateEnabled(self, enabled):
+            self.simulate_JBTN.setEnabled(enabled)
+            self.simulate_JBTN.setVisible(enabled)
 
-        def setDateRangeLabel(self, _rowIdx):
+        def setIncExpDateRangeLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
 
             myPrint("DB", "about to set date range label..")
 
             dateFormat = NAB.moneydanceContext.getPreferences().getShortDateFormat()
 
-            dateExtraTxt = ("(up to today's date)" if (NAB.savedBalanceType[_rowIdx] == GlobalVars.BALTYPE_CURRENTBALANCE) else "")
+            if (NAB.savedBalanceType[_rowIdx] == GlobalVars.BALTYPE_CURRENTBALANCE):
+                dateExtraTxt = "(up to today's date)"
+            else:
+                dateExtraTxt = ""
 
-            if NAB.savedIncomeExpenseDateRange[_rowIdx] != NAB.incomeExpenseDateRangeDefault():
-                # dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[_rowIdx]).getDateRange()
-                dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx], NAB.savedCustomDatesTable[_rowIdx])
-                endDate = NAB.getEndDate(dateRange.getEndDateInt(), NAB.savedBalanceType[_rowIdx])
+            if isIncomeExpenseDatesSelected(_rowIdx):
+                dateRange = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx],
+                                                       NAB.savedCustomDatesTable[_rowIdx],
+                                                       adjForBalType=NAB.savedBalanceType[_rowIdx])
                 drTxt = "I/E Date Range: %s to %s - Others: All dates %s" %(convertStrippedIntDateFormattedText(dateRange.getStartDateInt(), dateFormat),
-                                                                            convertStrippedIntDateFormattedText(endDate, dateFormat), dateExtraTxt)
+                                                                            convertStrippedIntDateFormattedText(dateRange.getEndDateInt(), dateFormat),
+                                                                            dateExtraTxt)
             else:
                 drTxt = "Date Range: ALL DATES %s" %(dateExtraTxt)
 
-            NAB.dateRangeLabel.setText(wrap_HTML_BIG_small("", drTxt, _smallItalics=True, _smallColor=GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground))
-            NAB.dateRangeLabel.setHorizontalAlignment(JLabel.LEFT)
-            NAB.dateRangeLabel.repaint()
+            NAB.incExpDateRangeLabel.setText(wrap_HTML_BIG_small("", drTxt, _smallItalics=True, _smallColor=GlobalVars.CONTEXT.getUI().getColors().defaultTextForeground))
+            NAB.incExpDateRangeLabel.setHorizontalAlignment(JLabel.LEFT)
+            NAB.incExpDateRangeLabel.repaint()
 
         def setAvgByLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
@@ -7015,7 +9357,7 @@ Visit: %s (Author's site)
             lHideControls = True
             enable_averageByManualEntry = False
             enable_averageByCalUnit = False
-            if isIncomeExpenseAllDatesSelected(_rowIdx):
+            if not isIncomeExpenseDatesSelected(_rowIdx):
                 enable_averageByManualEntry = True
             else:
                 enable_averageByCalUnit = True
@@ -7036,6 +9378,22 @@ Visit: %s (Author's site)
                 NAB.displayAverageCal_lbl.setVisible(enable_averageByCalUnit)
                 NAB.averageByCalUnit_COMBO.setVisible(enable_averageByCalUnit)
                 NAB.averageByFractionals_CB.setVisible(enable_averageByCalUnit)
+
+        def setBalanceAsOfDateControls(self, _rowIdx):
+            NAB = NetAccountBalancesExtension.getNAB()
+            if NAB.savedHideControlPanel: return
+            shouldHideControls = False
+            NAB.getSelectedRowIndex()
+            shouldShow = NAB.savedBalanceAsOfDateTable[_rowIdx][GlobalVars.ASOF_BALANCE_IDX]
+            NAB.asOfDateChooser_AODC.setEnabled(shouldShow, shouldHideControls)
+
+        def setIncludeRemindersDateControls(self, _rowIdx):
+            NAB = NetAccountBalancesExtension.getNAB()
+            if NAB.savedHideControlPanel: return
+            shouldHideControls = False
+            NAB.getSelectedRowIndex()
+            shouldShow = NAB.savedIncludeRemindersTable[_rowIdx][GlobalVars.INCLUDE_REMINDERS_IDX]
+            NAB.includeRemindersChooser_AODC.setEnabled(shouldShow, shouldHideControls)
 
         def setAcctListKeyLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
@@ -7058,13 +9416,13 @@ Visit: %s (Author's site)
         def setParallelBalancesWarningLabel(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
             myPrint("DB", "about to set parallelBalancesWarningLabel..")
-            if not isIncomeExpenseAllDatesSelected(_rowIdx):
+            if isParallelBalanceTableOperational(_rowIdx):
                 if NAB.parallelBalancesWarningLabel.getIcon() is None:
                     mdImages = NAB.moneydanceContext.getUI().getImages()
                     iconTintParallel = NAB.moneydanceContext.getUI().getColors().errorMessageForeground
                     iconParallel = mdImages.getIconWithColor(GlobalVars.Strings.MD_GLYPH_REFRESH, iconTintParallel)
                     NAB.parallelBalancesWarningLabel.setIcon(iconParallel)
-                NAB.parallelBalancesWarningLabel.setText(wrap_HTML_BIG_small("","PARALLEL BALANCE TABLE"))
+                NAB.parallelBalancesWarningLabel.setText(wrap_HTML_BIG_small("","PARALLEL-BALANCE-TABLE"))
                 NAB.parallelBalancesWarningLabel.setHorizontalAlignment(JLabel.LEFT)
                 NAB.parallelBalancesWarningLabel.setHorizontalTextPosition(JLabel.RIGHT)
                 NAB.parallelBalancesWarningLabel.repaint()
@@ -7073,34 +9431,24 @@ Visit: %s (Author's site)
                 NAB.parallelBalancesWarningLabel.setIcon(None)
                 NAB.parallelBalancesWarningLabel.repaint()
 
-        class DateRangeSingleOption:
+        def setAccountListChangedLabel(self):
+            NAB = self
+            NAB.storeAccountList_JBTN.setForeground(getColorRed() if NAB.jlst.hasListSelectionChanged() else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
+            # NAB.storeAccountList_JBTN.setText("<list changed>" if NAB.jlst.hasListSelectionChanged() else "")
 
-            @staticmethod
-            def findAllDates(_list):
-                for i in len(_list):
-                    if _list[i].getDR() == DateRangeOption.DR_ALL_DATES: return i
-                return 0
+        def setAllGUILabelsControls(self, _rowIdx):
+            NAB = self
+            NAB.setIncExpDateRangeLabel(_rowIdx)
+            NAB.setAvgByLabel(_rowIdx)
+            NAB.setAvgByControls(_rowIdx)
+            NAB.setBalanceAsOfDateControls(_rowIdx)
+            NAB.setIncludeRemindersDateControls(_rowIdx)
+            NAB.setAcctListKeyLabel(_rowIdx)
+            NAB.setParallelBalancesWarningLabel(_rowIdx)
+            NAB.setAccountListChangedLabel()
+            NAB.saveSettings_JBTN.setForeground(getColorRed() if not NAB.configSaved else NAB.moneydanceContext.getUI().getColors().defaultTextForeground)
 
-            def __init__(self, DR):
-                # type: (DateRangeOption) -> None
-                self.DR = DR
-
-            def getDR(self):        return self.DR
-            def __str__(self):      return NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getStr(self.getDR().getResourceKey())  # noqa
-            def __repr__(self):     return self.__str__()                                                               # noqa
-            def toString(self):     return self.__str__()                                                               # noqa
-
-
-        def findDateRange(self, _key):
-            tmpList = []
-            for i in range(0, self.incomeExpenseDateRange_COMBO.getItemCount()):
-                if self.incomeExpenseDateRange_COMBO.getItemAt(i).getDR().getResourceKey() == _key:
-                    myPrint("DB", ".. Found & returning Date Range Key: %s at Index: %s" %(_key, i))
-                    return i
-                tmpList.append(self.incomeExpenseDateRange_COMBO.getItemAt(i))
-
-            myPrint("DB", ".. WARNING: Did not find Date Range Key: %s >> Returning All Dates Key" %(_key))
-            return self.DateRangeSingleOption.findAllDates(tmpList)
+        def refreshJListDisplay(self): self.jlst.repaint()
 
         def setDisableListeners(self, components, disabled):
             wasDisabled = None
@@ -7111,6 +9459,8 @@ Visit: %s (Author's site)
                 listeners = []
                 listeners.extend(comp.getActionListeners())
                 listeners.extend(comp.getFocusListeners())
+                if isinstance(comp, (AsOfDateChooser, IncExpDateRangeChooser)):
+                    listeners.extend(comp.getPropertyChangeListeners())
                 if isinstance(comp, MyQuickSearchField):
                     listeners.extend(comp.getDocument().getDocumentListeners())
                 for compListener in listeners:
@@ -7146,7 +9496,6 @@ Visit: %s (Author's site)
 
             if not doNow:
                 myPrint("DB", "Offloading .rebuildRowSelectorCombo() to run later on a new Thread....")
-                # genericSwingEDTRunner(False, False, NAB.rebuildRowSelectorCombo, selectIdx, True, True)
                 genericThreadRunner(True, NAB.rebuildRowSelectorCombo, selectIdx, True, True)
                 return
 
@@ -7243,8 +9592,14 @@ Visit: %s (Author's site)
 
             allSwingControlObjects = [NAB.rowSelected_COMBO,
                                       NAB.balanceType_COMBO,
-                                      NAB.incomeExpenseDateRange_COMBO,
+                                      NAB.asOfDateChooser_AODC,
+                                      NAB.includeRemindersChooser_AODC,
+                                      NAB.incomeExpenseDateRange_DRC,
                                       NAB.currency_COMBO,
+                                      NAB.useCostBasisNone_JRB,
+                                      NAB.useCostBasisCB_JRB,
+                                      NAB.useCostBasisURGains_JRB,
+                                      NAB.useCostBasisCash_CB,
                                       NAB.separatorSelectorNone_JRB,
                                       NAB.separatorSelectorAbove_JRB,
                                       NAB.separatorSelectorBelow_JRB,
@@ -7281,8 +9636,8 @@ Visit: %s (Author's site)
             # Don't need to remove/reinstall Listeners on these buttons....
             # clearList_button
             # undoListChanges_button
-            # storeAccountList_button
-            # saveSettings_button
+            # storeAccountList_JBTN
+            # saveSettings_JBTN
             # insertBefore_button
             # insertAfter_button
             # deleteRow_button
@@ -7297,7 +9652,6 @@ Visit: %s (Author's site)
 
             # Rebuild Select Row Dropdown
             NAB.rebuildRowSelectorCombo(selectIdx=selectRowIndex, rebuildCompleteModel=False, doNow=True)
-            # NAB.rebuildRowSelectorCombo(selectIdx=selectRowIndex, rebuildCompleteModel=True, doNow=True);
 
             # Reset QuickSearch
             myPrint("DB", "..about to reset QuickSearch..")
@@ -7321,19 +9675,35 @@ Visit: %s (Author's site)
 
             # Reset Filter filterOnlyAccountType_COMBO
             myPrint("DB", "..about to reset filterOnlyAccountType_COMBO ..")
-            NAB.filterOnlyAccountType_COMBO.setSelectedItem("All Account Types")
+            NAB.filterOnlyAccountType_COMBO.setSelectedIndex(0)
 
             myPrint("DB", "..about to set balanceType_COMBO..")
             NAB.balanceType_COMBO.setSelectedIndex(NAB.savedBalanceType[selectRowIndex])
 
-            myPrint("DB", "..about to set incomeExpenseDateRange_COMBO..")
-            NAB.incomeExpenseDateRange_COMBO.setSelectedIndex(NAB.findDateRange(NAB.savedIncomeExpenseDateRange[selectRowIndex]))
+            myPrint("DB", "..about to set balance asof date chooser..")
+            NAB.asOfDateChooser_CB.setSelected(NAB.savedBalanceAsOfDateTable[selectRowIndex][GlobalVars.ASOF_BALANCE_IDX])
+            NAB.asOfDateChooser_AODC.loadFromParameters(NAB.savedBalanceAsOfDateTable[selectRowIndex], AsOfDateChooser.ASOF_TODAY)
+
+            myPrint("DB", "..about to set include reminders option/chooser..")
+            NAB.includeRemindersChooser_CB.setSelected(NAB.savedIncludeRemindersTable[selectRowIndex][GlobalVars.INCLUDE_REMINDERS_IDX])
+            NAB.includeRemindersChooser_AODC.loadFromParameters(NAB.savedIncludeRemindersTable[selectRowIndex], AsOfDateChooser.KEY_ASOF_END_THIS_MONTH)
+
+            myPrint("DB", "..about to set incomeExpenseDateRange_DRC..")
+            NAB.incomeExpenseDateRange_DRC.loadFromParameters(NAB.savedIncomeExpenseDateRange[selectRowIndex], NAB.savedCustomDatesTable[selectRowIndex])
 
             myPrint("DB", "..about to set includeInactive_COMBO..")
             NAB.includeInactive_COMBO.setSelectedIndex(NAB.savedIncludeInactive[selectRowIndex])
 
             myPrint("DB", "..about to set autoSumAccounts_CB..")
             NAB.autoSumAccounts_CB.setSelected(NAB.savedAutoSumAccounts[selectRowIndex])
+
+            myPrint("DB", "..about to set useCostBasisNone_JRB, useCostBasisCB_JRB, useCostBasisURGains_JRB..")
+            NAB.useCostBasisNone_JRB.setSelected(    True if NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_NONE    else False)
+            NAB.useCostBasisCB_JRB.setSelected(      True if NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CB      else False)
+            NAB.useCostBasisURGains_JRB.setSelected( True if NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_URGAINS else False)
+
+            myPrint("DB", "..about to set useCostBasisCash_CB..")
+            NAB.useCostBasisCash_CB.setSelected(isUseCostBasisCashSelected(selectRowIndex))
 
             myPrint("DB", "..about to set separatorSelectorNone_JRB, separatorSelectorAbove_JRB, separatorSelectorBelow_JRB, separatorSelectorBoth_JRB..")
             NAB.separatorSelectorNone_JRB.setSelected(  True if NAB.savedRowSeparatorTable[selectRowIndex] == GlobalVars.ROW_SEPARATOR_NEVER else False)
@@ -7392,12 +9762,6 @@ Visit: %s (Author's site)
             myPrint("DB", "about to set filter by group id..")
             NAB.filterByGroupID_JTF.setText(NAB.savedFilterByGroupID)
 
-            NAB.setAcctListKeyLabel(selectRowIndex)
-            NAB.setParallelBalancesWarningLabel(selectRowIndex)
-            NAB.setDateRangeLabel(selectRowIndex)
-            NAB.setAvgByLabel(selectRowIndex)
-            NAB.setAvgByControls(selectRowIndex)
-
             # Rebuild Currency Dropdown, and pre-select correct one
             currencyChoices = []
             base = NAB.moneydanceContext.getCurrentAccountBook().getCurrencies().getBaseType()
@@ -7428,7 +9792,8 @@ Visit: %s (Author's site)
             myPrint("DB", "about to rebuild jlist..")
             NAB.rebuildJList()  # This will run simulate, and that will rebuild the Row Selector JComboBox
 
-            NAB.updateMenus()   # Added now that we have a permanent JMenuBar
+            NAB.updateMenus()                               # Added now that we have a permanent JMenuBar
+            NAB.setAllGUILabelsControls(selectRowIndex)     # Update the controls
 
             NAB.setDisableListeners(allSwingControlObjects, False)
             NAB.setDisableListeners(NAB.quickSearchField, False)
@@ -7443,9 +9808,18 @@ Visit: %s (Author's site)
             myPrint("DB", ".....savedAccountListUUIDs: %s"                   %(NAB.savedAccountListUUIDs[selectRowIndex]))
             myPrint("DB", ".....savedBalanceType: %s"                        %(NAB.savedBalanceType[selectRowIndex]))
             myPrint("DB", ".....balanceType_COMBO: %s"                       %(NAB.balanceType_COMBO.getSelectedIndex()))
+            myPrint("DB", ".....savedBalanceAsOfDateTable: %s"               %(NAB.savedBalanceAsOfDateTable[selectRowIndex]))
+            myPrint("DB", ".....asOfDateChooser_CB: %s"                      %(NAB.asOfDateChooser_CB.isSelected()))
             myPrint("DB", ".....savedIncomeExpenseDateRange: %s"             %(NAB.savedIncomeExpenseDateRange[selectRowIndex]))
-            myPrint("DB", ".....incomeExpenseDateRange_COMBO: %s"            %(NAB.incomeExpenseDateRange_COMBO.getSelectedItem()))
+            # myPrint("DB", ".....incomeExpenseDateRange_DRC: %s"              %(NAB.incomeExpenseDateRange_DRC.getSelectedItem()))
             myPrint("DB", ".....savedCustomDatesTable: %s"                   %(NAB.savedCustomDatesTable[selectRowIndex]))
+            myPrint("DB", ".....savedIncludeRemindersTable: %s"              %(NAB.savedIncludeRemindersTable[selectRowIndex]))
+            myPrint("DB", ".....includeRemindersChooser_CB: %s"              %(NAB.includeRemindersChooser_CB.isSelected()))
+            myPrint("DB", ".....savedUseCostBasisTable: %s"                  %(NAB.savedUseCostBasisTable[selectRowIndex]))
+            myPrint("DB", ".....useCostBasisNone_JRB: %s"                    %(NAB.useCostBasisNone_JRB.isSelected()))
+            myPrint("DB", ".....useCostBasisCB_JRB: %s"                      %(NAB.useCostBasisCB_JRB.isSelected()))
+            myPrint("DB", ".....useCostBasisURGains_JRB: %s"                 %(NAB.useCostBasisURGains_JRB.isSelected()))
+            myPrint("DB", ".....useCostBasisCash_CB: %s"                     %(NAB.useCostBasisCash_CB.isSelected()))
             myPrint("DB", ".....savedOperateOnAnotherRowTable: %s"           %(NAB.savedOperateOnAnotherRowTable[selectRowIndex]))
             myPrint("DB", ".....utiliseOtherRow_JTFAI: %s"                   %(NAB.utiliseOtherRow_JTFAI.getValueIntOrNone()))
             myPrint("DB", ".....otherRowMathsOperator_COMBO: %s"             %(NAB.otherRowMathsOperator_COMBO.getSelectedItem()))
@@ -7519,7 +9893,7 @@ Visit: %s (Author's site)
         def doesRowUseAvgBy(self, _rowIdx):
             # type: (int) -> bool
             NAB = self
-            if isIncomeExpenseAllDatesSelected(_rowIdx) or NAB.savedAverageByCalUnitTable[_rowIdx] == NAB.CalUnit.NOTSET_IDX:
+            if not isIncomeExpenseDatesSelected(_rowIdx) or NAB.savedAverageByCalUnitTable[_rowIdx] == NAB.CalUnit.NOTSET_IDX:
                 return NAB.savedDisplayAverageTable[_rowIdx] != 1.0
             return True
 
@@ -7529,7 +9903,7 @@ Visit: %s (Author's site)
             If CalUnits NOTSET, then returns the std Avg/By field. WARNING: Can return a zero result!"""
             NAB = self
             if debug: myPrint("DB", "In getAvgByForRow(): rowIdx: %s (row: %s)" %(_rowIdx, _rowIdx+1))
-            if isIncomeExpenseAllDatesSelected(_rowIdx):
+            if not isIncomeExpenseDatesSelected(_rowIdx):
                 if debug: myPrint("DB", "... Appears to be using 'all_dates' - so will just return default avg/by...")
                 avgByResult = NAB.savedDisplayAverageTable[_rowIdx]
             else:
@@ -7539,9 +9913,11 @@ Visit: %s (Author's site)
                     avgByResult = NAB.savedDisplayAverageTable[_rowIdx]
                 else:
                     if debug: myPrint("DB", "... Using '%s' with Avg/By CalUnit: '%s'" %(NAB.savedIncomeExpenseDateRange[_rowIdx], calUnit))
-                    dateRange = getDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx], NAB.savedCustomDatesTable[_rowIdx])
+                    dateRange = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx],
+                                                           NAB.savedCustomDatesTable[_rowIdx],
+                                                           adjForBalType=NAB.savedBalanceType[_rowIdx])
                     startDateInt = dateRange.getStartDateInt()
-                    endDateInt = NAB.getEndDate(dateRange.getEndDateInt(), NAB.savedBalanceType[_rowIdx])
+                    endDateInt = dateRange.getEndDateInt()
                     daysBetween = calUnit.getCalUnitsBetweenDates(calUnit, startDateInt, endDateInt, NAB.savedAverageByFractionalsTable[_rowIdx])
                     if debug: myPrint("DB", "... Calculated CalUnits '%s' between for DR: '%s' %s - %s = %s %s (allow fractional result: %s)"
                                       %(calUnit, NAB.savedIncomeExpenseDateRange[_rowIdx],
@@ -7655,12 +10031,21 @@ Visit: %s (Author's site)
 
 
         def storeCurrentJListSelected(self):
-            myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+            if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            if debug: myPrint("B", "** storeCurrentJListSelected(): hasListSelectionChanged(): %s" %(self.jlst.hasListSelectionChanged()))
+            if not self.jlst.hasListSelectionChanged():
+                if debug: myPrint("B", ".... No list changes detected, so skipping store routines and just returning....")
+                return
+
+            if debug: myPrint("B", ".... storing account list changes....")
+
             del self.savedAccountListUUIDs[self.getSelectedRowIndex()][:]
             myPrint("DB", "Storing account list for HomePageView widget for row: %s into memory.." %(self.getSelectedRow()))
             for selectedAccount in self.jlst.getSelectedValuesList():
                 myPrint("DB", "...storing account %s into memory..." %(selectedAccount))
                 self.savedAccountListUUIDs[self.getSelectedRowIndex()].append(selectedAccount.getAccount().getUUID())
+            self.jlst.setListSelectionChanged(False)
 
         def resetJListModel(self):
             myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -7723,14 +10108,14 @@ Visit: %s (Author's site)
                     self.jlst.originalListObjects = _listOfAccountsForJList
                     self.jlst.listOfSelectedObjects = _objectsToSelect
 
-                self.jlst.repaint()
+                self.refreshJListDisplay()
 
             except:
                 myPrint("DB", "@@ ERROR in setJListDataAndSelection() routine ?")
                 dump_sys_error_to_md_console_and_errorlog()
                 raise
 
-        class RebuildParallelBalanceTableSwingWorker(SwingWorker):
+        class RebuildParallelBalanceTableSwingWorker(SwingWorker):  # NOTE: Calls .searchFiltersUpdated(), then .simulateTotalForRow() after execution
             def __init__(self):
                 NetAccountBalancesExtension.getNAB().swingWorkers.append(self)      # Already locked from calling code
 
@@ -7745,8 +10130,12 @@ Visit: %s (Author's site)
                 if "_extn_NAB" not in ct.getName(): ct.setName(u"%s_extn_NAB" %(ct.getName()))
 
                 NAB = NetAccountBalancesExtension.getNAB()
-                NAB.jlst.parallelAccountBalances = buildEmptyTxnOrBalanceArray()
 
+                BlinkSwingTimer.stopAllBlinkers()
+                NAB.simulateTotal_label.setForeground(NAB.moneydanceContext.getUI().getColors().tertiaryTextFG)
+                NAB.simulateTotal_label.setText("<parallel balances calculating>")
+
+                NAB.jlst.parallelAccountBalances = buildEmptyTxnOrBalanceArray()
                 NAB.jlst.parallelAccountBalances = rebuildParallelAccountBalances(self)
 
                 return not self.isCancelled()
@@ -7758,9 +10147,8 @@ Visit: %s (Author's site)
                     NAB = NetAccountBalancesExtension.getNAB()
 
                     self.get()  # wait for process to finish
-                    NAB.searchFiltersUpdated()
-                    # NAB.jlst.repaint()
 
+                    NAB.searchFiltersUpdated()
                     NAB.simulateTotalForRow(lFromParallel=True)
 
                 except InterruptedException:
@@ -7783,10 +10171,12 @@ Visit: %s (Author's site)
                             raise Exception("@@ ALERT: I did not find myself within swingWorkers list, so doing nothing...: %s" %(self))
 
         def rebuildParallelBalanceTable(self):
-            if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+            if debug: myPrint("B", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            self.setSimulateEnabled(False)
 
             if self.swingWorkers_LOCK.locked():
-                if debug: myPrint("DB", "@@.. ALERT In .rebuildParallelBalanceTable() >> swingWorkers_LOCK locked. Request might wait....")
+                if debug: myPrint("B", "@@.. ALERT In .rebuildParallelBalanceTable() >> swingWorkers_LOCK locked. Request might wait....")
 
             self.cancelSwingWorkers(lSimulates=True, lParallelRebuilds=True)  # Running outside of lock....
 
@@ -7796,8 +10186,7 @@ Visit: %s (Author's site)
                     sw = self.RebuildParallelBalanceTableSwingWorker()
                     sw.execute()
                 else:
-                    if debug: myPrint("DB", "@@..Sorry parallelRebuildRunning already running, cancelled request.... Try later....")
-
+                    if debug: myPrint("B", "@@..Sorry parallelRebuildRunning already running, cancelled request.... Try later....")
 
         def rebuildJList(self):
             if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
@@ -7811,12 +10200,12 @@ Visit: %s (Author's site)
                              self.savedBalanceType[self.getSelectedRowIndex()],
                              self.savedIncomeExpenseDateRange[self.getSelectedRowIndex()]))
 
-            for acct in getAccounts: listOfAllAccountsForJList.append(StoreAccountList(acct, self.savedAutoSumAccounts[self.getSelectedRowIndex()]))
-            del getAccounts
+            for acct in getAccounts: listOfAllAccountsForJList.append(StoreAccount(acct, self.savedAutoSumAccounts[self.getSelectedRowIndex()]))
 
             self.rebuildParallelBalanceTable()
 
             self.setJListDataAndSelection(listOfAllAccountsForJList)
+            self.jlst.setListSelectionChanged(False)
 
         def dumpSavedOptions(self):
 
@@ -7850,6 +10239,7 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedCurrencyTable",60)),            NAB.savedCurrencyTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedDisableCurrencyFormatting",60)),NAB.savedDisableCurrencyFormatting[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedBalanceType",60)),              NAB.savedBalanceType[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedBalanceAsOfDateTable",60)),     NAB.savedBalanceAsOfDateTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAutoSumAccounts",60)),          NAB.savedAutoSumAccounts[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncludeInactive",60)),          NAB.savedIncludeInactive[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedShowWarningsTable",60)),        NAB.savedShowWarningsTable[iRowIdx])
@@ -7861,6 +10251,8 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedAdjustCalcByTable",60)),        NAB.savedAdjustCalcByTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncomeExpenseDateRange",60)),   NAB.savedIncomeExpenseDateRange[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedCustomDatesTable",60)),         NAB.savedCustomDatesTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedUseCostBasisTable",60)),        NAB.savedUseCostBasisTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedIncludeRemindersTable",60)),    NAB.savedIncludeRemindersTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedOperateOnAnotherRowTable",60)), NAB.savedOperateOnAnotherRowTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedRowSeparatorTable",60)),        NAB.savedRowSeparatorTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedBlinkTable",60)),               NAB.savedBlinkTable[iRowIdx])
@@ -7879,7 +10271,7 @@ Visit: %s (Author's site)
             for iRowIdx in range(0,NAB.getNumberOfRows()):
                 onRow = iRowIdx+1
 
-                if isIncomeExpenseAllDatesSelected(iRowIdx): continue
+                if not isIncomeExpenseDatesSelected(iRowIdx): continue
 
                 lFoundAnyIncExp = False
                 for accID in NAB.savedAccountListUUIDs[iRowIdx]:
@@ -7933,8 +10325,7 @@ Visit: %s (Author's site)
                     else:
                         myPrint("DB", "... Row selected is already correct - no change....")
 
-                elif (NAB.moneydanceContext.getCurrentAccount() is not None
-                      and NAB.moneydanceContext.getCurrentAccount().getBook() is not None):
+                elif (NAB.moneydanceContext.getCurrentAccount() is not None and NAB.moneydanceContext.getCurrentAccount().getBook() is not None):
 
                     myPrint("DB", ".. Application's config panel was not open already...")
                     NAB.configPanelOpen = True
@@ -8025,6 +10416,8 @@ Visit: %s (Author's site)
                 if self.theFrame.isVisible():
                     myPrint("DB", ".. in windowClosing, but isVisible is True, let's trigger a widget refresh....")
 
+                    NAB.askStoreJListSelectionChanges()
+
                     NAB.cancelSwingWorkers(lSimulates=True, lParallelRebuilds=True, lBuildHomePageWidgets=True)
 
                     HPV.lastRefreshTriggerWasAccountModified = False
@@ -8103,8 +10496,21 @@ Visit: %s (Author's site)
                 return("MIXING ACCTS/CATS/SECS WARNING")
             elif _type == 5:
                 return("INVALID 'USE OTHER ROW' WARNING")
-            return("WARNING ? DETECTED")
-
+            elif _type == 6:
+                return("MIXING COSTBASIS WITH OTHER ACCTS WARNING")
+            elif _type == 7:
+                return("MIXING COSTBASIS WITH REMINDERS WARNING")
+            elif _type == 8:
+                return("REMINDERS CANNOT DERIVE TAX DATES WARNING")
+            elif _type == 9:
+                return("COSTBASIS ASOF CANNOT DERIVE TAX DATES WARNING")
+            elif _type == 10:
+                return("BALANCE ASOF CANNOT DERIVE TAX DATES WARNING")
+            elif _type == 11:
+                return("ASOF PAST-DATED CLEARED-BALANCE ILLOGICAL (=BAL) WARNING")
+            elif _type == 13:
+                return("ASOF COSTBASIS CLEARED-BALANCE ILLOGICAL (=BAL) WARNING")
+            return("WARNING <<UNKNOWN>> DETECTED")
 
         class SimulateTotalForRowSwingWorker(SwingWorker):
             def __init__(self):
@@ -8115,7 +10521,7 @@ Visit: %s (Author's site)
             def isRebuildParallelBalanceTableSwingWorker(self): return False
 
             def doInBackground(self):                                                                                   # Runs on a worker thread
-                # type: () -> [{Account: [HoldBalance]}]
+                # type: () -> [{Account: HoldBalance}]
 
                 if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
 
@@ -8180,7 +10586,7 @@ Visit: %s (Author's site)
                         lUseAverage = NAB.doesRowUseAvgBy(i)
                         lAdjustFinalBalance = (NAB.savedAdjustCalcByTable[i] != 0.0)
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
-                        lUseTaxDates = (NAB.savedUseTaxDates and not isIncomeExpenseAllDatesSelected(i))
+                        lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
                         balanceOrAverage = balanceObj.getBalance()
 
@@ -8218,10 +10624,29 @@ Visit: %s (Author's site)
                                 showAdjustFinalBalanceText = " (adj)"
                                 if debug: myPrint("DB", ":: Row: %s using final balance adjustment: %s" %(i+1, NAB.savedAdjustCalcByTable[i]))
 
-                            useTaxDatesText = ""
+                            showUseTaxDatesText = ""
                             if lUseTaxDates:
-                                useTaxDatesText = " (txd)"
+                                showUseTaxDatesText = " (txd)"
                                 if debug: myPrint("DB", ":: Row: %s using tax dates" %(i+1))
+
+                            showBalanceAsOfText = ""
+                            if isBalanceAsOfDateSelected(i):
+                                showBalanceAsOfText = " (balasof)"
+                                if debug: myPrint("DB", ":: Row: %s using balance asof date: %s" %(i+1, getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i])))
+
+                            showIncludeRemindersText = ""
+                            if isIncludeRemindersSelected(i):
+                                showIncludeRemindersText = " (rems)"
+                                if debug: myPrint("DB", ":: Row: %s including reminders asof date: %s" %(i+1, getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
+
+                            showCostBasisText = ""
+                            if isUseCostBasisSelected(i):
+                                if NAB.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CB:
+                                    showCostBasisText = " (cb)"
+                                    if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts)" %(i+1))
+                                elif NAB.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_URGAINS:
+                                    showCostBasisText = " (urg)"
+                                    if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))
 
                             showUsesOtherRowTxt = ""
                             if lUsesOtherRow:
@@ -8251,7 +10676,16 @@ Visit: %s (Author's site)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont())
                             NAB.simulateTotal_label.setForeground(tdfsc.getValueColor(balanceOrAverage))
 
-                            resultTxt = wrap_HTML_BIG_small(theFormattedValue, showCurrText + showAverageText + showAdjustFinalBalanceText + useTaxDatesText + showUsesOtherRowTxt, altFG)
+                            resultTxt = wrap_HTML_BIG_small(theFormattedValue,
+                                                            showCurrText
+                                                            + showAverageText
+                                                            + showAdjustFinalBalanceText
+                                                            + showUseTaxDatesText
+                                                            + showBalanceAsOfText
+                                                            + showIncludeRemindersText
+                                                            + showCostBasisText
+                                                            + showUsesOtherRowTxt,
+                                                            altFG)
                             NAB.simulateTotal_label.setText(resultTxt)
 
                             if NAB.savedBlinkTable[i]:
@@ -8259,6 +10693,9 @@ Visit: %s (Author's site)
 
                         if debug: myPrint("DB", "... launching .rebuildRowSelectorCombo() called by end of SwingWorker..... Should jump over to the EDT (to run later...)")
                         NAB.rebuildRowSelectorCombo(selectIdx=None, rebuildCompleteModel=True, doNow=False)
+
+                        NAB.setSimulateEnabled(True)
+                        NAB.refreshJListDisplay()
 
 
                 except InterruptedException:
@@ -8283,9 +10720,19 @@ Visit: %s (Author's site)
                         else:
                             raise Exception("@@ ALERT: I did not find myself within swingWorkers list, so doing nothing...: %s" %(self))
 
+        def askStoreJListSelectionChanges(self):
+            NAB = self
+            if (NAB.jlst.hasListSelectionChanged()
+                    and myPopupAskQuestion(NAB.theFrame, "STORE LIST CHANGES", "Do you want to store your account list selection changes?")):
+                myPrint("DB", "...storing account list selection into memory...")
+                NAB.migratedParameters = False
+                NAB.storeCurrentJListSelected()
+                NAB.configSaved = False
 
         def simulateTotalForRow(self, lFromParallel=False):
             if debug: myPrint("DB", "In %s.%s()" %(self, inspect.currentframe().f_code.co_name))
+
+            self.setSimulateEnabled(False)
 
             if self.swingWorkers_LOCK.locked():
                 if debug: myPrint("DB", "@@.. ALERT In .simulateTotalForRow() >> swingWorkers_LOCK locked. Request might wait....")
@@ -8315,8 +10762,63 @@ Visit: %s (Author's site)
 
                 NAB = NetAccountBalancesExtension.getNAB()
                 NAB.storeJTextFieldsForSelectedRow()
-                NAB.simulateTotalForRow()
+                NAB.setAllGUILabelsControls(NAB.getSelectedRowIndex())
 
+
+        class MyPropertyChangeListener(PropertyChangeListener):
+            def __init__(self): self.disabled = False
+
+            def propertyChange(self, event):
+                propName = event.getPropertyName()
+                oldValue = event.getOldValue()
+                newValue = event.getNewValue()
+                source = event.getSource()
+                if debug: myPrint("B", "In %s.%s() - Event: %s" %(self, inspect.currentframe().f_code.co_name, event))
+                if debug: myPrint("B", "... Property Name: '%s', oldVal: %s, newVal: %s, event:" %(propName, oldValue, newValue), event)
+
+                NAB = NetAccountBalancesExtension.getNAB()
+
+                if self.disabled:
+                    if debug: myPrint("B", "... disabled is set, skipping this.....")
+                    return
+
+                if source is NAB.asOfDateChooser_AODC:
+                    if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
+                        if debug: myPrint("B", "User has changed the balance asof date option....")
+
+                        selected = NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX]
+                        newSettings = event.getSource().returnStoredParameters(NAB.balanceAsOfDateDefault(selected))
+                        if debug: myPrint("B", ".. setting savedBalanceAsOfDateTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
+                        NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()] = newSettings
+                        NAB.configSaved = False
+
+                elif source is NAB.includeRemindersChooser_AODC:
+                    if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
+                        if debug: myPrint("B", "User has changed the include reminders asof date option....")
+
+                        selected = NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX]
+                        newSettings = event.getSource().returnStoredParameters(NAB.includeRemindersDefault(selected))
+                        NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()] = newSettings
+                        if debug: myPrint("B", ".. setting savedIncludeRemindersTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
+                        NAB.configSaved = False
+
+                elif source is NAB.incomeExpenseDateRange_DRC:
+                    if propName == NAB.incomeExpenseDateRange_DRC.PROP_DATE_RANGE_CHANGED:
+                        if debug: myPrint("B", "User has changed the income/expense date range option....")
+                        _rowIdx = NAB.getSelectedRowIndex()
+                        _row = NAB.getSelectedRow()
+                        newDRKey, newDRSettings = event.getSource().returnStoredParameters(NAB.customDatesDefault())
+                        NAB.savedIncomeExpenseDateRange[_rowIdx] = newDRKey
+                        NAB.savedCustomDatesTable[_rowIdx] = newDRSettings
+                        if debug: myPrint("B", ".. setting savedIncomeExpenseDateRange to: '%s 'for row: %s" %(newDRKey, _row))
+                        if debug: myPrint("B", ".. setting savedCustomDatesTable to:       '%s 'for row: %s" %(newDRSettings, _row))
+
+                        NAB.configSaved = False
+
+                else:
+                    raise Exception("LOGIC ERROR: Unknown source for MyPropertyChangeListener:", source)
+
+                NAB.setAllGUILabelsControls(NAB.getSelectedRowIndex())     # Update the controls
 
         class MyActionListener(AbstractAction):
 
@@ -8381,8 +10883,11 @@ Visit: %s (Author's site)
 
                 allRowVariables = [NAB.savedAccountListUUIDs,
                                    NAB.savedBalanceType,
+                                   NAB.savedBalanceAsOfDateTable,
                                    NAB.savedIncomeExpenseDateRange,
                                    NAB.savedCustomDatesTable,
+                                   NAB.savedIncludeRemindersTable,
+                                   NAB.savedUseCostBasisTable,
                                    NAB.savedOperateOnAnotherRowTable,
                                    NAB.savedRowSeparatorTable,
                                    NAB.savedBlinkTable,
@@ -8407,265 +10912,218 @@ Visit: %s (Author's site)
                 NAB.storeJTextFieldsForSelectedRow()
 
                 # ##########################################################################################################
-                if event.getActionCommand().lower() == "about":
-                    AboutThisScript(NAB.theFrame).go()
-
-                # ##########################################################################################################
-                if event.getActionCommand().lower() == "help":
-                    QuickJFrame("%s - Help" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME), NAB.helpFile, lWrapText=False, lAutoSize=False).show_the_frame()
-
-                # ######################################################################################################
-                if event.getActionCommand().lower().startswith("AutoSum Accts".lower()):
-                    if event.getSource().getName().lower() == "autoSumAccounts_CB".lower():
-                        if NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting savedAutoSumAccounts to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
-                            NAB.jlst.repaint()
+                if event.getActionCommand() == "simulate":
+                    myPrint("DB", ".. SIMULATE triggered... Setting controls/labels, then calling necessary parallel operations/simulate actions...")
+                    myPrint("DB", "...... NOTE: JList of selected accounts reports hasListSelectionChanged: %s" %(NAB.jlst.hasListSelectionChanged()))
+                    selectedRowIdx = NAB.getSelectedRowIndex()
+                    NAB.askStoreJListSelectionChanges()
+                    NAB.setSimulateEnabled(False)
+                    if isParallelBalanceTableOperational(selectedRowIdx):
+                        myPrint("DB", "..... triggering rebuild of parallel balance table....")
+                        NAB.rebuildParallelBalanceTable()
+                    else:
+                        myPrint("DB", "...... triggering simulate....")
+                        NAB.simulateTotalForRow()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Disable Currency Formatting".lower()):
-                    if event.getSource().getName().lower() == "disableCurrencyFormatting_CB".lower():
-                        if NAB.savedDisableCurrencyFormatting[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting savedDisableCurrencyFormatting to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedDisableCurrencyFormatting[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
-                            NAB.jlst.repaint()
+                if event.getSource() is NAB.autoSumAccounts_CB:
+                    if NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedAutoSumAccounts to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedAutoSumAccounts[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                        NAB.configSaved = False
+                        NAB.refreshJListDisplay()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Show Warnings".lower()):
-                    if event.getSource().getName().lower() == "showWarnings_CB".lower():
-                        if NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting savedShowWarningsTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
+                if event.getSource() is NAB.disableCurrencyFormatting_CB:
+                    if NAB.savedDisableCurrencyFormatting[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedDisableCurrencyFormatting to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedDisableCurrencyFormatting[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                        NAB.configSaved = False
+                        NAB.refreshJListDisplay()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("hideRowWhen".lower()):
-                    if event.getSource().getName().lower().startswith("hideRowWhen".lower()):
-                        hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NEVER
-                        if event.getSource().getName().lower() == "hideRowWhenAlways_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_ALWAYS
-                        elif event.getSource().getName().lower() == "hideRowWhenZeroOrX_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X
-                        elif event.getSource().getName().lower() == "hideRowWhenLtEqZeroOrX_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X
-                        elif event.getSource().getName().lower() == "hideRowWhenGrEqZeroOrX_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X
-                        elif event.getSource().getName().lower() == "hideRowWhenNotZeroOrX_JRB".lower() and event.getSource().isSelected():
-                            hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X
-
-                        if NAB.savedHideRowWhenXXXTable[NAB.getSelectedRowIndex()] != hideWhenCodeSelected:
-                            myPrint("DB", ".. setting savedHideRowWhenXXXTable to: %s for row: %s" %(hideWhenCodeSelected, NAB.getSelectedRow()))
-                            NAB.savedHideRowWhenXXXTable[NAB.getSelectedRowIndex()] = hideWhenCodeSelected
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
+                if event.getSource() is NAB.showWarnings_CB:
+                    if NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedShowWarningsTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedShowWarningsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                        NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("separatorSelector".lower()):
-                    if event.getSource().getName().lower().startswith("separatorSelector".lower()):
-                        rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_NEVER
-                        if event.getSource().getName().lower() == "separatorSelectorAbove_JRB".lower() and event.getSource().isSelected():
-                            rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_ABOVE
-                        elif event.getSource().getName().lower() == "separatorSelectorBelow_JRB".lower() and event.getSource().isSelected():
-                            rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_BELOW
-                        elif event.getSource().getName().lower() == "separatorSelectorBoth_JRB".lower() and event.getSource().isSelected():
-                            rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_BOTH
-
-                        if NAB.savedRowSeparatorTable[NAB.getSelectedRowIndex()] != rowSeparatorCodeSelected:
-                            myPrint("DB", ".. setting savedRowSeparatorTable to: %s for row: %s" %(rowSeparatorCodeSelected, NAB.getSelectedRow()))
-                            NAB.savedRowSeparatorTable[NAB.getSelectedRowIndex()] = rowSeparatorCodeSelected
-                            NAB.configSaved = False
-
-                if event.getActionCommand().lower().startswith("Format as %".lower()):
-                    if event.getSource().getName().lower() == "otherRowIsPercent_CB".lower():
-                        if NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_WANTPERCENT] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting savedOperateOnAnotherRowTable[wantsPercent] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_WANTPERCENT] = event.getSource().isSelected()
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
+                if event.getSource() is NAB.asOfDateChooser_CB:
+                    if NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedBalanceAsOfDateTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX] = event.getSource().isSelected()
+                        NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Blink".lower()):
-                    if event.getSource().getName().lower() == "blinkRow_CB".lower():
-                        if NAB.savedBlinkTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting savedBlinkTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedBlinkTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
-                            NAB.jlst.repaint()
+                if event.getSource() is NAB.includeRemindersChooser_CB:
+                    if NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedIncludeRemindersTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX] = event.getSource().isSelected()
+                        NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Hide Decimal Places".lower()):
-                    if event.getSource().getName().lower() == "hideDecimals_CB".lower():
-                        if NAB.savedHideDecimalsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting savedHideDecimalsTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedHideDecimalsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
-                            NAB.jlst.repaint()
+                if event.getSource() in [NAB.hideRowWhenNever_JRB, NAB.hideRowWhenAlways_JRB, NAB.hideRowWhenZeroOrX_JRB, NAB.hideRowWhenLtEqZeroOrX_JRB, NAB.hideRowWhenGrEqZeroOrX_JRB, NAB.hideRowWhenNotZeroOrX_JRB]:
+                    hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NEVER
+                    if event.getSource() is NAB.hideRowWhenAlways_JRB and event.getSource().isSelected():
+                        hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_ALWAYS
+                    elif event.getSource() is NAB.hideRowWhenZeroOrX_JRB and event.getSource().isSelected():
+                        hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X
+                    elif event.getSource() is NAB.hideRowWhenLtEqZeroOrX_JRB and event.getSource().isSelected():
+                        hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NEGATIVE_OR_X
+                    elif event.getSource() is NAB.hideRowWhenGrEqZeroOrX_JRB and event.getSource().isSelected():
+                        hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_POSITIVE_OR_X
+                    elif event.getSource() is NAB.hideRowWhenNotZeroOrX_JRB and event.getSource().isSelected():
+                        hideWhenCodeSelected = GlobalVars.HIDE_ROW_WHEN_NOT_ZERO_OR_X
+
+                    if NAB.savedHideRowWhenXXXTable[NAB.getSelectedRowIndex()] != hideWhenCodeSelected:
+                        myPrint("DB", ".. setting savedHideRowWhenXXXTable to: %s for row: %s" %(hideWhenCodeSelected, NAB.getSelectedRow()))
+                        NAB.savedHideRowWhenXXXTable[NAB.getSelectedRowIndex()] = hideWhenCodeSelected
+                        NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Filter Out Zeros Inactive".lower()):
-                    if event.getSource().getName().lower() == "filterOutZeroBalAccts_INACTIVE_CB".lower():
-                        myPrint("DB", ".. setting filterOutZeroBalAccts_INACTIVE_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                if event.getSource() in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisURGains_JRB]:
+                    useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_NONE
+                    if event.getSource() is NAB.useCostBasisCB_JRB and event.getSource().isSelected():
+                        useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CB
+                    elif event.getSource() is NAB.useCostBasisURGains_JRB and event.getSource().isSelected():
+                        useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_URGAINS
+
+                    if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] != useCostBasisCodeSelected:
+                        myPrint("DB", ".. setting savedUseCostBasisTable[type] to: %s for row: %s" %(useCostBasisCodeSelected, NAB.getSelectedRow()))
+                        NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] = useCostBasisCodeSelected
+
+                        if not isUseCostBasisSelected(NAB.getSelectedRowIndex()):
+                            NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] = False
+                            NAB.useCostBasisCash_CB.setSelected(isUseCostBasisCashSelected(NAB.getSelectedRowIndex()))
+
+                        NAB.configSaved = False
+
+                # ######################################################################################################
+                if event.getSource() is NAB.useCostBasisCash_CB:
+                    if not isUseCostBasisSelected(NAB.getSelectedRowIndex()):
+                        event.getSource().setSelected(False)
+                    else:
+                        if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] != event.getSource().isSelected():
+                            myPrint("DB", ".. setting savedUseCostBasisTable[useCash] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                            NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] = event.getSource().isSelected()
+                            NAB.configSaved = False
+
+                # ######################################################################################################
+                if event.getSource() in [NAB.separatorSelectorNone_JRB, NAB.separatorSelectorAbove_JRB, NAB.separatorSelectorBelow_JRB, NAB.separatorSelectorBoth_JRB]:
+                    rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_NEVER
+                    if event.getSource() is NAB.separatorSelectorAbove_JRB and event.getSource().isSelected():
+                        rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_ABOVE
+                    elif event.getSource() is NAB.separatorSelectorBelow_JRB and event.getSource().isSelected():
+                        rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_BELOW
+                    elif event.getSource() is NAB.separatorSelectorBoth_JRB and event.getSource().isSelected():
+                        rowSeparatorCodeSelected = GlobalVars.ROW_SEPARATOR_BOTH
+
+                    if NAB.savedRowSeparatorTable[NAB.getSelectedRowIndex()] != rowSeparatorCodeSelected:
+                        myPrint("DB", ".. setting savedRowSeparatorTable to: %s for row: %s" %(rowSeparatorCodeSelected, NAB.getSelectedRow()))
+                        NAB.savedRowSeparatorTable[NAB.getSelectedRowIndex()] = rowSeparatorCodeSelected
+                        NAB.configSaved = False
+
+                if event.getSource() is NAB.otherRowIsPercent_CB:
+                    if NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_WANTPERCENT] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedOperateOnAnotherRowTable[wantsPercent] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_WANTPERCENT] = event.getSource().isSelected()
+                        NAB.configSaved = False
+
+                # ######################################################################################################
+                if event.getSource() is NAB.blinkRow_CB:
+                    if NAB.savedBlinkTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedBlinkTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedBlinkTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                        NAB.configSaved = False
+
+                # ######################################################################################################
+                if event.getSource() is NAB.hideDecimals_CB:
+                    if NAB.savedHideDecimalsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting savedHideDecimalsTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedHideDecimalsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                        NAB.configSaved = False
+                        NAB.refreshJListDisplay()
+
+                # ######################################################################################################
+                if event.getSource() is NAB.filterOutZeroBalAccts_INACTIVE_CB:
+                    myPrint("DB", ".. setting filterOutZeroBalAccts_INACTIVE_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                    NAB.searchFiltersUpdated()
+
+                if event.getSource() is NAB.filterOutZeroBalAccts_ACTIVE_CB:
+                    myPrint("DB", ".. setting filterOutZeroBalAccts_ACTIVE_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                    NAB.searchFiltersUpdated()
+
+                if event.getSource() is NAB.filterIncludeSelected_CB:
+                    myPrint("DB", ".. setting filterIncludeSelected_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                    NAB.searchFiltersUpdated()
+
+                if event.getSource() is NAB.filterOnlyShowSelected_CB:
+                    myPrint("DB", ".. setting filterOnlyShowSelected_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                    NAB.searchFiltersUpdated()
+
+                if event.getSource() is NAB.otherRowMathsOperator_COMBO:
+                    if NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_OPERATOR] != event.getSource().getSelectedItem():
+                        myPrint("DB", ".. setting savedOperateOnAnotherRowTable[operator] to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
+                        NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_OPERATOR] = event.getSource().getSelectedItem()
+                        NAB.configSaved = False
+
+                if event.getSource() is NAB.includeInactive_COMBO:
+                    if NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
+                        myPrint("DB", ".. setting savedIncludeInactive to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
+                        NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                        NAB.setAcctListKeyLabel(NAB.getSelectedRowIndex())
+                        NAB.configSaved = False
                         NAB.searchFiltersUpdated()
 
-                if event.getActionCommand().lower().startswith("Filter Out Zeros Active".lower()):
-                    if event.getSource().getName().lower() == "filterOutZeroBalAccts_ACTIVE_CB".lower():
-                        myPrint("DB", ".. setting filterOutZeroBalAccts_ACTIVE_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.searchFiltersUpdated()
+                if event.getSource() is NAB.filterOnlyAccountType_COMBO:
+                    myPrint("DB", ".. setting filterOnlyAccountType_COMBO to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
+                    NAB.searchFiltersUpdated()
 
-                if event.getActionCommand().lower().startswith("Filter Include Selected".lower()):
-                    if event.getSource().getName().lower() == "filterIncludeSelected_CB".lower():
-                        myPrint("DB", ".. setting filterIncludeSelected_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.searchFiltersUpdated()
+                if event.getSource() is NAB.averageByCalUnit_COMBO:
+                    if NAB.savedAverageByCalUnitTable[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
+                        myPrint("DB", ".. setting savedAverageByCalUnitTable to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
+                        NAB.savedAverageByCalUnitTable[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                        NAB.configSaved = False
 
-                if event.getActionCommand().lower().startswith("Only Show Selected".lower()):
-                    if event.getSource().getName().lower() == "filterOnlyShowSelected_CB".lower():
-                        myPrint("DB", ".. setting filterOnlyShowSelected_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.searchFiltersUpdated()
-
-                if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
-                    if event.getSource().getName().lower() == "otherRowMathsOperator_COMBO".lower():
-                        if NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_OPERATOR] != event.getSource().getSelectedItem():
-                            myPrint("DB", ".. setting savedOperateOnAnotherRowTable[operator] to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
-                            NAB.savedOperateOnAnotherRowTable[NAB.getSelectedRowIndex()][NAB.OPERATE_OTHER_ROW_OPERATOR] = event.getSource().getSelectedItem()
-                            NAB.configSaved = False
-                            NAB.simulateTotalForRow()
-
-                if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
-
-                    if event.getSource().getName().lower() == "includeInactive_COMBO".lower():
-                        if NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
-                            myPrint("DB", ".. setting savedIncludeInactive to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
-                            NAB.savedIncludeInactive[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
-                            NAB.setAcctListKeyLabel(NAB.getSelectedRowIndex())
-                            # NAB.rebuildJList()
-                            NAB.configSaved = False
-                            NAB.searchFiltersUpdated()
-
-                    if event.getSource().getName().lower() == "filterOnlyAccountType_COMBO".lower():
-                        myPrint("DB", ".. setting filterOnlyAccountType_COMBO to: %s for row: %s" %(event.getSource().getSelectedItem(), NAB.getSelectedRow()))
-                        NAB.searchFiltersUpdated()
-
-                    if event.getSource().getName().lower() == "averageByCalUnit_COMBO".lower():
-                        if NAB.savedAverageByCalUnitTable[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
-                            myPrint("DB", ".. setting savedAverageByCalUnitTable to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
-                            NAB.savedAverageByCalUnitTable[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
-                            NAB.configSaved = False
-                            NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                            NAB.setAvgByControls(NAB.getSelectedRowIndex())
-                            NAB.simulateTotalForRow()
-
-                if event.getActionCommand().lower().startswith("Fractional".lower()):
-                    if event.getSource().getName().lower() == "averageByFractionals_CB".lower():
-                        if NAB.savedAverageByFractionalsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting averageByFractionals_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedAverageByFractionalsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
-                            NAB.configSaved = False
-                            NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                            NAB.setAvgByControls(NAB.getSelectedRowIndex())
-                            NAB.simulateTotalForRow()
+                if event.getSource() is NAB.averageByFractionals_CB:
+                    if NAB.savedAverageByFractionalsTable[NAB.getSelectedRowIndex()] != event.getSource().isSelected():
+                        myPrint("DB", ".. setting averageByFractionals_CB to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
+                        NAB.savedAverageByFractionalsTable[NAB.getSelectedRowIndex()] = event.getSource().isSelected()
+                        NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("comboBoxChanged".lower()):
-
-                    if event.getSource().getName().lower() == "balanceType_COMBO".lower():
-                        if NAB.savedBalanceType[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex():
-                            myPrint("DB", ".. setting savedBalanceType to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
-                            NAB.savedBalanceType[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
-                            NAB.configSaved = False
-                            NAB.setDateRangeLabel(NAB.getSelectedRowIndex())    # Balance option affects end date
-                            NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                            NAB.searchFiltersUpdated()
-                            NAB.simulateTotalForRow()
-                            NAB.jlst.repaint()
-
-                    if event.getSource().getName().lower() == "incomeExpenseDateRange_COMBO".lower():
-
-                        lSetCustomDates = False
-                        dr = None
-
-                        if event.getSource().getSelectedItem().getDR().getResourceKey() == DateRangeOption.DR_CUSTOM_DATE.getResourceKey():
-                            myPrint("DB", "User has selected Custom Date option....")
-
-                            dateRanger = DateRangeChooser(NAB.moneydanceContext.getUI())
-                            dateRanger.setOption(event.getSource().getSelectedItem().getDR().getResourceKey())
-
-                            if isValidDateRange(NAB.savedCustomDatesTable[NAB.getSelectedRowIndex()][0],
-                                                NAB.savedCustomDatesTable[NAB.getSelectedRowIndex()][1]):
-                                dateRanger.setStartDate(NAB.savedCustomDatesTable[NAB.getSelectedRowIndex()][0])
-                                dateRanger.setEndDate(NAB.savedCustomDatesTable[NAB.getSelectedRowIndex()][1])
-                            else:
-                                myPrint("DB", "... Invalid custom dates, reverting to defaults...")
-
-                            options = ["STORE DATES", "Cancel"]
-                            getFieldByReflection(dateRanger, "startField").addKeyListener(MyKeyAdapter())
-                            getFieldByReflection(dateRanger, "endField").addKeyListener(MyKeyAdapter())
-                            if (JOptionPane.showOptionDialog(NAB.theFrame, dateRanger.getPanel(), "Enter Custom Date Range:",
-                                                             JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE,
-                                                             NAB.moneydanceContext.getUI().getIcon(GlobalVars.Strings.MD_GLYPH_APPICON_64),
-                                                             options,
-                                                             None)
-                                    != 0):
-                                myPrint("DB", "... User aborted entering new custom dates....")
-
-                            else:
-                                dr = dateRanger.getDateRange()
-                                myPrint("DB", "... User entered dates:", dr)
-                                lSetCustomDates = True
-
-                        if (NAB.savedIncomeExpenseDateRange[NAB.getSelectedRowIndex()] != event.getSource().getSelectedItem().getDR().getResourceKey()
-                                or lSetCustomDates):
-
-                            # if (event.getSource().getSelectedItem().getDR().getResourceKey() != NAB.incomeExpenseDateRangeDefault()):
-                            #     myPopupInformationBox(NAB.theFrame,
-                            #                           theTitle="Inc/Exp Date Range",
-                            #                           theMessage="ALERT: Custom date range scans all txns each time widget refreshes",
-                            #                           theMessageType=JOptionPane.WARNING_MESSAGE)
-
-                            myPrint("DB", ".. setting savedIncomeExpenseDateRange to: %s for row: %s" %(event.getSource().getSelectedItem().getDR().getResourceKey(), NAB.getSelectedRow()))
-                            NAB.savedIncomeExpenseDateRange[NAB.getSelectedRowIndex()] = event.getSource().getSelectedItem().getDR().getResourceKey()
-
-                            if lSetCustomDates:
-                                NAB.savedCustomDatesTable[NAB.getSelectedRowIndex()][0] = dr.getStartDateInt()
-                                NAB.savedCustomDatesTable[NAB.getSelectedRowIndex()][1] = dr.getEndDateInt()
-
-                            NAB.configSaved = False
-                            NAB.setParallelBalancesWarningLabel(NAB.getSelectedRowIndex())
-                            NAB.setDateRangeLabel(NAB.getSelectedRowIndex())
-                            NAB.setAvgByLabel(NAB.getSelectedRowIndex())
-                            NAB.setAvgByControls(NAB.getSelectedRowIndex())
-                            NAB.rebuildParallelBalanceTable()
-
-                    if event.getSource().getName().lower() == "currency_COMBO".lower():
-                        selCur = event.getSource().getSelectedItem()
-                        myPrint("DB", "selCur: %s" %(selCur))
-                        if selCur.isBase:
-                            selCurUUID = None
-                        else:
-                            selCurUUID = selCur.getUUID()
-                        if NAB.savedCurrencyTable[NAB.getSelectedRowIndex()] != selCurUUID:
-                            myPrint("DB", ".. setting savedCurrencyTable to: %s (%s) for row: %s" %(selCurUUID, selCur, NAB.getSelectedRow()))
-                            NAB.savedCurrencyTable[NAB.getSelectedRowIndex()] = selCurUUID
-                            NAB.configSaved = False
-                            NAB.searchFiltersUpdated()
-                            NAB.simulateTotalForRow()
-                            NAB.jlst.repaint()
-
-                    if event.getSource().getName().lower() == "rowSelected_COMBO".lower():
-                        myPrint("DB", ".. setting selected row to configure to: %s" %(event.getSource().getSelectedIndex()+1))
-
-                        NAB.rebuildFrameComponents(selectRowIndex=event.getSource().getSelectedIndex())
+                if event.getSource() is NAB.balanceType_COMBO:
+                    if (NAB.savedBalanceType[NAB.getSelectedRowIndex()] != event.getSource().getSelectedIndex()):
+                        myPrint("DB", ".. setting savedBalanceType to: %s for row: %s" %(event.getSource().getSelectedIndex(), NAB.getSelectedRow()))
+                        NAB.savedBalanceType[NAB.getSelectedRowIndex()] = event.getSource().getSelectedIndex()
+                        NAB.configSaved = False
+                        NAB.refreshJListDisplay()
 
                 # ######################################################################################################
+                if event.getSource() is NAB.currency_COMBO:
+                    selCur = event.getSource().getSelectedItem()
+                    myPrint("DB", "selCur: %s" %(selCur))
+                    if selCur.isBase:
+                        selCurUUID = None
+                    else:
+                        selCurUUID = selCur.getUUID()
+                    if NAB.savedCurrencyTable[NAB.getSelectedRowIndex()] != selCurUUID:
+                        myPrint("DB", ".. setting savedCurrencyTable to: %s (%s) for row: %s" %(selCurUUID, selCur, NAB.getSelectedRow()))
+                        NAB.savedCurrencyTable[NAB.getSelectedRowIndex()] = selCurUUID
+                        NAB.configSaved = False
+                        NAB.searchFiltersUpdated()
+                        NAB.refreshJListDisplay()
 
-                if event.getActionCommand().lower().startswith("Duplicate Row".lower()):
-                    if myPopupAskQuestion(NAB.theFrame,"DUPLICATE ROW","Duplicate this row: %s (and insert) to new row: %s?" %(NAB.getSelectedRow(),NAB.getSelectedRow()+1)):
+                # ######################################################################################################
+                if event.getSource() is NAB.rowSelected_COMBO:
+                    myPrint("DB", ".. setting selected row to configure to: %s" %(event.getSource().getSelectedIndex()+1))
+                    NAB.askStoreJListSelectionChanges()
+                    NAB.rebuildFrameComponents(selectRowIndex=event.getSource().getSelectedIndex())
+
+                # ######################################################################################################
+                if event.getActionCommand() == "duplicate_row":
+                    if myPopupAskQuestion(NAB.theFrame, "DUPLICATE ROW", "Duplicate this row: %s (and insert) to new row: %s?" %(NAB.getSelectedRow(),NAB.getSelectedRow()+1)):
                         myPrint("DB", ".. duplicating row number %s" %(NAB.getSelectedRow()))
 
                         oldPosIdx = NAB.getSelectedRowIndex()
@@ -8679,11 +11137,12 @@ Visit: %s (Author's site)
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
 
-                        NAB.rebuildFrameComponents(selectRowIndex=newPosIdx)
                         NAB.configSaved = False
+                        NAB.rebuildFrameComponents(selectRowIndex=newPosIdx)
 
-                if event.getActionCommand().lower().startswith("Insert Row before".lower()):
-                    if myPopupAskQuestion(NAB.theFrame,"INSERT ROW","Insert a new row %s (before this row)?" %(NAB.getSelectedRow())):
+                # ######################################################################################################
+                if event.getActionCommand() == "insert_row_before":
+                    if myPopupAskQuestion(NAB.theFrame, "INSERT ROW", "Insert a new row %s (before this row)?" %(NAB.getSelectedRow())):
                         myPrint("DB", ".. inserting a new row number %s (before)" %(NAB.getSelectedRow()))
 
                         startingTable = self.correctUseOtherRowNumbers(getStartingTable=True)
@@ -8691,8 +11150,11 @@ Visit: %s (Author's site)
 
                         NAB.savedAccountListUUIDs.insert(NAB.getSelectedRowIndex(),         NAB.accountListDefault())
                         NAB.savedBalanceType.insert(NAB.getSelectedRowIndex(),              NAB.balanceDefault())
+                        NAB.savedBalanceAsOfDateTable.insert(NAB.getSelectedRowIndex(),     NAB.balanceAsOfDateDefault())
                         NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex(),   NAB.incomeExpenseDateRangeDefault())
                         NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex(),         NAB.customDatesDefault())
+                        NAB.savedUseCostBasisTable.insert(NAB.getSelectedRowIndex(),        NAB.useCostBasisDefault())
+                        NAB.savedIncludeRemindersTable.insert(NAB.getSelectedRowIndex(),    NAB.includeRemindersDefault())
                         NAB.savedOperateOnAnotherRowTable.insert(NAB.getSelectedRowIndex(), NAB.operateOnAnotherRowDefault())
                         NAB.savedRowSeparatorTable.insert(NAB.getSelectedRowIndex(),        NAB.rowSeparatorDefault())
                         NAB.savedBlinkTable.insert(NAB.getSelectedRowIndex(),               NAB.blinkDefault())
@@ -8714,11 +11176,12 @@ Visit: %s (Author's site)
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
 
-                        NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex())
                         NAB.configSaved = False
+                        NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex())
 
-                if event.getActionCommand().lower().startswith("Insert Row after".lower()):
-                    if myPopupAskQuestion(NAB.theFrame,"INSERT ROW","Insert a new row %s (after this row)?" %(NAB.getSelectedRow()+1)):
+                # ######################################################################################################
+                if event.getActionCommand() == "insert_row_after":
+                    if myPopupAskQuestion(NAB.theFrame, "INSERT ROW", "Insert a new row %s (after this row)?" %(NAB.getSelectedRow()+1)):
                         myPrint("DB", ".. inserting a new row number %s (after)" %(NAB.getSelectedRow()+1))
 
                         startingTable = self.correctUseOtherRowNumbers(getStartingTable=True)
@@ -8726,8 +11189,11 @@ Visit: %s (Author's site)
 
                         NAB.savedAccountListUUIDs.insert(NAB.getSelectedRowIndex()+1,         NAB.accountListDefault())
                         NAB.savedBalanceType.insert(NAB.getSelectedRowIndex()+1,              NAB.balanceDefault())
+                        NAB.savedBalanceAsOfDateTable.insert(NAB.getSelectedRowIndex()+1,     NAB.balanceAsOfDateDefault())
                         NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex()+1,   NAB.incomeExpenseDateRangeDefault())
                         NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex()+1,         NAB.customDatesDefault())
+                        NAB.savedUseCostBasisTable.insert(NAB.getSelectedRowIndex()+1,        NAB.useCostBasisDefault())
+                        NAB.savedIncludeRemindersTable.insert(NAB.getSelectedRowIndex()+1,    NAB.includeRemindersDefault())
                         NAB.savedOperateOnAnotherRowTable.insert(NAB.getSelectedRowIndex()+1, NAB.operateOnAnotherRowDefault())
                         NAB.savedRowSeparatorTable.insert(NAB.getSelectedRowIndex()+1,        NAB.rowSeparatorDefault())
                         NAB.savedBlinkTable.insert(NAB.getSelectedRowIndex()+1,               NAB.blinkDefault())
@@ -8749,11 +11215,12 @@ Visit: %s (Author's site)
 
                         self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
 
-                        NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex()+1)
                         NAB.configSaved = False
+                        NAB.rebuildFrameComponents(selectRowIndex=NAB.getSelectedRowIndex()+1)
 
-                if event.getActionCommand().lower().startswith("Delete Row".lower()):
-                    if myPopupAskQuestion(NAB.theFrame,"DELETE ROW","Delete row: %s from Home Page Widget?" %(NAB.getSelectedRow())):
+                # ######################################################################################################
+                if event.getActionCommand() == "delete_row":
+                    if myPopupAskQuestion(NAB.theFrame, "DELETE ROW", "Delete row: %s from Home Page Widget?" %(NAB.getSelectedRow())):
 
                         iCountReferences = 0
                         deletingRow = NAB.getSelectedRow()
@@ -8763,7 +11230,7 @@ Visit: %s (Author's site)
                                 iCountReferences += 1
 
                         if (iCountReferences < 1
-                                or myPopupAskQuestion(NAB.theFrame,"DELETE ROW","This row %s is 'used by' %s other row(s)... Proceed anyway (and invalidate 'other row' ref(s) to -x)?" %(deletingRow, iCountReferences))):
+                                or myPopupAskQuestion(NAB.theFrame, "DELETE ROW", "This row %s is 'used by' %s other row(s)... Proceed anyway (and invalidate 'other row' ref(s) to -x)?" %(deletingRow, iCountReferences))):
 
                             myPrint("DB", ".. deleting row: %s" %(NAB.getSelectedRow()))
 
@@ -8779,12 +11246,13 @@ Visit: %s (Author's site)
 
                                 self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
 
-                            NAB.rebuildFrameComponents(selectRowIndex=(min(NAB.getSelectedRowIndex(), NAB.getNumberOfRows()-1)))
                             NAB.configSaved = False
+                            NAB.rebuildFrameComponents(selectRowIndex=(min(NAB.getSelectedRowIndex(), NAB.getNumberOfRows()-1)))
 
-                if event.getActionCommand().lower().startswith("Move Row".lower()):
+                # ######################################################################################################
+                if event.getActionCommand() == "move_row":
                     if NAB.getNumberOfRows() < 2:
-                        myPopupInformationBox(NAB.theFrame,"Not enough rows to move!",theMessageType=JOptionPane.WARNING_MESSAGE)
+                        myPopupInformationBox(NAB.theFrame, "Not enough rows to move!", theMessageType=JOptionPane.WARNING_MESSAGE)
                     else:
                         newPosition = myPopupAskForInput(NAB.theFrame,
                                                          "MOVE ROW",
@@ -8807,125 +11275,138 @@ Visit: %s (Author's site)
 
                                 self.correctUseOtherRowNumbers(tableAfterChanges=startingTable)
 
-                                NAB.rebuildFrameComponents(selectRowIndex=newPosIdx)
                                 NAB.configSaved = False
+                                NAB.rebuildFrameComponents(selectRowIndex=newPosIdx)
                             else:
                                 myPrint("B", "User entered an invalid new row position (%s) to move from (%s) - no action taken" %(newPosition, NAB.getSelectedRow()))
                         else:
                             myPrint("B", "User did not enter a valid new row position - no action taken")
+
                 # ######################################################################################################
-
-                if event.getActionCommand().lower().startswith("Reset".lower()):
-                    if myPopupAskQuestion(NAB.theFrame,"RESET","Wipe all saved settings & reset to defaults with one row?"):
-                        myPrint("DB", ".. RESET: Wiping all saved settings and resetting to defaults with one row")
-
+                if event.getActionCommand() == "reset_defaults":
+                    if myPopupAskQuestion(NAB.theFrame, "RESET", "Do you really want to wipe all your saved settings & RESET to defaults (one row / no config)?"):
+                        myPrint("DB", ".. RESET: Wiping all saved settings and resetting to defaults (one row / no config)")
                         NAB.resetParameters()
-                        NAB.rebuildFrameComponents(selectRowIndex=0)
                         NAB.configSaved = False
+                        NAB.rebuildFrameComponents(selectRowIndex=0)
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("reload"):
+                if event.getActionCommand() == "reload_settings":
                     myPrint("DB", "Dumping changes and reloading saved settings")
                     NAB.load_saved_parameters(lForceReload=True)
                     NAB.rebuildFrameComponents(selectRowIndex=0)
                     lShouldRefreshHomeScreenWidget = True
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("save"):
+                if event.getActionCommand() == "save_all_settings":
 
-                    # Buttons auto-save themselves
                     NAB.storeCurrentJListSelected()
 
                     if NAB.savedWidgetName[NAB.getSelectedRowIndex()].strip() == "":
                         NAB.savedWidgetName[NAB.getSelectedRowIndex()] = NAB.widgetRowDefault()
 
                     NAB.configPanelOpen = False
-                    NAB.theFrame.setVisible(False)    # Listener, so already on Swing EDT
+                    NAB.theFrame.setVisible(False)                                                                      # Listener, so already on Swing EDT
 
                     lShouldRefreshHomeScreenWidget = True
                     lShouldSaveParameters = True
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("clear"):
-                    myPrint("DB", "...clearing account list selection...")
+                if event.getActionCommand() == "clear_visible_selection":
+                    myPrint("DB", "...clearing (visible) account list selection...")
                     NAB.jlst.clearSelection()
+                    NAB.jlst.setListSelectionChanged(True)
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("page setup"):
+                if event.getActionCommand() == "clear_entire_selection":
+                    myPrint("DB", "...clearing entire account list selection...")
+                    NAB.jlst.clearSelection()
+                    del NAB.jlst.listOfSelectedObjects[:]
+                    NAB.jlst.setListSelectionChanged(True)
+                    NAB.refreshJListDisplay()
+
+                # ######################################################################################################
+                if event.getActionCommand() == "select_all_visible":
+                    myPrint("DB", "...selecting all (visible) accounts/cats in list selection...")
+                    selectEnd = NAB.jlst.getModel().getSize() - 1
+                    if selectEnd >= 0:
+                        NAB.jlst.setSelectionInterval(0, selectEnd)
+                        NAB.jlst.setListSelectionChanged(True)
+                    else:
+                        myPrint("DB", "... No items in visible list.. Doing nothing...")
+
+                # ######################################################################################################
+                if event.getActionCommand() == "page_setup":
                     myPrint("DB", "... performing printer page setup routines")
                     pageSetup()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("store"):
+                if event.getActionCommand() == "store_list_changes":
                     myPrint("DB", "...storing account list selection into memory...")
                     NAB.migratedParameters = False
-                    NAB.storeCurrentJListSelected()
                     NAB.configSaved = False
+                    NAB.storeCurrentJListSelected()
                     NAB.simulateTotalForRow()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("undo"):
+                if event.getActionCommand() == "undo_list_changes":
                     myPrint("DB", "...undoing account list selection changes and reverting to previously saved account list")
                     NAB.rebuildJList()
 
+                # ##########################################################################################################
+                if event.getActionCommand() == "about":
+                    AboutThisScript(NAB.theFrame).go()
+
+                # ##########################################################################################################
+                if event.getActionCommand() == "help":
+                    QuickJFrame("%s - Help" %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME), NAB.helpFile, lWrapText=False, lAutoSize=False).show_the_frame()
+
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("debug"):
+                if event.getActionCommand() == "debug":
                     if debug:
                         myPrint("B", "User has DISABLED debug mode.......")
                     else:
                         myPrint("B", "User has ENABLED debug mode.......")
 
                     debug = not debug
-                    NAB.updateMenus()               # Mainly to ensure the uninstall / deactivate extension menu options are refreshed etc...
-                    NAB.simulateTotalForRow()       # Reset warning icon....
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("AutoSum Default".lower()):
+                if event.getActionCommand() == "autosum_default":
                     NAB.savedAutoSumDefault = not NAB.savedAutoSumDefault
-                    NAB.updateMenus()
                     NAB.configSaved = False
                     myPrint("B", "User has changed 'AutoSum Default for new rows' to: %s" %(NAB.savedAutoSumDefault))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Show Print Icon".lower()):
+                if event.getActionCommand() == "show_print_icon":
                     NAB.savedShowPrintIcon = not NAB.savedShowPrintIcon
-                    NAB.updateMenus()
                     NAB.configSaved = False
                     myPrint("B", "User has changed 'Show Print Icon' (on Widget title) to: %s" %(NAB.savedShowPrintIcon))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Show Dashes".lower()):
+                if event.getActionCommand() == "show_dashes_instead_of_zeros":
                     NAB.savedShowDashesInsteadOfZeros = not NAB.savedShowDashesInsteadOfZeros
-                    NAB.updateMenus()
-                    NAB.simulateTotalForRow()
-                    NAB.jlst.repaint()
-                    NAB.configSaved = False
                     myPrint("B", "User has changed 'Show Dashes instead of Zeros' to: %s" %(NAB.savedShowDashesInsteadOfZeros))
+                    NAB.configSaved = False
+                    NAB.refreshJListDisplay()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Disable Warning Icon".lower()):
+                if event.getActionCommand() == "disable_warning_icon":
                     NAB.savedDisableWarningIcon = not NAB.savedDisableWarningIcon
-                    NAB.updateMenus()
-                    NAB.simulateTotalForRow()
-                    NAB.configSaved = False
                     myPrint("B", "User has changed 'Disable Warning Icon' to: %s" %(NAB.savedDisableWarningIcon))
+                    NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Use Indian number format".lower()):
+                if event.getActionCommand() == "use_indian_number_format":
                     NAB.savedUseIndianNumberFormat = not NAB.savedUseIndianNumberFormat
-                    NAB.updateMenus()
-                    NAB.simulateTotalForRow()
-                    NAB.jlst.repaint()
-                    NAB.configSaved = False
                     myPrint("B", "User has changed 'Use Indian number format' to: %s" %(NAB.savedUseIndianNumberFormat))
+                    NAB.configSaved = False
+                    NAB.refreshJListDisplay()
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Use Tax Dates".lower()):
+                if event.getActionCommand() == "use_tax_dates":
                     NAB.savedUseTaxDates = not NAB.savedUseTaxDates
-                    NAB.updateMenus()
-                    NAB.searchFiltersUpdated()
-                    NAB.simulateTotalForRow()
                     NAB.configSaved = False
+                    NAB.searchFiltersUpdated()
                     if NAB.savedUseTaxDates and not NAB.areTaxDatesEnabled():
                         txt = "WARNING: 'Use Tax Dates' enabled but MD's 'Separate Tax Date for Transactions' Setting/Preference is DISABLED!?"
                         myPopupInformationBox(NAB.theFrame,
@@ -8936,47 +11417,40 @@ Visit: %s (Author's site)
                     myPrint("B", "User has changed 'Use Tax Dates' to: %s" %(NAB.savedUseTaxDates))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Display underline dots".lower()):
+                if event.getActionCommand() == "display_underline_dots":
                     NAB.savedDisplayVisualUnderDots = not NAB.savedDisplayVisualUnderDots
-                    NAB.updateMenus()
-                    NAB.simulateTotalForRow()
-                    NAB.jlst.repaint()
                     NAB.configSaved = False
+                    NAB.refreshJListDisplay()
                     myPrint("B", "User has changed 'Display underline dots' to: %s" %(NAB.savedDisplayVisualUnderDots))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Disable Widget Title".lower()):
+                if event.getActionCommand() == "disable_widget_title":
                     NAB.savedDisableWidgetTitle = not NAB.savedDisableWidgetTitle
-                    NAB.updateMenus()
                     NAB.configSaved = False
                     myPrint("B", "User has changed 'Disable Widget Title' to: %s" %(NAB.savedDisableWidgetTitle))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Treat Securities".lower()):
+                if event.getActionCommand() == "treat_securities_with_zero_as_inactive":
                     NAB.savedTreatSecZeroBalInactive = not NAB.savedTreatSecZeroBalInactive
-                    NAB.updateMenus()
-                    NAB.searchFiltersUpdated()
                     NAB.configSaved = False
+                    NAB.searchFiltersUpdated()
                     myPrint("B", "User has changed 'Treat Securities With Zero Balance as Inactive' to: %s" %(NAB.savedTreatSecZeroBalInactive))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("Hide Controls".lower()):
+                if event.getActionCommand() == "hide_controls":
                     NAB.savedHideControlPanel = not NAB.savedHideControlPanel
                     NAB.menuBarItemHideControlPanel_CB.setSelected(NAB.savedHideControlPanel)
 
                     hideUnideCollapsiblePanels(NAB.theFrame, not NAB.savedHideControlPanel)
-                    NAB.setAvgByControls(NAB.getSelectedRowIndex())
                     myPrint("DB", "User has changed 'Hide Control Panel' to: %s" %(NAB.savedHideControlPanel))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("deactivate"):
-
+                if event.getActionCommand() == "deactivate_extension":
                     myPrint("DB", "User has clicked deactivate - sending 'close' request via .showURL().......")
                     NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:close" %(NAB.myModuleID,NAB.myModuleID))
 
                 # ######################################################################################################
-                if event.getActionCommand().lower().startswith("uninstall"):
-
+                if event.getActionCommand() == "uninstall_extension":
                     myPrint("DB", "User has clicked uninstall - sending 'uninstall' request via .showURL().......")
                     NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:uninstall" %(NAB.myModuleID,NAB.myModuleID))
 
@@ -8989,8 +11463,8 @@ Visit: %s (Author's site)
                     NAB.saveSettings()
 
                 # ######################################################################################################
-
-                myPrint("D", "Exiting ", inspect.currentframe().f_code.co_name, "()")
+                NAB.updateMenus()                                           # Update the menus
+                NAB.setAllGUILabelsControls(NAB.getSelectedRowIndex())      # Update the controls
 
         def getNewJListCellRenderer(self):
             NAB = NetAccountBalancesExtension.getNAB()
@@ -9005,7 +11479,6 @@ Visit: %s (Author's site)
         class MyJListRenderer(DefaultListCellRenderer):     # Reference: com.moneydance.apps.md.view.gui.AccountTreeCellRenderer
 
             def __init__(self):
-
                 self.coord_x = None
                 self.coord_y = None
                 self.coord_w = None
@@ -9031,7 +11504,6 @@ Visit: %s (Author's site)
                 self.includeInactive = None
                 self.sudoAccountHoldBalanceObj = None
 
-                self.isAllIncExpDatesSelected = True
                 self.hasInactiveChildren = False
                 self.isSelected = False
                 self.account = None
@@ -9046,8 +11518,9 @@ Visit: %s (Author's site)
                 self.userXBalanceStr = None
                 self.recursiveUserXBalance = None
                 self.recursiveUserXBalanceStr = None
-                self.isParallelBalance = False
                 self.hasDisabledCurrencyFormatting = False
+
+                self.isParallelBalance = False
 
                 self.mdImages = NetAccountBalancesExtension.getNAB().moneydanceContext.getUI().getImages()
 
@@ -9095,37 +11568,42 @@ Visit: %s (Author's site)
                 c = super(self.__class__, self).getListCellRendererComponent(thelist, value, index, isSelected, cellHasFocus)
 
                 md = NetAccountBalancesExtension.getNAB().moneydanceContext
-                baseCurr = md.getCurrentAccountBook().getCurrencies().getBaseType()
+                book = md.getCurrentAccountBook()
+                if book is None:
+                    myPrint("B", "@@ getListCellRendererComponent() - book is None... Perhaps MD is closing.. Will ignore and return...")
+                    return c
+
+                baseCurr = book.getCurrencies().getBaseType()
 
                 NAB = NetAccountBalancesExtension.getNAB()
 
+                lKeyError = False
+
                 self.listItem = value
-                if isinstance(self.listItem, StoreAccountList) and isinstance(self.listItem.getAccount(), Account):
+                if isinstance(self.listItem, StoreAccount) and isinstance(self.listItem.getAccount(), Account):
                     self.account = self.listItem.getAccount()
                     self.acctDepth = self.account.getDepth()
                     self.acctSubAcctCount = self.account.getSubAccountCount()
                     self.acctName = self.account.getFullAccountName() if self.showFullAccountName else self.account.getAccountName()
                     self.acctType = NAB.moneydanceContext.getUI().getResources().getShortAccountType(self.account.getAccountType())
-                    self.isAllIncExpDatesSelected = isIncomeExpenseAllDatesSelected(NAB.getSelectedRowIndex())
 
-                    if self.isAllIncExpDatesSelected or not isIncomeExpenseAcct((self.account)):
-                        self.isParallelBalance = False
+                    self.isParallelBalance = (isParallelBalanceTableOperational(NAB.getSelectedRowIndex()))
+                    if not self.isParallelBalance:
                         self.sudoAccountHoldBalanceObj = self.account
                         self.isAccountActive = isAccountActive(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()])
                         self.hasInactiveChildren = accountIncludesInactiveChildren(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()])
                     else:
-                        self.isParallelBalance = True
                         if NAB.isParallelRebuildRunning_NOLOCKFIRST():
                             self.sudoAccountHoldBalanceObj = self.account   # Temporarily switch to Account whilst rebuild running...
                         else:
                             try:
                                 self.sudoAccountHoldBalanceObj = NAB.jlst.parallelAccountBalances[NAB.getSelectedRowIndex()][self.account]
                             except KeyError:
-                                myPrint("B", "-------------------")
-                                myPrint("B", "@@ KeyError accessing parallel balances on RowInd: %s (Acct: '%s')- REPORT TO DEVELOPER - WHAT WERE YOU DOING? @@" %(NAB.getSelectedRowIndex(), self.account))
-                                myPrint("B", "@@ parallelAccountBalances[%s] contains:" %(NAB.getSelectedRowIndex()), NAB.jlst.parallelAccountBalances[NAB.getSelectedRowIndex()])
-                                myPrint("B", "-------------------")
-                                raise
+                                if debug:
+                                    myPrint("B", "@@ KeyError accessing parallel balances on RowIdx: %s (Acct: '%s')- PRESUME SWITCH TO/FROM PARALLEL OPERATIONS (please refresh simulation) parallelAccountBalances[rowIdx] contains: %s @@"
+                                            %(NAB.getSelectedRowIndex(), self.account, NAB.jlst.parallelAccountBalances[NAB.getSelectedRowIndex()]))
+                                self.sudoAccountHoldBalanceObj = self.account   # Temporarily switch to Account when KeyError error occurs...
+                                lKeyError = True
 
                         self.isAccountActive = isAccountActive(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()], sudoAccount=self.sudoAccountHoldBalanceObj)
                         self.hasInactiveChildren = accountIncludesInactiveChildren(self.account, NAB.savedBalanceType[NAB.getSelectedRowIndex()], sudoAccount=self.sudoAccountHoldBalanceObj)
@@ -9147,15 +11625,14 @@ Visit: %s (Author's site)
                     else:
                         self.incomeExpenseFlag = ""
 
-                    self.userXBalance = StoreAccountList.getUserXBalance(balType, self.sudoAccountHoldBalanceObj) * mult
+                    effectiveDateInt = None if (not isinstance(self.sudoAccountHoldBalanceObj, HoldBalance)) else self.sudoAccountHoldBalanceObj.getEffectiveDateInt()
+                    self.userXBalance = StoreAccount.getUserXBalance(balType, self.sudoAccountHoldBalanceObj) * mult
                     if not NAB.savedShowDashesInsteadOfZeros or self.userXBalance:
                         if self.userXBalance != 0 and acctCurr != thisRowCurr:
-                            self.userXBalance = CurrencyUtil.convertValue(self.userXBalance, acctCurr, thisRowCurr)
-
+                            self.userXBalance = convertValue(self.userXBalance, acctCurr, thisRowCurr, effectiveDateInt)
 
                         # self.userXBalanceStr = (thisRowCurr.formatFancy(self.userXBalance, NAB.decimal) if (not self.hasDisabledCurrencyFormatting)
                         #                         else thisRowCurr.formatSemiFancy(self.userXBalance, NAB.decimal))
-
                         self.userXBalanceStr = formatFancy(thisRowCurr, self.userXBalance, NAB.decimal, fancy=(not self.hasDisabledCurrencyFormatting), indianFormat=NAB.savedUseIndianNumberFormat)
                     else:
                         self.userXBalanceStr = "-"
@@ -9163,14 +11640,13 @@ Visit: %s (Author's site)
                     if NAB.isParallelRebuildRunning_NOLOCKFIRST(): self.userXBalanceStr = "<rebuilding>"
 
                     if self.acctSubAcctCount > 0:
-                        self.recursiveUserXBalance = StoreAccountList.getRecursiveUserXBalance(balType, self.sudoAccountHoldBalanceObj) * mult
+                        self.recursiveUserXBalance = StoreAccount.getRecursiveUserXBalance(balType, self.sudoAccountHoldBalanceObj) * mult
                         if not NAB.savedShowDashesInsteadOfZeros or self.recursiveUserXBalance:
                             if self.recursiveUserXBalance != 0 and acctCurr != thisRowCurr:
-                                self.recursiveUserXBalance = CurrencyUtil.convertValue(self.recursiveUserXBalance, acctCurr, thisRowCurr)
+                                self.recursiveUserXBalance = convertValue(self.recursiveUserXBalance, acctCurr, thisRowCurr, effectiveDateInt)
 
                             # self.recursiveUserXBalanceStr = (thisRowCurr.formatFancy(self.recursiveUserXBalance, NAB.decimal) if (not self.hasDisabledCurrencyFormatting)
                             #                                  else thisRowCurr.formatSemiFancy(self.recursiveUserXBalance, NAB.decimal))
-
                             self.recursiveUserXBalanceStr = formatFancy(thisRowCurr, self.recursiveUserXBalance, NAB.decimal, fancy=(not self.hasDisabledCurrencyFormatting), indianFormat=NAB.savedUseIndianNumberFormat)
                         else:
                             self.recursiveUserXBalanceStr = "-"
@@ -9180,6 +11656,10 @@ Visit: %s (Author's site)
 
                     if NAB.isParallelRebuildRunning_NOLOCKFIRST(): self.recursiveUserXBalanceStr = "<rebuilding>"
 
+                    if lKeyError:
+                        self.userXBalanceStr = "<click simulate>"
+                        self.recursiveUserXBalanceStr = "<click simulate>"
+
                 else:
                     self.account = None
                     self.acctDepth = 0
@@ -9187,9 +11667,7 @@ Visit: %s (Author's site)
                     self.acctName = safeStr(self.listItem)
                     self.acctType = ""
                     self.isAccountActive = None
-                    self.isAllIncExpDatesSelected = True
                     self.sudoAccountHoldBalanceObj = None
-                    self.isParallelBalance = False
                     self.hasDisabledCurrencyFormatting = False
 
                     self.userXBalance = 0
@@ -9201,7 +11679,6 @@ Visit: %s (Author's site)
 
                 # Create a line separator between accounts
                 c.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, NAB.moneydanceContext.getUI().getColors().headerBorder))
-
                 return c
 
             # com.moneydance.apps.md.view.gui.AccountTreeCellRenderer
@@ -9256,7 +11733,6 @@ Visit: %s (Author's site)
                         if self.isSelected:
                             fg = md.getUI().getColors().sidebarSelectedFG
                         else:
-                            # fg = md.getUI().getColors().secondaryTextFG
                             fg = md.getUI().getColors().tertiaryTextFG
                         g2d.setColor(fg)
 
@@ -9319,12 +11795,15 @@ Visit: %s (Author's site)
                     GlobalVars.extn_param_NEW_balanceType_NAB               = [NAB.balanceDefault()]
                     GlobalVars.extn_param_NEW_widget_display_name_NAB       = [NAB.widgetRowDefault()]
 
+                GlobalVars.extn_param_NEW_balanceAsOfDate_NAB               = [NAB.balanceAsOfDateDefault()]
                 GlobalVars.extn_param_NEW_currency_NAB                      = [NAB.currencyDefault()]
                 GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB     = [NAB.disableCurrencyFormattingDefault()]
                 GlobalVars.extn_param_NEW_includeInactive_NAB               = [NAB.includeInactiveDefault()]
                 GlobalVars.extn_param_NEW_autoSumAccounts_NAB               = [NAB.autoSumDefault()]
                 GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB        = [NAB.incomeExpenseDateRangeDefault()]
                 GlobalVars.extn_param_NEW_customDatesTable_NAB              = [NAB.customDatesDefault()]
+                GlobalVars.extn_param_NEW_useCostBasisTable_NAB             = [NAB.useCostBasisDefault()]
+                GlobalVars.extn_param_NEW_includeRemindersTable_NAB         = [NAB.includeRemindersDefault()]
                 GlobalVars.extn_param_NEW_rowSeparatorTable_NAB             = [NAB.rowSeparatorDefault()]
                 GlobalVars.extn_param_NEW_blinkTable_NAB                    = [NAB.blinkDefault()]
                 GlobalVars.extn_param_NEW_hideDecimalsTable_NAB             = [NAB.hideDecimalsDefault()]
@@ -9356,8 +11835,6 @@ Visit: %s (Author's site)
                     if self.moneydanceContext.getCurrentAccountBook() is None:
                         myPrint("DB", "... getCurrentAccountBook() reports None - skipping parameter load...")
                     else:
-                        # self.configPanelOpen = False
-
                         self.resetParameters()
 
                         load_all_defaults(self, migrateParams=False)
@@ -9381,8 +11858,11 @@ Visit: %s (Author's site)
                         # Using copy.deepcopy() so that .savedXXX variables are truly different copies of the XXX_NAB variables....
                         self.savedAccountListUUIDs              = copy.deepcopy(GlobalVars.extn_param_NEW_listAccountUUIDs_NAB)
                         self.savedBalanceType                   = copy.deepcopy(GlobalVars.extn_param_NEW_balanceType_NAB)
+                        self.savedBalanceAsOfDateTable          = copy.deepcopy(GlobalVars.extn_param_NEW_balanceAsOfDate_NAB)
                         self.savedIncomeExpenseDateRange        = copy.deepcopy(GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB)
                         self.savedCustomDatesTable              = copy.deepcopy(GlobalVars.extn_param_NEW_customDatesTable_NAB)
+                        self.savedUseCostBasisTable             = copy.deepcopy(GlobalVars.extn_param_NEW_useCostBasisTable_NAB)
+                        self.savedIncludeRemindersTable         = copy.deepcopy(GlobalVars.extn_param_NEW_includeRemindersTable_NAB)
                         self.savedRowSeparatorTable             = copy.deepcopy(GlobalVars.extn_param_NEW_rowSeparatorTable_NAB)
                         self.savedBlinkTable                    = copy.deepcopy(GlobalVars.extn_param_NEW_blinkTable_NAB)
                         self.savedHideDecimalsTable             = copy.deepcopy(GlobalVars.extn_param_NEW_hideDecimalsTable_NAB)
@@ -9533,90 +12013,112 @@ Visit: %s (Author's site)
             menuO.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
             NAB.menuItemDEBUG = MyJCheckBoxMenuItem("Debug")
+            NAB.menuItemDEBUG.setActionCommand("debug")
             NAB.menuItemDEBUG.setMnemonic(KeyEvent.VK_D)
             NAB.menuItemDEBUG.addActionListener(NAB.saveActionListener)
             NAB.menuItemDEBUG.setToolTipText("Enables extension to output debug information (internal technical stuff)")
             menuO.add(NAB.menuItemDEBUG)
 
             NAB.menuItemShowPrintIcon = MyJCheckBoxMenuItem("Show Print Icon")
+            NAB.menuItemShowPrintIcon.setActionCommand("show_print_icon")
             NAB.menuItemShowPrintIcon.setMnemonic(KeyEvent.VK_P)
             NAB.menuItemShowPrintIcon.addActionListener(NAB.saveActionListener)
             NAB.menuItemShowPrintIcon.setToolTipText("Enables / shows the print icon on the home screen widget...")
             menuO.add(NAB.menuItemShowPrintIcon)
 
             menuItemPS = MyJMenuItem("Page Setup")
+            menuItemPS.setActionCommand("page_setup")
             menuItemPS.setToolTipText("Printer Page Setup....")
             menuItemPS.addActionListener(NAB.saveActionListener)
             menuO.add(menuItemPS)
 
+            menuItemResetDefaults = MyJMenuItem("Reset Defaults")
+            menuItemResetDefaults.setActionCommand("reset_defaults")
+            menuItemResetDefaults.addActionListener(NAB.saveActionListener)
+            menuItemResetDefaults.setToolTipText("Creates a backup of your current config")
+            menuItemResetDefaults.setToolTipText("RESET: Wipes out all saved settings, and RESETS to defaults (one row / no config) >> (no save, so can undo)")
+            menuO.add(menuItemResetDefaults)
+
             menuItemBackup = MyJMenuItem("Backup Config")
+            menuItemBackup.setActionCommand("backup_config")
             menuItemBackup.setMnemonic(KeyEvent.VK_B)
             menuItemBackup.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, backup=True))
-            menuItemBackup.setToolTipText("Creates a backup of your current config")
+            menuItemBackup.setToolTipText("Creates a backup of your current config (use CMD-SHIFT-B/R to Backup/Restore)")
             menuItemBackup.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, (shortcut | Event.SHIFT_MASK)))
             menuO.add(menuItemBackup)
 
             menuItemRestore = MyJMenuItem("Restore Config")
+            menuItemRestore.setActionCommand("restore_config")
             menuItemRestore.setMnemonic(KeyEvent.VK_R)
             menuItemRestore.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, restore=True))
-            menuItemRestore.setToolTipText("Allows you to restore a config file")
+            menuItemRestore.setToolTipText("Allows you to restore a previous backup config file (use CMD-SHIFT-B/R to Backup/Restore)")
             menuItemRestore.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, (shortcut | Event.SHIFT_MASK)))
             menuO.add(menuItemRestore)
 
             NAB.menuItemAutoSumDefault = MyJCheckBoxMenuItem("AutoSum Default (setting for new/inserted rows)")
+            NAB.menuItemAutoSumDefault.setActionCommand("autosum_default")
             NAB.menuItemAutoSumDefault.setMnemonic(KeyEvent.VK_A)
             NAB.menuItemAutoSumDefault.addActionListener(NAB.saveActionListener)
             NAB.menuItemAutoSumDefault.setToolTipText("Sets the default flag for AutoSum on new rows - does not affect existing/saved rows")
             menuO.add(NAB.menuItemAutoSumDefault)
 
             NAB.menuItemDisableWidgetTitle = MyJCheckBoxMenuItem("Disable Widget Title")
+            NAB.menuItemDisableWidgetTitle.setActionCommand("disable_widget_title")
             NAB.menuItemDisableWidgetTitle.setMnemonic(KeyEvent.VK_W)
             NAB.menuItemDisableWidgetTitle.addActionListener(NAB.saveActionListener)
             NAB.menuItemDisableWidgetTitle.setToolTipText("Disables the Widget's Title on the Summary Page screen")
             menuO.add(NAB.menuItemDisableWidgetTitle)
 
             NAB.menuItemShowDashesInsteadOfZeros = MyJCheckBoxMenuItem("Show Dashes instead of Zeros")
+            NAB.menuItemShowDashesInsteadOfZeros.setActionCommand("show_dashes_instead_of_zeros")
             NAB.menuItemShowDashesInsteadOfZeros.setMnemonic(KeyEvent.VK_Z)
             NAB.menuItemShowDashesInsteadOfZeros.addActionListener(NAB.saveActionListener)
             NAB.menuItemShowDashesInsteadOfZeros.setToolTipText("Replaces the list display to show a '-' in place of '<CURR>0.0'")
             menuO.add(NAB.menuItemShowDashesInsteadOfZeros)
 
             NAB.menuItemTreatSecZeroBalInactive = MyJCheckBoxMenuItem("Treat Securities with Zero Balance as Inactive")
+            NAB.menuItemTreatSecZeroBalInactive.setActionCommand("treat_securities_with_zero_as_inactive")
             NAB.menuItemTreatSecZeroBalInactive.setMnemonic(KeyEvent.VK_T)
             NAB.menuItemTreatSecZeroBalInactive.addActionListener(NAB.saveActionListener)
             NAB.menuItemTreatSecZeroBalInactive.setToolTipText("When enabled will treat securities with a zero balance as 'Inactive'")
             menuO.add(NAB.menuItemTreatSecZeroBalInactive)
 
             NAB.menuItemUseIndianNumberFormat = MyJCheckBoxMenuItem("Use Indian number format")
+            NAB.menuItemUseIndianNumberFormat.setActionCommand("use_indian_number_format")
             NAB.menuItemUseIndianNumberFormat.setMnemonic(KeyEvent.VK_N)
             NAB.menuItemUseIndianNumberFormat.addActionListener(NAB.saveActionListener)
             NAB.menuItemUseIndianNumberFormat.setToolTipText("Enable Indian number formats (>10k, group powers of 100 - e.g. 10,00,000 not 1,000,000)")
             menuO.add(NAB.menuItemUseIndianNumberFormat)
 
             NAB.menuItemUseTaxDates = MyJCheckBoxMenuItem("Use Tax Dates")
+            NAB.menuItemUseTaxDates.setActionCommand("use_tax_dates")
             NAB.menuItemUseTaxDates.setMnemonic(KeyEvent.VK_X)
             NAB.menuItemUseTaxDates.addActionListener(NAB.saveActionListener)
             NAB.menuItemUseTaxDates.setToolTipText("When selected then all calculations based on Income/Expense categories will use the Tax Date")
             menuO.add(NAB.menuItemUseTaxDates)
 
             NAB.menuDisplayVisualUnderDots = MyJCheckBoxMenuItem("Display underline dots")
+            NAB.menuDisplayVisualUnderDots.setActionCommand("display_underline_dots")
             NAB.menuDisplayVisualUnderDots.setMnemonic(KeyEvent.VK_U)
             NAB.menuDisplayVisualUnderDots.addActionListener(NAB.saveActionListener)
             NAB.menuDisplayVisualUnderDots.setToolTipText("Display 'underline' dots that fill the blank space between row names and values...")
             menuO.add(NAB.menuDisplayVisualUnderDots)
 
             NAB.menuItemDisableWarningIcon = MyJCheckBoxMenuItem("Disable Warning Icon")
+            NAB.menuItemDisableWarningIcon.setActionCommand("disable_warning_icon")
             NAB.menuItemDisableWarningIcon.addActionListener(NAB.saveActionListener)
             NAB.menuItemDisableWarningIcon.setToolTipText("Prevents the warning icon from appearing on the widget's title bar...")
             menuO.add(NAB.menuItemDisableWarningIcon)
 
             NAB.menuItemDeactivate = MyJMenuItem("Deactivate Extension")
+            NAB.menuItemDeactivate.setActionCommand("deactivate_extension")
             NAB.menuItemDeactivate.addActionListener(NAB.saveActionListener)
             NAB.menuItemDeactivate.setToolTipText("Deactivates this extension and also the HomePage 'widget' (will reactivate upon MD restart)")
             NAB.menuItemDeactivate.setVisible(debug)
             menuO.add(NAB.menuItemDeactivate)  # Removed at the request of Sean (IK) to allow onto extensions list
 
             NAB.menuItemUninstall = MyJMenuItem("Uninstall Extension")
+            NAB.menuItemUninstall.setActionCommand("uninstall_extension")
             NAB.menuItemUninstall.addActionListener(NAB.saveActionListener)
             NAB.menuItemUninstall.setToolTipText("Uninstalls and removes this extension (and also the HomePage 'widget'). This is permanent until you reinstall...")
             NAB.menuItemUninstall.setVisible(debug)
@@ -9633,6 +12135,7 @@ Visit: %s (Author's site)
             menuA.setBackground(SetupMDColors.BACKGROUND_REVERSED)
 
             menuItemA = MyJMenuItem("About")
+            menuItemA.setActionCommand("about")
             menuItemA.setMnemonic(KeyEvent.VK_A)
             menuItemA.setToolTipText("About...")
             menuItemA.addActionListener(NAB.saveActionListener)
@@ -9640,6 +12143,7 @@ Visit: %s (Author's site)
             menuA.add(menuItemA)
 
             menuItemH = MyJMenuItem("Help / Information Guide")
+            menuItemH.setActionCommand("help")
             menuItemH.setToolTipText("Shows the readme.txt file with useful help / information.")
             menuItemH.setMnemonic(KeyEvent.VK_I)
             menuItemH.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I, (shortcut)))
@@ -9658,6 +12162,7 @@ Visit: %s (Author's site)
             NAB.mainMenuBar.add(Box.createHorizontalGlue())
 
             NAB.menuBarItemHideControlPanel_CB = MyJCheckBox("Hide Controls", NAB.savedHideControlPanel)
+            NAB.menuBarItemHideControlPanel_CB.setActionCommand("hide_controls")
             NAB.menuBarItemHideControlPanel_CB.putClientProperty("%s.id" %(NAB.myModuleID), "menuBarItemHideControlPanel_CB")
             NAB.menuBarItemHideControlPanel_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), True)
             NAB.menuBarItemHideControlPanel_CB.setName("menuBarItemHideControlPanel_CB")
@@ -9730,7 +12235,6 @@ Visit: %s (Author's site)
                     document.addDocumentListener(MyQuickSearchDocListener(NAB))
                     NAB.quickSearchField.addFocusListener(MyQuickSearchFocusAdapter(NAB.quickSearchField,document))     # noqa
 
-
                     # At startup, create dummy settings to build frame if nothing set.. Real settings will get loaded later
                     if NAB.savedAccountListUUIDs is None: NAB.resetParameters()
 
@@ -9745,6 +12249,7 @@ Visit: %s (Author's site)
                                                            %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title(), titleExtraTxt))
                     NAB.theFrame = net_account_balances_frame_
                     NAB.theFrame.setName(u"%s_main" %(NAB.myModuleID))
+                    NAB.theFrame.setMinimumSize(Dimension(1000, 0))
 
                     NAB.theFrame.isActiveInMoneydance = True
                     NAB.theFrame.isRunTimeExtension = True
@@ -9768,10 +12273,14 @@ Visit: %s (Author's site)
                     class MyJList(JList, ListSelectionListener):
                         def __init__(self):
                             super(self.__class__, self).__init__([])
+                            self.listSelectionChanged = False
                             self.originalListObjects = []
                             self.listOfSelectedObjects = []
                             self.savedListeners = []
                             self.parallelAccountBalances = buildEmptyTxnOrBalanceArray()    # type: [{Account: HoldBalance}]
+
+                        def hasListSelectionChanged(self): return self.listSelectionChanged
+                        def setListSelectionChanged(self, changed): self.listSelectionChanged = changed
 
                         def valueChanged(self, e):
                             try:
@@ -9787,7 +12296,12 @@ Visit: %s (Author's site)
                                 i = -1
                                 dataModel = self.getModel()
                                 try:
-                                    for i in range(e.getFirstIndex(), e.getLastIndex()+1):
+                                    if not self.hasListSelectionChanged():
+                                        # NAB = NetAccountBalancesExtension.getNAB()
+                                        self.setListSelectionChanged(True)
+                                        NAB.setAccountListChangedLabel()
+
+                                    for i in range(e.getFirstIndex(), e.getLastIndex() + 1):
                                         obj = dataModel.getElementAt(i)
                                         if self.isSelectedIndex(i):
                                             if obj not in self.listOfSelectedObjects:
@@ -9852,6 +12366,7 @@ Visit: %s (Author's site)
                     NAB.jlst.setSelectionModel(MyDefaultListSelectionModel())
 
                     NAB.saveActionListener = NAB.MyActionListener()
+                    NAB.savePropertyChangeListener = NAB.MyPropertyChangeListener()
                     NAB.saveFocusListener = NAB.MyFocusListener()
 
                     controlPnl = MyJPanel(GridBagLayout())
@@ -9940,7 +12455,8 @@ Visit: %s (Author's site)
                     NAB.filterByGroupID_JTF.setToolTipText("Filter rows by 'GroupID' (free format text). Use ';' to separate multiple, '!' = NOT, '&' = AND. Refer CMD-I Help")
                     NAB.filterByGroupID_JTF.setPlaceholderText("Filter by GroupID....")
                     NAB.filterByGroupID_JTF.addFocusListener(NAB.saveFocusListener)
-                    selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(1.0).fillboth())
+                    # selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(1.0).fillx())
+                    selectRow_pnl.add(NAB.filterByGroupID_JTF, GridC.getc(onSelectCol, onSelectRow).leftInset(colLeftInset).west().wx(0.5).fillx())
                     onSelectCol += 1
 
                     filterSelector_LBL = MyJLabel(NAB.selectorIcon)
@@ -9950,10 +12466,20 @@ Visit: %s (Author's site)
                     selectRow_pnl.add(filterSelector_LBL, GridC.getc(onSelectCol, onSelectRow).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset))
                     onSelectCol += 1
 
-                    NAB.warning_label = MyJLabel("",JLabel.CENTER)
+                    NAB.warning_label = MyJLabel("", JLabel.LEFT)
                     NAB.warning_label.putClientProperty("%s.id" %(NAB.myModuleID), "warning_label")
                     NAB.warning_label.setMDHeaderBorder()
-                    selectRow_pnl.add(NAB.warning_label, GridC.getc(onSelectCol, onSelectRow).colspan(2).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset).fillx())
+
+                    warnLblScrollPane = MyJScrollPane(NAB.warning_label, JScrollPane.VERTICAL_SCROLLBAR_NEVER,JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
+                    warnLblScrollPane.putClientProperty("%s.id" %(NAB.myModuleID), "warnLblScrollPane")
+                    warnLblScrollPane.setViewportBorder(EmptyBorder(0, 0, 0, 0))
+                    warnLblScrollPane.setOpaque(False)
+                    # warnLblScrollPane.setPreferredSize(Dimension(200, NAB.filterByGroupID_JTF.getPreferredSize().height));
+                    warnLblScrollPane.setMinimumSize(Dimension(200, 30))
+                    warnLblScrollPane.setPreferredSize(Dimension(200, 30))
+
+                    # selectRow_pnl.add(NAB.warning_label, GridC.getc(onSelectCol, onSelectRow).colspan(2).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset).fillx())
+                    selectRow_pnl.add(warnLblScrollPane, GridC.getc(onSelectCol, onSelectRow).colspan(2).leftInset(colInsetFiller).topInset(5).bottomInset(5).rightInset(colRightInset).wx(0.5).fillx())
                     onSelectCol += 1
 
                     controlPnl.add(selectRow_pnl, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillboth().colspan(4))
@@ -9965,6 +12491,7 @@ Visit: %s (Author's site)
                     onCol = 0
 
                     insertBefore_button = MyJButton("Insert Row before")
+                    insertBefore_button.setActionCommand("insert_row_before")
                     insertBefore_button.putClientProperty("%s.id" %(NAB.myModuleID), "insertBefore_button")
                     insertBefore_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     insertBefore_button.setToolTipText("Inserts a new row before this one...")
@@ -9974,6 +12501,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     insertAfter_button = MyJButton("Insert Row after")
+                    insertAfter_button.setActionCommand("insert_row_after")
                     insertAfter_button.putClientProperty("%s.id" %(NAB.myModuleID), "insertAfter_button")
                     insertAfter_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     insertAfter_button.setToolTipText("Inserts a new row after this one...")
@@ -9983,6 +12511,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     deleteRow_button = MyJButton("Delete Row")
+                    deleteRow_button.setActionCommand("delete_row")
                     deleteRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "deleteRow_button")
                     deleteRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     deleteRow_button.setToolTipText("Deletes this row...")
@@ -9992,6 +12521,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     moveRow_button = MyJButton("Move Row")
+                    moveRow_button.setActionCommand("move_row")
                     moveRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "moveRow_button")
                     moveRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     moveRow_button.setToolTipText("Moves this row elsewhere...")
@@ -10006,6 +12536,7 @@ Visit: %s (Author's site)
                     onCol = 0
 
                     duplicateRow_button = MyJButton("Duplicate Row")
+                    duplicateRow_button.setActionCommand("duplicate_row")
                     duplicateRow_button.putClientProperty("%s.id" %(NAB.myModuleID), "duplicateRow_button")
                     duplicateRow_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     duplicateRow_button.setToolTipText("Duplicates this row...")
@@ -10015,30 +12546,33 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.cancelChanges_button = MyJButton("Reload Settings")
+                    NAB.cancelChanges_button.setActionCommand("reload_settings")
                     NAB.cancelChanges_button.putClientProperty("%s.id" %(NAB.myModuleID), "cancelChanges_button")
                     NAB.cancelChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.cancelChanges_button.setToolTipText("Reloads all settings from last saved")
+                    NAB.cancelChanges_button.setToolTipText("Reloads all settings - for all rows - from last saved settings")
                     NAB.cancelChanges_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.cancelChanges_button.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.cancelChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
                     onCol += 1
 
-                    resetDefaults_button = MyJButton("Reset Defaults")
-                    resetDefaults_button.putClientProperty("%s.id" %(NAB.myModuleID), "resetDefaults_button")
-                    resetDefaults_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    resetDefaults_button.setToolTipText("Wipes all saved settings, resets to defaults with 1 row (does not save)")
-                    resetDefaults_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    resetDefaults_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(resetDefaults_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
-                    onCol += 1
-
                     backup_button = MyJButton("Backup Config")
+                    backup_button.setActionCommand("backup_config")
                     backup_button.putClientProperty("%s.id" %(NAB.myModuleID), "backup_button")
                     backup_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    backup_button.setToolTipText("Creates a backup of your current config (use CMD-SHIFT-R to restore)")
+                    backup_button.setToolTipText("Creates a backup of your current config (use CMD-SHIFT-B/R to Backup/Restore)")
                     backup_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     backup_button.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, backup=True))
                     controlPnl.add(backup_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
+                    onCol += 1
+
+                    restore_button = MyJButton("Restore Config")
+                    restore_button.setActionCommand("restore_config")
+                    restore_button.putClientProperty("%s.id" %(NAB.myModuleID), "restore_button")
+                    restore_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    restore_button.setToolTipText("Allows you to restore a previous backup config file (use CMD-SHIFT-B/R to Backup/Restore)")
+                    restore_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    restore_button.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, restore=True))
+                    controlPnl.add(restore_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
                     onCol += 1
 
                     onRow += 1
@@ -10071,11 +12605,9 @@ Visit: %s (Author's site)
                     controlPnl.add(NAB.widgetNameField_JTF, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillboth())
                     onCol += 2
 
-                    # fixWeight = 0.0
                     NAB.simulateTotal_label = MyJLabel("<html><i>result here</i></html>",JLabel.CENTER)
                     NAB.simulateTotal_label.putClientProperty("%s.id" %(NAB.myModuleID), "simulateTotal_label")
                     NAB.simulateTotal_label.setMDHeaderBorder()
-                    # controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx().wx(fixWeight))
                     controlPnl.add(NAB.simulateTotal_label, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
 
                     onRow += 1
@@ -10109,33 +12641,211 @@ Visit: %s (Author's site)
                     NAB.autoSumAccounts_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.autoSumAccounts_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
+
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 0
+                    topInset = 2
+
+                    balanceAsOfLabel = MyJLabel("Override Balance asof Date:")
+                    balanceAsOfLabel.putClientProperty("%s.id" %(NAB.myModuleID), "balanceAsOfLabel")
+                    balanceAsOfLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(balanceAsOfLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    showWarnings_pnl = MyJPanel(GridBagLayout())
-                    onShowWarningsRow = 0
-                    onShowWarningsCol = 0
+                    onBalanceAsOfRow = 0
+                    onBalanceAsOfCol = 0
+                    balanceAsOfSelection_pnl = MyJPanel(GridBagLayout())
+                    balanceAsOfSelection_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
-                    NAB.showWarnings_CB = MyJCheckBox("Show Warnings", True)
-                    NAB.showWarnings_CB.putClientProperty("%s.id" %(NAB.myModuleID), "showWarnings_CB")
-                    NAB.showWarnings_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    NAB.showWarnings_CB.setName("showWarnings_CB")
-                    NAB.showWarnings_CB.setToolTipText("Warnings on 'illogical' calculations will be shown for this row...")
-                    NAB.showWarnings_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.showWarnings_CB.addActionListener(NAB.saveActionListener)
-                    showWarnings_pnl.add(NAB.showWarnings_CB, GridC.getc(onShowWarningsCol, onShowWarningsRow))
-                    onShowWarningsCol += 1
+                    NAB.asOfDateChooser_CB = MyJCheckBox("", True)
+                    NAB.asOfDateChooser_CB.putClientProperty("%s.id" %(NAB.myModuleID), "asOfDateChooser_CB")
+                    NAB.asOfDateChooser_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.asOfDateChooser_CB.setName("asOfDateChooser_CB")
+                    NAB.asOfDateChooser_CB.setToolTipText("Select to override the balance asof date")
+                    NAB.asOfDateChooser_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.asOfDateChooser_CB.addActionListener(NAB.saveActionListener)
+                    balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_CB, GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).topInset(topInset))
+                    onBalanceAsOfCol += 1
 
-                    NAB.showWarnings_LBL = MyJLabel()
-                    NAB.showWarnings_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "showWarnings_LBL")
-                    NAB.showWarnings_LBL.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.showWarnings_LBL.setToolTipText("Show current warnings...")
-                    NAB.showWarnings_LBL.addMouseListener(NAB.WarningMouseListener())
+                    NAB.asOfDateChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.ASOF_TODAY)
+                    NAB.asOfDateChooser_AODC.setName("asOfDateChooser_AODC")
+                    NAB.asOfDateChooser_AODC.getChoiceCombo().putClientProperty("%s.id" %(NAB.myModuleID), "asOfDateChooser_AODC")
+                    NAB.asOfDateChooser_AODC.getChoiceCombo().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.asOfDateChooser_AODC.getChoiceLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.asOfDateChooser_AODC.getAsOfDateField().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.asOfDateChooser_AODC.getAsOfLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option")
+                    NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")
+                    NAB.asOfDateChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
+                    balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).leftInset(5).west())
 
-                    showWarnings_pnl.add(NAB.showWarnings_LBL, GridC.getc(onShowWarningsCol, onShowWarningsRow).west().leftInset(colInsetFiller))
-                    onShowWarningsCol += 1
+                    controlPnl.add(balanceAsOfSelection_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset).colspan(2))
+                    onCol += 2
 
-                    controlPnl.add(showWarnings_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).west())
+                    groupID_pnl = MyJPanel(GridBagLayout())
+                    groupID_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    onGroupIDRow = 0
+                    onGroupIDCol = 0
+
+                    groupIDLabel = MyJLabel("GroupID:")
+                    groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
+                    groupIDLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    groupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
+                    onGroupIDCol += 1
+
+                    NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=20)
+                    NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
+                    NAB.groupIDField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDField_JTF")
+                    NAB.groupIDField_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.groupIDField_JTF.setName("groupIDField_JTF")
+                    NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')) that can be used to filter out rows (refer CMD-I help)")
+                    NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
+                    groupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(1.0).fillboth().west())
+
+                    controlPnl.add(groupID_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
                     onCol += 1
+
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 0
+                    topInset = 2
+
+                    includeRemindersLabel = MyJLabel("Include (non-recorded) Reminders:")
+                    includeRemindersLabel.putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersLabel")
+                    includeRemindersLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(includeRemindersLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
+
+                    onIncludeRemindersRow = 0
+                    onIncludeRemindersCol = 0
+                    includeRemindersSelection_pnl = MyJPanel(GridBagLayout())
+                    includeRemindersSelection_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    NAB.includeRemindersChooser_CB = MyJCheckBox("", True)
+                    NAB.includeRemindersChooser_CB.putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersChooser_CB")
+                    NAB.includeRemindersChooser_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.includeRemindersChooser_CB.setName("includeRemindersChooser_CB")
+                    NAB.includeRemindersChooser_CB.setToolTipText("Select to include non-recorded Reminders (once they commit/record, they cannot be included)")
+                    NAB.includeRemindersChooser_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.includeRemindersChooser_CB.addActionListener(NAB.saveActionListener)
+                    includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_CB, GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).topInset(topInset))
+                    onIncludeRemindersCol += 1
+
+                    NAB.includeRemindersChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.KEY_ASOF_END_THIS_MONTH)
+                    NAB.includeRemindersChooser_AODC.setName("includeRemindersChooser_AODC")
+                    NAB.includeRemindersChooser_AODC.getChoiceCombo().putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersChooser_AODC")
+                    NAB.includeRemindersChooser_AODC.getChoiceCombo().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.includeRemindersChooser_AODC.getChoiceLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.includeRemindersChooser_AODC.getAsOfDateField().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.includeRemindersChooser_AODC.getAsOfLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.includeRemindersChooser_AODC.getChoiceCombo().setToolTipText("Select the include reminders asof date option (when include reminders has been selected)")
+                    NAB.includeRemindersChooser_AODC.getAsOfDateField().setToolTipText("Select the include reminders asof custom date (when include reminders has been selected)")
+                    NAB.includeRemindersChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
+                    includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).leftInset(5).west())
+
+                    controlPnl.add(includeRemindersSelection_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset).colspan(3))
+
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 0
+                    pady = 5
+
+                    useCostBasis_lbl = MyJLabel("Securities:")
+                    useCostBasis_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "useCostBasis_lbl")
+                    useCostBasis_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    controlPnl.add(useCostBasis_lbl, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
+
+                    useCostBasis_pnl = MyJPanel(GridBagLayout())
+                    useCostBasis_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    NAB.useCostBasisNone_JRB = MyJRadioButton("Rtn Value")
+                    NAB.useCostBasisNone_JRB.setName("useCostBasisNone_JRB")
+                    NAB.useCostBasisNone_JRB.setToolTipText("When selected, then this option is disabled")
+
+                    NAB.useCostBasisCB_JRB = MyJRadioButton("Rtn Cost Basis")
+                    NAB.useCostBasisCB_JRB.setName("useCostBasisCB_JRB")
+                    NAB.useCostBasisCB_JRB.setToolTipText("When selected, then Security Accounts will return the Cost Basis, (rather than the value)")
+
+                    NAB.useCostBasisURGains_JRB = MyJRadioButton("Rtn U/R Gains")
+                    NAB.useCostBasisURGains_JRB.setName("useCostBasisURGains_JRB")
+                    NAB.useCostBasisURGains_JRB.setToolTipText("When selected, then Security Accounts will return the Unrealised Gains (rather than the value)")
+
+                    useCostBasisButtonGroup = ButtonGroup()
+
+                    onSepRow = 0
+                    onCbUrgCol = 0
+
+                    for jrb in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisURGains_JRB]:
+                        useCostBasisButtonGroup.add(jrb)
+                        jrb.setActionCommand(jrb.getName())
+                        jrb.putClientProperty("%s.id" %(NAB.myModuleID), jrb.getName())
+                        jrb.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                        jrb.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                        jrb.addActionListener(NAB.saveActionListener)
+                        useCostBasis_pnl.add(jrb, GridC.getc(onCbUrgCol, onSepRow).leftInset(0).rightInset(5))
+                        onCbUrgCol += 1
+
+
+                    NAB.useCostBasisCash_CB = MyJCheckBox("Include Cash", False)
+                    NAB.useCostBasisCash_CB.putClientProperty("%s.id" %(NAB.myModuleID), "useCostBasisCash_CB")
+                    NAB.useCostBasisCash_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.useCostBasisCash_CB.setName("useCostBasisCash_CB")
+                    NAB.useCostBasisCash_CB.setToolTipText("When enabled, then Investment account cash balances will be included in Security Cost Basis / Unrealised gains calculations")
+                    NAB.useCostBasisCash_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.useCostBasisCash_CB.addActionListener(NAB.saveActionListener)
+                    useCostBasis_pnl.add(NAB.useCostBasisCash_CB, GridC.getc(onCbUrgCol, onSepRow).leftInset(0).rightInset(5))
+                    onCbUrgCol += 1
+
+                    controlPnl.add(useCostBasis_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller+2).rightInset(colRightInset).fillx().pady(pady).filly().west().colspan(2))
+                    onRow += 1
+
+                    # --------------------------------------------------------------------------------------------------
+                    onCol = 0
+                    topInset = 2
+
+                    incExpDateRangeOptionLabel = MyJLabel("Inc/Exp Date Range:")
+                    incExpDateRangeOptionLabel.putClientProperty("%s.id" %(NAB.myModuleID), "incExpDateRangeOptionLabel")
+                    incExpDateRangeOptionLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
+                    onCol += 1
+
+                    NAB.incomeExpenseDateRange_DRC = IncExpDateRangeChooser(NAB.moneydanceContext.getUI())
+                    NAB.incomeExpenseDateRange_DRC.setName("incomeExpenseDateRange_DRC")
+                    # NAB.incomeExpenseDateRange_DRC.putClientProperty("%s.id" %(NAB.myModuleID), "incomeExpenseDateRange_DRC")
+
+                    drc = NAB.incomeExpenseDateRange_DRC
+                    for comp in [drc.getChoice(), drc.getChoiceLabel(), drc.getStartLabel(), drc.getStartField(), drc.getEndLabel(), drc.getEndField()]:
+                        comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
+                    NAB.incomeExpenseDateRange_DRC.getChoice().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
+                    NAB.incomeExpenseDateRange_DRC.getStartField().setToolTipText("Select the start date for the I/E custom date range")
+                    NAB.incomeExpenseDateRange_DRC.getEndField().setToolTipText("Select the end date for the I/E custom date range")
+                    NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
+                    controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
+
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+
+                    onCol = 1
+                    topInset = 0
+                    bottomInset = 0
+
+                    NAB.incExpDateRangeLabel = MyJLabel("Date Range:")
+                    NAB.incExpDateRangeLabel.putClientProperty("%s.id" %(NAB.myModuleID), "incExpDateRangeLabel")
+                    NAB.incExpDateRangeLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(NAB.incExpDateRangeLabel, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset).north())
+
+                    vs = Box.createVerticalStrut(18)
+                    vs.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")                                    # noqa
+                    controlPnl.add(vs, GridC.getc(onCol, onRow))
+
+                    onCol += 2
 
                     onRow += 1
 
@@ -10173,45 +12883,15 @@ Visit: %s (Author's site)
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
-                    onCol = 0
-                    topInset = 2
-
-                    incExpDateRangeOptionLabel = MyJLabel("Inc/Exp Date Range:")
-                    incExpDateRangeOptionLabel.putClientProperty("%s.id" %(NAB.myModuleID), "incExpDateRangeOptionLabel")
-                    incExpDateRangeOptionLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
-                    onCol += 1
-
-                    incExpDateRangeOptions = []
-                    for drange in sorted(DateRangeOption.values(), key=lambda x: (x.getSortKey())):
-                        incExpDateRangeOptions.append(NAB.DateRangeSingleOption(drange))
-
-                    NAB.incomeExpenseDateRange_COMBO = MyJComboBox(incExpDateRangeOptions)
-                    NAB.incomeExpenseDateRange_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "incomeExpenseDateRange_COMBO")
-                    NAB.incomeExpenseDateRange_COMBO.setName("incomeExpenseDateRange_COMBO")
-                    NAB.incomeExpenseDateRange_COMBO.setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
-                    NAB.incomeExpenseDateRange_COMBO.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.incomeExpenseDateRange_COMBO.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.incomeExpenseDateRange_COMBO, GridC.getc(onCol, onRow).colspan(2).leftInset(colInsetFiller).topInset(topInset).fillx())
-
-                    onRow += 1
-                    # --------------------------------------------------------------------------------------------------
 
                     onCol = 1
-                    topInset = 0
-                    bottomInset = 0
-
-                    NAB.dateRangeLabel = MyJLabel("Date Range:")
-                    NAB.dateRangeLabel.putClientProperty("%s.id" %(NAB.myModuleID), "dateRangeLabel")
-                    NAB.dateRangeLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    controlPnl.add(NAB.dateRangeLabel, GridC.getc(onCol, onRow).colspan(3).fillx().insets(topInset,colInsetFiller,bottomInset,colRightInset).north())
-
-                    controlPnl.add(Box.createVerticalStrut(18), GridC.getc(onCol, onRow))
-
-                    onCol += 2
+                    topInset = 8
+                    bottomInset = 5
+                    js = MyJSeparator()
+                    js.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(js, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(3).fillx())
 
                     onRow += 1
-
                     # --------------------------------------------------------------------------------------------------
                     onCol = 0
 
@@ -10224,6 +12904,7 @@ Visit: %s (Author's site)
                     onAverageRow = 0
                     onAverageCol = 0
                     displayAverage_pnl = MyJPanel(GridBagLayout())
+                    displayAverage_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     NAB.displayAverage_JRF = MyJRateFieldAverage(12, NAB.decimal)
                     if isinstance(NAB.displayAverage_JRF, (MyJRateFieldAverage, JRateField, JTextField)): pass
@@ -10283,6 +12964,7 @@ Visit: %s (Author's site)
 
                     onCol = 0
                     operateOnAnotherRow_pnl = MyJPanel(GridBagLayout())
+                    operateOnAnotherRow_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     operateOnAnotherRow_lbl = MyJLabel("Maths using another row:")
                     operateOnAnotherRow_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "operateOnAnotherRow_lbl")
@@ -10341,6 +13023,8 @@ Visit: %s (Author's site)
                     onAdjustCalcRow = 0
                     onAdjustCalcCol = 0
                     displayAdjustCalc_pnl = MyJPanel(GridBagLayout())
+                    displayAdjustCalc_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+
                     displayAdjustCalc_lbl = MyJLabel("Adj/by:")
                     displayAdjustCalc_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "displayAdjustCalc_lbl")
                     displayAdjustCalc_lbl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
@@ -10368,6 +13052,7 @@ Visit: %s (Author's site)
 
                     # --
                     hideWhenSelector_pnl = MyJPanel(GridBagLayout())
+                    hideWhenSelector_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     hideWhenSelector_lbl = MyJLabel("Hide row:")
                     hideWhenSelector_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "hideWhenSelector_lbl")
@@ -10431,29 +13116,8 @@ Visit: %s (Author's site)
                     controlPnl.add(hideWhenSelector_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).fillx().pady(pady).filly().colspan(2))
                     onCol += 2
 
-                    groupID_pnl = MyJPanel(GridBagLayout())
-                    onGroupIDRow = 0
-                    onGroupIDCol = 0
-
-                    groupIDLabel = MyJLabel("GroupID:")
-                    groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
-                    groupIDLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    groupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
-                    onGroupIDCol += 1
-
-                    NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=20)
-                    NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
-                    NAB.groupIDField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDField_JTF")
-                    NAB.groupIDField_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.groupIDField_JTF.setName("groupIDField_JTF")
-                    NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')) that can be used to filter out rows (refer CMD-I help)")
-                    NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
-                    groupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(1.0).fillboth().west())
-
-                    controlPnl.add(groupID_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
-                    onCol += 1
-
                     onRow += 1
+
                     # --------------------------------------------------------------------------------------------------
                     onCol = 0
 
@@ -10464,6 +13128,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     separatorSelector_pnl = MyJPanel(GridBagLayout())
+                    separatorSelector_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     separatorSelector_lbl = MyJLabel("Separator:")
                     separatorSelector_lbl.putClientProperty("%s.id" %(NAB.myModuleID), "separatorSelector_lbl")
@@ -10505,10 +13170,10 @@ Visit: %s (Author's site)
                     controlPnl.add(separatorSelector_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller+2).rightInset(colRightInset).fillx().pady(pady).filly().west())
                     onCol += 1
 
-
-                    onBlinkRow = 0
-                    onBlinkCol = 0
-                    blink_hideDecimals_pnl = MyJPanel(GridBagLayout())
+                    onFormattingRow = 0
+                    onFormattingCol = 0
+                    formatting_pnl = MyJPanel(GridBagLayout())
+                    formatting_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     NAB.hideDecimals_CB = MyJCheckBox("Hide Decimal Places", False)
                     NAB.hideDecimals_CB.putClientProperty("%s.id" %(NAB.myModuleID), "hideDecimals_CB")
@@ -10518,8 +13183,8 @@ Visit: %s (Author's site)
                     NAB.hideDecimals_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.hideDecimals_CB.addActionListener(NAB.saveActionListener)
 
-                    blink_hideDecimals_pnl.add(NAB.hideDecimals_CB, GridC.getc(onBlinkCol, onBlinkRow))
-                    onBlinkCol += 1
+                    formatting_pnl.add(NAB.hideDecimals_CB, GridC.getc(onFormattingCol, onFormattingRow))
+                    onFormattingCol += 1
 
                     NAB.blinkRow_CB = MyJCheckBox("Blink", False)
                     NAB.blinkRow_CB.putClientProperty("%s.id" %(NAB.myModuleID), "blinkRow_CB")
@@ -10529,48 +13194,97 @@ Visit: %s (Author's site)
                     NAB.blinkRow_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.blinkRow_CB.addActionListener(NAB.saveActionListener)
 
-                    blink_hideDecimals_pnl.add(NAB.blinkRow_CB, GridC.getc(onBlinkCol, onBlinkRow).leftInset(colLeftInset))
+                    formatting_pnl.add(NAB.blinkRow_CB, GridC.getc(onFormattingCol, onFormattingRow).leftInset(colLeftInset))
+                    onFormattingCol += 1
 
-                    controlPnl.add(blink_hideDecimals_pnl, GridC.getc(onCol, onRow).colspan(1).fillx().west())
-                    onCol += 1
+                    NAB.showWarnings_CB = MyJCheckBox("Show Warnings", True)
+                    NAB.showWarnings_CB.putClientProperty("%s.id" %(NAB.myModuleID), "showWarnings_CB")
+                    NAB.showWarnings_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.showWarnings_CB.setName("showWarnings_CB")
+                    NAB.showWarnings_CB.setToolTipText("Warnings on 'illogical' calculations will be shown for this row...")
+                    NAB.showWarnings_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.showWarnings_CB.addActionListener(NAB.saveActionListener)
+                    formatting_pnl.add(NAB.showWarnings_CB, GridC.getc(onFormattingCol, onFormattingRow).leftInset(13))
+                    onFormattingCol += 1
+
+                    controlPnl.add(formatting_pnl, GridC.getc(onCol, onRow).colspan(2).fillx().west())
+
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
+                    topInset = 8
+                    bottomInset = 5
+                    js = MyJSeparator()
+                    js.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    controlPnl.add(js, GridC.getc(onCol, onRow).leftInset(colLeftInset).topInset(topInset).rightInset(colRightInset).bottomInset(bottomInset).colspan(4).fillx())
+
+                    onRow += 1
+                    # --------------------------------------------------------------------------------------------------
+
+                    onCol = 0
                     topInset = 7
 
-                    clearList_button = MyJButton("Clear Selection")
+                    onJListBtnCol = 0
+                    jlistButton_pnl = MyJPanel(GridBagLayout())
+                    jlistButton_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "False")
+
+                    selectAllVisible_button = MyJButton("Select All Visible")
+                    selectAllVisible_button.setActionCommand("select_all_visible")
+                    selectAllVisible_button.putClientProperty("%s.id" %(NAB.myModuleID), "selectAllVisible_button")
+                    selectAllVisible_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    selectAllVisible_button.setToolTipText("Selects all Accounts / Categories in the visible list")
+                    selectAllVisible_button.addActionListener(NAB.saveActionListener)
+                    jlistButton_pnl.add(selectAllVisible_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
+
+                    clearList_button = MyJButton("Clear Visible Selection")
+                    clearList_button.setActionCommand("clear_visible_selection")
                     clearList_button.putClientProperty("%s.id" %(NAB.myModuleID), "clearList_button")
                     clearList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     clearList_button.setToolTipText("Clears the current selection(s)...")
                     clearList_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(clearList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
-                    onCol += 1
+                    jlistButton_pnl.add(clearList_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
+
+                    clearEntireList_button = MyJButton("Clear Entire Selection")
+                    clearEntireList_button.setActionCommand("clear_entire_selection")
+                    clearEntireList_button.putClientProperty("%s.id" %(NAB.myModuleID), "clearEntireList_button")
+                    clearEntireList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    clearEntireList_button.setToolTipText("Clears the entire selection(s) (both visible and filtered out)...")
+                    clearEntireList_button.addActionListener(NAB.saveActionListener)
+                    jlistButton_pnl.add(clearEntireList_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
 
                     undoListChanges_button = MyJButton("Undo List Changes")
+                    undoListChanges_button.setActionCommand("undo_list_changes")
                     undoListChanges_button.putClientProperty("%s.id" %(NAB.myModuleID), "undoListChanges_button")
                     undoListChanges_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     undoListChanges_button.setToolTipText("Undo your account list changes and revert to last saved list")
                     undoListChanges_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(undoListChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
-                    onCol += 1
+                    jlistButton_pnl.add(undoListChanges_button, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
 
-                    storeAccountList_button = MyJButton("Store List Changes")
-                    storeAccountList_button.putClientProperty("%s.id" %(NAB.myModuleID), "storeAccountList_button")
-                    storeAccountList_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    storeAccountList_button.setToolTipText("Stores the selected account list into memory (does not save)")
-                    storeAccountList_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(storeAccountList_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
-                    onCol += 1
+                    NAB.storeAccountList_JBTN = MyJButton("Store List Changes")
+                    NAB.storeAccountList_JBTN.setActionCommand("store_list_changes")
+                    NAB.storeAccountList_JBTN.putClientProperty("%s.id" %(NAB.myModuleID), "storeAccountList_JBTN")
+                    NAB.storeAccountList_JBTN.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.storeAccountList_JBTN.setToolTipText("Stores the selected account list into memory (does not save)")
+                    NAB.storeAccountList_JBTN.addActionListener(NAB.saveActionListener)
+                    jlistButton_pnl.add(NAB.storeAccountList_JBTN, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).fillx())
+                    onJListBtnCol += 1
 
-                    saveSettings_button = MyJButton("Save All Settings".upper())
-                    saveSettings_button.putClientProperty("%s.id" %(NAB.myModuleID), "saveSettings_button")
-                    saveSettings_button.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
-                    saveSettings_button.setToolTipText("Saves all the changes made to settings")
-                    saveSettings_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(saveSettings_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    NAB.saveSettings_JBTN = MyJButton("Save All Settings".upper())
+                    NAB.saveSettings_JBTN.setActionCommand("save_all_settings")
+                    NAB.saveSettings_JBTN.putClientProperty("%s.id" %(NAB.myModuleID), "saveSettings_JBTN")
+                    NAB.saveSettings_JBTN.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.saveSettings_JBTN.setToolTipText("Saves all changes made to settings (NOTE: This also stores the current account selection list too)")
+                    NAB.saveSettings_JBTN.addActionListener(NAB.saveActionListener)
+                    jlistButton_pnl.add(NAB.saveSettings_JBTN, GridC.getc(onJListBtnCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx())
+                    onJListBtnCol += 1
 
+                    controlPnl.add(jlistButton_pnl, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).rightInset(colRightInset).fillx().colspan(4))
                     onRow += 1
 
                     # --------------------------------------------------------------------------------------------------
@@ -10594,6 +13308,29 @@ Visit: %s (Author's site)
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
+                    # lblText = wrap_HTML_BIG_small("<< click here to SIMULATE >>", "", _bold=True, _bigColor=getColorBlue())
+                    lblText = "<< Simulate Row >>"
+                    NAB.simulate_JBTN = MyJButton(lblText)
+                    NAB.simulate_JBTN.setActionCommand("simulate")
+                    NAB.simulate_JBTN.putClientProperty("%s.id" %(NAB.myModuleID), "simulate_JBTN")
+                    NAB.simulate_JBTN.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
+                    NAB.simulate_JBTN.setToolTipText("Runs a simulation of current row, and populates the Account picklist below...")
+                    NAB.simulate_JBTN.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
+                    NAB.simulate_JBTN.addActionListener(NAB.saveActionListener)
+                    NAB.setSimulateEnabled(False)
+
+                    # try:
+                    #     if NAB.simulate_JBTN.getIcon() is None:
+                    #         mdImages = NAB.moneydanceContext.getUI().getImages()
+                    #         # iconTintParallel = NAB.moneydanceContext.getUI().getColors().errorMessageForeground
+                    #         # iconSimulate = mdImages.getIconWithColor(GlobalVars.Strings.MD_ICON_GRAPHS_32_32, iconTintParallel)
+                    #         iconSimulate = mdImages.getIcon(GlobalVars.Strings.MD_ICON_GRAPHS_32_32)
+                    #         NAB.simulate_JBTN.setIcon(iconSimulate)
+                    #     NAB.simulate_JBTN.setHorizontalAlignment(JLabel.CENTER)
+                    #     NAB.simulate_JBTN.setHorizontalTextPosition(JLabel.LEFT)
+                    # except: pass
+
+                    # --------------------------------------------------------------------------------------------------
 
                     onCol = 0
                     topInset = 0
@@ -10609,6 +13346,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.filterOutZeroBalAccts_INACTIVE_CB = MyJCheckBox("Filter Out Zeros Inactive", False)
+                    NAB.filterOutZeroBalAccts_INACTIVE_CB.setActionCommand("filter_out_zeros_inactive")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_INACTIVE_CB")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setName("filterOutZeroBalAccts_INACTIVE_CB")
@@ -10618,6 +13356,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.filterIncludeSelected_CB = MyJCheckBox("Filter Include Selected", False)
+                    NAB.filterIncludeSelected_CB.setActionCommand("filter_include_selected")
                     NAB.filterIncludeSelected_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterIncludeSelected_CB")
                     NAB.filterIncludeSelected_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterIncludeSelected_CB.setName("filterIncludeSelected_CB")
@@ -10629,10 +13368,28 @@ Visit: %s (Author's site)
                     topInset = 0
                     bottomInset = 0
 
-                    NAB.parallelBalancesWarningLabel = MyJLabel("Key:")
+                    onIconsRow = 0
+                    onIconsCol = 0
+                    icons_pnl = MyJPanel(GridBagLayout())
+                    icons_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
+
+                    NAB.parallelBalancesWarningLabel = MyJLabel("")
                     NAB.parallelBalancesWarningLabel.putClientProperty("%s.id" %(NAB.myModuleID), "parallelBalancesWarningLabel")
                     NAB.parallelBalancesWarningLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
-                    controlPnl.add(NAB.parallelBalancesWarningLabel, GridC.getc(onCol, onRow).insets(topInset,colLeftInset,bottomInset,colRightInset).rowspan(2))
+                    icons_pnl.add(NAB.parallelBalancesWarningLabel, GridC.getc(onIconsCol, onIconsRow).west().wy(0))
+                    onIconsCol += 1
+
+                    NAB.showWarnings_LBL = MyJLabel()
+                    NAB.showWarnings_LBL.putClientProperty("%s.id" %(NAB.myModuleID), "showWarnings_LBL")
+                    NAB.showWarnings_LBL.putClientProperty("%s.collapsible" %(NAB.myModuleID), "false")
+                    NAB.showWarnings_LBL.setToolTipText("Show current warnings...")
+                    NAB.showWarnings_LBL.addMouseListener(NAB.WarningMouseListener())
+                    icons_pnl.add(NAB.showWarnings_LBL, GridC.getc(onIconsCol, onIconsRow).leftInset(colLeftInset+2).east())
+                    onIconsCol += 1
+
+                    controlPnl.add(icons_pnl, GridC.getc(onCol, onRow).insets(topInset,colLeftInset,bottomInset,colRightInset))
+
+                    controlPnl.add(NAB.simulate_JBTN, GridC.getc(onCol, onRow+1).insets(topInset,colLeftInset,bottomInset,colRightInset))
 
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
@@ -10640,19 +13397,7 @@ Visit: %s (Author's site)
                     onCol = 0
                     topInset = 5
 
-                    # noinspection PyUnresolvedReferences
-                    includeAccountType = ["All Account Types",
-                                          Account.AccountType.BANK,
-                                          Account.AccountType.CREDIT_CARD,
-                                          Account.AccountType.INVESTMENT,
-                                          Account.AccountType.SECURITY,
-                                          Account.AccountType.ASSET,
-                                          Account.AccountType.LIABILITY,
-                                          Account.AccountType.LOAN,
-                                          Account.AccountType.INCOME,
-                                          Account.AccountType.EXPENSE]
-
-                    NAB.filterOnlyAccountType_COMBO = MyJComboBox(includeAccountType)
+                    NAB.filterOnlyAccountType_COMBO = MyJComboBox(AccountTypeHolder.generateListForCombo())
                     NAB.filterOnlyAccountType_COMBO.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyAccountType_COMBO")
                     NAB.filterOnlyAccountType_COMBO.setName("filterOnlyAccountType_COMBO")
                     NAB.filterOnlyAccountType_COMBO.setToolTipText("Applies an additional filter: Only show the selected account type")
@@ -10663,6 +13408,7 @@ Visit: %s (Author's site)
                     topInset = 0
 
                     NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Out Zeros Active", False)
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setActionCommand("filter_out_zeros_active")
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_ACTIVE_CB")
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.setName("filterOutZeroBalAccts_ACTIVE_CB")
@@ -10672,6 +13418,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.filterOnlyShowSelected_CB = MyJCheckBox("Only Show Selected", False)
+                    NAB.filterOnlyShowSelected_CB.setActionCommand("only_show_selected")
                     NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyShowSelected_CB")
                     NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOnlyShowSelected_CB.setName("filterOnlyShowSelected_CB")
@@ -10694,7 +13441,7 @@ Visit: %s (Author's site)
                     # --------------------------------------------------------------------------------------------------
 
                     onCol = 2
-                    NAB.keyLabel = MyJLabel("Key:")
+                    NAB.keyLabel = MyJLabel("")
                     NAB.keyLabel.putClientProperty("%s.id" %(NAB.myModuleID), "keyLabel")
                     NAB.keyLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(NAB.keyLabel, GridC.getc(onCol, onRow).southEast().colspan(2).fillx().insets(topInset,colLeftInset,bottomInset,colRightInset+2))
@@ -10736,19 +13483,16 @@ Visit: %s (Author's site)
                     rootPane.getContentPane().add(mainPnl)
 
                     # -----------------------------------------------------------------------------------
-                    # mainPnl = MyJPanel(BorderLayout())
                     mainPnl.putClientProperty("%s.id" %(NAB.myModuleID), "mainPnl")
                     mainPnl.add(controlPnl, BorderLayout.NORTH)
                     mainPnl.add(scrollpane, BorderLayout.CENTER)
 
                     NAB.theFrame.getContentPane().setLayout(BorderLayout())
-                    # NAB.theFrame.getContentPane().add(mainPnl, BorderLayout.CENTER)
                     NAB.theFrame.getContentPane().add(masterPnl, BorderLayout.CENTER)
 
                     # -----------------------------------------------------------------------------------
                     NAB.theFrame.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE)
 
-                    # shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
                     shortcut = MoneydanceGUI.ACCELERATOR_MASK
 
                     # Add standard CMD-W keystrokes etc to close window
@@ -11131,6 +13875,15 @@ Visit: %s (Author's site)
                     myPrint("DB", "Triggering saveSettings() via Runnable....")
                     SwingUtilities.invokeLater(self.SaveSettingsRunnable())
 
+            elif (appEvent.lower().startswith(("%s:customevent:undoSettings" %(self.myModuleID)).lower())):
+                myPrint("DB", "%s Undo/Reload settings requested - I might trigger undo/reload if conditions are appropriate" %(appEvent))
+
+                self.getMoneydanceUI()  # Check to see if the UI & dataset are loaded.... If so, create the JFrame too...
+
+                if self.theFrame is not None and self.theFrame.isActiveInMoneydance:
+                    myPrint("DB", "Triggering undoSettings() via Runnable....")
+                    SwingUtilities.invokeLater(self.UndoReloadSettingsRunnable())
+
             elif (appEvent.lower().startswith(("%s:customevent:showConsole" %(self.myModuleID)).lower())):
                 myPrint("B", "%s Save settings requested - Triggering Help>Show Console" %(appEvent))
                 SwingUtilities.invokeLater(ShowConsoleRunnable())
@@ -11228,280 +13981,6 @@ Visit: %s (Author's site)
             self.moneydanceContext.getUI().setStatus(">> StuWareSoftSystems - thanks for using >> %s....... >> I am now unloaded...." %(GlobalVars.thisScriptName),0)
 
             myPrint("DB", "... Completed unload routines...")
-
-    class SpecialJLinkLabel(JLinkLabel):
-        def __init__(self, *args, **kwargs):
-            tdfsc = kwargs.pop("tdfsc", None)               # type: TextDisplayForSwingConfig
-            self.maxWidth = -1
-            self.maxHeight = -1
-            super(self.__class__, self).__init__(*args)
-            self.NAB = NetAccountBalancesExtension.getNAB()
-            self.md = self.NAB.moneydanceContext
-            self.fonts = self.md.getUI().getFonts()
-            self.fonts.updateMetricsIfNecessary(self.getGraphics())
-            self.maxBaseline = self.fonts.defaultMetrics.getMaxDescent()
-            self.underlineStroke = BasicStroke(1.0, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0, [1.0, 6.0], 1.0 if (self.getHorizontalAlignment() == JLabel.LEFT) else 0.0)
-            self.underlineDots = self.NAB.savedDisplayVisualUnderDots
-            if tdfsc.isNoUnderlineDots(): self.underlineDots = False
-            if tdfsc.isForceUnderlineDots(): self.underlineDots = True
-
-        def setUnderlineDots(self, underlineDots): self.underlineDots = underlineDots
-
-        def getPreferredSize(self):
-            dim = super(self.__class__, self).getPreferredSize()
-            self.maxWidth = Math.max(self.maxWidth, dim.width)
-            dim.width = self.maxWidth
-            self.maxHeight = Math.max(self.maxHeight, dim.height)
-            dim.height = self.maxHeight
-            return dim
-
-        def paintComponent(self, g2d):
-            if isinstance(self, JLabel): pass                                                                           # trick IDE into type checking
-            if isinstance(g2d, Graphics2D): pass                                                                        # trick IDE into type checking
-
-            super(self.__class__, self).paintComponent(g2d)
-            if (not self.underlineDots or g2d is None): return
-
-            # html_view = self.getClientProperty("html")
-            # if html_view is None: return
-            # if isinstance(html_view, View): pass
-
-            isLeftAlign = (self.getHorizontalAlignment() == JLabel.LEFT)
-
-            x = 0
-            y = 0
-            w = self.getWidth()
-            h = self.getHeight()
-            insets = self.getInsets()
-
-            # self.fonts.updateMetricsIfNecessary(g2d)
-            # g2d.setFont(self.fonts.defaultText)
-
-            viewR = Rectangle(w, h)
-            iconR = Rectangle()
-            textR = Rectangle()
-
-            clippedText = SwingUtilities.layoutCompoundLabel(
-                self,
-                g2d.getFontMetrics(),
-                self.getText(),
-                self.getIcon(),
-                self.getVerticalAlignment(),
-                self.getHorizontalAlignment(),
-                self.getVerticalTextPosition(),
-                self.getHorizontalTextPosition(),
-                viewR,
-                iconR,
-                textR,
-                self.getIconTextGap()
-            )
-            if clippedText is None: pass
-
-            visibleTextWidth = int(textR.getWidth())
-
-            # visibleTextWidth = int(html_view.getPreferredSpan(View.X_AXIS))   # Only useful when html...
-
-            baselineY = (y + self.getHeight() - self.maxBaseline - 1)
-
-            if isLeftAlign:
-                startDots = (visibleTextWidth + insets.left)
-                lengthOfDots = (self.getWidth() - startDots)
-            else:
-                startDots = x
-                lengthOfDots = (self.getWidth() - visibleTextWidth - insets.right)
-
-            line = Path2D.Double()                                                                                      # noqa
-            line.moveTo(w if isLeftAlign else 0.0, baselineY - insets.top)
-            line.lineTo(0.0 if isLeftAlign else w, baselineY - insets.top)
-
-            g2d.setColor(self.md.getUI().getColors().defaultTextForeground)
-            g2d.clipRect(startDots, 0, lengthOfDots, h)
-            g2d.setStroke(self.underlineStroke)
-            g2d.draw(line)
-
-    class TextDisplayForSwingConfig:
-        WIDGET_ROW_BLANKROWNAME = "<#brn>"
-        WIDGET_ROW_RIGHTROWNAME = "<#jr>"
-        WIDGET_ROW_CENTERROWNAME = "<#jc>"
-        WIDGET_ROW_REDROWNAME = "<#cre>"
-        WIDGET_ROW_BLUEROWNAME = "<#cbl>"
-        WIDGET_ROW_LIGHTGREYROWNAME = "<#cgr>"
-        WIDGET_ROW_BOLDROWNAME = "<#fbo>"
-        WIDGET_ROW_ITALICSROWNAME = "<#fit>"
-        WIDGET_ROW_UNDERLINESROWNAME = "<#fun>"
-        WIDGET_ROW_NO_UNDERLINE_DOTS = "<#nud>"
-        WIDGET_ROW_FORCE_UNDERLINE_DOTS = "<#fud>"
-        WIDGET_ROW_HTMLROWNAME = "<#html>"
-
-        WIDGET_ROW_BLANKZEROVALUE = "<#bzv>"
-
-        WIDGET_ROW_VALUE_RED = "<#cvre>"
-        WIDGET_ROW_VALUE_BLUE = "<#cvbl>"
-        WIDGET_ROW_VALUE_LIGHTGREY = "<#cvgr>"
-        WIDGET_ROW_VALUE_BOLD = "<#fvbo>"
-        WIDGET_ROW_VALUE_ITALICS = "<#fvit>"
-        WIDGET_ROW_VALUE_UNDERLINE = "<#fvun>"
-
-        def __init__(self, _rowText, _smallText, _smallColor=None, stripBigChars=True, stripSmallChars=True):
-            self.ui = GlobalVars.CONTEXT.getUI()
-            self.mono = self.ui.getFonts().mono
-            self.originalRowText = _rowText
-            self.originalSmallText = _smallText
-            self.originalSmallColor = _smallColor
-            self.originalStripBigChars = stripBigChars
-            self.originalStripSmallChars = stripSmallChars
-            self.swingComponentText = None
-            self.color = None
-            self.blankRow = False
-            self.bold = False
-            self.italics = False
-            self.underline = False
-            self.forceUnderlineDots = False
-            self.noUnderlineDots = False
-            self.html = False
-            self.justification = JLabel.LEFT
-            self.disableBlinkOnValue = False
-            self.blankZero = False
-            self.valueColor = None
-            self.valueBold = False
-            self.valueItalics = False
-            self.valueUnderline = False
-
-            if (self.__class__.WIDGET_ROW_BLUEROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BLUEROWNAME, "")
-                self.color = getColorBlue()
-
-            if (self.__class__.WIDGET_ROW_REDROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_REDROWNAME, "")
-                self.color = getColorRed()
-
-            if (self.__class__.WIDGET_ROW_LIGHTGREYROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_LIGHTGREYROWNAME, "")
-                self.color = GlobalVars.CONTEXT.getUI().getColors().tertiaryTextFG
-
-            if (self.__class__.WIDGET_ROW_BOLDROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BOLDROWNAME, "")
-                self.bold = True
-
-            if (self.__class__.WIDGET_ROW_ITALICSROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_ITALICSROWNAME, "")
-                self.italics = True
-
-            if (self.__class__.WIDGET_ROW_UNDERLINESROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_UNDERLINESROWNAME, "")
-                self.underline = True
-
-            if (self.__class__.WIDGET_ROW_HTMLROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_HTMLROWNAME, "")
-                self.html = True
-
-            if (self.__class__.WIDGET_ROW_BLANKZEROVALUE in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_BLANKZEROVALUE, "")
-                self.blankZero = True
-
-            if (self.__class__.WIDGET_ROW_VALUE_BLUE in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_BLUE, "")
-                self.valueColor = getColorBlue()
-
-            if (self.__class__.WIDGET_ROW_VALUE_RED in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_RED, "")
-                self.valueColor = getColorRed()
-
-            if (self.__class__.WIDGET_ROW_VALUE_LIGHTGREY in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_LIGHTGREY, "")
-                self.valueColor = GlobalVars.CONTEXT.getUI().getColors().tertiaryTextFG
-
-            if (self.__class__.WIDGET_ROW_VALUE_BOLD in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_BOLD, "")
-                self.valueBold = True
-
-            if (self.__class__.WIDGET_ROW_VALUE_ITALICS in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_ITALICS, "")
-                self.valueItalics = True
-
-            if (self.__class__.WIDGET_ROW_VALUE_UNDERLINE in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_VALUE_UNDERLINE, "")
-                self.valueUnderline = True
-
-            if (self.__class__.WIDGET_ROW_RIGHTROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_RIGHTROWNAME, "")
-                self.justification = JLabel.RIGHT
-
-            if (self.__class__.WIDGET_ROW_CENTERROWNAME in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_CENTERROWNAME, "")
-                self.justification = JLabel.CENTER
-
-            if (self.__class__.WIDGET_ROW_BLANKROWNAME in _rowText):
-                _rowText = ""
-                self.blankRow = True
-
-            if (self.__class__.WIDGET_ROW_NO_UNDERLINE_DOTS in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_NO_UNDERLINE_DOTS, "")
-                self.noUnderlineDots = True
-                self.forceUnderlineDots = False
-
-            if (self.__class__.WIDGET_ROW_FORCE_UNDERLINE_DOTS in _rowText):
-                _rowText = _rowText.replace(self.__class__.WIDGET_ROW_FORCE_UNDERLINE_DOTS, "")
-                self.forceUnderlineDots = True
-                self.noUnderlineDots = False
-
-            if self.getJustification() == JLabel.CENTER:
-                self.noUnderlineDots = True         # These don't work properly when centered....
-                self.forceUnderlineDots = False
-
-            if self.blankZero: self.disableBlinkOnValue = True
-
-            self.swingComponentText = wrap_HTML_BIG_small(_rowText,
-                                                          _smallText,
-                                                          _smallColor=_smallColor,
-                                                          stripBigChars=stripBigChars,
-                                                          stripSmallChars=stripSmallChars,
-                                                          _bigColor=self.color,
-                                                          _italics=self.italics,
-                                                          _bold=self.bold,
-                                                          _underline=self.underline,
-                                                          _html=self.html)
-
-        def clone(self, tdfsc, prependBigText, appendBigText):
-            newTDFSC = TextDisplayForSwingConfig(prependBigText + tdfsc.originalRowText + appendBigText,
-                                                 tdfsc.originalSmallText,
-                                                 _smallColor=tdfsc.originalSmallText,
-                                                 stripBigChars=tdfsc.originalStripBigChars,
-                                                 stripSmallChars=tdfsc.originalStripSmallChars)
-            return newTDFSC
-
-        def getSwingComponentText(self): return self.swingComponentText
-        def getBlankZero(self): return self.blankZero
-        def getJustification(self): return self.justification
-        def isNoUnderlineDots(self): return self.noUnderlineDots
-        def isForceUnderlineDots(self): return self.forceUnderlineDots
-        def getDisableBlinkonValue(self): return self.disableBlinkOnValue
-        def getValueBold(self): return self.valueBold
-        def getValueItalics(self): return self.valueItalics
-        def getValueUnderline(self): return self.valueUnderline
-
-        def getValueColor(self, resultValue=-1):
-            if self.valueColor is not None:
-                return self.valueColor
-            if resultValue < 0:
-                return self.ui.getColors().negativeBalFG
-            else:
-                if "default" == ThemeInfo.themeForID(self.ui,
-                        self.ui.getPreferences().getSetting(GlobalVars.MD_PREFERENCE_KEY_CURRENT_THEME, ThemeInfo.DEFAULT_THEME_ID)).getThemeID():
-                    return self.ui.getColors().budgetHealthyColor
-                else:
-                    return self.ui.getColors().positiveBalFG
-
-        def getValueFont(self, enhanceFormat=True):
-            font = self.mono                                                                                            # type: Font
-            if enhanceFormat:
-                if self.getValueBold() or self.getValueItalics() or self.getValueUnderline():
-                    fa = font.getAttributes()
-                    if self.getValueBold(): fa.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD)
-                    if self.getValueItalics(): fa.put(TextAttribute.POSTURE, TextAttribute.POSTURE_OBLIQUE)
-                    if self.getValueUnderline(): fa.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON)
-                    font = font.deriveFont(fa)
-            return font
 
     class MyHomePageView(HomePageView, AccountListener, CurrencyListener):
 
@@ -11794,7 +14273,9 @@ Visit: %s (Author's site)
             return totalBalanceTable
 
         @staticmethod
-        def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):                                # noqa
+        def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):
+            # type: (AccountBook, bool, bool, SwingWorker) -> [CalculatedBalance]
+
             if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
             NAB = NetAccountBalancesExtension.getNAB()
@@ -11803,25 +14284,26 @@ Visit: %s (Author's site)
 
             baseCurr = _book.getCurrencies().getBaseType()
 
-            _totalBalanceTable = []         # type: [CalculatedBalance]
+            _totalBalanceTable = []                                                                                     # type: [CalculatedBalance]
 
-            incExpTxnTable = buildEmptyTxnOrBalanceArray()
+            parallelTxnTable = buildEmptyTxnOrBalanceArray()
 
             try:
-                startTime = System.currentTimeMillis()
-
-                # saveTheRowIndex = (NAB.getSelectedRowIndex() if not lFromSimulate else None)
+                veryStartTime = thisSectionStartTime = System.currentTimeMillis()
 
                 isParallelBalanceTableOperational()
 
                 # todo - do I want to call this here?
                 NAB.searchAndStoreGroupIDs(NAB.savedFilterByGroupID)      # Ensure the cache of remembered GroupIDs is current...
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE0 (searchAndStoreGroupIDs) >> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "0"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
 
-                # Derive the other row we need (when using other row(s) as part of the maths) when simulating...
+
+                # ------- DERIVE ANY OTHER ROW CHAIN(S) WHEN SIMULATING ------------------------------------------------
                 if justIndex is None:
                     simulateRowIdxs = []
                     simulateRowUUIDs = []
@@ -11840,9 +14322,6 @@ Visit: %s (Author's site)
                                 onRowIdx = otherRowIdx
                                 # if debug: myPrint("B", ".... UORChains[primaryRowUUID]", UORChains[primaryRowUUID])
                                 continue
-                        # elif NAB.savedOperateOnAnotherRowTable[onRowIdx][NAB.OPERATE_OTHER_ROW_ROW] is None:
-                        #     break                                          # Clean break, no error, end of the line...
-                        # UORChains[primaryRowUUID] = [onRowIdx, None]       # None signifies an UOR chaining error.....
                         break
 
                     if debug:
@@ -11855,7 +14334,7 @@ Visit: %s (Author's site)
                     if debug: myPrint("B", "@@ simulateRowUUIDs:", simulateRowUUIDs)
 
 
-                # --------------------------------------------------------------------------------------------------
+                # -------- DERIVE LIST OF SELECTED ACCOUNTS ------------------------------------------------------------
                 accountsToShow = buildEmptyAccountList()
                 for iAccountLoop in range(0, NAB.getNumberOfRows()):
 
@@ -11868,15 +14347,13 @@ Visit: %s (Author's site)
                     if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
                     if debug: myPrint("DB", "HomePageView: Finding selected accounts for row: %s" %(onRow))
-                    # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
 
                     for accID in NAB.savedAccountListUUIDs[iAccountLoop]:
 
                         if swClass and swClass.isCancelled(): return []
 
-                        if debug: myPrint("DB", "... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
-                        # acct = AccountUtil.findAccountWithID(_book.getRootAccount(), accID)                           # Very slow...
-                        acct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(accID)
+                        if debug: myPrint("B", "... Row: %s - looking for Account with UUID: %s" %(onRow, accID))
+                        acct = NAB.moneydanceContext.getCurrentAccountBook().getAccountByUUID(accID)                    # Don't use AccountUtil.findAccountWithID() as very slow!
 
                         if acct is not None:
                             # myPrint("DB", "....found and adding account to list: %s" %acct)
@@ -11885,78 +14362,79 @@ Visit: %s (Author's site)
                         else:
                             myPrint("B", "....WARNING - Row: %s >> Account with UUID %s not found..? Skipping this one...." %(onRow, accID))
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE1>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "1"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
 
-                # Printing of lists containing objects which return multi-bye characters (e.g. Asian) will error - e.g. print [acct]
-                try: myPrint("DB", "accountsToShow table: %s" %accountsToShow)
+                # NOTE: Printing of lists containing objects which return multi-bye characters (e.g. Asian) will error - e.g. print [acct]
+                try: myPrint("DB", "accountsToShow table: %s" %(accountsToShow))
                 except: pass
 
-                # --------------------------------------------------------------------------------------------------
-                lIncExpData = False
-
-                # Income / Expense harvest associated accounts
+                # ------ 1. DERIVE LIST OF CHILD ACCOUNTS WHEN PARALLEL TABLE REQUIRED ------------------------------------
+                lParallelData = False
                 for iAccountLoop in range(0, NAB.getNumberOfRows()):
 
                     if swClass and swClass.isCancelled(): return []
 
-                    # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
-
                     onRow = iAccountLoop + 1
 
-                    incExpAccountsList = []
+                    parallelFullAccountsList = []
 
                     if justIndex is not None and iAccountLoop not in simulateRowIdxs: continue
                     if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
                     if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
-                    if not isIncomeExpenseAllDatesSelected(iAccountLoop):
-                        if debug: myPrint("DB", "HomePageView: Income/Expense Date Range '%s' used on Row: %s (will gather child accounts (if AutoSum) and all related income/expense transactions). AutoSum = %s"
-                                %(NAB.savedIncomeExpenseDateRange[iAccountLoop], onRow, NAB.savedAutoSumAccounts[iAccountLoop]))
+                    if isParallelBalanceTableOperational(iAccountLoop):     # Could be for balance asof date, I/E date range, Cost Basis, Reminders
+
+                        if debug: myPrint("DB", "HomePageView: parallel table required on Row: %s (will gather child accounts (if AutoSum) and transactions (where needed) for balances). AutoSum = %s" %(onRow, NAB.savedAutoSumAccounts[iAccountLoop]))
 
                         for acct in accountsToShow[iAccountLoop]:
 
                             if swClass and swClass.isCancelled(): return []
 
-                            returnThisAccountAndAllChildren(acct, _listAccounts=incExpAccountsList,autoSum=NAB.savedAutoSumAccounts[iAccountLoop], justIncomeExpense=True)
+                            # returnThisAccountAndAllChildren(acct, _listAccounts=parallelFullAccountsList, autoSum=NAB.savedAutoSumAccounts[iAccountLoop], justIncomeExpense=True)
+                            returnThisAccountAndAllChildren(acct, _listAccounts=parallelFullAccountsList,
+                                                            autoSum=NAB.savedAutoSumAccounts[iAccountLoop],
+                                                            justIncomeExpense=False)
 
-                        if len(incExpAccountsList) > 0:
-                            if debug: myPrint("DB", "...incExpAccountsList contains %s Income/Expense accounts... Populating Inc/Exp table - row: %s" %(len(incExpAccountsList), onRow))
+                        if len(parallelFullAccountsList) > 0:
+                            if debug: myPrint("DB", "...parallelFullAccountsList contains %s (for parallel) accounts... Populating empty parallel I/E txns table - row: %s" %(len(parallelFullAccountsList), onRow))
 
-                            lIncExpData = True
+                            lParallelData = True
 
-                            for acct in incExpAccountsList:
-                                incExpTxnTable[iAccountLoop][acct] = []
+                            for acct in parallelFullAccountsList:
+                                parallelTxnTable[iAccountLoop][acct] = []
                         else:
 
-                            if debug: myPrint("DB", "...No Income/Expense Accounts found for row: %s" %(onRow))
+                            if debug: myPrint("DB", "...No Accounts found for parallel operations on row: %s" %(onRow))
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE2>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "2.1"; stageTxt = "::calculateBalances()::returnThisAccountAndAllChildren()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
 
-                # Income / Expense harvest associated Txns - all in one sweep....
-                if not lIncExpData:
-                    if debug: myPrint("DB", "HomePageView: No IncExp Data requested or no accounts found... Skipping the harvesting of associated Txns...")
-                    incExpBalanceTable = []
+                if not lParallelData:
+                    if debug: myPrint("DB", "HomePageView: No parallel data requested or no accounts found... Skipping the harvesting of txns / balances parallel data...")
+                    parallelBalanceTable = []   # Dummy / empty list - will not be used...
 
                 else:
+                    emptyReturnValue = []
 
-                    if debug: myPrint("DB", "HomePageView: IncExp Data found... Harvesting associated Txns")
-                    returnTransactionsForAccounts(incExpTxnTable, swClass)
-                    if swClass and swClass.isCancelled(): return []
+                    parallelBalanceTable = rebuildParallelAccountBalancesStages2to7(parallelTxnTable, swClass, False, emptyReturnValue)
+                    if parallelBalanceTable is emptyReturnValue: return emptyReturnValue
+                    if swClass and swClass.isCancelled(): return emptyReturnValue
 
-                    if debug: myPrint("DB", "HomePageView: Converting IncExp Txns into Balances...")
-                    incExpBalanceTable = convertTxnTableIntoBalances(incExpTxnTable, swClass)
-                    if swClass and swClass.isCancelled(): return []
-
+                del parallelTxnTable
                 # --------------------------------------------------------------------------------------------------
 
                 lWarningDetected = False
                 iWarningType = None
                 iWarningDetectedInRow = None
                 del NAB.warningMessagesTable[:]     # clear the message table
+
                 if NAB.savedUseTaxDates and not NAB.areTaxDatesEnabled():
                     warnTxt = "* WARNING: 'Use Tax Dates' enabled but NOT enabled in MD's Settings/Preferences *"
                     NAB.warningMessagesTable.append(warnTxt)
@@ -11977,6 +14455,7 @@ Visit: %s (Author's site)
                     iCountIncomeExpense = 0
                     iCountAccounts = 0
                     iCountNonInvestAccounts = 0
+                    iCountInvestAccounts = 0
                     iCountSecurities = 0
 
                     lFoundNonSecurity = False
@@ -11993,21 +14472,21 @@ Visit: %s (Author's site)
 
                         totalBalance = 0
 
+                        todayInt = DateUtil.getStrippedDateInt()
+                        lBalanceAsOfDateSelected = isBalanceAsOfDateSelected(iAccountLoop)
+                        # balAsOfDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop])
+
                         # Iterate each selected account within the row...
                         for acct in accountsToShow[iAccountLoop]:
 
                             if swClass and swClass.isCancelled(): return []
 
-                            # noinspection PyUnresolvedReferences
-                            if acct.getAccountType() == Account.AccountType.SECURITY:
-                                iCountSecurities += 1
-                            elif isIncomeExpenseAcct(acct):
-                                iCountIncomeExpense += 1
+                            if isSecurityAcct(acct):            iCountSecurities += 1
+                            elif isIncomeExpenseAcct(acct):     iCountIncomeExpense += 1
                             else:
-                                # noinspection PyUnresolvedReferences
-                                if acct.getAccountType() != Account.AccountType.INVESTMENT:
-                                    iCountNonInvestAccounts += 1
                                 iCountAccounts += 1
+                                if not isInvestmentAcct(acct):  iCountNonInvestAccounts += 1
+                                if isInvestmentAcct(acct):      iCountInvestAccounts += 1
 
                             realAutoSum = NAB.savedAutoSumAccounts[iAccountLoop]
 
@@ -12056,15 +14535,13 @@ Visit: %s (Author's site)
                                             NAB.warningMessagesTable.append(warnTxt)
                                             lFoundAutoSumInActiveParentInThisThisRowWarning = True
 
-                            # noinspection PyUnresolvedReferences
-                            if acct.getAccountType() != Account.AccountType.SECURITY:
+                            if not isSecurityAcct(acct):
                                 lFoundNonSecurity = True
                             elif not lFoundNonSecurity:
                                 secLabelText = " (Securities)"
 
                             if NAB.migratedParameters:
-                                # noinspection PyUnresolvedReferences
-                                if acct.getAccountType() == Account.AccountType.INVESTMENT:
+                                if isInvestmentAcct(acct):
                                     autoSumFlag = True
                                 else:
                                     autoSumFlag = False
@@ -12072,19 +14549,24 @@ Visit: %s (Author's site)
                             else:
                                 autoSumFlag = realAutoSum
 
-                            # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance"
+                            # 0 = "Balance", 1 = "Current Balance", 2 = "Cleared Balance", 3 = "Balance asof Date"
 
                             acctCurr = acct.getCurrencyType()
-                            if (isIncomeExpenseAcct(acct) and not isIncomeExpenseAllDatesSelected(iAccountLoop)):
-                                if debug: myPrint("DB", ">> RowIdx: %s - Income/Expense date range: %s - Swapping in recalculated balances....:" %(iAccountLoop, NAB.savedIncomeExpenseDateRange[iAccountLoop]))
 
-                                try: sudoAcctRef = incExpBalanceTable[iAccountLoop][acct]                               # type: HoldBalance
+                            effectiveDateInt = None
+
+                            if isParallelBalanceTableOperational(iAccountLoop):
+                                if debug: myPrint("DB", ">> RowIdx: %s - Parallel balances operational - Swapping in recalculated balances....:" %(iAccountLoop))
+
+                                try:
+                                    sudoAcctRef = parallelBalanceTable[iAccountLoop][acct]                              # type: HoldBalance
+                                    effectiveDateInt = sudoAcctRef.getEffectiveDateInt()
                                 except KeyError:
-                                    myPrint("B", "@@ KeyError - Row: %s - Trying to access 'incExpBalanceTable[%s]' with Account: '%s'" %(onRow, iAccountLoop,acct))
+                                    myPrint("B", "@@ KeyError - Row: %s - Trying to access 'parallelBalanceTable[%s]' with Account: '%s'" %(onRow, iAccountLoop,acct))
                                     raise
 
                             else:
-                                if debug: myPrint("DB", ">> RowIdx: %s - No Special Income/Expense date range - retaining system calculated balances....:" %(iAccountLoop))
+                                if debug: myPrint("DB", ">> RowIdx: %s - Parallel balances NOT operating on this row - retaining system calculated balances....:" %(iAccountLoop))
                                 sudoAcctRef = acct                                                                      # type: Account
 
                             if NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_BALANCE:
@@ -12108,7 +14590,7 @@ Visit: %s (Author's site)
 
                             # This bit is neat, as it seems to work for Securities with just the qty balance!!
                             if bal != 0 and acctCurr != thisRowCurr:
-                                balConv = CurrencyUtil.convertValue(bal, acctCurr, thisRowCurr)                         # todo - should this include an asof date?
+                                balConv = convertValue(bal, acctCurr, thisRowCurr, effectiveDateInt)
                                 # myPrint("DB", ".. Converted %s to %s (%s)" %(acctCurr.formatSemiFancy(bal, NAB.decimal), thisRowCurr.formatSemiFancy(balConv, NAB.decimal), thisRowCurr))
                                 if debug: myPrint("DB", ".. Converted %s to %s (%s)"
                                         %(formatSemiFancy(acctCurr, bal, NAB.decimal, indianFormat=NAB.savedUseIndianNumberFormat),
@@ -12117,11 +14599,9 @@ Visit: %s (Author's site)
                             else:
                                 totalBalance += (bal * mult)
 
+                        # DETECT ILLOGICAL CALCULATIONS
                         if debug or NAB.savedShowWarningsTable[iAccountLoop]:
-                            # DETECT ILLOGICAL CALCULATIONS
-                            if ((iCountIncomeExpense and (iCountAccounts))
-                                    or (iCountSecurities and (iCountIncomeExpense))):
-
+                            if ((iCountIncomeExpense and (iCountAccounts)) or (iCountSecurities and (iCountIncomeExpense))):
                                 lWarningDetected = True
                                 iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
                                 iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
@@ -12130,6 +14610,80 @@ Visit: %s (Author's site)
                                            %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                 myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
+
+                            if ((NAB.savedUseCostBasisTable[iAccountLoop][GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_NONE
+                                    and (iCountSecurities or (isUseCostBasisCashSelected(iAccountLoop) and iCountInvestAccounts)))):
+                                if (iCountIncomeExpense or iCountNonInvestAccounts):
+                                    lWarningDetected = True
+                                    iWarningType = (6 if (iWarningType is None or iWarningType == 6) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+
+                                    warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis or ur-gains with other non-security / invest(with cash) accounts detected. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                                if (NAB.savedIncludeRemindersTable[iAccountLoop][0]):
+                                    lWarningDetected = True
+                                    iWarningType = (7 if (iWarningType is None or iWarningType == 7) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+
+                                    warnTxt = ("WARNING: Row: %s >> Mix and match when returning Security's cost basis / ur-gains, and including reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                                if (NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CLEAREDBALANCE):
+                                    lWarningDetected = True
+                                    iWarningType = (13 if (iWarningType is None or iWarningType == 13) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+
+                                    warnTxt = ("WARNING: Row: %s >> Security's cost basis / ur-gains selected with Cleared Balance ILLOGICAL. Calculated 'Balance' cost basis / ur-gains will be returned. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                            if (lBalanceAsOfDateSelected and NAB.savedBalanceType[iAccountLoop] == GlobalVars.BALTYPE_CLEAREDBALANCE
+                                    and getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop]) < todayInt):
+                                lWarningDetected = True
+                                iWarningType = (11 if (iWarningType is None or iWarningType == 11) else 0)
+                                iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+
+                                warnTxt = ("WARNING: Row: %s >> Past asof date in conjunction with Cleared Balance ILLOGICAL (will use calculated asof balance). Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                           %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                myPrint("B", warnTxt)
+                                NAB.warningMessagesTable.append(warnTxt)
+
+                            if NAB.savedUseTaxDates:
+                                if (NAB.savedIncludeRemindersTable[iAccountLoop][0]):
+                                    lWarningDetected = True
+                                    iWarningType = (8 if (iWarningType is None or iWarningType == 8) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+
+                                    warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on included reminders. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                                if (NAB.savedUseCostBasisTable[iAccountLoop][GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_NONE):
+                                    lWarningDetected = True
+                                    iWarningType = (9 if (iWarningType is None or iWarningType == 9) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+
+                                    warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on calculated costbasis / ur-gains. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                                if lBalanceAsOfDateSelected:
+                                    lWarningDetected = True
+                                    iWarningType = (10 if (iWarningType is None or iWarningType == 10) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+
+                                    warnTxt = ("WARNING: Row: %s >> Tax date cannot be derived on as-of calculated balances. Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                               %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
 
 
                     _totalBalanceTable.append(CalculatedBalance(rowName=NAB.savedWidgetName[iAccountLoop],
@@ -12141,11 +14695,13 @@ Visit: %s (Author's site)
                                                                 rowNumber=onRow))
 
 
-                del accountsToShow, totalBalance, incExpTxnTable, incExpAccountsList, simulateRowIdxs
+                del accountsToShow, totalBalance, parallelFullAccountsList, simulateRowIdxs
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE3>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "3"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
 
                 # Calculate any averages...
                 for i in range(0, len(_totalBalanceTable)):
@@ -12163,9 +14719,11 @@ Visit: %s (Author's site)
                         if debug: myPrint("DB", ":: Row: %s using average / by: %s - converted: %s to %s" %(i+1, avgByForRow, originalBalance, average))
                         balanceObj.setBalance(average)
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE4>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "4"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
 
                 # Perform maths using results from other rows (optional)...
                 # First work out the chains...
@@ -12251,9 +14809,11 @@ Visit: %s (Author's site)
                                 # myPrint("B", "!! Updating balance on onChainedUORIdx: %s with %s" %(onChainedUORIdx, balanceObj));
                                 alreadyUpdatedRowUUIDs.append(balanceObj.getUUID())
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE5>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "5"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
 
                 # Perform final adjustments...
                 for i in range(0, len(_totalBalanceTable)):
@@ -12266,9 +14826,11 @@ Visit: %s (Author's site)
                         if debug: myPrint("DB", ":: Row: %s using final calculation adjustment of %s adjusted: %s to %s" %(i+1, NAB.savedAdjustCalcByTable[i], originalBalance, adjustedBalance))
                         balanceObj.setBalance(adjustedBalance)
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE6>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "6"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                thisSectionStartTime = System.currentTimeMillis()
 
 
                 # Update NABs temporary balance table with results
@@ -12302,9 +14864,11 @@ Visit: %s (Author's site)
 
                     if debug: NAB.validateLastResultsTable(obtainLockFirst=False)
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug: myPrint("DB", "calculateBalances() STAGE7>> TOOK: %s milliseconds (%s seconds)" %(tookTime, tookTime / 1000.0))
-                startTime = System.currentTimeMillis()
+                tookTime = System.currentTimeMillis() - thisSectionStartTime
+                if debug or TIMING_DEBUG:
+                    stage = "7"; stageTxt = "::calculateBalances()"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
+                # thisSectionStartTime = System.currentTimeMillis()
 
                 if debug:
                     if debug: myPrint("DB", "----------------")
@@ -12334,10 +14898,10 @@ Visit: %s (Author's site)
 
                 # if not lFromSimulate: NAB.setSelectedRowIndex(saveTheRowIndex);
 
-                tookTime = System.currentTimeMillis() - startTime
-                if debug or (tookTime >= 1000):
-                    myPrint("B", ">> CALCULATE BALANCES TOOK: %s milliseconds (%s seconds)"
-                            %(tookTime, tookTime / 1000.0))
+                tookTime = System.currentTimeMillis() - veryStartTime
+                if debug or TIMING_DEBUG or (tookTime >= 1000):
+                    stage = "<ALL>"; stageTxt = ">> CALCULATE BALANCES"
+                    myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
 
             except AttributeError as e:
                 _totalBalanceTable = []
@@ -12468,26 +15032,33 @@ Visit: %s (Author's site)
 
                                 hiddenRows = False
                                 filteredRows = False
+                                useBalanceAsOf = False
+                                returnCostBasis = False
+                                includeReminders = False
 
                                 if not NAB.configSaved:
-                                    rowText = " ** CLICK TO SAVE SETTINGS **"
-                                    nameLabel = JLinkLabel(rowText, "saveSettings", JLabel.LEFT)
-                                    nameLabel.setForeground(md.getUI().getColors().negativeBalFG)                       # noqa
-                                    nameLabel.setDrawUnderline(False)
-                                    nameLabel.setBorder(_view.nameBorder)                                               # noqa
+                                    saveLabel = JLinkLabel("<SAVE Settings>", "saveSettings", JLabel.LEFT)
+                                    undoLabel = JLinkLabel("<UNDO Changes>", "undoSettings", JLabel.LEFT)
+                                    for lbl in [saveLabel, undoLabel]:
+                                        lbl.setForeground(md.getUI().getColors().negativeBalFG)                         # noqa
+                                        lbl.setDrawUnderline(False)
+                                        lbl.setBorder(_view.nameBorder)                                                 # noqa
+                                        lbl.addLinkListener(_view)
 
-                                    _view.listPanel.add(nameLabel, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).filly().west().pady(2))
+                                    saveUndoPnl = JPanel(GridBagLayout())
+                                    saveUndoPnl.add(saveLabel, GridC.getc().xy(0, self.widgetOnPnlRow).filly().pady(2))
+                                    saveUndoPnl.add(undoLabel, GridC.getc().xy(1, self.widgetOnPnlRow).filly().pady(2))
+                                    _view.listPanel.add(saveUndoPnl, GridC.getc().xy(0, self.widgetOnPnlRow).wx(1.0).filly().pady(2))
                                     self.widgetOnPnlRow += 1
 
-                                    nameLabel.addLinkListener(_view)
-                                    thisViewsBlinkers.append(nameLabel)
+                                    thisViewsBlinkers.append(saveUndoPnl)
 
                                     self.addRowSeparator(_view)
 
                                 for i in range(0, len(self.netAmountTable)):
 
                                     onRow = i + 1
-                                    balanceObj = self.netAmountTable[i]    # type: CalculatedBalance
+                                    balanceObj = self.netAmountTable[i]                                                 # type: CalculatedBalance
 
                                     if NAB.isThisRowAlwaysHideOrAutoHidden(None, i, checkAlwaysHide=True, checkAutoHideWhen=False):
                                         if debug: myPrint("DB", "** Skipping disabled row %s" %(onRow))
@@ -12502,7 +15073,7 @@ Visit: %s (Author's site)
                                     lUseAverage = NAB.doesRowUseAvgBy(i)
                                     lAdjustFinalBalance = (NAB.savedAdjustCalcByTable[i] != 0.0)
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
-                                    lUseTaxDates = (NAB.savedUseTaxDates and not isIncomeExpenseAllDatesSelected(i))
+                                    lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
                                     balanceOrAverage = balanceObj.getBalance()
 
@@ -12525,14 +15096,36 @@ Visit: %s (Author's site)
                                         showAverageText = " (Avg/by: %s)" %(round(avgByForRow, 4))
                                         if debug: myPrint("DB", ":: Row: %s using average / by: %s" %(onRow, avgByForRow))
 
+                                    showBalanceAsOfText = ""
+                                    if isBalanceAsOfDateSelected(i):
+                                        useBalanceAsOf = True
+                                        showBalanceAsOfText = " (balasof)" if not debug else " (balasof: %s)" %(convertStrippedIntDateFormattedText(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i])))
+                                        if debug: myPrint("DB", ":: Row: %s using balance asof date: %s" %(i+1, getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[i])))
+
+                                    showIncludeRemindersText = ""
+                                    if isIncludeRemindersSelected(i):
+                                        includeReminders = True
+                                        showIncludeRemindersText = " (rems)" if not debug else " (incl. reminders asof: %s)" %(convertStrippedIntDateFormattedText(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
+                                        if debug: myPrint("DB", ":: Row: %s including reminders asof date: %s" %(i+1, getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
+
+                                    showCostBasisText = ""
+                                    if isUseCostBasisSelected(i):
+                                        returnCostBasis = True
+                                        if NAB.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CB:
+                                            showCostBasisText = " (cb)" if not debug else " (costbasis)"
+                                            if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts)" %(i+1))
+                                        elif NAB.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_URGAINS:
+                                            showCostBasisText = " (urg)" if not debug else " (u/r gains)"
+                                            if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))
+
                                     showAdjustFinalBalanceText = ""
                                     if lAdjustFinalBalance:
                                         showAdjustFinalBalanceText = " (adj by: %s)" %(NAB.savedAdjustCalcByTable[i])
                                         if debug: myPrint("DB", ":: Row: %s using final balance adjustment: %s" %(i+1, NAB.savedAdjustCalcByTable[i]))
 
-                                    useTaxDatesText = ""
+                                    showUseTaxDatesText = ""
                                     if lUseTaxDates:
-                                        useTaxDatesText = " (txd)"
+                                        showUseTaxDatesText = " (txd)"
                                         if debug: myPrint("DB", ":: Row: %s using tax dates" %(i+1))
 
                                     showUsesOtherRowTxt = ""
@@ -12545,7 +15138,18 @@ Visit: %s (Author's site)
 
                                     uuidTxt = "" if not debug else " (uuid: %s)" %(NAB.savedUUIDTable[i])
 
-                                    tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i], balanceObj.getExtraRowTxt() + showCurrText + showAverageText + showAdjustFinalBalanceText + useTaxDatesText + showUsesOtherRowTxt + uuidTxt, altFG)
+                                    tdfsc = TextDisplayForSwingConfig(("[%s] " %(i+1) if debug else "") + NAB.savedWidgetName[i],
+                                                                      balanceObj.getExtraRowTxt()
+                                                                      + showCurrText
+                                                                      + showAverageText
+                                                                      + showAdjustFinalBalanceText
+                                                                      + showUseTaxDatesText
+                                                                      + showBalanceAsOfText
+                                                                      + showIncludeRemindersText
+                                                                      + showCostBasisText
+                                                                      + showUsesOtherRowTxt
+                                                                      + uuidTxt,
+                                                                      altFG)
                                     nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc)
 
                                     # NOTE: Leave "  " to avoid the row height collapsing.....
@@ -12665,13 +15269,18 @@ Visit: %s (Author's site)
                                     warningCheckText = "" if not NAB.warningInParametersDetected else "*WARNING!* "
                                     warningsTurnedOffText = "" if not lAnyShowWarningsDisabled else "*SOME WARNINGS OFF* "
                                     parallelText = "" if not NAB.parallelBalanceTableOperating else "*PARALLEL BAL CALCS* "
+                                    balanceAsOfText = "" if not useBalanceAsOf else "*BALANCE ASOF* "
+                                    includeRemindersText = "" if not includeReminders else "*REMINDERS* "
+                                    costBasisText = "" if not returnCostBasis else "*COSTBASIS* "
                                     useTaxDatesText = "" if not NAB.savedUseTaxDates else "*TAX DATES* "
                                     hiddenRowsText = "" if not hiddenRows else "*HIDDEN ROW(s)* "
                                     filteredRowsText = "" if not filteredRows else "*FILTERED ROW(s)* "
                                     filterGroupIDText = "" if NAB.savedFilterByGroupID == "" else "*Filter: '%s'* " %(NAB.savedFilterByGroupID)
                                     combinedTxt = ""
                                     _countTxtAdded = 0
-                                    for _txt in [previewText, debugText, migratedText, warningCheckText, warningsTurnedOffText, parallelText, useTaxDatesText, hiddenRowsText, filteredRowsText, filterGroupIDText]:
+                                    for _txt in [previewText, debugText, migratedText, warningCheckText, warningsTurnedOffText,
+                                                 parallelText, balanceAsOfText, includeRemindersText, costBasisText, useTaxDatesText,
+                                                 hiddenRowsText, filteredRowsText, filterGroupIDText]:
                                         combinedTxt += _txt
                                         if _txt != "": _countTxtAdded += 1
                                         if _countTxtAdded >= 3:
@@ -12772,6 +15381,10 @@ Visit: %s (Author's site)
 
                     if (link.lower().startswith("saveSettings".lower())):
                         myPrint("DB", ".. calling .showURL() to trigger a save of settings ('%s')..." %(link))
+                        NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
+
+                    if (link.lower().startswith("undoSettings".lower())):
+                        myPrint("DB", ".. calling .showURL() to trigger an undo/reload of settings ('%s')..." %(link))
                         NAB.moneydanceContext.showURL("moneydance:fmodule:%s:%s:customevent:%s" %(HPV.myModuleID,HPV.myModuleID,link))
 
                     if (link.lower().startswith("showConsole".lower())):
@@ -13035,7 +15648,6 @@ Visit: %s (Author's site)
                         _view.balTypeLabel.setText("Calculated Total")                                                  # noqa
                         _view.balTypeLabel.setForeground(md.getUI().getColors().secondaryTextFG)                        # noqa
 
-                        # if isParallelBalanceTableOperational():
                         if debug:
                             _view.listPanel.removeAll()
                             onPnlRow = 0
