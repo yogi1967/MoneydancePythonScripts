@@ -13346,6 +13346,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.filterOutZeroBalAccts_INACTIVE_CB = MyJCheckBox("Filter Out Zeros Inactive", False)
+                    NAB.filterOutZeroBalAccts_INACTIVE_CB.setActionCommand("filter_out_zeros_inactive")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_INACTIVE_CB")
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOutZeroBalAccts_INACTIVE_CB.setName("filterOutZeroBalAccts_INACTIVE_CB")
@@ -13355,6 +13356,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.filterIncludeSelected_CB = MyJCheckBox("Filter Include Selected", False)
+                    NAB.filterIncludeSelected_CB.setActionCommand("filter_include_selected")
                     NAB.filterIncludeSelected_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterIncludeSelected_CB")
                     NAB.filterIncludeSelected_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterIncludeSelected_CB.setName("filterIncludeSelected_CB")
@@ -13406,6 +13408,7 @@ Visit: %s (Author's site)
                     topInset = 0
 
                     NAB.filterOutZeroBalAccts_ACTIVE_CB = MyJCheckBox("Filter Out Zeros Active", False)
+                    NAB.filterOutZeroBalAccts_ACTIVE_CB.setActionCommand("filter_out_zeros_active")
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOutZeroBalAccts_ACTIVE_CB")
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOutZeroBalAccts_ACTIVE_CB.setName("filterOutZeroBalAccts_ACTIVE_CB")
@@ -13415,6 +13418,7 @@ Visit: %s (Author's site)
                     onCol += 1
 
                     NAB.filterOnlyShowSelected_CB = MyJCheckBox("Only Show Selected", False)
+                    NAB.filterOnlyShowSelected_CB.setActionCommand("only_show_selected")
                     NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id" %(NAB.myModuleID), "filterOnlyShowSelected_CB")
                     NAB.filterOnlyShowSelected_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.filterOnlyShowSelected_CB.setName("filterOnlyShowSelected_CB")

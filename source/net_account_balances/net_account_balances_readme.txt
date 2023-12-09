@@ -217,7 +217,7 @@ ACCOUNT SELECTION LIST:
     - 'Store List Changes'      stores the current account list selection into memory (this does NOT save selections)
 
     >> You must click 'STORE LIST CHANGES' before you click simulate or exit the config screen. If you do not do this
-       then your selection changes will be lost!
+       then your selection changes could be lost! However, you will be asked if you want to store the changes first.
 
 >> DON'T FORGET TO SAVE ALL SETTINGS! (for convenience, this also stores your current account selection list too) <<
 
