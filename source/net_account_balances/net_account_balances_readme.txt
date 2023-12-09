@@ -13,11 +13,6 @@ INSTALLATION:
   ... or Drag & drop .mxt onto left side bar, or Extensions, Manage Extensions, add from file to install.
 - Once installed, visit Preferences > Summary Page, and then move the new widget to the desired Summary Page location
 
-
-*******Make this the normal versus trying to explain the change (it won't be a change in future versions***************
-** auto simulate row when you make GUI config changes has been turned off. Now you need to click the SIMULATE button **
-***********************************************************************************************************************
-
 PURPOSE:
 This extension creates a 'widget' that calculates / displays totals on the Moneydance Summary Page (Home Page)
 
@@ -39,7 +34,7 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 LET'S GET STARTED:
 
 Let's start with a row that is <NOT CONFIGURED>. Give it a name - like Credit Card Debt.
-Now select all your credit cards from the picklist. Click each one. Hit Save All Settings.
+Now select all your credit cards from the account selection list. Click each one. Hit Save All Settings.
 See the result on the summary page.You did note the installation bit, right? Putting the widget in place?
 You should now have a row which says "Credit Card Debt.    £(not too much hopefully)"
 That's the basics of CB (to create custom calculations)... "Custom Balances"... But you can do so many things now!
@@ -55,16 +50,18 @@ Save and look.
 Now that you have an inkling of the custom balance power potential here, go explore.
 
 
-WARNINGS:
+CREATING ROWS AND SAVING:
 
-  - You can create (very) illogical totals (e.g. by adding Securities to Income). CB tries to detect these issues.
-  - It will alert you if any are found. Help>Console Window will show you the details of any warnings
-  - A red warning icon will appear on the title bar of the widget, and in the GUI, if you have warnings.
-        - Click the warning icon to see a popup window displaying the detail(s) of the warnings.
-        - NOTE: The symbol will not be triggered for warnings on rows where Show Warnings has been un-ticked
-                ... unless debug mode is enabled, in which case the icon will always appear.
+Select Row:     Allows you to pick the row you want to work on. (Details below)
+Search Box:     Allows you to set up what rows you see in the widget via GroupID (Details below)
+Warnings Box:   Provides warnings based on 'illogical' selections (Details below)
+Insert Row Before/Insert Row After/Delete Row/Move Row/Duplicate Row: Allows you to create rows in any order.
+Reload Settings/Backup Config/Restore Config: Allows you to restore or save your configuration.
 
-EXAMINING THE CHOICES/CONFIGURATION:
+
+CHOICES/CONFIGURATION FOR A ROW:
+
+- Row Name: Name for the row. (Details below)
 
 - Balance option: Choose from 'Balance', 'Current Balance', 'Cleared Balance'
     - These are the same definitions used by Moneydance:
@@ -127,9 +124,9 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
 - Securities: Return Cost Basis / Unrealised Gains options:
     - N/A (default):         Cost Basis is never used
-    - Rtn Cost Basis:        When selected, then the cost basis (**as of the balance / asof date) for selected Security
+    - Rtn Cost Basis:        When selected, the cost basis (**as of the balance / asof date) for selected Security
                              accounts will be returned (instead of the normal shareholding).
-    - Rtn Unrealised Gains:  When selected, then the calculated unrealised gains (**asof the balance / asof date) for the
+    - Rtn Unrealised Gains:  When selected, the calculated unrealised gains (**asof the balance / asof date) for the
                              selected Security accounts will be returned. This is calculated as value less cost basis.
     - Include Cash Balances: When selected then cash balances on (selected) investment accounts will be included too.
 
@@ -143,12 +140,14 @@ EXAMINING THE CHOICES/CONFIGURATION:
 
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-INC/EXP Date Range: Simple Explanation - Refer to Detail at USING Categories
+- INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
+                      Otherwise they have entries for all dates. (Details below)
 
-Display Currency: Simple Explanation
+- Display Currency: Allows you to display the balance in a chosen currency, or security value, or other format.
+                    Disable Currency Formatting: drops any symbol/prefix/suffix associated with the currency.
 
 
-CALCULATIONS TO BALANCES:
+CALCULATIONS ON CALCULATED BALANCES:
 
 - Average by options:
     - Changes the final calculated balance into an average. Specify the number to divide by (DEFAULT 1.0)
@@ -174,7 +173,7 @@ CALCULATIONS TO BALANCES:
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
 
 - Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
-... You can set X to any value (positive or negative)
+    You can set X to any value (positive or negative)
     NOTE: If you select row option 'Hide Decimal Places', AND auto-hide row when balance=X,
           AND set X to a value with no decimals, then the calculated balance will be rounded when comparing to X.
           Rounding will be towards X... This means that X=0 would include -0.99 to +0.99 (example)
@@ -185,6 +184,7 @@ CALCULATIONS TO BALANCES:
                        ... This means if X=1 for example, then 0.1 thru 1.9 would show as 1 (not zero)
 
 - Row separator: You can put horizontal lines above / below rows to separate sections
+
 - Blink: Enables the blinking of the selected rows (when displayed / visible)
 
 - Show Warnings: This enables / disables the alerts flagging whether warnings have been detected in your parameters
@@ -194,15 +194,86 @@ CALCULATIONS TO BALANCES:
                  NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
                        .. The search for warnings stops after the first occurrence of each type of error it finds....
 
+
+ACCOUNT SELECTION LIST:
+
+    - You select accounts one-by-one to include in the row calculation.
+    - You can use the dropdown select box to quickly view certain accounts - e.g. "All Investment AND Security accts"
+      ... using the dropdown does not actually select any accounts. You have to click each one.
+      ... or use the following buttons
+    - 'Select All Visible'      selects all accounts in the current view filtered list, and adds the selection to the
+                                existing selection. E.g. If you view INVESTMENT, select all visible, then view SECURITY,
+                                then select all, then you will end up with all investment and all security.
+    - 'Clear Visible Selection' deselects all accounts in the currently viewable list (but does not deselect any
+                                selected accounts in non-viewable filtered list). E.g. view SECURITY,
+                                clear visible selection, then view INVESTMENT, and you will see your investment
+                                selections are still there.
+    - 'Clear Entire Selection'  deselects all accounts - whether they are in the viewable/filtered list or not.
+    - 'Undo List Changes'       undo any selection changes since your last 'Store List Changes'
+    - 'Store List Changes'      stores the current account list selection into memory (this does NOT save selections)
+
+    >> You must click 'STORE LIST CHANGES' before you click simulate or exit the config screen. If you do not do this
+       then your selection changes will be lost!
+
+>> DON'T FORGET TO SAVE ALL SETTINGS! (for convenience, this also stores your current account selection list too) <<
+
+<<Simulate Row>> - As you make changes, the value calculation is not recalculated. Once you have your list created,
+you can click Simulate Row to provide the value you will see.
+
+
+FILTERS FOR LIST CHOICES:
+
 - Active / Inactive Accounts:
   - MD ALWAYS includes the total balance(s) of all child accounts in an account's total. Irrespective of Active/Inactive
   - Thus if you select Active only and select an account containing inactive children, it will include inactive balances
   - When using AutoSum in this situation you will get a warning on screen
   - You will also see a small (3 vertical bars) icon to the right of account totals in the list window when this occurs.
-
-- Inactive Securities: You can flag a security as inactive by unticking the 'Show on summary page' box on a security
+  - Inactive Securities: You can flag a security as inactive by unticking the 'Show on summary page' box on a security
                        in the MD/Tools/Securities menu. This will then treat this security in ALL investment accounts
                        as INACTIVE.
+
+- List Choices - you can filter the pick list by multiple criteria.
+	       - other filters include filtering out zero values, and by what has been selected.
+
+
+OPTIONS MENU:
+
+  - Debug: Generates program debug messages in Help>Console Window. DO NOT LEAVE THIS PERMANENTLY ON (setting not saved)
+                     NOTE: Enabling this will show [row number] against each widget row on the home screen
+  - Show Print Icon: Enables/shows the print icon on the Home / Summary screen widget.. Will print the current view
+                     NOTE: Even when icon not visible, clicking the white-space before the title will activate print...
+  - Page Setup: Allows you to predefine certain page attributes for printing - e.g. Landscape etc...
+  - Reset Defaults: Basically allows an entire reset to initial settings (i.e. gets rid of all your data)
+  - Backup Config: Creates a backup of your current config file (then opens a window showing location of backup)
+  - Restore Config: Allows you to restore (or import) config file from previous back up
+  - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
+  - You can change the default setting AutoSum for new rows that you insert/create. It does not affect existing rows
+  - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
+  - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
+  - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
+  - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date.
+                   WARNING: tax dates cannot be derived when including:
+                            - reminders,  cost basis / ur-gains, or when using 'balance asof dates'.
+                            ... as such, the 'normal' transaction date will be used.
+  - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
+
+
+BACKUP/RESTORE:
+
+- When in the config GUI, the keystroke combination:
+          CMD-SHIFT-B will create a backup of your config...
+          CMD-SHIFT-R will restore the last backup of your config...
+          CMD-I       will display this readme/help guide...
+          CMD-SHIFT-I will display some debugging information about the rows...
+          CMD-SHIFT-L will display debugging information about the internal lastResultsTable (not for 'normal' users)...
+          CMD-SHIFT-W will display current warnings (same as clicking the warnings icon)...
+          CMD-SHIFT-G allows you to edit the pre-defined/used GroupID Filter(s)... Click +/- cell (on right) to add/del
+
+
+
+>>>>> DETAILS SECTION <<<<<
+
+SELECT ROW INFORMATION:
 
 ** NOTE: When rows can be hidden, they may not display on the Summary screen widget. Click on the widget to config:
          - In the row selector:
@@ -214,18 +285,88 @@ CALCULATIONS TO BALANCES:
                <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
                                 NOTE: Filtered rows (red) are NOT active and hidden.
 
->> CALCULATION ORDER: The calculations are performed is this sequence:
-    - Skip any 'always hide' rows - these are never calculated / used anywhere
-    - Skip any rows filtered out by GroupID
-    - Calculate raw balances for selected rows/accounts, including recursive sub accounts for autosum rows
-    - Convert calculated balances to target currency
-    - Iterate over each row/calculation, apply any average/by calculations
-    - Iterate over each row/calculation, apply any Use Other Row (UOR) calculations.. Iterate the whole UOR chain
-    - Lastly, iterate over each row/calculation, apply any final calculation adjustment amounts specified
+
+SEARCH BOX AND GROUPID:
+
+Once you have a lot of rows, you may only wish to display some of them.
+GroupID allows you create groups of rows that you can separately display.
+
+- You can enter a 'GroupID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')
+   NOTE: You can also enter the ';' character to separate groups. But you cannot filter for ';' as
+         this is the separator between filter search elements...
+
+   When you enter 'Group ID' filter text (next to the row selector), then this will filter rows from
+   appearing on the Summary / Home page widget.. For example, set a row with "123" and then filter "2", then
+   only the row(s) containing "2" will appear on the widget (this would include groups with id "123")
+   NOTE: You can filter multiple 'Group IDs' by separating with ';'
+         Enter '!' (not) to make the filter include rows that do NOT have the requested filters
+         Enter '&' (and) to make the filter include rows where all the requested filters match
+                        NOTE: |(or) is default - will be the default anyway unless '!' or '&' used
+         Group ID Filters are cAsE InSeNsItIve...
+         Each filter you use will be remembered and stored for later quick selection.. The most recent will always be
+              top of the list. Click the little up/down selector on the widget title bar, or in the GUI to select one
+              Use CMD-SHIFT-G to edit the list and provide names to the filters
+              Only the most recent 20 will be saved...
+
+   WARNING: Only enter one of '!|&' characters as only one search type can be used within a single filter.
+         NOTE:    !(not) is always implicitly also &(and) - i.e. !1;2 (means not '1' and not '2')
+
+   EXAMPLES:
+          - Filter: '1'      - only include rows where the groupid includes a '1'
+          - Filter: '1;2;3'  - only include rows where the groupid includes a '1' or '2' or '3'
+          - Filter: '!1;2;3' - only include rows where the groupid does NOT include a '1' or '2' or '3'
+          - Filter: '&1;2;3' - only include rows where the groupid includes one '1' and '2' and '3'
+
+NOTE: This is free text, so the numbers are examples. A groupid of "Debt;CCList;Whatever" totally works.
 
 
+WARNINGS BOX:
 
-USING CATEGORIES:
+  - You can create (very) 'illogical' totals (e.g. by adding Securities to Income). CB tries to detect these issues.
+  - It will alert you if any are found. Help>Console Window will show you the details of any warnings
+  - A red warning icon will appear on the title bar of the widget, and in the GUI, if you have warnings.
+        - Click the warning icon to see a popup window displaying the detail(s) of the warnings.
+        - NOTE: The symbol will not be triggered for warnings on rows where Show Warnings has been un-ticked
+                ... unless debug mode is enabled, in which case the icon will always appear.
+
+
+ROW NAME FORMATTING:
+
+- ROW NAME Configuration Options:
+  - You can embed the following text (lowercase) in the Row Name field to configure the row / total (value) as follows:
+    <#brn>  = Forces row name to be blank/empty
+    <#jr>   = Row name justify: right
+    <#jc>   = Row name justify: center
+    <#cre>  = Row name colour:  red
+    <#cbl>  = Row name colour:  blue
+    <#cgr>  = Row name colour:  light grey
+    <#fbo>  = Row name font:    bold
+    <#fun>  = Row name font:    underline
+    <#fit>  = Row name font:    italics
+    <#bzv>  = Forces any total (value) to appear blank when zero
+    <#cvre>  = Value colour:  red
+    <#cvbl>  = Value colour:  blue
+    <#cvgr>  = Value colour:  light grey
+    <#fvbo>  = Value font:    bold
+    <#fvun>  = Value font:    underline
+    <#fvit>  = Value font:    italics
+    <#nud>  = No special underline dots...
+    <#fud>  = Force special underline dots...
+
+    NOTE: Underline dots will always be turned off if you justify center the text...
+
+    <#html> = EXPERIMENTAL - USE WITH CARE: Takes your row name as html encoded text (do NOT wrap with <html> </html>)..
+              Common html tags are: for bold: <b>text</b>   italics: <i>text</i>   small text: <small>small text</small>
+                                        colors(hex) red: <font color=#bb0000>red text</font>
+                                                    blue: #0000ff
+                                                    default MD foreground color(black-ish): #4a4a4a
+                                        Refer: https://www.rapidtables.com/web/color/RGB_Color.html
+
+   HTML EXAMPLE:
+   <#html><b><font color=#0000ff>Expenses </font></b>Last month <small><u><font color=#bb0000>OVERDUE</font></u></small>
+
+
+USING CATEGORIES (DATE RANGE)
 
 - Income / Expense Categories:
   - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
@@ -271,7 +412,21 @@ USING CATEGORIES:
 
     NOTE: All the date options are dynamic and will auto adjust, except 'Custom' dates which remain as you set them
 
-PARALLEL BALANCES:
+
+DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
+
+
+>> CALCULATION ORDER: The calculations are performed is this sequence:
+    - Skip any 'always hide' rows - these are never calculated / used anywhere
+    - Skip any rows filtered out by GroupID
+    - Calculate raw balances for selected rows/accounts, including recursive sub accounts for autosum rows
+    - Convert calculated balances to target currency
+    - Iterate over each row/calculation, apply any average/by calculations
+    - Iterate over each row/calculation, apply any Use Other Row (UOR) calculations.. Iterate the whole UOR chain
+    - Lastly, iterate over each row/calculation, apply any final calculation adjustment amounts specified
+
+
+>> PARALLEL BALANCES:
     - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts
       ... used by that row: Balance asof date; Income/Expense date range; Cost Basis / Unrealised Gains; incl. Reminders
 
@@ -298,127 +453,6 @@ PARALLEL BALANCES:
                ALL THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
                No harm will be caused, but these rows may take a few seconds to calculate / appear....
 
-ACCOUNT PICKLIST:
-    - You select accounts one-by-one to include in the row calculation.
-    - You can use the dropdown select box to quickly view certain accounts - e.g. "All Investment AND Security accts"
-      ... using the dropdown does not actually select any accounts. You have to click each one.
-      ... or use the 'Select All Visible' button
-    - 'Select All Visbible'     selects all accounts in the current view filtered list, and adds the selection to the
-                                existing selection. E.g. If you view INVESTMENT, select all visible, then view SECURITY,
-                                then select all, then you will end up with all investment and all security.
-    - 'Clear Visible Selection' deselects all accounts in the currently viewable list (but does not deselect any
-                                selected accounts in non-viewable filtered list). E.g. view SECURITY,
-                                clear visible selection, then view INVESTMENT, and you will see your investment
-                                selections are still there.
-    - 'Clear Entire Selection'  deselects all accounts - whether they are in the viewable/filtered list or not.
-    - 'Undo List Changes'       undo any selection changes since your last 'Store List Changes'
-    - 'Store List Changes'      stores the current account list selection into memory (this does NOT save selections)
-
-    >> You must click 'STORE LIST CHANGES' before you click simulate or exit the config screen. If you do not do this
-       then your selection changes will be lost!
-
->> DON'T FORGET TO SAVE CHANGES! (for convenience, this also stores your current account selection list too) <<
-
-
-OPTIONS MENU
-
-  - Debug: Generates program debug messages in Help>Console Window. DO NOT LEAVE THIS PERMANENTLY ON (setting not saved)
-                     NOTE: Enabling this will show [row number] against each widget row on the home screen
-  - Show Print Icon: Enables/shows the print icon on the Home / Summary screen widget.. Will print the current view
-                     NOTE: Even when icon not visible, clicking the white-space before the title will activate print...
-  - Page Setup: Allows you to predefine certain page attributes for printing - e.g. Landscape etc...
-  - Backup Config: Creates a backup of your current config file (then opens a window showing location of backup)
-  - Restore Config: Allows you to restore (or import) config file from previous back up
-  - You can disable the Widget's Display Name Title. This prevents the title appearing on the Summary Page widget
-  - You can change the default setting AutoSum for new rows that you insert/create. It does not affect existing rows
-  - Show Dashes instead of Zeros: Changes the display so that you get '-' instead of '£ 0.0'
-  - Treat Securities with Zero Balance as Inactive: If a Security holds zero units, it will be treated as Inactive
-  - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
-  - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date.
-                   WARNING: tax dates cannot be derived when including:
-                            - reminders,  cost basis / ur-gains, or when using 'balance asof dates'.
-                            ... as such, the 'normal' transaction date will be used.
-  - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
-
-
-BACKUP/RESTORE
-
-- When in the config GUI, the keystroke combination:
-          CMD-SHIFT-B will create a backup of your config...
-          CMD-SHIFT-R will restore the last backup of your config...
-          CMD-I       will display this readme/help guide...
-          CMD-SHIFT-I will display some debugging information about the rows...
-          CMD-SHIFT-L will display debugging information about the internal lastResultsTable (not for 'normal' users)...
-          CMD-SHIFT-W will display current warnings (same as clicking the warnings icon)...
-          CMD-SHIFT-G allows you to edit the pre-defined/used GroupID Filter(s)... Click +/- cell (on right) to add/del
-
-
-ROW NAME FORMATTING
-
-- ROW NAME Configuration Options:
-  - You can embed the following text (lowercase) in the Row Name field to configure the row / total (value) as follows:
-    <#brn>  = Forces row name to be blank/empty
-    <#jr>   = Row name justify: right
-    <#jc>   = Row name justify: center
-    <#cre>  = Row name colour:  red
-    <#cbl>  = Row name colour:  blue
-    <#cgr>  = Row name colour:  light grey
-    <#fbo>  = Row name font:    bold
-    <#fun>  = Row name font:    underline
-    <#fit>  = Row name font:    italics
-    <#bzv>  = Forces any total (value) to appear blank when zero
-    <#cvre>  = Value colour:  red
-    <#cvbl>  = Value colour:  blue
-    <#cvgr>  = Value colour:  light grey
-    <#fvbo>  = Value font:    bold
-    <#fvun>  = Value font:    underline
-    <#fvit>  = Value font:    italics
-    <#nud>  = No special underline dots...
-    <#fud>  = Force special underline dots...
-
-    NOTE: Underline dots will always be turned off if you justify center the text...
-
-    <#html> = EXPERIMENTAL - USE WITH CARE: Takes your row name as html encoded text (do NOT wrap with <html> </html>)..
-              Common html tags are: for bold: <b>text</b>   italics: <i>text</i>   small text: <small>small text</small>
-                                        colors(hex) red: <font color=#bb0000>red text</font>
-                                                    blue: #0000ff
-                                                    default MD foreground color(black-ish): #4a4a4a
-                                        Refer: https://www.rapidtables.com/web/color/RGB_Color.html
-
-   HTML EXAMPLE:
-   <#html><b><font color=#0000ff>Expenses </font></b>Last month <small><u><font color=#bb0000>OVERDUE</font></u></small>
-
-
-FILTERS [Using GroupID]
-
-- You can enter a 'GroupID' per row. This is free format text (digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')
-   NOTE: You can also enter the ';' character to separate groups. But you cannot filter for ';' as
-         this is the separator between filter search elements...
-
-   When you enter 'Group ID' filter text (next to the row selector), then this will filter rows from
-   appearing on the Summary / Home page widget.. For example, set a row with "123" and then filter "2", then
-   only the row(s) containing "2" will appear on the widget (this would include groups with id "123")
-   NOTE: You can filter multiple 'Group IDs' by separating with ';'
-         Enter '!' (not) to make the filter include rows that do NOT have the requested filters
-         Enter '&' (and) to make the filter include rows where all the requested filters match
-                        NOTE: |(or) is default - will be the default anyway unless '!' or '&' used
-         Group ID Filters are cAsE InSeNsItIve...
-         Each filter you use will be remembered and stored for later quick selection.. The most recent will always be
-              top of the list. Click the little up/down selector on the widget title bar, or in the GUI to select one
-              Use CMD-SHIFT-G to edit the list and provide names to the filters
-              Only the most recent 20 will be saved...
-
-   WARNING: Only enter one of '!|&' characters as only one search type can be used within a single filter.
-         NOTE:    !(not) is always implicitly also &(and) - i.e. !1;2 (means not '1' and not '2')
-
-   EXAMPLES:
-          - Filter: '1'      - only include rows where the groupid includes a '1'
-          - Filter: '1;2;3'  - only include rows where the groupid includes a '1' or '2' or '3'
-          - Filter: '!1;2;3' - only include rows where the groupid does NOT include a '1' or '2' or '3'
-          - Filter: '&1;2;3' - only include rows where the groupid includes one '1' and '2' and '3'
-
-
-NOTE: This is free text, so the numbers are examples. A groupid of "Debt;CCList;Whatever" totally works.
 
 
 TECHNICAL/HISTORICAL NOTES:
