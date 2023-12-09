@@ -90,18 +90,18 @@ CHOICES/CONFIGURATION FOR A ROW:
           or specify a fixed custom asof date. Auto-dates will auto-adjust every time the calculations are executed.
 
         - Calculation methodology for Balance/Current/Cleared Balance when using asof date:
-             - Balance always uses the calculated asof-dated Balance
-             - Past asof-dated Current Balance uses the calculated asof-dated Balance
-             - Today/future asof-dated Current Balance uses the real account's Current Balance
-             - Past asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance     ** WARNING **
-             - Today/future asof-dated Cleared Balance uses the real account's Cleared Balance
+            - Balance always uses the calculated asof-dated Balance
+            - Past asof-dated Current Balance uses the calculated asof-dated Balance
+            - Today/future asof-dated Current Balance uses the real account's Current Balance
+            - Past asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance      ** WARNING **
+            - Today/future asof-dated Cleared Balance uses the real account's Cleared Balance
 
         The following points should be noted:
-             - Income / Expense categories: Not affected by this option - refer separate 'I/E Date Range' section
-             - Include Reminders:           Not affected by this option - refer separate 'Include Reminders' section
-             - Security accounts when the 'Securities return Cost Basis / Unrealised Gains' option is selected
-                 ... or Investment accounts when 'include cash' option is selected in conjunction with return cost basis
-                 - refer separate 'Securities: Return Cost Basis / Unrealised Gains options' section...
+            - Income / Expense categories:      Not affected by this option - refer separate 'I/E Date Range' section
+            - Include (non-recorded) Reminders: Not affected by this option - refer separate 'Include Reminders' section
+            - Security accounts when the 'Securities return Cost Basis / Unrealised Gains' option is selected
+                ... or Investment accounts when 'include cash' option is selected in conjunction with return cost basis
+                - refer separate 'Securities: Return Cost Basis / Unrealised Gains options' section...
 
         - WARNING: tax dates when using 'asof' cannot be derived. The 'normal' txn date will be applied.
 
@@ -110,16 +110,20 @@ CHOICES/CONFIGURATION FOR A ROW:
 
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-- Include Reminders: When selected, Reminders (up to the specified reminder asof date) will be included in the balances.
-        - The 'balance asof date' setting has no bearing on Reminders.
+- Include (non-recorded) Reminders: Reminders (up to the specified reminder asof date) can be included in the balances.
+
+        >> This only includes reminder occurrence(s) that have not already been committed/recorded into the register
+           ... ie. once they are recorded/committed then they are already within the actual balance for that date
+
+        - The 'balance asof date' setting has no bearing on (non-recorded) Reminders to include.
         - Only uncommitted (ie. non-recorded) Reminders will be selected. Then...
         - Reminder date(s) will be forward calculated up to the Reminder's asof date setting. Then...
         - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
 
-        - NOTE: It would be unusual to find any reminders with a Cleared Status - so expect ZERO.
+        - NOTE: It would be unusual to find any (non-recorded) reminders with a Cleared Status - so expect ZERO.
         - NOTE: Ignored when returning cost basis / unrealised gains
 
-        - WARNING: tax dates on reminders cannot be calculated. The 'normal' date will be applied.
+        - WARNING: tax dates on (non-recorded) reminders cannot be calculated. The 'normal' date will be applied.
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
 - Securities: Return Cost Basis / Unrealised Gains options:
