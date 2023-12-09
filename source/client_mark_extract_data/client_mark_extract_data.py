@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# client_mark_extract_data.py - build: 1001 November 2023 - Stuart Beesley (based on: extract_data build: 1036)
+# client_mark_extract_data.py - build: 1002 December 2023 - Stuart Beesley (based on: extract_data build: 1036)
 #
 # Written specifically for Mark McClintock
 
@@ -60,7 +60,7 @@
 # Build: 909 -  Show last run's output when auto relaunching the GUI...
 # Build: 1000 - Final, released build....
 # Build: 1001 - Tweaks - correct save folder display text; aligned with new code into extract_data...
-
+# Build: 1002 - Fix backwards compatibility for .getCostBasisAsOf() method... (prior to 5008, now returns zero as CostCalculation not accessible).
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -68,8 +68,8 @@
 
 # SET THESE LINES
 myModuleID = u"client_mark_extract_data"
-version_build = "1001"
-MIN_BUILD_REQD = 1904                                               # Check for builds less than 1904 / version < 2019.4
+version_build = "1002"
+MIN_BUILD_REQD = 3056    # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
 global moneydance, moneydance_ui, moneydance_extension_loader, moneydance_extension_parameter
@@ -3252,6 +3252,22 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
+    GlobalVars.MD_COSTCALCULATION_PUBLIC = 5008                             # 2023.2 (CC made public with extra methods)
+    def isCostCalculationPublic():
+        return (float(MD_REF.getBuild()) >= GlobalVars.MD_COSTCALCULATION_PUBLIC)
+
+    # noinspection PyUnresolvedReferences
+    def isIncomeExpenseAcct(_acct):
+        return (_acct.getAccountType() == Account.AccountType.EXPENSE or _acct.getAccountType() == Account.AccountType.INCOME)
+
+    # noinspection PyUnresolvedReferences
+    def isSecurityAcct(_acct):
+        return (_acct.getAccountType() == Account.AccountType.SECURITY)
+
+    # noinspection PyUnresolvedReferences
+    def isInvestmentAcct(_acct):
+        return (_acct.getAccountType() == Account.AccountType.INVESTMENT)
+
     def resetGlobalVariables():
         myPrint("DB", "@@ RESETTING KEY GLOBAL REFERENCES.....")
         # Do these once here (for objects that might hold Model objects etc) and then release at the end... (not the cleanest method...)
@@ -4327,36 +4343,46 @@ Visit: %s (Author's site)
         MD_REF.getUI().setStatus(">> StuWareSoftSystems - %s launching......." %(GlobalVars.thisScriptName),0)
     ####################################################################################################################
 
-    def getCostBasisAsOf(sec, asofDate):        # asof = None means latest / current position
-        # type: (Account, int) -> (int, int)
+    def getCostBasisAsOf(sec, asofDate, lReturnLatestIfNotAvailable=False):
+        # type: (Account, int, bool) -> (int, int)
         """For a given Security Account, executes MD's CostCalculation routines and returns:
-        shareholding, costbasis as of the date specified. Pass None into asof for current/latest position"""
+        shareholding, costbasis as of the date specified. Pass None into asof for current/latest position.
+        (param: asofDate = None / Zero means current position as of today (i.e. asof gets replaced with today),
+        lReturnLatestIfNotAvailable = when on build prior to MD2023.2(5008) just return the latest costbasis /  i.e. balance"""
 
-        # noinspection PyUnresolvedReferences
-        if not isinstance(sec, Account) or sec.getAccountType() is not Account.AccountType.SECURITY:
-            raise Exception("ERROR: You must pass a Security Account to this method!")
+        if not isinstance(sec, Account) or not isSecurityAcct(sec):
+            raise Exception("ERROR: You must pass a Security Account to this method! Passed: (%s) %s" %(sec.getAccountType(), sec.getFullAccountName()))
 
-        lAllDates = (asofDate is None or asofDate == 0)
-        if lAllDates:
-            costCalculation = CostCalculation(sec)
-        else:
-            costCalculation = CostCalculation(sec, asofDate)
+        todayInt = DateUtil.getStrippedDateInt()
+        if (asofDate is None or asofDate < 1): asofDate = todayInt
+        asofDate = min(asofDate, todayInt)
 
-        if lAllDates:
-            pos = invokeMethodByReflection(costCalculation, "getCurrentPosition", [], [])
+        # The class was only made public in MD2023.2(5008) onwards
+        if not isCostCalculationPublic():
+            if lReturnLatestIfNotAvailable and asofDate >= todayInt:
+                if debug: myPrint("B", "@@ WARNING - .getCostBasisAsOf() returning latest/balance numbers as enhanced asof feature(s) not available on MD builds < %s. Parameters(Sec: '%s', asof: %s)"
+                                  %(GlobalVars.MD_COSTCALCULATION_PUBLIC, sec, asofDate))
+                shareBalance = sec.getBalance()  # NOTE: perhaps .getCurrentBalance() would be better - .getCostBasis() returns the latest posn/price?!
+                costBasis = InvestUtil.getCostBasis(sec)
+            else:
+                if debug: myPrint("B", "@@ WARNING - .getCostBasisAsOf() will return zeros as enhanced asof feature not available on MD builds < %s. Parameters(Sec: '%s', asof: %s)"
+                                  %(GlobalVars.MD_COSTCALCULATION_PUBLIC, sec, asofDate))
+                shareBalance = 0
+                costBasis = 0
+            return shareBalance, costBasis
+
+        costCalculation = CostCalculation(sec, Integer(asofDate))
+
+        currentRunningBasis = 0
+        currentCumulativeShares = 0
+
+        posns = getFieldByReflection(costCalculation, "positions")
+        for pos in reversed(posns):
+            date = invokeMethodByReflection(pos, "getDate", [], [])
             currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
             currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
-        else:
-            posns = getFieldByReflection(costCalculation, "positions")
-            currentRunningBasis = 0
-            currentCumulativeShares = 0
-            for pos in posns:
-                date = invokeMethodByReflection(pos, "getDate", [], [])
-                if date > asofDate: break
-                currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
-                currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
+            if date <= asofDate: break
         return currentCumulativeShares, currentRunningBasis
-
 
     class MainAppRunnable(Runnable):
         def __init__(self): pass
@@ -6322,8 +6348,15 @@ Visit: %s (Author's site)
 
 
                                     # Override date to today if settings require this...
+                                    todayInt = DateUtil.getStrippedDateInt()
                                     if GlobalVars.saved_autoSelectCurrentAsOfDate_ESB:
-                                        GlobalVars.saved_securityBalancesDate_ESB = DateUtil.getStrippedDateInt()
+                                        GlobalVars.saved_securityBalancesDate_ESB = todayInt
+
+                                    if not isCostCalculationPublic():
+                                        if GlobalVars.saved_securityBalancesDate_ESB < todayInt:
+                                            myPrint("B", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+                                            myPrint("B", "@@ WARNING: Past-dated asof will yield costbasis of ZERO - Upgrade to MD2023.2(%s) onwards @@" %(GlobalVars.MD_COSTCALCULATION_PUBLIC))
+                                            myPrint("B", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
                                     _COLUMN = 0
                                     _HEADING = 1
@@ -6420,7 +6453,7 @@ Visit: %s (Author's site)
                                         _row[GlobalVars.dataKeys["_BASECURR"][_COLUMN]] = GlobalVars.baseCurrency.getIDString()
 
                                         if GlobalVars.ENABLE_BESPOKE_CODING:
-                                            asofShares, asofCostBasis = getCostBasisAsOf(securityAcct, GlobalVars.saved_securityBalancesDate_ESB)
+                                            asofShares, asofCostBasis = getCostBasisAsOf(securityAcct, GlobalVars.saved_securityBalancesDate_ESB, lReturnLatestIfNotAvailable=True)
                                             costBasis = asofCostBasis
                                             costBasisBase = CurrencyUtil.convertValue(costBasis, investAcctCurr, GlobalVars.baseCurrency, GlobalVars.saved_securityBalancesDate_ESB)
                                         else:

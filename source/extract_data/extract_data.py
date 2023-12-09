@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# extract_data.py - build: 1041 - Nov 2023 - Stuart Beesley
+# extract_data.py - build: 1041 - December 2023 - Stuart Beesley
 #                   You can auto invoke by launching MD with one of the following:
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:noquit'
 #                           '-d [datasetpath] -invoke=moneydance:fmodule:extract_data:autoextract:quit'
@@ -140,7 +140,8 @@
 # build: 1039 - Enhanced extract_security_balances with asof date, and cash values (inlcudes snazzy CostCalculation with asof date).
 #               Added extract account balances...
 # build: 1040 - Fix file chooser on Windows - could not select Folder...
-# build: 1041 - ???
+# build: 1041 - Fix .getCostBasisAsOf() and the call to cope with builds prior to 5008 (CostCalculation not accessible).
+#               NOTE: On builds prior to 5008, zero costbasis will be returned.
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -3373,6 +3374,22 @@ Visit: %s (Author's site)
     # END ALL CODE COPY HERE ###############################################################################################
     # END ALL CODE COPY HERE ###############################################################################################
 
+    GlobalVars.MD_COSTCALCULATION_PUBLIC = 5008                             # 2023.2 (CC made public with extra methods)
+    def isCostCalculationPublic():
+        return (float(MD_REF.getBuild()) >= GlobalVars.MD_COSTCALCULATION_PUBLIC)
+
+    # noinspection PyUnresolvedReferences
+    def isIncomeExpenseAcct(_acct):
+        return (_acct.getAccountType() == Account.AccountType.EXPENSE or _acct.getAccountType() == Account.AccountType.INCOME)
+
+    # noinspection PyUnresolvedReferences
+    def isSecurityAcct(_acct):
+        return (_acct.getAccountType() == Account.AccountType.SECURITY)
+
+    # noinspection PyUnresolvedReferences
+    def isInvestmentAcct(_acct):
+        return (_acct.getAccountType() == Account.AccountType.INVESTMENT)
+
     def resetGlobalVariables():
         myPrint("DB", "@@ RESETTING KEY GLOBAL REFERENCES.....")
         # Do these once here (for objects that might hold Model objects etc) and then release at the end... (not the cleanest method...)
@@ -5438,6 +5455,10 @@ Visit: %s (Author's site)
         user_securityBalancesDate.setDateInt(GlobalVars.saved_securityBalancesDate_ESB)
         user_securityBalancesDate.setToolTipText("Ignored when 'Use Current Position' is ticked. Specify asof date for balances")
 
+        label_costBasisWarn1 = JLabel("")
+        label_costBasisWarn2 = JLabel("(NOTE: past asof will return ZERO costbasis - UPGRADE MD)")
+        label_costBasisWarn2.setToolTipText("MD2023.2(%s) onwards enables better costbasis asof features" %(GlobalVars.MD_COSTCALCULATION_PUBLIC))
+
         label_lOmitExtraSecurityDataFromExtract = JLabel("Omit extra security data from extract:")
         user_lOmitExtraSecurityDataFromExtract = JCheckBox("", GlobalVars.saved_lOmitExtraSecurityDataFromExtract_ESB)
 
@@ -5486,6 +5507,9 @@ Visit: %s (Author's site)
         userFilters.add(user_lAlwaysUseCurrentPosition)
         userFilters.add(label_securityBalancesDate)
         userFilters.add(user_securityBalancesDate)
+        if not isCostCalculationPublic():
+            userFilters.add(label_costBasisWarn1)
+            userFilters.add(label_costBasisWarn2)
         userFilters.add(label_lOmitExtraSecurityDataFromExtract)
         userFilters.add(user_lOmitExtraSecurityDataFromExtract)
 
@@ -5511,6 +5535,7 @@ Visit: %s (Author's site)
         options = ["ABORT", "CSV Extract"]
         rowHeight = 24
         rows = 18
+        if not isCostCalculationPublic(): rows += 1
         jsp = MyJScrollPaneForJOptionPane(userFilters, None, 900, rows * rowHeight)
         userAction = (JOptionPane.showOptionDialog(extract_data_frame_, jsp, "EXTRACT SECURITY BALANCES: Set Script Parameters....",
                                                    JOptionPane.OK_CANCEL_OPTION,
@@ -6071,34 +6096,45 @@ Visit: %s (Author's site)
 
         return extractFullPath
 
-    def getCostBasisAsOf(sec, asofDate):        # asof = None means latest / current position
-        # type: (Account, int) -> (int, int)
+    def getCostBasisAsOf(sec, asofDate, lReturnLatestIfNotAvailable=False):
+        # type: (Account, int, bool) -> (int, int)
         """For a given Security Account, executes MD's CostCalculation routines and returns:
-        shareholding, costbasis as of the date specified. Pass None into asof for current/latest position"""
+        shareholding, costbasis as of the date specified. Pass None into asof for current/latest position.
+        (param: asofDate = None / Zero means current position as of today (i.e. asof gets replaced with today),
+        lReturnLatestIfNotAvailable = when on build prior to MD2023.2(5008) just return the latest costbasis /  i.e. balance"""
 
-        # noinspection PyUnresolvedReferences
-        if not isinstance(sec, Account) or sec.getAccountType() is not Account.AccountType.SECURITY:
-            raise Exception("ERROR: You must pass a Security Account to this method!")
+        if not isinstance(sec, Account) or not isSecurityAcct(sec):
+            raise Exception("ERROR: You must pass a Security Account to this method! Passed: (%s) %s" %(sec.getAccountType(), sec.getFullAccountName()))
 
-        lAllDates = (asofDate is None or asofDate == 0)
-        if lAllDates:
-            costCalculation = CostCalculation(sec)
-        else:
-            costCalculation = CostCalculation(sec, asofDate)
+        todayInt = DateUtil.getStrippedDateInt()
+        if (asofDate is None or asofDate < 1): asofDate = todayInt
+        asofDate = min(asofDate, todayInt)
 
-        if lAllDates:
-            pos = invokeMethodByReflection(costCalculation, "getCurrentPosition", [], [])
+        # The class was only made public in MD2023.2(5008) onwards
+        if not isCostCalculationPublic():
+            if lReturnLatestIfNotAvailable and asofDate >= todayInt:
+                if debug: myPrint("B", "@@ WARNING - .getCostBasisAsOf() returning latest/balance numbers as enhanced asof feature(s) not available on MD builds < %s. Parameters(Sec: '%s', asof: %s)"
+                                  %(GlobalVars.MD_COSTCALCULATION_PUBLIC, sec, asofDate))
+                shareBalance = sec.getBalance()  # NOTE: perhaps .getCurrentBalance() would be better - .getCostBasis() returns the latest posn/price?!
+                costBasis = InvestUtil.getCostBasis(sec)
+            else:
+                if debug: myPrint("B", "@@ WARNING - .getCostBasisAsOf() will return zeros as enhanced asof feature not available on MD builds < %s. Parameters(Sec: '%s', asof: %s)"
+                                  %(GlobalVars.MD_COSTCALCULATION_PUBLIC, sec, asofDate))
+                shareBalance = 0
+                costBasis = 0
+            return shareBalance, costBasis
+
+        costCalculation = CostCalculation(sec, Integer(asofDate))
+
+        currentRunningBasis = 0
+        currentCumulativeShares = 0
+
+        posns = getFieldByReflection(costCalculation, "positions")
+        for pos in reversed(posns):
+            date = invokeMethodByReflection(pos, "getDate", [], [])
             currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
             currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
-        else:
-            posns = getFieldByReflection(costCalculation, "positions")
-            currentRunningBasis = 0
-            currentCumulativeShares = 0
-            for pos in posns:
-                date = invokeMethodByReflection(pos, "getDate", [], [])
-                if date > asofDate: break
-                currentRunningBasis = invokeMethodByReflection(pos, "getRunningCost", [], [])
-                currentCumulativeShares = invokeMethodByReflection(pos, "getSharesOwned", [], [])
+            if date <= asofDate: break
         return currentCumulativeShares, currentRunningBasis
 
     def separateYearMonthDayFromDateInt(_dateInt):
@@ -11694,6 +11730,15 @@ Visit: %s (Author's site)
 
                                             return True
 
+
+                                    if not isCostCalculationPublic():
+                                        todayInt = DateUtil.getStrippedDateInt()
+                                        if not GlobalVars.saved_lAlwaysUseCurrentPosition_ESB:
+                                            if GlobalVars.saved_securityBalancesDate_ESB < todayInt:
+                                                myPrint("B", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+                                                myPrint("B", "@@ WARNING: Past-dated asof will yield costbasis of ZERO - Upgrade to MD2023.2(%s) onwards @@" %(GlobalVars.MD_COSTCALCULATION_PUBLIC))
+                                                myPrint("B", "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
                                     _COLUMN = 0
                                     _HEADING = 1
 
@@ -11785,7 +11830,7 @@ Visit: %s (Author's site)
                                         _row[GlobalVars.dataKeys["_SECRELCURR"][_COLUMN]] = unicode(securityCurr.getRelativeCurrency().getIDString())
 
                                         if not GlobalVars.saved_lAlwaysUseCurrentPosition_ESB:
-                                            asofShares, asofCostBasis = getCostBasisAsOf(securityAcct, GlobalVars.saved_securityBalancesDate_ESB)
+                                            asofShares, asofCostBasis = getCostBasisAsOf(securityAcct, GlobalVars.saved_securityBalancesDate_ESB, lReturnLatestIfNotAvailable=True)
                                             costBasis = asofCostBasis
                                             costBasisBase = CurrencyUtil.convertValue(costBasis, investAcctCurr, GlobalVars.baseCurrency, GlobalVars.saved_securityBalancesDate_ESB)
                                         else:
