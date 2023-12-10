@@ -213,6 +213,7 @@
 # build: 1062 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
 #               add .getFullAcountName() to the error message in review_security_accounts()
 #               updated -Xmx to include -XX:MaxRAMPercentage= and tweak show vmoptions feature etc....
+#               Added new option showMDLaunchParameters()...
 
 # todo - CurrencyType() look for .isPlaceholder() or perhaps not .isSyncable() for comptibility - Use in Diag Currencies when no currencies etc.
 
@@ -26797,6 +26798,83 @@ after saving the file, restart Moneydance
         setDisplayStatus(txt, "B")
         myPopupInformationBox(toolbox_frame_, txt, "TOGGLE MONEYDANCE INTERNAL OTHER DEBUG", JOptionPane.WARNING_MESSAGE)
 
+    def showMDLaunchParameters():
+        _THIS_METHOD_NAME = "ADVANCED: SHOW MD LAUNCH PARAMETERS"
+
+        displayTxt = """
+------------------------------------------------------------------------------------------------------------------------
+ADVANCED MONEYDANCE LAUNCH SETTINGS / PARAMETERS:
+-------------------------------------------------
+
+Moneydance(MD) is built on Java. Hence the application runs on a Java Virtual Machine (JVM).
+- The MD installer typically creates an app package and launch icon for easy execution of the app
+
+- NOTE: You can also execute the moneydance.jar using Java as long as you set up your environment properly.
+        .. this is out of scope of this document, but refer to: https://yogi1967.github.io/MoneydancePythonScripts/
+        .. and the example launch scripts contained on my site.
+        .. MD2022.1(4058) Java 17, MD2022.3(4077) Java 18.0.1, MD2023.2(5008) Java 20.0.1, MD2023.2(5047) Java 21
+
+- Windows and Linux: The launch package is built using install4j. The JVM can be modified by editing the vmoptions file.
+                     See seperate Toolbox Advanced Options menu: 'View Java VM Options File' for details
+                     You can edit this 'vmoptions' file and pass settings through to the JVM at launch:
+                         e.g. -XX:MaxRAMPercentage=80 (which is now the default anyway)                     
+                     You can in theory pass any valid JVM options in this file:
+                         e.g. -Dtoolbox=great (would set the System property key 'toolbox' with a value of 'great' 
+                     
+                     You can also pass options on the command line that will be captured by install4j and passed through
+                     to the JVM (so similar to the vmoptions file above, but via command line)
+                        e.g. -J-Dtoolbox=great
+                        refer: https://www.ej-technologies.com/resources/install4j/help/doc/installers/options.html
+
+     >> On Windows you can simply execute the Moneydance.exe file [with optional parameters - see below]
+        NOTE: Even when launched this way, the vmoptions file will be processed.
+
+
+- Apple macOS: The installer creates an apple mac 'package' file called /Applications/Moneydance.app
+               .. There is no vmoptions file or possibility with macOS
+               .. But you can simply execute this from Terminal using the following command
+                  /Applications/Moneydance.app/Contents/MacOS/Moneydance [with option parameters - see below]
+
+Moneydance parameters:
+----------------------
+-d                  Enables Moneydance DEBUG mode (extra messages in help/console)
+-v                  prints the current version (and then quits)
+-nobackup'          disables backups for this MD session (from build 5047 onwards)
+datasetname         will open the specified dataset >> specify the full path wrapped in (plain text) "quotes" 
+pythonscriptname.py adds script to a list of scripts to execute (but this seems to then be ignored)
+importfilename      executes file import (mutually exclusive to datasetname option)
+-invoke_and_quit=x  will pass a string cmd that will invoke an 'fmodule' (extension) and quit (not showing UI)
+                    .. executes Main.showURL(invokeAndQuitURI)
+                    .. e.g. 'moneydance:fmodule:test:test:customevent:magic'
+                    .. (e.g. my extension(s) with an id of test defines it's own command called 'test:customevent:magic'
+                    .. (there are other variations of this parameter and with ? instead of ':' for parameters.....
+-invoke=x           Same as -invoke_and_quit but does launch the UI first and doesn't quit...!
+
+Extensions:
+-----------
+Two (known) extensions have been updated to leverage the -invoke command. These are: Quote Loader & Extract Data.
+The commands to execuite these are:
+                                    -invoke=moneydance:fmodule:securityquoteload:runstandalone:quit
+                                    -invoke=moneydance:fmodule:extract_data:autoextract:quit
+                                    (use :quit or :noquit) to quit the session or leave open after execution
+
+Dataset Master Password:
+------------------------
+MD2021.2(3088): Adds capability to set the encryption passphrase into an environment variable to bypass the logon.
+                Either: md_passphrase=   or  md_passphrase_[filename in lowercase format]=
+                E.g. md_passphrase=test would pass the password of 'test'
+                The variable must be set into the parent environment (using 'set' / 'export' command as appropriate)
+                NOTE: If you have not set a master password, then you do not need to worry about this!
+
+------------------------------------------------------------------------------------------------------------------------
+"""
+
+        jif = QuickJFrame(_THIS_METHOD_NAME, displayTxt, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False).show_the_frame()
+        jif.toFront()
+
+        txt = "Advanced Moneydance launch settings/parameters displayed"
+        setDisplayStatus(txt, "B")
+
     def advanced_options_demote_primary_to_secondary():
         # the reverse of convert_secondary_to_primary_data_set
 
@@ -28682,9 +28760,6 @@ after saving the file, restart Moneydance
                     user_view_MD_custom_theme_file = MenuJRadioButton("View MD Custom Theme File (only when exists)", False, secondaryEnabled=(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath())))
                     user_view_MD_custom_theme_file.setToolTipText("View the contents of your Moneydance custom Theme file (if you have set one up)")
 
-                    user_view_java_vmoptions = MenuJRadioButton("View Java VM Options File (only when exists)", False, secondaryEnabled=(os.path.exists(get_vmoptions_path())))
-                    user_view_java_vmoptions.setToolTipText("View the contents of the Java VM Options runtime file that Moneydance uses")
-
                     user_view_extensions_details = MenuJRadioButton("View Extension(s) details", False)
                     user_view_extensions_details.setToolTipText("View details about the Extensions installed in your Moneydance system")
 
@@ -28741,13 +28816,12 @@ after saving the file, restart Moneydance
                     userFilters = JPanel(GridLayout(0, 1))
 
                     rowHeight = 24
-                    rows = 10
+                    rows = 9
                     userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     userFilters.add(user_display_passwords)
                     userFilters.add(user_view_searchable_console_log)
                     userFilters.add(user_view_MD_config_file)
                     userFilters.add(user_view_MD_custom_theme_file)
-                    userFilters.add(user_view_java_vmoptions)
                     userFilters.add(user_view_extensions_details)
                     userFilters.add(user_view_memorised_reports)
                     # userFilters.add(user_find_sync_password_in_ios_backups)
@@ -28781,7 +28855,6 @@ after saving the file, restart Moneydance
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
 
-                        user_view_java_vmoptions.setEnabled(os.path.exists(get_vmoptions_path()))
                         user_view_MD_custom_theme_file.setEnabled(os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))                             # noqa
                         user_delete_custom_theme_file.setEnabled(ToolboxMode.isUpdateMode() and os.path.exists(ThemeInfo.customThemeFile.getAbsolutePath()))   # noqa
                         bg.clearSelection()
@@ -28806,7 +28879,6 @@ after saving the file, restart Moneydance
                         if user_view_searchable_console_log.isSelected():           ViewFileButtonAction(MD_REF.getLogFile(), "MD Console Log").actionPerformed(None)
                         if user_view_MD_config_file.isSelected():                   ViewFileButtonAction(Common.getPreferencesFile(), "MD Config").actionPerformed(None)
                         if user_view_MD_custom_theme_file.isSelected():             ViewFileButtonAction(ThemeInfo.customThemeFile, "MD Custom Theme").actionPerformed(None)
-                        if user_view_java_vmoptions.isSelected():                   ViewFileButtonAction(File(get_vmoptions_path()), "Java VM File").actionPerformed(None)
                         if user_view_extensions_details.isSelected():               view_extensions_details()
                         if user_view_memorised_reports.isSelected():                get_list_memorised_reports()
                         # if user_find_sync_password_in_ios_backups.isSelected():     find_IOS_sync_data()
@@ -28846,6 +28918,12 @@ after saving the file, restart Moneydance
 
                     user_advanced_toggle_other_DEBUGs = MenuJRadioButton("Toggle Other Moneydance DEBUGs", False)
                     user_advanced_toggle_other_DEBUGs.setToolTipText("This will allow you to toggle other known Moneydance internal DEBUG setting(s) ON/OFF..... (these add extra messages to Console output))")
+
+                    user_view_java_vmoptions = MenuJRadioButton("View Java VM Options File (only when exists)", False, secondaryEnabled=(os.path.exists(get_vmoptions_path())))
+                    user_view_java_vmoptions.setToolTipText("View the contents of the Java VM Options runtime file that Moneydance uses")
+
+                    user_showMDLaunchParameters = MenuJRadioButton("Show advanced MD launch options/parameters", False)
+                    user_showMDLaunchParameters.setToolTipText("Displays advanced techniques / settings / parameters for launching Moneydance")
 
                     user_show_encryption_keys = MenuJRadioButton("Show your encryption keys, and the Moneydance encryption methodology (use with care)", False, updateMenu=True, secondaryEnabled=GlobalVars.EXTRA_CODE_INITIALISED)
                     user_show_encryption_keys.setToolTipText("Will show your encryption keys used to encrypt your dataset [and sync data], along with the encryption methodologies")
@@ -28905,11 +28983,13 @@ after saving the file, restart Moneydance
                     userFilters = JPanel(GridLayout(0, 1))
 
                     rowHeight = 24
-                    rows = 5
+                    rows = 7
 
                     userFilters.add(ToolboxMode.DEFAULT_MENU_READONLY_TXT_LBL)
                     # userFilters.add(user_advanced_toggle_DEBUG)
                     userFilters.add(user_advanced_toggle_other_DEBUGs)
+                    userFilters.add(user_view_java_vmoptions)
+                    userFilters.add(user_showMDLaunchParameters)
                     userFilters.add(user_advanced_extract_from_dataset)
                     userFilters.add(user_advanced_extract_from_sync)
                     userFilters.add(user_advanced_decrypt_dataset)
@@ -28948,6 +29028,8 @@ after saving the file, restart Moneydance
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
 
+                        user_view_java_vmoptions.setEnabled(os.path.exists(get_vmoptions_path()))
+
                         lDropbox, lSuppressed = check_dropbox_and_suppress_warnings()
                         user_advanced_suppress_dropbox_warning.setEnabled(ToolboxMode.isUpdateMode() and (lDropbox and not lSuppressed))
                         user_demote_primary_to_secondary.setEnabled(ToolboxMode.isUpdateMode() and (MD_REF.getUI().getCurrentAccounts().isMasterSyncNode()))
@@ -28979,6 +29061,8 @@ after saving the file, restart Moneydance
 
                         # if user_advanced_toggle_DEBUG.isSelected():                 advanced_options_DEBUG()
                         if user_advanced_toggle_other_DEBUGs.isSelected():          advanced_options_other_DEBUG()
+                        if user_showMDLaunchParameters.isSelected():                showMDLaunchParameters()
+                        if user_view_java_vmoptions.isSelected():                   ViewFileButtonAction(File(get_vmoptions_path()), "Java VM File").actionPerformed(None)
                         if user_show_encryption_keys.isSelected():                  advanced_show_encryption_keys()
                         if user_advanced_extract_from_dataset.isSelected():         advanced_options_decrypt_file_from_dataset()
                         if user_advanced_extract_from_sync.isSelected():            advanced_options_decrypt_file_from_sync()

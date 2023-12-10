@@ -124,7 +124,6 @@ Read-Only Mode (Default at launch) - Use ALT-M to toggle between Read-Only and U
         - View MD Console (the whole file - searchable)
         - View MD Config.dict file (the whole file - searchable)
         - View MD Custom Theme file  (only appears if it exists)
-        - View your Java .vmoptions file (only appears if it exists) - INCLUDES VARIOUS INSTRUCTIONS TOO
         - View Extension(s) details
         - View memorised reports (parameters and default settings)
         - Find my Sync Encryption password(s) in iOS Backup(s) - DECOMMISSIONED >> NO LONGER AVAILABLE
@@ -274,6 +273,8 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
     - MENU: Advanced options
         >> SPECIAL ADVANCED FEATURES - USE WITH CARE!
         - Toggle other Moneydance DEBUGs (manually enable/disable debug mode on individual other known debug settings)
+        - View your Java .vmoptions file (only appears if it exists) - INCLUDES VARIOUS INSTRUCTIONS TOO (READONLY)
+        - Show advanced MD launch options/parameters. Displays advanced techniques / settings / parameters for launching Moneydance (READONLY)
         - Extract/decrypt a (single) file from within Dataset. Decrypts a Dataset file to Dataset/tmp/decrypted dir for viewing (tmp file self destructs after MD restart)
         - Extract/decrypt a (single) file from Sync folder. Decrypts a Sync file to Dataset/tmp/decrypted/fromSync dir for viewing (tmp file self destructs after MD restart)
         - Decrypt entire dataset. Decrypts entire dataset to a folder of your choosing...
