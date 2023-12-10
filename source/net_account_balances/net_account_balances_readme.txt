@@ -33,6 +33,9 @@ This extension creates a 'widget' that calculates / displays totals on the Money
 
 LET'S GET STARTED:
 
+FIRST: If the configuration area is too large on your screen, and you cannot see the 'Account Selection List' then:
+>> Click 'Hide Controls' (top right) <<
+
 Let's start with a row that is <NOT CONFIGURED>. Give it a name - like Credit Card Debt.
 Now select all your credit cards from the account selection list. Click each one. Hit Save All Settings.
 See the result on the summary page.You did note the installation bit, right? Putting the widget in place?
