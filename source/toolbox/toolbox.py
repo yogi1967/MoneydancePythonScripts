@@ -26815,7 +26815,7 @@ Moneydance(MD) is built on Java. Hence the application runs on a Java Virtual Ma
         .. MD2022.1(4058) Java 17, MD2022.3(4077) Java 18.0.1, MD2023.2(5008) Java 20.0.1, MD2023.2(5047) Java 21
 
 - Windows and Linux: The launch package is built using install4j. The JVM can be modified by editing the vmoptions file.
-                     See seperate Toolbox Advanced Options menu: 'View Java VM Options File' for details
+                     See separate Toolbox > Advanced Options menu > 'View Java VM Options File' for details
                      You can edit this 'vmoptions' file and pass settings through to the JVM at launch:
                          e.g. -XX:MaxRAMPercentage=80 (which is now the default anyway)                     
                      You can in theory pass any valid JVM options in this file:
@@ -26826,19 +26826,28 @@ Moneydance(MD) is built on Java. Hence the application runs on a Java Virtual Ma
                         e.g. -J-Dtoolbox=great
                         refer: https://www.ej-technologies.com/resources/install4j/help/doc/installers/options.html
 
-     >> On Windows you can simply execute the Moneydance.exe file [with optional parameters - see below]
-        NOTE: Even when launched this way, the vmoptions file will be processed.
+- Windows: You can simply execute the Moneydance.exe file (with [optional] parameters - see below)
+           - NOTE: Even when launched this way, the vmoptions file will be processed.
 
+                   - using the exe does not write to stderr / stdout, so you cannot easily see results from -v
+                     .. you can use: "\\Program Files\\Moneydance\\Moneydance" -v > [pathto]outputfile.txt 2>&1
+                     .. as an alternative you can try:
+                     .. "\\Program Files\\Moneydance\\jre\\bin\\java" -jar "\\Program Files\\Moneydance\\lib\\moneydance.jar" -v
 
+- Linux: The app package is normally located in /opt/Moneydance. This is actually an .sh script file.
+         ... the [optional] parameters below will work with this app package using Terminal.
+         
 - Apple macOS: The installer creates an apple mac 'package' file called /Applications/Moneydance.app
-               .. There is no vmoptions file or possibility with macOS
-               .. But you can simply execute this from Terminal using the following command
-                  /Applications/Moneydance.app/Contents/MacOS/Moneydance [with option parameters - see below]
+               .. (this is really a special folder. In Finder, right-click and 'Show Package Contents'
+               .. There is no vmoptions file option with macOS
+               .. But you can simply execute Moneydance from Terminal using the following command:
+               .. /Applications/Moneydance.app/Contents/MacOS/Moneydance (with [optional] parameters - see below)
 
 Moneydance parameters:
 ----------------------
 -d                  Enables Moneydance DEBUG mode (extra messages in help/console)
 -v                  prints the current version (and then quits)
+--version           same as -v
 -nobackup'          disables backups for this MD session (from build 5047 onwards)
 datasetname         will open the specified dataset >> specify the full path wrapped in (plain text) "quotes" 
 pythonscriptname.py adds script to a list of scripts to execute (but this seems to then be ignored)
