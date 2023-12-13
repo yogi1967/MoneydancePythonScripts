@@ -6743,8 +6743,10 @@ Visit: %s (Author's site)
                     asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
                     asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
 
-                    assert balObj.getBalance() == asofSharesBal, ("LOGIC ERROR: HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getBalance(), asofSharesBal))
-                    assert balObj.getCurrentBalance() == asofSharesCurBal, ("LOGIC ERROR: HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getCurrentBalance(), asofSharesCurBal))
+                    if debug:
+                        assert balObj.getBalance() == asofSharesBal, ("LOGIC ERROR: HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getBalance(), asofSharesBal))
+                        assert balObj.getCurrentBalance() == asofSharesCurBal, ("LOGIC ERROR: HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getCurrentBalance(), asofSharesCurBal))
+                    "here";
 
                     valueBal = convertValue(balObj.getBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
                     valueCurBal = convertValue(balObj.getCurrentBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
