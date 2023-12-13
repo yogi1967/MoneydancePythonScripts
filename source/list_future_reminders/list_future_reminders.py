@@ -78,6 +78,7 @@
 # build: 1029 - Common code - FileFilter fix...; Removed java.awt.print.Book import
 # build: 1029 - Tweaked cell renderer(s) for padding and highlighted colour...
 
+# todo - Replace look forward days with AsOfDateChooser - perhaps?
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
