@@ -158,6 +158,9 @@
 #               GUI fixes; KeyError tweak; Enhance the Account/Category select filter...; Put UNDO/Reload option on homepage widget
 # build: 1040 - Bumping the build number....
 
+# todo - enable hidden rows to calc option? Also when group filtered?
+# todo - ability to select prior -x periods and/or rolling date range - e.g. last x days and last x-z days...?
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
