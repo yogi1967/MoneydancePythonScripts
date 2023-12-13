@@ -80,40 +80,6 @@
 # NOTE: java.lang.IllegalArgumentException can occur when doing something like '"%s" %(java.util.HashMap)' containing unicode (or calling print on the same HashMap)
 #       Should be fixed in Jython 2.7.3 sometime)... Also note that unicode() should be used instead of str() where appropriate....
 
-# build: 1048 - Bugfix deleteOFXService() if no service selected...; Enhanced View OFX data for multiple service options (OFX and MD+)
-# build: 1048 - Improved the 'STOP-NOW' command message (suggest to check for upgrade)
-# build: 1049 - Updated Zap md+ option to wipe all md+ data from system (including all banking links)
-# build: 1049 - Added redactor() to various outputs (especially OFX and curious modes)
-# build: 1049 - Fixed calls to .setEscapeKeyCancels() on older MD versions...
-# build: 1050 - Added force change currency for categories options...
-# build: 1051 - Tweaks to internal code. Improved reset window positions code to pre-close all MD windows....
-# build: 1051 - Changed invalid preferences locations/sizes code to zap keys from toolbox_init.py at MD launch.......
-# build: 1051 - Improve vmoptions detector.
-# build: 1051 - Added 'Rename this dataset (within the same location)' & 'Relocate this dataset back to the default 'internal' location' features
-# build: 1051 - Added 'Cleanup MD's File/Open list of 'external' files (does not touch actual files)' feature
-# build: 1051 - Moved the Delete internal/external files option to General Tools Menu (and auto purge external orphans)
-# build: 1051 - Auto-magically restart MD (same dataset) when needed....; Changed menus so they all exit after each usage
-# build: 1051 - Added 'Force MD+ name cache & access tokens rebuild' feature; Tweaked Export/Import/Zap/Wipe MD+ features
-# build: 1051 - Added 'REGISTER MONEYDANCE' button (if not registered)...; Fixed invalid locations detection for off-screen negative (left)
-# build: 1052 - Small bugfix when debug message crashed merge duplicate securities with java.lang.IllegalArgumentException
-# build: 1052 - Updated toolbox_total_selected_transactions.py script; Added Detect/Fix Txns assigned to Root...
-# build: 1052 - Enhanced fix_non_hier_sec_acct_txns() with autofix and tweak for concurrent modification of txn list error
-# build: 1052 - Change lAutoPruneInternalBackups_TB default to True
-# build: 1052 - Redact these keys and also added to remove list: 'netsync.db.access_token_key', 'netsync.db.access_token_secret', 'netsync.db.v2token'
-# build: 1052 - Also detect/display/zap 'netsync.download_attachments'; Added 'Toggle Sync Downloading of Attachments' feature
-# build: 1052 - Turned off linewrap on main diagnostic display... WATCHOUT FOR SLUGGISH DIAGNOSTICS SCREEN with long lines and wordwrap off! (Probably Mac only)
-# build: 1052 - Fixed get_sync_folder() when Dropbox Connection (cloud service has no local folder on disk)
-# build: 1052 - Added some more startup diag info to console error log during init and main script
-# build: 1052 - Fixed bug with VAQua9 that causes Mac long lines in main display to slow down the scroll and cause memory issues. Don't do this: 'scrollpane.setBorder(BorderFactory.createLineBorder....
-# build: 1052 - .... and thus removed the call to System.gc()
-# build: 1052 - Tweaked init so that JVM stats captured from new thread after 10 seconds (to allow JVM memory to settle)...
-# build: 1052 - Added 'Relocate this dataset to another location' option
-# build: 1052 - Added AppleScript File Open selector (for when needed - e.g. trying to open 'special locations' or .moneydance bundle file)
-# build: 1052 - Enhanced 'FIX: Non-Hierarchical Security Acct Txns (& detect Orphans)' to self-repair where 'sec' split missing (creates dummy fake security)
-# build: 1052 - Added 'FIX: Detect and merge/fix duplicate Securities within same Investment Account(s)'
-# build: 1052 - Added check for no currencies at launch... Odd, but has happened!
-# build: 1052 - Enhanced Shrink Dataset... Allow 0 days, always delete out/txn-tmp...
-# build: 1052 - Fix Merge Duplicate Securities (security split match check); fix apple script check on Mac version
 # build: 1053 - Added 'DIAG: Show Securities with 'invalid' LOT Matching (cause of LOT matching popup window)' feature
 # build: 1053 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
 # build: 1053 - New feature 'Decrypt entire dataset' feature...
