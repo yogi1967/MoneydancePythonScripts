@@ -92,6 +92,11 @@ CHOICES/CONFIGURATION FOR A ROW:
           When selected, the balance asof date options are enabled. Here you select the automatic asof end date,
           or specify a fixed custom asof date. Auto-dates will auto-adjust every time the calculations are executed.
 
+        - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the asof
+          date you are selecting. E.g. if you select 'asof end last year' (i.e. 'period' is year) and offset 1,
+          then you will get an asof date calculated to end last year minus 1 (period) year (=end two years ago)..
+          >> Offset does not apply to Custom, End Future (all dates), Today date selection(s)...
+
         - Calculation methodology for Balance/Current/Cleared Balance when using asof date:
             - Balance always uses the calculated asof-dated Balance
             - Past asof-dated Current Balance uses the calculated asof-dated Balance
@@ -123,6 +128,11 @@ CHOICES/CONFIGURATION FOR A ROW:
         - Reminder date(s) will be forward calculated up to the Reminder's asof date setting. Then...
         - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
 
+        - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the asof
+          date you are selecting. E.g. if you select 'asof end last year' (i.e. 'period' is year) and offset 1,
+          then you will get an asof date calculated to end last year minus 1 (period) year (=end two years ago)..
+          >> Offset does not apply to Custom, End Future (all dates), Today date selection(s)...
+
         - NOTE: It would be unusual to find any (non-recorded) reminders with a Cleared Status - so expect ZERO.
         - NOTE: Ignored when returning cost basis / unrealised gains
 
@@ -149,6 +159,11 @@ CHOICES/CONFIGURATION FOR A ROW:
 
 - INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
                       Otherwise they have entries for all dates. (Details below)
+
+        - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the date
+          range you are selecting. E.g. if you select 'Last year' (i.e. 'period' range is year) and offset 1,
+          then you will get a range date calculated that includes 'last year' minus 1 (period) year (=end two years ago)
+          >> Offset does not apply to Custom dates, All dates, Last 1 day date range selection(s)...
 
 - Display Currency: Allows you to display the balance in a chosen currency, or security value, or other format.
                     Disable Currency Formatting: drops any symbol/prefix/suffix associated with the currency.

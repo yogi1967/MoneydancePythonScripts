@@ -157,6 +157,7 @@
 #               NOTE: Cost Basis and U/R Gains with MyCostCalculation (as CostCalculation not very accessible)
 #               GUI fixes; KeyError tweak; Enhance the Account/Category select filter...; Put UNDO/Reload option on homepage widget
 # build: 1040 - Bumping the build number....
+#               Enhanced MyCostCalculation; Enhanced AsOfDateChooser with skip back periods...
 
 # todo - enable hidden rows to calc option? Also when group filtered?
 # todo - ability to select prior -x periods and/or rolling date range - e.g. last x days and last x-z days...?
@@ -628,10 +629,12 @@ else:
     GlobalVars.INCLUDE_REMINDERS_IDX = 0
     GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX = 1
     GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX = 2
+    GlobalVars.INCLUDE_REMINDERS_SKIPBACKPERIODS_IDX = 3
 
     GlobalVars.ASOF_BALANCE_IDX = 0
     GlobalVars.ASOF_BALANCE_KEY_IDX = 1
     GlobalVars.ASOF_BALANCE_DATEINT_IDX = 2
+    GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX = 3
 
     GlobalVars.BALTYPE_BALANCE = 0
     GlobalVars.BALTYPE_CURRENTBALANCE = 1
@@ -3393,6 +3396,7 @@ Visit: %s (Author's site)
             self.investCurr = secAccount.getParentAccount().getCurrencyType()                                           # type: CurrencyType
             self.secCurr = secAccount.getCurrencyType()                                                                 # type: CurrencyType
             self.usesAverageCost = secAccount.getUsesAverageCost()
+            self.costBasisInvalid = False
 
             # if isinstance(preparedTxns, TxnSet) and preparedTxns.getSize() > 0:
             if isinstance(preparedTxns, TxnSet):
@@ -3404,6 +3408,7 @@ Visit: %s (Author's site)
                     self.txns = secAccount.getBook().getTransactionSet().getTransactionsForAccount(secAccount)          # type: TxnSet
                     self.txns.sortWithComparator(TxnUtil.DATE_THEN_AMOUNT_COMPARATOR.reversed())                        # Newest first by index
                 else:
+                    self.costBasisInvalid = True
                     self.txns = TxnSet()
                     myPrint("B", "@@ WARNING: MD reports that the Cost Basis for account: '%s' is invalid! (Probably Lot controlled Security account with Sells not fully Lot Matched to Buys. Will return zero)" %(self.getSecAccount().getFullAccountName()))
 
@@ -3431,6 +3436,7 @@ Visit: %s (Author's site)
 
             if self.COST_DEBUG: myPrint("B", "** MyCostCalculation() running asof: %s, for account: '%s' (%s) **" %(asOfDate, secAccount, "AvgCost" if self.getUsesAverageCost() else "LotControl"))
 
+        def isCostBasisInvalid(self): return self.costBasisInvalid
         def getUsesAverageCost(self): return self.usesAverageCost
 
         def getCurrentBalanceCostCalculation(self):
@@ -3542,7 +3548,7 @@ Visit: %s (Author's site)
             if txn.getDateInt() <= self.getAsOfDate():
                 pos = self.getCurrentPosition()
                 newPos = MyCostCalculation.Position(self, txn, pos)
-                if debug: myPrint("B", "adding position:", pos)
+                if self.COST_DEBUG: myPrint("B", "adding position:", pos)
                 self.getPositions().add(newPos)
                 # ptxn = txn.getParentTxn()                                                                             # type: ParentTxn
                 self.getPositionsByBuyID().put(txn.getUUID(), newPos)  # MD Version used ptxn.getUUID()                 # todo - MDFIX
@@ -4417,6 +4423,7 @@ Visit: %s (Author's site)
             self.parallelReturnCostBasis = False
             self.parallelReturnCostBasisType = GlobalVars.COSTBASIS_TYPE_NONE
             self.parallelReturnCostBasisCash = False
+            self.costBasisInvalid = False
             self.isIncomeExpenseAcct = isIncomeExpenseAcct(acct)
             self.isSecurityAcct = isSecurityAcct(acct)
             self.isInvestmentAcct = isInvestmentAcct(acct)
@@ -4446,6 +4453,7 @@ Visit: %s (Author's site)
         def setParallelReturnCostBasis(self, enabled):          self.parallelReturnCostBasis = enabled
         def setParallelReturnCostBasisType(self, cbType):       self.parallelReturnCostBasisType = cbType
         def setParallelReturnCostBasisCash(self, useCash):      self.parallelReturnCostBasisCash = useCash
+        def setCostBasisInvalid(self, isInvalid):               self.costBasisInvalid = isInvalid
 
         def isParallelRealBalances(self):               return self.parallelRealBalances
         def isParallelIncExpBalances(self):             return self.parallelIncExpBalances
@@ -4454,6 +4462,7 @@ Visit: %s (Author's site)
         def isParallelReturnCostBasis(self):            return self.parallelReturnCostBasis
         def getParallelReturnCostBasisType(self):       return self.parallelReturnCostBasisType
         def getParallelReturnCostBasisCash(self):       return self.parallelReturnCostBasisCash
+        def isCostBasisInvalid(self):                   return self.costBasisInvalid
 
         def isAutoSum(self):                                        return self.autoSum
         def setSubAccountsBalanceObjects(self, _subAccountObjects): self.subAccountsBalanceObjects = _subAccountObjects
@@ -4730,16 +4739,18 @@ Visit: %s (Author's site)
 
     # noinspection PyUnusedLocal
     class MyQuickSearchDocListener(DocumentListener):
-        def __init__(self, _what):
+        def __init__(self, _what, source):
             self._what = _what
+            self.source = source
             self.disabled = False
 
-        def changedUpdate(self, evt):
+        def changedUpdate(self, evt):   self.searchFiltersUpdated()
+        def removeUpdate(self, evt):    self.searchFiltersUpdated()
+        def insertUpdate(self, evt):    self.searchFiltersUpdated()
+
+        def searchFiltersUpdated(self):
             if not self.disabled: self._what.searchFiltersUpdated()
-        def removeUpdate(self, evt):
-            if not self.disabled: self._what.searchFiltersUpdated()
-        def insertUpdate(self, evt):
-            if not self.disabled: self._what.searchFiltersUpdated()
+            self.source.repaint()
 
     # noinspection PyUnusedLocal
     class MyQuickSearchFocusAdapter(FocusAdapter):
@@ -4965,14 +4976,11 @@ Visit: %s (Author's site)
     class MyQuickFieldDocumentListener(DocumentListener):
         def __init__(self, source): self.source = source
 
-        def insertUpdate(self, evt):                                                                                    # noqa
-            self.source.repaint()
+        def changedUpdate(self, evt):   self.searchFiltersUpdated()                                                     # noqa
+        def removeUpdate(self, evt):    self.searchFiltersUpdated()                                                     # noqa
+        def insertUpdate(self, evt):    self.searchFiltersUpdated()                                                     # noqa
 
-        def removeUpdate(self, evt):                                                                                    # noqa
-            self.source.repaint()
-
-        def changedUpdate(self, evt):                                                                                   # noqa
-            self.source.repaint()
+        def searchFiltersUpdated(self): self.source.repaint()
 
     class MyJTextFieldFilter(QuickSearchField):
 
@@ -5699,6 +5707,105 @@ Visit: %s (Author's site)
             return selectedOptionKey, drSettings
 
 
+    class MyJTextFieldAsInt(JTextField, FocusListener):
+        PROP_SKIPBACK_PERIODS_CHANGED = "skipBackPeriodsChanged"
+
+        def __init__(self, cols, decimal):
+            super(self.__class__, self).__init__(cols)
+            self.fm = None                                                                                              # type: FontMetrics
+            self.fieldStringWidthChars = 3
+            self.fieldStringWidth = 20
+            self.defaultValue = 0
+            self._skipBackPeriods = self.defaultValue
+            self.allowBlank = True
+            self.dec = decimal
+            self.allowNegative = False
+            self.disabled = False
+            self.setDocument(JTextFieldIntDocument())
+            self.setHorizontalAlignment(SwingConstants.LEFT)
+            self.addFocusListener(self)
+            self.addKeyListener(MyKeyAdapter())
+            self.setFocusable(True)
+            self.setValueInt(self._skipBackPeriods)
+
+        def focusGained(self, evt):
+            myPrint("DB", "In MyJTextFieldAsInt:focusGained()...")
+            if self.disabled:
+                myPrint("DB", "... disabled is set, skipping this.....")
+            else:
+                evt.getSource().selectAll()
+
+        def focusLost(self, evt):
+            myPrint("DB", "In MyJTextFieldAsInt:focusLost()...")
+            if self.disabled:
+                myPrint("DB", "... disabled is set, skipping this.....")
+            else:
+                obj = evt.getSource()
+                # if (not obj.allowBlank or obj.getText() != ""):
+                #     obj.setValueInt(obj.getValueInt())
+                obj.setValueInt(obj.getValueInt())
+
+        def setAllowBlank(self, allowBlankField): self.allowBlank = allowBlankField
+
+        def getPreferredSize(self): return self.getMinimumSize()
+
+        def getMinimumSize(self):
+            dim = super(self.__class__, self).getMinimumSize()
+            if (self.fm is None):
+                f = self.getFont()
+                if (f is not None):
+                    self.fm = self.getFontMetrics(f)
+
+            strWidth = self.fieldStringWidth if self.fm is None else self.fm.stringWidth("8" * self.fieldStringWidthChars)
+            dim.width = Math.max(dim.width, strWidth)
+            return dim
+
+        def setValueInt(self, val):
+            if val is None or val == "": val = self.defaultValue
+            val = int(val)
+            if (val == 0 and self.allowBlank):
+                self.setText("")
+            else:
+                super(self.__class__, self).setText(str(val))
+            self.setCaretPosition(0)
+            self.internalSetValueInt(val)
+
+        def internalSetValueInt(self, newSkipBackPeriods):
+            oldSkipBackPeriods = self._skipBackPeriods
+            self._skipBackPeriods = newSkipBackPeriods
+            self.firePropertyChange(self.PROP_SKIPBACK_PERIODS_CHANGED, oldSkipBackPeriods, newSkipBackPeriods)
+
+        def getValueInt(self):
+            sVal = super(self.__class__, self).getText()
+            try:
+                val = int(float(sVal))
+                if not self.allowNegative: val = int(Math.abs(val))                 # Warning: Math.abs() converts an int into a long
+            except:
+                val = self.defaultValue
+            return val
+
+        def setText(self, sVal):
+            if sVal is None: sVal = ""
+            if (self.allowBlank and sVal == ""):
+                super(self.__class__, self).setText(sVal)
+            else:
+                try:
+                    val = int(float(sVal))
+                    if not self.allowNegative: val = int(Math.abs(val))         # Warning: Math.abs() converts an int into a long
+                except:
+                    val = self.defaultValue
+                self.setValueInt(val)
+
+        def getText(self):
+            rawText = super(self.__class__, self).getText()
+            result = rawText if (self.allowBlank and len(rawText.strip()) <= 0) else (str(rawText))
+            return result
+
+        def updateUI(self):
+            self.fm = None
+            super(self.__class__, self).updateUI()
+            setJComponentStandardUIDefaults(self)
+
     class AsOfDateChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
         """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged"""
         PARAM_ASOF_CHOICE = "asof_option"
@@ -5723,6 +5830,12 @@ Visit: %s (Author's site)
                               ["asof_end_last_quarter",         "asof end last quarter"],
                               ["asof_end_last_month",           "asof end last month"],
                               ["asof_end_last_week",            "asof end last week"],
+                              ["asof_30_days_ago",              "asof 30 days ago"],
+                              ["asof_60_days_ago",              "asof 60 days ago"],
+                              ["asof_90_days_ago",              "asof 90 days ago"],
+                              ["asof_120_days_ago",             "asof 120 days ago"],
+                              ["asof_180_days_ago",             "asof 180 days ago"],
+                              ["asof_365_days_ago",             "asof 365 days ago"],
                               ["asof_end_future",               "asof end future (all dates)"],
                               ["custom_asof",                   "Custom asof date"]
                             ]
@@ -5738,29 +5851,106 @@ Visit: %s (Author's site)
             def toString(self):         return self.__str__()
 
             @staticmethod
-            def getAsOfDateFromKey(forOptionKey):
-                # type: (str) -> int
+            def internalCalculateAsOfDateFromKey(forOptionKey, realTodayInt, calculatedTodayInt, skipBackPeriods):
+                # type: (str, int, int, int) -> int
+                if forOptionKey == "custom_asof":                    rtnVal = realTodayInt
+                elif forOptionKey ==  "asof_end_future":             rtnVal = DateRange().getEndDateInt()
+                elif forOptionKey == "asof_today":                   rtnVal = realTodayInt
+                elif forOptionKey == "asof_yesterday":               rtnVal = DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1)
+                elif forOptionKey == "asof_end_this_fiscal_year":    rtnVal = DateUtil.lastDayInFiscalYear(calculatedTodayInt)
+                elif forOptionKey == "asof_end_last_fiscal_year":    rtnVal = DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt))
+                elif forOptionKey == "asof_end_last_fiscal_quarter": rtnVal = DateUtil.lastDayInFiscalQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0))
+                elif forOptionKey == "asof_end_this_quarter":        rtnVal = Util.lastDayInQuarter(calculatedTodayInt)
+                elif forOptionKey == "asof_end_this_year":           rtnVal = DateUtil.lastDayInYear(calculatedTodayInt)
+                elif forOptionKey == "asof_end_this_month":          rtnVal = Util.lastDayInMonth(calculatedTodayInt)
+                elif forOptionKey == "asof_end_next_month":          rtnVal = Util.lastDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0))
+                elif forOptionKey == "asof_end_this_week":           rtnVal = Util.lastDayInWeek(calculatedTodayInt)
+                elif forOptionKey == "asof_end_last_year":           rtnVal = Util.lastDayInYear(Util.decrementYear(calculatedTodayInt))
+                elif forOptionKey == "asof_end_last_quarter":        rtnVal = DateUtil.lastDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0))
+                elif forOptionKey == "asof_end_last_month":          rtnVal = Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, 0, -1)
+                elif forOptionKey == "asof_end_last_week":           rtnVal = Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -1)
+                elif forOptionKey == "asof_30_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, -30  * (skipBackPeriods + 1))
+                elif forOptionKey == "asof_60_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, -60  * (skipBackPeriods + 1))
+                elif forOptionKey == "asof_90_days_ago":             rtnVal = Util.incrementDate(realTodayInt, 0, 0, -90  * (skipBackPeriods + 1))
+                elif forOptionKey == "asof_120_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, -120 * (skipBackPeriods + 1))
+                elif forOptionKey == "asof_180_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, -180 * (skipBackPeriods + 1))
+                elif forOptionKey == "asof_365_days_ago":            rtnVal = Util.incrementDate(realTodayInt, 0, 0, -365 * (skipBackPeriods + 1))
+                else: raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
+                return rtnVal
+
+            @staticmethod
+            def getAsOfDateFromKey(forOptionKey, skipBackPeriods):
+                # type: (str, int) -> int
+
+                if skipBackPeriods is None: skipBackPeriods = 0
 
                 todayInt = Util.getStrippedDateInt()
-                yesterdayInt = DateUtil.incrementDate(todayInt, 0, 0, -1)
 
-                if forOptionKey == "custom_asof":                    return todayInt
-                elif forOptionKey ==  "asof_end_future":             return DateRange().getEndDateInt()
-                elif forOptionKey == "asof_today":                   return todayInt
-                elif forOptionKey == "asof_yesterday":               return yesterdayInt
-                elif forOptionKey == "asof_end_this_fiscal_year":    return DateUtil.lastDayInFiscalYear(todayInt)
-                elif forOptionKey == "asof_end_last_fiscal_year":    return DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(todayInt))
-                elif forOptionKey == "asof_end_last_fiscal_quarter": return DateUtil.lastDayInFiscalQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0))
-                elif forOptionKey == "asof_end_this_quarter":        return Util.lastDayInQuarter(todayInt)
-                elif forOptionKey == "asof_end_this_year":           return DateUtil.lastDayInYear(todayInt)
-                elif forOptionKey == "asof_end_this_month":          return Util.lastDayInMonth(todayInt)
-                elif forOptionKey == "asof_end_next_month":          return Util.lastDayInMonth(Util.incrementDate(todayInt, 0, 1, 0))
-                elif forOptionKey == "asof_end_this_week":           return Util.lastDayInWeek(todayInt)
-                elif forOptionKey == "asof_end_last_year":           return Util.lastDayInYear(Util.decrementYear(todayInt))
-                elif forOptionKey == "asof_end_last_quarter":        return DateUtil.lastDayInQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0))
-                elif forOptionKey == "asof_end_last_month":          return Util.incrementDate(Util.firstDayInMonth(todayInt), 0, 0, -1)
-                elif forOptionKey == "asof_end_last_week":           return Util.incrementDate(Util.firstDayInWeek(todayInt), 0, 0, -1)
-                raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
+                skipBackDayTodayInt  = DateUtil.incrementDate(todayInt, 0, 0, -skipBackPeriods)
+                skipBackWeekTodayInt = DateUtil.incrementDate(todayInt, 0, 0, 7 * -skipBackPeriods)
+                skipBackMnthTodayInt = DateUtil.incrementDate(todayInt, 0, -skipBackPeriods, 0)
+                skipBackQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -skipBackPeriods, 0)
+                skipBackYearTodayInt = DateUtil.incrementDate(todayInt, -skipBackPeriods, 0, 0)
+
+                # if forOptionKey == "custom_asof":                    rtnVal = todayInt
+                # elif forOptionKey ==  "asof_end_future":             rtnVal = DateRange().getEndDateInt()
+                # elif forOptionKey == "asof_today":                   rtnVal = todayInt
+                # elif forOptionKey == "asof_yesterday":               rtnVal = DateUtil.incrementDate(skipBackDayTodayInt, 0, 0, -1)
+                # elif forOptionKey == "asof_end_this_fiscal_year":    rtnVal = DateUtil.lastDayInFiscalYear(skipBackYearTodayInt)
+                # elif forOptionKey == "asof_end_last_fiscal_year":    rtnVal = DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(skipBackYearTodayInt))
+                # elif forOptionKey == "asof_end_last_fiscal_quarter": rtnVal = DateUtil.lastDayInFiscalQuarter(skipBackQrtrTodayInt)
+                # elif forOptionKey == "asof_end_this_quarter":        rtnVal = Util.lastDayInQuarter(skipBackQrtrTodayInt)
+                # elif forOptionKey == "asof_end_this_year":           rtnVal = DateUtil.lastDayInYear(skipBackYearTodayInt)
+                # elif forOptionKey == "asof_end_this_month":          rtnVal = Util.lastDayInMonth(skipBackMnthTodayInt)
+                # elif forOptionKey == "asof_end_next_month":          rtnVal = Util.lastDayInMonth(Util.incrementDate(skipBackMnthTodayInt, 0, 1, 0))
+                # elif forOptionKey == "asof_end_this_week":           rtnVal = Util.lastDayInWeek(skipBackWeekTodayInt)
+                # elif forOptionKey == "asof_end_last_year":           rtnVal = Util.lastDayInYear(Util.decrementYear(skipBackYearTodayInt))
+                # elif forOptionKey == "asof_end_last_quarter":        rtnVal = DateUtil.lastDayInQuarter(skipBackQrtrTodayInt)
+                # elif forOptionKey == "asof_end_last_month":          rtnVal = Util.incrementDate(Util.firstDayInMonth(skipBackMnthTodayInt), 0, 0, -1)
+                # elif forOptionKey == "asof_end_last_week":           rtnVal = Util.incrementDate(Util.firstDayInWeek(skipBackWeekTodayInt), 0, 0, -1)
+                # elif forOptionKey == "asof_30_days_ago":             rtnVal = Util.incrementDate(todayInt, 0, 0, -30  * (skipBackPeriods + 1))
+                # elif forOptionKey == "asof_60_days_ago":             rtnVal = Util.incrementDate(todayInt, 0, 0, -60  * (skipBackPeriods + 1))
+                # elif forOptionKey == "asof_90_days_ago":             rtnVal = Util.incrementDate(todayInt, 0, 0, -90  * (skipBackPeriods + 1))
+                # elif forOptionKey == "asof_120_days_ago":            rtnVal = Util.incrementDate(todayInt, 0, 0, -120 * (skipBackPeriods + 1))
+                # elif forOptionKey == "asof_180_days_ago":            rtnVal = Util.incrementDate(todayInt, 0, 0, -180 * (skipBackPeriods + 1))
+                # elif forOptionKey == "asof_365_days_ago":            rtnVal = Util.incrementDate(todayInt, 0, 0, -365 * (skipBackPeriods + 1))
+                # else: raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
+
+                if forOptionKey == "custom_asof":                    calculatedTodayInt = None
+                elif forOptionKey ==  "asof_end_future":             calculatedTodayInt = None
+                elif forOptionKey == "asof_today":                   calculatedTodayInt = None
+                elif forOptionKey == "asof_yesterday":               calculatedTodayInt = skipBackDayTodayInt
+                elif forOptionKey == "asof_end_this_fiscal_year":    calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "asof_end_last_fiscal_year":    calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "asof_end_last_fiscal_quarter": calculatedTodayInt = skipBackQrtrTodayInt
+                elif forOptionKey == "asof_end_this_quarter":        calculatedTodayInt = skipBackQrtrTodayInt
+                elif forOptionKey == "asof_end_this_year":           calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "asof_end_this_month":          calculatedTodayInt = skipBackMnthTodayInt
+                elif forOptionKey == "asof_end_next_month":          calculatedTodayInt = skipBackMnthTodayInt
+                elif forOptionKey == "asof_end_this_week":           calculatedTodayInt = skipBackWeekTodayInt
+                elif forOptionKey == "asof_end_last_year":           calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "asof_end_last_quarter":        calculatedTodayInt = skipBackQrtrTodayInt
+                elif forOptionKey == "asof_end_last_month":          calculatedTodayInt = skipBackMnthTodayInt
+                elif forOptionKey == "asof_end_last_week":           calculatedTodayInt = skipBackWeekTodayInt
+                elif forOptionKey == "asof_30_days_ago":             calculatedTodayInt = None
+                elif forOptionKey == "asof_60_days_ago":             calculatedTodayInt = None
+                elif forOptionKey == "asof_90_days_ago":             calculatedTodayInt = None
+                elif forOptionKey == "asof_120_days_ago":            calculatedTodayInt = None
+                elif forOptionKey == "asof_180_days_ago":            calculatedTodayInt = None
+                elif forOptionKey == "asof_365_days_ago":            calculatedTodayInt = None
+                else: raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
+
+                calculatedDateInt = AsOfDateChooser.AsOfDateChoice.internalCalculateAsOfDateFromKey(forOptionKey, todayInt, calculatedTodayInt, skipBackPeriods)
+
+                if debug:
+                    if skipBackPeriods != 0:
+                        originalDateInt = AsOfDateChooser.AsOfDateChoice.internalCalculateAsOfDateFromKey(forOptionKey, todayInt, todayInt, 0)
+                        myPrint("B", "@@ .getAsOfDateFromKey('%s', skipBackPeriods: %s): skipBackDayTodayInt: %s, skipBackWeekTodayInt: %s, skipBackMnthTodayInt: %s, skipBackQrtrTodayInt: %s, skipBackYearTodayInt: %s"
+                                %(forOptionKey, skipBackPeriods, skipBackDayTodayInt, skipBackWeekTodayInt, skipBackMnthTodayInt, skipBackQrtrTodayInt, skipBackYearTodayInt))
+                        myPrint("B", "@@ originalDateInt: %s, calculatedDateInt: %s" %(originalDateInt, calculatedDateInt))
+                    myPrint("B", "@@ .getAsOfDateFromKey('%s', %s) returning %s" %(forOptionKey, skipBackPeriods, calculatedDateInt))
+
+                return calculatedDateInt
 
         class AsOfDateClickListener(MouseAdapter):
             def __init__(self, callingClass):   self.callingClass = callingClass
@@ -5782,17 +5972,25 @@ Visit: %s (Author's site)
             self.allDatesOption = None
             self.asOfDateIntResult = None
             self.selectedOptionKeyResult = None
+            self.skipBackPeriodsResult = 0
             self.ignoreDateChanges = False
             self.isEnabled = True
             self.asOfOptions = self.createAsOfDateOptions()                                                             # type: [AsOfDateChooser.AsOfDateChoice]
+
             self.asOfDate_JDF = JDateField(mdGUI)
             self.asOfDate_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
             self.asOfDate_JDF.addMouseListener(self.AsOfDateClickListener(self))
+
+            self.skipBackPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
+            self.skipBackPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED, self)
+
             # self.asOfDate_JDF.setFocusable(True)
             # self.asOfDate_JDF.addKeyListener(MyKeyAdapter())
+
             self.asOfDate_LBL = MyJLabel(" ", 4)
             self.asOfChoice_LBL = MyJLabel(" ", 4)
             self.asOfChoice_COMBO = MyJComboBox()
+            self.skipBackPeriods_LBL = MyJLabel(" ", 4)
             self.preferencesUpdated()
             self.asOfSelected()
             self.asOfChoice_COMBO.addItemListener(self)
@@ -5816,6 +6014,8 @@ Visit: %s (Author's site)
         def getAsOfDateField(self): return self.asOfDate_JDF
         def getChoiceLabel(self): return self.asOfChoice_LBL
         def getChoiceCombo(self): return self.asOfChoice_COMBO
+        def getSkipBackPeriodsLabel(self): return self.skipBackPeriods_LBL
+        def getSkipBackPeriodsField(self): return self.skipBackPeriods_JTF
 
         def isCustomAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.customOption)
         def isAllAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.allDatesOption)
@@ -5829,6 +6029,8 @@ Visit: %s (Author's site)
             self.asOfDate_JDF.setDateFormat(prefs.getShortDateFormatter())
             self.asOfDate_LBL.setText("date:")
             self.asOfChoice_LBL.setText("Balance:")
+            self.skipBackPeriods_LBL.setText("offset:")
+            self.skipBackPeriods_JTF.setValueInt(self.skipBackPeriods_JTF.defaultValue)
             asOfSel = self.getSelectedIndex()
             self.getChoiceCombo().setModel(DefaultComboBoxModel(self.asOfOptions))
             prototypeText = ""
@@ -5848,11 +6050,13 @@ Visit: %s (Author's site)
             x = 0; y = 0
             vertInc = 0 if horizontal else 1
             if includeChoiceLabel:
-                p.add(self.getChoiceLabel(),    GridC.getc(x, y).label()); x += 1
-            p.add(self.getChoiceCombo(),        GridC.getc(x, y).field()); x += 1; y += vertInc
+                p.add(self.getChoiceLabel(),        GridC.getc(x, y).label()); x += 1
+            p.add(self.getChoiceCombo(),            GridC.getc(x, y).field()); x += 1; y += vertInc
             if not horizontal: x = 0
-            p.add(self.getAsOfLabel(),          GridC.getc(x, y).label()); x += 1
-            p.add(self.getAsOfDateField(),      GridC.getc(x, y).field()); x += 1; y += vertInc
+            p.add(self.getAsOfLabel(),              GridC.getc(x, y).label()); x += 1
+            p.add(self.getAsOfDateField(),          GridC.getc(x, y).field()); x += 1; y += vertInc
+            p.add(self.getSkipBackPeriodsLabel(),   GridC.getc(x, y).label()); x += 1
+            p.add(self.getSkipBackPeriodsField(),   GridC.getc(x, y).field()); x += 1; y += vertInc
             return p
 
         def setSelectedOptionKey(self, asOfOptionKey):
@@ -5881,22 +6085,34 @@ Visit: %s (Author's site)
             if self.asOfDateIntResult is None: self.asOfSelected()
             return Integer(self.asOfDateIntResult)
 
+        def setSkipBackPeriods(self, skipBackPeriods):
+            self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
+            self.asOfSelected()
+
+        def getSkipBackPeriods(self):
+            # if self.skipBackPeriodsResult is None: self.asOfSelected()
+            return self.skipBackPeriodsResult
+
         def asOfSelected(self):
             asofDateInt = self.getAsOfDateIntFromSelectedOption()
+            skipBackPeriods = self.skipBackPeriods_JTF.getValueInt()
             # myPrint("B", "@@ AsOfDateChooser:%s:asOfSelected() - getAsOfDateIntFromSelectedOption() reports: '%s'" %(self.getName(), asofDateInt))
             self.ignoreDateChanges = True
             self.asOfDate_JDF.setDateInt(asofDateInt)
+            self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
             self.ignoreDateChanges = False
-            self.setAsOfDateResult(asofDateInt)
+            self.setAsOfDateResult(asofDateInt, skipBackPeriods)
             self.updateEnabledStatus()
 
         def loadFromParameters(self, settings, defaultKey):
-            # type: ([bool, str, int], str) -> bool
+            # type: ([bool, str, int, int], str) -> bool
             if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default asof option/key ('%s') not found?!" %(defaultKey))
             foundSetting = False
             # asOfOptionSelected = settings[0]
             asOfOptionKey = settings[1]
             asOfDateInt = settings[2]
+            skipBackPeriods = settings[3]
+            self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
             if asOfOptionKey == self.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(asOfDateInt):
                     self.setAsOfDateInt(asOfDateInt)
@@ -5911,13 +6127,15 @@ Visit: %s (Author's site)
             return foundSetting
 
         def returnStoredParameters(self, defaultSettings):
-            # type: ([bool, str, int]) -> [bool, str, int]
+            # type: ([bool, str, int, int]) -> [bool, str, int, int]
             settings = copy.deepcopy(defaultSettings)
             asOfDateInt = self.getAsOfDateInt()
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+            skipBackPeriods = self.skipBackPeriods_JTF.getValueInt()
             # leave settings[0] untouched
             settings[1] = selectedOptionKey
             settings[2] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
+            settings[3] = skipBackPeriods
             if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored asof date parameters settings ('%s')" %(self.getName(), settings))
             return settings
 
@@ -5940,41 +6158,37 @@ Visit: %s (Author's site)
         #     if selectedOptionKey == self.KEY_CUSTOM_ASOF:
         #         MDURLUtil.putDate(settings, self.PARAM_ASOF_DATE, Integer(asOfDateInt))
 
-        def setAsOfDateResult(self, asOfDateInt):
+        def setAsOfDateResult(self, asOfDateInt, skipBackPeriods):
             oldAsOfDateInt = self.asOfDateIntResult
             oldSelectedKey = self.selectedOptionKeyResult
+            oldSkipBackPeriods = self.skipBackPeriodsResult
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
             # myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s) (old asof date: %s), selectedKey: '%s' (old key: '%s')" %(self.getName(), asOfDateInt, oldAsOfDateInt, selectedOptionKey, oldSelectedKey));
-            if asOfDateInt != oldAsOfDateInt or selectedOptionKey != oldSelectedKey:
+            if asOfDateInt != oldAsOfDateInt or selectedOptionKey != oldSelectedKey or skipBackPeriods != oldSkipBackPeriods:
                 self.asOfDateIntResult = asOfDateInt
                 self.selectedOptionKeyResult = selectedOptionKey
+                self.skipBackPeriodsResult = skipBackPeriods
                 if asOfDateInt != oldAsOfDateInt:
                     # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt))
                     getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldAsOfDateInt, asOfDateInt)
-                else:
+                elif selectedOptionKey != oldSelectedKey:
                     # if debug:
                     #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey))
                     getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSelectedKey, selectedOptionKey)
+                elif skipBackPeriods != oldSkipBackPeriods:
+                    # if debug:
+                    #     myPrint("B", "@@ AsOfDateChooser:%s:setAsOfDateResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), asOfDateInt, self.PROP_ASOF_CHANGED, oldSkipBackPeriods, skipBackPeriods))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_ASOF_CHANGED, oldSkipBackPeriods, skipBackPeriods)
 
         def setEnabled(self, isEnabled, shouldHide=False):
             self.isEnabled = isEnabled
             self.updateEnabledStatus(shouldHide=shouldHide)
 
         def updateEnabledStatus(self, shouldHide=False):
-            self.getChoiceCombo().setEnabled(self.isEnabled)
-            self.asOfChoice_LBL.setEnabled(self.isEnabled)
-            self.asOfDate_LBL.setEnabled(self.isEnabled)
-            self.asOfDate_JDF.setEditable(self.isEnabled)
-            self.getChoiceCombo().setFocusable(self.isEnabled)
-            self.asOfChoice_LBL.setFocusable(self.isEnabled)
-            self.asOfDate_LBL.setFocusable(self.isEnabled)
-            self.asOfDate_JDF.setFocusable(self.isEnabled)
-            if shouldHide:
-                self.asOfChoice_LBL.setVisible(self.isEnabled)
-                self.getChoiceCombo().setVisible(self.isEnabled)
-                self.asOfDate_LBL.setVisible(self.isEnabled)
-                self.asOfDate_JDF.setVisible(self.isEnabled)
+            for comp in [self.getChoiceCombo(), self.asOfChoice_LBL, self.asOfDate_LBL, self.asOfDate_JDF, self.skipBackPeriods_LBL, self.skipBackPeriods_JTF]:
+                comp.setEnabled(self.isEnabled)
+                if shouldHide: comp.setVisible(self.isEnabled)
 
         def itemStateChanged(self, evt):
             src = evt.getSource()
@@ -5982,14 +6196,16 @@ Visit: %s (Author's site)
                 self.asOfSelected()
 
         def propertyChange(self, event):
-            # myPrint("B", "@@ AsOfDateChooser:%s:propertyChange('%s') - .getSelectedOptionKey() reports: '%s'"
-            #         %(self.getName(), event.getPropertyName(), self.getSelectedOptionKey(self.getSelectedIndex())));
-            if event.getPropertyName() == JDateField.PROP_DATE_CHANGED and not self.ignoreDateChanges:
+            # myPrint("B", "@@ AsOfDateChooser:%s:propertyChange('%s') - .getSelectedOptionKey() reports: '%s'" %(self.getName(), event.getPropertyName(), self.getSelectedOptionKey(self.getSelectedIndex())));
+            if (event.getPropertyName() == JDateField.PROP_DATE_CHANGED and not self.ignoreDateChanges):
                 selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
                 if (selectedOptionKey != self.KEY_CUSTOM_ASOF and self.asOfVariesFromSelectedOption()):
                     self.getChoiceCombo().setSelectedItem(self.customOption)
                 if (selectedOptionKey == self.KEY_CUSTOM_ASOF):
-                    self.setAsOfDateResult(self.asOfDate_JDF.getDateInt())
+                    self.setAsOfDateResult(self.asOfDate_JDF.getDateInt(), self.skipBackPeriods_JTF.getValueInt())
+            if (event.getPropertyName() == MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED and not self.ignoreDateChanges):
+                self.setAsOfDateResult(self.asOfDate_JDF.getDateInt(), self.skipBackPeriods_JTF.getValueInt())
+                self.asOfSelected()
 
         def asOfVariesFromSelectedOption(self):
             asOfDateInt = self.asOfDate_JDF.getDateInt()
@@ -6000,7 +6216,7 @@ Visit: %s (Author's site)
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
             if (selectedOptionKey == self.KEY_CUSTOM_ASOF):
                 return self.asOfDate_JDF.parseDateInt()
-            return self.AsOfDateChoice.getAsOfDateFromKey(selectedOptionKey)
+            return self.AsOfDateChoice.getAsOfDateFromKey(selectedOptionKey, self.getSkipBackPeriods())
 
 
 
@@ -6440,14 +6656,15 @@ Visit: %s (Author's site)
         _fromAsOfWanted = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_IDX]
         _fromAsOfKey = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_KEY_IDX]
         _fromCustomAsOfDateInt = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_DATEINT_IDX]
+        _fromSkipBackPeriods = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
                     asOfDateInt = _fromCustomAsOfDateInt
                 else:
-                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY)
+                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY, _fromSkipBackPeriods)
             else:
-                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey)
+                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromSkipBackPeriods)
         else:
             asOfDateInt = 0
         return asOfDateInt
@@ -6457,14 +6674,15 @@ Visit: %s (Author's site)
         _fromAsOfWanted = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_IDX]
         _fromAsOfKey = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX]
         _fromCustomAsOfDateInt = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX]
+        _fromSkipBackPeriods = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_SKIPBACKPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
                     asOfDateInt = _fromCustomAsOfDateInt
                 else:
-                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.KEY_ASOF_END_THIS_MONTH)
+                    asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, _fromSkipBackPeriods)
             else:
-                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey)
+                asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromSkipBackPeriods)
         else:
             asOfDateInt = 0
         return asOfDateInt
@@ -6743,10 +6961,15 @@ Visit: %s (Author's site)
                     asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
                     asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
 
-                    if debug:
-                        assert balObj.getBalance() == asofSharesBal, ("LOGIC ERROR: HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getBalance(), asofSharesBal))
-                        assert balObj.getCurrentBalance() == asofSharesCurBal, ("LOGIC ERROR: HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getCurrentBalance(), asofSharesCurBal))
-                    "here";
+                    # assert balObj.getBalance() == asofSharesBal, ("LOGIC ERROR: HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getBalance(), asofSharesBal))
+                    # assert balObj.getCurrentBalance() == asofSharesCurBal, ("LOGIC ERROR: HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getCurrentBalance(), asofSharesCurBal))
+
+                    ct = balObj.getCurrencyType()
+                    if balObj.getBalance() != asofSharesBal: myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getBalance()), ct.getDoubleValue(asofSharesBal)))
+                    if balObj.getCurrentBalance() != asofSharesCurBal: myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
+
+                    if costCalculationBal.isCostBasisInvalid():
+                        balObj.setCostBasisInvalid(True)        # In theory costCalculationCurrBal.isCostBasisInvalid() should be the same...
 
                     valueBal = convertValue(balObj.getBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
                     valueCurBal = convertValue(balObj.getCurrentBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
@@ -8172,11 +8395,12 @@ Visit: %s (Author's site)
                 NAB.executeRefresh()
 
         class SaveSettingsRunnable(Runnable):
-            def __init__(self): pass
+            def __init__(self, lFromHomeScreen=False):
+                self.lFromHomeScreen = lFromHomeScreen
 
             def run(self):
                 NAB = NetAccountBalancesExtension.getNAB()
-                NAB.saveSettings(lFromHomeScreen=True)
+                NAB.saveSettings(lFromHomeScreen=self.lFromHomeScreen)
 
         def saveFiltersIntoSettings(self):
             """Just update the savedFilterByGroupID and savedPresavedFilterByGroupIDsTable fields back to the settings file.
@@ -8887,8 +9111,8 @@ Visit: %s (Author's site)
         def currencyDefault(self):                      return None
         def disableCurrencyFormattingDefault(self):     return False
         def balanceDefault(self):                       return 0
-        def balanceAsOfDateDefault(self, sel=False):    return [sel, AsOfDateChooser.ASOF_TODAY, 0]
-        def includeRemindersDefault(self, sel=False):   return [sel, AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, 0]
+        def balanceAsOfDateDefault(self, sel=False):    return [sel, AsOfDateChooser.ASOF_TODAY, 0, 0]
+        def includeRemindersDefault(self, sel=False):   return [sel, AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, 0, 0]
         def incomeExpenseDateRangeDefault(self):        return DateRangeOption.DR_ALL_DATES.getResourceKey()
         def customDatesDefault(self):                   return [0, 0]
         def useCostBasisDefault(self):                  return [GlobalVars.COSTBASIS_TYPE_NONE, False]
@@ -9147,12 +9371,19 @@ Visit: %s (Author's site)
                     if self.savedBalanceType[i] is None or not isinstance(self.savedBalanceType[i], int) or self.savedBalanceType[i] < GlobalVars.BALTYPE_BALANCE or self.savedBalanceType[i] > GlobalVars.BALTYPE_CLEAREDBALANCE:
                         printResetMessage("savedBalanceType", self.savedBalanceType[i], self.balanceDefault(), i)
                         self.savedBalanceType[i] = self.balanceDefault()
-                    if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != 3
-                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX], bool)
+
+                    # Upgrade this parameter with new skipbackperiods field (0=default / no skipbackperiods)....
+                    if isinstance(self.savedBalanceAsOfDateTable[i], list) and len(self.savedBalanceAsOfDateTable[i]) == 3:
+                        myPrint("B", "@@ Upgrading saved parameter 'savedBalanceAsOfDateTable' - adding 0 skipback periods")
+                        self.savedBalanceAsOfDateTable[i].append(0)
+
+                    if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != (GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX + 1)
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX], bool) or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX], (int, Integer, float))
                             or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_DATEINT_IDX], int)
                             or (self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX] and not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
                         printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
                         self.savedBalanceAsOfDateTable[i] = self.balanceAsOfDateDefault()
+
                     if self.savedWidgetName[i] is None or not isinstance(self.savedWidgetName[i], basestring) or self.savedWidgetName[i] == "":
                         printResetMessage("savedWidgetName", self.savedWidgetName[i], self.widgetRowDefault(), i)
                         self.savedWidgetName[i] = self.widgetRowDefault()
@@ -9179,12 +9410,19 @@ Visit: %s (Author's site)
                             or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_URGAINS):
                         printResetMessage("savedUseCostBasisTable", self.savedUseCostBasisTable[i], self.useCostBasisDefault(), i)
                         self.savedUseCostBasisTable[i] = self.useCostBasisDefault()
-                    if (self.savedIncludeRemindersTable[i] is None or not isinstance(self.savedIncludeRemindersTable[i], list) or len(self.savedIncludeRemindersTable[i]) != 3
-                            or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_IDX], bool)
+
+                    # Upgrade this parameter with new skipbackperiods field (0=default / no skipbackperiods)....
+                    if isinstance(self.savedIncludeRemindersTable[i], list) and len(self.savedIncludeRemindersTable[i]) == 3:
+                        myPrint("B", "@@ Upgrading saved parameter 'savedIncludeRemindersTable' - adding 0 skipback periods")
+                        self.savedIncludeRemindersTable[i].append(0)
+
+                    if (self.savedIncludeRemindersTable[i] is None or not isinstance(self.savedIncludeRemindersTable[i], list) or len(self.savedIncludeRemindersTable[i]) != (GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX + 1)
+                            or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_IDX], bool) or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX], (int, Integer, float))
                             or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX], str) or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX], int)
                             or (self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_IDX] and not isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(self.savedIncludeRemindersTable[i])))):
                         printResetMessage("savedIncludeRemindersTable", self.savedIncludeRemindersTable[i], self.includeRemindersDefault(), i)
                         self.savedIncludeRemindersTable[i] = self.includeRemindersDefault()
+
                     if self.savedOperateOnAnotherRowTable[i] is None or not isinstance(self.savedOperateOnAnotherRowTable[i], list) or len(self.savedOperateOnAnotherRowTable[i]) != 3:
                         printResetMessage("savedOperateOnAnotherRowTable", self.savedOperateOnAnotherRowTable[i], self.operateOnAnotherRowDefault(), i)
                         self.savedOperateOnAnotherRowTable[i] = self.operateOnAnotherRowDefault()
@@ -10620,6 +10858,8 @@ Visit: %s (Author's site)
                 return("ASOF PAST-DATED CLEARED-BALANCE ILLOGICAL (=BAL) WARNING")
             elif _type == 13:
                 return("ASOF COSTBASIS CLEARED-BALANCE ILLOGICAL (=BAL) WARNING")
+            elif _type == 14:
+                return("COSTBASIS APPEARS 'INVALID' WARNING")
             return("WARNING <<UNKNOWN>> DETECTED")
 
         class SimulateTotalForRowSwingWorker(SwingWorker):
@@ -11022,7 +11262,9 @@ Visit: %s (Author's site)
                 NAB.storeJTextFieldsForSelectedRow()
 
                 # ##########################################################################################################
-                if event.getActionCommand() == "simulate":
+                # if event.getActionCommand() == "simulate":
+                if event.getSource() is NAB.simulate_JBTN:
+                    event.getSource().grabFocus()
                     myPrint("DB", ".. SIMULATE triggered... Setting controls/labels, then calling necessary parallel operations/simulate actions...")
                     myPrint("DB", "...... NOTE: JList of selected accounts reports hasListSelectionChanged: %s" %(NAB.jlst.hasListSelectionChanged()))
                     selectedRowIdx = NAB.getSelectedRowIndex()
@@ -11408,7 +11650,9 @@ Visit: %s (Author's site)
                     lShouldRefreshHomeScreenWidget = True
 
                 # ######################################################################################################
-                if event.getActionCommand() == "save_all_settings":
+                # if event.getActionCommand() == "save_all_settings":
+                if event.getSource() is NAB.saveSettings_JBTN:
+                    event.getSource().grabFocus()
 
                     NAB.storeCurrentJListSelected()
 
@@ -11570,7 +11814,8 @@ Visit: %s (Author's site)
 
                 # ######################################################################################################
                 if lShouldSaveParameters:
-                    NAB.saveSettings()
+                    # NAB.saveSettings()
+                    SwingUtilities.invokeLater(NAB.SaveSettingsRunnable(lFromHomeScreen=False))
 
                 # ######################################################################################################
                 NAB.updateMenus()                                           # Update the menus
@@ -12342,8 +12587,8 @@ Visit: %s (Author's site)
                     NAB.quickSearchField = MyQuickSearchField()
                     NAB.quickSearchField.setEscapeCancelsTextAndEscapesWindow(True)
                     document = NAB.quickSearchField.getDocument()                                                       # noqa
-                    document.addDocumentListener(MyQuickSearchDocListener(NAB))
-                    NAB.quickSearchField.addFocusListener(MyQuickSearchFocusAdapter(NAB.quickSearchField,document))     # noqa
+                    document.addDocumentListener(MyQuickSearchDocListener(NAB, NAB.quickSearchField))
+                    NAB.quickSearchField.addFocusListener(MyQuickSearchFocusAdapter(NAB.quickSearchField, document))    # noqa
 
                     # At startup, create dummy settings to build frame if nothing set.. Real settings will get loaded later
                     if NAB.savedAccountListUUIDs is None: NAB.resetParameters()
@@ -12844,7 +13089,22 @@ Visit: %s (Author's site)
                     includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_CB, GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).topInset(topInset))
                     onIncludeRemindersCol += 1
 
-                    NAB.includeRemindersChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.KEY_ASOF_END_THIS_MONTH)
+                    excludeAsOfs = [
+                                    "asof_end_last_fiscal_quarter",
+                                    "asof_end_last_year",
+                                    "asof_end_last_fiscal_year",
+                                    "asof_end_last_quarter",
+                                    "asof_end_last_month",
+                                    "asof_end_last_week",
+                                    "asof_30_days_ago",
+                                    "asof_60_days_ago",
+                                    "asof_90_days_ago",
+                                    "asof_120_days_ago",
+                                    "asof_180_days_ago",
+                                    "asof_365_days_ago"
+                                    ]
+
+                    NAB.includeRemindersChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, excludeAsOfs)
                     NAB.includeRemindersChooser_AODC.setName("includeRemindersChooser_AODC")
                     NAB.includeRemindersChooser_AODC.getChoiceCombo().putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersChooser_AODC")
                     NAB.includeRemindersChooser_AODC.getChoiceCombo().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
@@ -13983,7 +14243,7 @@ Visit: %s (Author's site)
 
                 if self.theFrame is not None and self.theFrame.isActiveInMoneydance:
                     myPrint("DB", "Triggering saveSettings() via Runnable....")
-                    SwingUtilities.invokeLater(self.SaveSettingsRunnable())
+                    SwingUtilities.invokeLater(self.SaveSettingsRunnable(lFromHomeScreen=True))
 
             elif (appEvent.lower().startswith(("%s:customevent:undoSettings" %(self.myModuleID)).lower())):
                 myPrint("DB", "%s Undo/Reload settings requested - I might trigger undo/reload if conditions are appropriate" %(appEvent))
@@ -14671,6 +14931,19 @@ Visit: %s (Author's site)
                                 try:
                                     sudoAcctRef = parallelBalanceTable[iAccountLoop][acct]                              # type: HoldBalance
                                     effectiveDateInt = sudoAcctRef.getEffectiveDateInt()
+
+                                    ########################################
+                                    # Check for invalid cost basis issues...
+                                    if sudoAcctRef.isCostBasisInvalid():
+                                        lWarningDetected = True
+                                        iWarningType = (14 if (iWarningType is None or iWarningType == 14) else 0)
+                                        iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                        warnTxt = ("WARNING: Row: %s >> Returning Cost Basis / ur-gains but at least one account (e.g. '%s') is reporting 'INVALID' Cost Basis"
+                                                   %(onRow, sudoAcctRef.getFullAccountName()))
+                                        myPrint("B", warnTxt)
+                                        NAB.warningMessagesTable.append(warnTxt)
+                                    ########################################
+
                                 except KeyError:
                                     myPrint("B", "@@ KeyError - Row: %s - Trying to access 'parallelBalanceTable[%s]' with Account: '%s'" %(onRow, iAccountLoop,acct))
                                     raise
@@ -14979,6 +15252,7 @@ Visit: %s (Author's site)
                     stage = "7"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 # thisSectionStartTime = System.currentTimeMillis()
+
 
                 if debug:
                     if debug: myPrint("DB", "----------------")
@@ -15545,7 +15819,7 @@ Visit: %s (Author's site)
                 else:
                     NAB.savedExpandedView = not NAB.savedExpandedView
 
-                    SwingUtilities.invokeLater(NAB.SaveSettingsRunnable())
+                    SwingUtilities.invokeLater(NAB.SaveSettingsRunnable(lFromHomeScreen=True))
                     MyHomePageView.getHPV().refresher.enqueueRefresh()
 
             def __init__(self):
