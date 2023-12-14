@@ -6034,14 +6034,19 @@ Visit: %s (Author's site)
             asOfSel = self.getSelectedIndex()
             self.getChoiceCombo().setModel(DefaultComboBoxModel(self.asOfOptions))
             prototypeText = ""
-            protoChoice = None
-            for choice in self.asOfOptions:
-                text = choice.getDisplayName()
+            # protoChoice = None
+            # for choice in self.asOfOptions:
+            #     text = choice.getDisplayName()
+            #     if len(text) <= len(prototypeText): continue
+            #     prototypeText = text
+            #     protoChoice = choice
+            # if protoChoice is None: protoChoice = self.asOfOptions[0]
+            # self.getChoiceCombo().setPrototypeDisplayValue(self.AsOfDateChoice(protoChoice.getKey(), protoChoice.getDisplayName()))
+            for choice in self.ASOF_DATE_OPTIONS:
+                text = choice[1]
                 if len(text) <= len(prototypeText): continue
                 prototypeText = text
-                protoChoice = choice
-            if protoChoice is None: protoChoice = self.asOfOptions[0]
-            self.getChoiceCombo().setPrototypeDisplayValue(self.AsOfDateChoice(protoChoice.getKey(), protoChoice.getDisplayName()))
+            self.getChoiceCombo().setPrototypeDisplayValue(prototypeText)
             self.getChoiceCombo().setMaximumRowCount(len(self.asOfOptions))
             if (asOfSel >= 0): self.getChoiceCombo().setSelectedIndex(asOfSel)
 
@@ -13090,6 +13095,7 @@ Visit: %s (Author's site)
                     onIncludeRemindersCol += 1
 
                     excludeAsOfs = [
+                                    "asof_yesterday",
                                     "asof_end_last_fiscal_quarter",
                                     "asof_end_last_year",
                                     "asof_end_last_fiscal_year",
