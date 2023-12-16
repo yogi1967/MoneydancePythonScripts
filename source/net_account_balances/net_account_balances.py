@@ -5756,43 +5756,45 @@ Visit: %s (Author's site)
         KEY_DR_YEAR_TO_DATE = "year_to_date"
 
         DR_DATE_OPTIONS = [
-                            ["year_to_date",                 "Year to date"],
-                            ["fiscal_year_to_date",          "Fiscal Year to date"],
-                            ["quarter_to_date",              "Quarter to date"],
-                            ["month_to_date",                "Month to date"],
-                            ["this_year",                    "This year"],
-                            ["this_fiscal_year",             "This Fiscal Year"],
-                            ["this_quarter",                 "This quarter"],
-                            ["this_month",                   "This month"],
-                            ["last_year",                    "Last year"],
-                            ["last_fiscal_year",             "Last Fiscal Year"],
-                            ["last_fiscal_quarter",          "Last Fiscal Quarter"],
-                            ["last_quarter",                 "Last quarter"],
-                            ["last_month",                   "Last month"],
-                            ["last_12_months",               "Last 12 months"],
-                            ["all_dates",                    "All dates"],
-                            ["custom_date",                  "Custom dates"],
-                            ["this_week",                    "This week"],
-                            ["last_30_days",                 "Last 30 days"],
-                            ["last_60_days",                 "Last 60 days"],
-                            ["last_90_days",                 "Last 90 days"],
-                            ["last_120_days",                "Last 120 days"],
-                            ["last_180_days",                "Last 180 days"],
-                            ["last_365_days",                "Last 365 days"],
-                            ["last_week",                    "Last week"],
-                            ["last_1_day",                   "Last 1 day (yesterday & today)"],
-                            ["yesterday",                    "Yesterday"],
-                            ["today",                        "Today"],
-                            ["next_month",                   "Next month"]
+                            ["year_to_date",                 "Year to date",                  41],
+                            ["fiscal_year_to_date",          "Fiscal Year to date",           61],
+                            ["quarter_to_date",              "Quarter to date",               31],
+                            ["month_to_date",                "Month to date",                 22],
+                            ["this_year",                    "This year",                     40],
+                            ["this_fiscal_year",             "This Fiscal Year",              60],
+                            ["this_quarter",                 "This quarter",                  30],
+                            ["this_month",                   "This month",                    21],
+                            ["last_year",                    "Last year",                     42],
+                            ["last_fiscal_year",             "Last Fiscal Year",              63],
+                            ["last_fiscal_quarter",          "Last Fiscal Quarter",           62],
+                            ["last_quarter",                 "Last quarter",                  32],
+                            ["last_month",                   "Last month",                    23],
+                            ["last_12_months",               "Last 12 months",                24],
+                            ["all_dates",                    "All dates",                      0],
+                            ["custom_date",                  "Custom dates",                  99],
+                            ["this_week",                    "This week",                     10],
+                            ["last_30_days",                 "Last 30 days",                  51],
+                            ["last_60_days",                 "Last 60 days",                  52],
+                            ["last_90_days",                 "Last 90 days",                  53],
+                            ["last_120_days",                "Last 120 days",                 54],
+                            ["last_180_days",                "Last 180 days",                 55],
+                            ["last_365_days",                "Last 365 days",                 56],
+                            ["last_week",                    "Last week",                     11],
+                            ["last_1_day",                   "Last 1 day (yesterday & today)",50],
+                            ["yesterday",                    "Yesterday",                      3],
+                            ["today",                        "Today",                          2],
+                            ["next_month",                   "Next month",                    20]
                         ]
 
 
         class DateRangeChoice:
-            def __init__(self, key, displayName):
+            def __init__(self, key, displayName, sortIdx):
                 self.key = key
                 self.displayName = displayName
+                self.sortIdx = sortIdx
             def getKey(self):           return self.key
             def getDisplayName(self):   return self.displayName
+            def getSortIdx(self):       return self.sortIdx
             def __str__(self):          return self.getDisplayName()
             def __repr__(self):         return self.__str__()
             def toString(self):         return self.__str__()
@@ -5946,7 +5948,7 @@ Visit: %s (Author's site)
         def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
 
         def createDateRangeOptions(self):
-            choices = [MyDateRangeChooser.DateRangeChoice(choice[0], choice[1]) for choice in self.DR_DATE_OPTIONS if choice[0] not in self.excludeKeys]
+            choices = [MyDateRangeChooser.DateRangeChoice(choice[0], choice[1], choice[2]) for choice in sorted(self.DR_DATE_OPTIONS, key=lambda x: (x[2])) if choice[0] not in self.excludeKeys]
             for choice in choices:
                 if choice.getKey() == self.KEY_CUSTOM_DATE_RANGE: self.customOption = choice
                 if choice.getKey() == self.KEY_DR_ALL_DATES: self.allDatesOption = choice
@@ -5988,7 +5990,7 @@ Visit: %s (Author's site)
             #     prototypeText = text
             #     protoChoice = choice
             # if protoChoice is None: protoChoice = self.dateRangeOptions[0]
-            # self.getChoiceCombo().setPrototypeDisplayValue(self.DateRangeChoice(protoChoice.getKey(), protoChoice.getDisplayName()))
+            # self.getChoiceCombo().setPrototypeDisplayValue(self.DateRangeChoice(protoChoice.getKey(), protoChoice.getDisplayName(), protoChoice.getSortIdx()))
             for choice in self.DR_DATE_OPTIONS:
                 text = choice[1]
                 if len(text) <= len(prototypeText): continue
@@ -6233,36 +6235,38 @@ Visit: %s (Author's site)
         KEY_ASOF_END_FUTURE = "asof_end_future"
         KEY_ASOF_END_THIS_MONTH = "asof_end_this_month"
         ASOF_DATE_OPTIONS = [
-                              ["asof_today",                    "asof today"],
-                              ["asof_yesterday",                "asof yesterday"],
-                              ["asof_end_last_fiscal_quarter",  "asof end last Fiscal Quarter"],
-                              ["asof_end_this_fiscal_year",     "asof end this Fiscal Year"],
-                              ["asof_end_this_year",            "asof end this year"],
-                              ["asof_end_this_quarter",         "asof end this quarter"],
-                              ["asof_end_this_month",           "asof end this month"],
-                              ["asof_end_this_week",            "asof end this week"],
-                              ["asof_end_next_month",           "asof end next month"],
-                              ["asof_end_last_year",            "asof end last year"],
-                              ["asof_end_last_fiscal_year",     "asof end last Fiscal Year"],
-                              ["asof_end_last_quarter",         "asof end last quarter"],
-                              ["asof_end_last_month",           "asof end last month"],
-                              ["asof_end_last_week",            "asof end last week"],
-                              ["asof_30_days_ago",              "asof 30 days ago"],
-                              ["asof_60_days_ago",              "asof 60 days ago"],
-                              ["asof_90_days_ago",              "asof 90 days ago"],
-                              ["asof_120_days_ago",             "asof 120 days ago"],
-                              ["asof_180_days_ago",             "asof 180 days ago"],
-                              ["asof_365_days_ago",             "asof 365 days ago"],
-                              ["asof_end_future",               "asof end future (all dates)"],
-                              ["custom_asof",                   "Custom asof date"]
+                              ["asof_today",                    "asof today",                      1],
+                              ["asof_yesterday",                "asof yesterday",                  2],
+                              ["asof_end_last_fiscal_quarter",  "asof end last Fiscal Quarter",   31],
+                              ["asof_end_this_fiscal_year",     "asof end this Fiscal Year",      30],
+                              ["asof_end_this_year",            "asof end this year",             13],
+                              ["asof_end_this_quarter",         "asof end this quarter",          12],
+                              ["asof_end_this_month",           "asof end this month",            11],
+                              ["asof_end_this_week",            "asof end this week",             10],
+                              ["asof_end_next_month",           "asof end next month",             3],
+                              ["asof_end_last_year",            "asof end last year",             23],
+                              ["asof_end_last_fiscal_year",     "asof end last Fiscal Year",      32],
+                              ["asof_end_last_quarter",         "asof end last quarter",          22],
+                              ["asof_end_last_month",           "asof end last month",            21],
+                              ["asof_end_last_week",            "asof end last week",             20],
+                              ["asof_30_days_ago",              "asof 30 days ago",               40],
+                              ["asof_60_days_ago",              "asof 60 days ago",               41],
+                              ["asof_90_days_ago",              "asof 90 days ago",               42],
+                              ["asof_120_days_ago",             "asof 120 days ago",              43],
+                              ["asof_180_days_ago",             "asof 180 days ago",              44],
+                              ["asof_365_days_ago",             "asof 365 days ago",              45],
+                              ["asof_end_future",               "asof end future (all dates)",     0],
+                              ["custom_asof",                   "Custom asof date",               99]
                             ]
 
         class AsOfDateChoice:
-            def __init__(self, key, displayName):
+            def __init__(self, key, displayName, sortIdx):
                 self.key = key
                 self.displayName = displayName
+                self.sortIdx = sortIdx
             def getKey(self):           return self.key
             def getDisplayName(self):   return self.displayName
+            def getSortIdx(self):       return self.sortIdx
             def __str__(self):          return self.getDisplayName()
             def __repr__(self):         return self.__str__()
             def toString(self):         return self.__str__()
@@ -6398,7 +6402,7 @@ Visit: %s (Author's site)
         def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
 
         def createAsOfDateOptions(self):
-            choices = [AsOfDateChooser.AsOfDateChoice(choice[0], choice[1]) for choice in self.ASOF_DATE_OPTIONS if choice[0] not in self.excludeKeys]
+            choices = [AsOfDateChooser.AsOfDateChoice(choice[0], choice[1], choice[2]) for choice in sorted(self.ASOF_DATE_OPTIONS, key=lambda x: (x[2])) if choice[0] not in self.excludeKeys]
             for choice in choices:
                 if choice.getKey() == self.KEY_CUSTOM_ASOF: self.customOption = choice
                 if choice.getKey() == self.KEY_ASOF_END_FUTURE: self.allDatesOption = choice
@@ -6436,7 +6440,7 @@ Visit: %s (Author's site)
             #     prototypeText = text
             #     protoChoice = choice
             # if protoChoice is None: protoChoice = self.asOfOptions[0]
-            # self.getChoiceCombo().setPrototypeDisplayValue(self.AsOfDateChoice(protoChoice.getKey(), protoChoice.getDisplayName()))
+            # self.getChoiceCombo().setPrototypeDisplayValue(self.AsOfDateChoice(protoChoice.getKey(), protoChoice.getDisplayName(), protoChoice.getSortIdx()))
             for choice in self.ASOF_DATE_OPTIONS:
                 text = choice[1]
                 if len(text) <= len(prototypeText): continue
