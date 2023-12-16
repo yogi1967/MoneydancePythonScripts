@@ -5174,57 +5174,28 @@ Visit: %s (Author's site)
             todayInt = Util.getStrippedDateInt()
             # yesterdayInt = DateUtil.incrementDate(todayInt, 0, 0, -1)
 
-            if selectedOption == "year_to_date":
-                return (DateUtil.firstDayInYear(todayInt), todayInt)
-            elif selectedOption ==  "quarter_to_date":
-                return (DateUtil.firstDayInQuarter(todayInt), todayInt)
-            elif selectedOption ==  "month_to_date":
-                return (DateUtil.firstDayInMonth(todayInt), todayInt)
-            elif selectedOption ==  "this_year":
-                return (DateUtil.firstDayInYear(todayInt), DateUtil.lastDayInYear(todayInt))
-            elif selectedOption ==  "this_fiscal_year":
-                return (DateUtil.firstDayInFiscalYear(todayInt), DateUtil.lastDayInFiscalYear(todayInt))
-            elif selectedOption ==  "fiscal_year_to_date":
-                return (DateUtil.firstDayInFiscalYear(todayInt), todayInt)
-            elif selectedOption ==  "last_fiscal_year":
-                return (DateUtil.decrementYear(DateUtil.firstDayInFiscalYear(todayInt)),
-                        DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(todayInt)))
-            elif selectedOption ==  "last_fiscal_quarter":
-                baseDate = DateUtil.incrementDate(todayInt, 0, -3, 0)
-                return (DateUtil.firstDayInFiscalQuarter(baseDate), DateUtil.lastDayInFiscalQuarter(baseDate))
-            elif selectedOption ==  "this_quarter":
-                return (Util.firstDayInQuarter(todayInt), Util.lastDayInQuarter(todayInt))
-            elif selectedOption ==  "this_month":
-                return (Util.firstDayInMonth(todayInt), Util.lastDayInMonth(todayInt))
-            elif selectedOption ==  "this_week":
-                return (Util.firstDayInWeek(todayInt), Util.lastDayInWeek(todayInt))
-            elif selectedOption ==  "last_year":
-                return (Util.firstDayInYear(Util.decrementYear(todayInt)),
-                        Util.lastDayInYear(Util.decrementYear(todayInt)))
-            elif selectedOption ==  "last_quarter":
-                baseDate = DateUtil.incrementDate(todayInt, 0, -3, 0)
-                return (DateUtil.firstDayInQuarter(baseDate), DateUtil.lastDayInQuarter(baseDate))
-            elif selectedOption ==  "last_month":
-                i = Util.firstDayInMonth(todayInt)
-                return (Util.incrementDate(i, 0, -1, 0), Util.incrementDate(i, 0, 0, -1))
-            elif selectedOption ==  "last_week":
-                firstDayInWeek = Util.firstDayInWeek(todayInt)
-                return (Util.incrementDate(firstDayInWeek, 0, 0, -7), Util.incrementDate(firstDayInWeek, 0, 0, -1))
-            elif selectedOption ==  "last_12_months":
-                firstDayInMonth = Util.firstDayInMonth(todayInt)
-                return (Util.incrementDate(firstDayInMonth, 0, -12, 0), Util.incrementDate(firstDayInMonth, 0, 0, -1))
-            elif selectedOption ==  "last_1_day":
-                return (Util.incrementDate(todayInt, 0, 0, -1), todayInt)    # from build 5051: actually 2 days (today & yesterday)
-            elif selectedOption == "last_30_days":
-                return (Util.incrementDate(todayInt, 0, 0, -29), todayInt)   # from build 5051: 30 days including today
-            elif selectedOption ==  "last_365_days":
-                return (Util.incrementDate(todayInt, 0, 0, -364), todayInt)  # from build 5051: 30 days including today
-            elif selectedOption ==  "custom_date":
-                pass
-            elif selectedOption ==  "all_dates":
-                pass
-            else:
-                pass
+            if selectedOption == "year_to_date":            return (DateUtil.firstDayInYear(todayInt), todayInt)
+            elif selectedOption ==  "quarter_to_date":      return (DateUtil.firstDayInQuarter(todayInt), todayInt)
+            elif selectedOption ==  "month_to_date":        return (DateUtil.firstDayInMonth(todayInt), todayInt)
+            elif selectedOption ==  "this_year":            return (DateUtil.firstDayInYear(todayInt), DateUtil.lastDayInYear(todayInt))
+            elif selectedOption ==  "this_fiscal_year":     return (DateUtil.firstDayInFiscalYear(todayInt), DateUtil.lastDayInFiscalYear(todayInt))
+            elif selectedOption ==  "fiscal_year_to_date":  return (DateUtil.firstDayInFiscalYear(todayInt), todayInt)
+            elif selectedOption ==  "last_fiscal_year":     return (DateUtil.decrementYear(DateUtil.firstDayInFiscalYear(todayInt)), DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(todayInt)))
+            elif selectedOption ==  "last_fiscal_quarter":  return (DateUtil.firstDayInFiscalQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0)), DateUtil.lastDayInFiscalQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0)))
+            elif selectedOption ==  "this_quarter":         return (Util.firstDayInQuarter(todayInt), Util.lastDayInQuarter(todayInt))
+            elif selectedOption ==  "this_month":           return (Util.firstDayInMonth(todayInt), Util.lastDayInMonth(todayInt))
+            elif selectedOption ==  "this_week":            return (Util.firstDayInWeek(todayInt), Util.lastDayInWeek(todayInt))
+            elif selectedOption ==  "last_year":            return (Util.firstDayInYear(Util.decrementYear(todayInt)), Util.lastDayInYear(Util.decrementYear(todayInt)))
+            elif selectedOption ==  "last_quarter":         return (DateUtil.firstDayInQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0)), DateUtil.lastDayInQuarter(DateUtil.incrementDate(todayInt, 0, -3, 0)))
+            elif selectedOption ==  "last_month":           return (Util.incrementDate(Util.firstDayInMonth(todayInt), 0, -1, 0), Util.incrementDate(Util.firstDayInMonth(todayInt), 0, 0, -1))
+            elif selectedOption ==  "last_week":            return (Util.incrementDate(Util.firstDayInWeek(todayInt), 0, 0, -7), Util.incrementDate(Util.firstDayInWeek(todayInt), 0, 0, -1))
+            elif selectedOption ==  "last_12_months":       return (Util.incrementDate(Util.firstDayInMonth(todayInt), 0, -12, 0), Util.incrementDate(Util.firstDayInMonth(todayInt), 0, 0, -1))
+            elif selectedOption ==  "last_1_day":           return (Util.incrementDate(todayInt, 0, 0, -1), todayInt)    # from build 5051: actually 2 days (today & yesterday)
+            elif selectedOption == "last_30_days":          return (Util.incrementDate(todayInt, 0, 0, -29), todayInt)   # from build 5051: 30 days including today
+            elif selectedOption ==  "last_365_days":        return (Util.incrementDate(todayInt, 0, 0, -364), todayInt)  # from build 5051: 30 days including today
+            elif selectedOption ==  "custom_date":          pass
+            elif selectedOption ==  "all_dates":            pass
+            else: pass
                 # raise(Exception("Error - date range incorrect"))
 
             # return DateRange().getStartDateInt(), DateRange().getEndDateInt()

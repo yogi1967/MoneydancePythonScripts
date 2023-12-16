@@ -92,10 +92,7 @@ CHOICES/CONFIGURATION FOR A ROW:
           When selected, the balance asof date options are enabled. Here you select the automatic asof end date,
           or specify a fixed custom asof date. Auto-dates will auto-adjust every time the calculations are executed.
 
-        - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the asof
-          date you are selecting. E.g. if you select 'asof end last year' (i.e. 'period' is year) and offset 1,
-          then you will get an asof date calculated to end last year minus 1 (period) year (=end two years ago)..
-          >> Offset does not apply to Custom, End Future (all dates), Today date selection(s)...
+        - the 'offset' field can be used here to adjust the balance asof date - refer 'Date offset' section.
 
         - Calculation methodology for Balance/Current/Cleared Balance when using asof date:
             - Balance always uses the calculated asof-dated Balance
@@ -128,10 +125,7 @@ CHOICES/CONFIGURATION FOR A ROW:
         - Reminder date(s) will be forward calculated up to the Reminder's asof date setting. Then...
         - The normal rules will apply when calculating Balance, Current Balance, Cleared Balance balances
 
-        - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the asof
-          date you are selecting. E.g. if you select 'asof end last year' (i.e. 'period' is year) and offset 1,
-          then you will get an asof date calculated to end last year minus 1 (period) year (=end two years ago)..
-          >> Offset does not apply to Custom, End Future (all dates), Today date selection(s)...
+        - the 'offset' field can be used here to adjust the include reminders asof date - refer 'Date offset' section.
 
         - NOTE: It would be unusual to find any (non-recorded) reminders with a Cleared Status - so expect ZERO.
         - NOTE: Ignored when returning cost basis / unrealised gains
@@ -160,13 +154,20 @@ CHOICES/CONFIGURATION FOR A ROW:
 - INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
                       Otherwise they have entries for all dates. (Details below)
 
-        - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the date
-          range you are selecting. E.g. if you select 'Last year' (i.e. 'period' range is year) and offset 1,
-          then you will get a range date calculated that includes 'last year' minus 1 (period) year (=end two years ago)
-          >> Offset does not apply to Custom dates, All dates, Last 1 day date range selection(s)...
+        - the 'offset' field can be used here to adjust the inc/exp date range date - refer 'Date offset' section.
 
 - Display Currency: Allows you to display the balance in a chosen currency, or security value, or other format.
                     Disable Currency Formatting: drops any symbol/prefix/suffix associated with the currency.
+
+
+DATE OFFSET:
+    - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the asof date
+      or date range you are selecting (i.e. for balance offset, include reminders asof, income/expense date range).
+      The offset field only applies to the date selector it's attached too.
+      E.g. if you select 'Last year' (i.e. 'period' range is year) and offset 1, then you will get a range date
+      calculated that includes 'last year' minus 1 (period) year (=end two years ago). Offset only works backwards, it
+      cannot be negative to roll dates forward/
+      >> Offset does not apply to Custom, End Future, All dates, and Today date selection(s)...
 
 
 CALCULATIONS ON CALCULATED BALANCES:
@@ -193,6 +194,13 @@ CALCULATIONS ON CALCULATED BALANCES:
                            and treat the result as a percent. For example, this could calculate the value of investments
                            as a percentage of total networth...
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
+
+    >> WARNING: other rows to be included in this row's calculation MUST NOT be set to Hide Always, or filtered out by
+                group id filter. If any are hidden/filtered, then the parent row will not calculate and you will get
+                a UOR error flagged.
+
+    >> TIP:     Instead of always hiding a row, use hide when x=999999999.99 which (as long as  this result is never
+                found, will allow the row to auto-hide, and stay usable in UOR maths.
 
 - Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
     You can set X to any value (positive or negative)
@@ -306,6 +314,7 @@ SELECT ROW INFORMATION:
                <groupid: xxx>   A groupid value has been set on this row
                <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
                                 NOTE: Filtered rows (red) are NOT active and hidden.
+
 
 
 SEARCH BOX AND GROUPID:

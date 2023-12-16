@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1040 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1041 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -157,8 +157,10 @@
 #               NOTE: Cost Basis and U/R Gains with MyCostCalculation (as CostCalculation not very accessible)
 #               GUI fixes; KeyError tweak; Enhance the Account/Category select filter...; Put UNDO/Reload option on homepage widget
 # build: 1040 - Bumping the build number....
-#               Enhanced MyCostCalculation; Enhanced AsOfDateChooser with skip back periods...
+#               Enhanced MyCostCalculation; Enhanced AsOfDateChooser with skip back periods...; Replaced Inc/Exp DRC with my own...
+# build: 1041 - Bumping the build number.... for new Inc/Exp DRC, also upgraded parameters....
 
+# todo - allow UOR rows to all calculate
 # todo - enable hidden rows to calc option? Also when group filtered?
 # todo - ability to select prior -x periods and/or rolling date range - e.g. last x days and last x-z days...?
 
@@ -168,7 +170,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1040"
+version_build = "1041"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -498,9 +500,10 @@ else:
     # from com.moneydance.apps.md.view.gui import MDURLUtil
     from com.moneydance.apps.md.view import HomePageView
     # from com.moneydance.apps.md.view.gui import SearchFieldBorder
-    from com.moneydance.apps.md.view.gui import MoneydanceGUI, MoneydanceLAF, DateRangeChooser, ConsoleWindow, MainFrame
+    from com.moneydance.apps.md.view.gui import MoneydanceGUI, MoneydanceLAF, ConsoleWindow, MainFrame
+    # from com.moneydance.apps.md.view.gui import DateRangeChooser
     from com.moneydance.apps.md.controller import FeatureModule, PreferencesListener, UserPreferences
-    from com.moneydance.apps.md.controller.time import DateRangeOption
+    # from com.moneydance.apps.md.controller.time import DateRangeOption
     from com.infinitekind.moneydance.model import AccountListener, AbstractTxn, CurrencyListener, DateRange, TxnSet
     # from com.infinitekind.moneydance.model import CostCalculation
     from com.infinitekind.moneydance.model import CapitalGainResult, InvestFields, InvestTxnType
@@ -585,9 +588,8 @@ else:
     GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB = None
     GlobalVars.extn_param_NEW_includeInactive_NAB           = None
     GlobalVars.extn_param_NEW_autoSumAccounts_NAB           = None
-    GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = None
+    GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB      = None
     GlobalVars.extn_param_NEW_showWarningsTable_NAB         = None
-    GlobalVars.extn_param_NEW_customDatesTable_NAB          = None
     GlobalVars.extn_param_NEW_useCostBasisTable_NAB         = None
     GlobalVars.extn_param_NEW_includeRemindersTable_NAB     = None
     GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = None
@@ -625,16 +627,6 @@ else:
     GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER  = "<HIDDEN BY GROUPID FILTER>"
     GlobalVars.WIDGET_ROW_DISABLED                  = "** ROW HIDDEN/DISABLED **"
     GlobalVars.FILTER_NAME_NOT_DEFINED              = "<name not defined>"
-
-    GlobalVars.INCLUDE_REMINDERS_IDX = 0
-    GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX = 1
-    GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX = 2
-    GlobalVars.INCLUDE_REMINDERS_SKIPBACKPERIODS_IDX = 3
-
-    GlobalVars.ASOF_BALANCE_IDX = 0
-    GlobalVars.ASOF_BALANCE_KEY_IDX = 1
-    GlobalVars.ASOF_BALANCE_DATEINT_IDX = 2
-    GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX = 3
 
     GlobalVars.BALTYPE_BALANCE = 0
     GlobalVars.BALTYPE_CURRENTBALANCE = 1
@@ -3297,6 +3289,8 @@ Visit: %s (Author's site)
         myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
         myPrint("DB", "Loading variables into memory...")
 
+        NAB = NetAccountBalancesExtension.getNAB()
+
         if GlobalVars.parametersLoadedFromFile is None: GlobalVars.parametersLoadedFromFile = {}
 
         allParams = []
@@ -3306,6 +3300,35 @@ Visit: %s (Author's site)
             paramValue = GlobalVars.parametersLoadedFromFile.get(_paramKey, None)
             if paramValue is not None:
                 setattr(GlobalVars, _paramKey, paramValue)
+
+
+        #######################################
+        # Migrate / upgrade old parameters....:
+        old_extn_param_NEW_incomeExpenseDateRange_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_incomeExpenseDateRange_NAB", None)
+        old_extn_param_NEW_customDatesTable_NAB = GlobalVars.parametersLoadedFromFile.get("extn_param_NEW_customDatesTable_NAB", None)
+
+        if (isinstance(old_extn_param_NEW_incomeExpenseDateRange_NAB, list) and isinstance(old_extn_param_NEW_customDatesTable_NAB, list)
+                and len(old_extn_param_NEW_incomeExpenseDateRange_NAB) == len(old_extn_param_NEW_customDatesTable_NAB)):
+            myPrint("B", "@@ Old (valid) parameters detected.. Checking whether to upgrade 'extn_param_NEW_incomeExpenseDateRange_NAB' & 'extn_param_NEW_customDatesTable_NAB' to new single parameter format 'extn_param_NEW_incExpDateRangeTable_NAB'...")
+            if GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB == [NAB.incExpDateRangeDefault()]:
+                myPrint("B", "... CONFIRMED... Proceeding to upgrade....:")
+                GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB = []
+                for i in range(0, len(old_extn_param_NEW_incomeExpenseDateRange_NAB)):
+                    GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB.append(NAB.incExpDateRangeDefault())
+                    GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB[i][MyDateRangeChooser.INC_EXP_DR_KEY_IDX] = old_extn_param_NEW_incomeExpenseDateRange_NAB[i]
+                    GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB[i][MyDateRangeChooser.INC_EXP_DR_START_KEY_IDX] = old_extn_param_NEW_customDatesTable_NAB[i][0]
+                    GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB[i][MyDateRangeChooser.INC_EXP_DR_END_KEY_IDX] = old_extn_param_NEW_customDatesTable_NAB[i][1]
+                    myPrint("B", "... Converted row: %s '%s' & '%s' into '%s'" %(i+1, old_extn_param_NEW_incomeExpenseDateRange_NAB[i], old_extn_param_NEW_customDatesTable_NAB[i], GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB[i]))
+            else:
+                myPrint("B", "... NO - 'extn_param_NEW_incExpDateRangeTable_NAB' already set, so leaving new param alone: '%s'" %(GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB))
+
+        if old_extn_param_NEW_incomeExpenseDateRange_NAB is not None:
+            myPrint("B", "... DELETING: '%s'" %("extn_param_NEW_incomeExpenseDateRange_NAB"))
+            GlobalVars.parametersLoadedFromFile.pop("extn_param_NEW_incomeExpenseDateRange_NAB")
+        if old_extn_param_NEW_customDatesTable_NAB is not None:
+            myPrint("B", "... DELETING: '%s'" %("extn_param_NEW_customDatesTable_NAB"))
+            GlobalVars.parametersLoadedFromFile.pop("extn_param_NEW_customDatesTable_NAB")
+        ###########################################
 
         if debug:
             myPrint("B", "parametersLoadedFromFile{} set into memory (as variables).....:", GlobalVars.parametersLoadedFromFile)
@@ -5618,95 +5641,6 @@ Visit: %s (Author's site)
     #     if _returnDefaults: return SyncRecord()
     #     return  readFromString(_paramStr)
 
-    class IncExpDateRangeChooser(DateRangeChooser):
-
-        def __init__(self, mdGUI):
-            self.name = "IncExpDateRangeChooser"
-            super(self.__class__, self).__init__(mdGUI)
-
-        # @Override
-        def itemStateChanged(self, evt):
-            # if debug: myPrint("B", "@@ In IncExpDateRangeChooser(DateRangeChooser)::itemStateChanged() - event:", evt);
-            src = evt.getSource()
-            drc = getFieldByReflection(self, "dateRangeChoice")
-            if (src is drc and evt.getStateChange() == ItemEvent.SELECTED):
-                if debug:
-                    myPrint("B", "@@ IncExpDateRangeChooser:%s:itemStateChanged().firePropertyChange(%s) >> selection changed (from: '%s' to '%s') <<"
-                            %(self.getName(), self.PROP_DATE_RANGE_CHANGED, "<unknown>", src.getSelectedItem().getValue()))
-                getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, "<unknown>", src.getSelectedItem().getValue())
-            if evt.getStateChange() == ItemEvent.SELECTED: super(self.__class__, self).itemStateChanged(evt)
-
-        def setName(self, newName): self.name = newName
-        def getName(self): return self.name
-        def getActionListeners(self): return []
-        def getFocusListeners(self): return []
-        def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
-
-        def setSelectedOptionKey(self, dateOptionKey):
-            # type: (str) -> bool
-            lSetOption = False
-            drOptions = getFieldByReflection(self, "dateRangeOptions")
-            drChoice = getFieldByReflection(self, "dateRangeChoice")
-            for i in range(0, len(drOptions)):
-                choice = drOptions[i]
-                if choice.getValue().getResourceKey() == dateOptionKey:
-                    lSetOption = True
-                    drChoice.setSelectedIndex(i)
-                    break
-
-            if lSetOption: invokeMethodByReflection(self, "dateRangeSelected", [], [])
-            return lSetOption
-
-        def getPanel(self, includeChoiceLabel=True, horizontal=True):
-            p = MyJPanel(GridBagLayout())
-            x = 0; y = 0
-            vertInc = 0 if horizontal else 1
-            if includeChoiceLabel:
-                p.add(self.getChoiceLabel(),    GridC.getc(x, y).label()); x += 1
-            p.add(self.getChoice(),             GridC.getc(x, y).field()); x += 1; y += vertInc
-            if not horizontal: x = 0
-            p.add(self.getStartLabel(),         GridC.getc(x, y).label()); x += 1
-            p.add(self.getStartField(),         GridC.getc(x, y).field()); x += 1; y += vertInc
-            if not horizontal: x = 0
-            p.add(self.getEndLabel(),           GridC.getc(x, y).label()); x += 1
-            p.add(self.getEndField(),           GridC.getc(x, y).field()); x += 1; y += vertInc
-            return p
-
-        def loadFromParameters(self, drOptionKey, drSettings, defaultKey=DateRangeOption.DR_ALL_DATES.getResourceKey()):
-            # type: (str, [int, int], str) -> bool
-            if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default i/e date range option/key ('%s') not found?!" %(defaultKey))
-            if drOptionKey is None or drOptionKey == "": drOptionKey = defaultKey
-            foundSetting = False
-            drStartDateInt = drSettings[0]
-            drEndDateInt = drSettings[1]
-            if drOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey():
-                if isValidIncExpDateRange(drStartDateInt, drEndDateInt):
-                    self.setStartDate(drStartDateInt)
-                    self.setEndDate(drEndDateInt)
-                    foundSetting = True
-            else:
-                foundSetting = self.setSelectedOptionKey(drOptionKey)
-            if not foundSetting:
-                myPrint("B", "@@ %s::loadFromParameters() - I/E date range settings ('%s %s') not found / invalid?! Loaded default ('%s')"
-                        %(self.getName(), drOptionKey, drSettings, defaultKey))
-            else:
-                if debug: myPrint("B", "Successfully loaded I/E date range date settings ('%s %s')" %(drOptionKey, drSettings))
-            return foundSetting
-
-        def returnStoredParameters(self, defaultDRSettings):
-            # type: ([int, int]) -> (str, [int, int])
-            drSettings = copy.deepcopy(defaultDRSettings)
-            dr = self.getDateRange()
-            startDateInt = dr.getStartDateInt()
-            endDateInt = dr.getEndDateInt()
-            selectedIndex = invokeMethodByReflection(self, "getSelectedIndex", [], [])
-            selectedOptionKey = self.getOption(selectedIndex)
-            drSettings[0] = startDateInt if (selectedOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey()) else 0
-            drSettings[1] = endDateInt if (selectedOptionKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey()) else 0
-            if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored I/E date range parameters settings ('%s %s')" %(self.getName(), selectedOptionKey, drSettings))
-            return selectedOptionKey, drSettings
-
-
     class MyJTextFieldAsInt(JTextField, FocusListener):
         PROP_SKIPBACK_PERIODS_CHANGED = "skipBackPeriodsChanged"
 
@@ -5806,10 +5740,489 @@ Visit: %s (Author's site)
             super(self.__class__, self).updateUI()
             setJComponentStandardUIDefaults(self)
 
+    class MyDateRangeChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
+        """Class that allows selection of a Date Range. Listen to changes using java.beans.PropertyChangeListener() on "dateRangeChanged"""
+
+        INC_EXP_DR_ENABLED_IDX = 0
+        INC_EXP_DR_KEY_IDX = 1
+        INC_EXP_DR_START_KEY_IDX = 2
+        INC_EXP_DR_END_KEY_IDX = 3
+        INC_EXP_DR_SKIPBACKPERIODS_IDX = 4
+
+        PROP_DATE_RANGE_CHANGED = "dateRangeChanged"
+        DR_TODAY = "last_1_day"
+        KEY_CUSTOM_DATE_RANGE = "custom_date"
+        KEY_DR_ALL_DATES = "all_dates"
+        KEY_DR_YEAR_TO_DATE = "year_to_date"
+
+        DR_DATE_OPTIONS = [
+                            ["year_to_date",                 "Year to date"],
+                            ["fiscal_year_to_date",          "Fiscal Year to date"],
+                            ["quarter_to_date",              "Quarter to date"],
+                            ["month_to_date",                "Month to date"],
+                            ["this_year",                    "This year"],
+                            ["this_fiscal_year",             "This Fiscal Year"],
+                            ["this_quarter",                 "This quarter"],
+                            ["this_month",                   "This month"],
+                            ["last_year",                    "Last year"],
+                            ["last_fiscal_year",             "Last Fiscal Year"],
+                            ["last_fiscal_quarter",          "Last Fiscal Quarter"],
+                            ["last_quarter",                 "Last quarter"],
+                            ["last_month",                   "Last month"],
+                            ["last_12_months",               "Last 12 months"],
+                            ["all_dates",                    "All dates"],
+                            ["custom_date",                  "Custom dates"],
+                            ["this_week",                    "This week"],
+                            ["last_30_days",                 "Last 30 days"],
+                            ["last_60_days",                 "Last 60 days"],
+                            ["last_90_days",                 "Last 90 days"],
+                            ["last_120_days",                "Last 120 days"],
+                            ["last_180_days",                "Last 180 days"],
+                            ["last_365_days",                "Last 365 days"],
+                            ["last_week",                    "Last week"],
+                            ["last_1_day",                   "Last 1 day (yesterday & today)"],
+                            ["yesterday",                    "Yesterday"],
+                            ["next_month",                   "Next month"]
+                        ]
+
+
+        class DateRangeChoice:
+            def __init__(self, key, displayName):
+                self.key = key
+                self.displayName = displayName
+            def getKey(self):           return self.key
+            def getDisplayName(self):   return self.displayName
+            def __str__(self):          return self.getDisplayName()
+            def __repr__(self):         return self.__str__()
+            def toString(self):         return self.__str__()
+
+            @staticmethod
+            def internalCalculateDateRangeFromKey(forOptionKey, realTodayInt, calculatedTodayInt, skipBackPeriods):
+                # type: (str, int, int, int) -> DateRange
+
+                if forOptionKey ==  "custom_date":           rtnVal = (realTodayInt, realTodayInt)
+                elif forOptionKey == "all_dates":            rtnVal = (19600101, DateRange().getEndDateInt())
+                elif forOptionKey == "year_to_date":         rtnVal = (DateUtil.firstDayInYear(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "quarter_to_date":      rtnVal = (DateUtil.firstDayInQuarter(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "month_to_date":        rtnVal = (DateUtil.firstDayInMonth(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "this_year":            rtnVal = (DateUtil.firstDayInYear(calculatedTodayInt), DateUtil.lastDayInYear(calculatedTodayInt))
+                elif forOptionKey == "this_fiscal_year":     rtnVal = (DateUtil.firstDayInFiscalYear(calculatedTodayInt), DateUtil.lastDayInFiscalYear(calculatedTodayInt))
+                elif forOptionKey == "fiscal_year_to_date":  rtnVal = (DateUtil.firstDayInFiscalYear(calculatedTodayInt), calculatedTodayInt)
+                elif forOptionKey == "last_fiscal_year":     rtnVal = (DateUtil.decrementYear(DateUtil.firstDayInFiscalYear(calculatedTodayInt)), DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt)))
+                elif forOptionKey == "last_fiscal_quarter":  rtnVal = (DateUtil.firstDayInFiscalQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)), DateUtil.lastDayInFiscalQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)))
+                elif forOptionKey == "this_quarter":         rtnVal = (Util.firstDayInQuarter(calculatedTodayInt), Util.lastDayInQuarter(calculatedTodayInt))
+                elif forOptionKey == "this_month":           rtnVal = (Util.firstDayInMonth(calculatedTodayInt), Util.lastDayInMonth(calculatedTodayInt))
+                elif forOptionKey == "this_week":            rtnVal = (Util.firstDayInWeek(calculatedTodayInt), Util.lastDayInWeek(calculatedTodayInt))
+                elif forOptionKey == "last_year":            rtnVal = (Util.firstDayInYear(Util.decrementYear(calculatedTodayInt)), Util.lastDayInYear(Util.decrementYear(calculatedTodayInt)))
+                elif forOptionKey == "last_quarter":         rtnVal = (DateUtil.firstDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)), DateUtil.lastDayInQuarter(DateUtil.incrementDate(calculatedTodayInt, 0, -3, 0)))
+                elif forOptionKey == "last_month":           rtnVal = (Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, -1, 0), Util.incrementDate(Util.firstDayInMonth(calculatedTodayInt), 0, 0, -1))
+                elif forOptionKey == "last_week":            rtnVal = (Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -7), Util.incrementDate(Util.firstDayInWeek(calculatedTodayInt), 0, 0, -1))
+                elif forOptionKey == "last_12_months":       rtnVal = (Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (skipBackPeriods + 1), 0), Util.incrementDate(Util.firstDayInMonth(realTodayInt), 0, -12 * (skipBackPeriods), -1))
+                elif forOptionKey == "last_1_day":           rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -1    * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -1   * (skipBackPeriods)))
+                elif forOptionKey == "last_30_days":         rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -29   * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -29  * (skipBackPeriods)))
+                elif forOptionKey == "last_60_days":         rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -59   * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -59  * (skipBackPeriods)))
+                elif forOptionKey == "last_90_days":         rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -89   * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -89  * (skipBackPeriods)))
+                elif forOptionKey == "last_120_days":        rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -119  * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -119 * (skipBackPeriods)))
+                elif forOptionKey == "last_180_days":        rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -179  * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -179 * (skipBackPeriods)))
+                elif forOptionKey == "last_365_days":        rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -364  * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -364 * (skipBackPeriods)))
+                elif forOptionKey == "next_month":           rtnVal = (Util.firstDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)), Util.lastDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)))
+                elif forOptionKey == "yesterday":            rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1))
+                else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
+
+                return DateRange(Integer(rtnVal[0]), Integer(rtnVal[1]))
+
+            @staticmethod
+            def getDateRangeFromKey(forOptionKey, skipBackPeriods):
+                # type: (str, int) -> DateRange
+
+                if skipBackPeriods is None: skipBackPeriods = 0
+
+                todayInt = Util.getStrippedDateInt()
+
+                skipBackDayTodayInt  = DateUtil.incrementDate(todayInt, 0, 0, -skipBackPeriods)
+                skipBackWeekTodayInt = DateUtil.incrementDate(todayInt, 0, 0, 7 * -skipBackPeriods)
+                skipBackMnthTodayInt = DateUtil.incrementDate(todayInt, 0, -skipBackPeriods, 0)
+                skipBackQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -skipBackPeriods, 0)
+                skipBackYearTodayInt = DateUtil.incrementDate(todayInt, -skipBackPeriods, 0, 0)
+
+                if forOptionKey ==  "custom_date":           calculatedTodayInt = None
+                elif forOptionKey == "all_dates":            calculatedTodayInt = None
+                elif forOptionKey == "year_to_date":         calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "quarter_to_date":      calculatedTodayInt = skipBackQrtrTodayInt
+                elif forOptionKey == "month_to_date":        calculatedTodayInt = skipBackMnthTodayInt
+                elif forOptionKey == "this_year":            calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "this_fiscal_year":     calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "fiscal_year_to_date":  calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "last_fiscal_year":     calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "last_fiscal_quarter":  calculatedTodayInt = skipBackQrtrTodayInt
+                elif forOptionKey == "this_quarter":         calculatedTodayInt = skipBackQrtrTodayInt
+                elif forOptionKey == "this_month":           calculatedTodayInt = skipBackMnthTodayInt
+                elif forOptionKey == "this_week":            calculatedTodayInt = skipBackWeekTodayInt
+                elif forOptionKey == "last_year":            calculatedTodayInt = skipBackYearTodayInt
+                elif forOptionKey == "last_quarter":         calculatedTodayInt = skipBackQrtrTodayInt
+                elif forOptionKey == "last_month":           calculatedTodayInt = skipBackMnthTodayInt
+                elif forOptionKey == "last_week":            calculatedTodayInt = skipBackWeekTodayInt
+                elif forOptionKey == "last_12_months":       calculatedTodayInt = None
+                elif forOptionKey == "last_1_day":           calculatedTodayInt = None
+                elif forOptionKey == "last_30_days":         calculatedTodayInt = None
+                elif forOptionKey == "last_60_days":         calculatedTodayInt = None
+                elif forOptionKey == "last_90_days":         calculatedTodayInt = None
+                elif forOptionKey == "last_120_days":        calculatedTodayInt = None
+                elif forOptionKey == "last_180_days":        calculatedTodayInt = None
+                elif forOptionKey == "last_365_days":        calculatedTodayInt = None
+                elif forOptionKey == "next_month":           calculatedTodayInt = skipBackMnthTodayInt
+                elif forOptionKey == "yesterday":            calculatedTodayInt = skipBackDayTodayInt
+                else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
+
+                calculatedDateRange = MyDateRangeChooser.DateRangeChoice.internalCalculateDateRangeFromKey(forOptionKey, todayInt, calculatedTodayInt, skipBackPeriods)
+
+                if debug:
+                    if skipBackPeriods != 0:
+                        originalDateRange = MyDateRangeChooser.DateRangeChoice.internalCalculateDateRangeFromKey(forOptionKey, todayInt, todayInt, 0)
+                        myPrint("B", "@@ .getDateRangeFromKey('%s', skipBackPeriods: %s): skipBackDayTodayInt: %s, skipBackWeekTodayInt: %s, skipBackMnthTodayInt: %s, skipBackQrtrTodayInt: %s, skipBackYearTodayInt: %s"
+                                %(forOptionKey, skipBackPeriods, skipBackDayTodayInt, skipBackWeekTodayInt, skipBackMnthTodayInt, skipBackQrtrTodayInt, skipBackYearTodayInt))
+                        myPrint("B", "@@ originalDateRange: %s, calculatedDateRange: %s" %(originalDateRange, calculatedDateRange))
+                    myPrint("B", "@@ .getDateRangeFromKey('%s', %s) returning %s" %(forOptionKey, skipBackPeriods, calculatedDateRange))
+
+                return calculatedDateRange
+
+        class DateRangeClickListener(MouseAdapter):
+            def __init__(self, callingClass): self.callingClass = callingClass
+            def mouseClicked(self, event):
+                if (SwingUtilities.isLeftMouseButton(event) and event.getClickCount() > 1):
+                    self.callingClass.getChoiceCombo().setSelectedItem(self.callingClass.customOption)
+
+        def __init__(self, mdGUI, defaultKey, excludeKeys=None):
+            # type: (MoneydanceGUI, str, [str]) -> None
+            if isinstance(excludeKeys, str): excludeKeys = [excludeKeys]
+            if excludeKeys is None or not isinstance(excludeKeys, list): excludeKeys = []
+            for checkKey in [self.KEY_CUSTOM_DATE_RANGE, self.KEY_DR_ALL_DATES]:
+                if checkKey in excludeKeys: excludeKeys.remove(checkKey)
+            self.mdGUI = mdGUI
+            self.customOption = None
+            self.excludeKeys = excludeKeys
+            self.name = "MyDateRangeChooser"
+            self.defaultKey = defaultKey
+            self.allDatesOption = None
+            self.dateRangeResult = None                                                                                 # type: DateRange
+            self.selectedOptionKeyResult = None
+            self.skipBackPeriodsResult = 0
+            self.lastDeselectedOptionKey = None
+            self.ignoreDateChanges = False
+            self.isEnabled = True
+            self.dateRangeOptions = self.createDateRangeOptions()                                                       # type: [MyDateRangeChooser.DateRangeChoice]
+
+            clickListener = self.DateRangeClickListener(self)
+
+            self.startIntField_JDF = JDateField(mdGUI)
+            self.startIntField_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
+            self.startIntField_JDF.addMouseListener(clickListener)
+
+            self.endIntField_JDF = JDateField(mdGUI)
+            self.endIntField_JDF.addPropertyChangeListener(JDateField.PROP_DATE_CHANGED, self)
+            self.endIntField_JDF.addMouseListener(clickListener)
+
+            self.skipBackPeriods_JTF = MyJTextFieldAsInt(2, self.mdGUI.getPreferences().getDecimalChar())
+            self.skipBackPeriods_JTF.addPropertyChangeListener(MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED, self)
+
+            self.startIntField_LBL = MyJLabel(" ", 4)
+            self.endIntField_LBL = MyJLabel(" ", 4)
+            self.dateRangeChoice_LBL = MyJLabel(" ", 4)
+            self.dateRangeChoice_COMBO = MyJComboBox()
+            self.skipBackPeriods_LBL = MyJLabel(" ", 4)
+            self.preferencesUpdated()
+            self.dateRangeSelected()
+            self.dateRangeChoice_COMBO.addItemListener(self)
+
+        def setDefaultKey(self, newDefault): self.defaultKey = newDefault
+        def getDefaultKey(self): return self.defaultKey
+        def setName(self, newName): self.name = newName
+        def getName(self): return self.name
+        def getActionListeners(self): return []
+        def getFocusListeners(self): return []
+        def getPropertyChangeListeners(self): return getFieldByReflection(self, "_eventNotify").getPropertyChangeListeners()
+
+        def createDateRangeOptions(self):
+            choices = [MyDateRangeChooser.DateRangeChoice(choice[0], choice[1]) for choice in self.DR_DATE_OPTIONS if choice[0] not in self.excludeKeys]
+            for choice in choices:
+                if choice.getKey() == self.KEY_CUSTOM_DATE_RANGE: self.customOption = choice
+                if choice.getKey() == self.KEY_DR_ALL_DATES: self.allDatesOption = choice
+            return choices
+
+        def getStartIntLabel(self): return self.startIntField_LBL
+        def getEndIntLabel(self): return self.endIntField_LBL
+        def getStartIntField(self): return self.startIntField_JDF
+        def getEndIntField(self): return self.endIntField_JDF
+        def getChoiceLabel(self): return self.dateRangeChoice_LBL
+        def getChoiceCombo(self): return self.dateRangeChoice_COMBO
+        def getSkipBackPeriodsLabel(self): return self.skipBackPeriods_LBL
+        def getSkipBackPeriodsField(self): return self.skipBackPeriods_JTF
+
+        def isCustomAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.customOption)
+        def isAllAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.allDatesOption)
+
+        def selectAllAsOfDates(self):
+            self.getChoiceCombo().setSelectedItem(self.allDatesOption)
+            self.dateRangeSelected()
+
+        def preferencesUpdated(self):
+            prefs = self.mdGUI.getPreferences()
+            self.getStartIntField().setDateFormat(prefs.getShortDateFormatter())
+            self.getEndIntField().setDateFormat(prefs.getShortDateFormatter())
+            self.getStartIntLabel().setText("Start date:")
+            self.getEndIntLabel().setText("End date:")
+            self.getChoiceLabel().setText("Date range:")
+            self.getSkipBackPeriodsLabel().setText("offset:")
+            self.getSkipBackPeriodsField().setValueInt(self.getSkipBackPeriodsField().defaultValue)
+            dateRangeSel = self.getSelectedIndex()
+            self.getChoiceCombo().setModel(DefaultComboBoxModel(self.dateRangeOptions))
+            prototypeText = ""
+            # protoChoice = None
+            # for choice in self.dateRangeOptions:
+            #     text = choice.getDisplayName()
+            #     if len(text) <= len(prototypeText): continue
+            #     prototypeText = text
+            #     protoChoice = choice
+            # if protoChoice is None: protoChoice = self.dateRangeOptions[0]
+            # self.getChoiceCombo().setPrototypeDisplayValue(self.DateRangeChoice(protoChoice.getKey(), protoChoice.getDisplayName()))
+            for choice in self.DR_DATE_OPTIONS:
+                text = choice[1]
+                if len(text) <= len(prototypeText): continue
+                prototypeText = text
+            self.getChoiceCombo().setPrototypeDisplayValue(prototypeText)
+            self.getChoiceCombo().setMaximumRowCount(len(self.dateRangeOptions))
+            if (dateRangeSel >= 0): self.getChoiceCombo().setSelectedIndex(dateRangeSel)
+
+        def getPanel(self, includeChoiceLabel=True, horizontal=True):
+            p = MyJPanel(GridBagLayout())
+            x = 0; y = 0
+            vertInc = 0 if horizontal else 1
+            if includeChoiceLabel:
+                p.add(self.getChoiceLabel(),        GridC.getc(x, y).label()); x += 1
+            p.add(self.getChoiceCombo(),            GridC.getc(x, y).field()); x += 1; y += vertInc
+            if not horizontal: x = 0
+            p.add(self.getStartIntLabel(),          GridC.getc(x, y).label()); x += 1
+            p.add(self.getStartIntField(),          GridC.getc(x, y).field()); x += 1; y += vertInc
+            if not horizontal: x = 0
+            p.add(self.getEndIntLabel(),            GridC.getc(x, y).label()); x += 1
+            p.add(self.getEndIntField(),            GridC.getc(x, y).field()); x += 1; y += vertInc
+            p.add(self.getSkipBackPeriodsLabel(),   GridC.getc(x, y).label()); x += 1
+            p.add(self.getSkipBackPeriodsField(),   GridC.getc(x, y).field()); x += 1; y += vertInc
+            return p
+
+        def setSelectedOptionKey(self, dateOptionKey):
+            # type: (str) -> bool
+            lSetOption = False
+            for choice in self.dateRangeOptions:
+                if choice.getKey() == dateOptionKey:
+                    lSetOption = True
+                    self.getChoiceCombo().setSelectedItem(choice)
+                    break
+            if lSetOption: self.dateRangeSelected()
+            return lSetOption
+
+        def getSelectedOptionKey(self, position): return self.dateRangeOptions[position].getKey()
+
+        def getSelectedIndex(self):
+            sel = self.getChoiceCombo().getSelectedIndex()
+            if sel < 0: sel = 0
+            return sel
+
+        def setStartDateInt(self, startDateInt):
+            self.getChoiceCombo().setSelectedItem(self.customOption)
+            self.getStartIntField().setDateInt(startDateInt)
+            self.dateRangeSelected()
+
+        def setEndDateInt(self, endDateInt):
+            self.getChoiceCombo().setSelectedItem(self.customOption)
+            self.getEndIntField().setDateInt(endDateInt)
+            self.dateRangeSelected()
+
+        def getDateRange(self):
+            # type: () -> DateRange
+            if self.dateRangeResult is None: self.dateRangeSelected()
+            return self.dateRangeResult
+
+        def setSkipBackPeriods(self, skipBackPeriods):
+            self.getSkipBackPeriodsField().setValueInt(skipBackPeriods)
+            self.dateRangeSelected()
+
+        def getSkipBackPeriods(self):
+            # if self.skipBackPeriodsResult is None: self.dateRangeSelected()
+            return self.skipBackPeriodsResult
+
+        def dateRangeSelected(self):
+            dr = self.getDateRangeFromSelectedOption()
+            skipBackPeriods = self.getSkipBackPeriodsField().getValueInt()
+            # myPrint("B", "@@ MyDateRangeChooser:%s:dateRangeSelected() - getDateRangeFromSelectedOption() reports: '%s'" %(self.getName(), dr))
+            self.ignoreDateChanges = True
+            self.getStartIntField().setDateInt(dr.getStartDateInt())
+            self.getEndIntField().setDateInt(dr.getEndDateInt())
+            self.getSkipBackPeriodsField().setValueInt(skipBackPeriods)
+            self.ignoreDateChanges = False
+            self.setDateRangeResult(dr, skipBackPeriods)
+            self.updateEnabledStatus()
+
+        def loadFromParameters(self, drSettings, defaultKey):
+            # type: ([bool, str, int, int, int], str) -> bool
+            if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default i/e date range option/key ('%s') not found?!" %(defaultKey))
+
+            # drOptionEnabled = drSettings[MyDateRangeChooser.INC_EXP_DR_ENABLED_IDX]
+            drOptionKey = drSettings[MyDateRangeChooser.INC_EXP_DR_KEY_IDX]
+            drStartDateInt = drSettings[MyDateRangeChooser.INC_EXP_DR_START_KEY_IDX]
+            drEndDateInt = drSettings[MyDateRangeChooser.INC_EXP_DR_END_KEY_IDX]
+            skipBackPeriods = drSettings[MyDateRangeChooser.INC_EXP_DR_SKIPBACKPERIODS_IDX]
+
+            if drOptionKey is None or drOptionKey == "": drOptionKey = defaultKey
+            drSettings[MyDateRangeChooser.INC_EXP_DR_KEY_IDX] = drOptionKey
+
+            foundSetting = False
+            self.getSkipBackPeriodsField().setValueInt(skipBackPeriods)
+            if drOptionKey == self.KEY_CUSTOM_DATE_RANGE:
+                if MyDateRangeChooser.isValidIncExpDateRange(drSettings):
+                    self.setStartDateInt(drStartDateInt)
+                    self.setEndDateInt(drEndDateInt)
+                    foundSetting = True
+            else:
+                foundSetting = self.setSelectedOptionKey(drOptionKey)
+            if not foundSetting:
+                myPrint("B", "@@ %s::loadFromParameters() - I/E date range settings ('%s %s') not found / invalid?! Loaded default ('%s')"
+                        %(self.getName(), drOptionKey, drSettings, defaultKey))
+            else:
+                if debug: myPrint("B", "Successfully loaded I/E date range date settings ('%s %s')" %(drOptionKey, drSettings))
+            return foundSetting
+
+        def returnStoredParameters(self, defaultDRSettings):
+            # type: ([bool, str, int, int, int]) -> ([bool, str, int, int, int])
+            drSettings = copy.deepcopy(defaultDRSettings)
+            dr = self.getDateRange()
+            selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+            startDateInt = dr.getStartDateInt()
+            endDateInt = dr.getEndDateInt()
+            skipBackPeriods = self.getSkipBackPeriodsField().getValueInt()
+            # leave settings[MyDateRangeChooser.INC_EXP_DR_ENABLED_IDX] untouched
+            drSettings[MyDateRangeChooser.INC_EXP_DR_KEY_IDX] = selectedOptionKey
+            drSettings[MyDateRangeChooser.INC_EXP_DR_START_KEY_IDX] = startDateInt if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE) else 0
+            drSettings[MyDateRangeChooser.INC_EXP_DR_END_KEY_IDX] = endDateInt if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE) else 0
+            drSettings[MyDateRangeChooser.INC_EXP_DR_SKIPBACKPERIODS_IDX] = skipBackPeriods
+            if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored I/E date range parameters settings ('%s')" %(self.getName(), drSettings))
+            return drSettings
+
+        @staticmethod
+        def isValidIncExpDateRange(drSettings):
+            # type: ([bool, str, int, int, int]) -> bool
+            _startInt = drSettings[MyDateRangeChooser.INC_EXP_DR_START_KEY_IDX]
+            _endInt = drSettings[MyDateRangeChooser.INC_EXP_DR_END_KEY_IDX]
+            _skipBackPeriods = drSettings[MyDateRangeChooser.INC_EXP_DR_SKIPBACKPERIODS_IDX]
+            if not isinstance(_startInt, (int, Integer)):               return False
+            if not isinstance(_endInt, (int, Integer)):                 return False
+            if not isinstance(_skipBackPeriods, (int, Integer, long)):  return False
+            if _startInt <= GlobalVars.DATE_RANGE_VALID:                return False
+            if _endInt   <= GlobalVars.DATE_RANGE_VALID:                return False
+            if _startInt > _endInt:                                     return False
+            if _skipBackPeriods < 0:                                    return False
+            return True
+
+        def setDateRangeResult(self, dr, skipBackPeriods):
+            # type: (DateRange, int) -> None
+            oldDateRange = self.dateRangeResult
+            oldSelectedKey = self.selectedOptionKeyResult
+            oldSkipBackPeriods = self.skipBackPeriodsResult
+            selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+            # myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s) (old asof date: %s), selectedKey: '%s' (old key: '%s')" %(self.getName(), dr, oldDateRange, selectedOptionKey, oldSelectedKey));
+            if not dr.equals(oldDateRange) or selectedOptionKey != oldSelectedKey or skipBackPeriods != oldSkipBackPeriods:
+                self.dateRangeResult = dr
+                self.selectedOptionKeyResult = selectedOptionKey
+                self.skipBackPeriodsResult = skipBackPeriods
+                if not dr.equals(oldDateRange):
+                    # if debug:
+                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s).firePropertyChange(%s) >> asof date changed (from: %s to %s) <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldDateRange, dr))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, oldDateRange, dr)
+                elif selectedOptionKey != oldSelectedKey:
+                    # if debug:
+                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldSelectedKey, selectedOptionKey))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, oldSelectedKey, selectedOptionKey)
+                elif skipBackPeriods != oldSkipBackPeriods:
+                    # if debug:
+                    #     myPrint("B", "@@ MyDateRangeChooser:%s:setDateRangeResult(%s).firePropertyChange(%s) >> selected key changed (from: '%s' to '%s') <<" %(self.getName(), dr, self.PROP_DATE_RANGE_CHANGED, oldSkipBackPeriods, skipBackPeriods))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(self.PROP_DATE_RANGE_CHANGED, oldSkipBackPeriods, skipBackPeriods)
+
+        def setEnabled(self, isEnabled, shouldHide=False):
+            self.isEnabled = isEnabled
+            self.updateEnabledStatus(shouldHide=shouldHide)
+
+        def updateEnabledStatus(self, shouldHide=False):
+            for comp in [self.getChoiceCombo(), self.getChoiceLabel(), self.getStartIntLabel(), self.getStartIntField(), self.getEndIntLabel(), self.getEndIntField(), self.getSkipBackPeriodsLabel(), self.getSkipBackPeriodsField()]:
+                comp.setEnabled(self.isEnabled)
+                if shouldHide: comp.setVisible(self.isEnabled)
+
+        def itemStateChanged(self, evt):
+            src = evt.getItemSelectable()                                                                               # type: JComboBox
+            paramString = evt.paramString()
+            state = evt.getStateChange()
+            changedItem = evt.getItem()                                                                                 # type: MyDateRangeChooser.DateRangeChoice
+
+            myClazzName = "MyDateRangeChooser"
+            propKey = self.PROP_DATE_RANGE_CHANGED
+            onSelectionMethod = self.dateRangeSelected
+
+            defaultLast = "<unknown>"
+            if self.lastDeselectedOptionKey is None: self.lastDeselectedOptionKey = defaultLast
+
+            if src is self.getChoiceCombo():
+
+                if state == ItemEvent.DESELECTED:
+                    oldDeselected = self.lastDeselectedOptionKey
+                    newDeselected = changedItem.getKey()
+                    self.lastDeselectedOptionKey = newDeselected
+                    if debug:
+                        myPrint("B", "@@ %s:%s:itemStateChanged(%s).firePropertyChange(%s) >> last deselected changed (from: '%s' to '%s') (paramString: '%s') <<"
+                                %(myClazzName, self.getName(), state, propKey, oldDeselected, newDeselected, paramString))
+
+                elif state == ItemEvent.SELECTED:
+                    lastDeselected = self.lastDeselectedOptionKey
+                    newSelected = changedItem.getKey()
+                    if debug:
+                        myPrint("B", "@@ %s:%s:itemStateChanged(%s).firePropertyChange(%s) >> selection changed (from: '%s' to '%s') (paramString: '%s') <<"
+                                %(myClazzName, self.getName(), state, propKey, lastDeselected, newSelected, paramString))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(propKey,  lastDeselected, newSelected)
+                    onSelectionMethod()
+                    self.lastDeselectedOptionKey = None
+
+        def propertyChange(self, event):
+            # myPrint("B", "@@ MyDateRangeChooser:%s:propertyChange('%s') - .getSelectedOptionKey() reports: '%s'" %(self.getName(), event.getPropertyName(), self.getSelectedOptionKey(self.getSelectedIndex())));
+            if (event.getPropertyName() == JDateField.PROP_DATE_CHANGED and not self.ignoreDateChanges):
+                selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+                if (selectedOptionKey != self.KEY_CUSTOM_DATE_RANGE and self.datesVaryFromSelectedOption()):
+                    self.getChoiceCombo().setSelectedItem(self.customOption)
+                if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE):
+                    self.setDateRangeResult(DateRange(Integer(self.getStartIntField().getDateInt()), Integer(self.getEndIntField().getDateInt())), self.getSkipBackPeriodsField().getValueInt())
+            if (event.getPropertyName() == MyJTextFieldAsInt.PROP_SKIPBACK_PERIODS_CHANGED and not self.ignoreDateChanges):
+                self.setDateRangeResult(DateRange(Integer(self.getStartIntField().getDateInt()), Integer(self.getEndIntField().getDateInt())), self.getSkipBackPeriodsField().getValueInt())
+                self.dateRangeSelected()
+
+        def datesVaryFromSelectedOption(self):
+            startDateInt = self.getStartIntField().getDateInt()
+            endDateInt = self.getEndIntField().getDateInt()
+            dr = self.getDateRangeFromSelectedOption()
+            return (startDateInt != dr.getStartDateInt() or endDateInt != dr.getEndDateInt())
+
+        def getDateRangeFromSelectedOption(self):
+            selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
+            if (selectedOptionKey == self.KEY_CUSTOM_DATE_RANGE):
+                return DateRange(Integer(self.getStartIntField().parseDateInt()), Integer(self.getEndIntField().parseDateInt()))
+            return self.DateRangeChoice.getDateRangeFromKey(selectedOptionKey, self.getSkipBackPeriods())
+
+
+
     class AsOfDateChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
         """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged"""
-        PARAM_ASOF_CHOICE = "asof_option"
-        PARAM_ASOF_DATE = "asof_date"
+
+        ASOF_DRC_ENABLED_IDX = 0
+        ASOF_DRC_KEY_IDX = 1
+        ASOF_DRC_DATEINT_IDX = 2
+        ASOF_DRC_SKIPBACKPERIODS_IDX = 3
+
         PROP_ASOF_CHANGED = "asOfChanged"
         ASOF_TODAY = "asof_today"
         KEY_CUSTOM_ASOF = "custom_asof"
@@ -5973,6 +6386,7 @@ Visit: %s (Author's site)
             self.asOfDateIntResult = None
             self.selectedOptionKeyResult = None
             self.skipBackPeriodsResult = 0
+            self.lastDeselectedOptionKey = None
             self.ignoreDateChanges = False
             self.isEnabled = True
             self.asOfOptions = self.createAsOfDateOptions()                                                             # type: [AsOfDateChooser.AsOfDateChoice]
@@ -6113,10 +6527,10 @@ Visit: %s (Author's site)
             # type: ([bool, str, int, int], str) -> bool
             if not self.setSelectedOptionKey(defaultKey): raise Exception("ERROR: Default asof option/key ('%s') not found?!" %(defaultKey))
             foundSetting = False
-            # asOfOptionSelected = settings[0]
-            asOfOptionKey = settings[1]
-            asOfDateInt = settings[2]
-            skipBackPeriods = settings[3]
+            # asOfOptionSelected = settings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
+            asOfOptionKey = settings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
+            asOfDateInt = settings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
+            skipBackPeriods = settings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
             self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
             if asOfOptionKey == self.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(asOfDateInt):
@@ -6137,31 +6551,12 @@ Visit: %s (Author's site)
             asOfDateInt = self.getAsOfDateInt()
             selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
             skipBackPeriods = self.skipBackPeriods_JTF.getValueInt()
-            # leave settings[0] untouched
-            settings[1] = selectedOptionKey
-            settings[2] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
-            settings[3] = skipBackPeriods
+            # leave settings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX] untouched
+            settings[AsOfDateChooser.ASOF_DRC_KEY_IDX] = selectedOptionKey
+            settings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX] = asOfDateInt if (selectedOptionKey == self.KEY_CUSTOM_ASOF) else 0
+            settings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX] = skipBackPeriods
             if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored asof date parameters settings ('%s')" %(self.getName(), settings))
             return settings
-
-        # def loadFromParameters(self, settings, defaultKey="asof_today"):
-        #     self.setSelectedOptionKey(defaultKey)
-        #     asOfDateInt = self.getAsOfDateInt()
-        #     foundSetting = False
-        #     if settings.containsKey(self.PARAM_ASOF_CHOICE):
-        #         self.setSelectedOptionKey(settings.getString(self.PARAM_ASOF_CHOICE, defaultKey));
-        #         foundSetting = True
-        #     if (settings.containsKey(self.PARAM_ASOF_DATE)):
-        #         self.setAsOfDateInt(MDURLUtil.getDate(settings, self.PARAM_ASOF_DATE, Integer(asOfDateInt)))
-        #         foundSetting = True
-        #     return foundSetting
-
-        # def storeToParameters(self, settings):
-        #     asOfDateInt = self.getAsOfDateInt()
-        #     selectedOptionKey = self.getSelectedOptionKey(self.getSelectedIndex())
-        #     settings.put(self.PARAM_ASOF_CHOICE, selectedOptionKey)
-        #     if selectedOptionKey == self.KEY_CUSTOM_ASOF:
-        #         MDURLUtil.putDate(settings, self.PARAM_ASOF_DATE, Integer(asOfDateInt))
 
         def setAsOfDateResult(self, asOfDateInt, skipBackPeriods):
             oldAsOfDateInt = self.asOfDateIntResult
@@ -6196,9 +6591,39 @@ Visit: %s (Author's site)
                 if shouldHide: comp.setVisible(self.isEnabled)
 
         def itemStateChanged(self, evt):
-            src = evt.getSource()
-            if (evt.getStateChange() == ItemEvent.SELECTED and src is self.getChoiceCombo()):
-                self.asOfSelected()
+            src = evt.getItemSelectable()                                                                               # type: JComboBox
+            paramString = evt.paramString()
+            state = evt.getStateChange()
+            changedItem = evt.getItem()                                                                                 # type: MyDateRangeChooser.DateRangeChoice
+
+            myClazzName = "AsOfDateChooser"
+            propKey = self.PROP_ASOF_CHANGED
+            onSelectionMethod = self.asOfSelected
+
+            defaultLast = "<unknown>"
+            if self.lastDeselectedOptionKey is None: self.lastDeselectedOptionKey = defaultLast
+
+            if src is self.getChoiceCombo():
+
+                if state == ItemEvent.DESELECTED:
+                    oldDeselected = self.lastDeselectedOptionKey
+                    newDeselected = changedItem.getKey()
+                    self.lastDeselectedOptionKey = newDeselected
+                    if debug:
+                        myPrint("B", "@@ %s:%s:itemStateChanged(%s).firePropertyChange(%s) >> last deselected changed (from: '%s' to '%s') (paramString: '%s') <<"
+                                %(myClazzName, self.getName(), state, propKey, oldDeselected, newDeselected, paramString))
+
+                elif state == ItemEvent.SELECTED:
+                    lastDeselected = self.lastDeselectedOptionKey
+                    newSelected = changedItem.getKey()
+                    if debug:
+                        myPrint("B", "@@ %s:%s:itemStateChanged(%s).firePropertyChange(%s) >> selection changed (from: '%s' to '%s') (paramString: '%s') <<"
+                                %(myClazzName, self.getName(), state, propKey, lastDeselected, newSelected, paramString))
+                    getFieldByReflection(self, "_eventNotify").firePropertyChange(propKey,  lastDeselected, newSelected)
+                    onSelectionMethod()
+                    self.lastDeselectedOptionKey = None
+
+
 
         def propertyChange(self, event):
             # myPrint("B", "@@ AsOfDateChooser:%s:propertyChange('%s') - .getSelectedOptionKey() reports: '%s'" %(self.getName(), event.getPropertyName(), self.getSelectedOptionKey(self.getSelectedIndex())));
@@ -6338,15 +6763,15 @@ Visit: %s (Author's site)
 
     def isIncomeExpenseDatesSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedIncomeExpenseDateRange[index] != NAB.incomeExpenseDateRangeDefault())
+        return (NAB.savedIncExpDateRangeTable[index][MyDateRangeChooser.INC_EXP_DR_KEY_IDX] != NAB.incExpDateRangeDefault()[MyDateRangeChooser.INC_EXP_DR_KEY_IDX])
 
     def isBalanceAsOfDateSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedBalanceAsOfDateTable[index][GlobalVars.ASOF_BALANCE_IDX] and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
+        return (NAB.savedBalanceAsOfDateTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
 
     def isIncludeRemindersSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedIncludeRemindersTable[index][GlobalVars.INCLUDE_REMINDERS_IDX] and isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
+        return (NAB.savedIncludeRemindersTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
 
     def isUseCostBasisSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -6569,82 +6994,41 @@ Visit: %s (Author's site)
         if _dateInt < GlobalVars.DATE_RANGE_VALID:      return False
         return True
 
-    def isValidIncExpDateRange(_startInt, _endInt):
-        if not isinstance(_startInt, (int, Integer)):   return False
-        if not isinstance(_endInt, (int, Integer)):     return False
-        if _startInt <= GlobalVars.DATE_RANGE_VALID:    return False
-        if _endInt   <= GlobalVars.DATE_RANGE_VALID:    return False
-        if _startInt > _endInt:                         return False
-        return True
-
-    def getIncExpDateRangeSelected(_fromRangeKey, _fromCustomDates, adjForBalType=None):
-        # type: (str, list, bool) -> DateRange
+    def getIncExpDateRangeSelected(_fromDrSettings, adjForBalType=None):
+        # type: ([str, int, int, int], bool) -> DateRange
         """Takes saved I/E date range settings and returns a populated DateRange.
         Normally adjForBalType is None when using to select txns (as the balance type buckets hold current/future balances etc.
         So, only use adjForBalType when showing the end date to user, or to determine avg CAL_UNITS etc"""
 
         # myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()" )
-        # myPrint("DB", ".. Passed '%s'Date Range with '%s':" %(_fromRangeKey, _fromCustomDates))
+        # myPrint("DB", ".. Passed '%s' Date Range settings (with adjForBalType: %s)" %(_fromDrSettings, adjForBalType));
 
-        NAB = NetAccountBalancesExtension.getNAB()
+        fromRangeKey = _fromDrSettings[MyDateRangeChooser.INC_EXP_DR_KEY_IDX]
+        startDateInt = _fromDrSettings[MyDateRangeChooser.INC_EXP_DR_START_KEY_IDX]
+        endDateInt = _fromDrSettings[MyDateRangeChooser.INC_EXP_DR_END_KEY_IDX]
+        skipBackPeriods = _fromDrSettings[MyDateRangeChooser.INC_EXP_DR_SKIPBACKPERIODS_IDX]
 
-        if _fromRangeKey == DateRangeOption.DR_ALL_DATES.getResourceKey():
-            raise Exception("ERROR: getDateRangeSelected should not be passed: '%s'" %(_fromRangeKey))
+        if fromRangeKey == MyDateRangeChooser.KEY_DR_ALL_DATES:
+            raise Exception("ERROR: getDateRangeSelected should not be passed: '%s'" %(fromRangeKey))
 
-        if NAB.fixDateRange is None:
-            # Fix for builds up to/incl. MD2023.2(5046): Previously, Last1/30/365 options returned an extra day (inclusive of today)
-            # Build 5047 changed Last1/30/365 to be inclusive of yesterday and actually return 1/30/365 days
-            # Build 5051: changed it again. Last1/30/365 now include today again. Last1 = 2 days. Last30/365 are 30/365 days.
-            # Hence Last1 is actually Last1(yesterday & today) = 2 days; whereas Last30/365 return 30/365 days
-
-            last365dr = DateRangeOption.fromKey(DateRangeOption.DR_LAST_365_DAYS.getResourceKey()).getDateRange()
-            endDate365PlusOne = DateUtil.incrementDate(last365dr.getEndDateInt(), 0, 0, 1)
-            last365DaysBetween = DateUtil.calculateDaysBetween(last365dr.getStartDateInt(), endDate365PlusOne)
-
-            last30dr = DateRangeOption.fromKey(DateRangeOption.DR_LAST_30_DAYS.getResourceKey()).getDateRange()
-            endDate30PlusOne = DateUtil.incrementDate(last30dr.getEndDateInt(), 0, 0, 1)
-            last30DaysBetween = DateUtil.calculateDaysBetween(last30dr.getStartDateInt(), endDate30PlusOne)
-
-            last1dr = DateRangeOption.fromKey(DateRangeOption.DR_LAST_1_DAY.getResourceKey()).getDateRange()
-            endDate1PlusOne = DateUtil.incrementDate(last1dr.getEndDateInt(), 0, 0, 1)
-            last1DaysBetween = DateUtil.calculateDaysBetween(last1dr.getStartDateInt(), endDate1PlusOne)
-
-            if last365DaysBetween == 365 and last30DaysBetween == 30 and last1DaysBetween == 2:
-                NAB.fixDateRange = False
-                myPrint("DB", "DateRange fixes for Last30/365 days NOT required... (NOTE: Last1 with 2 inclusive days assumed to be correct)")
-            elif last365DaysBetween == 366 and last30DaysBetween == 31 and last1DaysBetween == 2:
-                NAB.fixDateRange = True
-                myPrint("B", "@@ DateRange fixes for Last30/365 days REQUIRED (e.g. Last365days: %s = days between: %s, should be 365; Last30days: %s(%s); Last1days: %s(%s)) - fix will be applied where required!"
-                        %(last365dr, last365DaysBetween, last30dr, last30DaysBetween, last1dr, last1DaysBetween))
-            else:
-                raise Exception("@@ LOGIC ERROR in getIncExpDateRangeSelected() - fixDateRange (%s) found %s days between (%s:%s; %s:%s)?!"
-                                %(last365dr, last365DaysBetween, last30dr, last30DaysBetween, last1dr, last1DaysBetween))
-
-        if _fromRangeKey == DateRangeOption.DR_CUSTOM_DATE.getResourceKey():
-            if isValidIncExpDateRange(_fromCustomDates[0], _fromCustomDates[1]):
-                # myPrint("DB", "... Returning custom date range for key: '%s'" %(_fromRangeKey));
-                dateRange = DateRange(Integer(_fromCustomDates[0]), Integer(_fromCustomDates[1]))
+        if fromRangeKey == MyDateRangeChooser.KEY_CUSTOM_DATE_RANGE:
+            if MyDateRangeChooser.isValidIncExpDateRange(_fromDrSettings):
+                # myPrint("DB", "... Returning custom date range for key: '%s'" %(fromRangeKey));
+                dateRange = DateRange(Integer(startDateInt), Integer(endDateInt))
             else:
                 # myPrint("DB", "..... ALERT >> No valid custom start/end dates found! Will use defaults");
-                dateRange = DateRangeOption.DR_CUSTOM_DATE.getDateRange()
+                dateRange = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(MyDateRangeChooser.KEY_CUSTOM_DATE_RANGE, 0)
         else:
-            dateRange = DateRangeOption.fromKey(_fromRangeKey).getDateRange()
+            dateRange = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(fromRangeKey, skipBackPeriods)
 
-            if NAB.fixDateRange and "last_" in _fromRangeKey:
-                checkDRs = [DateRangeOption.DR_LAST_30_DAYS.getResourceKey(),
-                            DateRangeOption.DR_LAST_365_DAYS.getResourceKey()]
-                if _fromRangeKey in checkDRs:
-                    fixedDateRange = DateRange(Integer(DateUtil.incrementDate(dateRange.getStartDateInt(), 0, 0, 1)), Integer(dateRange.getEndDateInt()))
-                    if debug: myPrint("DB", "@@ Applying fix on DR '%s' to DR: %s (was %s days) - changed to %s (now %s days)"
-                                      %(_fromRangeKey, dateRange, dateRange.getNumDays(), fixedDateRange,fixedDateRange.getNumDays()))
-                    dateRange = fixedDateRange
-
-        # myPrint("DB", ".. '%s' Date Range set to:" %(_fromRangeKey), dateRange);
+        if debug: myPrint("B", "getIncExpDateRangeSelected(): '%s' Date Range reporting as: %s (drSettings: '%s')" %(fromRangeKey, dateRange, _fromDrSettings))
 
         if adjForBalType is not None:
             # myPrint("DB", "@@@ pre-date range was: %s" %(dateRange))
             dateRange = fixIncExpEndDateUsingBalType(dateRange, adjForBalType)                                          # type: DateRange
-            # myPrint("DB", "..... '%s' Date Range adjusted to: %s according to balType: '%s'" %(_fromRangeKey, dateRange, adjForBalType))
+            # myPrint("DB", "..... '%s' Date Range adjusted to: %s according to balType: '%s'" %(fromRangeKey, dateRange, adjForBalType))
+
+        if debug: myPrint("B", "....... (balance adjusted as '%s' = '%s')" %(fromRangeKey, dateRange))
 
         return dateRange
 
@@ -6658,10 +7042,10 @@ Visit: %s (Author's site)
 
     def getBalanceAsOfDateSelected(rowBalanceAsOfDateSettings):
         # type: ([bool, str, int]) -> int
-        _fromAsOfWanted = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_IDX]
-        _fromAsOfKey = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_KEY_IDX]
-        _fromCustomAsOfDateInt = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_DATEINT_IDX]
-        _fromSkipBackPeriods = rowBalanceAsOfDateSettings[GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX]
+        _fromAsOfWanted = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
+        _fromAsOfKey = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
+        _fromCustomAsOfDateInt = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
+        _fromSkipBackPeriods = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
@@ -6676,10 +7060,10 @@ Visit: %s (Author's site)
 
     def getIncludeRemindersAsOfDateSelected(rowIncludeRemindersAsOfSettings):
         # type: ([bool, str, int]) -> int
-        _fromAsOfWanted = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_IDX]
-        _fromAsOfKey = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX]
-        _fromCustomAsOfDateInt = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX]
-        _fromSkipBackPeriods = rowIncludeRemindersAsOfSettings[GlobalVars.INCLUDE_REMINDERS_SKIPBACKPERIODS_IDX]
+        _fromAsOfWanted = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
+        _fromAsOfKey = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
+        _fromCustomAsOfDateInt = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
+        _fromSkipBackPeriods = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
                 if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
@@ -6966,15 +7350,17 @@ Visit: %s (Author's site)
                     asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
                     asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
 
-                    # assert balObj.getBalance() == asofSharesBal, ("LOGIC ERROR: HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getBalance(), asofSharesBal))
-                    # assert balObj.getCurrentBalance() == asofSharesCurBal, ("LOGIC ERROR: HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getCurrentBalance(), asofSharesCurBal))
-
-                    ct = balObj.getCurrencyType()
-                    if balObj.getBalance() != asofSharesBal: myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored asof balObj.getBalance(): %s != cb sharesBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getBalance()), ct.getDoubleValue(asofSharesBal)))
-                    if balObj.getCurrentBalance() != asofSharesCurBal: myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
-
                     if costCalculationBal.isCostBasisInvalid():
                         balObj.setCostBasisInvalid(True)        # In theory costCalculationCurrBal.isCostBasisInvalid() should be the same...
+                    else:
+                        ct = balObj.getCurrencyType()
+                        if debug:
+                            assert balObj.getBalance()        == asofSharesBal,               ("LOGIC ERROR: SecAcct: '%s' HoldBal stored        asof balObj.getBalance(): %s !=    cb sharesBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getBalance()),        ct.getDoubleValue(asofSharesBal)))
+                            assert balObj.getCurrentBalance() == asofSharesCurBal,            ("LOGIC ERROR: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
+                        else:
+                            if balObj.getBalance()            != asofSharesBal:    myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored        asof balObj.getBalance(): %s !=    cb sharesBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getBalance()),        ct.getDoubleValue(asofSharesBal)))
+                            if balObj.getCurrentBalance()     != asofSharesCurBal: myPrint("B", "@@ WARNING: SecAcct: '%s' HoldBal stored asof balObj.getCurrentBalance(): %s != cb sharesCurBal: %s" %(balObj.getFullAccountName(), ct.getDoubleValue(balObj.getCurrentBalance()), ct.getDoubleValue(asofSharesCurBal)))
+                        del ct
 
                     valueBal = convertValue(balObj.getBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
                     valueCurBal = convertValue(balObj.getCurrentBalance(), acct.getCurrencyType(), acct.getParentAccount().getCurrencyType(), effectiveDateInt)
@@ -7444,7 +7830,7 @@ Visit: %s (Author's site)
 
                 balanceObj.setParallelIncExpBalances(True)
 
-                dateRange = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRowIdx], NAB.savedCustomDatesTable[iRowIdx])
+                dateRange = getIncExpDateRangeSelected(NAB.savedIncExpDateRangeTable[iRowIdx])
 
                 balanceObj.calculateAndSetAccountStartBalance(dateRange)
 
@@ -7506,7 +7892,7 @@ Visit: %s (Author's site)
             if len(_parallelTxnTable[iRowIdx]) < 1: continue            # If no Accounts in the table for this row, then just ignore/skip
             if isUseCostBasisSelected(iRowIdx): continue                # Don't allow I/E when cost basis selected for this row!
             if isIncomeExpenseDatesSelected(iRowIdx):                   # Only add a date range if this row is configured for I/E date range
-                _incExpDateRangeArray[iRowIdx] = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[iRowIdx], NAB.savedCustomDatesTable[iRowIdx])
+                _incExpDateRangeArray[iRowIdx] = getIncExpDateRangeSelected(NAB.savedIncExpDateRangeTable[iRowIdx])
 
         iTxns = 0                                                                                                       # noqa
 
@@ -7549,17 +7935,18 @@ Visit: %s (Author's site)
         return _parallelTxnTable
 
     def debugMDDateRangeOption():
+
         if not debug: return
-        today = DateUtil.getStrippedDateInt()
-        myPrint("B", "Analysis of MD DateRangeOption used in NAB:")
-        myPrint("B", "-------------------------------------------")
-        for v in sorted(DateRangeOption.values(), key=lambda x: (x.getSortKey())):
-            # if v == DateRangeOption.DR_CUSTOM_DATE: continue
-            dr = v.getDateRange()
+
+        todayInt = DateUtil.getStrippedDateInt()
+        myPrint("B", "Analysis of default Inc/Exp DateRangeOption(s) used in NAB:")
+        myPrint("B", "-----------------------------------------------------------")
+        for drcKey, drcDisplayName in sorted(MyDateRangeChooser.DR_DATE_OPTIONS, key=lambda x: (x[1])):
+            dr = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(drcKey, 0)
             start = dr.getStartDateInt()                                                                                # noqa
             end = dr.getEndDateInt()
-            future = ("**future**" if end > today else pad("",10))
-            myPrint("B", "DR Option: %s Range: %s %s" %(pad(v,30), dr, future))
+            future = ("**future**" if end > todayInt else pad("", 10))
+            myPrint("B", "DR Option: %s Range: %s to %s %s" %(pad(drcKey, 30), convertStrippedIntDateFormattedText(start), convertStrippedIntDateFormattedText(end), future))
         myPrint("B", "-------------------------------------------")
 
     def detectMDClosingError(e):
@@ -7915,8 +8302,6 @@ Visit: %s (Author's site)
             self.moneydanceContext = MD_REF
             self.moneydanceExtensionObject = None
 
-            self.fixDateRange = None
-
             self.decimal = None
             self.comma = None
             self.themeID = None
@@ -7970,8 +8355,7 @@ Visit: %s (Author's site)
             self.savedCurrencyTable             = None      # Only contains UUID strings
             self.savedDisableCurrencyFormatting = None
             self.savedIncludeInactive           = None
-            self.savedIncomeExpenseDateRange    = None
-            self.savedCustomDatesTable          = None
+            self.savedIncExpDateRangeTable      = None      # New asof 1041 (replaces savedIncExpDateRangeTable and savedIncExpDateRangeTable)
             self.savedUseCostBasisTable         = None
             self.savedIncludeRemindersTable     = None
             self.savedRowSeparatorTable         = None
@@ -8456,8 +8840,7 @@ Visit: %s (Author's site)
             GlobalVars.extn_param_NEW_listAccountUUIDs_NAB          = copy.deepcopy(NAB.savedAccountListUUIDs)
             GlobalVars.extn_param_NEW_balanceType_NAB               = copy.deepcopy(NAB.savedBalanceType)
             GlobalVars.extn_param_NEW_balanceAsOfDate_NAB           = copy.deepcopy(NAB.savedBalanceAsOfDateTable)
-            GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB    = copy.deepcopy(NAB.savedIncomeExpenseDateRange)
-            GlobalVars.extn_param_NEW_customDatesTable_NAB          = copy.deepcopy(NAB.savedCustomDatesTable)
+            GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB      = copy.deepcopy(NAB.savedIncExpDateRangeTable)
             GlobalVars.extn_param_NEW_useCostBasisTable_NAB         = copy.deepcopy(NAB.savedUseCostBasisTable)
             GlobalVars.extn_param_NEW_includeRemindersTable_NAB     = copy.deepcopy(NAB.savedIncludeRemindersTable)
             GlobalVars.extn_param_NEW_rowSeparatorTable_NAB         = copy.deepcopy(NAB.savedRowSeparatorTable)
@@ -9118,8 +9501,7 @@ Visit: %s (Author's site)
         def balanceDefault(self):                       return 0
         def balanceAsOfDateDefault(self, sel=False):    return [sel, AsOfDateChooser.ASOF_TODAY, 0, 0]
         def includeRemindersDefault(self, sel=False):   return [sel, AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, 0, 0]
-        def incomeExpenseDateRangeDefault(self):        return DateRangeOption.DR_ALL_DATES.getResourceKey()
-        def customDatesDefault(self):                   return [0, 0]
+        def incExpDateRangeDefault(self, sel=True):     return [sel, MyDateRangeChooser.KEY_DR_ALL_DATES, 0, 0, 0]
         def useCostBasisDefault(self):                  return [GlobalVars.COSTBASIS_TYPE_NONE, False]
         def rowSeparatorDefault(self):                  return GlobalVars.ROW_SEPARATOR_NEVER
         def blinkDefault(self):                         return False
@@ -9169,13 +9551,9 @@ Visit: %s (Author's site)
                 self.savedAutoSumAccounts = [self.autoSumDefault() for i in range(0, self.getNumberOfRows())]            # Don't just do [] * n (as you will get references to same list)
                 myPrint("B", "New parameter savedAutoSumAccounts detected, pre-populating with %s (= Auto Sum Accounts)" %(self.savedAutoSumAccounts))
 
-            if self.savedIncomeExpenseDateRange == [self.incomeExpenseDateRangeDefault()] and len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
-                self.savedIncomeExpenseDateRange = [self.incomeExpenseDateRangeDefault() for i in range(0, self.getNumberOfRows())]      # Don't just do [] * n (as you will get references to same list)
-                myPrint("B", "New parameter savedIncomeExpenseDateRange detected, pre-populating with %s (= Income/Expense All Dates)" %(self.savedIncomeExpenseDateRange))
-
-            if self.savedCustomDatesTable == [self.customDatesDefault()] and len(self.savedCustomDatesTable) != self.getNumberOfRows():
-                self.savedCustomDatesTable = [self.customDatesDefault() for i in range(0, self.getNumberOfRows())]
-                myPrint("B", "New parameter savedCustomDatesTable detected, pre-populating with %s (= no custom dates)" %(self.savedCustomDatesTable))
+            if self.savedIncExpDateRangeTable == [self.incExpDateRangeDefault()] and len(self.savedIncExpDateRangeTable) != self.getNumberOfRows():
+                self.savedIncExpDateRangeTable = [self.incExpDateRangeDefault() for i in range(0, self.getNumberOfRows())]
+                myPrint("B", "New parameter savedIncExpDateRangeTable detected, pre-populating with %s (= Income/Expense All Dates)" %(self.savedIncExpDateRangeTable))
 
             if self.savedUseCostBasisTable == [self.useCostBasisDefault()] and len(self.savedUseCostBasisTable) != self.getNumberOfRows():
                 self.savedUseCostBasisTable = [self.useCostBasisDefault() for i in range(0, self.getNumberOfRows())]
@@ -9257,10 +9635,8 @@ Visit: %s (Author's site)
                 self.resetParameters(11)
             elif self.savedAutoSumAccounts is None or not isinstance(self.savedAutoSumAccounts, list) or len(self.savedAutoSumAccounts) < 1:
                 self.resetParameters(13)
-            elif self.savedIncomeExpenseDateRange is None or not isinstance(self.savedIncomeExpenseDateRange, list) or len(self.savedIncomeExpenseDateRange) < 1:
+            elif self.savedIncExpDateRangeTable is None or not isinstance(self.savedIncExpDateRangeTable, list) or len(self.savedIncExpDateRangeTable) < 1:
                 self.resetParameters(15)
-            elif self.savedCustomDatesTable is None or not isinstance(self.savedCustomDatesTable, list) or len(self.savedCustomDatesTable) < 1:
-                self.resetParameters(17)
             elif self.savedUseCostBasisTable is None or not isinstance(self.savedUseCostBasisTable, list) or len(self.savedUseCostBasisTable) < 1:
                 self.resetParameters(18)
             elif self.savedIncludeRemindersTable is None or not isinstance(self.savedIncludeRemindersTable, list) or len(self.savedIncludeRemindersTable) < 1:
@@ -9325,10 +9701,8 @@ Visit: %s (Author's site)
                 self.resetParameters(67)
             elif len(self.savedAutoSumAccounts) != self.getNumberOfRows():
                 self.resetParameters(69)
-            elif len(self.savedIncomeExpenseDateRange) != self.getNumberOfRows():
+            elif len(self.savedIncExpDateRangeTable) != self.getNumberOfRows():
                 self.resetParameters(71)
-            elif len(self.savedCustomDatesTable) != self.getNumberOfRows():
-                self.resetParameters(73)
             elif len(self.savedUseCostBasisTable) != self.getNumberOfRows():
                 self.resetParameters(74)
             elif len(self.savedIncludeRemindersTable) != self.getNumberOfRows():
@@ -9382,10 +9756,10 @@ Visit: %s (Author's site)
                         myPrint("B", "@@ Upgrading saved parameter 'savedBalanceAsOfDateTable' - adding 0 skipback periods")
                         self.savedBalanceAsOfDateTable[i].append(0)
 
-                    if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != (GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX + 1)
-                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX], bool) or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX], (int, Integer, float))
-                            or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_DATEINT_IDX], int)
-                            or (self.savedBalanceAsOfDateTable[i][GlobalVars.ASOF_BALANCE_IDX] and not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
+                    if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != len(self.balanceAsOfDateDefault())
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX], (int, Integer, float))
+                            or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_DATEINT_IDX], int)
+                            or (self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
                         printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
                         self.savedBalanceAsOfDateTable[i] = self.balanceAsOfDateDefault()
 
@@ -9404,12 +9778,12 @@ Visit: %s (Author's site)
                     if self.savedAutoSumAccounts[i] is None or not isinstance(self.savedAutoSumAccounts[i], bool):
                         printResetMessage("savedAutoSumAccounts", self.savedAutoSumAccounts[i], self.autoSumDefault(), i)
                         self.savedAutoSumAccounts[i] = self.autoSumDefault()
-                    if self.savedIncomeExpenseDateRange[i] is None or not isinstance(self.savedIncomeExpenseDateRange[i], basestring) or self.savedIncomeExpenseDateRange[i] == "":
-                        printResetMessage("savedIncomeExpenseDateRange", self.savedIncomeExpenseDateRange[i], self.incomeExpenseDateRangeDefault(), i)
-                        self.savedIncomeExpenseDateRange[i] = self.incomeExpenseDateRangeDefault()
-                    if self.savedCustomDatesTable[i] is None or not isinstance(self.savedCustomDatesTable[i], list) or len(self.savedCustomDatesTable[i]) != 2:
-                        printResetMessage("savedCustomDatesTable", self.savedCustomDatesTable[i], self.customDatesDefault(), i)
-                        self.savedCustomDatesTable[i] = self.customDatesDefault()
+
+                    # This parameter will have been newly migrated, so will be in correct format!
+                    if self.savedIncExpDateRangeTable[i] is None or not isinstance(self.savedIncExpDateRangeTable[i], list) or len(self.savedIncExpDateRangeTable[i]) != len(self.incExpDateRangeDefault()):
+                        printResetMessage("savedIncExpDateRangeTable", self.savedIncExpDateRangeTable[i], self.incExpDateRangeDefault(), i)
+                        self.savedIncExpDateRangeTable[i] = self.incExpDateRangeDefault()
+
                     if (self.savedUseCostBasisTable[i] is None or not isinstance(self.savedUseCostBasisTable[i], list) or len(self.savedUseCostBasisTable[i]) != 2
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX], int) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX], bool)
                             or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_URGAINS):
@@ -9421,10 +9795,10 @@ Visit: %s (Author's site)
                         myPrint("B", "@@ Upgrading saved parameter 'savedIncludeRemindersTable' - adding 0 skipback periods")
                         self.savedIncludeRemindersTable[i].append(0)
 
-                    if (self.savedIncludeRemindersTable[i] is None or not isinstance(self.savedIncludeRemindersTable[i], list) or len(self.savedIncludeRemindersTable[i]) != (GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX + 1)
-                            or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_IDX], bool) or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.ASOF_BALANCE_SKIPBACKPERIODS_IDX], (int, Integer, float))
-                            or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_ASOF_KEY_IDX], str) or not isinstance(self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_ASOF_DATEINT_IDX], int)
-                            or (self.savedIncludeRemindersTable[i][GlobalVars.INCLUDE_REMINDERS_IDX] and not isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(self.savedIncludeRemindersTable[i])))):
+                    if (self.savedIncludeRemindersTable[i] is None or not isinstance(self.savedIncludeRemindersTable[i], list) or len(self.savedIncludeRemindersTable[i]) != len(self.includeRemindersDefault())
+                            or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX], (int, Integer, float))
+                            or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_KEY_IDX], str) or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_DATEINT_IDX], int)
+                            or (self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(self.savedIncludeRemindersTable[i])))):
                         printResetMessage("savedIncludeRemindersTable", self.savedIncludeRemindersTable[i], self.includeRemindersDefault(), i)
                         self.savedIncludeRemindersTable[i] = self.includeRemindersDefault()
 
@@ -9440,10 +9814,12 @@ Visit: %s (Author's site)
                     if self.savedHideDecimalsTable[i] is None or not isinstance(self.savedHideDecimalsTable[i], bool):
                         printResetMessage("savedHideDecimalsTable", self.savedHideDecimalsTable[i], self.hideDecimalsDefault(), i)
                         self.savedHideDecimalsTable[i] = self.hideDecimalsDefault()
-                    if self.savedCustomDatesTable[i] != self.customDatesDefault() and \
-                            not isValidIncExpDateRange(self.savedCustomDatesTable[i][0], self.savedCustomDatesTable[i][1]):
-                        printResetMessage("savedCustomDatesTable", self.savedCustomDatesTable[i], self.customDatesDefault(), i)
-                        self.savedCustomDatesTable[i] = self.customDatesDefault()
+
+                    if self.savedIncExpDateRangeTable[i][MyDateRangeChooser.INC_EXP_DR_KEY_IDX] == MyDateRangeChooser.KEY_CUSTOM_DATE_RANGE and \
+                            not MyDateRangeChooser.isValidIncExpDateRange(self.savedIncExpDateRangeTable[i]):
+                        printResetMessage("savedIncExpDateRangeTable", self.savedIncExpDateRangeTable[i], self.incExpDateRangeDefault(), i)
+                        self.savedIncExpDateRangeTable[i] = self.incExpDateRangeDefault()
+
                     if not self.isValidAndFixOperateOnAnotherRowParams(self.savedOperateOnAnotherRowTable[i]):
                         printResetMessage("savedOperateOnAnotherRowTable", self.savedOperateOnAnotherRowTable[i], self.operateOnAnotherRowDefault(), i)
                         self.savedOperateOnAnotherRowTable[i] = self.operateOnAnotherRowDefault()
@@ -9626,8 +10002,7 @@ Visit: %s (Author's site)
             self.savedAccountListUUIDs              = [self.accountListDefault()]
             self.savedBalanceType                   = [self.balanceDefault()]
             self.savedBalanceAsOfDateTable          = [self.balanceAsOfDateDefault()]
-            self.savedIncomeExpenseDateRange        = [self.incomeExpenseDateRangeDefault()]
-            self.savedCustomDatesTable              = [self.customDatesDefault()]
+            self.savedIncExpDateRangeTable          = [self.incExpDateRangeDefault()]
             self.savedIncludeRemindersTable         = [self.includeRemindersDefault()]
             self.savedUseCostBasisTable             = [self.useCostBasisDefault()]
             self.savedOperateOnAnotherRowTable      = [self.operateOnAnotherRowDefault()]
@@ -9683,8 +10058,7 @@ Visit: %s (Author's site)
                 dateExtraTxt = ""
 
             if isIncomeExpenseDatesSelected(_rowIdx):
-                dateRange = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx],
-                                                       NAB.savedCustomDatesTable[_rowIdx],
+                dateRange = getIncExpDateRangeSelected(NAB.savedIncExpDateRangeTable[_rowIdx],
                                                        adjForBalType=NAB.savedBalanceType[_rowIdx])
                 drTxt = "I/E Date Range: %s to %s - Others: All dates %s" %(convertStrippedIntDateFormattedText(dateRange.getStartDateInt(), dateFormat),
                                                                             convertStrippedIntDateFormattedText(dateRange.getEndDateInt(), dateFormat),
@@ -9737,7 +10111,7 @@ Visit: %s (Author's site)
             if NAB.savedHideControlPanel: return
             shouldHideControls = False
             NAB.getSelectedRowIndex()
-            shouldShow = NAB.savedBalanceAsOfDateTable[_rowIdx][GlobalVars.ASOF_BALANCE_IDX]
+            shouldShow = NAB.savedBalanceAsOfDateTable[_rowIdx][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
             NAB.asOfDateChooser_AODC.setEnabled(shouldShow, shouldHideControls)
 
         def setIncludeRemindersDateControls(self, _rowIdx):
@@ -9745,7 +10119,7 @@ Visit: %s (Author's site)
             if NAB.savedHideControlPanel: return
             shouldHideControls = False
             NAB.getSelectedRowIndex()
-            shouldShow = NAB.savedIncludeRemindersTable[_rowIdx][GlobalVars.INCLUDE_REMINDERS_IDX]
+            shouldShow = NAB.savedIncludeRemindersTable[_rowIdx][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
             NAB.includeRemindersChooser_AODC.setEnabled(shouldShow, shouldHideControls)
 
         def setAcctListKeyLabel(self, _rowIdx):
@@ -9812,7 +10186,7 @@ Visit: %s (Author's site)
                 listeners = []
                 listeners.extend(comp.getActionListeners())
                 listeners.extend(comp.getFocusListeners())
-                if isinstance(comp, (AsOfDateChooser, IncExpDateRangeChooser)):
+                if isinstance(comp, (AsOfDateChooser, MyDateRangeChooser)):
                     listeners.extend(comp.getPropertyChangeListeners())
                 if isinstance(comp, MyQuickSearchField):
                     listeners.extend(comp.getDocument().getDocumentListeners())
@@ -10034,15 +10408,15 @@ Visit: %s (Author's site)
             NAB.balanceType_COMBO.setSelectedIndex(NAB.savedBalanceType[selectRowIndex])
 
             myPrint("DB", "..about to set balance asof date chooser..")
-            NAB.asOfDateChooser_CB.setSelected(NAB.savedBalanceAsOfDateTable[selectRowIndex][GlobalVars.ASOF_BALANCE_IDX])
+            NAB.asOfDateChooser_CB.setSelected(NAB.savedBalanceAsOfDateTable[selectRowIndex][AsOfDateChooser.ASOF_DRC_ENABLED_IDX])
             NAB.asOfDateChooser_AODC.loadFromParameters(NAB.savedBalanceAsOfDateTable[selectRowIndex], AsOfDateChooser.ASOF_TODAY)
 
             myPrint("DB", "..about to set include reminders option/chooser..")
-            NAB.includeRemindersChooser_CB.setSelected(NAB.savedIncludeRemindersTable[selectRowIndex][GlobalVars.INCLUDE_REMINDERS_IDX])
+            NAB.includeRemindersChooser_CB.setSelected(NAB.savedIncludeRemindersTable[selectRowIndex][AsOfDateChooser.ASOF_DRC_ENABLED_IDX])
             NAB.includeRemindersChooser_AODC.loadFromParameters(NAB.savedIncludeRemindersTable[selectRowIndex], AsOfDateChooser.KEY_ASOF_END_THIS_MONTH)
 
             myPrint("DB", "..about to set incomeExpenseDateRange_DRC..")
-            NAB.incomeExpenseDateRange_DRC.loadFromParameters(NAB.savedIncomeExpenseDateRange[selectRowIndex], NAB.savedCustomDatesTable[selectRowIndex])
+            NAB.incomeExpenseDateRange_DRC.loadFromParameters(NAB.savedIncExpDateRangeTable[selectRowIndex], MyDateRangeChooser.KEY_DR_ALL_DATES)
 
             myPrint("DB", "..about to set includeInactive_COMBO..")
             NAB.includeInactive_COMBO.setSelectedIndex(NAB.savedIncludeInactive[selectRowIndex])
@@ -10163,9 +10537,8 @@ Visit: %s (Author's site)
             myPrint("DB", ".....balanceType_COMBO: %s"                       %(NAB.balanceType_COMBO.getSelectedIndex()))
             myPrint("DB", ".....savedBalanceAsOfDateTable: %s"               %(NAB.savedBalanceAsOfDateTable[selectRowIndex]))
             myPrint("DB", ".....asOfDateChooser_CB: %s"                      %(NAB.asOfDateChooser_CB.isSelected()))
-            myPrint("DB", ".....savedIncomeExpenseDateRange: %s"             %(NAB.savedIncomeExpenseDateRange[selectRowIndex]))
+            myPrint("DB", ".....savedIncExpDateRangeTable: %s"               %(NAB.savedIncExpDateRangeTable[selectRowIndex]))
             # myPrint("DB", ".....incomeExpenseDateRange_DRC: %s"              %(NAB.incomeExpenseDateRange_DRC.getSelectedItem()))
-            myPrint("DB", ".....savedCustomDatesTable: %s"                   %(NAB.savedCustomDatesTable[selectRowIndex]))
             myPrint("DB", ".....savedIncludeRemindersTable: %s"              %(NAB.savedIncludeRemindersTable[selectRowIndex]))
             myPrint("DB", ".....includeRemindersChooser_CB: %s"              %(NAB.includeRemindersChooser_CB.isSelected()))
             myPrint("DB", ".....savedUseCostBasisTable: %s"                  %(NAB.savedUseCostBasisTable[selectRowIndex]))
@@ -10262,18 +10635,16 @@ Visit: %s (Author's site)
             else:
                 calUnit = NAB.CalUnit.getCalUnitFromIndex(NAB.savedAverageByCalUnitTable[_rowIdx])
                 if calUnit.getTypeID() == calUnit.NOTSET_ID:
-                    if debug: myPrint("DB", "... Using '%s' but Avg/By CalUnit NOTSET - so will just return default avg/by..." %(NAB.savedIncomeExpenseDateRange[_rowIdx]))
+                    if debug: myPrint("DB", "... Using '%s' but Avg/By CalUnit NOTSET - so will just return default avg/by..." %(NAB.savedIncExpDateRangeTable[_rowIdx][MyDateRangeChooser.INC_EXP_DR_KEY_IDX]))
                     avgByResult = NAB.savedDisplayAverageTable[_rowIdx]
                 else:
-                    if debug: myPrint("DB", "... Using '%s' with Avg/By CalUnit: '%s'" %(NAB.savedIncomeExpenseDateRange[_rowIdx], calUnit))
-                    dateRange = getIncExpDateRangeSelected(NAB.savedIncomeExpenseDateRange[_rowIdx],
-                                                           NAB.savedCustomDatesTable[_rowIdx],
-                                                           adjForBalType=NAB.savedBalanceType[_rowIdx])
+                    if debug: myPrint("DB", "... Using '%s' with Avg/By CalUnit: '%s'" %(NAB.savedIncExpDateRangeTable[_rowIdx][MyDateRangeChooser.INC_EXP_DR_KEY_IDX], calUnit))
+                    dateRange = getIncExpDateRangeSelected(NAB.savedIncExpDateRangeTable[_rowIdx], adjForBalType=NAB.savedBalanceType[_rowIdx])
                     startDateInt = dateRange.getStartDateInt()
                     endDateInt = dateRange.getEndDateInt()
                     daysBetween = calUnit.getCalUnitsBetweenDates(calUnit, startDateInt, endDateInt, NAB.savedAverageByFractionalsTable[_rowIdx])
                     if debug: myPrint("DB", "... Calculated CalUnits '%s' between for DR: '%s' %s - %s = %s %s (allow fractional result: %s)"
-                                      %(calUnit, NAB.savedIncomeExpenseDateRange[_rowIdx],
+                                      %(calUnit, NAB.savedIncExpDateRangeTable[_rowIdx][MyDateRangeChooser.INC_EXP_DR_KEY_IDX],
                                         startDateInt, endDateInt,
                                         daysBetween, "" if daysBetween != 0.0 else "** ZERO WARNING **",
                                         NAB.savedAverageByFractionalsTable[_rowIdx]))
@@ -10551,7 +10922,7 @@ Visit: %s (Author's site)
                              self.savedAutoSumAccounts[self.getSelectedRowIndex()],
                              self.savedAccountListUUIDs[self.getSelectedRowIndex()],
                              self.savedBalanceType[self.getSelectedRowIndex()],
-                             self.savedIncomeExpenseDateRange[self.getSelectedRowIndex()]))
+                             self.savedIncExpDateRangeTable[self.getSelectedRowIndex()][MyDateRangeChooser.INC_EXP_DR_KEY_IDX]))
 
             for acct in getAccounts: listOfAllAccountsForJList.append(StoreAccount(acct, self.savedAutoSumAccounts[self.getSelectedRowIndex()]))
 
@@ -10602,8 +10973,7 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedAverageByCalUnitTable",60)),    NAB.savedAverageByCalUnitTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAverageByFractionalsTable",60)),NAB.savedAverageByFractionalsTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedAdjustCalcByTable",60)),        NAB.savedAdjustCalcByTable[iRowIdx])
-                myPrint("B", "  %s" %(pad("savedIncomeExpenseDateRange",60)),   NAB.savedIncomeExpenseDateRange[iRowIdx])
-                myPrint("B", "  %s" %(pad("savedCustomDatesTable",60)),         NAB.savedCustomDatesTable[iRowIdx])
+                myPrint("B", "  %s" %(pad("savedIncExpDateRangeTable",60)),     NAB.savedIncExpDateRangeTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedUseCostBasisTable",60)),        NAB.savedUseCostBasisTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedIncludeRemindersTable",60)),    NAB.savedIncludeRemindersTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedOperateOnAnotherRowTable",60)), NAB.savedOperateOnAnotherRowTable[iRowIdx])
@@ -10611,14 +10981,15 @@ Visit: %s (Author's site)
                 myPrint("B", "  %s" %(pad("savedBlinkTable",60)),               NAB.savedBlinkTable[iRowIdx])
                 myPrint("B", "  %s" %(pad("savedHideDecimalsTable",60)),        NAB.savedHideDecimalsTable[iRowIdx])
 
-                dateRange = DateRangeOption.fromKey(NAB.savedIncomeExpenseDateRange[iRowIdx])
-                myPrint("B", "  %s" %(pad(">> System Default for savedIncomeExpenseDateRange will be:",60)),   dateRange.getDateRange())
+                dateRange = MyDateRangeChooser.DateRangeChoice.getDateRangeFromKey(NAB.savedIncExpDateRangeTable[iRowIdx][MyDateRangeChooser.INC_EXP_DR_KEY_IDX],
+                                                                                   NAB.savedIncExpDateRangeTable[iRowIdx][MyDateRangeChooser.INC_EXP_DR_SKIPBACKPERIODS_IDX])
+                myPrint("B", "  %s" %(pad(">> System Default for savedIncExpDateRangeTable will be:", 60)), dateRange)
                 myPrint("B", "  ----")
 
         def validateIncExpDateOptions(self):
             if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
 
-            if debug: myPrint("DB", ".. Validating savedIncomeExpenseDateRange parameters...")
+            if debug: myPrint("DB", ".. Validating savedIncExpDateRangeTable parameters...")
             NAB = NetAccountBalancesExtension.getNAB()
 
             for iRowIdx in range(0,NAB.getNumberOfRows()):
@@ -10641,8 +11012,8 @@ Visit: %s (Author's site)
 
                 if not lFoundAnyIncExp:
                     myPrint("B", "... ALERT: Saved Parameters - Row: %s >> Inc/Exp Date Range: '%s' selected but no Income/Expense Accounts.... "
-                                "RESETTING BACK TO ALL DATES" %(onRow, NAB.savedIncomeExpenseDateRange[iRowIdx]))
-                    NAB.savedIncomeExpenseDateRange[iRowIdx] = NAB.incomeExpenseDateRangeDefault()
+                                "RESETTING BACK TO ALL DATES" %(onRow, NAB.savedIncExpDateRangeTable[iRowIdx]))
+                    NAB.savedIncExpDateRangeTable[iRowIdx] = NAB.incExpDateRangeDefault()
 
         class WindowListener(WindowAdapter):
 
@@ -11141,7 +11512,7 @@ Visit: %s (Author's site)
                     if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
                         if debug: myPrint("B", "User has changed the balance asof date option....")
 
-                        selected = NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX]
+                        selected = NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
                         newSettings = event.getSource().returnStoredParameters(NAB.balanceAsOfDateDefault(selected))
                         if debug: myPrint("B", ".. setting savedBalanceAsOfDateTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
                         NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()] = newSettings
@@ -11151,7 +11522,7 @@ Visit: %s (Author's site)
                     if propName == AsOfDateChooser.PROP_ASOF_CHANGED:
                         if debug: myPrint("B", "User has changed the include reminders asof date option....")
 
-                        selected = NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX]
+                        selected = NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
                         newSettings = event.getSource().returnStoredParameters(NAB.includeRemindersDefault(selected))
                         NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()] = newSettings
                         if debug: myPrint("B", ".. setting savedIncludeRemindersTable to: '%s 'for row: %s" %(newSettings, NAB.getSelectedRow()))
@@ -11162,12 +11533,10 @@ Visit: %s (Author's site)
                         if debug: myPrint("B", "User has changed the income/expense date range option....")
                         _rowIdx = NAB.getSelectedRowIndex()
                         _row = NAB.getSelectedRow()
-                        newDRKey, newDRSettings = event.getSource().returnStoredParameters(NAB.customDatesDefault())
-                        NAB.savedIncomeExpenseDateRange[_rowIdx] = newDRKey
-                        NAB.savedCustomDatesTable[_rowIdx] = newDRSettings
-                        if debug: myPrint("B", ".. setting savedIncomeExpenseDateRange to: '%s 'for row: %s" %(newDRKey, _row))
-                        if debug: myPrint("B", ".. setting savedCustomDatesTable to:       '%s 'for row: %s" %(newDRSettings, _row))
-
+                        newDRSettings = event.getSource().returnStoredParameters(NAB.incExpDateRangeDefault())
+                        NAB.savedIncExpDateRangeTable[_rowIdx] = newDRSettings
+                        if debug: myPrint("B", ".. setting savedIncExpDateRangeTable to: '%s 'for row: %s" %(newDRSettings, _row))
+                        NAB.setIncExpDateRangeLabel(NAB.getSelectedRowIndex())
                         NAB.configSaved = False
 
                 else:
@@ -11239,8 +11608,7 @@ Visit: %s (Author's site)
                 allRowVariables = [NAB.savedAccountListUUIDs,
                                    NAB.savedBalanceType,
                                    NAB.savedBalanceAsOfDateTable,
-                                   NAB.savedIncomeExpenseDateRange,
-                                   NAB.savedCustomDatesTable,
+                                   NAB.savedIncExpDateRangeTable,
                                    NAB.savedIncludeRemindersTable,
                                    NAB.savedUseCostBasisTable,
                                    NAB.savedOperateOnAnotherRowTable,
@@ -11307,16 +11675,16 @@ Visit: %s (Author's site)
 
                 # ######################################################################################################
                 if event.getSource() is NAB.asOfDateChooser_CB:
-                    if NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX] != event.getSource().isSelected():
+                    if NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] != event.getSource().isSelected():
                         myPrint("DB", ".. setting savedBalanceAsOfDateTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][GlobalVars.ASOF_BALANCE_IDX] = event.getSource().isSelected()
+                        NAB.savedBalanceAsOfDateTable[NAB.getSelectedRowIndex()][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] = event.getSource().isSelected()
                         NAB.configSaved = False
 
                 # ######################################################################################################
                 if event.getSource() is NAB.includeRemindersChooser_CB:
-                    if NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX] != event.getSource().isSelected():
+                    if NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] != event.getSource().isSelected():
                         myPrint("DB", ".. setting savedIncludeRemindersTable to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                        NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][GlobalVars.INCLUDE_REMINDERS_IDX] = event.getSource().isSelected()
+                        NAB.savedIncludeRemindersTable[NAB.getSelectedRowIndex()][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] = event.getSource().isSelected()
                         NAB.configSaved = False
 
                 # ######################################################################################################
@@ -11508,8 +11876,7 @@ Visit: %s (Author's site)
                         NAB.savedAccountListUUIDs.insert(NAB.getSelectedRowIndex(),         NAB.accountListDefault())
                         NAB.savedBalanceType.insert(NAB.getSelectedRowIndex(),              NAB.balanceDefault())
                         NAB.savedBalanceAsOfDateTable.insert(NAB.getSelectedRowIndex(),     NAB.balanceAsOfDateDefault())
-                        NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex(),   NAB.incomeExpenseDateRangeDefault())
-                        NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex(),         NAB.customDatesDefault())
+                        NAB.savedIncExpDateRangeTable.insert(NAB.getSelectedRowIndex(),     NAB.incExpDateRangeDefault())
                         NAB.savedUseCostBasisTable.insert(NAB.getSelectedRowIndex(),        NAB.useCostBasisDefault())
                         NAB.savedIncludeRemindersTable.insert(NAB.getSelectedRowIndex(),    NAB.includeRemindersDefault())
                         NAB.savedOperateOnAnotherRowTable.insert(NAB.getSelectedRowIndex(), NAB.operateOnAnotherRowDefault())
@@ -11547,8 +11914,7 @@ Visit: %s (Author's site)
                         NAB.savedAccountListUUIDs.insert(NAB.getSelectedRowIndex()+1,         NAB.accountListDefault())
                         NAB.savedBalanceType.insert(NAB.getSelectedRowIndex()+1,              NAB.balanceDefault())
                         NAB.savedBalanceAsOfDateTable.insert(NAB.getSelectedRowIndex()+1,     NAB.balanceAsOfDateDefault())
-                        NAB.savedIncomeExpenseDateRange.insert(NAB.getSelectedRowIndex()+1,   NAB.incomeExpenseDateRangeDefault())
-                        NAB.savedCustomDatesTable.insert(NAB.getSelectedRowIndex()+1,         NAB.customDatesDefault())
+                        NAB.savedIncExpDateRangeTable.insert(NAB.getSelectedRowIndex()+1,     NAB.incExpDateRangeDefault())
                         NAB.savedUseCostBasisTable.insert(NAB.getSelectedRowIndex()+1,        NAB.useCostBasisDefault())
                         NAB.savedIncludeRemindersTable.insert(NAB.getSelectedRowIndex()+1,    NAB.includeRemindersDefault())
                         NAB.savedOperateOnAnotherRowTable.insert(NAB.getSelectedRowIndex()+1, NAB.operateOnAnotherRowDefault())
@@ -12160,8 +12526,7 @@ Visit: %s (Author's site)
                 GlobalVars.extn_param_NEW_disableCurrencyFormatting_NAB     = [NAB.disableCurrencyFormattingDefault()]
                 GlobalVars.extn_param_NEW_includeInactive_NAB               = [NAB.includeInactiveDefault()]
                 GlobalVars.extn_param_NEW_autoSumAccounts_NAB               = [NAB.autoSumDefault()]
-                GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB        = [NAB.incomeExpenseDateRangeDefault()]
-                GlobalVars.extn_param_NEW_customDatesTable_NAB              = [NAB.customDatesDefault()]
+                GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB          = [NAB.incExpDateRangeDefault()]
                 GlobalVars.extn_param_NEW_useCostBasisTable_NAB             = [NAB.useCostBasisDefault()]
                 GlobalVars.extn_param_NEW_includeRemindersTable_NAB         = [NAB.includeRemindersDefault()]
                 GlobalVars.extn_param_NEW_rowSeparatorTable_NAB             = [NAB.rowSeparatorDefault()]
@@ -12219,8 +12584,7 @@ Visit: %s (Author's site)
                         self.savedAccountListUUIDs              = copy.deepcopy(GlobalVars.extn_param_NEW_listAccountUUIDs_NAB)
                         self.savedBalanceType                   = copy.deepcopy(GlobalVars.extn_param_NEW_balanceType_NAB)
                         self.savedBalanceAsOfDateTable          = copy.deepcopy(GlobalVars.extn_param_NEW_balanceAsOfDate_NAB)
-                        self.savedIncomeExpenseDateRange        = copy.deepcopy(GlobalVars.extn_param_NEW_incomeExpenseDateRange_NAB)
-                        self.savedCustomDatesTable              = copy.deepcopy(GlobalVars.extn_param_NEW_customDatesTable_NAB)
+                        self.savedIncExpDateRangeTable          = copy.deepcopy(GlobalVars.extn_param_NEW_incExpDateRangeTable_NAB)
                         self.savedUseCostBasisTable             = copy.deepcopy(GlobalVars.extn_param_NEW_useCostBasisTable_NAB)
                         self.savedIncludeRemindersTable         = copy.deepcopy(GlobalVars.extn_param_NEW_includeRemindersTable_NAB)
                         self.savedRowSeparatorTable             = copy.deepcopy(GlobalVars.extn_param_NEW_rowSeparatorTable_NAB)
@@ -13191,17 +13555,17 @@ Visit: %s (Author's site)
                     controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    NAB.incomeExpenseDateRange_DRC = IncExpDateRangeChooser(NAB.moneydanceContext.getUI())
+                    NAB.incomeExpenseDateRange_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_ALL_DATES)
                     NAB.incomeExpenseDateRange_DRC.setName("incomeExpenseDateRange_DRC")
                     # NAB.incomeExpenseDateRange_DRC.putClientProperty("%s.id" %(NAB.myModuleID), "incomeExpenseDateRange_DRC")
 
                     drc = NAB.incomeExpenseDateRange_DRC
-                    for comp in [drc.getChoice(), drc.getChoiceLabel(), drc.getStartLabel(), drc.getStartField(), drc.getEndLabel(), drc.getEndField()]:
+                    for comp in [drc.getChoiceCombo(), drc.getChoiceLabel(), drc.getStartIntLabel(), drc.getStartIntField(), drc.getEndIntLabel(), drc.getEndIntField()]:
                         comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
-                    NAB.incomeExpenseDateRange_DRC.getChoice().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
-                    NAB.incomeExpenseDateRange_DRC.getStartField().setToolTipText("Select the start date for the I/E custom date range")
-                    NAB.incomeExpenseDateRange_DRC.getEndField().setToolTipText("Select the end date for the I/E custom date range")
+                    NAB.incomeExpenseDateRange_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
+                    NAB.incomeExpenseDateRange_DRC.getStartIntField().setToolTipText("Select the start date for the I/E custom date range")
+                    NAB.incomeExpenseDateRange_DRC.getEndIntField().setToolTipText("Select the end date for the I/E custom date range")
                     NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
 
@@ -15012,7 +15376,7 @@ Visit: %s (Author's site)
                                     myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
 
-                                if (NAB.savedIncludeRemindersTable[iAccountLoop][0]):
+                                if (NAB.savedIncludeRemindersTable[iAccountLoop][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]):
                                     lWarningDetected = True
                                     iWarningType = (7 if (iWarningType is None or iWarningType == 7) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
@@ -15044,7 +15408,7 @@ Visit: %s (Author's site)
                                 NAB.warningMessagesTable.append(warnTxt)
 
                             if NAB.savedUseTaxDates:
-                                if (NAB.savedIncludeRemindersTable[iAccountLoop][0]):
+                                if (NAB.savedIncludeRemindersTable[iAccountLoop][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]):
                                     lWarningDetected = True
                                     iWarningType = (8 if (iWarningType is None or iWarningType == 8) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
