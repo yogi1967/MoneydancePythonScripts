@@ -5952,14 +5952,15 @@ Visit: %s (Author's site)
                 if choice.getKey() == self.KEY_DR_ALL_DATES: self.allDatesOption = choice
             return choices
 
-        def getStartIntLabel(self): return self.startIntField_LBL
-        def getEndIntLabel(self): return self.endIntField_LBL
-        def getStartIntField(self): return self.startIntField_JDF
-        def getEndIntField(self): return self.endIntField_JDF
-        def getChoiceLabel(self): return self.dateRangeChoice_LBL
-        def getChoiceCombo(self): return self.dateRangeChoice_COMBO
-        def getSkipBackPeriodsLabel(self): return self.skipBackPeriods_LBL
-        def getSkipBackPeriodsField(self): return self.skipBackPeriods_JTF
+        def getStartIntLabel(self):         return self.startIntField_LBL
+        def getEndIntLabel(self):           return self.endIntField_LBL
+        def getStartIntField(self):         return self.startIntField_JDF
+        def getEndIntField(self):           return self.endIntField_JDF
+        def getChoiceLabel(self):           return self.dateRangeChoice_LBL
+        def getChoiceCombo(self):           return self.dateRangeChoice_COMBO
+        def getSkipBackPeriodsLabel(self):  return self.skipBackPeriods_LBL
+        def getSkipBackPeriodsField(self):  return self.skipBackPeriods_JTF
+        def getAllSwingComponents(self):    return [self.getStartIntLabel(), self.getEndIntLabel(), self.getStartIntField(), self.getEndIntField(), self.getChoiceLabel(), self.getChoiceCombo(), self.getSkipBackPeriodsLabel(), self.getSkipBackPeriodsField()]
 
         def isCustomAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.customOption)
         def isAllAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.allDatesOption)
@@ -6155,7 +6156,7 @@ Visit: %s (Author's site)
             self.updateEnabledStatus(shouldHide=shouldHide)
 
         def updateEnabledStatus(self, shouldHide=False):
-            for comp in [self.getChoiceCombo(), self.getChoiceLabel(), self.getStartIntLabel(), self.getStartIntField(), self.getEndIntLabel(), self.getEndIntField(), self.getSkipBackPeriodsLabel(), self.getSkipBackPeriodsField()]:
+            for comp in self.getAllSwingComponents():
                 comp.setEnabled(self.isEnabled)
                 if shouldHide: comp.setVisible(self.isEnabled)
 
@@ -6403,12 +6404,13 @@ Visit: %s (Author's site)
                 if choice.getKey() == self.KEY_ASOF_END_FUTURE: self.allDatesOption = choice
             return choices
 
-        def getAsOfLabel(self): return self.asOfDate_LBL
-        def getAsOfDateField(self): return self.asOfDate_JDF
-        def getChoiceLabel(self): return self.asOfChoice_LBL
-        def getChoiceCombo(self): return self.asOfChoice_COMBO
-        def getSkipBackPeriodsLabel(self): return self.skipBackPeriods_LBL
-        def getSkipBackPeriodsField(self): return self.skipBackPeriods_JTF
+        def getAsOfLabel(self):             return self.asOfDate_LBL
+        def getAsOfDateField(self):         return self.asOfDate_JDF
+        def getChoiceLabel(self):           return self.asOfChoice_LBL
+        def getChoiceCombo(self):           return self.asOfChoice_COMBO
+        def getSkipBackPeriodsLabel(self):  return self.skipBackPeriods_LBL
+        def getSkipBackPeriodsField(self):  return self.skipBackPeriods_JTF
+        def getAllSwingComponents(self):    return [self.getAsOfLabel(), self.getAsOfDateField(), self.getChoiceLabel(), self.getChoiceCombo(), self.getSkipBackPeriodsLabel(), self.getSkipBackPeriodsField()]
 
         def isCustomAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.customOption)
         def isAllAsOfDatesSelected(self): return self.getChoiceCombo().getSelectedItem().equals(self.allDatesOption)
@@ -6565,7 +6567,7 @@ Visit: %s (Author's site)
             self.updateEnabledStatus(shouldHide=shouldHide)
 
         def updateEnabledStatus(self, shouldHide=False):
-            for comp in [self.getChoiceCombo(), self.asOfChoice_LBL, self.asOfDate_LBL, self.asOfDate_JDF, self.skipBackPeriods_LBL, self.skipBackPeriods_JTF]:
+            for comp in self.getAllSwingComponents():
                 comp.setEnabled(self.isEnabled)
                 if shouldHide: comp.setVisible(self.isEnabled)
 
@@ -13538,7 +13540,7 @@ Visit: %s (Author's site)
                     # NAB.incomeExpenseDateRange_DRC.putClientProperty("%s.id" %(NAB.myModuleID), "incomeExpenseDateRange_DRC")
 
                     drc = NAB.incomeExpenseDateRange_DRC
-                    for comp in [drc.getChoiceCombo(), drc.getChoiceLabel(), drc.getStartIntLabel(), drc.getStartIntField(), drc.getEndIntLabel(), drc.getEndIntField(), drc.getSkipBackPeriodsLabel(), drc.getSkipBackPeriodsField()]:
+                    for comp in drc.getAllSwingComponents():
                         comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     NAB.incomeExpenseDateRange_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
