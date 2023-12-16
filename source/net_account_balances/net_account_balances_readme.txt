@@ -160,16 +160,6 @@ CHOICES/CONFIGURATION FOR A ROW:
                     Disable Currency Formatting: drops any symbol/prefix/suffix associated with the currency.
 
 
-DATE OFFSET:
-    - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the asof date
-      or date range you are selecting (i.e. for balance offset, include reminders asof, income/expense date range).
-      The offset field only applies to the date selector it's attached too.
-      E.g. if you select 'Last year' (i.e. 'period' range is year) and offset 1, then you will get a range date
-      calculated that includes 'last year' minus 1 (period) year (=end two years ago). Offset only works backwards, it
-      cannot be negative to roll dates forward/
-      >> Offset does not apply to Custom, End Future, All dates, and Today date selection(s)...
-
-
 CALCULATIONS ON CALCULATED BALANCES:
 
 - Average by options:
@@ -359,6 +349,23 @@ WARNINGS BOX:
         - Click the warning icon to see a popup window displaying the detail(s) of the warnings.
         - NOTE: The symbol will not be triggered for warnings on rows where Show Warnings has been un-ticked
                 ... unless debug mode is enabled, in which case the icon will always appear.
+
+DATE OFFSET:
+
+- This allows you to adjust the dates you want used for balances, reminders, or income/expense categories. By creating
+  an offset, you can do comparison of balances over time between date periods. For example, you could create a balance
+  for "Gas spent this year to date" and then offset it by 1 to create another balance for "Gas spent last year to date".
+  You could then use the uor (use another row) to create a comparison % change, or absolute change.
+
+- You could compare your stock balances between time periods to see how much you've gained (or lost) over a period.
+
+    - The 'offset' field (default blank/zero) allows you to enter the number of 'periods' to subtract from the asof date
+      or date range you are selecting (i.e. for balance offset, include reminders asof, income/expense date range).
+      The offset field only applies to the date selector (on the left) that it's 'attached' to.
+      E.g. if you select 'Last year' (i.e. 'period' range is year) and offset 1, then you will get a range date
+      calculated that includes 'last year' minus 1 (period) year (=end two years ago). Offset only works backwards, it
+      cannot be negative to roll dates forward.
+      >> Offset does not apply to Custom, End Future, and All dates selection(s)...
 
 
 ROW NAME FORMATTING:
