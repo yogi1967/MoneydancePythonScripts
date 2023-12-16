@@ -5782,6 +5782,7 @@ Visit: %s (Author's site)
                             ["last_week",                    "Last week"],
                             ["last_1_day",                   "Last 1 day (yesterday & today)"],
                             ["yesterday",                    "Yesterday"],
+                            ["today",                        "Today"],
                             ["next_month",                   "Next month"]
                         ]
 
@@ -5827,6 +5828,7 @@ Visit: %s (Author's site)
                 elif forOptionKey == "last_365_days":        rtnVal = (Util.incrementDate(realTodayInt, 0, 0, -364  * (skipBackPeriods + 1)), Util.incrementDate(realTodayInt, 0, 0, -364 * (skipBackPeriods)))
                 elif forOptionKey == "next_month":           rtnVal = (Util.firstDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)), Util.lastDayInMonth(Util.incrementDate(calculatedTodayInt, 0, 1, 0)))
                 elif forOptionKey == "yesterday":            rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1))
+                elif forOptionKey == "today":                rtnVal = (DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0), DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0))
                 else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
 
                 return DateRange(Integer(rtnVal[0]), Integer(rtnVal[1]))
@@ -5872,6 +5874,7 @@ Visit: %s (Author's site)
                 elif forOptionKey == "last_365_days":        calculatedTodayInt = None
                 elif forOptionKey == "next_month":           calculatedTodayInt = skipBackMnthTodayInt
                 elif forOptionKey == "yesterday":            calculatedTodayInt = skipBackDayTodayInt
+                elif forOptionKey == "today":                calculatedTodayInt = skipBackDayTodayInt
                 else: raise Exception("Error: date range key ('%s') invalid?!" %(forOptionKey))
 
                 calculatedDateRange = MyDateRangeChooser.DateRangeChoice.internalCalculateDateRangeFromKey(forOptionKey, todayInt, calculatedTodayInt, skipBackPeriods)
@@ -6268,7 +6271,7 @@ Visit: %s (Author's site)
                 # type: (str, int, int, int) -> int
                 if forOptionKey == "custom_asof":                    rtnVal = realTodayInt
                 elif forOptionKey ==  "asof_end_future":             rtnVal = DateRange().getEndDateInt()
-                elif forOptionKey == "asof_today":                   rtnVal = realTodayInt
+                elif forOptionKey == "asof_today":                   rtnVal = DateUtil.incrementDate(calculatedTodayInt, 0, 0, -0)
                 elif forOptionKey == "asof_yesterday":               rtnVal = DateUtil.incrementDate(calculatedTodayInt, 0, 0, -1)
                 elif forOptionKey == "asof_end_this_fiscal_year":    rtnVal = DateUtil.lastDayInFiscalYear(calculatedTodayInt)
                 elif forOptionKey == "asof_end_last_fiscal_year":    rtnVal = DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(calculatedTodayInt))
@@ -6305,33 +6308,9 @@ Visit: %s (Author's site)
                 skipBackQrtrTodayInt = DateUtil.incrementDate(todayInt, 0, 3 * -skipBackPeriods, 0)
                 skipBackYearTodayInt = DateUtil.incrementDate(todayInt, -skipBackPeriods, 0, 0)
 
-                # if forOptionKey == "custom_asof":                    rtnVal = todayInt
-                # elif forOptionKey ==  "asof_end_future":             rtnVal = DateRange().getEndDateInt()
-                # elif forOptionKey == "asof_today":                   rtnVal = todayInt
-                # elif forOptionKey == "asof_yesterday":               rtnVal = DateUtil.incrementDate(skipBackDayTodayInt, 0, 0, -1)
-                # elif forOptionKey == "asof_end_this_fiscal_year":    rtnVal = DateUtil.lastDayInFiscalYear(skipBackYearTodayInt)
-                # elif forOptionKey == "asof_end_last_fiscal_year":    rtnVal = DateUtil.decrementYear(DateUtil.lastDayInFiscalYear(skipBackYearTodayInt))
-                # elif forOptionKey == "asof_end_last_fiscal_quarter": rtnVal = DateUtil.lastDayInFiscalQuarter(skipBackQrtrTodayInt)
-                # elif forOptionKey == "asof_end_this_quarter":        rtnVal = Util.lastDayInQuarter(skipBackQrtrTodayInt)
-                # elif forOptionKey == "asof_end_this_year":           rtnVal = DateUtil.lastDayInYear(skipBackYearTodayInt)
-                # elif forOptionKey == "asof_end_this_month":          rtnVal = Util.lastDayInMonth(skipBackMnthTodayInt)
-                # elif forOptionKey == "asof_end_next_month":          rtnVal = Util.lastDayInMonth(Util.incrementDate(skipBackMnthTodayInt, 0, 1, 0))
-                # elif forOptionKey == "asof_end_this_week":           rtnVal = Util.lastDayInWeek(skipBackWeekTodayInt)
-                # elif forOptionKey == "asof_end_last_year":           rtnVal = Util.lastDayInYear(Util.decrementYear(skipBackYearTodayInt))
-                # elif forOptionKey == "asof_end_last_quarter":        rtnVal = DateUtil.lastDayInQuarter(skipBackQrtrTodayInt)
-                # elif forOptionKey == "asof_end_last_month":          rtnVal = Util.incrementDate(Util.firstDayInMonth(skipBackMnthTodayInt), 0, 0, -1)
-                # elif forOptionKey == "asof_end_last_week":           rtnVal = Util.incrementDate(Util.firstDayInWeek(skipBackWeekTodayInt), 0, 0, -1)
-                # elif forOptionKey == "asof_30_days_ago":             rtnVal = Util.incrementDate(todayInt, 0, 0, -30  * (skipBackPeriods + 1))
-                # elif forOptionKey == "asof_60_days_ago":             rtnVal = Util.incrementDate(todayInt, 0, 0, -60  * (skipBackPeriods + 1))
-                # elif forOptionKey == "asof_90_days_ago":             rtnVal = Util.incrementDate(todayInt, 0, 0, -90  * (skipBackPeriods + 1))
-                # elif forOptionKey == "asof_120_days_ago":            rtnVal = Util.incrementDate(todayInt, 0, 0, -120 * (skipBackPeriods + 1))
-                # elif forOptionKey == "asof_180_days_ago":            rtnVal = Util.incrementDate(todayInt, 0, 0, -180 * (skipBackPeriods + 1))
-                # elif forOptionKey == "asof_365_days_ago":            rtnVal = Util.incrementDate(todayInt, 0, 0, -365 * (skipBackPeriods + 1))
-                # else: raise Exception("Error: asof date key ('%s') invalid?!" %(forOptionKey))
-
                 if forOptionKey == "custom_asof":                    calculatedTodayInt = None
                 elif forOptionKey ==  "asof_end_future":             calculatedTodayInt = None
-                elif forOptionKey == "asof_today":                   calculatedTodayInt = None
+                elif forOptionKey == "asof_today":                   calculatedTodayInt = skipBackDayTodayInt
                 elif forOptionKey == "asof_yesterday":               calculatedTodayInt = skipBackDayTodayInt
                 elif forOptionKey == "asof_end_this_fiscal_year":    calculatedTodayInt = skipBackYearTodayInt
                 elif forOptionKey == "asof_end_last_fiscal_year":    calculatedTodayInt = skipBackYearTodayInt
@@ -11536,7 +11515,6 @@ Visit: %s (Author's site)
                         newDRSettings = event.getSource().returnStoredParameters(NAB.incExpDateRangeDefault())
                         NAB.savedIncExpDateRangeTable[_rowIdx] = newDRSettings
                         if debug: myPrint("B", ".. setting savedIncExpDateRangeTable to: '%s 'for row: %s" %(newDRSettings, _row))
-                        NAB.setIncExpDateRangeLabel(NAB.getSelectedRowIndex())
                         NAB.configSaved = False
 
                 else:
@@ -13365,6 +13343,30 @@ Visit: %s (Author's site)
                     NAB.autoSumAccounts_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.autoSumAccounts_CB.addActionListener(NAB.saveActionListener)
                     controlPnl.add(NAB.autoSumAccounts_CB, GridC.getc(onCol, onRow).leftInset(colInsetFiller).topInset(topInset).colspan(1).fillx().padx(padx))
+                    onCol += 1
+
+                    groupID_pnl = MyJPanel(GridBagLayout())
+                    groupID_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    onGroupIDRow = 0
+                    onGroupIDCol = 0
+
+                    groupIDLabel = MyJLabel("GroupID:")
+                    groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
+                    groupIDLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    groupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
+                    onGroupIDCol += 1
+
+                    NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=20)
+                    NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
+                    NAB.groupIDField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDField_JTF")
+                    NAB.groupIDField_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
+                    NAB.groupIDField_JTF.setName("groupIDField_JTF")
+                    NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')) that can be used to filter out rows (refer CMD-I help)")
+                    NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
+                    groupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(1.0).fillboth().west())
+
+                    controlPnl.add(groupID_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
+                    onCol += 1
 
                     onRow += 1
 
@@ -13393,43 +13395,19 @@ Visit: %s (Author's site)
                     balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_CB, GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).topInset(topInset))
                     onBalanceAsOfCol += 1
 
-                    NAB.asOfDateChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.ASOF_TODAY)
+                    excludeAsOfs = [
+                                    "asof_yesterday"
+                                   ]
+                    NAB.asOfDateChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.ASOF_TODAY, excludeAsOfs)
                     NAB.asOfDateChooser_AODC.setName("asOfDateChooser_AODC")
-                    NAB.asOfDateChooser_AODC.getChoiceCombo().putClientProperty("%s.id" %(NAB.myModuleID), "asOfDateChooser_AODC")
-                    NAB.asOfDateChooser_AODC.getChoiceCombo().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.asOfDateChooser_AODC.getChoiceLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.asOfDateChooser_AODC.getAsOfDateField().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.asOfDateChooser_AODC.getAsOfLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option")
                     NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")
+                    NAB.asOfDateChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date")
                     NAB.asOfDateChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).leftInset(5).west())
 
                     controlPnl.add(balanceAsOfSelection_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset).colspan(2))
                     onCol += 2
-
-                    groupID_pnl = MyJPanel(GridBagLayout())
-                    groupID_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    onGroupIDRow = 0
-                    onGroupIDCol = 0
-
-                    groupIDLabel = MyJLabel("GroupID:")
-                    groupIDLabel.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDLabel")
-                    groupIDLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    groupID_pnl.add(groupIDLabel, GridC.getc(onGroupIDCol, onGroupIDRow).wx(0.1).east())
-                    onGroupIDCol += 1
-
-                    NAB.groupIDField_JTF = MyJTextField("not set", 12, minColWidth=20)
-                    NAB.groupIDField_JTF.setDocument(JTextFieldGroupIDDocument())
-                    NAB.groupIDField_JTF.putClientProperty("%s.id" %(NAB.myModuleID), "groupIDField_JTF")
-                    NAB.groupIDField_JTF.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.groupIDField_JTF.setName("groupIDField_JTF")
-                    NAB.groupIDField_JTF.setToolTipText("[OPTIONAL] Enter 'Group ID' (text >> digits 0-9, Aa-Zz, '_', '-', '.', ':', '%')) that can be used to filter out rows (refer CMD-I help)")
-                    NAB.groupIDField_JTF.addFocusListener(NAB.saveFocusListener)
-                    groupID_pnl.add(NAB.groupIDField_JTF, GridC.getc(onGroupIDCol, onGroupIDRow).leftInset(5).wx(1.0).fillboth().west())
-
-                    controlPnl.add(groupID_pnl, GridC.getc(onCol, onRow).west().leftInset(colInsetFiller).rightInset(colRightInset))
-                    onCol += 1
 
                     onRow += 1
 
@@ -13476,13 +13454,9 @@ Visit: %s (Author's site)
 
                     NAB.includeRemindersChooser_AODC = AsOfDateChooser(NAB.moneydanceContext.getUI(), AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, excludeAsOfs)
                     NAB.includeRemindersChooser_AODC.setName("includeRemindersChooser_AODC")
-                    NAB.includeRemindersChooser_AODC.getChoiceCombo().putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersChooser_AODC")
-                    NAB.includeRemindersChooser_AODC.getChoiceCombo().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.includeRemindersChooser_AODC.getChoiceLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.includeRemindersChooser_AODC.getAsOfDateField().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
-                    NAB.includeRemindersChooser_AODC.getAsOfLabel().putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.includeRemindersChooser_AODC.getChoiceCombo().setToolTipText("Select the include reminders asof date option (when include reminders has been selected)")
                     NAB.includeRemindersChooser_AODC.getAsOfDateField().setToolTipText("Select the include reminders asof custom date (when include reminders has been selected)")
+                    NAB.includeRemindersChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date")
                     NAB.includeRemindersChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).leftInset(5).west())
 
@@ -13555,17 +13529,22 @@ Visit: %s (Author's site)
                     controlPnl.add(incExpDateRangeOptionLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
                     onCol += 1
 
-                    NAB.incomeExpenseDateRange_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_ALL_DATES)
+                    excludeAsOfs = [
+                                    "yesterday"
+                                   ]
+
+                    NAB.incomeExpenseDateRange_DRC = MyDateRangeChooser(NAB.moneydanceContext.getUI(), MyDateRangeChooser.KEY_DR_ALL_DATES, excludeAsOfs)
                     NAB.incomeExpenseDateRange_DRC.setName("incomeExpenseDateRange_DRC")
                     # NAB.incomeExpenseDateRange_DRC.putClientProperty("%s.id" %(NAB.myModuleID), "incomeExpenseDateRange_DRC")
 
                     drc = NAB.incomeExpenseDateRange_DRC
-                    for comp in [drc.getChoiceCombo(), drc.getChoiceLabel(), drc.getStartIntLabel(), drc.getStartIntField(), drc.getEndIntLabel(), drc.getEndIntField()]:
+                    for comp in [drc.getChoiceCombo(), drc.getChoiceLabel(), drc.getStartIntLabel(), drc.getStartIntField(), drc.getEndIntLabel(), drc.getEndIntField(), drc.getSkipBackPeriodsLabel(), drc.getSkipBackPeriodsField()]:
                         comp.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
 
                     NAB.incomeExpenseDateRange_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
                     NAB.incomeExpenseDateRange_DRC.getStartIntField().setToolTipText("Select the start date for the I/E custom date range")
                     NAB.incomeExpenseDateRange_DRC.getEndIntField().setToolTipText("Select the end date for the I/E custom date range")
+                    NAB.incomeExpenseDateRange_DRC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the I/E date range")
                     NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
 
