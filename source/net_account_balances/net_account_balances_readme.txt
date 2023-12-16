@@ -365,7 +365,7 @@ DATE OFFSET:
       E.g. if you select 'Last year' (i.e. 'period' range is year) and offset 1, then you will get a range date
       calculated that includes 'last year' minus 1 (period) year (=end two years ago). Offset only works backwards, it
       cannot be negative to roll dates forward.
-      >> Offset does not apply to Custom, End Future, and All dates selection(s)...
+      >> Offset does not apply to 'Custom', 'asof end future (all dates)', 'All dates', and 'Last 1 day (yesterday & today)' selection(s)...
 
 
 ROW NAME FORMATTING:
