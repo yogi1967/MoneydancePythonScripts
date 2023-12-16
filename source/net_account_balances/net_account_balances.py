@@ -5653,7 +5653,7 @@ Visit: %s (Author's site)
             self._skipBackPeriods = self.defaultValue
             self.allowBlank = True
             self.dec = decimal
-            self.allowNegative = False
+            self.allowNegative = True;
             self.disabled = False
             self.setDocument(JTextFieldIntDocument())
             self.setHorizontalAlignment(SwingConstants.LEFT)
@@ -5840,6 +5840,8 @@ Visit: %s (Author's site)
                 # type: (str, int) -> DateRange
 
                 if skipBackPeriods is None: skipBackPeriods = 0
+
+                skipBackPeriods *= -1
 
                 todayInt = Util.getStrippedDateInt()
 
@@ -6126,7 +6128,6 @@ Visit: %s (Author's site)
             if _startInt <= GlobalVars.DATE_RANGE_VALID:                return False
             if _endInt   <= GlobalVars.DATE_RANGE_VALID:                return False
             if _startInt > _endInt:                                     return False
-            if _skipBackPeriods < 0:                                    return False
             return True
 
         def setDateRangeResult(self, dr, skipBackPeriods):
@@ -6304,6 +6305,8 @@ Visit: %s (Author's site)
                 # type: (str, int) -> int
 
                 if skipBackPeriods is None: skipBackPeriods = 0
+
+                skipBackPeriods *= -1
 
                 todayInt = Util.getStrippedDateInt()
 
@@ -13408,7 +13411,7 @@ Visit: %s (Author's site)
                     NAB.asOfDateChooser_AODC.setName("asOfDateChooser_AODC")
                     NAB.asOfDateChooser_AODC.getChoiceCombo().setToolTipText("Select the balance asof date option")
                     NAB.asOfDateChooser_AODC.getAsOfDateField().setToolTipText("Select the balance asof custom date")
-                    NAB.asOfDateChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date")
+                    NAB.asOfDateChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.asOfDateChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).leftInset(5).west())
 
@@ -13462,7 +13465,7 @@ Visit: %s (Author's site)
                     NAB.includeRemindersChooser_AODC.setName("includeRemindersChooser_AODC")
                     NAB.includeRemindersChooser_AODC.getChoiceCombo().setToolTipText("Select the include reminders asof date option (when include reminders has been selected)")
                     NAB.includeRemindersChooser_AODC.getAsOfDateField().setToolTipText("Select the include reminders asof custom date (when include reminders has been selected)")
-                    NAB.includeRemindersChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date")
+                    NAB.includeRemindersChooser_AODC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the asof date (-past, +future)")
                     NAB.includeRemindersChooser_AODC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     includeRemindersSelection_pnl.add(NAB.includeRemindersChooser_AODC.getPanel(includeChoiceLabel=False), GridC.getc(onIncludeRemindersCol, onIncludeRemindersRow).leftInset(5).west())
 
@@ -13550,7 +13553,7 @@ Visit: %s (Author's site)
                     NAB.incomeExpenseDateRange_DRC.getChoiceCombo().setToolTipText("Specify a dynamic date range for Income / Expense Category calculations ('Custom' is always fixed) - does not affect other accounts/securities")
                     NAB.incomeExpenseDateRange_DRC.getStartIntField().setToolTipText("Select the start date for the I/E custom date range")
                     NAB.incomeExpenseDateRange_DRC.getEndIntField().setToolTipText("Select the end date for the I/E custom date range")
-                    NAB.incomeExpenseDateRange_DRC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the I/E date range")
+                    NAB.incomeExpenseDateRange_DRC.getSkipBackPeriodsField().setToolTipText("[OPTIONAL] Enter the number of period offsets to manipulate the I/E date range (-past, +future)")
                     NAB.incomeExpenseDateRange_DRC.addPropertyChangeListener(NAB.savePropertyChangeListener)
                     controlPnl.add(NAB.incomeExpenseDateRange_DRC.getPanel(includeChoiceLabel=False), GridC.getc(onCol, onRow).colspan(3).leftInset(colInsetFiller).topInset(topInset).fillx())
 
