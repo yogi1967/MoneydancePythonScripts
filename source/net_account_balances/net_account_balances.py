@@ -3349,7 +3349,7 @@ Visit: %s (Author's site)
     ################################################################################################################
     # Copied from: com.infinitekind.moneydance.model.CostCalculation (as it's quite inaccessible before build 5008)
     ################################################################################################################
-    class MyCostCalculation:        # v2.0 (with LOT control fixes)
+    class MyCostCalculation:        # v3.0 (v2: with LOT control fixes, v3: with isCostBasisValid check)
         """CostBasis calculation engine. Copies/enhances/fixes MD CostCalculation() (asof build 5064).
         Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
         preparedTxns is typically used by itself to recall the class to get the current cost basis
