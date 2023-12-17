@@ -185,14 +185,8 @@ CALCULATIONS ON CALCULATED BALANCES:
                            as a percentage of total networth...
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
 
-    >> WARNING: other rows to be included in this row's calculation MUST NOT be set to Hide Always, or filtered out by
-                group id filter. If any are hidden/filtered, then the parent row will not calculate and you will get
-                a UOR error flagged.
-
-    >> TIP:     Instead of always hiding a row, use hide when x=999999999.99 which (as long as  this result is never
-                found, will allow the row to auto-hide, and stay usable in UOR maths.
-
 - Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
+    >> 'Always(Disable)' is ignored in use other row calculations that require this row!
     You can set X to any value (positive or negative)
     NOTE: If you select row option 'Hide Decimal Places', AND auto-hide row when balance=X,
           AND set X to a value with no decimals, then the calculated balance will be rounded when comparing to X.
@@ -300,7 +294,7 @@ SELECT ROW INFORMATION:
            ... rows coloured red are currently filtered out / hidden by a groupid filter or AutoHide option
            ... row numbers are suffixed with codes:
                <always hide>    Always hide row option is set (red = NOT active and hidden)
-               <auto hide>      An auto hide row rule is active. (red = ACTIVE, but hidden)
+               <auto hide>      An auto hide row rule is active (red = ACTIVE, but hidden)
                <groupid: xxx>   A groupid value has been set on this row
                <FILTERED OUT>   This row is currently NOT showing on the Summary Screen widget due to the active filter.
                                 NOTE: Filtered rows (red) are NOT active and hidden.
@@ -456,15 +450,18 @@ USING CATEGORIES (DATE RANGE)
 DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
 
 
->> CALCULATION ORDER: The calculations are performed is this sequence:
-    - Skip any 'always hide' rows - these are never calculated / used anywhere
-    - Skip any rows filtered out by GroupID
-    - Calculate raw balances for selected rows/accounts, including recursive sub accounts for autosum rows
+>> CALCULATION ORDER: The calculations are performed is this sequence (for all rows, or just the simulation row):
+    - Derive all rows required, and/or required within other rows (irrespective of always hide / GroupID filter)
+    - (unless used within other rows) skip any 'always hide' rows
+    - (unless used within other rows) skip any rows filtered out by GroupID
+    - Calculate raw balances for derived rows/accounts, including recursive sub accounts for autosum rows
     - Convert calculated balances to target currency
     - Iterate over each row/calculation, apply any average/by calculations
     - Iterate over each row/calculation, apply any Use Other Row (UOR) calculations.. Iterate the whole UOR chain
     - Lastly, iterate over each row/calculation, apply any final calculation adjustment amounts specified
 
+    WARNING: Rows that are used within other rows are ALWAYS calculated, irrespective of hide/GroupID filter
+             >> be mindful of the CPU / speed impact of non-displayed rows especially when using parallel calculations!
 
 >> PARALLEL BALANCES:
     - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts

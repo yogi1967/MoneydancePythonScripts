@@ -51,54 +51,6 @@
 
 # Built to operate on Moneydance 2021.1 build 3056 onwards (as this is when the Py Extensions became fully functional)
 
-# Build: 1 - Initial release
-# Build: 2 - Screensize tweaks; ability to set widget display name; alter startup behaviour
-# Build: 2 - Renamed to net_account_balances (removed _to_zero); common code/startup
-# Build: 3 - properly convert fx accounts back to base currency; allow all account types in selection..
-# Build: 4 - Tweak to security currency conversion to base...
-# Build: 5 - Enhance JList colors and handling of clicks (so as not to unselect all on new click); add clear selection button
-# Build: 1000 - Formal release
-# Build: 1001 - Enhancements to incorporate VAqua on Mac; Fix JMenuBar() appearing in wrong place after File/Open(switch datasets)
-# Build: 1001 - Change startup common code to detect 'wrong' startup conditions. Make build 3056 the minimum for my extensions (as they leverage .unload() etc)
-# Build: 1001 - Fix condition when -invoke[_and_quit] was used to prevent refresh erroring when MD actually closing...
-# Build: 1002 - Build 3067 of MD renamed com.moneydance.apps.md.view.gui.theme.Theme to com.moneydance.apps.md.view.gui.theme.ThemeInfo
-# Build: 1003 - Small tweaks to conform to IK design standards
-# Build: 1004 - Fixed pickle.dump/load common code to work properly cross-platform (e.g. Windows to Mac) by (stripping \r when needed)
-# Build: 1004 - Common code tweaks
-# Build: 1005 - Common code tweaks; Tweaked colors for Dark themes and to be more MD 'compatible'
-# Build: 1006 - Common code tweaks; Flat Dark Theme
-# Build: 1007 - Common code tweaks
-# Build: 1008 - Common code tweaks; Multi-row, currency conversion options(s)
-# Build: 1009 - Accounts/Categories/Securities Selection Option(s) - PREVIEW BUILD
-# Build: 1010 - Further enhancements from preview release. Added Filters for Active/Inactive. AutoSum Investment Accts Option
-# Build: 1010 - QuickSearch filter; added balances to list window; replaced callingClass with reference to single instance name
-# Build: 1010 - Tweaks to ensure [list of] double-byte characters don't crash debug messages...
-# Build: 1011 - Enhance Income/Expense totalling by date range. Multi threaded with SwingWorker. New filters.
-# Build: 1011 - Renamed display name to 'Custom Balances'
-# Build: 1012 - Added <PREVIEW> tag to GUI title bar if preview detected...; Tweak to catching MD closing 'book' trap
-# Build: 1013 - Added <html> tags to JMenu() titles to stop becoming invisible when mouse hovers
-# Build: 1013 - Added Security currencies into currency display table... Allows shares to be used etc...
-# Build: 1013 - Fixes for 4069 Alpha onwards.. Calls to getUI() off the EDT are now (properly) blocked by MD.....
-# Build: 1013 - Fix when setting lastRefreshTriggerWasAccountModified and HPV.view is None (closing the GUI would error)
-# build: 1013 - Eliminated common code globals :->; tweak to setDefaultFonts() - catch when returned font is None (build 4071)
-# build: 1013 - Moved .decodeCommand() to common code
-# build: 1014 - Tweak; Common code
-# build: 1014 - FileDialog() (refer: java.desktop/sun/lwawt/macosx/CFileDialog.java) seems to no longer use "com.apple.macos.use-file-dialog-packages" in favor of "apple.awt.use-file-dialog-packages" since Monterrey...
-# build: 1014 - Common code update - remove Decimal Grouping Character - not necessary to collect and crashes on newer Java versions (> byte)
-# build: 1014 - Bug fix... When old format parameters were loaded, then switch to newer format parameters, migratedParameters flag was sticking as True, and hence loading wrong autoSum defaults...
-# build: 1014 - Small fix for possible MD GUI hang on startup (EDT thing....)
-# build: 1014 - Added icon to allow user to collapse widget.....; Added row separator functionality...
-# build: 1015 - Added support for Indian numbering system...: refer: https://en.wikipedia.org/wiki/Indian_numbering_system
-# build: 1015 - Added new options to allow auto hiding of rows when balance is xxx...
-# build: 1016 - Fix phantom linking of account selection when using duplicate row function...
-# build: 1017 - Enable blinking of auto hidden rows....; Added option to hide decimals...; use my code for all .formatXXX() calls...
-# build: 1017 - Added underline 'dots' to match the other Summary Screen visual laf... Also option to enable / disable...
-# build: 1017 - Reengineered the row popup selector to fix background issues...
-# build: 1017 - Added option for autohide row when value is not x (rather than zero); change blink to per row...
-# build: 1018 - Change blink to per row... Added rounding(towards X) when auto-hiding rows with hide decimals enabled...
-# build: 1018 - Added Avg / by: value - when set, you can produce an average using custom divisor...
-# build: 1019 - Tweaks / fixes to auto-hide when average; location of average maths; fixed switchFromHomeScreen bug-ette;
-# build: 1019 - roundTowards() when hiding decimals; tweak common code
 # build: 1020 - Bold'ified [sic] blinking cells...
 # build: 1020 - MAJOR 'upgrade' to (re)code to cope with multiple home screens (that caused 'disappearing' widgets)
 #               There is a design fault when opening a new MD HomeScreen (so you have multiple running) whereby
@@ -158,11 +110,8 @@
 #               GUI fixes; KeyError tweak; Enhance the Account/Category select filter...; Put UNDO/Reload option on homepage widget
 # build: 1040 - Bumping the build number....
 #               Enhanced MyCostCalculation; Enhanced AsOfDateChooser with skip back periods...; Replaced Inc/Exp DRC with my own...
-# build: 1041 - Bumping the build number.... for new Inc/Exp DRC, also upgraded parameters....
-
-# todo - allow UOR rows to all calculate
-# todo - enable hidden rows to calc option? Also when group filtered?
-# todo - ability to select prior -x periods and/or rolling date range - e.g. last x days and last x-z days...?
+# build: 1041 - Bumping the build number.... for new Inc/Exp DRC, also upgraded parameters.... Now offset feature for -past, +future date periods.
+#               Allow all rows used within a UOR chain to calculate (even when always hide or filtered out by GroupID filter)...
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -3256,7 +3205,7 @@ Visit: %s (Author's site)
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
     # >>> CUSTOMISE & DO THIS FOR EACH SCRIPT
 
-    TIMING_DEBUG = True;
+    TIMING_DEBUG = False
 
     def selectAllHomeScreens():
 
@@ -6220,8 +6169,6 @@ Visit: %s (Author's site)
                 return DateRange(Integer(self.getStartIntField().parseDateInt()), Integer(self.getEndIntField().parseDateInt()))
             return self.DateRangeChoice.getDateRangeFromKey(selectedOptionKey, self.getSkipBackPeriods())
 
-
-
     class AsOfDateChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
         """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged"""
 
@@ -6637,7 +6584,6 @@ Visit: %s (Author's site)
             return self.AsOfDateChoice.getAsOfDateFromKey(selectedOptionKey, self.getSkipBackPeriods())
 
 
-
     # ------------------------------------------------------------------------------------------------------------------
     # com.infinitekind.moneydance.model.AccountUtil.ACCOUNT_TYPE_NAME_COMPARATOR : Comparator
 
@@ -6751,15 +6697,18 @@ Visit: %s (Author's site)
 
     def isIncomeExpenseDatesSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedIncExpDateRangeTable[index][MyDateRangeChooser.INC_EXP_DR_KEY_IDX] != NAB.incExpDateRangeDefault()[MyDateRangeChooser.INC_EXP_DR_KEY_IDX])
+        return (NAB.savedIncExpDateRangeTable[index][MyDateRangeChooser.INC_EXP_DR_ENABLED_IDX]
+                and NAB.savedIncExpDateRangeTable[index][MyDateRangeChooser.INC_EXP_DR_KEY_IDX] != NAB.incExpDateRangeDefault()[MyDateRangeChooser.INC_EXP_DR_KEY_IDX])
 
     def isBalanceAsOfDateSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedBalanceAsOfDateTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
+        return (NAB.savedBalanceAsOfDateTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
+                and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
 
     def isIncludeRemindersSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedIncludeRemindersTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
+        return (NAB.savedIncludeRemindersTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
+                and isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
 
     def isUseCostBasisSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -6958,7 +6907,6 @@ Visit: %s (Author's site)
         if debug: myPrint("DB", "::rebuildParallelAccountBalances() >> Building Parallel Account Balances Table....:")
 
         # ------ 1. DERIVE LIST OF ACCOUNTS WHEN PARALLEL TABLE REQUIRED -----------------------------------------------
-        # getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), MyAcctFilterIncExpOnly())
         parallelTxnTable = buildEmptyTxnOrBalanceArray()                                                                # type: [{Account: [AbstractTxn]}]
         getAccounts = allMatchesForSearch(NAB.moneydanceContext.getCurrentAccountBook(), AcctFilter.ALL_ACCOUNTS_FILTER)
         for acct in getAccounts: parallelTxnTable[iRowIdx][acct] = []
@@ -9939,7 +9887,47 @@ Visit: %s (Author's site)
 
             return filteredOut
 
+        # def getOperateOnAnotherRowRowIdx(self, thisRowIdx, validateNewTarget=None):     # Return value of None means no (valid) other row set (default)
+        #     if debug: myPrint("DB", "In . getOperateOnAnotherRowRowIdx(thisRowIdx: %s, validateNewTarget: %s)" %(thisRowIdx, validateNewTarget))
+        #     NAB = self
+        #     thisRow = thisRowIdx + 1
+        #     if validateNewTarget is None:
+        #         otherRow = NAB.savedOperateOnAnotherRowTable[thisRowIdx][NAB.OPERATE_OTHER_ROW_ROW]
+        #     else:
+        #         otherRow = None if (validateNewTarget == 0) else validateNewTarget
+        #
+        #     resultIdx = None
+        #     lOtherRowConfirmed = False
+        #     if (NAB.savedHideRowWhenXXXTable[thisRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
+        #         # myPrint("B", "...... confirmed this row not AUTOHIDE...");
+        #
+        #         if otherRow is not None:
+        #             # myPrint("B", "...... confirmed otherRow not None... (will cast to int)");
+        #             otherRow = int(otherRow)
+        #             if (otherRow != 0):
+        #                 # myPrint("B", "...... confirmed otherRow != 0");
+        #                 if (otherRow >= 1 and otherRow <= NAB.getNumberOfRows()):
+        #                     # myPrint("B", "...... confirmed otherRow >=1 and <= %s..." %(NAB.getNumberOfRows()));
+        #                     if (thisRow != otherRow):
+        #                         # myPrint("B", "...... confirmed thisRow != otherRow...");
+        #                         otherRowIdx = otherRow - 1
+        #
+        #                         if (NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
+        #                             # myPrint("B", "...... confirmed NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS...");
+        #                             if (not NAB.isRowFilteredOutByGroupID(otherRowIdx)):
+        #                                 # myPrint("B", "...... confirmed 'other row' not filtered out by 'Group ID'...");
+        #                                 resultIdx = int(otherRowIdx)
+        #                                 lOtherRowConfirmed = True
+        #                                 # myPrint("B", "...... >>> SUCCESS! RESULT: resultIdx: %s" %(resultIdx))
+        #
+        #     if debug:
+        #         myPrint("B", ".getOperateOnAnotherRowRowIdx(idx: %s) %s returning otherRowIdx: %s"
+        #                 %(thisRowIdx, "OTHER-ROW-NOT-CONFIRMED" if (not lOtherRowConfirmed) else "OTHER-ROW-CONFIRMED", resultIdx))
+        #     return resultIdx
+
         def getOperateOnAnotherRowRowIdx(self, thisRowIdx, validateNewTarget=None):     # Return value of None means no (valid) other row set (default)
+            # type: (int, int) -> int
+
             if debug: myPrint("DB", "In . getOperateOnAnotherRowRowIdx(thisRowIdx: %s, validateNewTarget: %s)" %(thisRowIdx, validateNewTarget))
             NAB = self
             thisRow = thisRowIdx + 1
@@ -9950,27 +9938,28 @@ Visit: %s (Author's site)
 
             resultIdx = None
             lOtherRowConfirmed = False
-            if (NAB.savedHideRowWhenXXXTable[thisRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
-                # myPrint("B", "...... confirmed this row not AUTOHIDE...");
 
-                if otherRow is not None:
-                    # myPrint("B", "...... confirmed otherRow not None... (will cast to int)");
-                    otherRow = int(otherRow)
-                    if (otherRow != 0):
-                        # myPrint("B", "...... confirmed otherRow != 0");
-                        if (otherRow >= 1 and otherRow <= NAB.getNumberOfRows()):
-                            # myPrint("B", "...... confirmed otherRow >=1 and <= %s..." %(NAB.getNumberOfRows()));
-                            if (thisRow != otherRow):
-                                # myPrint("B", "...... confirmed thisRow != otherRow...");
-                                otherRowIdx = otherRow - 1
+            # if (NAB.savedHideRowWhenXXXTable[thisRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
+            # myPrint("B", "...... confirmed this row not AUTOHIDE...");
 
-                                if (NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
-                                    # myPrint("B", "...... confirmed NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS...");
-                                    if (not NAB.isRowFilteredOutByGroupID(otherRowIdx)):
-                                        # myPrint("B", "...... confirmed 'other row' not filtered out by 'Group ID'...");
-                                        resultIdx = int(otherRowIdx)
-                                        lOtherRowConfirmed = True
-                                        # myPrint("B", "...... >>> SUCCESS! RESULT: resultIdx: %s" %(resultIdx))
+            if otherRow is not None:
+                # myPrint("B", "...... confirmed otherRow not None... (will cast to int)");
+                otherRow = int(otherRow)
+                if (otherRow != 0):
+                    # myPrint("B", "...... confirmed otherRow != 0");
+                    if (otherRow >= 1 and otherRow <= NAB.getNumberOfRows()):
+                        # myPrint("B", "...... confirmed otherRow >=1 and <= %s..." %(NAB.getNumberOfRows()));
+                        if (thisRow != otherRow):
+                            # myPrint("B", "...... confirmed thisRow != otherRow...");
+                            otherRowIdx = otherRow - 1
+
+                            # if (NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS):
+                            # myPrint("B", "...... confirmed NAB.savedHideRowWhenXXXTable[otherRowIdx] != GlobalVars.HIDE_ROW_WHEN_ALWAYS...");
+                            # if (not NAB.isRowFilteredOutByGroupID(otherRowIdx)):
+                            # myPrint("B", "...... confirmed 'other row' not filtered out by 'Group ID'...");
+                            resultIdx = int(otherRowIdx)
+                            lOtherRowConfirmed = True
+                            # myPrint("B", "...... >>> SUCCESS! RESULT: resultIdx: %s" %(resultIdx))
 
             if debug:
                 myPrint("B", ".getOperateOnAnotherRowRowIdx(idx: %s) %s returning otherRowIdx: %s"
@@ -15001,10 +14990,43 @@ Visit: %s (Author's site)
             return totalBalanceTable
 
         @staticmethod
+        def deriveUORChainForRowIdx(rowIdx):
+            # type: (int) -> ([int], [str])
+            """Derive the UOR calculation chain for this row index. Returns a tuple ([list of row indexes], [list of row UUIDs])"""
+            NAB = NetAccountBalancesExtension.getNAB()
+
+            UORChains = {}
+            primaryRowUUID = NAB.savedUUIDTable[rowIdx]
+            UORChains[primaryRowUUID] = [rowIdx]
+            while True:
+                # if debug: myPrint("B", "*** justIndex: %s, rowIdx: %s" %(justIndex, rowIdx))
+                otherRowIdx = NAB.getOperateOnAnotherRowRowIdx(rowIdx)
+                if otherRowIdx is not None:
+                    if otherRowIdx not in UORChains[primaryRowUUID]:
+                        UORChains[primaryRowUUID].append(otherRowIdx)
+                        rowIdx = otherRowIdx
+                        # if debug: myPrint("B", ".... UORChains[primaryRowUUID]", UORChains[primaryRowUUID])
+                        continue
+                break
+
+            if debug:
+                for uuid in sorted(UORChains, key=lambda x: (UORChains[x][0])):
+                    myPrint("B", "UOR Preliminary Chain for uuid: %s, chains(rowIdx): %s" %(uuid, UORChains[uuid]))
+
+            UORRowIdxs = [uorRowIdx for uorRowIdx in UORChains[primaryRowUUID] if uorRowIdx is not None]
+            UORRowUUIDs = [NAB.savedUUIDTable[uorRowIdx] for uorRowIdx in UORChains[primaryRowUUID] if uorRowIdx is not None]
+            if debug: myPrint("B", "@@ UORRowIdxs:", UORRowIdxs)
+            if debug: myPrint("B", "@@ UORRowUUIDs:", UORRowUUIDs)
+            return UORRowIdxs, UORRowUUIDs
+
+        @staticmethod
         def calculateBalances(_book, justIndex=None, lFromSimulate=False, swClass=None):
             # type: (AccountBook, bool, bool, SwingWorker) -> [CalculatedBalance]
 
             if debug: myPrint("DB", "In ", inspect.currentframe().f_code.co_name, "()")
+
+            if debug or TIMING_DEBUG:
+                if justIndex is not None: myPrint("B", ">> calculateBalances() >> SIMULATION >> RowIdx: %s (row: %s)" %(justIndex, justIndex + 1))
 
             NAB = NetAccountBalancesExtension.getNAB()
 
@@ -15021,7 +15043,6 @@ Visit: %s (Author's site)
 
                 isParallelBalanceTableOperational()
 
-                # todo - do I want to call this here?
                 NAB.searchAndStoreGroupIDs(NAB.savedFilterByGroupID)      # Ensure the cache of remembered GroupIDs is current...
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
@@ -15030,37 +15051,18 @@ Visit: %s (Author's site)
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
 
-
-                # ------- DERIVE ANY OTHER ROW CHAIN(S) WHEN SIMULATING ------------------------------------------------
-                if justIndex is None:
-                    simulateRowIdxs = []
-                    simulateRowUUIDs = []
-                else:
-                    # Work out preliminary chain for this simulation...
-                    UORChains = {}
-                    onRowIdx = justIndex
-                    primaryRowUUID = NAB.savedUUIDTable[onRowIdx]
-                    UORChains[primaryRowUUID] = [onRowIdx]
-                    while True:
-                        # if debug: myPrint("B", "*** justIndex: %s, onRowIdx: %s" %(justIndex, onRowIdx))
-                        otherRowIdx = NAB.getOperateOnAnotherRowRowIdx(onRowIdx)
-                        if otherRowIdx is not None:
-                            if otherRowIdx not in UORChains[primaryRowUUID]:
-                                UORChains[primaryRowUUID].append(otherRowIdx)
-                                onRowIdx = otherRowIdx
-                                # if debug: myPrint("B", ".... UORChains[primaryRowUUID]", UORChains[primaryRowUUID])
-                                continue
-                        break
-
-                    if debug:
-                        for uuid in sorted(UORChains, key=lambda x: (UORChains[x][0])):
-                            myPrint("B", "UOR Preliminary Chain for simulation: uuid: %s, chains(rowIdx): %s" %(uuid, UORChains[uuid]))
-
-                    simulateRowIdxs = [simRowIdx for simRowIdx in UORChains[primaryRowUUID] if simRowIdx is not None]
-                    simulateRowUUIDs = [NAB.savedUUIDTable[simRowIdx] for simRowIdx in UORChains[primaryRowUUID] if simRowIdx is not None]
-                    if debug: myPrint("B", "@@ simulateRowIdxs:", simulateRowIdxs)
-                    if debug: myPrint("B", "@@ simulateRowUUIDs:", simulateRowUUIDs)
-
+                # ------- DERIVE MASTER LIST OF ALL ROWS REQUIRED BY UOR CHAINS ----------------------------------------
+                # The master list will contain all indexes that need to be calculated....
+                mstrListUORChainRowIdxsRqdForCalcs = []
+                mstrListUORChainRowUUIDsRqdForCalcs = []
+                for iAccountLoop in (range(0, NAB.getNumberOfRows()) if justIndex is None else [justIndex]):
+                    if justIndex is None:   # When simulating, always show the calculation (ignore hide/filters)
+                        if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
+                        if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
+                    uorChainRowIdxsRqdForCalcs, uorUORChainRowUUIDsRqdForCalcs = MyHomePageView.deriveUORChainForRowIdx(iAccountLoop)
+                    mstrListUORChainRowIdxsRqdForCalcs.extend(uorChainRowIdxsRqdForCalcs)
+                    mstrListUORChainRowUUIDsRqdForCalcs.extend(uorUORChainRowUUIDsRqdForCalcs)
+                if debug: myPrint("B", ">> Master list of row indexes required and/or required within UOR calculations: %s" %(mstrListUORChainRowIdxsRqdForCalcs))
 
                 # -------- DERIVE LIST OF SELECTED ACCOUNTS ------------------------------------------------------------
                 accountsToShow = buildEmptyAccountList()
@@ -15070,11 +15072,13 @@ Visit: %s (Author's site)
 
                     onRow = iAccountLoop + 1
 
-                    if justIndex is not None and iAccountLoop not in simulateRowIdxs: continue
-                    if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
-                    if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
+                    # if justIndex is not None and iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
+                    # if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
+                    # if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
 
-                    if debug: myPrint("DB", "HomePageView: Finding selected accounts for row: %s" %(onRow))
+                    if iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
+
+                    if debug: myPrint("DB", "HomePageView::calculateBalances() Finding selected accounts for row: %s" %(onRow))
 
                     for accID in NAB.savedAccountListUUIDs[iAccountLoop]:
 
@@ -15097,7 +15101,8 @@ Visit: %s (Author's site)
                 thisSectionStartTime = System.currentTimeMillis()
 
                 # NOTE: Printing of lists containing objects which return multi-bye characters (e.g. Asian) will error - e.g. print [acct]
-                try: myPrint("DB", "accountsToShow table: %s" %(accountsToShow))
+                try:
+                    if debug: myPrint("B", "accountsToShow table: %s" %(accountsToShow))
                 except: pass
 
                 # ------ 1. DERIVE LIST OF CHILD ACCOUNTS WHEN PARALLEL TABLE REQUIRED ------------------------------------
@@ -15110,9 +15115,11 @@ Visit: %s (Author's site)
 
                     parallelFullAccountsList = []
 
-                    if justIndex is not None and iAccountLoop not in simulateRowIdxs: continue
-                    if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
-                    if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
+                    # if justIndex is not None and iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
+                    # if NAB.savedHideRowWhenXXXTable[iAccountLoop] == GlobalVars.HIDE_ROW_WHEN_ALWAYS: continue
+                    # if NAB.isRowFilteredOutByGroupID(iAccountLoop): continue
+
+                    if iAccountLoop not in mstrListUORChainRowIdxsRqdForCalcs: continue
 
                     if isParallelBalanceTableOperational(iAccountLoop):     # Could be for balance asof date, I/E date range, Cost Basis, Reminders
 
@@ -15122,7 +15129,6 @@ Visit: %s (Author's site)
 
                             if swClass and swClass.isCancelled(): return []
 
-                            # returnThisAccountAndAllChildren(acct, _listAccounts=parallelFullAccountsList, autoSum=NAB.savedAutoSumAccounts[iAccountLoop], justIncomeExpense=True)
                             returnThisAccountAndAllChildren(acct, _listAccounts=parallelFullAccountsList,
                                                             autoSum=NAB.savedAutoSumAccounts[iAccountLoop],
                                                             justIncomeExpense=False)
@@ -15172,8 +15178,6 @@ Visit: %s (Author's site)
 
                     if swClass and swClass.isCancelled(): return []
 
-                    # if not lFromSimulate: NAB.setSelectedRowIndex(iAccountLoop)
-
                     lFoundAutoSumParentInThisRowWarning = False
                     lFoundAutoSumInActiveChildInThisThisRowWarning = False
                     lFoundAutoSumInActiveParentInThisThisRowWarning = False
@@ -15202,7 +15206,6 @@ Visit: %s (Author's site)
 
                         todayInt = DateUtil.getStrippedDateInt()
                         lBalanceAsOfDateSelected = isBalanceAsOfDateSelected(iAccountLoop)
-                        # balAsOfDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop])
 
                         # Iterate each selected account within the row...
                         for acct in accountsToShow[iAccountLoop]:
@@ -15436,7 +15439,7 @@ Visit: %s (Author's site)
                                                                 rowNumber=onRow))
 
 
-                del accountsToShow, totalBalance, parallelFullAccountsList, simulateRowIdxs
+                del accountsToShow, totalBalance, parallelFullAccountsList
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
@@ -15511,11 +15514,6 @@ Visit: %s (Author's site)
                             myPrint("B", warnTxt)
                             NAB.warningMessagesTable.append(warnTxt)
                         else:
-                            # [3, 2, 1]
-                            # [1, 2, 3]
-                            #  0, 1, 2
-                            #  0, 1
-                            #  1, 0
                             for iChainIdx in reversed(range(0, len(UORChains[primaryRowUUID]) -1)):
                                 onChainedUORIdx = UORChains[primaryRowUUID][iChainIdx]
                                 balanceObj = _totalBalanceTable[onChainedUORIdx]                                        # type: CalculatedBalance
@@ -15588,7 +15586,7 @@ Visit: %s (Author's site)
                                 if debug: myPrint("B", "@@ ALERT: uuid: %s not found in lastResultsTable for BalObj: %s (ignoring as I presume it a new row and will update below)..." %(balanceObj.getUUID(), balanceObj.toString()))
                             else:
                                 lastResultsBalObj.setRowNumber(onRow)
-                        if (not lFromSimulate or (balanceObj.getUUID() in simulateRowUUIDs)):
+                        if (not lFromSimulate or (balanceObj.getUUID() in mstrListUORChainRowUUIDsRqdForCalcs)):
                             if debug: myPrint("DB", ".. Updating temporary balance table - uuid: '%s' with Balance: '%s'" %(balanceObj.getUUID(), balanceObj.toString()))
                             NAB.lastResultsBalanceTable[balanceObj.getUUID()] = balanceObj
                         else:
@@ -15637,8 +15635,6 @@ Visit: %s (Author's site)
                 NAB.warningInParametersDetectedType = iWarningType
                 NAB.warningInParametersDetectedInRow = iWarningDetectedInRow
                 if NAB.warningInParametersDetected: myPrint("B", "@@ WARNING(S) in parameter setup detected... review setup....")
-
-                # if not lFromSimulate: NAB.setSelectedRowIndex(saveTheRowIndex);
 
                 tookTime = System.currentTimeMillis() - veryStartTime
                 if debug or TIMING_DEBUG or (tookTime >= 1000):
