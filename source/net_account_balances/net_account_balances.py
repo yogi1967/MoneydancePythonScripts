@@ -117,6 +117,8 @@
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 
+# todo - add realised capital gains (by range)
+
 # SET THESE LINES
 myModuleID = u"net_account_balances"
 version_build = "1041"
