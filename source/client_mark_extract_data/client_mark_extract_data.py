@@ -3263,7 +3263,7 @@ Visit: %s (Author's site)
     ################################################################################################################
     # Copied from: com.infinitekind.moneydance.model.CostCalculation (as it's quite inaccessible before build 5008)
     ################################################################################################################
-    class MyCostCalculation:        # v2.0 (with LOT control fixes)
+    class MyCostCalculation:        # v3.0 (v2: with LOT control fixes, v3: with isCostBasisValid check)
         """CostBasis calculation engine. Copies/enhances/fixes MD CostCalculation() (asof build 5064).
         Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
         preparedTxns is typically used by itself to recall the class to get the current cost basis
@@ -3282,6 +3282,7 @@ Visit: %s (Author's site)
             self.investCurr = secAccount.getParentAccount().getCurrencyType()                                           # type: CurrencyType
             self.secCurr = secAccount.getCurrencyType()                                                                 # type: CurrencyType
             self.usesAverageCost = secAccount.getUsesAverageCost()
+            self.costBasisInvalid = False
 
             # if isinstance(preparedTxns, TxnSet) and preparedTxns.getSize() > 0:
             if isinstance(preparedTxns, TxnSet):
@@ -3293,6 +3294,7 @@ Visit: %s (Author's site)
                     self.txns = secAccount.getBook().getTransactionSet().getTransactionsForAccount(secAccount)          # type: TxnSet
                     self.txns.sortWithComparator(TxnUtil.DATE_THEN_AMOUNT_COMPARATOR.reversed())                        # Newest first by index
                 else:
+                    self.costBasisInvalid = True
                     self.txns = TxnSet()
                     myPrint("B", "@@ WARNING: MD reports that the Cost Basis for account: '%s' is invalid! (Probably Lot controlled Security account with Sells not fully Lot Matched to Buys. Will return zero)" %(self.getSecAccount().getFullAccountName()))
 
@@ -3320,6 +3322,7 @@ Visit: %s (Author's site)
 
             if self.COST_DEBUG: myPrint("B", "** MyCostCalculation() running asof: %s, for account: '%s' (%s) **" %(asOfDate, secAccount, "AvgCost" if self.getUsesAverageCost() else "LotControl"))
 
+        def isCostBasisInvalid(self): return self.costBasisInvalid
         def getUsesAverageCost(self): return self.usesAverageCost
 
         def getCurrentBalanceCostCalculation(self):
@@ -3431,7 +3434,7 @@ Visit: %s (Author's site)
             if txn.getDateInt() <= self.getAsOfDate():
                 pos = self.getCurrentPosition()
                 newPos = MyCostCalculation.Position(self, txn, pos)
-                if debug: myPrint("B", "adding position:", pos)
+                if self.COST_DEBUG: myPrint("B", "adding position:", pos)
                 self.getPositions().add(newPos)
                 # ptxn = txn.getParentTxn()                                                                             # type: ParentTxn
                 self.getPositionsByBuyID().put(txn.getUUID(), newPos)  # MD Version used ptxn.getUUID()                 # todo - MDFIX
