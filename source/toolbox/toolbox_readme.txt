@@ -140,7 +140,8 @@ Read-Only Mode (Default at launch) - Use ALT-M to toggle between Read-Only and U
         - View your accounts' calculated reconcile window auto 'as of' date (active accounts only)
 
     - MENU: Currency & Security tools:
-        - DIAG - Diagnose currencies / securities (including relative currencies) If errors, then go to FIX below
+        - DIAG - Diagnose base currency. Run this first. If errors, then go to FIX below
+        - DIAG - Diagnose currencies / securities (including relative currencies). If errors, then go to FIX below
         - DIAG - Can I delete a Security (tells you whether a security/stock is being used - and where)
         - DIAG - Can I delete a Currency (tells you whether a currency is being used - and where)
         - DIAG - List decimal places (currency & security). Shows you the hidden setting and related data.
@@ -232,6 +233,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - USAA ONLY: Manually 'prime' / overwrite stored Root UserIDs/ClientUIDs
 
     - MENU: Currency & Security tools:
+        - FIX - Fix the base currency. Apply this fix before diagnosing/fixing currencies (below).
         - FIX - Fix currencies / securities (including relative currencies) (fixes your currency & security's key settings) (reset_relative_currencies.py)
         - FIX - Edit a Security's (hidden) Decimal Place setting (adjusts related Investment txns & Security balances accordingly).  >> 2021.2 onwards
         - FIX - Merge 'duplicate' securities (and related Investment txns) into one master security record (by TickerSymbol).        >> 2021.2 onwards
