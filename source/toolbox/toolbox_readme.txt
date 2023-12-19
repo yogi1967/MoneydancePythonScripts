@@ -199,7 +199,7 @@ ALT-M - Update Mode (** NOTE: Some menu items will disable if currency / securit
         - FIX - Relocate this dataset back to the default 'internal' location
         - FIX - Relocate this dataset to another location [Note: IK do not recommend this]
         - FIX - Cleanup MD's File/Open list of 'external' files (does not touch actual files)
-        - DELETE Files from Menu>File>Open list and also from DISK (Removes files from 'Internal' and 'External' locations).
+        - DELETE Files from Menu>File>Open list [and OPTIONALLY also from DISK] (can remove files from 'Internal' and 'External' locations).
             >> External locations > Edits config.dict to remove references to external files for File/open - AND ALLOWS YOU TO DELETE THE FILES TOO
             >> Default / Internal locations > ALLOWS YOU TO DELETE THE Dataset from disk (this then removes it from the File/Open menu)
         - FIX - Remove inactive accounts/categories from SideBar
