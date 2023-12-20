@@ -83,7 +83,7 @@ CHOICES/CONFIGURATION FOR A ROW:
             OFF will only include the accounts you have selected. You will have to select/add any new accounts created
 
   - Investment accounts hold Cash at the investment account level. AutoSum affects your ability to select just cash
-                        - When AutoSum is on, all securities get totalled into the Investment account
+                        - When AutoSum is on, all securities get totalled into the Investment account (including cash)
 
   - You set the AutoSum setting by row. Thus some rows can be on, and others can be off.
 
@@ -104,11 +104,11 @@ CHOICES/CONFIGURATION FOR A ROW:
         The following points should be noted:
             - Income / Expense categories:      Not affected by this option - refer separate 'I/E Date Range' section
             - Include (non-recorded) Reminders: Not affected by this option - refer separate 'Include Reminders' section
-            - Security accounts when the 'Securities return Cost Basis / Unrealised Gains' option is selected
-                ... or Investment accounts when 'include cash' option is selected in conjunction with return cost basis
-                - refer separate 'Securities: Return Cost Basis / Unrealised Gains options' section...
+            - Security accounts when the 'Securities: Cost Basis' options are selected:
+                - refer separate 'Securities: Return Cost Basis / Unrealised Gains / Capital Gains options' section...
 
         - WARNING: tax dates when using 'asof' cannot be derived. The 'normal' txn date will be applied.
+                   .. this exclusion also applies to all cost basis option(s)...
 
         - WARNING: When using asof dates, consider that inactive accounts might have had balances in the past!
                    I.E. It might be best to Include Inactive and select all accounts (including currently inactive).
@@ -128,28 +128,53 @@ CHOICES/CONFIGURATION FOR A ROW:
         - the 'offset' field can be used here to adjust the include reminders asof date - refer 'Date offset' section.
 
         - NOTE: It would be unusual to find any (non-recorded) reminders with a Cleared Status - so expect ZERO.
-        - NOTE: Ignored when returning cost basis / unrealised gains
+        - NOTE: Ignored when returning cost basis / unrealised / capital gains
 
         - WARNING: tax dates on (non-recorded) reminders cannot be calculated. The 'normal' date will be applied.
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-- Securities: Return Cost Basis / Unrealised Gains options:
-    - N/A (default):         Cost Basis is never used
+- Securities: Return Cost Basis / Unrealised Gains / Capital Gains option(s):
+    - Rtn Value:             [DEFAULT] Cost Basis is not calculated. Returns the normal balance.
+
     - Rtn Cost Basis:        When selected, the cost basis (**as of the balance / asof date) for selected Security
                              accounts will be returned (instead of the normal shareholding).
+
     - Rtn Unrealised Gains:  When selected, the calculated unrealised gains (**asof the balance / asof date) for the
                              selected Security accounts will be returned. This is calculated as value less cost basis.
+
+    - Rtn Capital Gains:     When selected, the calculated capital gains for the selected Security accounts will be
+                             returned. The gains calculation is 'simple' and will not identify short/long term gains
+                             (for example). NOTE: when this option is selected then an extra row will appear, that
+                             allows you to select the date range for the capital gains reporting.
+
+                             > WARNING: The date range cannot exceed the 'balance asof date'. Any transactions (gains)
+                                        after the asof date will be excluded from the calculation!
+
     - Include Cash Balances: When selected then cash balances on (selected) investment accounts will be included too.
+                             ONLY applies to the 'Rtn Cost Basis' option (not the ur-gains, or capital-gains options)
+                             .. both the return cash option and the investment account(s) needs to be selected for cash
+                             .. if include cash is not selected, then selected investment accounts will generate zero.
+
+                             > REMEMBER: Cash is NOT specific to any security, it's just cash in the investment account!
+
+                             > WARNING: Many would not consider that cash should be included, as this is not specific
+                                        to any security. But MD often includes cash for any accounts where there are
+                                        securities with a share balance. MD does not seem to include cash where an
+                                        investment account has no securities with a share balance.
 
     >> NOTES:
-        - When selected then calculated cost basis / unrealised gains values will overwrite normal calculated balances
+        - Calculated cost basis / unrealised / capital gains values will overwrite normal calculated balances
           ... this is a MUTUALLY EXCLUSIVE option. When enabled, no other calculation type(s) will be included!
-          ...... (no reminders, no other non-security/investment(cash), no income / expense transactions)
-        - There can in theory be future-dated cost basis / ur-gains. Let me know how this works out for you?!
+          ...... (no reminders, no other non-security/investment(cb & cash), no income / expense transactions)
+        - There can in theory be future-dated cost basis / ur / capital gains. Let me know how this works out for you?!
         - Current Balance will derive the cost basis asof today.
         - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance               ** WARNING **
 
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
+
+        - WARNING: 'Use Tax Dates' will be ignored when returning any of the cost basis options!
+
+- Securities Capital Gains: This option only appears when return capital gains is selected.
 
 - INC/EXP Date Range: Income/Expense Categories need a date range to provide a balance.
                       Otherwise they have entries for all dates. (Details below)
@@ -267,7 +292,7 @@ OPTIONS MENU:
   - Use Indian numbering format: On numbers greater than 10,000 group in powers of 100 (e.g. 10,00,000 not 1,000,000)
   - Use Tax Dates: When selected then all calculations based on Income/Expense categories will use the Tax Date.
                    WARNING: tax dates cannot be derived when including:
-                            - reminders,  cost basis / ur-gains, or when using 'balance asof dates'.
+                            - reminders,  cost basis / ur-gains / capital gains, or when using 'balance asof dates'.
                             ... as such, the 'normal' transaction date will be used.
   - Display underline dots: Display 'underline' dots that fill the blank space between row names and values
 
@@ -368,24 +393,36 @@ ROW NAME FORMATTING:
 
 - ROW NAME Configuration Options:
   - You can embed the following text (lowercase) in the Row Name field to configure the row / total (value) as follows:
-    <#brn>  = Forces row name to be blank/empty
-    <#jr>   = Row name justify: right
-    <#jc>   = Row name justify: center
-    <#cre>  = Row name colour:  red
-    <#cbl>  = Row name colour:  blue
-    <#cgr>  = Row name colour:  light grey
-    <#fbo>  = Row name font:    bold
-    <#fun>  = Row name font:    underline
-    <#fit>  = Row name font:    italics
-    <#bzv>  = Forces any total (value) to appear blank when zero
+    <#brn>   = Forces row name to be blank/empty
+    <#jr>    = Row name justify: right
+    <#jc>    = Row name justify: center
+    <#cre>   = Row name colour:  red
+    <#cbl>   = Row name colour:  blue
+    <#cgr>   = Row name colour:  light grey
+    <#fbo>   = Row name font:    bold
+    <#fun>   = Row name font:    underline
+    <#fit>   = Row name font:    italics
+    <#bzv>   = Forces any total (value) to appear blank when zero
     <#cvre>  = Value colour:  red
     <#cvbl>  = Value colour:  blue
     <#cvgr>  = Value colour:  light grey
     <#fvbo>  = Value font:    bold
     <#fvun>  = Value font:    underline
     <#fvit>  = Value font:    italics
-    <#nud>  = No special underline dots...
-    <#fud>  = Force special underline dots...
+    <#nud>   = No special underline dots...
+    <#fud>   = Force special underline dots...
+
+  - You can embed the following to insert variable text into the Row Name field:
+    <##rn>    = insert the row number
+    <##bopt>  = insert the balance option selected
+    <##bad>   = insert the balance asof date
+    <##badn>  = insert the balance asof date name
+    <##rad>   = insert the include reminders asof date
+    <##radn>  = insert the include reminders asof date name
+    <##cgdr>  = insert the capital gains date range
+    <##cgdrn> = insert the capital gains date range name
+    <##iedr>  = insert the income/expense date range
+    <##iedrn> = insert the income/expense date range name
 
     NOTE: Underline dots will always be turned off if you justify center the text...
 
@@ -465,7 +502,8 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
 
 >> PARALLEL BALANCES:
     - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts
-      ... used by that row: Balance asof date; Income/Expense date range; Cost Basis / Unrealised Gains; incl. Reminders
+      ... used by that row: Balance asof date; Income/Expense date range; Cost Basis / Unrealised Gains / Capital Gains;
+      ...  including Reminders...
 
     - The sequence of harvesting data / calculating balances for rows using parallel balances is as follows:
         # 1. per row, gather all selected accounts along with all child/sub accounts...
@@ -473,11 +511,11 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
         # 3. convert the harvested I/E txn table into account balances...
         # 4. for all accounts / balances not derived by steps 2 & 3, calculate balance asof dates (where requested)...
         # 5. for all accounts / balances not derived by steps 2, 3 & 4, harvest remaining Account's real balance(s)...
-        # 6. replace balance(s) with cost basis / unrealised gains on security accounts (where requested)...
+        # 6. replace balance(s) with cost basis / unrealised / capital gains on security accounts (where requested)...
         # 7. for all accounts selected, add reminder txn/balances upto the reminder's asof date (where requested).
 
-    - NOTE: When cost basis / unrealised gains is enabled, all other steps are skipped >> MUTUALLY EXCLUSIVE option!
-            (i.e. no reminders, income / expense transactions, no non-security/investment(cash) accounts
+    - NOTE: When cost basis / unrealised / capital gains is enabled, all other steps are skipped >> MUTUALLY EXCLUSIVE!
+            (i.e. no reminders, income / expense transactions, no non-security/investment(cb & cash) accounts
 
     - NOTE: For the Summary Screen (Home Page), only selected accounts use parallel balances...
             But when using the configuration GUI, then all Accounts for the viewed row will use parallel balances...
@@ -485,11 +523,32 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
     - WARNING: Parallel operations calculate by sweeping through transactions and calculating balances from scratch
                Balance asof dates & I/E date ranges harvest transactions...
                Future reminders are forward calculated...
-               Cost Basis / Unrealised Gains sweep Buy/Sell txns... (possibly twice for Balance vs Current Balance)
+               Cost Basis / Unrealised / Capital Gains sweep Buy/Sell txns... (possibly twice for Bal vs Current Bal)
                Remaining real balances, sweep accounts and uses the Account's real stored balance(s)
                ALL THIS CAN POTENTIALLY BE CPU CONSUMING. Do not use the widget for heavy reporting purposes!
                No harm will be caused, but these rows may take a few seconds to calculate / appear....
 
+
+NOTES ON COST BASIS (in Moneydance):
+Cost basis can appear in multiple places. They are not all calculated the same way. For example:
+- Investment account: Portfolio View tab (PVT)
+- Cost Basis report (CBR)
+- Portfolio report (PR)
+- Investment Performance report (IPR)
+- Capital Gains report (CGR)
+
+Particularly for 'Average Cost' controlled securities, PVT and PR use the new CostCalculation engine and this tends to
+give a more accurate result. However, for securities with stock 'splits', this new engine has flaws and the CBR often
+gives better results. In particular for average cost, Buy/Sell zero sells with a fee, and also MiscInc/Exp with a fee
+can be used to adjust the cost basis and the new engine accounts for this.
+
+For 'Lot Control' securities, the original calculation method is used consistantly for all screens/reports. But again,
+there can be issues in some places.
+
+Custom Balances uses a new cost calculation engine that has been recoded/fixed to account for known issues with cost
+basis calculations in MD. Hence, the calculated cost basis won't consistently match with all MD screens/reports. However
+you should find that it will normally match with one of the items mentioned above for reconciliation purposes. If you do
+find an issue with CB's calcualtion, please let the author know (along with details on how to reproduce the problem).
 
 
 TECHNICAL/HISTORICAL NOTES:
