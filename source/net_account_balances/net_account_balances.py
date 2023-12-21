@@ -115,6 +115,8 @@
 # build: 1042 - Bumping the build number.... for new return capital gains (within range) option...
 #               Added row name insert variables - e.g. <##rn> for row number
 
+# todo - show CG long/short-term too..
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -5466,20 +5468,23 @@ Visit: %s (Author's site)
             else: raise Exception("Unknown balance option (%s)?!" %(balOption))
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_BAL_OPTION] = balOptionTxt
 
-            balAsOfDate = getBalanceAsOfDateSelected(balAsOfDateSettings)
+            balAsOfDate = getBalanceAsOfDateSelected(balAsOfDateSettings, balOption)
             if balAsOfDate == 0:
-                balAsOfDateTxt = "future"
-                balAsOfDateChoice = AsOfDateChooser.AsOfDateChoice("future", "future", 0)
+                if balOption == GlobalVars.BALTYPE_CURRENTBALANCE:
+                    balAsOfDateTxt = "default(today)"
+                else:
+                    balAsOfDateTxt = "default(future)"
+                balAsOfDateChoice = AsOfDateChooser.AsOfDateChoice(balAsOfDateTxt, balAsOfDateTxt, 0)
             else:
                 balAsOfDateTxt = convertStrippedIntDateFormattedText(balAsOfDate)
                 balAsOfDateChoice = AsOfDateChooser.createAsOfDateChoiceFromKey(balAsOfDateSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX])
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_BAL_ASOF_DATE] = balAsOfDateTxt
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_BAL_ASOF_DATE_NAME] = balAsOfDateChoice.getDisplayName()
 
-            remAsOfDate = getIncludeRemindersAsOfDateSelected(remAsOfDateSettings)
+            remAsOfDate = getIncludeRemindersAsOfDateSelected(remAsOfDateSettings, balOption)
             if remAsOfDate == 0:
-                remAsOfDateTxt = "future"
-                remAsOfDateChoice = AsOfDateChooser.AsOfDateChoice("future", "future", 0)
+                remAsOfDateTxt = "not enabled"
+                remAsOfDateChoice = AsOfDateChooser.AsOfDateChoice(remAsOfDateTxt, remAsOfDateTxt, 0)
             else:
                 remAsOfDateTxt = convertStrippedIntDateFormattedText(remAsOfDate)
                 remAsOfDateChoice = AsOfDateChooser.createAsOfDateChoiceFromKey(remAsOfDateSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX])
@@ -5488,7 +5493,7 @@ Visit: %s (Author's site)
 
             if cgDateRangeSettings[GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_CAPITALGAINS:
                 cgDateRangeTxt = "not enabled"
-                cgDateRangeChoice = AsOfDateChooser.AsOfDateChoice("not enabled", "not enabled", 0)
+                cgDateRangeChoice = AsOfDateChooser.AsOfDateChoice(cgDateRangeTxt, cgDateRangeTxt, 0)
             else:
                 cgDateRange = getCapitalGainsDateRangeSelected(cgDateRangeSettings, balOption, True)
                 cgDateRangeTxt = convertStrippedIntDateFormattedText(cgDateRange.getStartDateInt()) + " - " + convertStrippedIntDateFormattedText(cgDateRange.getEndDateInt())
@@ -7141,14 +7146,14 @@ Visit: %s (Author's site)
 
     def fixDateRangeEndDateUsingBalType(_dr, _balType):
         # type: (DateRange, int) -> DateRange
-        """Retrieve the right Income/Expense end date (depends on Balance Option set - smaller of date/today when Current Balance)"""
+        """Retrieve the right end date (depends on Balance Option set - smaller of date/today when Current Balance)"""
         _originalEndDateInt = _dr.getEndDateInt()
         minDateInt = min(DateUtil.getStrippedDateInt(), _originalEndDateInt)
         newEndDateInt = (minDateInt if (_balType == GlobalVars.BALTYPE_CURRENTBALANCE) else _originalEndDateInt)
         return DateRange(Integer(_dr.getStartDateInt()), Integer(newEndDateInt))
 
-    def getBalanceAsOfDateSelected(rowBalanceAsOfDateSettings):
-        # type: ([bool, str, int, int]) -> int
+    def getBalanceAsOfDateSelected(rowBalanceAsOfDateSettings, adjForBalType=None):
+        # type: ([bool, str, int, int], bool) -> int
         _fromAsOfWanted = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
         _fromAsOfKey = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
         _fromCustomAsOfDateInt = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
@@ -7163,10 +7168,18 @@ Visit: %s (Author's site)
                 asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromSkipBackPeriods)
         else:
             asOfDateInt = 0
+
+        if asOfDateInt != 0 and adjForBalType is not None:
+            # myPrint("DB", "@@@ pre-date asOfDateInt was: %s" %(asOfDateInt))
+            asOfDateInt = fixAsOfDateUsingBalType(asOfDateInt, adjForBalType)                                           # type: int
+            # myPrint("DB", "..... '%s' asOfDateInt adjusted to: %s according to balType: '%s'" %(_fromAsOfKey, asOfDateInt, adjForBalType))
+
+        if debug: myPrint("B", "....... (balance adjusted as '%s' = '%s')" %(_fromAsOfKey, asOfDateInt))
+
         return asOfDateInt
 
-    def getIncludeRemindersAsOfDateSelected(rowIncludeRemindersAsOfSettings):
-        # type: ([bool, str, int, int]) -> int
+    def getIncludeRemindersAsOfDateSelected(rowIncludeRemindersAsOfSettings, adjForBalType=None):
+        # type: ([bool, str, int, int], bool) -> int
         _fromAsOfWanted = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
         _fromAsOfKey = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_KEY_IDX]
         _fromCustomAsOfDateInt = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_DATEINT_IDX]
@@ -7181,7 +7194,22 @@ Visit: %s (Author's site)
                 asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(_fromAsOfKey, _fromSkipBackPeriods)
         else:
             asOfDateInt = 0
+
+        if asOfDateInt != 0 and adjForBalType is not None:
+            # myPrint("DB", "@@@ pre-date asOfDateInt was: %s" %(asOfDateInt))
+            asOfDateInt = fixAsOfDateUsingBalType(asOfDateInt, adjForBalType)                                           # type: int
+            # myPrint("DB", "..... '%s' asOfDateInt adjusted to: %s according to balType: '%s'" %(_fromAsOfKey, asOfDateInt, adjForBalType))
+
+        if debug: myPrint("B", "....... (balance adjusted as '%s' = '%s')" %(_fromAsOfKey, asOfDateInt))
+
         return asOfDateInt
+
+    def fixAsOfDateUsingBalType(asof, _balType):
+        # type: (int, int) -> int
+        """Retrieve the right asof date (depends on Balance Option set - smaller of asof date/today when Current Balance)"""
+        minDateInt = min(DateUtil.getStrippedDateInt(), asof)
+        newAsOfDateInt = (minDateInt if (_balType == GlobalVars.BALTYPE_CURRENTBALANCE) else asof)
+        return newAsOfDateInt
 
     def updateParallelTableWithTxn(_txn, _table, _dateRangeArray, selectIncExp):
         # type: (AbstractTxn, [{Account: [AbstractTxn]}], [DateRange], bool) -> None
@@ -7742,7 +7770,7 @@ Visit: %s (Author's site)
         _asofDateRangeArray = buildEmptyDateRangeArray()
         for iRowIdx in range(0, len(asofBalanceTxnTable)):
             if len(asofBalanceTxnTable[iRowIdx]) < 1: continue              # If no Accounts in the table for this row, then just ignore/skip
-            _asofDateRangeArray[iRowIdx] = DateRange()      # Dummy range
+            _asofDateRangeArray[iRowIdx] = DateRange()                      # Dummy range
 
         if swClass and swClass.isCancelled(): return
 
@@ -7799,7 +7827,7 @@ Visit: %s (Author's site)
                 if swClass and swClass.isCancelled(): return
 
                 acctTxns = asofBalanceTxnTable[iRowIdx][acct]
-                balance = getBalanceAsOfDate(book, acct, balAsOfDate, True, swClass, acctTxns)
+                balance = getBalanceAsOfDate(book, acct, balAsOfDate, True, swClass, acctTxns)  # NOTE: we have already filtered out rows where asof date is not required above..
 
                 balanceObj = HoldBalance(acct, (True if lBuildParallelTable else NAB.savedAutoSumAccounts[iRowIdx]))
                 balanceObj.setParallelBalanceAsOfDateBalances(True)
@@ -7880,7 +7908,7 @@ Visit: %s (Author's site)
                 if isUseCostBasisSelected(iRowIdx):         # When selecting cost basis / ur / capital gains, only allow Invest(when cb & cash)/Security accounts
                     if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
 
-                acctBalLong = AccountUtil.getBalanceAsOfDate(book, acct, balAsOfDate, True)
+                acctBalLong = AccountUtil.getBalanceAsOfDate(book, acct, balAsOfDate, True)    # NOTE: we have already filtered out rows where asof date is not required above..
 
                 # acctBalLongMyVersion = getBalanceAsOfDate(book, acct, balAsOfDate, True, swClass, None)
                 #
@@ -10265,7 +10293,7 @@ Visit: %s (Author's site)
             dateFormat = NAB.moneydanceContext.getPreferences().getShortDateFormat()
 
             todayInt = DateUtil.getStrippedDateInt()
-            asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[_rowIdx])
+            asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[_rowIdx], NAB.savedBalanceType[_rowIdx])
             if asOfBalDateInt == 0: asOfBalDateInt = todayInt
             latestDate = min(todayInt, asOfBalDateInt)
 
@@ -10320,7 +10348,7 @@ Visit: %s (Author's site)
         def setBalanceAsOfDateControls(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
             if NAB.savedHideControlPanel: return
-            shouldHideControls = False
+            shouldHideControls = True
             NAB.getSelectedRowIndex()
             shouldShow = NAB.savedBalanceAsOfDateTable[_rowIdx][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
             NAB.asOfDateChooser_AODC.setEnabled(shouldShow, shouldHideControls)
@@ -10328,7 +10356,7 @@ Visit: %s (Author's site)
         def setIncludeRemindersDateControls(self, _rowIdx):
             NAB = NetAccountBalancesExtension.getNAB()
             if NAB.savedHideControlPanel: return
-            shouldHideControls = False
+            shouldHideControls = True
             NAB.getSelectedRowIndex()
             shouldShow = NAB.savedIncludeRemindersTable[_rowIdx][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
             NAB.includeRemindersChooser_AODC.setEnabled(shouldShow, shouldHideControls)
@@ -15660,7 +15688,7 @@ Visit: %s (Author's site)
 
                         # DETECT ILLOGICAL CALCULATIONS
                         if debug or NAB.savedShowWarningsTable[iAccountLoop]:
-                            asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop])
+                            asOfBalDateInt = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iAccountLoop], NAB.savedBalanceType[iAccountLoop])
                             if ((iCountIncomeExpense and (iCountAccounts)) or (iCountSecurities and (iCountIncomeExpense))):
                                 lWarningDetected = True
                                 iWarningType = (4 if (iWarningType is None or iWarningType == 4) else 0)
@@ -15711,8 +15739,9 @@ Visit: %s (Author's site)
                                             iWarningType = (15 if (iWarningType is None or iWarningType == 15) else 0)
                                             iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
 
-                                            warnTxt = ("WARNING: Row: %s >> Security's capital gains date range exceeds asof balance date. Txns/Gains after asof date will be excluded! Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
-                                                       %(onRow, iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
+                                            warnTxt = ("WARNING: Row: %s >> Security's capital gains date range (%s - %s) exceeds asof balance date (%s). Txns/Gains after asof date will be excluded! Accts: %s, NonInvestAccts: %s, Securities: %s, I/E Categories: %s"
+                                                       %(onRow, convertStrippedIntDateFormattedText(dateRange.getStartDateInt()), convertStrippedIntDateFormattedText(dateRange.getEndDateInt()), convertStrippedIntDateFormattedText(_asof),
+                                                         iCountAccounts, iCountNonInvestAccounts, iCountSecurities, iCountIncomeExpense))
                                             myPrint("B", warnTxt)
                                             NAB.warningMessagesTable.append(warnTxt)
                                     del _asof
