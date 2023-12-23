@@ -79,6 +79,7 @@
 # build: 1029 - Tweaked cell renderer(s) for padding and highlighted colour...
 # build: 1029 - Replace look forward days with AsOfDateChooser; Fixed Menu Reset Sort...
 
+# todo - @he "Include subtotals / totals. Would be nice if user could select what to subtotal (by date / by account for sure)"
 # todo - Add the fields from extract_data:extract_reminders, with options future on/off, hide / select columns etc
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
