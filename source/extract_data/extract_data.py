@@ -147,6 +147,7 @@
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
+# todo - LFR: switch to AsOfDateChooser for look forward days (instead of just a days = number)
 # todo - Consider StockGlance2020 asof balance date...
 # todo - extract budget data?
 # todo - import excel writer?
