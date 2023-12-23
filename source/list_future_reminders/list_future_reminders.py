@@ -3724,7 +3724,7 @@ Visit: %s (Author's site)
         def getAsOfDateInt(self):
             if self.asOfDateIntResult is None: self.asOfSelected()
             # return Integer(self.asOfDateIntResult)
-            return Integer(self.asOfDateIntResult).intValue()       # todo - fix!
+            return Integer(self.asOfDateIntResult).intValue()
 
         def setSkipBackPeriods(self, skipBackPeriods):
             self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)

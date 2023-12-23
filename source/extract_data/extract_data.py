@@ -137,7 +137,7 @@
 #               Common code - FileFilter fix...; put options into scrollpane (was cutting off screen)
 # build: 1038 - Modernised code, removed globals, use own settings file, revamped GUI and file/folder selection procedure
 #               New extensions menu option - run SG2020 / Reminders; removed 'from java.awt.print.Book import'
-# build: 1039 - Enhanced extract_security_balances with asof date, and cash values (inlcudes snazzy CostCalculation with asof date).
+# build: 1039 - Enhanced extract_security_balances with asof date, and cash values (includes snazzy CostCalculation with asof date).
 #               Added extract account balances...
 # build: 1040 - Fix file chooser on Windows - could not select Folder...
 # build: 1041 - Fix .getCostBasisAsOf() and the call to cope with builds prior to 5008 (CostCalculation not accessible).
