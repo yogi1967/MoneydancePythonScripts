@@ -144,6 +144,7 @@
 #               NOTE: On builds prior to 5008, zero costbasis will be returned.
 #               Tweak cell renderer(s) in SG2020 and Extract Reminders to fix cell padding and highlighted colors...
 #               Introduced MyCostCalculation...
+#               Added Date Entered, Sync Date, reconciled date, reconciled asof dates into EAR and EIT extracts...
 
 # todo - EAR: Switch to 'proper' usage of DateRangeChooser() (rather than my own 'copy')
 
@@ -10066,28 +10067,32 @@ Visit: %s (Author's site)
                                         "_ACCOUNT":                 [1,  "Account"],
                                         "_DATE":                    [2,  "Date"],
                                         "_TAXDATE":                 [3,  "TaxDate"],
-                                        "_CURR":                    [4,  "Currency"],
-                                        "_CHEQUE":                  [5,  "Cheque"],
-                                        "_DESC":                    [6,  "Description"],
-                                        "_MEMO":                    [7,  "Memo"],
-                                        "_CLEARED":                 [8,  "Cleared"],
-                                        "_TOTALAMOUNT":             [9,  "TotalAmount"],
-                                        "_FOREIGNTOTALAMOUNT":      [10, "ForeignTotalAmount"],
-                                        "_PARENTTAGS":              [11, "ParentTags"],
-                                        "_PARENTHASATTACHMENTS":    [12, "ParentHasAttachments"],
-                                        "_SPLITIDX":                [13, "SplitIndex"],
-                                        "_SPLITMEMO":               [14, "SplitMemo"],
-                                        "_SPLITCAT":                [15, "SplitCategory"],
-                                        "_SPLITAMOUNT":             [16, "SplitAmount"],
-                                        "_FOREIGNSPLITAMOUNT":      [17, "ForeignSplitAmount"],
-                                        "_SPLITTAGS":               [18, "SplitTags"],
-                                        "_ISTRANSFERTOACCT":        [19, "isTransferToAnotherAccount"],
-                                        "_ISTRANSFERSELECTED":      [20, "isTransferWithinThisExtract"],
-                                        "_SPLITHASATTACHMENTS":     [21, "SplitHasAttachments"],
-                                        "_ATTACHMENTLINK":          [22, "AttachmentLink"],
-                                        "_ATTACHMENTLINKREL":       [23, "AttachmentLinkRelative"],
-                                        "_KEY":                     [24, "Key"],
-                                        "_END":                     [25, "_END"]
+                                        "_DATE_ENTERED":            [4,  "DateEntered"],
+                                        "_SYNC_DATE":               [5,  "SyncDate"],
+                                        "_RECONCILED_DATE":         [6,  "ReconciledDate"],
+                                        "_RECONCILED_ASOF":         [7,  "ReconciledAsOf"],
+                                        "_CURR":                    [8,  "Currency"],
+                                        "_CHEQUE":                  [9,  "Cheque"],
+                                        "_DESC":                    [10, "Description"],
+                                        "_MEMO":                    [11, "Memo"],
+                                        "_CLEARED":                 [12, "Cleared"],
+                                        "_TOTALAMOUNT":             [13, "TotalAmount"],
+                                        "_FOREIGNTOTALAMOUNT":      [14, "ForeignTotalAmount"],
+                                        "_PARENTTAGS":              [15, "ParentTags"],
+                                        "_PARENTHASATTACHMENTS":    [16, "ParentHasAttachments"],
+                                        "_SPLITIDX":                [17, "SplitIndex"],
+                                        "_SPLITMEMO":               [18, "SplitMemo"],
+                                        "_SPLITCAT":                [19, "SplitCategory"],
+                                        "_SPLITAMOUNT":             [20, "SplitAmount"],
+                                        "_FOREIGNSPLITAMOUNT":      [21, "ForeignSplitAmount"],
+                                        "_SPLITTAGS":               [22, "SplitTags"],
+                                        "_ISTRANSFERTOACCT":        [23, "isTransferToAnotherAccount"],
+                                        "_ISTRANSFERSELECTED":      [24, "isTransferWithinThisExtract"],
+                                        "_SPLITHASATTACHMENTS":     [25, "SplitHasAttachments"],
+                                        "_ATTACHMENTLINK":          [26, "AttachmentLink"],
+                                        "_ATTACHMENTLINKREL":       [27, "AttachmentLinkRelative"],
+                                        "_KEY":                     [28, "Key"],
+                                        "_END":                     [29, "_END"]
                                     }
 
                                     GlobalVars.transactionTable = []
@@ -10238,8 +10243,26 @@ Visit: %s (Author's site)
                                         _row[GlobalVars.dataKeys["_ACCOUNT"][_COLUMN]] = txnAcct.getFullAccountName()
                                         _row[GlobalVars.dataKeys["_CURR"][_COLUMN]] = acctCurr.getIDString()
                                         _row[GlobalVars.dataKeys["_DATE"][_COLUMN]] = txn.getDateInt()
+
                                         if parent_Txn.getTaxDateInt() != txn.getDateInt():
                                             _row[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]] = txn.getTaxDateInt()
+
+                                        dtEntered = txn.getDateEntered()
+                                        if dtEntered is not None and dtEntered != 0:
+                                            _row[GlobalVars.dataKeys["_DATE_ENTERED"][_COLUMN]] = DateUtil.convertLongDateToInt(dtEntered)
+
+                                        syncTimestamp = txn.getSyncTimestamp()
+                                        if syncTimestamp is None or syncTimestamp == 0: syncTimestamp = parent_Txn.getSyncTimestamp()
+                                        if syncTimestamp is not None and syncTimestamp != 0:
+                                            _row[GlobalVars.dataKeys["_SYNC_DATE"][_COLUMN]] = DateUtil.convertLongDateToInt(syncTimestamp)
+
+                                        reconciledDate = txn.getLongParameter("rec_dt", 0)
+                                        if reconciledDate is not None and reconciledDate != 0:
+                                            _row[GlobalVars.dataKeys["_RECONCILED_DATE"][_COLUMN]] = DateUtil.convertLongDateToInt(reconciledDate)
+
+                                        reconciledAsOf = txn.getIntParameter("rec_asof", 0)
+                                        if reconciledAsOf is not None and reconciledAsOf != 0:
+                                            _row[GlobalVars.dataKeys["_RECONCILED_ASOF"][_COLUMN]] = reconciledAsOf
 
                                         _row[GlobalVars.dataKeys["_CHEQUE"][_COLUMN]] = txn.getCheckNumber()
 
@@ -10561,14 +10584,12 @@ Visit: %s (Author's site)
 
                                         myPrint("DB", _THIS_EXTRACT_NAME + "Now pre-processing the file to convert integer dates and strip non-ASCII if requested....")
                                         for _theRow in GlobalVars.transactionTable:
-                                            dateasdate = datetime.datetime.strptime(str(_theRow[GlobalVars.dataKeys["_DATE"][_COLUMN]]), "%Y%m%d")  # Convert to Date field
-                                            _dateoutput = dateasdate.strftime(GlobalVars.saved_extractDateFormat_SWSS)
-                                            _theRow[GlobalVars.dataKeys["_DATE"][_COLUMN]] = _dateoutput
 
-                                            if _theRow[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]]:
-                                                dateasdate = datetime.datetime.strptime(str(_theRow[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]]), "%Y%m%d")  # Convert to Date field
-                                                _dateoutput = dateasdate.strftime(GlobalVars.saved_extractDateFormat_SWSS)
-                                                _theRow[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]] = _dateoutput
+                                            for convColumn in ["_DATE", "_TAXDATE", "_DATE_ENTERED", "_SYNC_DATE", "_RECONCILED_DATE", "_RECONCILED_ASOF"]:
+                                                if _theRow[GlobalVars.dataKeys[convColumn][_COLUMN]]:
+                                                    dateasdate = datetime.datetime.strptime(str(_theRow[GlobalVars.dataKeys[convColumn][_COLUMN]]), "%Y%m%d")  # Convert to Date field
+                                                    _dateoutput = dateasdate.strftime(GlobalVars.saved_extractDateFormat_SWSS)
+                                                    _theRow[GlobalVars.dataKeys[convColumn][_COLUMN]] = _dateoutput
 
                                             for col in range(0, GlobalVars.dataKeys["_ATTACHMENTLINK"][_COLUMN]):  # DO NOT MESS WITH ATTACHMENT LINK NAMES!!
                                                 _theRow[col] = fixFormatsStr(_theRow[col])
@@ -11040,6 +11061,10 @@ Visit: %s (Author's site)
                                     GlobalVars.dataKeys["_ACCOUNT"]             = [dki, "Account"];                   dki += 1
                                     GlobalVars.dataKeys["_DATE"]                = [dki, "Date"];                      dki += 1
                                     GlobalVars.dataKeys["_TAXDATE"]             = [dki, "TaxDate"];                   dki += 1
+                                    GlobalVars.dataKeys["_DATE_ENTERED"]        = [dki, "DateEntered"];               dki += 1
+                                    GlobalVars.dataKeys["_SYNC_DATE"]           = [dki, "SyncDate"];                  dki += 1
+                                    GlobalVars.dataKeys["_RECONCILED_DATE"]     = [dki, "ReconciledDate"];            dki += 1
+                                    GlobalVars.dataKeys["_RECONCILED_ASOF"]     = [dki, "ReconciledAsOf"];            dki += 1
                                     GlobalVars.dataKeys["_CURR"]                = [dki, "Currency"];                  dki += 1
                                     GlobalVars.dataKeys["_SECURITY"]            = [dki, "Security"];                  dki += 1
                                     GlobalVars.dataKeys["_SECURITYID"]          = [dki, "SecurityID"];                dki += 1
@@ -11252,8 +11277,26 @@ Visit: %s (Author's site)
                                         _row[GlobalVars.dataKeys["_CURR"][_COLUMN]] = acctCurr.getIDString()
 
                                         _row[GlobalVars.dataKeys["_DATE"][_COLUMN]] = txn.getDateInt()
+
                                         if txn.getTaxDateInt() != txn.getDateInt():
                                             _row[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]] = txn.getTaxDateInt()
+
+                                        dtEntered = txn.getDateEntered()
+                                        if dtEntered is not None and dtEntered != 0:
+                                            _row[GlobalVars.dataKeys["_DATE_ENTERED"][_COLUMN]] = DateUtil.convertLongDateToInt(dtEntered)
+
+                                        syncTimestamp = txn.getSyncTimestamp()
+                                        if syncTimestamp is None or syncTimestamp == 0: syncTimestamp = parent.getSyncTimestamp()
+                                        if syncTimestamp is not None and syncTimestamp != 0:
+                                            _row[GlobalVars.dataKeys["_SYNC_DATE"][_COLUMN]] = DateUtil.convertLongDateToInt(syncTimestamp)
+
+                                        reconciledDate = txn.getLongParameter("rec_dt", 0)
+                                        if reconciledDate is not None and reconciledDate != 0:
+                                            _row[GlobalVars.dataKeys["_RECONCILED_DATE"][_COLUMN]] = DateUtil.convertLongDateToInt(reconciledDate)
+
+                                        reconciledAsOf = txn.getIntParameter("rec_asof", 0)
+                                        if reconciledAsOf is not None and reconciledAsOf != 0:
+                                            _row[GlobalVars.dataKeys["_RECONCILED_ASOF"][_COLUMN]] = reconciledAsOf
 
                                         if GlobalVars.saved_lExtractExtraSecurityAcctInfo:
                                             _row[GlobalVars.dataKeys["_SECINFO_TYPE"][_COLUMN]] = ""
@@ -11646,14 +11689,12 @@ Visit: %s (Author's site)
 
                                         myPrint("DB", _THIS_EXTRACT_NAME + "Now pre-processing the file to convert integer dates and strip non-ASCII if requested....")
                                         for _theRow in GlobalVars.transactionTable:
-                                            dateasdate = datetime.datetime.strptime(str(_theRow[GlobalVars.dataKeys["_DATE"][_COLUMN]]), "%Y%m%d")  # Convert to Date field
-                                            _dateoutput = dateasdate.strftime(GlobalVars.saved_extractDateFormat_SWSS)
-                                            _theRow[GlobalVars.dataKeys["_DATE"][_COLUMN]] = _dateoutput
 
-                                            if _theRow[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]]:
-                                                dateasdate = datetime.datetime.strptime(str(_theRow[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]]), "%Y%m%d")  # Convert to Date field
-                                                _dateoutput = dateasdate.strftime(GlobalVars.saved_extractDateFormat_SWSS)
-                                                _theRow[GlobalVars.dataKeys["_TAXDATE"][_COLUMN]] = _dateoutput
+                                            for convColumn in ["_DATE", "_TAXDATE", "_DATE_ENTERED", "_SYNC_DATE", "_RECONCILED_DATE", "_RECONCILED_ASOF"]:
+                                                if _theRow[GlobalVars.dataKeys[convColumn][_COLUMN]]:
+                                                    dateasdate = datetime.datetime.strptime(str(_theRow[GlobalVars.dataKeys[convColumn][_COLUMN]]), "%Y%m%d")  # Convert to Date field
+                                                    _dateoutput = dateasdate.strftime(GlobalVars.saved_extractDateFormat_SWSS)
+                                                    _theRow[GlobalVars.dataKeys[convColumn][_COLUMN]] = _dateoutput
 
                                             for col in range(0, GlobalVars.dataKeys["_SECSHRHOLDING"][_COLUMN]):
                                                 _theRow[col] = fixFormatsStr(_theRow[col])
