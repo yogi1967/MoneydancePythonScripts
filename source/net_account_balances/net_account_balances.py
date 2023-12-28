@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1042 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1043 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -114,8 +114,15 @@
 #               Allow all rows used within a UOR chain to calculate (even when always hide or filtered out by GroupID filter)...
 # build: 1042 - Bumping the build number.... for new return capital gains (within range) option...
 #               Added row name insert variables - e.g. <##rn> for row number
+# build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
+# build: 1043 - Added long/short-term capital gains calculations
 
-# todo - show CG long/short-term too..
+
+
+"HERE:";
+# switch incl cash to JRB
+# todo - last adj by, add * / etc
+
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -123,7 +130,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1042"
+version_build = "1043"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -588,7 +595,9 @@ else:
     GlobalVars.COSTBASIS_TYPE_NONE = 0
     GlobalVars.COSTBASIS_TYPE_CB = 1
     GlobalVars.COSTBASIS_TYPE_URGAINS = 2
-    GlobalVars.COSTBASIS_TYPE_CAPITALGAINS = 3
+    GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE = 3
+    GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SHORT = 4
+    GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG = 5
 
     GlobalVars.COSTBASIS_TYPE_IDX = 0
     GlobalVars.COSTBASIS_INCLUDE_CASH_IDX = 1
@@ -597,8 +606,6 @@ else:
     GlobalVars.COSTBASIS_DR_START_KEY_IDX = 4
     GlobalVars.COSTBASIS_DR_END_KEY_IDX = 5
     GlobalVars.COSTBASIS_DR_SKIPBACKPERIODS_IDX = 6
-
-    GlobalVars.DATE_RANGE_VALID = 19000101
 
     GlobalVars.ROW_SEPARATOR_NEVER      = 0
     GlobalVars.ROW_SEPARATOR_ABOVE      = 1
@@ -3360,15 +3367,34 @@ Visit: %s (Author's site)
     # Copied from: com.infinitekind.moneydance.model.CostCalculation (quite inaccessible before build 5008, also buggy)
     ####################################################################################################################
     class MyCostCalculation:
-        """CostBasis calculation engine (v4). Copies/enhances/fixes MD CostCalculation() (asof build 5064).
+        """CostBasis calculation engine (v5). Copies/enhances/fixes MD CostCalculation() (asof build 5064).
         Params asof:None or zero = asof the most recent (future)txn date that affected the shareholding/costbasis balance.
         preparedTxns is typically used by itself to recall the class to get the current cost basis
         obtainCurrentBalanceToo is used to request that the class calls itself to also get the current/today balance too
         # (v2: LOT control fixes, v3: added isCostBasisValid(), v4: don't incl. fees on misc inc/exp in cbasis with lots),
-        # .. fixes for  capital gains to work..."""
+        # .. fixes for  capital gains to work, v5: added in short/long term support..."""
+
+        ################################################################################################################
+        # This is used to calculate the cost of a security using either the average cost or lot-based method.
+        # This can be used to produce the cost and gains (both short and long-term) for the security or for individual
+        # transactions on the security.
+        #
+        # Complies with the U.S. IRS 'single-category' average cost method. Gains are split short/long-term using FIFO.
+        # From U.S. IRS Publication 564 for 2009, under Average Basis, for the 'single-category' method:
+        #           "Even though you include all unsold shares of a fund in a single category to compute average
+        #           basis, you may have both short-term and long-term gains or losses when you sell these shares.
+        #           To determine your holding period, the shares disposed of are considered to be those acquired first."
+        #           https://www.irs.gov/pub/irs-prior/p564--2009.pdf
+        #
+        # There was a 'double-category' method which allowed you to separate short-term and long-term average cost pools,
+        # but the IRS eliminated that method on April 1, 2011. NOTE: Custom Balances does compute the available shares
+        # in both short-term and long-term pools. However this data is only shown in console when COST_DEBUG is enabled).
+        ################################################################################################################
+
+        COST_DEBUG = False
+
         def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False):
             # type: (Account, int, TxnSet, bool) -> None
-            self.COST_DEBUG = False
             todayInt = DateUtil.getStrippedDateInt()
             if (asOfDate is None or asOfDate < 19000000): asOfDate = None
             self.asOfDate = asOfDate
@@ -3440,7 +3466,7 @@ Visit: %s (Author's site)
             todayInt = DateUtil.getStrippedDateInt()
             mostRecentDateInt = todayInt
             fields = InvestFields()                                                                                     # type: InvestFields
-            for i in range(0, txns.getSize()):              # Iterate by index = newest first
+            for i in range(0, txns.getSize()):                                  # Iterate by index = newest first
                 txn = txns.getTxnAt(i)
                 dateInt = txn.getDateInt()
                 if dateInt <= todayInt: break
@@ -3474,7 +3500,7 @@ Visit: %s (Author's site)
         def getMostRecentPosition(self):                                        # Renamed method
             # type: () -> MyCostCalculation.Position
             """Returns the most recent Position. NOTE: This could in theory be future!"""
-            return self.getPositions().get(self.getPositions().size() - 1)  # NOTE: There is always a dummy first position
+            return self.getPositions().get(self.getPositions().size() - 1)      # NOTE: There is always a dummy first position
 
         def getMostRecentCostBasis(self):                                       # New method
             # type: () -> int
@@ -3501,9 +3527,9 @@ Visit: %s (Author's site)
         def addTxn(self, txn):
             # type: (AbstractTxn) -> None
             if txn.getDateInt() <= self.getAsOfDate():
-                pos = self.getCurrentPosition()
-                newPos = MyCostCalculation.Position(self, txn, pos)
-                if self.COST_DEBUG: myPrint("B", "adding position:", pos)
+                previousPos = self.getCurrentPosition()
+                newPos = MyCostCalculation.Position(self, txn, previousPos)
+                # if self.COST_DEBUG: myPrint("B", "adding position to end of position table:", newPos)
                 self.getPositions().add(newPos)
                 # ptxn = txn.getParentTxn()                                                                             # type: ParentTxn
                 self.getPositionsByBuyID().put(txn.getUUID(), newPos)  # MD Version used ptxn.getUUID()                 # todo - MDFIX
@@ -3515,6 +3541,7 @@ Visit: %s (Author's site)
             sellIdx = 0
             numPositions = self.getPositions().size()
 
+            # skim through the sell transactions and allocate buys to them on a FIFO basis
             while (sellIdx < numPositions and buyIdx < numPositions):
 
                 if (buyIdx > sellIdx):
@@ -3530,6 +3557,7 @@ Visit: %s (Author's site)
                     sellIdx += 1
                     continue
 
+                # scan for buys while there are shares to allot in this sale
                 while (buyIdx < numPositions and sell.getUnallottedSharesAdded() < 0):
                     buy = self.getPositions().get(buyIdx)                                                               # type: MyCostCalculation.Position
 
@@ -3537,18 +3565,25 @@ Visit: %s (Author's site)
                         buyIdx += 1
                         continue
 
+                    # allocate as many shares as possible from this buy transaction
+                    # but first, un-apply any splits so that we're talking about the same number shares
                     # unallottedSellShares = self.secCurr.unadjustValueForSplitsInt(sell.getDate(), -sell.getUnallottedSharesAdded(), buy.getDate())
                     unallottedSellShares = self.secCurr.unadjustValueForSplitsInt(buy.getDate(), -sell.getUnallottedSharesAdded(), sell.getDate())  # todo - MDFIX
                     sharesFromBuy = Math.min(unallottedSellShares, buy.getUnallottedSharesAdded())
                     sharesFromBuyAdjusted = self.secCurr.adjustValueForSplitsInt(buy.getDate(), sharesFromBuy, sell.getDate())
+
+                    # ensure sharesFromBuyAdjusted never go to zero (for example, from adjusting a small amount from a split),
+                    # because then no more allocations are made
                     if (sharesFromBuyAdjusted == 0 and sharesFromBuy != 0):
                         sharesFromBuyAdjusted = (-1 if (sharesFromBuy < 0) else 1)
 
                     if (sharesFromBuy != 0):
+                        matchedBuyCostBasis = Math.round(buy.getCostBasis() * (float(sharesFromBuy) / float(buy.getSharesAdded())))
                         sell.setUnallottedSharesAdded(sell.getUnallottedSharesAdded() + sharesFromBuyAdjusted)
                         buy.setUnallottedSharesAdded(buy.getUnallottedSharesAdded() - sharesFromBuy)
-                        sell.getBuyAllocations().add(MyCostCalculation.Allocation(self, sharesFromBuyAdjusted, sharesFromBuy, buy))
-                        buy.getSellAllocations().add(MyCostCalculation.Allocation(self, sharesFromBuy, sharesFromBuyAdjusted, sell))
+                        sell.getBuyAllocations().add(MyCostCalculation.Allocation(self, sharesFromBuyAdjusted, sharesFromBuy, matchedBuyCostBasis, buy))
+                        buy.getSellAllocations().add(MyCostCalculation.Allocation(self, sharesFromBuy, sharesFromBuyAdjusted, matchedBuyCostBasis, sell))
+                        if self.COST_DEBUG: myPrint("B", ".... . matchedBuyCostBasis: %s" %(self.investCurr.getDoubleValue(matchedBuyCostBasis)))
 
                     if (buy.getUnallottedSharesAdded() == 0):
                         buyIdx += 1
@@ -3583,7 +3618,10 @@ Visit: %s (Author's site)
                             if self.COST_DEBUG: myPrint("B", ".... (lot matched) lotMatchedBoughtShares: %s, (lot matched) lotMatchedBoughtSharesAdjusted: %s"
                                                         %(self.secCurr.getDoubleValue(lotMatchedBoughtShares), self.secCurr.getDoubleValue(lotMatchedBoughtSharesAdjusted)))
 
-                            sellPosition.getBuyAllocations().add(MyCostCalculation.Allocation(self, lotMatchedBoughtSharesAdjusted, lotMatchedBoughtShares, lotMatchedBoughtPos))   # todo - MDFIX
+                            matchedBuyCostBasis = Math.round(lotMatchedBoughtPos.getCostBasis() * (float(lotMatchedBoughtSharesAdjusted) / float(lotMatchedBoughtPos.getSharesAdded())))
+
+                            sellPosition.getBuyAllocations().add(MyCostCalculation.Allocation(self, lotMatchedBoughtSharesAdjusted, lotMatchedBoughtShares, matchedBuyCostBasis, lotMatchedBoughtPos))   # todo - MDFIX
+                            if self.COST_DEBUG: myPrint("B", ".... 0. matchedBuyCostBasis: %s" %(self.investCurr.getDoubleValue(matchedBuyCostBasis)))
 
                             if self.COST_DEBUG: myPrint("B", ".... 1. PRE  - sellPosition.getUnallottedSharesAdded: %s, lotMatchedBoughtShares: %s"
                                                         %(self.secCurr.getDoubleValue(sellPosition.getUnallottedSharesAdded()), self.secCurr.getDoubleValue(lotMatchedBoughtShares)))
@@ -3592,7 +3630,7 @@ Visit: %s (Author's site)
 
                             if self.COST_DEBUG: myPrint("B", ".... 2. POST - sellPosition.getUnallottedSharesAdded: %s" %(self.secCurr.getDoubleValue(sellPosition.getUnallottedSharesAdded())))
 
-                            lotMatchedBoughtPos.getSellAllocations().add(MyCostCalculation.Allocation(self, lotMatchedBoughtShares, lotMatchedBoughtSharesAdjusted, sellPosition))
+                            lotMatchedBoughtPos.getSellAllocations().add(MyCostCalculation.Allocation(self, lotMatchedBoughtShares, lotMatchedBoughtSharesAdjusted, matchedBuyCostBasis, sellPosition))
 
                             if self.COST_DEBUG: myPrint("B", ".... 3. PRE  - lotMatchedBoughtPos.getUnallottedSharesAdded: %s, lotMatchedBoughtSharesAdjusted: %s"
                                                         %(self.secCurr.getDoubleValue(lotMatchedBoughtPos.getUnallottedSharesAdded()), self.secCurr.getDoubleValue(lotMatchedBoughtSharesAdjusted)))
@@ -3625,27 +3663,30 @@ Visit: %s (Author's site)
                     if self.COST_DEBUG: myPrint("B", "...... isSell!")
                     totMatchedBuyCostBasis = 0
                     for buyAllocation in pos.getBuyAllocations():
-                        if self.COST_DEBUG:myPrint("B", "...... buyAllocation:", buyAllocation)
+                        if self.COST_DEBUG: myPrint("B", "...... buyAllocation:", buyAllocation)
                         buyMatchedPos = buyAllocation.getAllocatedPosition()                                            # type: MyCostCalculation.Position
-                        if self.COST_DEBUG:myPrint("B", "...... buyMatchedPos:", buyMatchedPos)
+                        if self.COST_DEBUG: myPrint("B", "...... buyMatchedPos:", buyMatchedPos)
                         buyCostBasis = buyMatchedPos.getCostBasis()
                         buyShares = buyMatchedPos.getSharesAdded()
                         buyCostBasisPrice = 0.0 if (buyShares == 0) else self.investCurr.getDoubleValue(buyCostBasis) / self.secCurr.getDoubleValue(buyShares)
-                        if self.COST_DEBUG:myPrint("B", "...... %s * %s" %(buyCostBasisPrice,  self.secCurr.getDoubleValue(buyAllocation.getSharesAllocated())))
+                        if self.COST_DEBUG: myPrint("B", "...... %s * %s" %(buyCostBasisPrice,  self.secCurr.getDoubleValue(buyAllocation.getSharesAllocated())))
                         buyMatchedCostBasis = self.investCurr.getLongValue(buyCostBasisPrice * self.secCurr.getDoubleValue(buyAllocation.getSharesAllocated()))
-                        if self.COST_DEBUG:myPrint("B", "......... matched buy CB: %s" %(self.investCurr.getDoubleValue(buyMatchedCostBasis)))
+                        if self.COST_DEBUG: myPrint("B", "......... matched buy CB: %s" %(self.investCurr.getDoubleValue(buyMatchedCostBasis)))
                         totMatchedBuyCostBasis += buyMatchedCostBasis
                     pos.setCostBasis(-totMatchedBuyCostBasis)
-                    if self.COST_DEBUG:myPrint("B", "...... setting sellPos CostBasis to: %s" %(self.investCurr.getDoubleValue(pos.getCostBasis())))
+                    if self.COST_DEBUG: myPrint("B", "...... setting sellPos CostBasis to: %s" %(self.investCurr.getDoubleValue(pos.getCostBasis())))
 
                 if not pos.isMiscIncExpTxn():   # Assume that for LOT controlled, we do not add misc inc/exp fee into costbasis (as the cb cannot be assigned to any lot!)
                     runningCostBasis += pos.getCostBasis()
 
                 pos.setRunningCost(runningCostBasis)
-                if self.COST_DEBUG:myPrint("B", "... setting Pos runningCost to: %s" %(self.investCurr.getDoubleValue(pos.getRunningCost())))
+                if self.COST_DEBUG: myPrint("B", "... setting Pos runningCost to: %s" %(self.investCurr.getDoubleValue(pos.getRunningCost())))
 
         def getBasisPrice(self, asOfTxn):
             # type: (AbstractTxn) -> float
+            """Returns the cost (per share) of the shares held as of the given transaction, or as of the last
+               transaction if the given transaction is null. Returns the cost per share"""
+
             if asOfTxn is not None:
                 for pos in self.getPositions():                                                                         # type: MyCostCalculation.Position
                     if pos.getTxn() is not None and pos.getTxn() is asOfTxn:
@@ -3655,17 +3696,28 @@ Visit: %s (Author's site)
             curPos = self.getCurrentPosition()                                                                          # type: MyCostCalculation.Position
             return curPos.getBasisPrice()
 
-        def getSaleSimpleGainsForDateRange(self, dateRange):           # New method
-            # type: (DateRange) -> HoldSimpleCapitalGainTotal
+        def getSaleGainsForDateRange(self, dateRange):           # New method
+            # type: (DateRange) -> HoldCapitalGainTotal
             """Calculates / returns CapitalGainResult containing the grand total of all fields within the date requested
             NOTE: DateRange should not end after the asof date!"""
 
-            if self.COST_DEBUG: myPrint("B", ">> Calculating simple gain for '%s', DR: '%s'" %(self.getSecAccount(), dateRange))
+            gidv = self.investCurr.getDoubleValue
+            gsdv = self.secCurr.getDoubleValue
 
-            totSaleValue = 0
-            totSaleBasis = 0
-            totSaleGains = 0
+            if self.COST_DEBUG: myPrint("B", ">> Calculating gains for '%s', DR: '%s'" %(self.getSecAccount(), dateRange))
+
             totSaleShares = 0
+            totSaleSharesShort = 0
+            totSaleSharesLong = 0
+            totSaleValue = 0
+            totSaleValueShort = 0
+            totSaleValueLong = 0
+            totSaleBasis = 0
+            totSaleBasisShort = 0
+            totSaleBasisLong = 0
+            totSaleGains = 0
+            totSaleGainsShort = 0
+            totSaleGainsLong = 0
 
             # Add them all the sales gains manually...
             for pos in self.getPositions():                                     # Iterate oldest to most recent
@@ -3676,23 +3728,73 @@ Visit: %s (Author's site)
                 if not isinstance(txn, (AbstractTxn, SplitTxn)): continue
                 if not pos.isSellTxn(): continue
                 gainInfo = self.calculateGainsForPos(pos)
-                if not gainInfo.isValid(): continue                 # Sell zero shares will be invalid (no gain on this)
-                saleValue = txn.getParentAmount()                   # Gross (does not include fee)
-                saleBasis = gainInfo.getBasis()                     # We put the fee into the calculated cb
-                saleGains = (saleValue - saleBasis)
-                saleShares = (gainInfo.getShortTermShares() + gainInfo.getLongTermShares())
+                if not gainInfo.isValid(): continue                     # Sell zero shares will be invalid (no gain on this)
+
+                saleSharesShort = gainInfo.getShortTermShares()
+                saleSharesLong = gainInfo.getLongTermShares()
+                saleShares = (saleSharesShort + saleSharesLong)
+
+                saleValueGross = txn.getParentAmount()                  # Gross (does not include fee)
+                salePriceGross = self.investCurr.getDoubleValue(saleValueGross) / self.secCurr.getDoubleValue(saleShares)
+
+                # NOTE: MD puts the whole sale fee into short-term if there are any short term sales (this code copies that)
+
+                saleBasis = gainInfo.getBasis()                         # We put the fee into the calculated cb
+                saleGains = (saleValueGross - saleBasis)
+
+                saleBasisShort = gainInfo.getShortTermBasis()
+                saleBasisLong = gainInfo.getLongTermBasis()
+
+                saleValueLong = 0
+                if saleBasisLong != 0:
+                    saleValueLong = CurrencyUtil.convertValue(gainInfo.getLongTermShares(), self.secCurr, self.investCurr, salePriceGross)
+
+                saleValueShort = (saleValueGross - saleValueLong)
+
+                saleGainsShort = (saleValueShort - saleBasisShort)
+                saleGainsLong = (saleValueLong - saleBasisLong)
+
+                if self.COST_DEBUG: myPrint("B", "... "
+                                                 "saleShares: %s (short: %s, long: %s), "
+                                                 "saleValueGross: %s (short: %s, long: %s), "
+                                                 "saleBasis: %s (short: %s, long: %s), "
+                                                 "saleGains: %s (short: %s, long: %s)"
+                                            %(gsdv(saleShares),     gsdv(saleSharesShort), gsdv(saleSharesLong),
+                                              gidv(saleValueGross), gidv(saleValueShort),  gidv(saleValueLong),
+                                              gidv(saleBasis),      gidv(saleBasisShort),  gidv(saleBasisLong),
+                                              gidv(saleGains),      gidv(saleGainsShort),  gidv(saleGainsLong)))
+
                 if self.COST_DEBUG: myPrint("B", "... GAIN INFO:", gainInfo)
-                if self.COST_DEBUG: myPrint("B", "... saleValue: %s, saleBasis: %s, saleGains: %s, saleShares: %s" %(saleValue, saleBasis, saleGains, saleShares))
-                totSaleValue += (saleValue)
-                totSaleBasis += (saleBasis)
-                totSaleGains += (saleGains)
+
                 totSaleShares += (saleShares)
-            result = self.HoldSimpleCapitalGainTotal(self.getSecAccount(), self.asOfDate, dateRange, totSaleShares, totSaleValue, totSaleBasis, totSaleGains)
-            if self.COST_DEBUG: myPrint("B", ">>>> Calculated simple gain for '%s', DR: '%s' Result:" %(self.getSecAccount(), dateRange), result)
+                totSaleSharesShort += (saleSharesShort)
+                totSaleSharesLong += (saleSharesLong)
+                totSaleValue += (saleValueGross)
+                totSaleValueShort += (saleValueShort)
+                totSaleValueLong += (saleValueLong)
+                totSaleBasis += (saleBasis)
+                totSaleBasisShort += (saleBasisShort)
+                totSaleBasisLong += (saleBasisLong)
+                totSaleGains += (saleGains)
+                totSaleGainsShort += (saleGainsShort)
+                totSaleGainsLong += (saleGainsLong)
+
+            result = self.HoldCapitalGainTotal(self, self.getSecAccount(), self.asOfDate, dateRange,
+                                               totSaleShares, totSaleSharesShort, totSaleSharesLong,
+                                               totSaleValue,  totSaleValueShort,  totSaleValueLong,
+                                               totSaleBasis,  totSaleBasisShort,  totSaleBasisLong,
+                                               totSaleGains,  totSaleGainsShort, totSaleGainsLong)
+            if self.COST_DEBUG: myPrint("B", ">>>> Calculated gains for '%s', DR: '%s' Result:" %(self.getSecAccount(), dateRange), result)
             return result
 
         def getGainInfo(self, saleTxn):
             # type: (AbstractTxn) -> CapitalGainResult                                                                  # todo - MDFIX
+            """Returns the overall capital gain information specific to the given sell transaction.
+               The sell transaction must have the security as it's 'account' which means the transaction
+               must be the SplitTxn that is assigned to the security account.  If the transaction is
+               invalid or null then a zero/error capital gains is returned.
+               Returns a CapitalGainResult object with the details of the cost and gains for this transaction"""
+
             if saleTxn is None:
                 myPrint("B", "you must supply a sale txn; returning Invalid/Zeros" %(saleTxn))
                 return CapitalGainResult("sale_txn_not_specified")
@@ -3707,52 +3809,112 @@ Visit: %s (Author's site)
 
             assert pos.isSellTxn(), "LOGIC ERROR: Can only be called with a sale txn!"
 
+            gidv = self.investCurr.getDoubleValue
+            gsdv = self.secCurr.getDoubleValue
+
             if pos.getSharesAdded() == 0: return CapitalGainResult("sell_zero_shares_assume_no_gain")
 
             messageKey = None
-            # todo - check/confirm whether these below need to be adjusted/non-adjusted etc..?
-            if (pos.getSharesAdded() < 0 and pos.getSharesOwnedAsOfAsOf() <= pos.getSharesAdded()): messageKey = "sell_short"
-            
+            # if (pos.getSharesAdded() < 0 and pos.getSharesOwnedAsOfAsOf() <= pos.getSharesAdded()):                   # todo - MDFIX
+            if (pos.getSharesAddedAsOfAsOf() < 0 and pos.getSharesOwnedAsOfAsOf() < 0):
+                messageKey = "sell_short"       # Short sale: sold shares we didn't have
+                if self.COST_DEBUG: myPrint("B", ".... sell_short (sharesAdded: %s, sharesAddedAsOfAsOf: %s, sharesOwnedAsOfAsOf: %s"
+                                            %(gsdv(pos.getSharesAdded()), gsdv(pos.getSharesAddedAsOfAsOf()), gsdv(pos.getSharesOwnedAsOfAsOf())))
+
             ltDate = self.longTermCutoffDate if (pos.getDate() <= 0) else DateUtil.incrementDate(pos.getDate(), -1, 0, 0)
+
+            # figure out how many of the sold shares were long or short term investments
             longTermSharesSold = -(pos.getSharesAdded())
             shortTermSalesSold = 0
+
+            longTermCostBasis = 0
 
             for buy in pos.getBuyAllocations():                                                                         # type: MyCostCalculation.Allocation
                 if buy.getAllocatedPosition().getDate() >= ltDate:
                     shortTermSalesSold += buy.getSharesAllocated()
                     longTermSharesSold -= buy.getSharesAllocated()
+                else:
+                    longTermCostBasis += buy.getCostBasisAllocated()
 
-            longProportion = 0.0 if (pos.getSharesAdded() == 0) else (float(longTermSharesSold) / (longTermSharesSold + shortTermSalesSold))
-
+            # go through all transactions and add up all of the shares that were purchased
             # posIdx = self.getPositions().indexOf(pos)
             # previousPosition = self.getPositions().get(posIdx - 1) if (posIdx > 0) else self.getPositions().get(0)      # type: MyCostCalculation.Position
             # costBasis = self.investCurr.getLongValue(self.secCurr.getDoubleValue(-pos.getSharesAdded()) * pos.getPreviousPos().getBasisPrice()) + pos.getFee()
 
+            longProportion = 0.0 if (pos.getSharesAdded() == 0) else (float(longTermSharesSold) / (longTermSharesSold + shortTermSalesSold))
+
+            saleFeeLongTermProportion = Math.round(pos.getFee() * longProportion)
+            if self.COST_DEBUG: myPrint("B", "...>>>> pos.getSharesAdded(): %s, longTermSharesSold: %s, shortTermSalesSold: %s = longProportion: %s,  pos.getFee(): %s, saleFeeLongTermProportion: %s"
+                                              %(gsdv(pos.getSharesAdded()), gsdv(longTermSharesSold), gsdv(shortTermSalesSold), longProportion, gidv(pos.getFee()), gidv(saleFeeLongTermProportion)))
+
             costBasis = -(pos.getCostBasis()) + pos.getFee()                                                            # todo MDFIX
 
-            longCostBasis = Math.round(float(costBasis) * longProportion)
+            if self.getUsesAverageCost():
+                longTermCostBasis = Math.round(-(pos.getCostBasis()) * longProportion)      # Exclude sales fee at this point....
+                if self.COST_DEBUG: myPrint("B", "....... longTermCostBasis (excl. sale fee) recalculated to: %s" %(gidv(longTermCostBasis)))
+
+            # NOTE: MD puts the whole sale fee into short-term if there are any short term sales (this code copies that). Do the same for avg cost too...
+            longCostBasis = longTermCostBasis + (saleFeeLongTermProportion if shortTermSalesSold == 0 else 0)
             shortCostBasis = costBasis - longCostBasis
-            longTermAvailShares = Math.round(float(pos.getPreviousPos().getSharesOwnedAsOfAsOf()) * longProportion)
-            shortTermAvailShares = pos.getPreviousPos().getSharesOwnedAsOfAsOf() - longTermAvailShares
+
+            # This method below allocates the fee across ST/LT (not used as MD dumps the whole fee into ST when split between ST/LT....
+            # longCostBasis = longTermCostBasis + saleFeeLongTermProportion;
+            # shortCostBasis = costBasis - longCostBasis
+
+            previousPosShrsOwnedAdjusted = self.secCurr.adjustValueForSplitsInt(pos.getPreviousPos().getDate(), pos.getPreviousPos().getSharesOwnedAsOfThisTxn(), pos.getDate())
+            longTermAvailShares = Math.round(float(previousPosShrsOwnedAdjusted) * longProportion)   # Only used for (the now obsolete) U.S. IRS double-category reporting with avg cost (not currently shown by CB)
+            shortTermAvailShares = previousPosShrsOwnedAdjusted - longTermAvailShares                # Only used for (the now obsolete) U.S. IRS double-category reporting with avg cost (not currently shown by CB)
+            if self.COST_DEBUG:
+                if self.getUsesAverageCost():
+                    myPrint("B", "...... (US IRS 'double-category' st/lt pools prior to this sale (as at the date of this sale): shortTermAvailShares: %s, longTermAvailShares: %s = shares owned: %s)"
+                            %(gsdv(shortTermAvailShares), gsdv(longTermAvailShares), gsdv(pos.getPreviousPos().getSharesOwnedAsOfThisTxn())))
+
             result = CapitalGainResult(costBasis, shortCostBasis, longCostBasis, shortTermSalesSold, longTermSharesSold, shortTermAvailShares, longTermAvailShares, messageKey)
             if self.COST_DEBUG: myPrint("B", "... calculated gain for '%s' from position " %(self.getSecAccount()), pos, "\nprevious position:", pos.getPreviousPos(), "\n-->", result)
+
             return result
 
-        class HoldSimpleCapitalGainTotal:
-            def __init__(self, secAcct, asofDateInt, selectedDateRange, totSaleShares, totSaleValue, totSaleBasis, totSaleGains):
-                # type: (Account, int, DateRange, int, int, int, int) -> None
+        class HoldCapitalGainTotal:
+            def __init__(self, callingClass,
+                         secAcct, asofDateInt, selectedDateRange,
+                         totSaleShares, totSaleSharesShort, totSaleSharesLong, 
+                         totSaleValue,  totSaleValueShort,  totSaleValueLong,
+                         totSaleBasis,  totSaleBasisShort,  totSaleBasisLong,
+                         totSaleGains,  totSaleGainsShort,  totSaleGainsLong):
+                # type: (MyCostCalculation, Account, int, DateRange, int, int, int, int, int, int, int, int, int, int, int, int) -> None
+                self.callingClass = callingClass
                 self.secAcct = secAcct
                 self.asofDateInt = asofDateInt
                 self.selectedDateRange = selectedDateRange
                 self.totSaleShares = totSaleShares
+                self.totSaleSharesShort = totSaleSharesShort
+                self.totSaleSharesLong = totSaleSharesLong
                 self.totSaleValue = totSaleValue
+                self.totSaleValueShort = totSaleValueShort
+                self.totSaleValueLong = totSaleValueLong
                 self.totSaleBasis = totSaleBasis
+                self.totSaleBasisShort = totSaleBasisShort
+                self.totSaleBasisLong = totSaleBasisLong
                 self.totSaleGains = totSaleGains
+                self.totSaleGainsShort = totSaleGainsShort
+                self.totSaleGainsLong = totSaleGainsLong
 
             def toString(self):
+                gidv = self.callingClass.investCurr.getDoubleValue
+                gsdv = self.callingClass.secCurr.getDoubleValue
                 i = 14
-                strTxt = ("HoldSimpleCapitalGainTotal: asof: %s, totSaleShares: %s, totSaleValue: %s, totSaleBasis: %s, totSaleGains: %s, secAcct: '%s'"
-                          %(pad(self.asofDateInt, 8), rpad(self.totSaleShares,i), rpad(self.totSaleValue,i), rpad(self.totSaleBasis,i), rpad(self.totSaleGains,i), self.secAcct))
+                strTxt = ("HoldCapitalGainTotal: asof: %s, dateRange: '%s' "
+                          "totSaleShares: %s (short: %s, long: %s), "
+                          "totSaleValue:  %s (short: %s, long: %s), "
+                          "totSaleBasis:  %s (short: %s, long: %s), "
+                          "totSaleGains:  %s (short: %s, long: %s) "
+                          "- secAcct: '%s'"
+                          %(pad(self.asofDateInt, 8),   pad(self.selectedDateRange, 20),
+                            rpad(gsdv(self.totSaleShares),i), rpad(gsdv(self.totSaleSharesShort),i), rpad(gsdv(self.totSaleSharesLong),i),
+                            rpad(gidv(self.totSaleValue),i),  rpad(gidv(self.totSaleValueShort),i),  rpad(gidv(self.totSaleValueLong),i),
+                            rpad(gidv(self.totSaleBasis),i),  rpad(gidv(self.totSaleBasisShort),i),  rpad(gidv(self.totSaleBasisLong),i),
+                            rpad(gidv(self.totSaleGains),i),  rpad(gidv(self.totSaleGainsShort),i),  rpad(gidv(self.totSaleGainsLong),i),
+                            self.secAcct))
                 return strTxt
             def __str__(self):  return self.toString()
             def __repr__(self): return self.toString()
@@ -3792,10 +3954,10 @@ Visit: %s (Author's site)
                     runningAvgPrice = float(fields.price)
                     if (previousPosition is not None and previousPosition.getSharesOwnedAsOfAsOf() != 0):
                         # runningAvgPrice = float(txnRunningCost) / float(previousPosition.getSharesOwnedAsOfAsOf())
-                        priorSharedOwnedAdjusted = self.callingClass.secCurr.unadjustValueForSplitsInt(previousPosition.getDate(), previousPosition.getSharesOwnedAsOfAsOf(), self.callingClass.getAsOfDate())
-                        runningAvgPrice = float(txnRunningCost) / float(priorSharedOwnedAdjusted)                       # todo - MDFIX
-                    sellCost = Math.round(float(txnShares) * runningAvgPrice)                   # Manual adjustment of costbasis when sell/buy zero shares
-                    txnCostBasis = (-fields.amount - fields.fee) if (sellCost == 0) else sellCost
+                        priorSharesOwnedAdjusted = self.callingClass.secCurr.unadjustValueForSplitsInt(previousPosition.getDate(), previousPosition.getSharesOwnedAsOfAsOf(), self.callingClass.getAsOfDate())
+                        runningAvgPrice = float(txnRunningCost) / float(priorSharesOwnedAdjusted)                       # todo - MDFIX
+                    sellCost = Math.round(float(txnShares) * runningAvgPrice)                   
+                    txnCostBasis = (-fields.amount - fields.fee) if (sellCost == 0) else sellCost       # Manual adjustment of costbasis when sell/buy zero shares
                     txnFee = fields.fee
                     self.sellTxn = True
 
@@ -3807,13 +3969,21 @@ Visit: %s (Author's site)
                 elif fields.txnType in [InvestTxnType.BANK, InvestTxnType.DIVIDEND, InvestTxnType.DIVIDENDXFR]: pass
 
                 txnSharesUnadjusted = txnShares                                                                         # todo - MDFIX
-                txnSharesAdjusted = callingClass.secCurr.adjustValueForSplitsInt(self.getDate(), txnShares, callingClass.getAsOfDate())
+                txnSharesAdjusted = callingClass.secCurr.adjustValueForSplitsInt(self.getDate(), txnSharesUnadjusted, callingClass.getAsOfDate())
                 self.fee = txnFee
                 self.sharesAdded = txnSharesUnadjusted
+                self.sharesAddedAsOfAsOf = txnSharesAdjusted
                 self.unallottedSharesAdded = self.getSharesAdded()
                 self.costBasis = txnCostBasis
                 self.runningCost = (txnRunningCost + txnCostBasis)
                 self.sharesOwnedAsOfAsOf = (txnSharesAdjusted + (0 if previousPosition is None else previousPosition.getSharesOwnedAsOfAsOf()))
+
+                if previousPosition is None:
+                    self.sharesOwnedAsOfThisTxn = txnSharesUnadjusted
+                else:
+                    previousPosShrsOwnedAdjusted = callingClass.secCurr.adjustValueForSplitsInt(previousPosition.getDate(), previousPosition.getSharesOwnedAsOfThisTxn(), self.getDate())
+                    self.sharesOwnedAsOfThisTxn = previousPosShrsOwnedAdjusted + txnSharesUnadjusted
+
                 if self.callingClass.COST_DEBUG: myPrint("B", "@@ Added Position:", self)
 
             def getPreviousPos(self): return self.previousPos                                                           # todo - MDFIX
@@ -3830,10 +4000,20 @@ Visit: %s (Author's site)
                 """This is the running total of all shares owned adjusted up to the requested asof date (i.e. not the number of shares as at the date of the txn)"""
                 return self.sharesOwnedAsOfAsOf
 
+            def getSharesOwnedAsOfThisTxn(self):
+                # type: () -> int
+                """This is the running total of all shares owned adjusted only up to the date of this txn (i.e. not the number of shares adjsted to the asof date)"""
+                return self.sharesOwnedAsOfThisTxn
+
             def getSharesAdded(self):
                 # type: () -> int
                 """The number of shares on this txn asof the sell/buy date - not adjusted for splits"""
                 return self.sharesAdded
+
+            def getSharesAddedAsOfAsOf(self):
+                # type: () -> int
+                """The number of shares on this txn adjusted for splits up to the requested asof date"""
+                return self.sharesAddedAsOfAsOf
 
             def getRunningCost(self):
                 # type: () -> int
@@ -3914,6 +4094,7 @@ Visit: %s (Author's site)
 
             def price(self, excludeFee):                                                                                # todo MDFIX
                 # type: (bool) -> float
+                """Return the price of this transaction, excluding the fee if excludeFee==true"""
                 shrsAdded = self.callingClass.secCurr.getDoubleValue(Math.abs(self.getSharesAdded()))
                 txnFee = self.getFee() if (excludeFee) else 0
                 return 0.0 if (shrsAdded == 0.0) else self.callingClass.investCurr.getDoubleValue(Math.abs(self.getCostBasis() - txnFee)) / shrsAdded
@@ -3924,11 +4105,14 @@ Visit: %s (Author's site)
                 return 0.0 if (shares == 0) else self.callingClass.investCurr.getDoubleValue(self.getRunningCost()) / self.callingClass.secCurr.getDoubleValue(shares)
 
         class Allocation:
-            def __init__(self, callingClass, sharesAllocated, sharesAllocatedAdjusted, allocatedPosition):
-                # type: (MyCostCalculation, int, int, MyCostCalculation.Position) -> None
+            """Class that references a transaction and number of shares allocated from that transaction"""
+
+            def __init__(self, callingClass, sharesAllocated, sharesAllocatedAdjusted, costBasisAllocated, allocatedPosition):
+                # type: (MyCostCalculation, int, int, int, MyCostCalculation.Position) -> None
                 self.callingClass = callingClass
                 self.sharesAllocated = sharesAllocated
                 self.sharesAllocatedAdjusted = sharesAllocatedAdjusted
+                self.costBasisAllocated = costBasisAllocated
                 self.allocatedPosition = allocatedPosition
 
             def getSharesAllocatedAdjusted(self):
@@ -3946,6 +4130,14 @@ Visit: %s (Author's site)
             def setSharesAllocated(self, sa):
                 # type: (int) -> None
                 self.sharesAllocated = sa
+
+            def getCostBasisAllocated(self):
+                # type: () -> int
+                return self.costBasisAllocated
+
+            def setCostBasisAllocated(self, cba):
+                # type: (int) -> None
+                self.costBasisAllocated = cba
 
             def getAllocatedPosition(self):
                 # type: () -> MyCostCalculation.Position
@@ -5491,7 +5683,8 @@ Visit: %s (Author's site)
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_REM_ASOF_DATE] = remAsOfDateTxt
             varDict[TextDisplayForSwingConfig.WIDGET_VAR_REM_ASOF_DATE_NAME] = remAsOfDateChoice.getDisplayName()
 
-            if cgDateRangeSettings[GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_CAPITALGAINS:
+            # if cgDateRangeSettings[GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE:
+            if not isUseCostBasisCapitalGainsSelected(None, cgDateRangeSettings[GlobalVars.COSTBASIS_TYPE_IDX]):
                 cgDateRangeTxt = "not enabled"
                 cgDateRangeChoice = AsOfDateChooser.AsOfDateChoice(cgDateRangeTxt, cgDateRangeTxt, 0)
             else:
@@ -5820,6 +6013,8 @@ Visit: %s (Author's site)
 
     class MyDateRangeChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
         """Class that allows selection of a Date Range. Listen to changes using java.beans.PropertyChangeListener() on "dateRangeChanged"""
+        
+        DATE_RANGE_VALID = 19000101
 
         DRC_DR_ENABLED_IDX = 0
         DRC_DR_KEY_IDX = 1
@@ -6099,6 +6294,7 @@ Visit: %s (Author's site)
             if not horizontal: x = 0
             p.add(self.getEndIntLabel(),            GridC.getc(x, y).label()); x += 1
             p.add(self.getEndIntField(),            GridC.getc(x, y).field()); x += 1; y += vertInc
+            if not horizontal: x = 0
             p.add(self.getSkipBackPeriodsLabel(),   GridC.getc(x, y).label()); x += 1
             p.add(self.getSkipBackPeriodsField(),   GridC.getc(x, y).field()); x += 1; y += vertInc
             return p
@@ -6210,8 +6406,8 @@ Visit: %s (Author's site)
             if not isinstance(_startInt, (int, Integer)):               return False
             if not isinstance(_endInt, (int, Integer)):                 return False
             if not isinstance(_skipBackPeriods, (int, Integer, long)):  return False
-            if _startInt <= GlobalVars.DATE_RANGE_VALID:                return False
-            if _endInt   <= GlobalVars.DATE_RANGE_VALID:                return False
+            if _startInt <= MyDateRangeChooser.DATE_RANGE_VALID:        return False
+            if _endInt   <= MyDateRangeChooser.DATE_RANGE_VALID:        return False
             if _startInt > _endInt:                                     return False
             return True
 
@@ -6311,7 +6507,10 @@ Visit: %s (Author's site)
             return "MyDateRangeChooser::%s - key: '%s' startInt: %s, endInt: %s, offset: %s" %(self.getName(), self.getSelectedOptionKey(self.getSelectedIndex()), self.getStartIntField().getDateInt(), self.getEndIntField().getDateInt(), self.getSkipBackPeriodsField().getValueInt())
 
     class AsOfDateChooser(BasePropertyChangeReporter, ItemListener, PropertyChangeListener):    # Based on: com.moneydance.apps.md.view.gui.DateRangeChooser
-        """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged"""
+        """Class that allows selection of an AsOf date. Listen to changes using java.beans.PropertyChangeListener() on "asOfChanged
+        Version 1 (v1: initial release)"""
+
+        ASOF_DATE_VALID = 19000101
 
         ASOF_DRC_ENABLED_IDX = 0
         ASOF_DRC_KEY_IDX = 1
@@ -6557,6 +6756,7 @@ Visit: %s (Author's site)
             if not horizontal: x = 0
             p.add(self.getAsOfLabel(),              GridC.getc(x, y).label()); x += 1
             p.add(self.getAsOfDateField(),          GridC.getc(x, y).field()); x += 1; y += vertInc
+            if not horizontal: x = 0
             p.add(self.getSkipBackPeriodsLabel(),   GridC.getc(x, y).label()); x += 1
             p.add(self.getSkipBackPeriodsField(),   GridC.getc(x, y).field()); x += 1; y += vertInc
             return p
@@ -6585,7 +6785,7 @@ Visit: %s (Author's site)
 
         def getAsOfDateInt(self):
             if self.asOfDateIntResult is None: self.asOfSelected()
-            return Integer(self.asOfDateIntResult)
+            return Integer(self.asOfDateIntResult).intValue()
 
         def setSkipBackPeriods(self, skipBackPeriods):
             self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
@@ -6616,7 +6816,7 @@ Visit: %s (Author's site)
             skipBackPeriods = settings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
             self.skipBackPeriods_JTF.setValueInt(skipBackPeriods)
             if asOfOptionKey == self.KEY_CUSTOM_ASOF:
-                if isValidBalanceAsOfDate(asOfDateInt):
+                if AsOfDateChooser.isValidAsOfDate(asOfDateInt):
                     self.setAsOfDateInt(asOfDateInt)
                     foundSetting = True
             else:
@@ -6640,6 +6840,13 @@ Visit: %s (Author's site)
             settings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX] = skipBackPeriods
             if debug: myPrint("B", "%s::returnStoredParameters() - Returning stored asof date parameters settings ('%s')" %(self.getName(), settings))
             return settings
+
+        @staticmethod
+        def isValidAsOfDate(_dateInt):
+            # type: (int) -> bool
+            if not isinstance(_dateInt, (int, Integer)):    return False
+            if _dateInt < AsOfDateChooser.ASOF_DATE_VALID:  return False
+            return True
 
         def setAsOfDateResult(self, asOfDateInt, skipBackPeriods):
             oldAsOfDateInt = self.asOfDateIntResult
@@ -6677,7 +6884,7 @@ Visit: %s (Author's site)
             src = evt.getItemSelectable()                                                                               # type: JComboBox
             paramString = evt.paramString()
             state = evt.getStateChange()
-            changedItem = evt.getItem()                                                                                 # type: MyDateRangeChooser.DateRangeChoice
+            changedItem = evt.getItem()                                                                                 # type: AsOfDateChooser.AsOfDateChoice
 
             myClazzName = "AsOfDateChooser"
             propKey = self.PROP_ASOF_CHANGED
@@ -6854,18 +7061,20 @@ Visit: %s (Author's site)
     def isBalanceAsOfDateSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedBalanceAsOfDateTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
-                and isValidBalanceAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
+                and AsOfDateChooser.isValidAsOfDate(getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[index])))
 
     def isIncludeRemindersSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedIncludeRemindersTable[index][AsOfDateChooser.ASOF_DRC_ENABLED_IDX]
-                and isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
+                and AsOfDateChooser.isValidAsOfDate(getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[index])))
 
     def getCostBasisTypeStrFromOption(cbOption):
-        if cbOption == GlobalVars.COSTBASIS_TYPE_NONE:           return "<NOT SELECTED>"
-        elif cbOption == GlobalVars.COSTBASIS_TYPE_CB:           return "COSTBASIS"
-        elif cbOption == GlobalVars.COSTBASIS_TYPE_URGAINS:      return "U/R GAINS"
-        elif cbOption == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS: return "CAPITAL GAINS"
+        if cbOption == GlobalVars.COSTBASIS_TYPE_NONE:                  return "<NOT SELECTED>"
+        elif cbOption == GlobalVars.COSTBASIS_TYPE_CB:                  return "COSTBASIS"
+        elif cbOption == GlobalVars.COSTBASIS_TYPE_URGAINS:             return "U/R GAINS"
+        elif cbOption == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE: return "CAPITAL GAINS (SIMPLE)"
+        elif cbOption == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SHORT:  return "CAPITAL GAINS (SHORT)"
+        elif cbOption == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG:   return "CAPITAL GAINS (LONG)"
         return "<UNKNOWN>"
 
     def isUseCostBasisSelected(index):
@@ -6880,9 +7089,22 @@ Visit: %s (Author's site)
         NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_URGAINS)
 
-    def isUseCostBasisCapitalGainsSelected(index):
+    def isUseCostBasisCapitalGainsSelected(index, checkValue=None):
         NAB = NetAccountBalancesExtension.getNAB()
-        return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS)
+        if checkValue is None: checkValue = NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX]
+        return (checkValue in [GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE, GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SHORT, GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG])
+
+    def isUseCostBasisCapitalGainsSimpleSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE)
+
+    def isUseCostBasisCapitalGainsShortSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SHORT)
+
+    def isUseCostBasisCapitalGainsLongSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG)
 
     def isUseCostBasisCashSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -7094,12 +7316,6 @@ Visit: %s (Author's site)
             for child in _acct.getSubAccounts(): returnThisAccountAndAllChildren(child, _listAccounts, autoSum=autoSum, justIncomeExpense=justIncomeExpense)
         return _listAccounts
 
-    def isValidBalanceAsOfDate(_dateInt):
-        # type: (int) -> bool
-        if not isinstance(_dateInt, (int, Integer)):    return False
-        if _dateInt < GlobalVars.DATE_RANGE_VALID:      return False
-        return True
-
     def getCapitalGainsDateRangeSelected(_fromDrSettings, adjForBalType=None, allowAllDatesKey=True):
         return getDateRangeFromSettings(_fromDrSettings[GlobalVars.COSTBASIS_DR_ENABLED_IDX:], adjForBalType, allowAllDatesKey)
 
@@ -7160,7 +7376,7 @@ Visit: %s (Author's site)
         _fromSkipBackPeriods = rowBalanceAsOfDateSettings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
-                if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
+                if AsOfDateChooser.isValidAsOfDate(_fromCustomAsOfDateInt):
                     asOfDateInt = _fromCustomAsOfDateInt
                 else:
                     asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.ASOF_TODAY, _fromSkipBackPeriods)
@@ -7186,7 +7402,7 @@ Visit: %s (Author's site)
         _fromSkipBackPeriods = rowIncludeRemindersAsOfSettings[AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX]
         if _fromAsOfWanted:
             if _fromAsOfKey == AsOfDateChooser.KEY_CUSTOM_ASOF:
-                if isValidBalanceAsOfDate(_fromCustomAsOfDateInt):
+                if AsOfDateChooser.isValidAsOfDate(_fromCustomAsOfDateInt):
                     asOfDateInt = _fromCustomAsOfDateInt
                 else:
                     asOfDateInt = AsOfDateChooser.AsOfDateChoice.getAsOfDateFromKey(AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, _fromSkipBackPeriods)
@@ -7463,6 +7679,10 @@ Visit: %s (Author's site)
                 lRtnURGains = isUseCostBasisURGainsSelected(iRowIdx)
                 lRtnCapitalGains = isUseCostBasisCapitalGainsSelected(iRowIdx)
 
+                lRtnCapitalGainsSimple = isUseCostBasisCapitalGainsSimpleSelected(iRowIdx)
+                lRtnCapitalGainsShort = isUseCostBasisCapitalGainsShortSelected(iRowIdx)
+                lRtnCapitalGainsLong = isUseCostBasisCapitalGainsLongSelected(iRowIdx)
+
                 if isInvestmentAcct(acct):      # Cash!
                     # Basically not a lot to do here (as we are dealing with pre-calculated balances, not shares or cost basis etc)
                     # There are never gains on cash! Cost Basis always = cash = balance(s) - so leave unchanged (zero for gains)...
@@ -7475,11 +7695,16 @@ Visit: %s (Author's site)
                 else:
                     assert isSecurityAcct(acct), ("ERROR: Acct: '%s' is not a security account (type: '%s')?!'" %(acct, acct.getAccountType()))
 
+                    # MyCostCalculation.COST_DEBUG = True;
+
                     costCalculationBal = MyCostCalculation(acct, asOfDate, None, True)
                     costCalculationCurrBal = costCalculationBal.getCurrentBalanceCostCalculation()
 
                     asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
                     asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
+
+                    for pos in costCalculationBal.getPositions():
+                        if pos.isSellTxn(): myPrint("B", pos.toString())
 
                     if costCalculationBal.isCostBasisInvalid():
                         balObj.setCostBasisInvalid(True)        # In theory costCalculationCurrBal.isCostBasisInvalid() should be the same...
@@ -7506,10 +7731,24 @@ Visit: %s (Author's site)
                     capGainsAsSharesBal = capGainsAsSharesCurBal = 0
                     capGainsDr = getCapitalGainsDateRangeSelected(NAB.savedUseCostBasisTable[iRowIdx])
                     if lRtnCapitalGains:
-                        capGainsBal = costCalculationBal.getSaleSimpleGainsForDateRange(capGainsDr)                     # type: MyCostCalculation.HoldSimpleCapitalGainTotal
-                        capGainsCurBal = costCalculationCurrBal.getSaleSimpleGainsForDateRange(capGainsDr)              # type: MyCostCalculation.HoldSimpleCapitalGainTotal
-                        capGainsAsSharesBal = convertValue(capGainsBal.totSaleGains, acct.getParentAccount().getCurrencyType(), acct.getCurrencyType(), effectiveDateInt)
-                        capGainsAsSharesCurBal = convertValue(capGainsCurBal.totSaleGains, acct.getParentAccount().getCurrencyType(), acct.getCurrencyType(), effectiveDateInt)
+
+                        capGainsBal = costCalculationBal.getSaleGainsForDateRange(capGainsDr)                           # type: MyCostCalculation.HoldCapitalGainTotal
+                        capGainsCurBal = costCalculationCurrBal.getSaleGainsForDateRange(capGainsDr)                    # type: MyCostCalculation.HoldCapitalGainTotal
+
+                        if lRtnCapitalGainsSimple:
+                            saleGainsBal = capGainsBal.totSaleGains
+                            saleGainsCurBal = capGainsCurBal.totSaleGains
+                        elif lRtnCapitalGainsShort:
+                            saleGainsBal = capGainsBal.totSaleGainsShort
+                            saleGainsCurBal = capGainsCurBal.totSaleGainsShort
+                        elif lRtnCapitalGainsLong:
+                            saleGainsBal = capGainsBal.totSaleGainsLong
+                            saleGainsCurBal = capGainsCurBal.totSaleGainsLong
+
+                        else: raise Exception("LOGIC ERROR: unknown Capital Gains type detected?!")
+
+                        capGainsAsSharesBal = convertValue(saleGainsBal, acct.getParentAccount().getCurrencyType(), acct.getCurrencyType(), effectiveDateInt)
+                        capGainsAsSharesCurBal = convertValue(saleGainsCurBal, acct.getParentAccount().getCurrencyType(), acct.getCurrencyType(), effectiveDateInt)
                             
                     urGainsBal = valueBal - asofCostBasisBal                                                            # noqa
                     urGainsAsSharesBal = asofSharesBal - cbAsSharesBal
@@ -8580,7 +8819,9 @@ Visit: %s (Author's site)
             self.useCostBasisNone_JRB               = None
             self.useCostBasisCB_JRB                 = None
             self.useCostBasisURGains_JRB            = None
-            self.useCostBasisCapitalGains_JRB       = None
+            self.useCostBasisCapitalGainsSimple_JRB = None
+            self.useCostBasisCapitalGainsShort_JRB  = None
+            self.useCostBasisCapitalGainsLong_JRB   = None
             self.useCostBasisCash_CB                = None
             self.securitiesCapitalGains_DRC         = None
             self.capGainsDateRange_LBL              = None
@@ -9922,7 +10163,7 @@ Visit: %s (Author's site)
                     if (self.savedBalanceAsOfDateTable[i] is None or not isinstance(self.savedBalanceAsOfDateTable[i], list) or len(self.savedBalanceAsOfDateTable[i]) != len(self.balanceAsOfDateDefault())
                             or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX], (int, Integer, float))
                             or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_KEY_IDX], str) or not isinstance(self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_DATEINT_IDX], int)
-                            or (self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not isValidBalanceAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
+                            or (self.savedBalanceAsOfDateTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not AsOfDateChooser.isValidAsOfDate(getBalanceAsOfDateSelected(self.savedBalanceAsOfDateTable[i])))):
                         printResetMessage("savedBalanceAsOfDateTable", self.savedBalanceAsOfDateTable[i], self.balanceAsOfDateDefault(), i)
                         self.savedBalanceAsOfDateTable[i] = self.balanceAsOfDateDefault()
 
@@ -9958,7 +10199,7 @@ Visit: %s (Author's site)
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_ENABLED_IDX], bool) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_KEY_IDX], str)
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_START_KEY_IDX], (int)) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_END_KEY_IDX], (int))
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_SKIPBACKPERIODS_IDX], (int, Integer, float))
-                            or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_CAPITALGAINS):
+                            or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG):
                         printResetMessage("savedUseCostBasisTable", self.savedUseCostBasisTable[i], self.useCostBasisDefault(), i)
                         self.savedUseCostBasisTable[i] = self.useCostBasisDefault()
 
@@ -9971,7 +10212,7 @@ Visit: %s (Author's site)
                     if (self.savedIncludeRemindersTable[i] is None or not isinstance(self.savedIncludeRemindersTable[i], list) or len(self.savedIncludeRemindersTable[i]) != len(self.includeRemindersDefault())
                             or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX], bool) or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_SKIPBACKPERIODS_IDX], (int, Integer, float))
                             or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_KEY_IDX], str) or not isinstance(self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_DATEINT_IDX], int)
-                            or (self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not isValidBalanceAsOfDate(getIncludeRemindersAsOfDateSelected(self.savedIncludeRemindersTable[i])))):
+                            or (self.savedIncludeRemindersTable[i][AsOfDateChooser.ASOF_DRC_ENABLED_IDX] and not AsOfDateChooser.isValidAsOfDate(getIncludeRemindersAsOfDateSelected(self.savedIncludeRemindersTable[i])))):
                         printResetMessage("savedIncludeRemindersTable", self.savedIncludeRemindersTable[i], self.includeRemindersDefault(), i)
                         self.savedIncludeRemindersTable[i] = self.includeRemindersDefault()
 
@@ -10578,7 +10819,9 @@ Visit: %s (Author's site)
                                       NAB.useCostBasisNone_JRB,
                                       NAB.useCostBasisCB_JRB,
                                       NAB.useCostBasisURGains_JRB,
-                                      NAB.useCostBasisCapitalGains_JRB,
+                                      NAB.useCostBasisCapitalGainsSimple_JRB,
+                                      NAB.useCostBasisCapitalGainsShort_JRB,
+                                      NAB.useCostBasisCapitalGainsLong_JRB,
                                       NAB.useCostBasisCash_CB,
                                       NAB.securitiesCapitalGains_DRC,
                                       NAB.separatorSelectorNone_JRB,
@@ -10678,11 +10921,13 @@ Visit: %s (Author's site)
             myPrint("DB", "..about to set autoSumAccounts_CB..")
             NAB.autoSumAccounts_CB.setSelected(NAB.savedAutoSumAccounts[selectRowIndex])
 
-            myPrint("DB", "..about to set useCostBasisNone_JRB, useCostBasisCB_JRB, useCostBasisURGains_JRB, useCostBasisCapitalGains_JRB..")
+            myPrint("DB", "..about to set useCostBasisNone_JRB, useCostBasisCB_JRB, useCostBasisURGains_JRB, useCostBasisCapitalGainsSimple_JRB, useCostBasisCapitalGainsShort_JRB, useCostBasisCapitalGainsLong_JRB..")
             NAB.useCostBasisNone_JRB.setSelected(not isUseCostBasisSelected(selectRowIndex))
             NAB.useCostBasisCB_JRB.setSelected(isUseCostBasisOptionSelected(selectRowIndex))
             NAB.useCostBasisURGains_JRB.setSelected(isUseCostBasisURGainsSelected(selectRowIndex))
-            NAB.useCostBasisCapitalGains_JRB.setSelected(isUseCostBasisCapitalGainsSelected(selectRowIndex))
+            NAB.useCostBasisCapitalGainsSimple_JRB.setSelected(isUseCostBasisCapitalGainsSimpleSelected(selectRowIndex))
+            NAB.useCostBasisCapitalGainsShort_JRB.setSelected(isUseCostBasisCapitalGainsShortSelected(selectRowIndex))
+            NAB.useCostBasisCapitalGainsLong_JRB.setSelected(isUseCostBasisCapitalGainsLongSelected(selectRowIndex))
 
             myPrint("DB", "..about to set useCostBasisCash_CB..")
             NAB.useCostBasisCash_CB.setSelected(isUseCostBasisCashSelected(selectRowIndex))
@@ -10806,7 +11051,9 @@ Visit: %s (Author's site)
                 myPrint("B", ".....useCostBasisNone_JRB: %s"                    %(NAB.useCostBasisNone_JRB.isSelected()))
                 myPrint("B", ".....useCostBasisCB_JRB: %s"                      %(NAB.useCostBasisCB_JRB.isSelected()))
                 myPrint("B", ".....useCostBasisURGains_JRB: %s"                 %(NAB.useCostBasisURGains_JRB.isSelected()))
-                myPrint("B", ".....useCostBasisCapitalGains_JRB: %s"            %(NAB.useCostBasisCapitalGains_JRB.toString()))
+                myPrint("B", ".....useCostBasisCapitalGainsSimple_JRB: %s"      %(NAB.useCostBasisCapitalGainsSimple_JRB.toString()))
+                myPrint("B", ".....useCostBasisCapitalGainsShort_JRB: %s"       %(NAB.useCostBasisCapitalGainsShort_JRB.toString()))
+                myPrint("B", ".....useCostBasisCapitalGainsLong_JRB: %s"        %(NAB.useCostBasisCapitalGainsLong_JRB.toString()))
                 myPrint("B", ".....useCostBasisCash_CB: %s"                     %(NAB.useCostBasisCash_CB.isSelected()))
                 myPrint("B", ".....securitiesCapitalGains_DRC: %s"              %(NAB.securitiesCapitalGains_DRC.toString()))
                 myPrint("B", ".....savedOperateOnAnotherRowTable: %s"           %(NAB.savedOperateOnAnotherRowTable[selectRowIndex]))
@@ -11633,9 +11880,15 @@ Visit: %s (Author's site)
                                 elif isUseCostBasisURGainsSelected(i):
                                     showCostBasisText = " (urg)"
                                     if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))
-                                elif isUseCostBasisCapitalGainsSelected(i):
+                                elif isUseCostBasisCapitalGainsSimpleSelected(i):
                                     showCostBasisText = " (cg)"
-                                    if debug: myPrint("DB", ":: Row: %s returning capital gains (for security accounts)" %(i+1))
+                                    if debug: myPrint("DB", ":: Row: %s returning capital gains (simple) (for security accounts)" %(i+1))
+                                elif isUseCostBasisCapitalGainsShortSelected(i):
+                                    showCostBasisText = " (cg-s)"
+                                    if debug: myPrint("DB", ":: Row: %s returning capital gains (short) (for security accounts)" %(i+1))
+                                elif isUseCostBasisCapitalGainsLongSelected(i):
+                                    showCostBasisText = " (cg-l)"
+                                    if debug: myPrint("DB", ":: Row: %s returning capital gains (long) (for security accounts)" %(i+1))
 
                             showUsesOtherRowTxt = ""
                             if lUsesOtherRow:
@@ -11979,14 +12232,19 @@ Visit: %s (Author's site)
                         NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getSource() in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisURGains_JRB, NAB.useCostBasisCapitalGains_JRB]:
+                if event.getSource() in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisURGains_JRB,
+                                         NAB.useCostBasisCapitalGainsSimple_JRB, NAB.useCostBasisCapitalGainsShort_JRB, NAB.useCostBasisCapitalGainsLong_JRB]:
                     useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_NONE
                     if event.getSource() is NAB.useCostBasisCB_JRB and event.getSource().isSelected():
                         useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CB
                     elif event.getSource() is NAB.useCostBasisURGains_JRB and event.getSource().isSelected():
                         useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_URGAINS
-                    elif event.getSource() is NAB.useCostBasisCapitalGains_JRB and event.getSource().isSelected():
-                        useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CAPITALGAINS
+                    elif event.getSource() is NAB.useCostBasisCapitalGainsSimple_JRB and event.getSource().isSelected():
+                        useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE
+                    elif event.getSource() is NAB.useCostBasisCapitalGainsShort_JRB and event.getSource().isSelected():
+                        useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SHORT
+                    elif event.getSource() is NAB.useCostBasisCapitalGainsLong_JRB and event.getSource().isSelected():
+                        useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG
                     if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] != useCostBasisCodeSelected:
                         myPrint("DB", ".. setting savedUseCostBasisTable[type] to: %s for row: %s" %(useCostBasisCodeSelected, NAB.getSelectedRow()))
                         NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] = useCostBasisCodeSelected
@@ -13785,9 +14043,17 @@ Visit: %s (Author's site)
                     NAB.useCostBasisURGains_JRB.setName("useCostBasisURGains_JRB")
                     NAB.useCostBasisURGains_JRB.setToolTipText("When selected, then Security Accounts will return the Unrealised Gains (rather than the value)")
 
-                    NAB.useCostBasisCapitalGains_JRB = MyJRadioButton("Rtn Capital Gains")
-                    NAB.useCostBasisCapitalGains_JRB.setName("useCostBasisCapitalGains_JRB")
-                    NAB.useCostBasisCapitalGains_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains for the CG period (rather than the value)")
+                    NAB.useCostBasisCapitalGainsSimple_JRB = MyJRadioButton("Rtn Capital Gains")
+                    NAB.useCostBasisCapitalGainsSimple_JRB.setName("useCostBasisCapitalGainsSimple_JRB")
+                    NAB.useCostBasisCapitalGainsSimple_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains for the CG period (rather than the value)")
+
+                    NAB.useCostBasisCapitalGainsShort_JRB = MyJRadioButton("(Cap/Gains Short)")
+                    NAB.useCostBasisCapitalGainsShort_JRB.setName("useCostBasisCapitalGainsShort_JRB")
+                    NAB.useCostBasisCapitalGainsShort_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains SHORT for the CG period (rather than the value)")
+
+                    NAB.useCostBasisCapitalGainsLong_JRB = MyJRadioButton("(Cap/Gains Long)")
+                    NAB.useCostBasisCapitalGainsLong_JRB.setName("useCostBasisCapitalGainsLong_JRB")
+                    NAB.useCostBasisCapitalGainsLong_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains LONG for the CG period (rather than the value)")
 
                     useCostBasisButtonGroup = ButtonGroup()
 
@@ -13798,7 +14064,8 @@ Visit: %s (Author's site)
                     onSepRow = 0
                     onCbUrgCol = 0
 
-                    for jrb in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisCash_CB, NAB.useCostBasisURGains_JRB, NAB.useCostBasisCapitalGains_JRB]:
+                    for jrb in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisCash_CB, NAB.useCostBasisURGains_JRB,
+                                NAB.useCostBasisCapitalGainsSimple_JRB, NAB.useCostBasisCapitalGainsShort_JRB, NAB.useCostBasisCapitalGainsLong_JRB]:
                         if isinstance(jrb, JRadioButton): useCostBasisButtonGroup.add(jrb)
                         jrb.setActionCommand(jrb.getName())
                         jrb.putClientProperty("%s.id" %(NAB.myModuleID), jrb.getName())
@@ -16214,9 +16481,15 @@ Visit: %s (Author's site)
                                         elif isUseCostBasisURGainsSelected(i):
                                             showCostBasisText = " (urg)" if not debug else " (u/r gains)"
                                             if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))
-                                        elif isUseCostBasisCapitalGainsSelected(i):
-                                            showCostBasisText = " (cg)" if not debug else " (capital gains)"
-                                            if debug: myPrint("DB", ":: Row: %s returning capital gains (for security accounts)" %(i+1))
+                                        elif isUseCostBasisCapitalGainsSimpleSelected(i):
+                                            showCostBasisText = " (cg)" if not debug else " (capital gains - simple)"
+                                            if debug: myPrint("DB", ":: Row: %s returning capital gains (simple) (for security accounts)" %(i+1))
+                                        elif isUseCostBasisCapitalGainsShortSelected(i):
+                                            showCostBasisText = " (cg-s)" if not debug else " (capital gains - short)"
+                                            if debug: myPrint("DB", ":: Row: %s returning capital gains (short) (for security accounts)" %(i+1))
+                                        elif isUseCostBasisCapitalGainsLongSelected(i):
+                                            showCostBasisText = " (cg-l)" if not debug else " (capital gains - long)"
+                                            if debug: myPrint("DB", ":: Row: %s returning capital gains (long) (for security accounts)" %(i+1))
 
                                     showAdjustFinalBalanceText = ""
                                     if lAdjustFinalBalance:

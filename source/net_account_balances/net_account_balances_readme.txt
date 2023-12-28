@@ -143,12 +143,15 @@ CHOICES/CONFIGURATION FOR A ROW:
                              selected Security accounts will be returned. This is calculated as value less cost basis.
 
     - Rtn Capital Gains:     When selected, the calculated capital gains for the selected Security accounts will be
-                             returned. The gains calculation is 'simple' and will not identify short/long term gains
+                             returned. This gains calculation is 'simple' and will not identify short/long term gains
                              (for example). NOTE: when this option is selected then an extra row will appear, that
                              allows you to select the date range for the capital gains reporting.
 
                              > WARNING: The date range cannot exceed the 'balance asof date'. Any transactions (gains)
                                         after the asof date will be excluded from the calculation!
+
+    - (Cap/Gains Short):     As above, but returns the 'short' capital gains value
+    - (Cap/Gains Long):      As above, but returns the 'long' capital gains value
 
     - Include Cash Balances: When selected then cash balances on (selected) investment accounts will be included too.
                              ONLY applies to the 'Rtn Cost Basis' option (not the ur-gains, or capital-gains options)
@@ -267,7 +270,7 @@ FILTERS FOR LIST CHOICES:
   - Thus if you select Active only and select an account containing inactive children, it will include inactive balances
   - When using AutoSum in this situation you will get a warning on screen
   - You will also see a small (3 vertical bars) icon to the right of account totals in the list window when this occurs.
-  - Inactive Securities: You can flag a security as inactive by unticking the 'Show on summary page' box on a security
+  - Inactive Securities: You can flag a security as inactive by un-ticking the 'Show on summary page' box on a security
                        in the MD/Tools/Securities menu. This will then treat this security in ALL investment accounts
                        as INACTIVE.
 
@@ -512,7 +515,7 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
         # 4. for all accounts / balances not derived by steps 2 & 3, calculate balance asof dates (where requested)...
         # 5. for all accounts / balances not derived by steps 2, 3 & 4, harvest remaining Account's real balance(s)...
         # 6. replace balance(s) with cost basis / unrealised / capital gains on security accounts (where requested)...
-        # 7. for all accounts selected, add reminder txn/balances upto the reminder's asof date (where requested).
+        # 7. for all accounts selected, add reminder txn/balances up to the reminder's asof date (where requested).
 
     - NOTE: When cost basis / unrealised / capital gains is enabled, all other steps are skipped >> MUTUALLY EXCLUSIVE!
             (i.e. no reminders, income / expense transactions, no non-security/investment(cb & cash) accounts
@@ -529,26 +532,62 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
                No harm will be caused, but these rows may take a few seconds to calculate / appear....
 
 
-NOTES ON COST BASIS (in Moneydance):
-Cost basis can appear in multiple places. They are not all calculated the same way. For example:
-- Investment account: Portfolio View tab (PVT)
-- Cost Basis report (CBR)
-- Portfolio report (PR)
-- Investment Performance report (IPR)
-- Capital Gains report (CGR)
+NOTES ON COST BASIS / CAPITAL GAINS:
 
-Particularly for 'Average Cost' controlled securities, PVT and PR use the new CostCalculation engine and this tends to
-give a more accurate result. However, for securities with stock 'splits', this new engine has flaws and the CBR often
-gives better results. In particular for average cost, Buy/Sell zero sells with a fee, and also MiscInc/Exp with a fee
-can be used to adjust the cost basis and the new engine accounts for this.
+** DISCLAIMER ** The author of Custom Balances accepts no responsibility for the accuracy of the cost basis or
+                 capital gains calculations. Do not rely on these calculations for tax returns or other important
+                 documents. Please verify and use your own calculations for important documents.
 
-For 'Lot Control' securities, the original calculation method is used consistantly for all screens/reports. But again,
-there can be issues in some places.
+Cost basis can appear in multiple places. They are not all calculated quite the same way. For example:
+- Investment account: Portfolio View tab (PVT)              (Avg Cost - new engine)
+- Cost Basis report (CBR)                                   (Avg Cost - old method)
+- Portfolio report (PR)                                     (Avg Cost - new engine)
+- Investment Performance report (IPR)                       (Avg Cost - new engine)
+- Capital Gains report (CGR)                                (Avg Cost - new engine)
 
-Custom Balances uses a new cost calculation engine that has been recoded/fixed to account for known issues with cost
-basis calculations in MD. Hence, the calculated cost basis won't consistently match with all MD screens/reports. However
+Particularly for 'Average Cost' controlled securities, PVT and PR use MD's new CostCalculation engine and this tends to
+give a more accurate result. However, for securities with stock 'splits', this new engine has flaws and the CBR can
+sometimes give a 'better' result. In particular:
+
+- for average cost, if all shares are sold down to zero, and then later more shares are purchase, then CBR goes wrong
+  from this point forward. MD's new engine deals properly with this situation.
+
+- for average cost, with securities with stock splits, MD's new engine fails to calculate properly. In this situation
+  the old CBR report is better. Note: In this scenario, the capital gains report will also be wrong.
+
+- for average cost, Buy/Sell txns zero shares sells with a fee, and also MiscInc/Exp with a fee can be used to 'adjust'
+  MD's calculation of the cost basis. MD's new engine accounts for this.
+
+- for 'Lot Control' securities, the original calculation method is used consistently for all screens/reports. But again,
+  there can be issues in some places.
+
+Under U.S. IRS, 'short-term' (ST) is considered to be when securities are held for one year or less. Hence, 'long-term'
+(LT) are where held for greater than one year.
+
+With long / short-term capital gains, MD will allocate the whole sale fee to LT or ST if the matched buys were all
+of one term type. If the sale consists of both long and short term buys, then the whole sale fee is allocated into short
+term. Custom Balances mirrors this calculation (instead of allocating the fee proportionally between long/short term.
+
+Custom Balances uses its own cost calculation engine that has been recoded/fixed to account for known issues with MD's
+cost basis calculations. Hence, the calculated cost basis won't consistently match with all MD screens/reports. However,
 you should find that it will normally match with one of the items mentioned above for reconciliation purposes. If you do
-find an issue with CB's calcualtion, please let the author know (along with details on how to reproduce the problem).
+find an issue with CB's calculation, please let the author know (along with details on how to reproduce the problem).
+
+MD & Custom Balances follows the U.S. IRS 'single-category' average cost method definition. Gains are split short /
+long-term using FIFO. From U.S. IRS Publication 564 for 2009, under Average Basis, for the 'single-category' method:
+          "Even though you include all unsold shares of a fund in a single category to compute average
+          basis, you may have both short-term and long-term gains or losses when you sell these shares.
+          To determine your holding period, the shares disposed of are considered to be those acquired first."
+          https://www.irs.gov/pub/irs-prior/p564--2009.pdf
+>> to be clear, with average cost, gains are always calculated using the average cost, and that total gain will be split
+   proportionally (based on the qty of ST/LT shares allocated to the sale) between ST/LT gains buckets.
+
+There was a 'double-category' method which allowed you to separate short-term and long-term average cost pools,
+but the IRS eliminated that method on April 1, 2011. NOTE: Custom Balances can compute the available shares
+in both short-term and long-term pools (however this data is only shown in console when COST_DEBUG is enabled).
+>> MD can report this same data in the Capital Gains report when the 'Show double-category average cost data' option is
+   enabled. However, this does not affect the cost basis or gains calculation, and is incorrect when the security has
+   stock splits....
 
 
 TECHNICAL/HISTORICAL NOTES:
