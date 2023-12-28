@@ -13505,7 +13505,7 @@ Visit: %s (Author's site)
                                                            %(GlobalVars.DEFAULT_WIDGET_DISPLAY_NAME.title(), titleExtraTxt))
                     NAB.theFrame = net_account_balances_frame_
                     NAB.theFrame.setName(u"%s_main" %(NAB.myModuleID))
-                    NAB.theFrame.setMinimumSize(Dimension(1000, 0))
+                    NAB.theFrame.setMinimumSize(Dimension(1170, 0))
 
                     NAB.theFrame.isActiveInMoneydance = True
                     NAB.theFrame.isRunTimeExtension = True
@@ -13744,6 +13744,13 @@ Visit: %s (Author's site)
                     onRow += 1
                     # --------------------------------------------------------------------------------------------------
 
+                    padx = 100
+
+                    onRowControlBtnCol = 0
+                    onRowControlBtnRow = 0
+                    rowControl_pnl = MyJPanel(GridBagLayout())
+                    rowControl_pnl.putClientProperty("%s.collapsible" %(NAB.myModuleID), "False")
+
                     onCol = 0
 
                     insertBefore_button = MyJButton("Insert Row before")
@@ -13753,8 +13760,8 @@ Visit: %s (Author's site)
                     insertBefore_button.setToolTipText("Inserts a new row before this one...")
                     insertBefore_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     insertBefore_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(insertBefore_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colLeftInset).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(insertBefore_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).padx(padx).leftInset(colLeftInset).fillx())
+                    onRowControlBtnCol += 1
 
                     insertAfter_button = MyJButton("Insert Row after")
                     insertAfter_button.setActionCommand("insert_row_after")
@@ -13763,8 +13770,8 @@ Visit: %s (Author's site)
                     insertAfter_button.setToolTipText("Inserts a new row after this one...")
                     insertAfter_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     insertAfter_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(insertAfter_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colInsetFiller).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(insertAfter_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).padx(padx).leftInset(colInsetFiller).fillx())
+                    onRowControlBtnCol += 1
 
                     deleteRow_button = MyJButton("Delete Row")
                     deleteRow_button.setActionCommand("delete_row")
@@ -13773,8 +13780,8 @@ Visit: %s (Author's site)
                     deleteRow_button.setToolTipText("Deletes this row...")
                     deleteRow_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     deleteRow_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(deleteRow_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colInsetFiller).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(deleteRow_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).padx(padx).leftInset(colInsetFiller).fillx())
+                    onRowControlBtnCol += 1
 
                     moveRow_button = MyJButton("Move Row")
                     moveRow_button.setActionCommand("move_row")
@@ -13783,13 +13790,12 @@ Visit: %s (Author's site)
                     moveRow_button.setToolTipText("Moves this row elsewhere...")
                     moveRow_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     moveRow_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(moveRow_button, GridC.getc(onCol, onRow).padx(padx).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(moveRow_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).padx(padx).leftInset(colInsetFiller).fillx())
 
-                    onRow += 1
+                    onRowControlBtnRow += 1
                     # --------------------------------------------------------------------------------------------------
 
-                    onCol = 0
+                    onRowControlBtnCol = 0
 
                     duplicateRow_button = MyJButton("Duplicate Row")
                     duplicateRow_button.setActionCommand("duplicate_row")
@@ -13798,8 +13804,8 @@ Visit: %s (Author's site)
                     duplicateRow_button.setToolTipText("Duplicates this row...")
                     duplicateRow_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     duplicateRow_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(duplicateRow_button, GridC.getc(onCol, onRow).leftInset(colLeftInset).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(duplicateRow_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).leftInset(colLeftInset).fillx())
+                    onRowControlBtnCol += 1
 
                     NAB.cancelChanges_button = MyJButton("Reload Settings")
                     NAB.cancelChanges_button.setActionCommand("reload_settings")
@@ -13808,8 +13814,8 @@ Visit: %s (Author's site)
                     NAB.cancelChanges_button.setToolTipText("Reloads all settings - for all rows - from last saved settings")
                     NAB.cancelChanges_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.cancelChanges_button.addActionListener(NAB.saveActionListener)
-                    controlPnl.add(NAB.cancelChanges_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(NAB.cancelChanges_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).leftInset(colInsetFiller).fillx())
+                    onRowControlBtnCol += 1
 
                     backup_button = MyJButton("Backup Config")
                     backup_button.setActionCommand("backup_config")
@@ -13818,8 +13824,8 @@ Visit: %s (Author's site)
                     backup_button.setToolTipText("Creates a backup of your current config (use CMD-SHIFT-B/R to Backup/Restore)")
                     backup_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     backup_button.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, backup=True))
-                    controlPnl.add(backup_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(backup_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).leftInset(colInsetFiller).fillx())
+                    onRowControlBtnCol += 1
 
                     restore_button = MyJButton("Restore Config")
                     restore_button.setActionCommand("restore_config")
@@ -13828,10 +13834,11 @@ Visit: %s (Author's site)
                     restore_button.setToolTipText("Allows you to restore a previous backup config file (use CMD-SHIFT-B/R to Backup/Restore)")
                     restore_button.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     restore_button.addActionListener(NAB.BackupRestoreConfig(NAB.theFrame, restore=True))
-                    controlPnl.add(restore_button, GridC.getc(onCol, onRow).leftInset(colInsetFiller).rightInset(colRightInset).fillx())
-                    onCol += 1
+                    rowControl_pnl.add(restore_button, GridC.getc(onRowControlBtnCol, onRowControlBtnRow).leftInset(colInsetFiller).fillx())
+                    onRowControlBtnCol += 1
 
-                    onRow += 1
+                    controlPnl.add(rowControl_pnl, GridC.getc(onCol, onRow).padx(padx).leftInset(colLeftInset).fillx().colspan(4))
+                    onRow += 2
 
                     # --------------------------------------------------------------------------------------------------
 
@@ -13943,7 +13950,7 @@ Visit: %s (Author's site)
                     NAB.asOfDateChooser_CB.putClientProperty("%s.id" %(NAB.myModuleID), "asOfDateChooser_CB")
                     NAB.asOfDateChooser_CB.putClientProperty("%s.id.reversed" %(NAB.myModuleID), False)
                     NAB.asOfDateChooser_CB.setName("asOfDateChooser_CB")
-                    NAB.asOfDateChooser_CB.setToolTipText("Select to override the balance asof date")
+                    NAB.asOfDateChooser_CB.setToolTipText("Select to override the balance asof date (default is asof today / include future, depending on the balance option)")
                     NAB.asOfDateChooser_CB.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     NAB.asOfDateChooser_CB.addActionListener(NAB.saveActionListener)
                     balanceAsOfSelection_pnl.add(NAB.asOfDateChooser_CB, GridC.getc(onBalanceAsOfCol, onBalanceAsOfRow).topInset(topInset))
@@ -13969,7 +13976,7 @@ Visit: %s (Author's site)
                     onCol = 0
                     topInset = 2
 
-                    includeRemindersLabel = MyJLabel("Include (non-recorded) Reminders:")
+                    includeRemindersLabel = MyJLabel("Include Reminders:")
                     includeRemindersLabel.putClientProperty("%s.id" %(NAB.myModuleID), "includeRemindersLabel")
                     includeRemindersLabel.putClientProperty("%s.collapsible" %(NAB.myModuleID), "true")
                     controlPnl.add(includeRemindersLabel, GridC.getc(onCol, onRow).east().leftInset(colLeftInset))
@@ -14052,11 +14059,11 @@ Visit: %s (Author's site)
                     NAB.useCostBasisCapitalGainsSimple_JRB.setName("useCostBasisCapitalGainsSimple_JRB")
                     NAB.useCostBasisCapitalGainsSimple_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains for the CG period (rather than the value)")
 
-                    NAB.useCostBasisCapitalGainsShort_JRB = MyJRadioButton("(Cap/Gains Short)")
+                    NAB.useCostBasisCapitalGainsShort_JRB = MyJRadioButton("(C/Gains Short)")
                     NAB.useCostBasisCapitalGainsShort_JRB.setName("useCostBasisCapitalGainsShort_JRB")
                     NAB.useCostBasisCapitalGainsShort_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains SHORT for the CG period (rather than the value)")
 
-                    NAB.useCostBasisCapitalGainsLong_JRB = MyJRadioButton("(Cap/Gains Long)")
+                    NAB.useCostBasisCapitalGainsLong_JRB = MyJRadioButton("(C/Gains Long)")
                     NAB.useCostBasisCapitalGainsLong_JRB.setName("useCostBasisCapitalGainsLong_JRB")
                     NAB.useCostBasisCapitalGainsLong_JRB.setToolTipText("When selected, then Security Accounts will return Capital Gains LONG for the CG period (rather than the value)")
 

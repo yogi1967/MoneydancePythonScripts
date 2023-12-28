@@ -102,8 +102,8 @@ CHOICES/CONFIGURATION FOR A ROW:
             - Today/future asof-dated Cleared Balance uses the real account's Cleared Balance
 
         The following points should be noted:
-            - Income / Expense categories:      Not affected by this option - refer separate 'I/E Date Range' section
-            - Include (non-recorded) Reminders: Not affected by this option - refer separate 'Include Reminders' section
+            - Income / Expense categories:   Not affected by this option - refer separate 'I/E Date Range' section
+            - Include Reminders:             Not affected by this option - refer separate 'Include Reminders' section
             - Security accounts when the 'Securities: Cost Basis' options are selected:
                 - refer separate 'Securities: Return Cost Basis / Unrealised Gains / Capital Gains options' section...
 
@@ -115,7 +115,7 @@ CHOICES/CONFIGURATION FOR A ROW:
 
         - WARNING: REFER 'PARALLEL BALANCES' BELOW CONCERNING CALCULATION SPEED
 
-- Include (non-recorded) Reminders: Reminders (up to the specified reminder asof date) can be included in the balances.
+- Include Reminders: (non-committed) Reminders (up to the specified reminder asof date) can be included in the balances.
 
         >> This only includes reminder occurrence(s) that have not already been committed/recorded into the register
            ... ie. once they are recorded/committed then they are already within the actual balance for that date
@@ -162,8 +162,8 @@ CHOICES/CONFIGURATION FOR A ROW:
                              > WARNING: The date range cannot exceed the 'balance asof date'. Any transactions (gains)
                                         after the asof date will be excluded from the calculation!
 
-    - (Cap/Gains Short):     As above, but returns the 'short' capital gains value
-    - (Cap/Gains Long):      As above, but returns the 'long' capital gains value
+    - (C/Gains Short):       As above, but returns the 'short' capital gains value
+    - (C/Gains Long):        As above, but returns the 'long' capital gains value
 
     >> NOTES:
         - Calculated cost basis / unrealised / capital gains values will overwrite normal calculated balances
