@@ -598,9 +598,10 @@ else:
     GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE = 3
     GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SHORT = 4
     GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG = 5
+    GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH = 6
 
     GlobalVars.COSTBASIS_TYPE_IDX = 0
-    GlobalVars.COSTBASIS_INCLUDE_CASH_IDX = 1
+    GlobalVars.COSTBASIS_UNUSED_IDX = 1             # Was for include cash - moved above
     GlobalVars.COSTBASIS_DR_ENABLED_IDX = 2         # Keep these below in sync with MyDateRangeChooser _IDX values!
     GlobalVars.COSTBASIS_DR_KEY_IDX = 3
     GlobalVars.COSTBASIS_DR_START_KEY_IDX = 4
@@ -3866,8 +3867,8 @@ Visit: %s (Author's site)
             shortTermAvailShares = previousPosShrsOwnedAdjusted - longTermAvailShares                # Only used for (the now obsolete) U.S. IRS double-category reporting with avg cost (not currently shown by CB)
             if self.COST_DEBUG:
                 if self.getUsesAverageCost():
-                    myPrint("B", "...... (US IRS 'double-category' st/lt pools prior to this sale (as at the date of this sale): shortTermAvailShares: %s, longTermAvailShares: %s = shares owned: %s)"
-                            %(gsdv(shortTermAvailShares), gsdv(longTermAvailShares), gsdv(pos.getPreviousPos().getSharesOwnedAsOfThisTxn())))
+                    if self.COST_DEBUG: myPrint("B", "...... (US IRS 'double-category' st/lt pools prior to this sale (as at the date of this sale): shortTermAvailShares: %s, longTermAvailShares: %s = shares owned: %s)"
+                                                      %(gsdv(shortTermAvailShares), gsdv(longTermAvailShares), gsdv(pos.getPreviousPos().getSharesOwnedAsOfThisTxn())))
 
             result = CapitalGainResult(costBasis, shortCostBasis, longCostBasis, shortTermSalesSold, longTermSharesSold, shortTermAvailShares, longTermAvailShares, messageKey)
             if self.COST_DEBUG: myPrint("B", "... calculated gain for '%s' from position " %(self.getSecAccount()), pos, "\nprevious position:", pos.getPreviousPos(), "\n-->", result)
@@ -7071,19 +7072,28 @@ Visit: %s (Author's site)
     def getCostBasisTypeStrFromOption(cbOption):
         if cbOption == GlobalVars.COSTBASIS_TYPE_NONE:                  return "<NOT SELECTED>"
         elif cbOption == GlobalVars.COSTBASIS_TYPE_CB:                  return "COSTBASIS"
+        elif cbOption == GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH:        return "COSTBASIS INCL. CASH"
         elif cbOption == GlobalVars.COSTBASIS_TYPE_URGAINS:             return "U/R GAINS"
         elif cbOption == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SIMPLE: return "CAPITAL GAINS (SIMPLE)"
         elif cbOption == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_SHORT:  return "CAPITAL GAINS (SHORT)"
         elif cbOption == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG:   return "CAPITAL GAINS (LONG)"
         return "<UNKNOWN>"
 
-    def isUseCostBasisSelected(index):
+    def isAnyCostBasisOptionTypeSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] != GlobalVars.COSTBASIS_TYPE_NONE)
 
     def isUseCostBasisOptionSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] in [GlobalVars.COSTBASIS_TYPE_CB, GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH])
+
+    def isUseCostBasisOptionOnlySelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CB)
+
+    def isUseCostBasisCashSelected(index):
+        NAB = NetAccountBalancesExtension.getNAB()
+        return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH)
 
     def isUseCostBasisURGainsSelected(index):
         NAB = NetAccountBalancesExtension.getNAB()
@@ -7106,14 +7116,10 @@ Visit: %s (Author's site)
         NAB = NetAccountBalancesExtension.getNAB()
         return (NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG)
 
-    def isUseCostBasisCashSelected(index):
-        NAB = NetAccountBalancesExtension.getNAB()
-        return isUseCostBasisSelected(index) and NAB.savedUseCostBasisTable[index][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX]
-
     def shouldIncludeAccountForCostBasis(index, acct):
-        if isUseCostBasisSelected(index):
+        if isAnyCostBasisOptionTypeSelected(index):
             checkATs = [Account.AccountType.SECURITY]                                                                   # noqa
-            if isUseCostBasisOptionSelected(index) and isUseCostBasisCashSelected(index):  # Only allow cash with cost basis (not ur/capital gains)
+            if isUseCostBasisCashSelected(index):
                 checkATs.append(Account.AccountType.INVESTMENT)                                                         # noqa
             if acct.getAccountType() in checkATs: return True
         return False
@@ -7152,7 +7158,7 @@ Visit: %s (Author's site)
             if isIncludeRemindersSelected(iRowIndex):
                 # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Accounts with 'include reminders asof date' is in operation.." %(onRow))
                 lAnyParallel = True
-            if isUseCostBasisSelected(iRowIndex):
+            if isAnyCostBasisOptionTypeSelected(iRowIndex):
                 # if (_rowIdx is None and debug): myPrint("B", "** Row: %s >> Parallel Balances for Security accounts with 'return cost basis' is in operation.." %(onRow))
                 lAnyParallel = True
             if isIncomeExpenseDatesSelected(iRowIndex):
@@ -7539,7 +7545,7 @@ Visit: %s (Author's site)
 
             if not isIncludeRemindersSelected(iRowIdx): continue
 
-            if isUseCostBasisSelected(iRowIdx): continue        # Nope - Reminders NOT allowed when using cost basis / urgs
+            if isAnyCostBasisOptionTypeSelected(iRowIdx): continue        # Nope - Reminders NOT allowed when using cost basis / urgs
 
             remCutOffDateInt = getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[iRowIdx])
 
@@ -7650,7 +7656,7 @@ Visit: %s (Author's site)
 
         for iRowIdx in range(0, len(_parallelBalanceTable)):
 
-            if not isUseCostBasisSelected(iRowIdx): continue
+            if not isAnyCostBasisOptionTypeSelected(iRowIdx): continue
 
             if isBalanceAsOfDateSelected(iRowIdx):
                 asOfDate = getBalanceAsOfDateSelected(NAB.savedBalanceAsOfDateTable[iRowIdx])
@@ -7703,8 +7709,8 @@ Visit: %s (Author's site)
                     asofSharesBal, asofCostBasisBal = costCalculationBal.getSharesAndCostBasisForAsOf()
                     asofSharesCurBal, asofCostBasisCurBal = costCalculationCurrBal.getSharesAndCostBasisForAsOf()
 
-                    for pos in costCalculationBal.getPositions():
-                        if pos.isSellTxn(): myPrint("B", pos.toString())
+                    # for pos in costCalculationBal.getPositions():
+                    #     if pos.isSellTxn(): myPrint("B", pos.toString())
 
                     if costCalculationBal.isCostBasisInvalid():
                         balObj.setCostBasisInvalid(True)        # In theory costCalculationCurrBal.isCostBasisInvalid() should be the same...
@@ -7826,7 +7832,7 @@ Visit: %s (Author's site)
                 balanceObj.setParallelRealBalances(True)
                 balanceObj.setEffectiveDateInt(None)
 
-                if isUseCostBasisSelected(iRowIdx) and not shouldIncludeAccountForCostBasis(iRowIdx, acct):
+                if isAnyCostBasisOptionTypeSelected(iRowIdx) and not shouldIncludeAccountForCostBasis(iRowIdx, acct):
                     balanceObj.setBalance(0)
                     balanceObj.setCurrentBalance(0)
                     balanceObj.setClearedBalance(0)
@@ -7999,7 +8005,7 @@ Visit: %s (Author's site)
 
                 if isIncomeExpenseAcct(acct): continue      # Skip Income/Expense accounts for 'balance asof dates' - obey I/E All Dates...
 
-                if isUseCostBasisSelected(iRowIdx):         # When selecting cost basis / ur / capital gains, only allow Invest(when cb & cash)/Security accounts
+                if isAnyCostBasisOptionTypeSelected(iRowIdx):         # When selecting cost basis / ur / capital gains, only allow Invest(when cb & cash)/Security accounts
                     if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
 
                 asofBalanceTxnTable[iRowIdx][acct] = TxnSet()
@@ -8144,7 +8150,7 @@ Visit: %s (Author's site)
 
                 if isIncomeExpenseAcct(acct): continue      # Skip Income/Expense accounts for 'balance asof dates' - obey I/E All Dates...
 
-                if isUseCostBasisSelected(iRowIdx):         # When selecting cost basis / ur / capital gains, only allow Invest(when cb & cash)/Security accounts
+                if isAnyCostBasisOptionTypeSelected(iRowIdx):         # When selecting cost basis / ur / capital gains, only allow Invest(when cb & cash)/Security accounts
                     if not shouldIncludeAccountForCostBasis(iRowIdx, acct): continue
 
                 acctBalLong = AccountUtil.getBalanceAsOfDate(book, acct, balAsOfDate, True)    # NOTE: we have already filtered out rows where asof date is not required above..
@@ -8211,7 +8217,7 @@ Visit: %s (Author's site)
                 if swClass.isCancelled(): break
 
                 if (not isIncomeExpenseAcct(acct) or not isIncomeExpenseDatesSelected(iRowIdx)
-                        or isUseCostBasisSelected(iRowIdx)):        # Don't allow I/E when cost basis selected for this row!
+                        or isAnyCostBasisOptionTypeSelected(iRowIdx)):        # Don't allow I/E when cost basis selected for this row!
                     _parallelBalanceTable[iRowIdx][acct] = None
                     continue
 
@@ -8280,7 +8286,7 @@ Visit: %s (Author's site)
         _incExpDateRangeArray = buildEmptyDateRangeArray()
         for iRowIdx in range(0, len(_parallelTxnTable)):
             if len(_parallelTxnTable[iRowIdx]) < 1: continue            # If no Accounts in the table for this row, then just ignore/skip
-            if isUseCostBasisSelected(iRowIdx): continue                # Don't allow I/E when cost basis selected for this row!
+            if isAnyCostBasisOptionTypeSelected(iRowIdx): continue                # Don't allow I/E when cost basis selected for this row!
             if isIncomeExpenseDatesSelected(iRowIdx):                   # Only add a date range if this row is configured for I/E date range
                 _incExpDateRangeArray[iRowIdx] = getIncExpDateRangeSelected(NAB.savedIncExpDateRangeTable[iRowIdx])
 
@@ -8818,11 +8824,11 @@ Visit: %s (Author's site)
             self.securitiesCGains_LBL               = None
             self.useCostBasisNone_JRB               = None
             self.useCostBasisCB_JRB                 = None
+            self.useCostBasisCBInclCash_JRB         = None
             self.useCostBasisURGains_JRB            = None
             self.useCostBasisCapitalGainsSimple_JRB = None
             self.useCostBasisCapitalGainsShort_JRB  = None
             self.useCostBasisCapitalGainsLong_JRB   = None
-            self.useCostBasisCash_CB                = None
             self.securitiesCapitalGains_DRC         = None
             self.capGainsDateRange_LBL              = None
             self.separatorSelectorNone_JRB          = None
@@ -9905,7 +9911,7 @@ Visit: %s (Author's site)
         def balanceAsOfDateDefault(self, sel=False):    return [sel, AsOfDateChooser.ASOF_TODAY, 0, 0]
         def includeRemindersDefault(self, sel=False):   return [sel, AsOfDateChooser.KEY_ASOF_END_THIS_MONTH, 0, 0]
         def incExpDateRangeDefault(self, sel=True):     return [sel, MyDateRangeChooser.KEY_DR_ALL_DATES, 0, 0, 0]
-        def useCostBasisDefault(self, cgSel=False):     return [GlobalVars.COSTBASIS_TYPE_NONE, False, cgSel, MyDateRangeChooser.KEY_DR_YEAR_TO_DATE, 0, 0, 0]
+        def useCostBasisDefault(self, cgSel=False):     return [GlobalVars.COSTBASIS_TYPE_NONE, None, cgSel, MyDateRangeChooser.KEY_DR_YEAR_TO_DATE, 0, 0, 0]
         def rowSeparatorDefault(self):                  return GlobalVars.ROW_SEPARATOR_NEVER
         def blinkDefault(self):                         return False
         def includeInactiveDefault(self):               return 0
@@ -9960,7 +9966,7 @@ Visit: %s (Author's site)
 
             if self.savedUseCostBasisTable == [self.useCostBasisDefault()] and len(self.savedUseCostBasisTable) != self.getNumberOfRows():
                 self.savedUseCostBasisTable = [self.useCostBasisDefault() for i in range(0, self.getNumberOfRows())]
-                myPrint("B", "New parameter savedUseCostBasisTable detected, pre-populating with [%s] (= not using cost basis options, do not include cash)" %(self.savedUseCostBasisTable))
+                myPrint("B", "New parameter savedUseCostBasisTable detected, pre-populating with [%s] (= not using cost basis options, Unused, no capital gains date range options)" %(self.savedUseCostBasisTable))
 
             if self.savedIncludeRemindersTable == [self.includeRemindersDefault()] and len(self.savedIncludeRemindersTable) != self.getNumberOfRows():
                 self.savedIncludeRemindersTable = [self.includeRemindersDefault() for i in range(0, self.getNumberOfRows())]
@@ -10188,18 +10194,27 @@ Visit: %s (Author's site)
                         printResetMessage("savedIncExpDateRangeTable", self.savedIncExpDateRangeTable[i], self.incExpDateRangeDefault(), i)
                         self.savedIncExpDateRangeTable[i] = self.incExpDateRangeDefault()
 
+                    # Upgrade this parameter. Migrate include cash into main options...
+                    if (isinstance(self.savedUseCostBasisTable[i], list) and len(self.savedUseCostBasisTable[i]) >= (GlobalVars.COSTBASIS_UNUSED_IDX + 1)
+                            and isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_UNUSED_IDX], bool) and self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_UNUSED_IDX]
+                            and self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] == GlobalVars.COSTBASIS_TYPE_CB):
+                        oldValue = copy.deepcopy(self.savedUseCostBasisTable[i])
+                        self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_UNUSED_IDX] = None
+                        self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] = GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedUseCostBasisTable' - migrating 'cost basis' with old 'include cash' option ticked, to new single 'cost basis incl. cash' option (from: '%s' to: '%s')" %(i+1, oldValue, self.savedUseCostBasisTable[i]))
+
                     # Upgrade this parameter with new capital gains settings....
-                    if isinstance(self.savedUseCostBasisTable[i], list) and len(self.savedUseCostBasisTable[i]) == (GlobalVars.COSTBASIS_INCLUDE_CASH_IDX + 1):
+                    if isinstance(self.savedUseCostBasisTable[i], list) and len(self.savedUseCostBasisTable[i]) == (GlobalVars.COSTBASIS_UNUSED_IDX + 1):
                         oldValue = copy.deepcopy(self.savedUseCostBasisTable[i])
                         self.savedUseCostBasisTable[i].extend(self.useCostBasisDefault(False)[GlobalVars.COSTBASIS_DR_ENABLED_IDX:])
-                        myPrint("B", "... Upgrading row: %s saved parameter 'savedUseCostBasisTable' - adding 0 skipback periods (from: '%s' to: '%s')" %(i+1, oldValue, self.savedUseCostBasisTable[i]))
+                        myPrint("B", "... Upgrading row: %s saved parameter 'savedUseCostBasisTable' - adding capital gains date range settings (from: '%s' to: '%s')" %(i+1, oldValue, self.savedUseCostBasisTable[i]))
 
                     if (self.savedUseCostBasisTable[i] is None or not isinstance(self.savedUseCostBasisTable[i], list) or len(self.savedUseCostBasisTable[i]) != (GlobalVars.COSTBASIS_DR_SKIPBACKPERIODS_IDX + 1)
-                            or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX], int) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX], bool)
+                            or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX], int)
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_ENABLED_IDX], bool) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_KEY_IDX], str)
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_START_KEY_IDX], (int)) or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_END_KEY_IDX], (int))
                             or not isinstance(self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_DR_SKIPBACKPERIODS_IDX], (int, Integer, float))
-                            or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_CAPITALGAINS_LONG):
+                            or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] < GlobalVars.COSTBASIS_TYPE_NONE or self.savedUseCostBasisTable[i][GlobalVars.COSTBASIS_TYPE_IDX] > GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH):
                         printResetMessage("savedUseCostBasisTable", self.savedUseCostBasisTable[i], self.useCostBasisDefault(), i)
                         self.savedUseCostBasisTable[i] = self.useCostBasisDefault()
 
@@ -10648,11 +10663,9 @@ Visit: %s (Author's site)
             if NAB.savedHideControlPanel: return
             lHideControls = True
             NAB.securitiesCapitalGains_DRC.setEnabled(isUseCostBasisCapitalGainsSelected(_rowIdx), lHideControls)
-            NAB.useCostBasisCash_CB.setEnabled(isUseCostBasisOptionSelected(_rowIdx))
             if lHideControls:
                 NAB.securitiesCGains_LBL.setVisible(isUseCostBasisCapitalGainsSelected(_rowIdx))
                 NAB.capGainsDateRange_LBL.setVisible(isUseCostBasisCapitalGainsSelected(_rowIdx))
-                NAB.useCostBasisCash_CB.setVisible(isUseCostBasisOptionSelected(_rowIdx))
 
         def setAllGUILabelsControls(self, _rowIdx):
             NAB = self
@@ -10818,11 +10831,11 @@ Visit: %s (Author's site)
                                       NAB.currency_COMBO,
                                       NAB.useCostBasisNone_JRB,
                                       NAB.useCostBasisCB_JRB,
+                                      NAB.useCostBasisCBInclCash_JRB,
                                       NAB.useCostBasisURGains_JRB,
                                       NAB.useCostBasisCapitalGainsSimple_JRB,
                                       NAB.useCostBasisCapitalGainsShort_JRB,
                                       NAB.useCostBasisCapitalGainsLong_JRB,
-                                      NAB.useCostBasisCash_CB,
                                       NAB.securitiesCapitalGains_DRC,
                                       NAB.separatorSelectorNone_JRB,
                                       NAB.separatorSelectorAbove_JRB,
@@ -10921,16 +10934,14 @@ Visit: %s (Author's site)
             myPrint("DB", "..about to set autoSumAccounts_CB..")
             NAB.autoSumAccounts_CB.setSelected(NAB.savedAutoSumAccounts[selectRowIndex])
 
-            myPrint("DB", "..about to set useCostBasisNone_JRB, useCostBasisCB_JRB, useCostBasisURGains_JRB, useCostBasisCapitalGainsSimple_JRB, useCostBasisCapitalGainsShort_JRB, useCostBasisCapitalGainsLong_JRB..")
-            NAB.useCostBasisNone_JRB.setSelected(not isUseCostBasisSelected(selectRowIndex))
-            NAB.useCostBasisCB_JRB.setSelected(isUseCostBasisOptionSelected(selectRowIndex))
+            myPrint("DB", "..about to set useCostBasisNone_JRB, useCostBasisCB_JRB, useCostBasisCBInclCash_JRB, useCostBasisURGains_JRB, useCostBasisCapitalGainsSimple_JRB, useCostBasisCapitalGainsShort_JRB, useCostBasisCapitalGainsLong_JRB..")
+            NAB.useCostBasisNone_JRB.setSelected(not isAnyCostBasisOptionTypeSelected(selectRowIndex))
+            NAB.useCostBasisCB_JRB.setSelected(isUseCostBasisOptionOnlySelected(selectRowIndex))
+            NAB.useCostBasisCBInclCash_JRB.setSelected(isUseCostBasisCashSelected(selectRowIndex))
             NAB.useCostBasisURGains_JRB.setSelected(isUseCostBasisURGainsSelected(selectRowIndex))
             NAB.useCostBasisCapitalGainsSimple_JRB.setSelected(isUseCostBasisCapitalGainsSimpleSelected(selectRowIndex))
             NAB.useCostBasisCapitalGainsShort_JRB.setSelected(isUseCostBasisCapitalGainsShortSelected(selectRowIndex))
             NAB.useCostBasisCapitalGainsLong_JRB.setSelected(isUseCostBasisCapitalGainsLongSelected(selectRowIndex))
-
-            myPrint("DB", "..about to set useCostBasisCash_CB..")
-            NAB.useCostBasisCash_CB.setSelected(isUseCostBasisCashSelected(selectRowIndex))
 
             myPrint("DB", "..about to set securitiesCapitalGains_DRC..")
             NAB.securitiesCapitalGains_DRC.loadFromParameters(NAB.savedUseCostBasisTable[selectRowIndex][GlobalVars.COSTBASIS_DR_ENABLED_IDX:], MyDateRangeChooser.KEY_DR_YEAR_TO_DATE)
@@ -11050,11 +11061,11 @@ Visit: %s (Author's site)
                 myPrint("B", ".....savedUseCostBasisTable: %s"                  %(NAB.savedUseCostBasisTable[selectRowIndex]))
                 myPrint("B", ".....useCostBasisNone_JRB: %s"                    %(NAB.useCostBasisNone_JRB.isSelected()))
                 myPrint("B", ".....useCostBasisCB_JRB: %s"                      %(NAB.useCostBasisCB_JRB.isSelected()))
+                myPrint("B", ".....useCostBasisCBInclCash_JRB: %s"              %(NAB.useCostBasisCBInclCash_JRB.isSelected()))
                 myPrint("B", ".....useCostBasisURGains_JRB: %s"                 %(NAB.useCostBasisURGains_JRB.isSelected()))
                 myPrint("B", ".....useCostBasisCapitalGainsSimple_JRB: %s"      %(NAB.useCostBasisCapitalGainsSimple_JRB.toString()))
                 myPrint("B", ".....useCostBasisCapitalGainsShort_JRB: %s"       %(NAB.useCostBasisCapitalGainsShort_JRB.toString()))
                 myPrint("B", ".....useCostBasisCapitalGainsLong_JRB: %s"        %(NAB.useCostBasisCapitalGainsLong_JRB.toString()))
-                myPrint("B", ".....useCostBasisCash_CB: %s"                     %(NAB.useCostBasisCash_CB.isSelected()))
                 myPrint("B", ".....securitiesCapitalGains_DRC: %s"              %(NAB.securitiesCapitalGains_DRC.toString()))
                 myPrint("B", ".....savedOperateOnAnotherRowTable: %s"           %(NAB.savedOperateOnAnotherRowTable[selectRowIndex]))
                 myPrint("B", ".....utiliseOtherRow_JTFAI: %s"                   %(NAB.utiliseOtherRow_JTFAI.getValueIntOrNone()))
@@ -11873,10 +11884,13 @@ Visit: %s (Author's site)
                                 if debug: myPrint("DB", ":: Row: %s including reminders asof date: %s" %(i+1, getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
 
                             showCostBasisText = ""
-                            if isUseCostBasisSelected(i):
-                                if isUseCostBasisOptionSelected(i):
+                            if isAnyCostBasisOptionTypeSelected(i):
+                                if isUseCostBasisOptionOnlySelected(i):
                                     showCostBasisText = " (cb)"
                                     if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts)" %(i+1))
+                                elif isUseCostBasisCashSelected(i):
+                                    showCostBasisText = " (cb-c)"
+                                    if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts), including cash (for investment accounts)" %(i+1))
                                 elif isUseCostBasisURGainsSelected(i):
                                     showCostBasisText = " (urg)"
                                     if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))
@@ -12232,11 +12246,13 @@ Visit: %s (Author's site)
                         NAB.configSaved = False
 
                 # ######################################################################################################
-                if event.getSource() in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisURGains_JRB,
+                if event.getSource() in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisCBInclCash_JRB, NAB.useCostBasisURGains_JRB,
                                          NAB.useCostBasisCapitalGainsSimple_JRB, NAB.useCostBasisCapitalGainsShort_JRB, NAB.useCostBasisCapitalGainsLong_JRB]:
                     useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_NONE
                     if event.getSource() is NAB.useCostBasisCB_JRB and event.getSource().isSelected():
                         useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CB
+                    elif event.getSource() is NAB.useCostBasisCBInclCash_JRB and event.getSource().isSelected():
+                        useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_CB_INCL_CASH
                     elif event.getSource() is NAB.useCostBasisURGains_JRB and event.getSource().isSelected():
                         useCostBasisCodeSelected = GlobalVars.COSTBASIS_TYPE_URGAINS
                     elif event.getSource() is NAB.useCostBasisCapitalGainsSimple_JRB and event.getSource().isSelected():
@@ -12248,22 +12264,7 @@ Visit: %s (Author's site)
                     if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] != useCostBasisCodeSelected:
                         myPrint("DB", ".. setting savedUseCostBasisTable[type] to: %s for row: %s" %(useCostBasisCodeSelected, NAB.getSelectedRow()))
                         NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_TYPE_IDX] = useCostBasisCodeSelected
-
-                        if not isUseCostBasisSelected(NAB.getSelectedRowIndex()) or isUseCostBasisURGainsSelected(NAB.getSelectedRowIndex()) or isUseCostBasisCapitalGainsSelected(NAB.getSelectedRowIndex()):
-                            NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] = False
-                            NAB.useCostBasisCash_CB.setSelected(isUseCostBasisCashSelected(NAB.getSelectedRowIndex()))
-
                         NAB.configSaved = False
-
-                # ######################################################################################################
-                if event.getSource() is NAB.useCostBasisCash_CB:
-                    if not isUseCostBasisSelected(NAB.getSelectedRowIndex()):
-                        event.getSource().setSelected(False)
-                    else:
-                        if NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] != event.getSource().isSelected():
-                            myPrint("DB", ".. setting savedUseCostBasisTable[useCash] to: %s for row: %s" %(event.getSource().isSelected(), NAB.getSelectedRow()))
-                            NAB.savedUseCostBasisTable[NAB.getSelectedRowIndex()][GlobalVars.COSTBASIS_INCLUDE_CASH_IDX] = event.getSource().isSelected()
-                            NAB.configSaved = False
 
                 # ######################################################################################################
                 if event.getSource() in [NAB.separatorSelectorNone_JRB, NAB.separatorSelectorAbove_JRB, NAB.separatorSelectorBelow_JRB, NAB.separatorSelectorBoth_JRB]:
@@ -14039,6 +14040,10 @@ Visit: %s (Author's site)
                     NAB.useCostBasisCB_JRB.setName("useCostBasisCB_JRB")
                     NAB.useCostBasisCB_JRB.setToolTipText("When selected, then Security Accounts will return the Cost Basis, (rather than the value)")
 
+                    NAB.useCostBasisCBInclCash_JRB = MyJRadioButton("(CB incl. cash)")
+                    NAB.useCostBasisCBInclCash_JRB.setName("useCostBasisCBInclCash_JRB")
+                    NAB.useCostBasisCBInclCash_JRB.setToolTipText("When enabled, Investment account cash balances will be included in Security Cost Basis calculations")
+
                     NAB.useCostBasisURGains_JRB = MyJRadioButton("Rtn U/R Gains")
                     NAB.useCostBasisURGains_JRB.setName("useCostBasisURGains_JRB")
                     NAB.useCostBasisURGains_JRB.setToolTipText("When selected, then Security Accounts will return the Unrealised Gains (rather than the value)")
@@ -14057,14 +14062,10 @@ Visit: %s (Author's site)
 
                     useCostBasisButtonGroup = ButtonGroup()
 
-                    NAB.useCostBasisCash_CB = MyJCheckBox("Include Cash", False)
-                    NAB.useCostBasisCash_CB.setName("useCostBasisCash_CB")
-                    NAB.useCostBasisCash_CB.setToolTipText("When enabled, then Investment account cash balances will be included in Security Cost Basis calculations")
-
                     onSepRow = 0
                     onCbUrgCol = 0
 
-                    for jrb in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisCash_CB, NAB.useCostBasisURGains_JRB,
+                    for jrb in [NAB.useCostBasisNone_JRB, NAB.useCostBasisCB_JRB, NAB.useCostBasisCBInclCash_JRB, NAB.useCostBasisURGains_JRB,
                                 NAB.useCostBasisCapitalGainsSimple_JRB, NAB.useCostBasisCapitalGainsShort_JRB, NAB.useCostBasisCapitalGainsLong_JRB]:
                         if isinstance(jrb, JRadioButton): useCostBasisButtonGroup.add(jrb)
                         jrb.setActionCommand(jrb.getName())
@@ -15966,7 +15967,7 @@ Visit: %s (Author's site)
                                 myPrint("B", warnTxt)
                                 NAB.warningMessagesTable.append(warnTxt)
 
-                            if ((isUseCostBasisSelected(iAccountLoop) and (iCountSecurities or (isUseCostBasisCashSelected(iAccountLoop) and iCountInvestAccounts)))):
+                            if ((isAnyCostBasisOptionTypeSelected(iAccountLoop) and (iCountSecurities or (isUseCostBasisCashSelected(iAccountLoop) and iCountInvestAccounts)))):
                                 if (iCountIncomeExpense or iCountNonInvestAccounts):
                                     lWarningDetected = True
                                     iWarningType = (6 if (iWarningType is None or iWarningType == 6) else 0)
@@ -16035,7 +16036,7 @@ Visit: %s (Author's site)
                                     myPrint("B", warnTxt)
                                     NAB.warningMessagesTable.append(warnTxt)
 
-                                if isUseCostBasisSelected(iAccountLoop):
+                                if isAnyCostBasisOptionTypeSelected(iAccountLoop):
                                     lWarningDetected = True
                                     iWarningType = (9 if (iWarningType is None or iWarningType == 9) else 0)
                                     iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
@@ -16473,11 +16474,14 @@ Visit: %s (Author's site)
                                         if debug: myPrint("DB", ":: Row: %s including reminders asof date: %s" %(i+1, getIncludeRemindersAsOfDateSelected(NAB.savedIncludeRemindersTable[i])))
 
                                     showCostBasisText = ""
-                                    if isUseCostBasisSelected(i):
+                                    if isAnyCostBasisOptionTypeSelected(i):
                                         returnCostBasis = True
-                                        if isUseCostBasisOptionSelected(i):
+                                        if isUseCostBasisOptionOnlySelected(i):
                                             showCostBasisText = " (cb)" if not debug else " (costbasis)"
                                             if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts)" %(i+1))
+                                        elif isUseCostBasisCashSelected(i):
+                                            showCostBasisText = " (cb-c)" if not debug else " (costbasis incl. cash)"
+                                            if debug: myPrint("DB", ":: Row: %s returning cost basis (for security accounts), including cash (for investment accounts)" %(i+1))
                                         elif isUseCostBasisURGainsSelected(i):
                                             showCostBasisText = " (urg)" if not debug else " (u/r gains)"
                                             if debug: myPrint("DB", ":: Row: %s returning unrealised gains (for security accounts)" %(i+1))

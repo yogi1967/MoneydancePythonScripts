@@ -139,6 +139,18 @@ CHOICES/CONFIGURATION FOR A ROW:
     - Rtn Cost Basis:        When selected, the cost basis (**as of the balance / asof date) for selected Security
                              accounts will be returned (instead of the normal shareholding).
 
+    - (CB Incl. cash):       The same as 'Rtn Cost Basis' but includes Investment account's cash balances...
+                             When selected then cash balances on (selected) investment accounts will be included too.
+                             .. both this option AND the investment account(s) need to be selected for cash
+                             .. if this option is not selected, then any selected investment accounts will generate zero
+
+                             > REMEMBER: Cash is NOT specific to any security, it's just cash in the investment account!
+
+                             > WARNING: Many would consider that cash should NEVER be included, as this is not specific
+                                        to any security. But MD often includes cash for any accounts where there are
+                                        securities with a share balance. NOTE: MD does not seem to include cash where an
+                                        investment account has no securities with a share balance.
+
     - Rtn Unrealised Gains:  When selected, the calculated unrealised gains (**asof the balance / asof date) for the
                              selected Security accounts will be returned. This is calculated as value less cost basis.
 
@@ -153,22 +165,10 @@ CHOICES/CONFIGURATION FOR A ROW:
     - (Cap/Gains Short):     As above, but returns the 'short' capital gains value
     - (Cap/Gains Long):      As above, but returns the 'long' capital gains value
 
-    - Include Cash Balances: When selected then cash balances on (selected) investment accounts will be included too.
-                             ONLY applies to the 'Rtn Cost Basis' option (not the ur-gains, or capital-gains options)
-                             .. both the return cash option and the investment account(s) needs to be selected for cash
-                             .. if include cash is not selected, then selected investment accounts will generate zero.
-
-                             > REMEMBER: Cash is NOT specific to any security, it's just cash in the investment account!
-
-                             > WARNING: Many would not consider that cash should be included, as this is not specific
-                                        to any security. But MD often includes cash for any accounts where there are
-                                        securities with a share balance. MD does not seem to include cash where an
-                                        investment account has no securities with a share balance.
-
     >> NOTES:
         - Calculated cost basis / unrealised / capital gains values will overwrite normal calculated balances
           ... this is a MUTUALLY EXCLUSIVE option. When enabled, no other calculation type(s) will be included!
-          ...... (no reminders, no other non-security/investment(cb & cash), no income / expense transactions)
+          ...... (no reminders, no other non-security/investment(cb incl. cash), no income / expense transactions)
         - There can in theory be future-dated cost basis / ur / capital gains. Let me know how this works out for you?!
         - Current Balance will derive the cost basis asof today.
         - asof-dated Cleared Balance is ILLOGICAL, so uses the calculated asof-dated Balance               ** WARNING **
@@ -518,7 +518,7 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
         # 7. for all accounts selected, add reminder txn/balances up to the reminder's asof date (where requested).
 
     - NOTE: When cost basis / unrealised / capital gains is enabled, all other steps are skipped >> MUTUALLY EXCLUSIVE!
-            (i.e. no reminders, income / expense transactions, no non-security/investment(cb & cash) accounts
+            (i.e. no reminders, income / expense transactions, no non-security/investment(cb incl. cash) accounts
 
     - NOTE: For the Summary Screen (Home Page), only selected accounts use parallel balances...
             But when using the configuration GUI, then all Accounts for the viewed row will use parallel balances...
