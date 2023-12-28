@@ -205,13 +205,19 @@ CALCULATIONS ON CALCULATED BALANCES:
       *** NOTE: DO NOT select to use a date range if no Inc/Exp categories are selected. It will automatically revert
                 back to All dates at a later point when it validates the settings.
 
-- Adj/by: Allows you to adjust the final calculated balance by a +/- amount (DEFAULT 0.0)
-
-- Maths using another row: If set, you can retrieve the result from another row and then apply maths
-                           to the result of the current row.. E.g. take this row and divide it by the result from row x
+- Maths using another row: If set, you can retrieve the result from another row(x) and then apply maths
+                           to the result of the current row.. E.g. take this row and divide it by the result from row(x)
                            and treat the result as a percent. For example, this could calculate the value of investments
                            as a percentage of total networth...
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
+
+- Final maths calculation: If set, then you can apply maths to the row's final calculation as the very last step.
+                           E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
+                           For example, calculate the estimated tax payable as a percentage of dividend income YTD..
+                           ... by multiplying the calculated row * 0.2 (20%), and returning a percentage.
+
+                           WARNING: 'Format as %' could conflict with the same setting in 'Maths using another row'...
+                                    ... i.e. if either request %, then you will always get a percent!
 
 - Hide row when options: Never, Always(Disable), balance = X, balance >= X, balance <= X. DEFAULT FOR X is ZERO
     >> 'Always(Disable)' is ignored in use other row calculations that require this row!
@@ -235,6 +241,26 @@ CALCULATIONS ON CALCULATED BALANCES:
 
                  NOTE: For 'Multi-Warnings Detected' review Help>Console Window for details
                        .. The search for warnings stops after the first occurrence of each type of error it finds....
+
+
+KEY TO ROW FORMATTING ON SUMMARY SCREEN:
+Against each row you may see (in small grey characters) the following (text) with these meanings (when option enabled):
+(curr)          Will display the selected currency's ID when the base currency is not selected - e.g. 'GBP' or 'USD'
+(avg/by: x)     Average by operand
+(balasof)       Balance asof date
+(rems)          Reminders included
+(cb)            Cost Basis (no cash is being included)
+(cb-c)          Cost Basis, including cash from selected investment accounts
+(urg)           Unrealised Gains
+(cg)            Capital Gains
+(cg-s)          Capital Gains - Short Term value
+(cg-l)          Capital Gains - Long Term value
+(fmc)           Final maths calculation is being applied
+(txd)           Tax dates are being used
+(uor: x)        Maths using another row(x) is being applied
+
+NOTE: If you enable debug mode, then these may be expanded into fuller definitions where appropriate.
+(uuid: x)       When debugging, the row's UUID(x) will be shown. Useful when using CMD-SHIFT-I and CMD-SHIFT-L
 
 
 ACCOUNT SELECTION LIST:
