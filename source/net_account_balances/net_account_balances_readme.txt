@@ -584,6 +584,9 @@ sometimes give a 'better' result. In particular:
 - for average cost, Buy/Sell txns zero shares sells with a fee, and also MiscInc/Exp with a fee can be used to 'adjust'
   MD's calculation of the cost basis. MD's new engine accounts for this.
 
+- for average cost, Sell shares at zero price/amount causes CBR to ignore the txn and hence MD's cost basis goes wrong
+  from this point. MD's new engine accounts for this.
+
 - for 'Lot Control' securities, the original calculation method is used consistently for all screens/reports. But again,
   there can be issues in some places.
 

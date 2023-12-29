@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-# net_account_balances.py build: 1043 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
+# net_account_balances.py build: 1044 - Dec 2023 - Stuart Beesley - StuWareSoftSystems
 # Display Name in MD changed to 'Custom Balances' (was 'Net Account Balances') >> 'id' remains: 'net_account_balances'
 
 # Thanks and credit to Dan T Davis and Derek Kent(23) for their suggestions and extensive testing...
@@ -17,14 +17,6 @@
 #
 # Review net_account_balances_readme.txt for more details
 #
-# As of Dec 2021:   this extension allows you to select how many rows you require and configure each row
-#                   ... select a currency conversion per row, include/exclude Active/Inactive accounts
-#                   ... auto sum whole accounts (or when off, manually select sub accounts / securities)
-#                   ... QuickSearch Filters too.
-#
-#                   On Income/Expense categories you can select a date range, and widget will recalculate balances
-#                   ... and allows custom date ranges too
-#                   WARNING: This is potentially an 'expensive' operation. Do not use for heavy reporting...
 ########################################################################################################################
 # MIT License
 #
@@ -115,13 +107,7 @@
 # build: 1042 - Bumping the build number.... for new return capital gains (within range) option...
 #               Added row name insert variables - e.g. <##rn> for row number
 # build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
-# build: 1043 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
-
-
-
-"HERE:";
-# todo - test/fix PG cost basis
-# sanity check cost basis
+# build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
 
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -129,7 +115,7 @@
 
 # SET THESE LINES
 myModuleID = u"net_account_balances"
-version_build = "1043"
+version_build = "1044"
 MIN_BUILD_REQD = 3056  # 2021.1 Build 3056 is when Python extensions became fully functional (with .unload() method for example)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = False
 
@@ -3403,7 +3389,7 @@ Visit: %s (Author's site)
         # This can be used to produce the cost and gains (both short and long-term) for the security or for individual
         # transactions on the security.
         #
-        # Complies with the U.S. IRS 'single-category' average cost method. Gains are split short/long-term using FIFO.
+        # Follows U.S. IRS 'single-category' average cost method specification. Gains are split short/long-term using FIFO.
         # From U.S. IRS Publication 564 for 2009, under Average Basis, for the 'single-category' method:
         #           "Even though you include all unsold shares of a fund in a single category to compute average
         #           basis, you may have both short-term and long-term gains or losses when you sell these shares.
@@ -3419,6 +3405,7 @@ Visit: %s (Author's site)
 
         def __init__(self, secAccount, asOfDate=None, preparedTxns=None, obtainCurrentBalanceToo=False):
             # type: (Account, int, TxnSet, bool) -> None
+            if self.COST_DEBUG: myPrint("B", "** MyCostCalculation() initialising..... running asof: %s, for account: '%s' (%s) **"%(asOfDate, secAccount, "AvgCost" if self.getUsesAverageCost() else "LotControl"))
             todayInt = DateUtil.getStrippedDateInt()
             if (asOfDate is None or asOfDate < 19000000): asOfDate = None
             self.asOfDate = asOfDate
@@ -3467,8 +3454,6 @@ Visit: %s (Author's site)
                     self.currentBalanceCostCalculation = self                                                           # type: MyCostCalculation
             else:
                 self.currentBalanceCostCalculation = None                                                               # type: MyCostCalculation
-
-            if self.COST_DEBUG: myPrint("B", "** MyCostCalculation() running asof: %s, for account: '%s' (%s) **" %(asOfDate, secAccount, "AvgCost" if self.getUsesAverageCost() else "LotControl"))
 
         def isCostBasisInvalid(self): return self.costBasisInvalid
         def getUsesAverageCost(self): return self.usesAverageCost
@@ -3565,7 +3550,7 @@ Visit: %s (Author's site)
             sellIdx = 0
             numPositions = self.getPositions().size()
 
-            # skim through the sell transactions and allocate buys to them on a FIFO basis
+            # skim through the sell transactions and allocate buys to them on a FIFO basis (used for U.S. IRS short/long-term allocation)
             while (sellIdx < numPositions and buyIdx < numPositions):
 
                 if (buyIdx > sellIdx):
@@ -3743,8 +3728,8 @@ Visit: %s (Author's site)
             totSaleGainsShort = 0
             totSaleGainsLong = 0
 
-            # Add them all the sales gains manually...
-            for pos in self.getPositions():                                     # Iterate oldest to most recent
+            # Add up all the sales gains manually...
+            for pos in self.getPositions():                             # Iterate oldest to most recent
                 if pos.getDate() > self.asOfDate: break
                 if pos.getDate() > dateRange.getEndDateInt(): break
                 if pos.getDate() < dateRange.getStartDateInt(): continue
@@ -4001,6 +3986,11 @@ Visit: %s (Author's site)
                 self.costBasis = txnCostBasis
                 self.runningCost = (txnRunningCost + txnCostBasis)
                 self.sharesOwnedAsOfAsOf = (txnSharesAdjusted + (0 if previousPosition is None else previousPosition.getSharesOwnedAsOfAsOf()))
+
+                if self.sharesOwnedAsOfAsOf == 0:
+                    # No shares equals no cost basis..!
+                    # Possible issue when you perform sell zero with amount to adjust cost basis AFTER selling all!?
+                    self.runningCost = 0
 
                 if previousPosition is None:
                     self.sharesOwnedAsOfThisTxn = txnSharesUnadjusted
