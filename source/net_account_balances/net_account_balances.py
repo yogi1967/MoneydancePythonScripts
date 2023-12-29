@@ -109,6 +109,8 @@
 # build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
 # build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
 
+# todo - consider: Change Average by to (Initial Math Calc) Add an Operator picklist to it at the end, that way you can do an average or a +/- adjust
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
@@ -16274,7 +16276,7 @@ Visit: %s (Author's site)
                                 elif operator == "/":
                                     newRowBal = balanceObj.getCurrencyType().getDoubleValue(thisRowBal) / _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal)
                                     if NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
-                                        newRowBal = newRowBal * 100.0
+                                        newRowBal *= 100.0
                                     newRowBal = balanceObj.getCurrencyType().getLongValue(newRowBal)
 
                                 else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, onChainedUORIdx))
@@ -16308,8 +16310,8 @@ Visit: %s (Author's site)
                             finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(originalBalance) * finalMathsCalculationValue)
                         elif operator == "/":
                             finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getDoubleValue(originalBalance) / finalMathsCalculationValue
-                            if NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]:
-                                finalMathsCalcAdjustedBalance *= 100.0
+                            # if NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]:
+                            #     finalMathsCalcAdjustedBalance *= 100.0
                             finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getLongValue(finalMathsCalcAdjustedBalance)
 
                         else: raise Exception("LOGIC ERROR - Unknown final maths calculation operator '%s' on RowIdx: %s" %(operator, i))

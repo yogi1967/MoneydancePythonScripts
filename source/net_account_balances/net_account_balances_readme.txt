@@ -211,10 +211,14 @@ CALCULATIONS ON CALCULATED BALANCES:
                            as a percentage of total networth...
                            UORs can be chained together. E.G. row 3 can use row 2 and row 2 can use row 1
 
+                           NOTE: 'Format as %' with a divide operator MULTIPLIES the result by 100.
+
 - Final maths calculation: If set, then you can apply maths to the row's final calculation as the very last step.
                            E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
                            For example, calculate the estimated tax payable as a percentage of dividend income YTD..
                            ... by multiplying the calculated row * 0.2 (20%), and returning a percentage.
+
+                           NOTE: 'Format as %' with a divide operator does NOT multiply the result by 100.
 
                            WARNING: 'Format as %' could conflict with the same setting in 'Maths using another row'...
                                     ... i.e. if either request %, then you will always get a percent!
