@@ -108,6 +108,7 @@
 #               Added row name insert variables - e.g. <##rn> for row number
 # build: 1043 - Fixed AsOfDateChooser.getAsOfDateInt() to return Integer.intValue() (instead of Integer)
 # build: 1044 - Added long/short-term capital gains calculations; New/enhanced final calculation adjustment features
+#               Address UOR chaining loss of decimal precision...
 
 # todo - consider: Change Average by to (Initial Math Calc) Add an Operator picklist to it at the end, that way you can do an average or a +/- adjust
 
@@ -8541,9 +8542,22 @@ Visit: %s (Author's site)
             self.extraRowTxt = extraRowTxt                  # type: unicode
             self.UORError = UORError                        # type: bool
             self.rowNumber = rowNumber                      # type: int            # Only set when needed - otherwise -1
+            self.balanceWithDecimalsPreserved = None        # type: float
+            self.averageByApplied = False                   # type: bool
+            self.mathsUORApplied = False                    # type: bool
+            self.finalMathsApplied = False                  # type: bool
+            self.UORChain = []                              # type: [int]
             if self.UORError: self.setUORError(UORError)
             self.updateLastUpdated()
 
+        def getAverageByApplied(self): return self.averageByApplied
+        def setAverageByApplied(self, applied): self.averageByApplied = applied
+        def getMathsUORApplied(self): return self.mathsUORApplied
+        def setMathsUORApplied(self, UORapplied): self.mathsUORApplied = UORapplied
+        def getFinalMathsApplied(self): return self.finalMathsApplied
+        def setFinalMathsApplied(self, finalMathsApplied): self.finalMathsApplied = finalMathsApplied
+        def getUORChain(self): return self.UORChain
+        def setUORChain(self, newChain): self.UORChain = newChain
         def setRowNumber(self, rowNumber): self.rowNumber = rowNumber
         def getRowNumber(self): return self.rowNumber
         def updateLastUpdated(self): self.lastUpdated = System.currentTimeMillis()
@@ -8552,16 +8566,28 @@ Visit: %s (Author's site)
         def getRowName(self): return self.rowName
         def getBalance(self): return self.balance
         def setBalance(self, newBal): self.balance = newBal
+        def getBalanceWithDecimalsPreserved(self): return self.balanceWithDecimalsPreserved
+        def setBalanceWithDecimalsPreserved(self, newBalWithDecimals): self.balanceWithDecimalsPreserved = newBalWithDecimals
         def getCurrencyType(self): return self.currencyType
         def getExtraRowTxt(self): return self.extraRowTxt
         def isUORError(self): return self.UORError
-        def cloneBalanceObject(self):
-            return CalculatedBalance(self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getUUID(), self.getRowNumber())
         def setUORError(self, lError):
             self.UORError = lError
-            if self.isUORError(): self.setBalance(0)
-        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s]"\
-                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber())
+            if self.isUORError():
+                self.setBalance(0)
+                self.setBalanceWithDecimalsPreserved(0.0)
+
+        def cloneBalanceObject(self):
+            clonedBalObj = CalculatedBalance(self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getExtraRowTxt(), self.isUORError(), self.getUUID(), self.getRowNumber())
+            clonedBalObj.setBalanceWithDecimalsPreserved(self.getBalanceWithDecimalsPreserved())
+            clonedBalObj.setAverageByApplied(self.getAverageByApplied())
+            clonedBalObj.setMathsUORApplied(self.getMathsUORApplied())
+            clonedBalObj.setFinalMathsApplied(self.getFinalMathsApplied())
+            clonedBalObj.setUORChain(self.getUORChain())
+            return clonedBalObj
+
+        def __str__(self):      return  "[uuid: '%s', row name: '%s', curr: '%s', balance: %s, balanceWithDecimals: %s, extra row txt: '%s', isUORError: %s, rowNumber: %s, avgByApplied: %s, MUORApplied: %s, finalMathsApplied: %s, UORChain: %s]"\
+                                        %(self.getUUID(), self.getRowName(), self.getCurrencyType(), self.getBalance(), self.getBalanceWithDecimalsPreserved(), self.getExtraRowTxt(), self.isUORError(), self.getRowNumber(), self.getAverageByApplied(), self.getMathsUORApplied(), self.getFinalMathsApplied(), self.getUORChain())
         def __repr__(self):     return self.__str__()
         def toString(self):     return self.__str__()
 
@@ -11040,8 +11066,8 @@ Visit: %s (Author's site)
             NAB.averageByFractionals_CB.setSelected(NAB.savedAverageByFractionalsTable[selectRowIndex])
 
             myPrint("DB", "..about to set savedFinalMathsCalculationTable...")
-            finalMathsCalculationValue = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_VALUE_IDX]
-            NAB.finalMathsCalculationAdjustValue_JRF.setValue(finalMathsCalculationValue)
+            finalMathsCalculationOperand = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_VALUE_IDX]
+            NAB.finalMathsCalculationAdjustValue_JRF.setValue(finalMathsCalculationOperand)
             finalMathsCalculationOperator = NAB.savedFinalMathsCalculationTable[selectRowIndex][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
             if finalMathsCalculationOperator is None: finalMathsCalculationOperator = "+"
             NAB.finalMathsCalculationOperator_COMBO.setSelectedItem(finalMathsCalculationOperator)
@@ -11814,6 +11840,8 @@ Visit: %s (Author's site)
                 return("COSTBASIS APPEARS 'INVALID' WARNING")
             elif _type == 15:
                 return("CAPITAL GAINS DATE RANGE EXCEEDS ASOF DATE WARNING")
+            elif _type == 16:
+                return("UOR CHAIN USING MIXED CURRENCIES WARNING")
             return("WARNING <<UNKNOWN>> DETECTED")
 
         class SimulateTotalForRowSwingWorker(SwingWorker):
@@ -11885,26 +11913,27 @@ Visit: %s (Author's site)
                         if debug: myPrint("DB", "Result of simulation:", totalBalanceTable)
 
                         i = NAB.getSelectedRowIndex()
-                        balanceObj = totalBalanceTable[i]   # type: CalculatedBalance
+                        balanceObj = totalBalanceTable[i]                                                               # type: CalculatedBalance
 
                         lUseAverage = NAB.doesRowUseAvgBy(i)
                         lFinalMathsCalculation = (NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX] != 0.0)
                         lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                         lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
-                        balanceOrAverage = balanceObj.getBalance()
+                        balanceOrAverageLong = balanceObj.getBalance()
+                        # balanceOrAverageDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
                         tdfsc = TextDisplayForSwingConfig(NAB.savedWidgetName[i], "")
                         if NAB.savedHideRowWhenXXXTable[i] == GlobalVars.HIDE_ROW_WHEN_ALWAYS:
                             NAB.simulateTotal_label.setText(GlobalVars.WIDGET_ROW_DISABLED)
 
-                        # NOTE: Leave "  " to avoid the row height collapsing.....
-                        elif balanceOrAverage is None and NAB.isRowFilteredOutByGroupID(i):
+                        # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
+                        elif balanceOrAverageLong is None and NAB.isRowFilteredOutByGroupID(i):
                             NAB.simulateTotal_label.setText("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_HIDDEN_BY_FILTER.lower())
                             NAB.simulateTotal_label.setForeground(md.getUI().getColors().errorMessageForeground)
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
 
-                        elif balanceOrAverage is None:
+                        elif balanceOrAverageLong is None:
                             NAB.simulateTotal_label.setText("  " if tdfsc.getBlankZero() else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower())
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont(False))
 
@@ -11972,7 +12001,7 @@ Visit: %s (Author's site)
                                 else:
                                     showUsesOtherRowTxt = " (uor: %s)" %(newTargetIdx+1)
 
-                            if (balanceOrAverage == 0 and tdfsc.getBlankZero()):
+                            if (balanceOrAverageLong == 0 and tdfsc.getBlankZero()):
                                 theFormattedValue = "  "
                             else:
                                 fancy = (not NAB.savedDisableCurrencyFormatting[i])
@@ -11980,7 +12009,7 @@ Visit: %s (Author's site)
                                                 or (lFinalMathsCalculation and NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]))
                                 if wantsPercent: fancy = False
                                 theFormattedValue = formatFancy(balanceObj.getCurrencyType(),
-                                                                balanceOrAverage,
+                                                                balanceOrAverageLong,
                                                                 NAB.decimal,
                                                                 fancy=fancy,
                                                                 indianFormat=NAB.savedUseIndianNumberFormat,
@@ -11989,7 +12018,7 @@ Visit: %s (Author's site)
                                 if wantsPercent: theFormattedValue += " %"
 
                             NAB.simulateTotal_label.setFont(tdfsc.getValueFont())
-                            NAB.simulateTotal_label.setForeground(tdfsc.getValueColor(balanceOrAverage))
+                            NAB.simulateTotal_label.setForeground(tdfsc.getValueColor(balanceOrAverageLong))
 
                             resultTxt = wrap_HTML_BIG_small(theFormattedValue,
                                                             showCurrText
@@ -15149,8 +15178,8 @@ Visit: %s (Author's site)
 
                         if checkAutoHideWhen:
 
-                            balanceOrAverage = balanceObj.getBalance()
-                            netAmtDbl_toCompare = balanceObj.getCurrencyType().getDoubleValue(balanceOrAverage)
+                            balanceOrAverageLong = balanceObj.getBalance()      # Use .getBalanceWithDecimalsPreserved()?
+                            netAmtDbl_toCompare = balanceObj.getCurrencyType().getDoubleValue(balanceOrAverageLong)
 
                             if NAB.savedHideRowWhenXXXTable[rowIdx] == GlobalVars.HIDE_ROW_WHEN_ZERO_OR_X:
                                 if NAB.savedHideDecimalsTable[rowIdx]:
@@ -15164,7 +15193,7 @@ Visit: %s (Author's site)
                                         netAmtDbl_toCompare = roundTowards(netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx])
 
                                         if debug: myPrint("DB", ":: Row: %s Decimals hidden... Will compare rounded(towards X) calculated balance (original: %s, rounded: %s) against XValue: %s"
-                                                %(onRow, balanceObj.getCurrencyType().getDoubleValue(balanceOrAverage), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
+                                                %(onRow, balanceObj.getCurrencyType().getDoubleValue(balanceOrAverageLong), netAmtDbl_toCompare, NAB.savedHideRowXValueTable[rowIdx]))
 
                                 if netAmtDbl_toCompare == NAB.savedHideRowXValueTable[rowIdx]:
                                     if debug: myPrint("DB", "** Hiding/skipping (x=)%s balance row %s" %(NAB.savedHideRowXValueTable[rowIdx], onRow))
@@ -16168,14 +16197,16 @@ Visit: %s (Author's site)
                                     NAB.warningMessagesTable.append(warnTxt)
 
 
-                    _totalBalanceTable.append(CalculatedBalance(rowName=NAB.savedWidgetName[iAccountLoop],
-                                                                currencyType=thisRowCurr,
-                                                                balance=totalBalance,
-                                                                extraRowTxt=secLabelText,
-                                                                UORError=False,
-                                                                uuid=NAB.savedUUIDTable[iAccountLoop],
-                                                                rowNumber=onRow))
-
+                    # This is it, store the calculated balance!
+                    calculatedBalanceObj = CalculatedBalance(rowName=NAB.savedWidgetName[iAccountLoop],
+                                                             currencyType=thisRowCurr,
+                                                             balance=totalBalance,
+                                                             extraRowTxt=secLabelText,
+                                                             UORError=False,
+                                                             uuid=NAB.savedUUIDTable[iAccountLoop],
+                                                             rowNumber=onRow)
+                    calculatedBalanceObj.setBalanceWithDecimalsPreserved(None if (totalBalance is None) else thisRowCurr.getDoubleValue(totalBalance))
+                    _totalBalanceTable.append(calculatedBalanceObj)
 
                 del accountsToShow, totalBalance, parallelFullAccountsList
 
@@ -16188,18 +16219,22 @@ Visit: %s (Author's site)
                 # Calculate any averages...
                 for i in range(0, len(_totalBalanceTable)):
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
-                    if (balanceObj.getBalance() is not None and balanceObj.getBalance() != 0):
+                    if (balanceObj.getBalance() is not None and balanceObj.getBalance() != 0):   # First usage, so should not need to use .getBalanceWithDecimalsPreserved()...
                         lUseAverage = NAB.doesRowUseAvgBy(i)
                         if not lUseAverage: continue
                         originalBalance = balanceObj.getBalance()
+                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
                         avgByForRow = NAB.getAvgByForRow(i)
                         if avgByForRow == 0.0:
-                            average = balanceObj.getCurrencyType().getLongValue(0.0)
-                            if debug: myPrint("DB", ":: Row: %s >> WARNING: Avg/by ZERO detected - zeroing the result! originalBalance was: %s" %(i+1, originalBalance))
+                            averageDecimals = 0.0
+                            if debug: myPrint("DB", ":: Row: %s >> WARNING: Avg/by ZERO detected - zeroing the result! originalBalance was: %s (%s)" %(i+1, originalBalance, originalBalanceDecimals))
                         else:
-                            average = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(originalBalance) / avgByForRow)
-                        if debug: myPrint("DB", ":: Row: %s using average / by: %s - converted: %s to %s" %(i+1, avgByForRow, originalBalance, average))
-                        balanceObj.setBalance(average)
+                            averageDecimals = (originalBalanceDecimals / avgByForRow)
+                        averageLong = balanceObj.getCurrencyType().getLongValue(averageDecimals)
+                        balanceObj.setBalance(averageLong)
+                        balanceObj.setBalanceWithDecimalsPreserved(averageDecimals)
+                        balanceObj.setAverageByApplied(True)
+                        if debug: myPrint("DB", ":: Row: %s using 'average by': %s - converted: %s to %s (%s)" %(i+1, avgByForRow, originalBalance, averageLong, averageDecimals))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
@@ -16232,9 +16267,11 @@ Visit: %s (Author's site)
                         UORChains[primaryRowUUID] = [i, None]       # None signifies an UOR chaining error.....
                         break
 
-                if debug:
-                    for uuid in sorted(UORChains, key=lambda x: (UORChains[x][0])):
-                        myPrint("B", "UOR Chains: uuid: %s, chains(rowIdx): %s" %(uuid, UORChains[uuid]))
+                # save the chain(s) into the CalculatedBalance object
+                for uuid in sorted(UORChains, key=lambda x: (UORChains[x][0])):
+                    chain = UORChains[uuid]
+                    _totalBalanceTable[chain[0]].setUORChain(chain)
+                    if debug: myPrint("B", "UOR Chains: uuid: %s, chains(rowIdx): %s" %(uuid, chain))
 
                 alreadyUpdatedRowUUIDs = []
                 for i in range(0, len(_totalBalanceTable)):
@@ -16243,6 +16280,7 @@ Visit: %s (Author's site)
                     primaryRowUUID = balanceObj.getUUID()
                     if (balanceObj.getBalance() is not None):
                         if UORChains[balanceObj.getUUID()][-1] is None:
+                            # This row's chain is invalid!
                             balanceObj.setUORError(True)
                             lWarningDetected = True
                             iWarningType = (5 if (iWarningType is None or iWarningType == 5) else 0)
@@ -16260,29 +16298,63 @@ Visit: %s (Author's site)
                                     continue
                                 otherRowIdx = UORChains[primaryRowUUID][iChainIdx + 1]
                                 if debug: myPrint("B", "@@ chains rowIdx: %s chain: %s iChainIdx: %s onChainedUORIdx: %s otherRowIdx: %s" %(i, UORChains[primaryRowUUID], iChainIdx, onChainedUORIdx, otherRowIdx))
-                                thisRowBal = balanceObj.getBalance()
-                                otherRowBal = _totalBalanceTable[otherRowIdx].getBalance()
-                                if (otherRowBal is None or otherRowBal == 0):
-                                    if debug: myPrint("B", "...... RowIdx: %s (calc: %s) otherRowIdx: %s balance (calc: %s) is NOT valid (or is zero), so skipping this step - sorry!" %(i, thisRowBal, otherRowIdx, otherRowBal))
-                                    continue
-                                if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBal: %s, otherRowBal: %s" %(i, otherRowIdx, thisRowBal, otherRowBal))
-                                operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
-                                if operator == "+":
-                                    newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) + _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
-                                elif operator == "-":
-                                    newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) - _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
-                                elif operator == "*":
-                                    newRowBal = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBal) * _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal))
-                                elif operator == "/":
-                                    newRowBal = balanceObj.getCurrencyType().getDoubleValue(thisRowBal) / _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBal)
-                                    if NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
-                                        newRowBal *= 100.0
-                                    newRowBal = balanceObj.getCurrencyType().getLongValue(newRowBal)
 
+                                thisRowBalLong = balanceObj.getBalance()
+                                thisRowBalWithDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+
+                                otherRowBalLong = _totalBalanceTable[otherRowIdx].getBalance()
+                                otherRowBalWithDecimals = _totalBalanceTable[otherRowIdx].getBalanceWithDecimalsPreserved()
+
+                                # Warning about mixed currencies...
+                                if debug: myPrint("B", "@@ row: %s chain: %s primary: '%s', other: '%s'" %(onRow, UORChains[primaryRowUUID], _totalBalanceTable[otherRowIdx].getCurrencyType(), balanceObj.getCurrencyType()))
+                                if balanceObj.getCurrencyType() != _totalBalanceTable[otherRowIdx].getCurrencyType():
+                                    lWarningDetected = True
+                                    iWarningType = (16 if (iWarningType is None or iWarningType == 16) else 0)
+                                    iWarningDetectedInRow = (onRow if (iWarningDetectedInRow is None or iWarningDetectedInRow == onRow) else 0)
+                                    warnTxt = ("WARNING: Row: %s >> Mixing different currencies within a single UOR chain - e.g. '%s' with '%s' (skipping further checks)"
+                                               %(onRow, _totalBalanceTable[otherRowIdx].getCurrencyType(), balanceObj.getCurrencyType()))
+                                    myPrint("B", warnTxt)
+                                    NAB.warningMessagesTable.append(warnTxt)
+
+                                if (otherRowBalLong is None or otherRowBalWithDecimals == 0.0):
+                                    if debug: myPrint("B", "...... RowIdx: %s (calc: %s - %s) otherRowIdx: %s balance (calc: %s - %s) is NOT valid (or is zero), so skipping this step - sorry!" %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals))
+                                    continue
+
+                                if debug: myPrint("B", "@@ rowIdx: %s, otherRowIdx: %s, thisRowBalLong: %s (%s), otherRowBalLong: %s (%s)" %(i, otherRowIdx, thisRowBalLong, thisRowBalWithDecimals, otherRowBalLong, otherRowBalWithDecimals))
+                                operator = NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_OPERATOR]
+
+                                # if operator == "+":
+                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) + _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong))
+                                # elif operator == "-":
+                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) - _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong))
+                                # elif operator == "*":
+                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) * _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong))
+                                # elif operator == "/":
+                                #     newRowBalLong = balanceObj.getCurrencyType().getDoubleValue(thisRowBalLong) / _totalBalanceTable[otherRowIdx].getCurrencyType().getDoubleValue(otherRowBalLong)
+                                #     if NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
+                                #         newRowBalLong *= 100.0
+                                #     newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalLong)
+                                # else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, onChainedUORIdx))
+
+                                if operator == "+":
+                                    newRowBalWithDecimals = thisRowBalWithDecimals + otherRowBalWithDecimals
+                                elif operator == "-":
+                                    newRowBalWithDecimals = thisRowBalWithDecimals - otherRowBalWithDecimals
+                                elif operator == "*":
+                                    newRowBalWithDecimals = thisRowBalWithDecimals * otherRowBalWithDecimals
+                                elif operator == "/":
+                                    newRowBalWithDecimals = thisRowBalWithDecimals / otherRowBalWithDecimals
+                                    if NAB.savedOperateOnAnotherRowTable[onChainedUORIdx][NAB.OPERATE_OTHER_ROW_WANTPERCENT]:
+                                        newRowBalWithDecimals *= 100.0
                                 else: raise Exception("LOGIC ERROR - Unknown operator '%s' on RowIdx: %s" %(operator, onChainedUORIdx))
-                                if debug: myPrint("DB", "... RowIdx: %s (calc: %s) requires other rowIdx: %s (calc: %s) >> New Balance calculated as: %s"
-                                                  %(i, thisRowBal, otherRowIdx, otherRowBal, newRowBal))
-                                balanceObj.setBalance(newRowBal)
+                                newRowBalLong = balanceObj.getCurrencyType().getLongValue(newRowBalWithDecimals)
+                                balanceObj.setBalance(newRowBalLong)
+                                balanceObj.setBalanceWithDecimalsPreserved(newRowBalWithDecimals)
+                                balanceObj.setMathsUORApplied(True)
+
+                                if debug: myPrint("DB", "... RowIdx: %s (calc: %s - %s) requires other rowIdx: %s (calc: %s - %s) >> New Balance calculated as: %s (%s)"
+                                                  %(i, thisRowBalLong, thisRowBalWithDecimals, otherRowIdx, otherRowBalLong, otherRowBalWithDecimals, newRowBalLong, newRowBalWithDecimals))
+
                                 # myPrint("B", "!! Updating balance on onChainedUORIdx: %s with %s" %(onChainedUORIdx, balanceObj));
                                 alreadyUpdatedRowUUIDs.append(balanceObj.getUUID())
 
@@ -16296,34 +16368,38 @@ Visit: %s (Author's site)
                 for i in range(0, len(_totalBalanceTable)):
                     balanceObj = _totalBalanceTable[i]                                                                  # type: CalculatedBalance
                     if (balanceObj.getBalance() is not None):
-                        finalMathsCalculationValue = NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX]
-                        lFinalMathsCalculation = (finalMathsCalculationValue != 0.0)
+                        finalMathsCalculationOperand = NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_VALUE_IDX]
+                        lFinalMathsCalculation = (finalMathsCalculationOperand != 0.0)
                         if not lFinalMathsCalculation: continue
 
-                        originalBalance = balanceObj.getBalance()
+                        originalBalanceLong = balanceObj.getBalance()
+                        originalBalanceDecimals = balanceObj.getBalanceWithDecimalsPreserved()
+
                         operator = NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_OPERATOR_IDX]
                         if operator == "+":
-                            finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(originalBalance) + finalMathsCalculationValue)
+                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals + finalMathsCalculationOperand)
                         elif operator == "-":
-                            finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(originalBalance) - finalMathsCalculationValue)
+                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals - finalMathsCalculationOperand)
                         elif operator == "*":
-                            finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getLongValue(balanceObj.getCurrencyType().getDoubleValue(originalBalance) * finalMathsCalculationValue)
+                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals * finalMathsCalculationOperand)
                         elif operator == "/":
-                            finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getDoubleValue(originalBalance) / finalMathsCalculationValue
+                            finalMathsCalcAdjustedBalanceWithDecimals = (originalBalanceDecimals / finalMathsCalculationOperand)
                             # if NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]:
-                            #     finalMathsCalcAdjustedBalance *= 100.0
-                            finalMathsCalcAdjustedBalance = balanceObj.getCurrencyType().getLongValue(finalMathsCalcAdjustedBalance)
-
+                            #     finalMathsCalcAdjustedBalanceWithDecimals *= 100.0
                         else: raise Exception("LOGIC ERROR - Unknown final maths calculation operator '%s' on RowIdx: %s" %(operator, i))
-                        if debug: myPrint("DB", ":: Row: %s using final calculation adjustment of '%s' adjusted: %s to %s" %(i+1, NAB.savedFinalMathsCalculationTable[i], originalBalance, finalMathsCalcAdjustedBalance))
-                        balanceObj.setBalance(finalMathsCalcAdjustedBalance)
+                        finalMathsCalcAdjustedBalanceLong = balanceObj.getCurrencyType().getLongValue(finalMathsCalcAdjustedBalanceWithDecimals)
+
+                        balanceObj.setBalance(finalMathsCalcAdjustedBalanceLong)
+                        balanceObj.setBalanceWithDecimalsPreserved(finalMathsCalcAdjustedBalanceWithDecimals)
+                        balanceObj.setFinalMathsApplied(True)
+                        if debug: myPrint("DB", ":: Row: %s using final calculation adjustment of '%s' adjusted: %s (%s) to %s (%s)"
+                                          %(i+1, NAB.savedFinalMathsCalculationTable[i], originalBalanceLong, originalBalanceDecimals, finalMathsCalcAdjustedBalanceLong, finalMathsCalcAdjustedBalanceWithDecimals))
 
                 tookTime = System.currentTimeMillis() - thisSectionStartTime
                 if debug or TIMING_DEBUG:
                     stage = "6"; stageTxt = "::calculateBalances()"
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 thisSectionStartTime = System.currentTimeMillis()
-
 
                 # Update NABs temporary balance table with results
                 with NAB.NAB_TEMP_BALANCE_TABLE_LOCK:
@@ -16362,20 +16438,21 @@ Visit: %s (Author's site)
                     myPrint("B", "%s STAGE%s>> TOOK: %s milliseconds (%s seconds)" %(pad(stageTxt, 60), pad(stage,7), tookTime, tookTime / 1000.0))
                 # thisSectionStartTime = System.currentTimeMillis()
 
-
                 if debug:
                     if debug: myPrint("DB", "----------------")
                     for i in range(0, len(_totalBalanceTable)):
                         balanceObj = _totalBalanceTable[i]                                                              # type: CalculatedBalance
+                        resultDecimals = ""
                         if balanceObj.getBalance() is None:
                             result = "<NONE>"
-                        elif balanceObj.getBalance() == 0:
+                        elif balanceObj.getBalanceWithDecimalsPreserved() == 0.0:
                             result = "<ZERO>"
                         elif balanceObj.isUORError():
                             result = CalculatedBalance.DEFAULT_WIDGET_ROW_UOR_ERROR
                         else:
-                            result = balanceObj.getBalance() / 100.0
-                        if debug: myPrint("DB", ".. Row: %s - DEBUG >> Calculated a total (potentially mixed currency) total of %s (%s)" %(i+1, result, balanceObj.toString()))
+                            result = balanceObj.getCurrencyType().getDoubleValue(balanceObj.getBalance())
+                            resultDecimals = " (%s)" %(balanceObj.getBalanceWithDecimalsPreserved())
+                        if debug: myPrint("DB", ".. Row: %s - DEBUG >> Calculated a total (potentially mixed currency) total of %s%s >> (%s)" %(i+1, result, resultDecimals, balanceObj.toString()))
                     if debug: myPrint("DB", "----------------")
 
                     for uuid in NAB.lastResultsBalanceTable:
@@ -16566,7 +16643,8 @@ Visit: %s (Author's site)
                                     lUsesOtherRow = (NAB.savedOperateOnAnotherRowTable[i][NAB.OPERATE_OTHER_ROW_ROW] is not None)
                                     lUseTaxDates = (NAB.savedUseTaxDates and isIncomeExpenseDatesSelected(i))
 
-                                    balanceOrAverage = balanceObj.getBalance()
+                                    balanceOrAverageLong = balanceObj.getBalance()
+                                    # balanceOrAverageDecimals = balanceObj.getBalanceWithDecimalsPreserved()
 
                                     skippingRow = NAB.isThisRowAlwaysHideOrAutoHidden(balanceObj, i, checkAlwaysHide=False, checkAutoHideWhen=True)
                                     if skippingRow:
@@ -16668,8 +16746,8 @@ Visit: %s (Author's site)
 
                                     nameLabel = SpecialJLinkLabel(tdfsc.getSwingComponentText(), "showConfig?%s" %(str(onRow)), tdfsc.getJustification(), tdfsc=tdfsc)
 
-                                    # NOTE: Leave "  " to avoid the row height collapsing.....
-                                    if balanceOrAverage is None:
+                                    # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
+                                    if balanceOrAverageLong is None:
                                         netTotalLbl = SpecialJLinkLabel(" " if (tdfsc.getBlankZero()) else GlobalVars.DEFAULT_WIDGET_ROW_NOT_CONFIGURED.lower(),
                                                                         "showConfig?%s" %(str(onRow)),
                                                                         JLabel.RIGHT,
@@ -16686,8 +16764,8 @@ Visit: %s (Author's site)
 
                                     else:
 
-                                        # NOTE: Leave "  " to avoid the row height collapsing.....
-                                        if (balanceOrAverage == 0 and tdfsc.getBlankZero()):
+                                        # NOTE: Leave "  " (two spaces) to avoid the row height collapsing.....
+                                        if (balanceOrAverageLong == 0 and tdfsc.getBlankZero()):
                                             theFormattedValue = "  "
                                         else:
                                             fancy = (not NAB.savedDisableCurrencyFormatting[i])
@@ -16695,7 +16773,7 @@ Visit: %s (Author's site)
                                                             or (lFinalMathsCalculation and NAB.savedFinalMathsCalculationTable[i][NAB.FINAL_MATHS_CALC_WANTPERCENT_IDX]))
                                             if wantsPercent: fancy = False
                                             theFormattedValue = formatFancy(balanceObj.getCurrencyType(),
-                                                                            balanceOrAverage,
+                                                                            balanceOrAverageLong,
                                                                             NAB.decimal,
                                                                             fancy=fancy,
                                                                             indianFormat=NAB.savedUseIndianNumberFormat,
@@ -16705,7 +16783,7 @@ Visit: %s (Author's site)
 
                                         netTotalLbl = SpecialJLinkLabel(theFormattedValue, "showConfig?%s" %(onRow), JLabel.RIGHT, tdfsc=tdfsc)
                                         netTotalLbl.setFont(tdfsc.getValueFont())
-                                        netTotalLbl.setForeground(tdfsc.getValueColor(balanceOrAverage))
+                                        netTotalLbl.setForeground(tdfsc.getValueColor(balanceOrAverageLong))
 
                                     nameLabel.setBorder(_view.nameBorder)                                               # noqa
                                     netTotalLbl.setBorder(_view.amountBorder)                                           # noqa

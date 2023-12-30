@@ -213,6 +213,8 @@ CALCULATIONS ON CALCULATED BALANCES:
 
                            NOTE: 'Format as %' with a divide operator MULTIPLIES the result by 100.
 
+                           WARNING: There is no currency conversion between chained UORs
+
 - Final maths calculation: If set, then you can apply maths to the row's final calculation as the very last step.
                            E.g. take this row, divide it by operand(x),  and treat the result as a percentage.
                            For example, calculate the estimated tax payable as a percentage of dividend income YTD..
@@ -532,6 +534,11 @@ DETAILS ON HOW CALCULATIONS OF BALANCES OCCURS:
 
     WARNING: Rows that are used within other rows are ALWAYS calculated, irrespective of hide/GroupID filter
              >> be mindful of the CPU / speed impact of non-displayed rows especially when using parallel calculations!
+
+>> DECIMAL PRECISION: Whilst only 2 decimal places will/can be displayed (according to your currency's decimal setting),
+                      decimal precision will be stored internally, and this internal value will be used for maths
+                      functions that operate on the row's calculated result (e.g. average by, maths UOR, final maths
+                      calculations...
 
 >> PARALLEL BALANCES:
     - Selecting any of the following options will trigger parallel balance operations for that row, for all accounts
