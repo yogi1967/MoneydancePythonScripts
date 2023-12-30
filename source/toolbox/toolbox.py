@@ -7,7 +7,7 @@
 # Moneydance Support Tool
 # ######################################################################################################################
 
-# toolbox.py build: 1062 - November 2020 thru 2023 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
+# toolbox.py build: 1063 - November 2020 thru 2023 onwards - Stuart Beesley StuWareSoftSystems (>1000 coding hours)
 # Thanks and credit to Derek Kent(23) for his extensive testing and suggestions....
 # Further thanks to Kevin(N), Dan T Davis, and dwg for their testing, input and OFX Bank help/input.....
 # Credit of course to Moneydance(Sean) and IK retain all copyright over Moneydance internal code
@@ -154,10 +154,12 @@
 #               Build 5046 fixes "Infinity" backups and defines .getNumBackupsToKeep() etc (no actual toolbox fix required)
 #               JFrame.dispose() added rootPane.getInputMap().clear() - ensure no memory leaks...; Increased usage of DateRange()
 # build: 1062 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
-#               add .getFullAcountName() to the error message in review_security_accounts()
+#               add .getFullAccountName() to the error message in review_security_accounts()
 #               updated -Xmx to include -XX:MaxRAMPercentage= and tweak show vmoptions feature etc....
 #               Added new option showMDLaunchParameters()...; relocated advanced_clone_dataset() into extra_code...
+# build: 1063 - Common code - FileFilter fix...; Tweak OFX_view_CUSIP_settings() to deal with blank CUSIP schemes...
 #               tweaked: force_change_all_accounts_categories_currencies(); added: validateAndFixBaseCurrency. Tweaked base currency validation/repair code.
+#               Tweaked diag/fix currencies/securities and diag/fix base currency routines
 
 # todo - undo the patch to DetectMobileAppTxnFiles() for Sonoma.. Perhaps put into a Thread()?
 
@@ -188,7 +190,7 @@
 
 # SET THESE LINES
 myModuleID = u"toolbox"
-version_build = "1062"
+version_build = "1063"
 MIN_BUILD_REQD = 1915                   # Min build for Toolbox 2020.0(1915)
 _I_CAN_RUN_AS_MONEYBOT_SCRIPT = True
 
@@ -9642,7 +9644,7 @@ Visit: %s (Author's site)
         assert len(allCurrs) > 0, ("LOGIC ERROR.. There should now be at least one currency record?!")
 
         selectToCreateNewCurrTxt = "<SELECT TO CREATE A NEW CURRENCY>"
-        if not baseHasNoCurrencies: allCurrs.insert(0, selectToCreateNewCurrTxt)
+        # if not baseHasNoCurrencies: allCurrs.insert(0, selectToCreateNewCurrTxt)
         selectedCurrency = JOptionPane.showInputDialog(toolbox_frame_,
                                                        "Select Currency", "Select the currency to set as base",
                                                        JOptionPane.INFORMATION_MESSAGE,
@@ -9654,32 +9656,73 @@ Visit: %s (Author's site)
             setDisplayStatus(txt, "R")
             return
 
-        if isinstance(selectedCurrency, str) and selectedCurrency == selectToCreateNewCurrTxt:
+        if isinstance(selectedCurrency, basestring) and selectedCurrency == selectToCreateNewCurrTxt:
             selectedCurrency = createNewCurrency(False)
-
         assert selectedCurrency.getCurrencyType() == CurrencyType.Type.CURRENCY, ("LOGIC ERROR: '%s' type: '%s' found (should be: 'CURRENCY')" %(selectedCurrency, selectedCurrency.getCurrencyType()))  # noqa
 
         if selectedCurrency is baseCurr:
-            myPrint("B", "The selected currency is already the base currency... will attempt manual repairs")
-            selectedCurrency.setEditingMode()
-            selectedCurrency.setRate(1.0, None)
-            selectedCurrency.setParameter(PARAM_ISBASE, True)
-            selectedCurrency.setCurrencyParameter(None, "rel_curr_id", "relative_to_currid", None)
-            selectedCurrency.syncItem()
+            myPrint("B", "The selected currency '%s' is already the base currency... will attempt manual repairs to existing base" %(selectedCurrency))
         else:
-            book = MD_REF.getCurrentAccountBook()
-            currencyTable = book.getCurrencies()
-            currencyTable.setBaseType(selectedCurrency)
-            myPrint("B", "... '%s' set as base currency....." %(selectedCurrency))
+            myPrint("B", "The selected currency '%s' is NOT the base currency (currently: '%s')... will attempt manual repairs to selected currency before the switch to new base..." %(selectedCurrency, baseCurr))
 
-        txt = "Base currency setup repaired (review Tools/Currencies) >> MONEYDANCE WILL NOW RELOAD DATASET/RESTART"
+        if not checkCurrencyRawRatesOK(selectedCurrency):
+            myPrint("B", "... NOTE: rate(s) were wrong on new (to be) base currency '%s' - these will be set to 1.0" %(selectedCurrency))
+
+        myPrint("B", "Attempting to switch to new base currency '%s' (from old base: '%s') >> WITHOUT any rate conversions!" %(selectedCurrency, baseCurr))
+
+        MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        # .setBaseType() triggers rate conversions. Problematic... So let's not do this!
+        # book = MD_REF.getCurrentAccountBook()
+        # currencyTable = book.getCurrencies()
+        # currencyTable.setBaseType(selectedCurrency)
+
+        selectedCurrency.setEditingMode()
+        selectedCurrency.setRate(1.0, None)
+        selectedCurrency.setParameter(PARAM_ISBASE, Boolean(True))
+        selectedCurrency.setParameter("_toolbox_repair_base", Boolean(True))
+        selectedCurrency.setCurrencyParameter(None, "rel_curr_id", "relative_to_currid", None)
+        selectedCurrency.syncItem()
+
+        myPrint("B", "... '%s' set as new base currency....." %(selectedCurrency))
+
+        myPrint("B", "Scanning for accounts/categories that need their currency switched.....")
+
+        # This will include root account in the search, but exclude Securities...
+        accounts = [acct for acct in AccountUtil.allMatchesForSearch(MD_REF.getCurrentAccountBook(), AcctFilter.ALL_ACCOUNTS_FILTER)
+                    if acct.getAccountType != Account.AccountType.SECURITY]                                             # noqa
+
+        accountsChanged = 0
+        for account in accounts:
+            if account.getAccountType() == Account.AccountType.SECURITY:    # Never touch securities!                   # noqa
+                continue
+            acctCurr = account.getCurrencyType()
+            if acctCurr == selectedCurrency:               # Should already be OK
+                continue
+            if not baseHasNoCurrencies:
+                if acctCurr.getCurrencyType() == CurrencyType.Type.CURRENCY:                                            # noqa
+                    # Presumably, these were set to another currency for a reason?!
+                    if acctCurr != baseCurr:
+                        continue
+
+            myPrint("B","Setting account / category %s (%s) to currency %s" %(account, account.getAccountType(), selectedCurrency))
+            account.setCurrencyType(selectedCurrency)
+            account.syncItem()
+            accountsChanged += 1
+
+        MD_REF.saveCurrentAccount()           # Flush any current txns in memory and start a new sync record for the changes..
+
+        myPrint("B", "... %s accounts/categories switched to new base currency" %(accountsChanged))
+        myPrint("B", "FINISHED REPAIRING BASE CURRENCY!")
+
+        txt = "Base currency setup repaired (review Tools/Currencies) >> MONEYDANCE WILL NOW QUIT >> PLEASE RESTART"
         setDisplayStatus(txt, "R"); myPrint("B", txt)
         logToolboxUpdates("validateAndFixBaseCurrency", txt)
 
         play_the_money_sound()
         myPopupInformationBox(toolbox_frame_, txt, _THIS_METHOD_NAME.upper(), JOptionPane.WARNING_MESSAGE)
 
-        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=True)
+        ManuallyCloseAndReloadDataset.moneydanceExitOrRestart(lRestart=False)  # force MD to quit
 
     # noinspection PyUnresolvedReferences
     def diagnose_currencies(lFix=False):
@@ -10039,6 +10082,11 @@ Visit: %s (Author's site)
                                   %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
                             myPrint("J", txt); output += "---\n%s\n" %(txt)
 
+                            if not isGoodRate(newRate) and lFix and lFixWarnings:
+                                txt = "... CANNOT set 'rrate' to ZERO - overriding to 1.0"
+                                myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                                newRate = 1.0
+
                             if isGoodRate(newRate) and lFix and lFixWarnings:
                                 lSyncNeeded = True
                                 curr.setEditingMode()
@@ -10050,9 +10098,9 @@ Visit: %s (Author's site)
                                 txt = "@@SECURITY FIX APPLIED (reset new 'rrate') @@"
                                 myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                             else:
-                                if not isGoodRate(newRate) and lFix and lFixWarnings:
-                                    txt = "!!SECURITY FIX NOT APPLIED (cannot set 'rrate' to ZERO) !!"
-                                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                                # if not isGoodRate(newRate) and lFix and lFixWarnings:
+                                #     txt = "!!SECURITY FIX NOT APPLIED (cannot set 'rrate' to ZERO) !!"
+                                #     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                                 lWarning = True; iWarnings  += 1
 
@@ -10064,6 +10112,12 @@ Visit: %s (Author's site)
                             txt = "@@ WARNING: '%s' ** Relative Curr is: '%s' ** legacy 'rate' is currently %s, whereas new relative 'rrate' is set to: %s. Should be new 'rrate': %s (inversed: %s)\n"\
                                   %(curr, rCurr, get_rate, get_rrate, newRRate, safeInvertRate(newRRate))
                             myPrint("J", txt); output += "---\n%s\n" %(txt)
+
+                            if not isGoodRate(newRRate) and lFix and lFixWarnings:
+                                txt = "... CANNOT set 'rrate' to ZERO - overriding to 1.0"
+                                myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                                newRate = 1.0
+                                newRRate = 1.0
 
                             if isGoodRate(newRRate) and lFix and lFixWarnings:
                                 lSyncNeeded = True
@@ -10085,9 +10139,9 @@ Visit: %s (Author's site)
                                     txt = "@@EXTRA SECURITY FIX APPLIED (set both relative currency parameters) @@"
                                     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                             else:
-                                if not isGoodRate(newRRate) and lFix and lFixWarnings:
-                                    txt = "@@SECURITY FIX NOT APPLIED (cannot set new 'rrate' to ZERO) !!"
-                                    myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                                # if not isGoodRate(newRRate) and lFix and lFixWarnings:
+                                #     txt = "@@SECURITY FIX NOT APPLIED (cannot set new 'rrate' to ZERO) !!"
+                                #     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                                 lWarning = True; iWarnings  += 1
 
@@ -10200,6 +10254,11 @@ Visit: %s (Author's site)
                           %(curr, get_rrate, get_rate, newRate, safeInvertRate(newRate))
                     myPrint("J", txt); output += "---\n%s\n---\n" %(txt)
 
+                    if not isGoodRate(newRate) and lFix and lFixWarnings:
+                        txt = "... CANNOT set 'rrate' to ZERO - overriding to 1.0"
+                        myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                        newRate = 1.0
+
                     if isGoodRate(newRate) and lFix and lFixWarnings:
                         lSyncNeeded = True
                         curr.setEditingMode()
@@ -10210,9 +10269,9 @@ Visit: %s (Author's site)
                         txt = "@@CURRENCY FIX APPLIED (reset new 'rrate') @@"
                         myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
                     else:
-                        if not isGoodRate(newRate) and lFix and lFixWarnings:
-                            txt = "!!CURRENCY FIX NOT APPLIED (cannot set 'rrate' to ZERO) !!"
-                            myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
+                        # if not isGoodRate(newRate) and lFix and lFixWarnings:
+                        #     txt = "!!CURRENCY FIX NOT APPLIED (cannot set 'rrate' to ZERO) !!"
+                        #     myPrint("J", txt); output += "----\n%s\n----\n" %(txt)
 
                         lWarning = True; iWarnings  += 1
 
@@ -10340,7 +10399,7 @@ Visit: %s (Author's site)
         if iWarnings: alertLevel = 1
         if lNeedFixScript: alertLevel = 2
 
-        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lRestartMDAfterClose=lFix, lAutoSize=True).show_the_frame()
+        jif = QuickJFrame(theTitle,output,lAlertLevel=alertLevel, copyToClipboard=GlobalVars.lCopyAllToClipBoard_TB, lWrapText=False, lQuitMDAfterClose=lFix, lAutoSize=True).show_the_frame()
 
         setDisplayStatus(txt, statusColor)
         play_the_money_sound()
@@ -10348,7 +10407,7 @@ Visit: %s (Author's site)
 
         if lFix:
             disableToolboxButtons()
-            myPopupInformationBox(jif,"RESTART OF MONEYDANCE REQUIRED - MD WILL RESTART AFTER VIEWING THIS OUTPUT", _THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.ERROR_MESSAGE)
+            myPopupInformationBox(jif, "RESTART OF MONEYDANCE REQUIRED - MD WILL QUIT AFTER VIEWING THIS OUTPUT", _THIS_METHOD_NAME.upper(), theMessageType=JOptionPane.ERROR_MESSAGE)
 
         return output
 
@@ -11214,7 +11273,7 @@ Visit: %s (Author's site)
 
                     myPrint("B","setting old key %s to None" %(selectedUserIDKey))
                     myPrint("DB", "OLD pre %s %s" %(selectedUserIDKey,root.getParameter(selectedUserIDKey)))
-                    root.setParameter(selectedUserIDKey,None)
+                    root.setParameter(selectedUserIDKey, None)
 
                     root.syncItem()
                     myPrint("DB", "OLD post %s %s" %(selectedUserIDKey,root.getParameter(selectedUserIDKey)))
@@ -17211,7 +17270,7 @@ after saving the file, restart Moneydance
         MD_REF.getCurrentAccountBook().setRecalcBalances(False)
         MD_REF.getUI().setSuspendRefresh(True)
 
-        myPrint("B","Setting currency: '%s' as base curreny..." %(selectedCurrency))
+        myPrint("B","Setting currency: '%s' as base currency..." %(selectedCurrency))
         currencyTable = book.getCurrencies()
         currencyTable.setBaseType(selectedCurrency)
 
@@ -20406,7 +20465,7 @@ after saving the file, restart Moneydance
                                 price = CurrencyTable.getRawRate(secAcct.getCurrencyType(), parentAccount.getCurrencyType(), 1.0 / price)
 
                             pTxn.setEditingMode()
-                            txn.setParameter(PARAMETER_KEY,True)
+                            txn.setParameter(PARAMETER_KEY, True)
 
                             if debug:
                                 txn.setParameter(PARAMETER_KEY+PARAMETER_KEY_DATA,"{old_samt:%s,old_pamt:%s}" %(old_samt, old_pamt))
@@ -21622,7 +21681,7 @@ after saving the file, restart Moneydance
                         for param in ["hide","hide_on_hp","ol.haspendingtxns", "ol.new_txn_count"]:
                             newSecurityAcct.setParameter(param, copyAcct.getParameter(param))
 
-                        newSecurityAcct.setParameter(PARAMETER_KEY,True)
+                        newSecurityAcct.setParameter(PARAMETER_KEY, True)
                         newSecurityAcct.syncItem()
 
                         break
@@ -21655,7 +21714,7 @@ after saving the file, restart Moneydance
                             pTxn = srcTxn.getParentTxn()
                             pTxn.setEditingMode()
                             srcTxn.setAccount(primaryAcct)
-                            srcTxn.setParameter(PARAMETER_KEY,True)
+                            srcTxn.setParameter(PARAMETER_KEY, True)
                             pTxn.syncItem()
                             output += ".. %s %s %s %s\n" %(convertStrippedIntDateFormattedText(pTxn.getDateInt()),
                                                            pad(pTxn.getInvestTxnType().getIDString(),12),
@@ -28154,7 +28213,8 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                     while True:
                         if MD_REF.getCurrentAccountBook() is None: return
 
-                        user_fixBaseCurr.setEnabled(ToolboxMode.isUpdateMode() and validateAndFixBaseCurrency(validationOnly=True, popupAlert=False, modalPopup=False, adviseNoErrors=False))
+                        invalidBase = validateAndFixBaseCurrency(validationOnly=True, popupAlert=False, modalPopup=False, adviseNoErrors=False)
+                        user_fixBaseCurr.setEnabled(ToolboxMode.isUpdateMode() and invalidBase)
                         user_fix_curr_sec.setEnabled(ToolboxMode.isUpdateMode() and GlobalVars.fixRCurrencyCheck is not None and GlobalVars.fixRCurrencyCheck > 1)
 
                         # Don't remove these as they are checked/disabled in the section below if certain conditions fail.....
@@ -28166,8 +28226,7 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                         user_fix_invalid_price_history.setEnabled(ToolboxMode.isUpdateMode())
 
                         # Pre 2021.2(3089) there were internal code issues with old CurrencyType records (from pre 2019.4) with missing 'rrate' fields. Fixed in build 3089 onwards
-                        if not check_all_currency_raw_rates_ok():
-
+                        if invalidBase or not check_all_currency_raw_rates_ok():
                             user_diag_curr_sec.setForeground(getColorBlue())
 
                             if ToolboxMode.isUpdateMode() and not lAlertPopupShown:
@@ -28186,7 +28245,8 @@ MD2021.2(3088): Adds capability to set the encryption passphrase into an environ
                                                      "ALERT: Currency/Security data issues need resolving - some menu items are disabled...",
                                                      "You have some Currency / Security records which have a data issue\n"
                                                      "These need to be fixed before Toolbox can allow some options\n"
-                                                     "Please run 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
+                                                     "Please run 'MENU: Currency & Security tools>Diag: Fix base currency (IF ENABLED), or....\n"
+                                                     "..... then 'MENU: Currency & Security tools>Diag/Fix Currencies/Securities' to address this issue\n"
                                                      "Menu items will remain disabled until you do this....",
                                                      lModal=True, OKButtonText="Acknowledge", lAlertLevel=1).go()
 
