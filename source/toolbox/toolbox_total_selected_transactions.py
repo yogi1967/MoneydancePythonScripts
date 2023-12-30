@@ -57,6 +57,8 @@
 # NOTE: 1st Aug 2021 - As a result of creating this extension, IK stated this would be core functionality in preview build 3070+
 # But.... it's nowhere near as good as this one....!
 
+# todo - does not seem to work in Loan accounts ("no txns selected, or no register in focus") - to be fixed....
+
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
 # CUSTOMIZE AND COPY THIS ##############################################################################################
